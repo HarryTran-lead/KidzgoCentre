@@ -10,7 +10,6 @@ import {
   Eye,
   FilePlus2,
   FileText,
-  Filter,
   FolderOpen,
   GraduationCap,
   Loader2,
@@ -27,6 +26,7 @@ import {
 
 import { BASE_URL } from "@/constants/apiURL";
 import { toast } from "@/hooks/use-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
 import { getAllClasses } from "@/lib/api/classService";
 import {
   ClassLessonPlanSyllabus,
@@ -75,9 +75,7 @@ type DetailState =
 
 type DetailModalState = Exclude<DetailState, null>;
 
-type TeachingReportModalState =
-  | { session: ClassLessonPlanSyllabusSession; plan: LessonPlan | null; loading: boolean }
-  | null;
+
 
 const COPY: Record<
   WorkspaceScope,
@@ -109,7 +107,6 @@ const BACKEND_ROOT_URL = BASE_URL.replace(/\/api\/?$/, "");
 function cn(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(" ");
 }
-
 function normalizeDateValue(value?: string | null) {
   if (!value) return undefined;
 
@@ -192,6 +189,150 @@ function parseJsonContent(value?: string | null) {
   }
 }
 
+function asObject(value: unknown): Record<string, unknown> | null {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return null;
+}
+
+function getSuggestedNextSessionIndex(
+  templates: LessonPlanTemplate[],
+  programId: string,
+  excludeId?: string
+): number {
+  const indices = templates
+    .filter((t) => t.programId === programId && t.id !== excludeId && t.sessionIndex != null)
+    .map((t) => t.sessionIndex!);
+  if (indices.length === 0) return 1;
+  return Math.max(...indices) + 1;
+}
+
+function pickStringValue(
+  obj: Record<string, unknown> | null,
+  keys: string[]
+): string {
+  if (!obj) return "";
+  for (const key of keys) {
+const v = obj[key];
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  return "";
+}
+
+function linesToTextarea(value: unknown): string {
+  if (Array.isArray(value)) return value.filter((v) => typeof v === "string").join("\n");
+  if (typeof value === "string") return value;
+  return "";
+}
+
+function textareaToLines(value: string): string[] {
+  return value
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function removeEmptyDeep(obj: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value === null || value === undefined || value === "") continue;
+    if (Array.isArray(value) && value.length === 0) continue;
+    if (typeof value === "object" && !Array.isArray(value)) {
+      const cleaned = removeEmptyDeep(value as Record<string, unknown>);
+      if (Object.keys(cleaned).length > 0) result[key] = cleaned;
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
+interface TemplateActivityDraft {
+  time: string;
+  book: string;
+  skills: string;
+  classwork: string;
+  requiredMaterials: string;
+  homeworkRequiredMaterials: string;
+  extra: string;
+}
+
+function createEmptyTemplateActivity(): TemplateActivityDraft {
+  return {
+    time: "",
+    book: "",
+    skills: "",
+    classwork: "",
+    requiredMaterials: "",
+    homeworkRequiredMaterials: "",
+    extra: "",
+  };
+}
+
+function isActivityDraftEmpty(draft: TemplateActivityDraft): boolean {
+  return Object.values(draft).every((v) => !v.trim());
+}
+
+type TemplateActivityPresetKey = "warmup" | "reading" | "speaking" | "writing" | "listening" | "review";
+
+const TEMPLATE_ACTIVITY_PRESETS: { key: TemplateActivityPresetKey; label: string }[] = [
+  { key: "warmup", label: "Warm Up" },
+  { key: "reading", label: "Reading" },
+  { key: "speaking", label: "Speaking" },
+  { key: "writing", label: "Writing" },
+  { key: "listening", label: "Listening" },
+  { key: "review", label: "Review" },
+];
+
+function createPresetTemplateActivity(preset: TemplateActivityPresetKey): TemplateActivityDraft {
+  const base = createEmptyTemplateActivity();
+  switch (preset) {
+    case "warmup":
+      return { ...base, time: "5 mins", skills: "Warm Up", classwork: "WARM UP\nHomework Correction" };
+    case "reading":
+      return { ...base, time: "15 mins", skills: "Reading" };
+    case "speaking":
+      return { ...base, time: "15 mins", skills: "Speaking" };
+    case "writing":
+      return { ...base, time: "15 mins", skills: "Writing" };
+    case "listening":
+      return { ...base, time: "15 mins", skills: "Listening" };
+    case "review":
+      return { ...base, time: "10 mins", skills: "Review" };
+    default:
+      return base;
+  }
+}
+
+function activityDraftsFromUnknown(value: unknown): TemplateActivityDraft[] {
+  if (!Array.isArray(value) || value.length === 0) return [createEmptyTemplateActivity()];
+  return value.map((item) => {
+if (typeof item !== "object" || !item) return createEmptyTemplateActivity();
+    const obj = item as Record<string, unknown>;
+    return {
+      time: typeof obj.time === "string" ? obj.time : "",
+      book: typeof obj.book === "string" ? obj.book : "",
+      skills: typeof obj.skills === "string" ? obj.skills : "",
+      classwork: typeof obj.classwork === "string" ? obj.classwork : "",
+      requiredMaterials: typeof obj.requiredMaterials === "string" ? obj.requiredMaterials : "",
+      homeworkRequiredMaterials: typeof obj.homeworkRequiredMaterials === "string" ? obj.homeworkRequiredMaterials : "",
+      extra: typeof obj.extra === "string" ? obj.extra : "",
+    };
+  });
+}
+
+function stringifyPrettyJson(value: unknown): string {
+  if (!value || (typeof value === "object" && Object.keys(value as object).length === 0)) return "";
+  return JSON.stringify(value, null, 2);
+}
+
+function linesFromUnknown(value: unknown): string[] {
+  if (Array.isArray(value)) return value.filter((v) => typeof v === "string" && v.trim()).map(String);
+  if (typeof value === "string" && value.trim()) return value.split("\n").filter(Boolean);
+  return [];
+}
+
 function getSessionDisplay(session: Pick<ClassLessonPlanSyllabusSession, "sessionIndex" | "sessionDate">) {
   return `Buổi ${session.sessionIndex}${normalizeDateValue(session.sessionDate) ? ` • ${formatDate(session.sessionDate, true)}` : ""}`;
 }
@@ -247,7 +388,7 @@ function getPlanStats(syllabus: ClassLessonPlanSyllabus | null) {
     },
     {
       title: "Đã có lesson plan",
-      value: String(sessions.filter((item) => item.lessonPlanId).length),
+value: String(sessions.filter((item) => item.lessonPlanId).length),
       subtitle: "Session đã được tạo bản ghi",
       icon: FileText,
       color: "from-emerald-500 to-teal-500",
@@ -290,7 +431,6 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
   const [planModal, setPlanModal] = useState<PlanModalState>(null);
   const [detailState, setDetailState] = useState<DetailState>(null);
   const [showImportModal, setShowImportModal] = useState(false);
-  const [teachingReportModal, setTeachingReportModal] = useState<TeachingReportModalState>(null);
 
   const scopeCopy = COPY[scope];
   const isTeacher = scope === "teacher";
@@ -327,7 +467,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
       const response = await getTeacherClasses({ pageNumber: 1, pageSize: 100 });
       const source = Array.isArray(response?.data?.classes?.items)
         ? response.data.classes.items
-        : Array.isArray((response as any)?.data?.classes)
+: Array.isArray((response as any)?.data?.classes)
           ? (response as any).data.classes
           : [];
 
@@ -429,7 +569,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
           setClassSyllabus(null);
           toast({
             title: "Không thể tải syllabus",
-            description: error?.message || "Vui lòng thử lại sau.",
+description: error?.message || "Vui lòng thử lại sau.",
             variant: "destructive",
           });
         })
@@ -531,7 +671,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
   }, [classSyllabus, planStatusFilter, searchQuery]);
 
   const stats = useMemo(() => {
-    return activeTab === "templates" && templatesAvailable
+return activeTab === "templates" && templatesAvailable
       ? getTemplateStats(templates)
       : getPlanStats(classSyllabus);
   }, [activeTab, classSyllabus, templates, templatesAvailable]);
@@ -626,7 +766,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
     let attachment = payload.attachment || null;
 
     if (file) {
-      const uploaded = await uploadLessonPlanFile("template", file);
+const uploaded = await uploadLessonPlanFile("template", file);
       attachment = uploaded.url;
     }
 
@@ -714,8 +854,8 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
     const response =
       planModal?.mode === "edit"
         ? await updateLessonPlan(planModal.plan.id, {
-            templateId: payload.templateId ?? null,
-            plannedContent: payload.plannedContent ?? null,
+            templateId: isTeacher ? (planModal.plan.templateId ?? null) : (payload.templateId ?? null),
+plannedContent: isTeacher ? (planModal.plan.plannedContent ?? null) : (payload.plannedContent ?? null),
             actualContent: payload.actualContent ?? null,
             actualHomework: payload.actualHomework ?? null,
             teacherNotes: payload.teacherNotes ?? null,
@@ -723,8 +863,8 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
         : await createLessonPlan({
             classId: classSyllabus.classId,
             sessionId: payload.session.sessionId,
-            templateId: payload.templateId ?? null,
-            plannedContent: payload.plannedContent ?? null,
+            templateId: isTeacher ? (payload.session.templateId ?? null) : (payload.templateId ?? null),
+            plannedContent: isTeacher ? null : (payload.plannedContent ?? null),
             actualContent: payload.actualContent ?? null,
             actualHomework: payload.actualHomework ?? null,
             teacherNotes: payload.teacherNotes ?? null,
@@ -745,88 +885,6 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
 
     if (templatesAvailable) {
       await loadTemplates();
-    }
-  };
-
-  const openTeachingReport = async (session: ClassLessonPlanSyllabusSession) => {
-    if (!session.lessonPlanId) {
-      // Session chưa có lesson plan -> tạo mới trước, rồi mới mở modal report
-      if (!classSyllabus?.classId) return;
-      setTeachingReportModal({ session, plan: null, loading: true });
-      try {
-        const createResult = await createLessonPlan({
-          classId: classSyllabus.classId,
-          sessionId: session.sessionId,
-          templateId: session.templateId || null,
-          plannedContent: null,
-          actualContent: null,
-          actualHomework: null,
-          teacherNotes: null,
-        });
-        if (!createResult.isSuccess || !createResult.data) {
-          toast({
-            title: "Không thể tạo lesson plan",
-            description: extractMessage(createResult, "Vui lòng thử lại sau."),
-            variant: "destructive",
-          });
-          setTeachingReportModal(null);
-          return;
-        }
-        setTeachingReportModal({ session, plan: createResult.data, loading: false });
-        // Reload syllabus để cập nhật lessonPlanId
-        await loadClassSyllabus(classSyllabus.classId);
-      } catch (err: any) {
-        toast({
-          title: "Lỗi",
-          description: err?.message || "Không thể tạo lesson plan.",
-          variant: "destructive",
-        });
-        setTeachingReportModal(null);
-      }
-      return;
-    }
-
-    // Session đã có lesson plan -> load chi tiết rồi mở modal report
-    setTeachingReportModal({ session, plan: null, loading: true });
-    const response = await getLessonPlanById(session.lessonPlanId);
-    if (!response.isSuccess || !response.data) {
-      toast({
-        title: "Không thể tải lesson plan",
-        description: extractMessage(response, "Vui lòng thử lại sau."),
-        variant: "destructive",
-      });
-      setTeachingReportModal(null);
-      return;
-    }
-    setTeachingReportModal({ session, plan: response.data, loading: false });
-  };
-
-  const handleTeachingReportSubmit = async (payload: {
-    lessonPlanId: string;
-    actualContent: string | null;
-    actualHomework: string | null;
-    teacherNotes: string | null;
-  }) => {
-    const response = await updateLessonPlan(payload.lessonPlanId, {
-      actualContent: payload.actualContent,
-      actualHomework: payload.actualHomework,
-      teacherNotes: payload.teacherNotes,
-    });
-
-    if (!response.isSuccess) {
-      throw new Error(extractMessage(response, "Không thể lưu báo cáo buổi dạy."));
-    }
-
-    toast({
-      title: "Đã lưu báo cáo buổi dạy",
-      description: "Nội dung dạy thực tế, bài tập và ghi chú đã được cập nhật.",
-      variant: "success",
-    });
-
-    setTeachingReportModal(null);
-
-    if (classSyllabus?.classId) {
-      await loadClassSyllabus(classSyllabus.classId);
     }
   };
 
@@ -866,7 +924,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
               <>
                 <button
                   type="button"
-                  onClick={() => setShowImportModal(true)}
+onClick={() => setShowImportModal(true)}
                   className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100 cursor-pointer"
                 >
                   <Upload size={16} />
@@ -909,91 +967,36 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
         </div>
       </div>
 
-      <div className={cn("grid gap-4 md:grid-cols-2 lg:grid-cols-4 transition-all duration-500", isLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3")}>
+      {templatesAvailable ? (
+        <div className={cn("inline-flex rounded-2xl border border-red-200 bg-white p-1 transition-all duration-500", isLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3")}>
+          <TabButton active={activeTab === "templates"} label="Template" onClick={() => setActiveTab("templates")} />
+          <TabButton active={activeTab === "plans"} label="Syllabus lớp" onClick={() => setActiveTab("plans")} />
+        </div>
+      ) : null}
+<div className={cn("grid gap-4 md:grid-cols-2 lg:grid-cols-4 transition-all duration-500", isLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3")}>
         {stats.map((item) => (
           <StatCard key={item.title} {...item} />
         ))}
       </div>
 
-      <div className={cn("rounded-2xl border border-red-200 bg-white p-5 shadow-sm transition-all duration-500", isLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3")}>
-        <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <input
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder={activeTab === "templates" ? "Tìm theo tên template, program, source file..." : "Tìm theo buổi học, giáo viên, nội dung..."}
-              className="w-full rounded-xl border border-red-200 bg-white py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-red-100"
-            />
-          </div>
+      <FilterBar
+        activeTab={activeTab}
+        templatesAvailable={templatesAvailable}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        templateStatusFilter={templateStatusFilter}
+        onTemplateStatusFilterChange={setTemplateStatusFilter}
+        planStatusFilter={planStatusFilter}
+        onPlanStatusFilterChange={setPlanStatusFilter}
+        selectedProgramId={selectedProgramId}
+        onProgramChange={setSelectedProgramId}
+        selectedClassId={selectedClassId}
+        onClassChange={setSelectedClassId}
+        programOptions={programOptions}
+        classOptions={classOptions}
+      />
 
-          <div className="flex flex-wrap items-center gap-2">
-            {templatesAvailable ? (
-              <div className="inline-flex rounded-2xl border border-red-200 bg-white/70 p-1">
-                <TabButton active={activeTab === "templates"} label="Template" onClick={() => setActiveTab("templates")} />
-                <TabButton active={activeTab === "plans"} label="Syllabus lớp" onClick={() => setActiveTab("plans")} />
-              </div>
-            ) : null}
-
-            <div className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-3 py-2 text-sm text-gray-700">
-              <Filter size={16} className="text-gray-500" />
-              {activeTab === "templates" && templatesAvailable ? (
-                <>
-                  <select
-                    value={templateStatusFilter}
-                    onChange={(event) => setTemplateStatusFilter(event.target.value as TemplateStatusFilter)}
-                    className="bg-transparent text-sm focus:outline-none"
-                  >
-                    <option value="all">Tất cả trạng thái</option>
-                    <option value="active">Đang hoạt động</option>
-                    <option value="inactive">Tạm ẩn</option>
-                    <option value="withAttachment">Có attachment</option>
-                  </select>
-                  <select
-                    value={selectedProgramId}
-                    onChange={(event) => setSelectedProgramId(event.target.value)}
-                    className="border-l border-red-100 bg-transparent pl-2 text-sm focus:outline-none"
-                  >
-                    <option value="all">Tất cả program</option>
-                    {programOptions.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.label}
-                      </option>
-                    ))}
-                  </select>
-                </>
-              ) : (
-                <>
-                  <select
-                    value={planStatusFilter}
-                    onChange={(event) => setPlanStatusFilter(event.target.value as PlanStatusFilter)}
-                    className="bg-transparent text-sm focus:outline-none"
-                  >
-                    <option value="all">Tất cả session</option>
-                    <option value="editable">Có thể chỉnh sửa</option>
-                    <option value="hasPlan">Đã có lesson plan</option>
-                    <option value="missingPlan">Chưa có lesson plan</option>
-                    <option value="withTemplate">Đã map template</option>
-                    <option value="reported">Đã báo cáo buổi dạy</option>
-                    <option value="notReported">Chưa báo cáo buổi dạy</option>
-                  </select>
-                  <select
-                    value={selectedClassId}
-                    onChange={(event) => setSelectedClassId(event.target.value)}
-                    className="border-l border-red-100 bg-transparent pl-2 text-sm focus:outline-none"
-                  >
-                    {classOptions.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.label}
-                      </option>
-                    ))}
-                  </select>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-
+      <div className={cn("rounded-2xl border border-red-200 bg-white shadow-sm transition-all duration-500", isLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3")}>
         {loading ? (
           <div className="flex items-center justify-center py-16 text-gray-600">
             <Loader2 size={20} className="mr-3 animate-spin text-red-600" />
@@ -1016,7 +1019,6 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
             onEdit={openPlanEditor}
             onOpenPlanDetail={(lessonPlanId) => openPlanDetail(lessonPlanId)}
             onOpenTemplateDetail={templatesAvailable ? openTemplateDetail : undefined}
-            onOpenTeachingReport={openTeachingReport}
           />
         )}
       </div>
@@ -1045,7 +1047,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
           scope={scope}
           classSyllabus={classSyllabus}
           session={planModal.session}
-          initialValue={planModal.mode === "edit" ? planModal.plan : null}
+initialValue={planModal.mode === "edit" ? planModal.plan : null}
           templateOptions={templateOptions}
           onClose={() => setPlanModal(null)}
           onSubmit={handlePlanSubmit}
@@ -1064,17 +1066,116 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
           onOpenAttachment={openAttachment}
         />
       ) : null}
+    </div>
+  );
+}
 
-      {teachingReportModal ? (
-        <TeachingReportModal
-          session={teachingReportModal.session}
-          plan={teachingReportModal.plan}
-          loading={teachingReportModal.loading}
-          classSyllabus={classSyllabus}
-          onClose={() => setTeachingReportModal(null)}
-          onSubmit={handleTeachingReportSubmit}
-        />
-      ) : null}
+function FilterBar({
+  templatesAvailable,
+  searchQuery,
+  onSearchChange,
+  templateStatusFilter,
+  onTemplateStatusFilterChange,
+  planStatusFilter,
+  onPlanStatusFilterChange,
+  selectedProgramId,
+  onProgramChange,
+  selectedClassId,
+  onClassChange,
+  programOptions,
+  classOptions,
+  activeTab,
+}: {
+  templatesAvailable: boolean;
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
+  templateStatusFilter: TemplateStatusFilter;
+  onTemplateStatusFilterChange: (filter: TemplateStatusFilter) => void;
+  planStatusFilter: PlanStatusFilter;
+  onPlanStatusFilterChange: (filter: PlanStatusFilter) => void;
+  selectedProgramId: string;
+  onProgramChange: (id: string) => void;
+  selectedClassId: string;
+  onClassChange: (id: string) => void;
+  programOptions: Option[];
+  classOptions: Option[];
+  activeTab: ActiveTab;
+}) {
+  return (
+    <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5 shadow-sm">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+          <input
+            value={searchQuery}
+            onChange={(event) => onSearchChange(event.target.value)}
+            placeholder={activeTab === "templates" ? "Tìm theo tên template, program..." : "Tìm theo buổi học, giáo viên..."}
+            className="w-full rounded-xl border border-red-200 bg-white py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-red-100"
+          />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {activeTab === "templates" && templatesAvailable ? (
+            <>
+              <Select value={templateStatusFilter} onValueChange={(value) => onTemplateStatusFilterChange(value as TemplateStatusFilter)}>
+                <SelectTrigger className="w-auto min-w-[150px] rounded-xl h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả trạng thái</SelectItem>
+                  <SelectItem value="active">Đang hoạt động</SelectItem>
+                  <SelectItem value="inactive">Tạm ẩn</SelectItem>
+<SelectItem value="withAttachment">Có attachment</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={selectedProgramId} onValueChange={onProgramChange}>
+                <SelectTrigger className="w-auto min-w-[150px] rounded-xl h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả program</SelectItem>
+                  {programOptions.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
+          ) : (
+            <>
+              <Select value={planStatusFilter} onValueChange={(value) => onPlanStatusFilterChange(value as PlanStatusFilter)}>
+                <SelectTrigger className="w-auto min-w-[170px] rounded-xl h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả session</SelectItem>
+                  <SelectItem value="editable">Có thể chỉnh sửa</SelectItem>
+                  <SelectItem value="hasPlan">Đã có lesson plan</SelectItem>
+                  <SelectItem value="missingPlan">Chưa có lesson plan</SelectItem>
+                  <SelectItem value="withTemplate">Đã map template</SelectItem>
+                  <SelectItem value="reported">Đã báo cáo buổi dạy</SelectItem>
+                  <SelectItem value="notReported">Chưa báo cáo buổi dạy</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={selectedClassId} onValueChange={onClassChange}>
+                <SelectTrigger className="w-auto min-w-[170px] rounded-xl h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {classOptions.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -1095,70 +1196,76 @@ function TemplateTable({
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full">
-        <thead className="border-b border-red-200 bg-red-50/70">
-          <tr>
-            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Template</th>
-            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Program</th>
-            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Session</th>
-            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Source</th>
-            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Trạng thái</th>
-            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Thao tác</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-red-100">
-          {items.map((item) => (
-            <tr key={item.id} className="hover:bg-red-50/40">
-              <td className="px-4 py-4">
-                <div className="font-semibold text-gray-900">{item.title}</div>
-                <div className="mt-1 text-sm text-gray-500">Level {item.level || "-"}</div>
-               </td>
-              <td className="px-4 py-4 text-sm text-gray-700">
-                <div>{item.programName || item.programId}</div>
-                <div className="mt-1 text-xs text-gray-500">{item.createdByName || "Không rõ người tạo"}</div>
-               </td>
-              <td className="px-4 py-4 text-sm text-gray-700">Buổi {item.sessionIndex || "-"}</td>
-              <td className="px-4 py-4 text-sm text-gray-700">
-                <div>{item.sourceFileName || "Tạo thủ công"}</div>
-                {item.attachment ? (
-                  <button
-                    type="button"
-                    onClick={() => onOpenAttachment(item.attachment)}
-                    className="mt-2 inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 cursor-pointer"
-                  >
-                    <Paperclip size={11} />
-                    Mở file
-                  </button>
-                ) : null}
-               </td>
-              <td className="px-4 py-4">
-                <div className="flex flex-wrap gap-2">
-                  <StatusBadge kind={getTemplateStatus(item) === "active" ? "success" : "muted"}>
-                    {getTemplateStatus(item) === "active" ? "Đang hoạt động" : "Tạm ẩn"}
-                  </StatusBadge>
-                  {item.attachment ? <StatusBadge kind="info">Có attachment</StatusBadge> : null}
-                  {(item.usedCount || 0) > 0 ? <StatusBadge kind="warning">Dùng {item.usedCount} lần</StatusBadge> : null}
-                </div>
-               </td>
-              <td className="px-4 py-4">
-                <div className="flex items-center gap-2">
-                  <IconButton label="Xem chi tiết" onClick={() => onOpenDetail(item)}>
-                    <Eye size={15} />
-                  </IconButton>
-                  <IconButton label="Chỉnh sửa" variant="warning" onClick={() => onEdit(item)}>
-                    <Pencil size={15} />
-                  </IconButton>
-                </div>
-               </td>
-             </tr>
-          ))}
-        </tbody>
-      </table>
+    <div>
+      <div className="border-b border-red-100 bg-gradient-to-r from-red-50/70 to-white px-5 py-4">
+        <h3 className="text-sm font-semibold text-gray-700">Danh sách {items.length} template</h3>
+      </div>
+      <div className="overflow-x-auto">
+<table className="w-full">
+          <thead className="border-b border-red-200 bg-gradient-to-r from-red-50 to-red-50/50">
+            <tr>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Template</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Program</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Session</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Source</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Trạng thái</th>
+              <th className="px-6 py-3 text-right text-sm font-semibold text-gray-700">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-red-100">
+            {items.map((item) => (
+              <tr key={item.id} className="transition-colors hover:bg-red-50/60">
+                <td className="px-6 py-4">
+                  <div className="font-semibold text-gray-900">{item.title}</div>
+                  <div className="mt-1 text-sm text-gray-500">Level {item.level || "-"}</div>
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-700">
+                  <div>{item.programName || item.programId}</div>
+                  <div className="mt-1 text-xs text-gray-500">{item.createdByName || "Không rõ người tạo"}</div>
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-700">Buổi {item.sessionIndex || "-"}</td>
+                <td className="px-6 py-4 text-sm text-gray-700">
+                  <div>{item.sourceFileName || "Tạo thủ công"}</div>
+                  {item.attachment ? (
+                    <button
+                      type="button"
+                      onClick={() => onOpenAttachment(item.attachment)}
+                      className="mt-2 inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 cursor-pointer"
+                    >
+                      <Paperclip size={11} />
+                      Mở file
+                    </button>
+                  ) : null}
+                </td>
+                <td className="px-6 py-4">
+                  <div className="flex flex-wrap gap-2">
+                    <StatusBadge kind={getTemplateStatus(item) === "active" ? "success" : "muted"}>
+                      {getTemplateStatus(item) === "active" ? "Đang hoạt động" : "Tạm ẩn"}
+                    </StatusBadge>
+                    {item.attachment ? <StatusBadge kind="info">Có attachment</StatusBadge> : null}
+                    {(item.usedCount || 0) > 0 ? <StatusBadge kind="warning">Dùng {item.usedCount} lần</StatusBadge> : null}
+                  </div>
+                </td>
+                <td className="px-6 py-4 text-right">
+                  <div className="flex justify-end items-center gap-2">
+<IconButton label="Xem chi tiết" onClick={() => onOpenDetail(item)}>
+                      <Eye size={15} />
+                    </IconButton>
+                    <IconButton label="Chỉnh sửa" variant="warning" onClick={() => onEdit(item)}>
+                      <Pencil size={15} />
+                    </IconButton>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
 
+// Modern SyllabusView Component
 function SyllabusView({
   scope,
   syllabus,
@@ -1168,7 +1275,6 @@ function SyllabusView({
   onEdit,
   onOpenPlanDetail,
   onOpenTemplateDetail,
-  onOpenTeachingReport,
 }: {
   scope: WorkspaceScope;
   syllabus: ClassLessonPlanSyllabus | null;
@@ -1178,7 +1284,6 @@ function SyllabusView({
   onEdit: (session: ClassLessonPlanSyllabusSession) => void;
   onOpenPlanDetail: (lessonPlanId: string) => void;
   onOpenTemplateDetail?: (templateId: string) => void;
-  onOpenTeachingReport: (session: ClassLessonPlanSyllabusSession) => void;
 }) {
   if (!syllabus) {
     return <EmptyState title="Chưa có syllabus" subtitle="Chọn một lớp để tải read model syllabus từ backend." />;
@@ -1189,99 +1294,185 @@ function SyllabusView({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-2xl border border-red-100 bg-gradient-to-r from-red-50/70 to-white p-4">
-        <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <div className="text-lg font-semibold text-gray-900">
-              {syllabus.classCode || "Lớp chưa có mã"} {syllabus.classTitle ? `• ${syllabus.classTitle}` : ""}
+    <div className="space-y-5">
+      {/* Modern Class Header Card */}
+      <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-red-600 via-red-600 to-red-700 p-6 shadow-xl transition-all duration-300 hover:shadow-2xl">
+        <div className="absolute -right-20 -top-20 h-40 w-40 rounded-full bg-white/10 blur-3xl" />
+        <div className="absolute -bottom-20 -left-20 h-40 w-40 rounded-full bg-white/5 blur-3xl" />
+        
+        <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="rounded-xl bg-white/20 p-2 backdrop-blur-sm">
+                <GraduationCap size={20} className="text-white" />
+              </div>
+              <span className="text-sm font-medium text-red-100">Syllabus lớp học</span>
             </div>
-            <div className="mt-1 text-sm text-gray-600">
-              {scope === "teacher" ? "Syllabus theo lớp của bạn" : "Syllabus theo lớp"} {syllabus.programName ? `• ${syllabus.programName}` : ""}
+            <div>
+              <h3 className="text-2xl font-bold text-white">
+                {syllabus.classCode || "Lớp chưa có mã"}
+              </h3>
+              {syllabus.classTitle && (
+                <p className="mt-1 text-base text-red-100">{syllabus.classTitle}</p>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2 pt-2">
+              {syllabus.programName && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-xs font-medium text-white backdrop-blur-sm">
+                  <BookOpenCheck size={12} />
+                  {syllabus.programName}
+                </span>
+              )}
+<span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-xs font-medium text-white backdrop-blur-sm">
+                <CalendarDays size={12} />
+                {items.length} buổi học
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-xs font-medium text-white backdrop-blur-sm">
+                <FileText size={12} />
+                {items.filter((s) => s.lessonPlanId).length}/{items.length} có lesson plan
+              </span>
             </div>
           </div>
+          
           <div className="flex flex-wrap gap-2">
-            <StatusBadge kind="info">{items.length} session hiển thị</StatusBadge>
-            {syllabus.programName ? <StatusBadge kind="muted">{syllabus.programName}</StatusBadge> : null}
+            <div className="rounded-xl bg-white/15 px-4 py-2 backdrop-blur-sm">
+              <div className="text-xs font-medium text-red-100">Quyền truy cập</div>
+              <div className="text-sm font-semibold text-white">
+                {scope === "teacher" ? "Giáo viên" : "Quản lý"}
+              </div>
+            </div>
           </div>
         </div>
+
         {syllabus.syllabusMetadata ? (
-          <div className="mt-4 rounded-xl border border-red-100 bg-white p-4">
-            <div className="mb-2 text-sm font-semibold text-red-600">Metadata chung của syllabus</div>
-            <StructuredContent value={syllabus.syllabusMetadata} placeholder="Chưa có metadata." />
-          </div>
+          <details className="relative mt-5 group">
+            <summary className="cursor-pointer rounded-xl bg-white/10 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-white/20">
+              📋 Xem thông tin chung của syllabus
+            </summary>
+            <div className="mt-3 rounded-xl bg-white/10 p-4 backdrop-blur-sm">
+              <StructuredContent value={syllabus.syllabusMetadata} placeholder="Chưa có metadata." />
+            </div>
+          </details>
         ) : null}
       </div>
 
-      <div className="grid gap-4">
+      {/* Session Cards Grid */}
+      <div className="grid gap-5">
         {items.map((session) => {
           const linkedTemplate = session.templateId ? templateMap.get(session.templateId) : undefined;
-          const status = getPlanSummaryStatus(session);
           const hasReport = Boolean(session.actualContent);
+          const isEditable = session.canEdit;
+          const hasPlan = Boolean(session.lessonPlanId);
 
           return (
-            <div key={session.sessionId} className={cn("rounded-2xl border p-5 shadow-sm", hasReport ? "border-emerald-200 bg-emerald-50/30" : "border-red-100 bg-white")}>
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className="text-lg font-semibold text-gray-900">{getSessionDisplay(session)}</div>
-                    {session.canEdit ? <StatusBadge kind="success">Có thể sửa</StatusBadge> : <StatusBadge kind="muted">Chỉ xem</StatusBadge>}
-                    {session.templateId ? <StatusBadge kind="info">Đã map template</StatusBadge> : <StatusBadge kind="warning">Chưa map template</StatusBadge>}
-                    {status === "missingPlan" ? <StatusBadge kind="warning">Chưa có lesson plan</StatusBadge> : <StatusBadge kind="success">Đã có lesson plan</StatusBadge>}
-                    {hasReport ? (
-                      <StatusBadge kind="success">
-                        <span className="flex items-center gap-1"><ClipboardPen size={12} /> Đã báo cáo</span>
-                      </StatusBadge>
-                    ) : session.lessonPlanId ? (
-                      <StatusBadge kind="warning">Chưa báo cáo</StatusBadge>
-                    ) : null}
+            <div
+              key={session.sessionId}
+              className={cn(
+                "group rounded-2xl border transition-all duration-300 hover:shadow-lg",
+                hasReport
+                  ? "border-emerald-200 bg-gradient-to-br from-emerald-50/50 to-white"
+                  : "border-red-100 bg-white hover:border-red-200"
+              )}
+            >
+              {/* Session Header */}
+              <div className="flex flex-col gap-4 border-b border-gray-100 px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-red-500 to-red-600 shadow-md">
+                    <span className="text-lg font-bold text-white">{session.sessionIndex}</span>
                   </div>
-                  <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm text-gray-600">
-                    <span>Planned teacher: {session.plannedTeacherName || "-"}</span>
-                    <span>Actual teacher: {session.actualTeacherName || "-"}</span>
+                  
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-900">
+Buổi {session.sessionIndex}
+                    </h4>
+                    {normalizeDateValue(session.sessionDate) && (
+                      <p className="text-sm text-gray-500">
+                        {formatDate(session.sessionDate, true)}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5">
+                    {isEditable && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                        <Pencil size={11} />
+                        Có thể sửa
+                      </span>
+                    )}
+                    {hasPlan && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-700">
+                        <FileText size={11} />
+                        Có lesson plan
+                      </span>
+                    )}
+                    {session.templateId && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2.5 py-1 text-xs font-medium text-purple-700">
+                        <FolderOpen size={11} />
+                        Có template
+                      </span>
+                    )}
+                    {hasReport && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                        <ClipboardPen size={11} />
+                        Đã báo cáo
+                      </span>
+                    )}
+                    {!hasReport && hasPlan && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700">
+                        <Clock3 size={11} />
+                        Chưa báo cáo
+                      </span>
+                    )}
                   </div>
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  {session.templateId && onOpenTemplateDetail ? (
+                  {session.templateId && onOpenTemplateDetail && (
                     <button
                       type="button"
                       onClick={() => onOpenTemplateDetail(session.templateId!)}
-                      className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 cursor-pointer"
+                      className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 transition-all hover:border-purple-200 hover:bg-purple-50 hover:text-purple-700"
                     >
-                      <FolderOpen size={15} />
+                      <FolderOpen size="16" />
                       Xem template
                     </button>
-                  ) : null}
-                  {session.lessonPlanId ? (
+                  )}
+                  
+                  {hasPlan ? (
                     <button
                       type="button"
                       onClick={() => onOpenPlanDetail(session.lessonPlanId!)}
-                      className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-red-50 cursor-pointer"
+className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
                     >
-                      <Eye size={15} />
+                      <Eye size="16" />
                       Chi tiết
                     </button>
                   ) : null}
                   {session.canEdit ? (
-                    <button
-                      type="button"
-                      onClick={() => (session.lessonPlanId ? onEdit(session) : onCreate(session))}
-                      className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-3 py-2 text-sm font-semibold text-white hover:shadow-lg cursor-pointer"
-                    >
-                      {session.lessonPlanId ? <Pencil size={15} /> : <FilePlus2 size={15} />}
-                      {session.lessonPlanId ? "Sửa lesson plan" : "Tạo lesson plan"}
-                    </button>
-                  ) : null}
-                  {session.canEdit ? (
-                    <button
-                      type="button"
-                      onClick={() => onOpenTeachingReport(session)}
-                      className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 px-3 py-2 text-sm font-semibold text-white hover:shadow-lg cursor-pointer"
-                    >
-                      <ClipboardPen size={15} />
-                      Báo cáo buổi dạy
-                    </button>
+                    scope === "teacher" ? (
+                      <button
+                        type="button"
+                        onClick={() => (session.lessonPlanId ? onEdit(session) : onCreate(session))}
+                        className={cn(
+                          "inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-white hover:shadow-lg cursor-pointer",
+                          hasReport
+                            ? "bg-gradient-to-r from-emerald-600 to-emerald-700"
+                            : "bg-gradient-to-r from-red-600 to-red-700"
+                        )}
+                      >
+                        <ClipboardPen size={15} />
+                        {hasReport ? "Cập nhật giáo án" : "Điền giáo án"}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => (session.lessonPlanId ? onEdit(session) : onCreate(session))}
+                        className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-3 py-2 text-sm font-semibold text-white hover:shadow-lg cursor-pointer"
+                      >
+                        {session.lessonPlanId ? <Pencil size={15} /> : <FilePlus2 size={15} />}
+                        {session.lessonPlanId ? "Sửa lesson plan" : "Tạo lesson plan"}
+                      </button>
+                    )
                   ) : null}
                   {!session.canEdit && (session.actualContent || session.actualHomework || session.teacherNotes) ? (
                     <span className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
@@ -1292,35 +1483,106 @@ function SyllabusView({
                 </div>
               </div>
 
-              <div className="mt-5 grid gap-4 xl:grid-cols-2">
-                <ContentPanel
-                  title={session.templateTitle || linkedTemplate?.title || "Template content"}
-                  subtitle="Syllabus chuẩn của session"
-                  value={session.templateSyllabusContent || linkedTemplate?.syllabusContent}
-                  accent="text-blue-700"
-                />
-                <ContentPanel
-                  title="Planned content"
-                  subtitle="Giáo án dự kiến sẽ được tạo hoặc cập nhật"
-                  value={session.plannedContent}
-                  accent="text-red-700"
-                />
-                <ContentPanel
-                  title={hasReport ? "✅ Báo cáo nội dung dạy thực tế" : "Actual content"}
-                  subtitle={hasReport ? `Giáo viên: ${session.actualTeacherName || session.plannedTeacherName || "Chưa xác định"}` : "Nội dung dạy thực tế"}
-                  value={session.actualContent}
-                  accent={hasReport ? "text-emerald-700" : "text-emerald-700"}
-                />
-                <ContentPanel
-                  title="Homework / Teacher notes"
-                  subtitle="Ghi chú sau buổi học"
-                  value={
-                    [session.actualHomework ? `Homework:\n${session.actualHomework}` : "", session.teacherNotes ? `Teacher notes:\n${session.teacherNotes}` : ""]
-                      .filter(Boolean)
-                      .join("\n\n") || null
-                  }
-                  accent="text-amber-700"
-                />
+              {/* Teacher Info */}
+              <div className="border-b border-gray-100 bg-gray-50/50 px-6 py-3">
+                <div className="flex flex-wrap gap-6 text-sm">
+                  <div className="flex items-center gap-2">
+                    <div className="rounded-lg bg-red-100 p-1">
+                      <Users size="14" className="text-red-600" />
+                    </div>
+                    <span className="text-gray-600">Giáo viên dự kiến:</span>
+                    <span className="font-medium text-gray-900">{session.plannedTeacherName || "-"}</span>
+                  </div>
+{session.actualTeacherName && (
+                    <div className="flex items-center gap-2">
+                      <div className="rounded-lg bg-emerald-100 p-1">
+                        <Users size="14" className="text-emerald-600" />
+                      </div>
+                      <span className="text-gray-600">Giáo viên thực tế:</span>
+                      <span className="font-medium text-gray-900">{session.actualTeacherName}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Content Grid */}
+              <div className="p-6">
+                <div className="grid gap-5 lg:grid-cols-2">
+                  {(session.templateTitle || linkedTemplate?.title || session.templateSyllabusContent || linkedTemplate?.syllabusContent) && (
+                    <ContentCard
+                      title="Syllabus chuẩn"
+                      subtitle={session.templateTitle || linkedTemplate?.title || "Nội dung template"}
+                      icon={<FolderOpen size="16" />}
+                      gradient="from-purple-50 to-white"
+                      borderColor="purple"
+                    >
+                      <StructuredContent 
+                        value={session.templateSyllabusContent || linkedTemplate?.syllabusContent} 
+                        placeholder="Chưa có nội dung template." 
+                      />
+                    </ContentCard>
+                  )}
+
+                  <ContentCard
+                    title="Giáo án dự kiến"
+                    subtitle="Lesson plan sẽ được tạo hoặc cập nhật"
+                    icon={<FileText size="16" />}
+                    gradient="from-red-50 to-white"
+                    borderColor="red"
+                  >
+                    <StructuredContent 
+                      value={session.plannedContent} 
+                      placeholder="Chưa có nội dung dự kiến." 
+                    />
+                  </ContentCard>
+
+                  <ContentCard
+                    title={hasReport ? "Báo cáo buổi dạy" : "Nội dung thực tế"}
+                    subtitle={
+                      hasReport && session.actualTeacherName
+                        ? `Giáo viên: ${session.actualTeacherName}`
+                        : "Nội dung đã dạy thực tế"
+                    }
+                    icon={<ClipboardPen size="16" />}
+                    gradient={hasReport ? "from-emerald-50 to-white" : "from-gray-50 to-white"}
+                    borderColor={hasReport ? "emerald" : "gray"}
+                    badge={hasReport ? { text: "Đã báo cáo", color: "emerald" } : undefined}
+                  >
+                    <StructuredContent 
+                      value={session.actualContent} 
+                      placeholder="Chưa có nội dung thực tế." 
+                    />
+                  </ContentCard>
+
+                  {(session.actualHomework || session.teacherNotes) && (
+                    <ContentCard
+title="Bài tập & Ghi chú"
+                      subtitle="Sau buổi học"
+                      icon={<Paperclip size="16" />}
+                      gradient="from-amber-50 to-white"
+                      borderColor="amber"
+                    >
+                      <div className="space-y-3">
+                        {session.actualHomework && (
+                          <div>
+                            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-amber-700">
+                              Bài tập về nhà
+                            </div>
+                            <StructuredContent value={session.actualHomework} placeholder="" />
+                          </div>
+                        )}
+                        {session.teacherNotes && (
+                          <div>
+                            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-amber-700">
+                              Ghi chú giáo viên
+                            </div>
+                            <StructuredContent value={session.teacherNotes} placeholder="" />
+                          </div>
+                        )}
+                      </div>
+                    </ContentCard>
+                  )}
+                </div>
               </div>
             </div>
           );
@@ -1330,199 +1592,75 @@ function SyllabusView({
   );
 }
 
-type TemplateActivityDraft = {
-  time: string;
-  book: string;
-  skills: string;
-  classwork: string;
-  requiredMaterials: string;
-  homeworkRequiredMaterials: string;
-  extra: string;
-};
-
-type TemplateActivityPresetKey =
-  | "warmUp"
-  | "breaktime"
-  | "goodbyeSong"
-  | "homeworkCorrection";
-
-const TEMPLATE_ACTIVITY_PRESETS: Array<{
-  key: TemplateActivityPresetKey;
-  label: string;
-}> = [
-  { key: "warmUp", label: "Warm Up" },
-  { key: "homeworkCorrection", label: "Homework correction" },
-  { key: "breaktime", label: "Breaktime" },
-  { key: "goodbyeSong", label: "Goodbye song" },
-];
-
-function createEmptyTemplateActivity(): TemplateActivityDraft {
-  return {
-    time: "",
-    book: "",
-    skills: "",
-    classwork: "",
-    requiredMaterials: "",
-    homeworkRequiredMaterials: "",
-    extra: "",
+// Content Card Component
+function ContentCard({
+  title,
+  subtitle,
+  icon,
+  children,
+  gradient,
+  borderColor,
+  badge,
+}: {
+  title: string;
+  subtitle?: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+  gradient: string;
+  borderColor: "red" | "purple" | "emerald" | "amber" | "gray";
+  badge?: { text: string; color: "emerald" | "red" | "amber" };
+}) {
+  const borderColors = {
+    red: "border-red-100 hover:border-red-200",
+    purple: "border-purple-100 hover:border-purple-200",
+    emerald: "border-emerald-100 hover:border-emerald-200",
+    amber: "border-amber-100 hover:border-amber-200",
+    gray: "border-gray-100 hover:border-gray-200",
   };
-}
 
-function createPresetTemplateActivity(preset: TemplateActivityPresetKey): TemplateActivityDraft {
-  switch (preset) {
-    case "warmUp":
-      return {
-        ...createEmptyTemplateActivity(),
-        time: "5 mins",
-        book: "Warm Up",
-      };
-    case "breaktime":
-      return {
-        ...createEmptyTemplateActivity(),
-        time: "5 mins",
-        classwork: "BREAKTIME",
-      };
-    case "goodbyeSong":
-      return {
-        ...createEmptyTemplateActivity(),
-        time: "5 mins",
-        book: "Goodbye song",
-        requiredMaterials: "Assigned by teachers",
-      };
-    case "homeworkCorrection":
-      return {
-        ...createEmptyTemplateActivity(),
-        classwork: "Homework correction",
-      };
-    default:
-      return createEmptyTemplateActivity();
-  }
-}
+  const badgeColors = {
+    emerald: "bg-emerald-100 text-emerald-700",
+    red: "bg-red-100 text-red-700",
+    amber: "bg-amber-100 text-amber-700",
+  };
 
-function isActivityDraftEmpty(activity: TemplateActivityDraft) {
-  return Object.values(activity).every((value) => !value.trim());
-}
-
-function getSuggestedNextSessionIndex(
-  templates: LessonPlanTemplate[],
-  programId?: string,
-  excludeTemplateId?: string
-) {
-  if (!programId) return 1;
-
-  const maxSessionIndex = templates
-    .filter((item) => item.programId === programId && item.id !== excludeTemplateId)
-    .reduce((maxValue, item) => Math.max(maxValue, item.sessionIndex || 0), 0);
-
-  return maxSessionIndex + 1 || 1;
-}
-
-function asObject(value: unknown): Record<string, any> {
-  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, any>) : {};
-}
-
-function pickStringValue(source: Record<string, any>, keys: string[]) {
-  for (const key of keys) {
-    const value = source[key];
-    if (typeof value === "string" && value.trim()) {
-      return value;
-    }
-  }
-
-  return "";
-}
-
-function linesFromUnknown(value: unknown) {
-  if (Array.isArray(value)) {
-    return value.map((item) => String(item ?? "").trim()).filter(Boolean);
-  }
-
-  if (typeof value === "string") {
-    return value
-      .split(/\r?\n/)
-      .map((item) => item.trim())
-      .filter(Boolean);
-  }
-
-  return [] as string[];
-}
-
-function linesToTextarea(value: unknown) {
-  return linesFromUnknown(value).join("\n");
-}
-
-function textareaToLines(value: string) {
-  return value
-    .split(/\r?\n/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function omitKnownKeys(source: Record<string, any>, keys: string[]) {
-  const clone = { ...source };
-
-  keys.forEach((key) => {
-    delete clone[key];
-  });
-
-  return clone;
-}
-
-function removeEmptyDeep(value: any): any {
-  if (Array.isArray(value)) {
-    return value
-      .map((item) => removeEmptyDeep(item))
-      .filter((item) => {
-        if (item === null || item === undefined) return false;
-        if (typeof item === "string") return item.trim().length > 0;
-        if (Array.isArray(item)) return item.length > 0;
-        if (typeof item === "object") return Object.keys(item).length > 0;
-        return true;
-      });
-  }
-
-  if (value && typeof value === "object") {
-    const result: Record<string, any> = {};
-
-    Object.entries(value).forEach(([key, item]) => {
-      const cleaned = removeEmptyDeep(item);
-
-      if (cleaned === null || cleaned === undefined) return;
-      if (typeof cleaned === "string" && !cleaned.trim()) return;
-      if (Array.isArray(cleaned) && cleaned.length === 0) return;
-      if (typeof cleaned === "object" && !Array.isArray(cleaned) && Object.keys(cleaned).length === 0) return;
-
-      result[key] = cleaned;
-    });
-
-    return result;
-  }
-
-  return value;
-}
-
-function activityDraftsFromUnknown(value: unknown) {
-  if (!Array.isArray(value) || !value.length) {
-    return [createEmptyTemplateActivity()];
-  }
-
-  return value.map((item) => {
-    const source = asObject(item);
-
-    return {
-      time: pickStringValue(source, ["time"]),
-      book: pickStringValue(source, ["book"]),
-      skills: pickStringValue(source, ["skills"]),
-      classwork: pickStringValue(source, ["classwork"]),
-      requiredMaterials: pickStringValue(source, ["requiredMaterials"]),
-      homeworkRequiredMaterials: pickStringValue(source, ["homeworkRequiredMaterials"]),
-      extra: pickStringValue(source, ["extra"]),
-    };
-  });
-}
-
-function stringifyPrettyJson(value: unknown) {
-  return JSON.stringify(value, null, 2);
+  return (
+    <div className={cn(
+      "rounded-xl border bg-gradient-to-br p-4 transition-all duration-200 hover:shadow-md",
+      borderColors[borderColor],
+      gradient
+    )}>
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className={cn(
+            "rounded-lg p-1.5",
+            borderColor === "red" && "bg-red-100 text-red-600",
+            borderColor === "purple" && "bg-purple-100 text-purple-600",
+            borderColor === "emerald" && "bg-emerald-100 text-emerald-600",
+            borderColor === "amber" && "bg-amber-100 text-amber-600",
+            borderColor === "gray" && "bg-gray-100 text-gray-600"
+          )}>
+            {icon}
+          </div>
+          <div>
+<h5 className="font-semibold text-gray-900">{title}</h5>
+            {subtitle && <p className="text-xs text-gray-500">{subtitle}</p>}
+          </div>
+        </div>
+        {badge && (
+          <span className={cn(
+            "rounded-full px-2 py-0.5 text-xs font-medium",
+            badgeColors[badge.color]
+          )}>
+            {badge.text}
+          </span>
+        )}
+      </div>
+      <div className="max-h-64 overflow-y-auto">
+        {children}
+      </div>
+    </div>
+  );
 }
 
 function TemplateFormModal({
@@ -1555,30 +1693,6 @@ function TemplateFormModal({
 }) {
   const metadataSeed = asObject(parseJsonContent(initialValue?.syllabusMetadata));
   const contentSeed = asObject(parseJsonContent(initialValue?.syllabusContent));
-  const metadataExtras = omitKnownKeys(metadataSeed, [
-    "title",
-    "sheetTitle",
-    "day",
-    "days",
-    "scheduleDays",
-    "duration",
-    "generalInformation",
-    "generalInfo",
-    "description",
-    "teachingMaterials",
-    "note",
-  ]);
-  const contentExtras = omitKnownKeys(contentSeed, [
-    "sessionIndex",
-    "title",
-    "dateLabel",
-    "teacherName",
-    "notes",
-    "homeworkLabel",
-    "homeworkMaterials",
-    "homeworkNotes",
-    "activities",
-  ]);
   const initialProgramId = initialValue?.programId || defaultProgramId || "";
   const isEdit = Boolean(initialValue);
 
@@ -1591,84 +1705,54 @@ function TemplateFormModal({
       1
   );
   const [sessionIndexTouched, setSessionIndexTouched] = useState(Boolean(initialValue));
-  const [metadataTitle, setMetadataTitle] = useState(
-    pickStringValue(metadataSeed, ["title", "sheetTitle"])
-  );
-  const [dayLabel, setDayLabel] = useState(
-    pickStringValue(metadataSeed, ["day", "days", "scheduleDays"])
-  );
+
+  // Metadata fields
+  const [dayLabel, setDayLabel] = useState(pickStringValue(metadataSeed, ["day", "days", "scheduleDays"]));
   const [durationLabel, setDurationLabel] = useState(pickStringValue(metadataSeed, ["duration"]));
   const [generalInformation, setGeneralInformation] = useState(
     pickStringValue(metadataSeed, ["generalInformation", "generalInfo", "description"])
   );
-  const [teachingMaterialsText, setTeachingMaterialsText] = useState(
-    linesToTextarea(metadataSeed.teachingMaterials)
-  );
+  const [teachingMaterialsText, setTeachingMaterialsText] = useState(linesToTextarea(metadataSeed?.teachingMaterials));
   const [sheetNote, setSheetNote] = useState(
-    pickStringValue(metadataSeed, ["note"]) || linesToTextarea(metadataSeed.note)
+    pickStringValue(metadataSeed, ["note"]) || linesToTextarea(metadataSeed?.note)
   );
-  const [sessionTitle, setSessionTitle] = useState(
-    pickStringValue(contentSeed, ["title"]) || initialValue?.title || ""
-  );
-  const [dateLabel, setDateLabel] = useState(pickStringValue(contentSeed, ["dateLabel"]));
+
+  // Content fields
   const [teacherName, setTeacherName] = useState(pickStringValue(contentSeed, ["teacherName"]));
-  const [notesText, setNotesText] = useState(linesToTextarea(contentSeed.notes));
-  const [homeworkLabel, setHomeworkLabel] = useState(
-    pickStringValue(contentSeed, ["homeworkLabel"]) || "HOMEWORK"
-  );
-  const [homeworkMaterialsText, setHomeworkMaterialsText] = useState(
-    linesToTextarea(contentSeed.homeworkMaterials)
-  );
-  const [homeworkNotesText, setHomeworkNotesText] = useState(
-    linesToTextarea(contentSeed.homeworkNotes)
-  );
+  const [homeworkLabel, setHomeworkLabel] = useState(pickStringValue(contentSeed, ["homeworkLabel"]) || "HOMEWORK");
+  const [homeworkMaterialsText, setHomeworkMaterialsText] = useState(linesToTextarea(contentSeed?.homeworkMaterials));
+const [homeworkNotesText, setHomeworkNotesText] = useState(linesToTextarea(contentSeed?.homeworkNotes));
   const [activities, setActivities] = useState<TemplateActivityDraft[]>(
-    activityDraftsFromUnknown(contentSeed.activities)
+    activityDraftsFromUnknown(contentSeed?.activities)
   );
-  const [useAdvancedJson, setUseAdvancedJson] = useState(false);
-  const [advancedMetadata, setAdvancedMetadata] = useState(initialValue?.syllabusMetadata || "");
-  const [advancedContent, setAdvancedContent] = useState(initialValue?.syllabusContent || "");
+
+  // File/meta
   const [sourceFileName, setSourceFileName] = useState(initialValue?.sourceFileName || "");
   const [attachment, setAttachment] = useState(initialValue?.attachment || "");
   const [isActive, setIsActive] = useState(initialValue?.isActive ?? true);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
   const suggestedNextSessionIndex = useMemo(
     () => getSuggestedNextSessionIndex(existingTemplates, programId, initialValue?.id),
     [existingTemplates, initialValue?.id, programId]
   );
-  const reusableTemplates = useMemo(() => {
-    return existingTemplates
-      .filter((item) => item.programId === programId && item.id !== initialValue?.id)
-      .sort((left, right) => (right.sessionIndex || 0) - (left.sessionIndex || 0));
-  }, [existingTemplates, initialValue?.id, programId]);
-  const referenceTemplate = useMemo(() => {
-    if (!reusableTemplates.length) return null;
-
-    const previousTemplate = reusableTemplates.find((item) => (item.sessionIndex || 0) < sessionIndex);
-    return previousTemplate || reusableTemplates[0];
-  }, [reusableTemplates, sessionIndex]);
 
   useEffect(() => {
-    if (isEdit || sessionIndexTouched) {
-      return;
-    }
-
+    if (isEdit || sessionIndexTouched) return;
     setSessionIndex(suggestedNextSessionIndex);
   }, [isEdit, sessionIndexTouched, suggestedNextSessionIndex]);
 
   const generatedMetadataObject = useMemo(() => {
     return removeEmptyDeep({
-      ...metadataExtras,
-      title: metadataTitle.trim(),
       day: dayLabel.trim(),
       duration: durationLabel.trim(),
       generalInformation: generalInformation.trim(),
       teachingMaterials: textareaToLines(teachingMaterialsText),
       note: sheetNote.trim(),
     });
-  }, [dayLabel, durationLabel, generalInformation, metadataExtras, metadataTitle, sheetNote, teachingMaterialsText]);
+  }, [dayLabel, durationLabel, generalInformation, sheetNote, teachingMaterialsText]);
 
   const generatedContentObject = useMemo(() => {
     const cleanedActivities = activities
@@ -1686,65 +1770,28 @@ function TemplateFormModal({
       .filter((item) => Object.keys(item).length > 0);
 
     return removeEmptyDeep({
-      ...contentExtras,
       sessionIndex,
-      title: (sessionTitle || title).trim(),
-      dateLabel: dateLabel.trim(),
+      title: title.trim(),
       teacherName: teacherName.trim(),
-      notes: textareaToLines(notesText),
       homeworkLabel: homeworkLabel.trim(),
       homeworkMaterials: textareaToLines(homeworkMaterialsText),
       homeworkNotes: textareaToLines(homeworkNotesText),
       activities: cleanedActivities,
     });
-  }, [
-    activities,
-    contentExtras,
-    dateLabel,
-    homeworkLabel,
-    homeworkMaterialsText,
-    homeworkNotesText,
-    notesText,
-    sessionIndex,
-    sessionTitle,
-    teacherName,
-    title,
-  ]);
-
-  const generatedMetadata = useMemo(
-    () => stringifyPrettyJson(generatedMetadataObject),
-    [generatedMetadataObject]
-  );
-  const generatedContent = useMemo(
-    () => stringifyPrettyJson(generatedContentObject),
-    [generatedContentObject]
-  );
+  }, [activities, homeworkLabel, homeworkMaterialsText, homeworkNotesText, sessionIndex, teacherName, title]);
 
   const updateActivity = (index: number, key: keyof TemplateActivityDraft, value: string) => {
     setActivities((current) =>
-      current.map((item, itemIndex) =>
-        itemIndex === index
-          ? {
-              ...item,
-              [key]: value,
-            }
-          : item
-      )
+      current.map((item, i) => (i === index ? { ...item, [key]: value } : item))
     );
   };
 
-  const addActivity = () => {
-    setActivities((current) => [...current, createEmptyTemplateActivity()]);
-  };
+  const addActivity = () => setActivities((current) => [...current, createEmptyTemplateActivity()]);
 
   const addPresetActivity = (preset: TemplateActivityPresetKey) => {
     setActivities((current) => {
       const nextActivity = createPresetTemplateActivity(preset);
-
-      if (current.length === 1 && isActivityDraftEmpty(current[0])) {
-        return [nextActivity];
-      }
-
+if (current.length === 1 && isActivityDraftEmpty(current[0])) return [nextActivity];
       return [...current, nextActivity];
     });
   };
@@ -1753,75 +1800,37 @@ function TemplateFormModal({
     setActivities((current) => {
       const source = current[index];
       if (!source) return current;
-
-      const clone = { ...source };
       const next = [...current];
-      next.splice(index + 1, 0, clone);
+      next.splice(index + 1, 0, { ...source });
       return next;
     });
   };
 
   const removeActivity = (index: number) => {
     setActivities((current) =>
-      current.length <= 1 ? [createEmptyTemplateActivity()] : current.filter((_, itemIndex) => itemIndex !== index)
+      current.length <= 1 ? [createEmptyTemplateActivity()] : current.filter((_, i) => i !== index)
     );
-  };
-
-  const applyMetadataFromTemplate = (template: LessonPlanTemplate) => {
-    const seed = asObject(parseJsonContent(template.syllabusMetadata));
-
-    setMetadataTitle(pickStringValue(seed, ["title", "sheetTitle"]));
-    setDayLabel(pickStringValue(seed, ["day", "days", "scheduleDays"]));
-    setDurationLabel(pickStringValue(seed, ["duration"]));
-    setGeneralInformation(pickStringValue(seed, ["generalInformation", "generalInfo", "description"]));
-    setTeachingMaterialsText(linesToTextarea(seed.teachingMaterials));
-    setSheetNote(pickStringValue(seed, ["note"]) || linesToTextarea(seed.note));
-    setSourceFileName(template.sourceFileName || "");
-    setAttachment(template.attachment || "");
-
-    if (!level.trim() && template.level) {
-      setLevel(template.level);
-    }
-  };
-
-  const applySessionPatternFromTemplate = (template: LessonPlanTemplate) => {
-    const seed = asObject(parseJsonContent(template.syllabusContent));
-
-    setNotesText(linesToTextarea(seed.notes));
-    setHomeworkLabel(pickStringValue(seed, ["homeworkLabel"]) || "HOMEWORK");
-    setHomeworkMaterialsText(linesToTextarea(seed.homeworkMaterials));
-    setHomeworkNotesText(linesToTextarea(seed.homeworkNotes));
-    setActivities(activityDraftsFromUnknown(seed.activities));
-  };
-
-  const toggleAdvancedJson = () => {
-    const next = !useAdvancedJson;
-    if (next) {
-      setAdvancedMetadata(generatedMetadata);
-      setAdvancedContent(generatedContent);
-    }
-    setUseAdvancedJson(next);
   };
 
   const handleReset = () => {
     setProgramId(initialProgramId);
     setLevel(initialValue?.level || "");
     setTitle(initialValue?.title || "");
-    setSessionIndex(initialValue?.sessionIndex || getSuggestedNextSessionIndex(existingTemplates, initialProgramId, initialValue?.id) || 1);
-    setMetadataTitle(pickStringValue(metadataSeed, ["title", "sheetTitle"]));
+    setSessionIndex(
+      initialValue?.sessionIndex ||
+        getSuggestedNextSessionIndex(existingTemplates, initialProgramId, initialValue?.id) ||
+        1
+    );
     setDayLabel(pickStringValue(metadataSeed, ["day", "days", "scheduleDays"]));
     setDurationLabel(pickStringValue(metadataSeed, ["duration"]));
     setGeneralInformation(pickStringValue(metadataSeed, ["generalInformation", "generalInfo", "description"]));
-    setTeachingMaterialsText(linesToTextarea(metadataSeed.teachingMaterials));
-    setSheetNote(pickStringValue(metadataSeed, ["note"]) || linesToTextarea(metadataSeed.note));
-    setSessionTitle(pickStringValue(contentSeed, ["title"]) || initialValue?.title || "");
-    setDateLabel(pickStringValue(contentSeed, ["dateLabel"]));
+    setTeachingMaterialsText(linesToTextarea(metadataSeed?.teachingMaterials));
+    setSheetNote(pickStringValue(metadataSeed, ["note"]) || linesToTextarea(metadataSeed?.note));
     setTeacherName(pickStringValue(contentSeed, ["teacherName"]));
-    setNotesText(linesToTextarea(contentSeed.notes));
     setHomeworkLabel(pickStringValue(contentSeed, ["homeworkLabel"]) || "HOMEWORK");
-    setHomeworkMaterialsText(linesToTextarea(contentSeed.homeworkMaterials));
-    setHomeworkNotesText(linesToTextarea(contentSeed.homeworkNotes));
-    setActivities(activityDraftsFromUnknown(contentSeed.activities));
+    setHomeworkMaterialsText(linesToTextarea(contentSeed?.homeworkMaterials));
+    setHomeworkNotesText(linesToTextarea(contentSeed?.homeworkNotes));
+    setActivities(activityDraftsFromUnknown(contentSeed?.activities));
     setSourceFileName(initialValue?.sourceFileName || "");
     setAttachment(initialValue?.attachment || "");
     setIsActive(initialValue?.isActive ?? true);
@@ -1833,46 +1842,15 @@ function TemplateFormModal({
     event.preventDefault();
     setError(null);
 
-    if (!programId.trim()) {
-      setError("Vui lòng chọn program.");
-      return;
-    }
+    if (!programId.trim()) { setError("Vui lòng chọn program."); return; }
+    if (!level.trim()) { setError("Vui lòng nhập level."); return; }
+    if (!title.trim()) { setError("Vui lòng nhập tiêu đề."); return; }
+    if (sessionIndex <= 0) { setError("Session index phải lớn hơn 0."); return; }
 
-    if (!level.trim()) {
-      setError("Vui lòng nhập level.");
-      return;
-    }
-
-    if (!title.trim()) {
-      setError("Vui lòng nhập tiêu đề.");
-      return;
-    }
-
-    if (sessionIndex <= 0) {
-      setError("Session index phải lớn hơn 0.");
-      return;
-    }
-
-    const metadataPayload = useAdvancedJson ? advancedMetadata.trim() : generatedMetadata;
-    const contentPayload = useAdvancedJson ? advancedContent.trim() : generatedContent;
-
-    if (!contentPayload) {
-      setError("Vui lòng nhập ít nhất một phần syllabus content cho session.");
-      return;
-    }
-
-    if (useAdvancedJson) {
-      try {
-        if (metadataPayload) JSON.parse(metadataPayload);
-        JSON.parse(contentPayload);
-      } catch {
-        setError("JSON nâng cao chưa hợp lệ. Vui lòng kiểm tra lại trước khi lưu.");
-        return;
-      }
-    }
+    const metadataPayload = stringifyPrettyJson(generatedMetadataObject);
+    const contentPayload = stringifyPrettyJson(generatedContentObject);
 
     setSubmitting(true);
-
     try {
       await onSubmit(
         {
@@ -1889,7 +1867,7 @@ function TemplateFormModal({
         selectedFile
       );
     } catch (submitError: any) {
-      setError(submitError?.message || "Không thể lưu template.");
+setError(submitError?.message || "Không thể lưu template.");
     } finally {
       setSubmitting(false);
     }
@@ -1897,8 +1875,8 @@ function TemplateFormModal({
 
   return (
     <ModalFrame
-      title={isEdit ? "Cập nhật template" : "Tạo template thủ công"}
-      subtitle="Nhập tay theo đúng bố cục Excel: metadata chung ở trên, rồi nội dung 1 session ở dưới. Form sẽ tự build JSON cho backend."
+      title={isEdit ? "Cập nhật template" : "Tạo template"}
+      subtitle="Nhập theo đúng bố cục Excel: thông tin chung ở trên, activities của từng session ở dưới."
       icon={FolderOpen}
       onClose={onClose}
       widthClass="max-w-6xl"
@@ -1914,9 +1892,7 @@ function TemplateFormModal({
             >
               <option value="">Chọn program</option>
               {programOptions.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.label}
-                </option>
+                <option key={item.id} value={item.id}>{item.label}</option>
               ))}
             </select>
           </Field>
@@ -1926,16 +1902,16 @@ function TemplateFormModal({
               value={level}
               onChange={(event) => setLevel(event.target.value)}
               className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-              placeholder="Ví dụ: Flyers"
+              placeholder="Ví dụ: Starters"
             />
           </Field>
 
-          <Field label="Tiêu đề">
+          <Field label="Tiêu đề session">
             <input
               value={title}
               onChange={(event) => setTitle(event.target.value)}
               className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-              placeholder="FLYERS 1 - Session 1"
+              placeholder="Ví dụ: Warm Up"
             />
           </Field>
 
@@ -1952,59 +1928,27 @@ function TemplateFormModal({
             />
             {!isEdit && programId ? (
               <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-gray-500">
-                <span>Gợi ý session tiếp theo: {suggestedNextSessionIndex}</span>
+                <span>Gợi ý tiếp theo: {suggestedNextSessionIndex}</span>
                 <button
                   type="button"
-                  onClick={() => {
-                    setSessionIndexTouched(true);
-                    setSessionIndex(suggestedNextSessionIndex);
-                  }}
+                  onClick={() => { setSessionIndexTouched(true); setSessionIndex(suggestedNextSessionIndex); }}
                   className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-amber-700 hover:bg-amber-100 cursor-pointer"
                 >
                   Dùng gợi ý
                 </button>
-              </div>
+</div>
             ) : null}
           </Field>
         </div>
 
-        <div className="rounded-2xl border border-gray-200 bg-red-50/40 p-5">
-          <div className="mb-4 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <div className="text-sm font-semibold text-red-700">Metadata chung của syllabus</div>
-              <div className="mt-1 text-xs text-gray-600">
-                Map phần đầu file Excel như `Day`, `General information`, `Teaching Materials`.
-              </div>
-            </div>
-            <StatusBadge kind="info">Sẽ lưu vào `syllabusMetadata`</StatusBadge>
+        {/* Metadata chung */}
+        <div className="rounded-2xl border border-gray-200 bg-red-50/40 p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-semibold text-red-700">Thông tin chung của Syllabus</div>
+            <StatusBadge kind="info">syllabusMetadata</StatusBadge>
           </div>
 
-          {!isEdit && referenceTemplate ? (
-            <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                Program này đã có {reusableTemplates.length} template. Bạn có thể tái dùng phần header chung từ session{" "}
-                {referenceTemplate.sessionIndex}.
-              </div>
-              <button
-                type="button"
-                onClick={() => applyMetadataFromTemplate(referenceTemplate)}
-                className="rounded-xl border border-amber-300 bg-white px-3 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100 cursor-pointer"
-              >
-                Lấy header từ session {referenceTemplate.sessionIndex}
-              </button>
-            </div>
-          ) : null}
-
           <div className="grid gap-4 md:grid-cols-2">
-            <Field label="Tiêu đề syllabus">
-              <input
-                value={metadataTitle}
-                onChange={(event) => setMetadataTitle(event.target.value)}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-                placeholder="Ví dụ: SYLLABUS - COURSE FOR PRE IELTS 1"
-              />
-            </Field>
-
             <Field label="Day">
               <input
                 value={dayLabel}
@@ -2035,105 +1979,45 @@ function TemplateFormModal({
           </Field>
 
           <Field label="Teaching materials">
-            <p className="mb-2 text-xs text-gray-500">Mỗi dòng là một tài liệu, ví dụ `Handbook for Reading: https://...`</p>
+            <p className="mb-2 text-xs text-gray-500">Mỗi dòng là một tài liệu, ví dụ: `Handbook for Reading: https://...`</p>
             <textarea
               value={teachingMaterialsText}
               onChange={(event) => setTeachingMaterialsText(event.target.value)}
               rows={4}
               className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-              placeholder={"Handbook for Reading: https://...\nB1 DESTINATION: https://..."}
+              placeholder={"Handbook for Reading: https://...\nGrapeseed (video): https://...\nCourse book / workbook: ..."}
             />
           </Field>
 
-          <Field label="Note của course">
+          <Field label="Note">
             <textarea
               value={sheetNote}
               onChange={(event) => setSheetNote(event.target.value)}
-              rows={3}
+              rows={2}
               className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
               placeholder="Ví dụ: Course book accounts for 80% of the lesson..."
             />
           </Field>
         </div>
 
-        <div className="rounded-2xl border border-gray-200 bg-blue-50/30 p-5">
-          <div className="mb-4 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <div className="text-sm font-semibold text-blue-700">Nội dung của 1 session template</div>
-              <div className="mt-1 text-xs text-gray-600">
-                Map phần bảng trong Excel thành `date`, `teacher`, `notes`, và danh sách `activities`.
-              </div>
-            </div>
-            <StatusBadge kind="info">Sẽ lưu vào `syllabusContent`</StatusBadge>
+        {/* Nội dung session */}
+<div className="rounded-2xl border border-gray-200 bg-blue-50/30 p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-semibold text-blue-700">Nội dung session</div>
+            <StatusBadge kind="info">syllabusContent</StatusBadge>
           </div>
 
-          {!isEdit && referenceTemplate ? (
-            <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-blue-200 bg-white px-4 py-3 text-sm text-blue-900 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                Session gần nhất của program này là session {referenceTemplate.sessionIndex}. Có thể lấy lại notes,
-                homework block và activities làm khung rồi sửa nhanh.
-              </div>
-              <button
-                type="button"
-                onClick={() => applySessionPatternFromTemplate(referenceTemplate)}
-                className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 cursor-pointer"
-              >
-                Lấy khung từ session {referenceTemplate.sessionIndex}
-              </button>
-            </div>
-          ) : null}
-
-          <div className="grid gap-4 md:grid-cols-3">
-            <Field label="Session title">
-              <input
-                value={sessionTitle}
-                onChange={(event) => setSessionTitle(event.target.value)}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-                placeholder="Ví dụ: PRE IELTS 1 - Session 1"
-              />
-            </Field>
-
-            <Field label="Date">
-              <input
-                value={dateLabel}
-                onChange={(event) => setDateLabel(event.target.value)}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-                placeholder="Ví dụ: 12/06"
-              />
-            </Field>
-
-            <Field label="Teacher">
-              <input
-                value={teacherName}
-                onChange={(event) => setTeacherName(event.target.value)}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-                placeholder="Ví dụ: Ms Chloe"
-              />
-            </Field>
-          </div>
-
-          <Field label="Notes">
-            <p className="mb-2 text-xs text-gray-500">Mỗi dòng là một note. Ví dụ: `Assigned by teachers`, `Warm up`, `Good bye`.</p>
-            <textarea
-              value={notesText}
-              onChange={(event) => setNotesText(event.target.value)}
-              rows={3}
+          <Field label="Teacher">
+            <input
+              value={teacherName}
+              onChange={(event) => setTeacherName(event.target.value)}
               className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-              placeholder={"Assigned by teachers\nWarm up\nGood bye"}
+              placeholder="Ví dụ: Vietnamese Teacher"
             />
           </Field>
 
-          <div className="rounded-2xl border border-amber-200 bg-amber-50/40 p-4">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div>
-                <div className="text-sm font-semibold text-amber-800">Homework block của cả session</div>
-                <div className="mt-1 text-xs text-gray-600">
-                  Dùng cho cột homework lớn ở bên phải sheet, nơi thường ghi `HOMEWORK` và danh sách bài tập.
-                </div>
-              </div>
-              <StatusBadge kind="warning">Extra fields trong `syllabusContent`</StatusBadge>
-            </div>
-
+          <div className="rounded-2xl border border-amber-200 bg-amber-50/40 p-4 space-y-4">
+            <div className="text-sm font-semibold text-amber-800">Homework block</div>
             <div className="grid gap-4 md:grid-cols-3">
               <Field label="Homework label">
                 <input
@@ -2144,7 +2028,7 @@ function TemplateFormModal({
                 />
               </Field>
 
-              <Field label="Homework required materials">
+              <Field label="Required materials">
                 <textarea
                   value={homeworkMaterialsText}
                   onChange={(event) => setHomeworkMaterialsText(event.target.value)}
@@ -2154,7 +2038,7 @@ function TemplateFormModal({
                 />
               </Field>
 
-              <Field label="Homework notes">
+              <Field label="Extra / Note">
                 <textarea
                   value={homeworkNotesText}
                   onChange={(event) => setHomeworkNotesText(event.target.value)}
@@ -2168,16 +2052,13 @@ function TemplateFormModal({
 
           <div className="rounded-2xl border border-blue-100 bg-white p-4">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <div className="text-sm font-semibold text-blue-700">Activities</div>
-                <div className="mt-1 text-xs text-gray-500">Mỗi dòng tương ứng một block trong bảng Excel.</div>
-              </div>
+              <div className="text-sm font-semibold text-blue-700">Activities</div>
               <div className="flex flex-wrap items-center gap-2">
                 {TEMPLATE_ACTIVITY_PRESETS.map((preset) => (
                   <button
                     key={preset.key}
                     type="button"
-                    onClick={() => addPresetActivity(preset.key)}
+onClick={() => addPresetActivity(preset.key)}
                     className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800 hover:bg-amber-100 cursor-pointer"
                   >
                     + {preset.label}
@@ -2189,13 +2070,13 @@ function TemplateFormModal({
                   className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 cursor-pointer"
                 >
                   <Plus size={14} />
-                  Thêm activity trống
+                  Thêm trống
                 </button>
               </div>
             </div>
 
             <div className="overflow-x-auto rounded-xl border border-gray-300">
-              <table className="min-w-[1200px] border-collapse text-sm">
+              <table className="min-w-[1100px] border-collapse text-sm">
                 <thead>
                   <tr className="bg-amber-50 text-gray-700">
                     <th className="border border-gray-300 px-3 py-2 text-left font-semibold">#</th>
@@ -2203,10 +2084,10 @@ function TemplateFormModal({
                     <th className="border border-gray-300 px-3 py-2 text-left font-semibold">Book</th>
                     <th className="border border-gray-300 px-3 py-2 text-left font-semibold">Skills</th>
                     <th className="border border-gray-300 px-3 py-2 text-left font-semibold">Classwork</th>
-                    <th className="border border-gray-300 px-3 py-2 text-left font-semibold">Required materials</th>
-                    <th className="border border-gray-300 px-3 py-2 text-left font-semibold">Homework materials</th>
-                    <th className="border border-gray-300 px-3 py-2 text-left font-semibold">Extra</th>
-                    <th className="border border-gray-300 px-3 py-2 text-left font-semibold">Actions</th>
+                    <th className="border border-gray-300 px-3 py-2 text-left font-semibold">Required Materials</th>
+                    <th className="border border-gray-300 px-3 py-2 text-left font-semibold">Homework Materials</th>
+                    <th className="border border-gray-300 px-3 py-2 text-left font-semibold">Extra / Note</th>
+                    <th className="border border-gray-300 px-3 py-2 text-left font-semibold">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2217,15 +2098,15 @@ function TemplateFormModal({
                         <input
                           value={activity.time}
                           onChange={(event) => updateActivity(index, "time", event.target.value)}
-                          className="w-full rounded-lg border border-transparent bg-white px-3 py-2 text-sm text-gray-700 focus:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-100"
+                          className="w-20 rounded-lg border border-transparent bg-white px-2 py-2 text-sm focus:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-100"
                           placeholder="5 mins"
                         />
                       </td>
                       <td className="border border-gray-300 p-1.5">
                         <input
                           value={activity.book}
-                          onChange={(event) => updateActivity(index, "book", event.target.value)}
-                          className="w-full rounded-lg border border-transparent bg-white px-3 py-2 text-sm text-gray-700 focus:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-100"
+onChange={(event) => updateActivity(index, "book", event.target.value)}
+                          className="w-full rounded-lg border border-transparent bg-white px-2 py-2 text-sm focus:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-100"
                           placeholder="B1 DESTINATION"
                         />
                       </td>
@@ -2233,16 +2114,16 @@ function TemplateFormModal({
                         <input
                           value={activity.skills}
                           onChange={(event) => updateActivity(index, "skills", event.target.value)}
-                          className="w-full rounded-lg border border-transparent bg-white px-3 py-2 text-sm text-gray-700 focus:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-100"
-                          placeholder="Speaking and Reading"
+                          className="w-full rounded-lg border border-transparent bg-white px-2 py-2 text-sm focus:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-100"
+                          placeholder="Speaking"
                         />
                       </td>
                       <td className="border border-gray-300 p-1.5">
                         <textarea
                           value={activity.classwork}
                           onChange={(event) => updateActivity(index, "classwork", event.target.value)}
-                          rows={3}
-                          className="w-full rounded-lg border border-transparent bg-white px-3 py-2 text-sm text-gray-700 focus:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-100"
+                          rows={2}
+                          className="w-full rounded-lg border border-transparent bg-white px-2 py-2 text-sm focus:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-100"
                           placeholder={"WARM UP\nHomework Correction"}
                         />
                       </td>
@@ -2250,8 +2131,8 @@ function TemplateFormModal({
                         <textarea
                           value={activity.requiredMaterials}
                           onChange={(event) => updateActivity(index, "requiredMaterials", event.target.value)}
-                          rows={3}
-                          className="w-full rounded-lg border border-transparent bg-white px-3 py-2 text-sm text-gray-700 focus:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-100"
+                          rows={2}
+                          className="w-full rounded-lg border border-transparent bg-white px-2 py-2 text-sm focus:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-100"
                           placeholder="page 101,102"
                         />
                       </td>
@@ -2259,8 +2140,8 @@ function TemplateFormModal({
                         <textarea
                           value={activity.homeworkRequiredMaterials}
                           onChange={(event) => updateActivity(index, "homeworkRequiredMaterials", event.target.value)}
-                          rows={3}
-                          className="w-full rounded-lg border border-transparent bg-white px-3 py-2 text-sm text-gray-700 focus:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-100"
+                          rows={2}
+                          className="w-full rounded-lg border border-transparent bg-white px-2 py-2 text-sm focus:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-100"
                           placeholder="HOMEWORK"
                         />
                       </td>
@@ -2268,8 +2149,8 @@ function TemplateFormModal({
                         <textarea
                           value={activity.extra}
                           onChange={(event) => updateActivity(index, "extra", event.target.value)}
-                          rows={3}
-                          className="w-full rounded-lg border border-transparent bg-white px-3 py-2 text-sm text-gray-700 focus:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-100"
+rows={2}
+                          className="w-full rounded-lg border border-transparent bg-white px-2 py-2 text-sm focus:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-100"
                           placeholder="Handbook 88,89"
                         />
                       </td>
@@ -2287,7 +2168,7 @@ function TemplateFormModal({
                             onClick={() => removeActivity(index)}
                             className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 cursor-pointer"
                           >
-                            Delete
+                            Xóa
                           </button>
                         </div>
                       </td>
@@ -2299,55 +2180,13 @@ function TemplateFormModal({
           </div>
         </div>
 
-        <div className="rounded-2xl border border-gray-200 bg-white p-5">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="text-sm font-semibold text-gray-900">JSON backend sẽ nhận</div>
-              <div className="mt-1 text-xs text-gray-500">
-                Bạn không cần tự viết JSON. Form bên trên sẽ tự dựng theo cấu trúc phù hợp với file Excel.
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={toggleAdvancedJson}
-              className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 cursor-pointer"
-            >
-              {useAdvancedJson ? "Ẩn JSON nâng cao" : "Chỉnh JSON nâng cao"}
-            </button>
-          </div>
-
-          {useAdvancedJson ? (
-            <div className="grid gap-4 lg:grid-cols-2">
-              <Field label="syllabusMetadata">
-                <textarea
-                  value={advancedMetadata}
-                  onChange={(event) => setAdvancedMetadata(event.target.value)}
-                  rows={10}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 font-mono text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-                />
-              </Field>
-
-              <Field label="syllabusContent">
-                <textarea
-                  value={advancedContent}
-                  onChange={(event) => setAdvancedContent(event.target.value)}
-                  rows={10}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 font-mono text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-                />
-              </Field>
-            </div>
-          ) : (
-            <SyllabusSheetPreview metadataObject={generatedMetadataObject} contentObject={generatedContentObject} />
-          )}
-        </div>
-
         <div className="grid gap-4 md:grid-cols-2">
-          <Field label="sourceFileName">
+          <Field label="Source file name">
             <input
               value={sourceFileName}
               onChange={(event) => setSourceFileName(event.target.value)}
               className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-              placeholder="Syllabus - XIN CHAO ENGLISH.xlsx"
+              placeholder="syllabus_template_1_mau.xlsx"
             />
           </Field>
 
@@ -2374,7 +2213,7 @@ function TemplateFormModal({
         </Field>
 
         {isEdit ? (
-          <Field label="Trạng thái">
+<Field label="Trạng thái">
             <div className="grid grid-cols-2 gap-3">
               <ToggleButton active={isActive} onClick={() => setIsActive(true)} label="Đang hoạt động" />
               <ToggleButton active={!isActive} onClick={() => setIsActive(false)} label="Tạm ẩn" />
@@ -2469,7 +2308,7 @@ function ImportTemplateModal({
             <select
               value={programId}
               onChange={(event) => setProgramId(event.target.value)}
-              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
             >
               <option value="">Để backend tự map</option>
               {programOptions.map((item) => (
@@ -2551,18 +2390,24 @@ function PlanFormModal({
   const [error, setError] = useState<string | null>(null);
 
   const isEdit = Boolean(initialValue);
-  const isTeacher = scope === "teacher";
+const isTeacher = scope === "teacher";
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
+
+    if (isTeacher && !actualContent.trim()) {
+      setError("Vui lòng nhập nội dung dạy thực tế.");
+      return;
+    }
+
     setSubmitting(true);
 
     try {
       await onSubmit({
         session,
         templateId: isTeacher ? session.templateId || null : templateId || null,
-        plannedContent: plannedContent.trim() || null,
+        plannedContent: isTeacher ? undefined : plannedContent.trim() || null,
         actualContent: actualContent.trim() || null,
         actualHomework: actualHomework.trim() || null,
         teacherNotes: teacherNotes.trim() || null,
@@ -2574,11 +2419,13 @@ function PlanFormModal({
     }
   };
 
+  const refContent = session.templateSyllabusContent || session.plannedContent || initialValue?.plannedContent;
+
   return (
     <ModalFrame
-      title={isEdit ? "Cập nhật lesson plan" : "Tạo lesson plan"}
-      subtitle="Session đã được khóa sẵn theo read model syllabus. Có thể để plannedContent trống để backend tự copy từ template nếu cần."
-      icon={FilePlus2}
+      title={isTeacher ? (isEdit ? "Cập nhật giáo án" : "Điền giáo án buổi dạy") : (isEdit ? "Cập nhật lesson plan" : "Tạo lesson plan")}
+      subtitle={isTeacher ? "Xem nội dung giáo án chuẩn (chỉ đọc) và điền nội dung dạy thực tế, bài tập, ghi chú." : "Session đã được khóa sẵn theo read model syllabus. Có thể để plannedContent trống để backend tự copy từ template."}
+      icon={isTeacher ? ClipboardPen : FilePlus2}
       onClose={onClose}
       widthClass="max-w-4xl"
     >
@@ -2592,257 +2439,129 @@ function PlanFormModal({
           <InfoCard icon={CalendarDays} label="Session" value={getSessionDisplay(session)} />
         </div>
 
-        {!isTeacher ? (
-          <Field label="Template (tùy chọn)">
-            <select
-              value={templateId}
-              onChange={(event) => setTemplateId(event.target.value)}
-              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-            >
-              <option value="">Để backend tự resolve theo Program + SessionIndex</option>
-              {templateOptions.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.title} • Level {item.level} • Buổi {item.sessionIndex}
-                </option>
-              ))}
-            </select>
-          </Field>
+        {isTeacher ? (
+          <>
+            {refContent ? (
+              <div className="rounded-2xl border border-blue-200 bg-blue-50/50 p-4">
+                <div className="mb-1 flex items-center gap-2">
+                  <BookOpenCheck size={15} className="text-blue-600" />
+                  <span className="text-sm font-semibold text-blue-700">Nội dung giáo án Admin đã soạn</span>
+                  <span className="ml-auto rounded-full border border-blue-200 bg-white px-2.5 py-0.5 text-xs text-blue-600">Chỉ đọc</span>
+                </div>
+                <div className="mt-3 max-h-56 overflow-y-auto">
+                  <StructuredContent value={refContent} placeholder="Chưa có nội dung chuẩn." />
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
+                Admin chưa soạn giáo án chuẩn cho buổi này.
+              </div>
+            )}
+
+            <Field label="Nội dung dạy thực tế *">
+<p className="mb-2 text-xs text-gray-500">Mô tả chi tiết nội dung bạn đã dạy trong buổi học hôm nay.</p>
+              <textarea
+                value={actualContent}
+                onChange={(event) => setActualContent(event.target.value)}
+                rows={6}
+                autoFocus
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                placeholder="VD: Hôm nay dạy Unit 3 - Animals, các bé học được tên các con vật, luyện phát âm..."
+              />
+            </Field>
+
+            <Field label="Bài tập về nhà">
+              <textarea
+                value={actualHomework}
+                onChange={(event) => setActualHomework(event.target.value)}
+                rows={3}
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                placeholder="VD: Workbook trang 15-16, học thuộc từ vựng Unit 3..."
+              />
+            </Field>
+
+            <Field label="Ghi chú thêm">
+              <textarea
+                value={teacherNotes}
+                onChange={(event) => setTeacherNotes(event.target.value)}
+                rows={3}
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                placeholder="VD: Bé An vắng mặt, cần gửi bài bù..."
+              />
+            </Field>
+          </>
         ) : (
-          <Field label="Template liên kết">
-            <div className="rounded-xl border border-gray-200 bg-red-50/50 px-4 py-3 text-sm text-gray-700">
-              {session.templateTitle || "Teacher không tự gọi list template; backend sẽ tự resolve nếu templateId = null."}
+          <>
+            <Field label="Template (tùy chọn)">
+              <select
+                value={templateId}
+                onChange={(event) => setTemplateId(event.target.value)}
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+              >
+                <option value="">Để backend tự resolve theo Program + SessionIndex</option>
+                {templateOptions.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.title} • Level {item.level} • Buổi {item.sessionIndex}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <Field label="plannedContent">
+              <p className="mb-2 text-xs text-gray-500">
+                Giáo án dự kiến. Nếu để trống, backend tự copy từ template chuẩn khi tạo mới.
+              </p>
+              <textarea
+                value={plannedContent}
+                onChange={(event) => setPlannedContent(event.target.value)}
+                rows={8}
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 font-mono text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+                placeholder='{"sessionIndex":1,"activities":[]}'
+              />
+</Field>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label="actualContent">
+                <textarea
+                  value={actualContent}
+                  onChange={(event) => setActualContent(event.target.value)}
+                  rows={5}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+                  placeholder="Nội dung dạy thực tế"
+                />
+              </Field>
+              <Field label="actualHomework">
+                <textarea
+                  value={actualHomework}
+                  onChange={(event) => setActualHomework(event.target.value)}
+                  rows={5}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+                  placeholder="Bài tập về nhà"
+                />
+              </Field>
             </div>
-          </Field>
+
+            <Field label="teacherNotes">
+              <textarea
+                value={teacherNotes}
+                onChange={(event) => setTeacherNotes(event.target.value)}
+                rows={4}
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+                placeholder="Ghi chú giáo viên"
+              />
+            </Field>
+          </>
         )}
-
-        <Field label="plannedContent">
-          <p className="mb-2 text-xs text-gray-500">
-            Đây là planned content của lesson plan. Nếu để trống, backend có thể tự copy từ template chuẩn khi tạo mới.
-          </p>
-          <textarea
-            value={plannedContent}
-            onChange={(event) => setPlannedContent(event.target.value)}
-            rows={8}
-            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 font-mono text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-            placeholder='{"sessionIndex":1,"activities":[]}'
-          />
-        </Field>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <Field label="actualContent">
-            <textarea
-              value={actualContent}
-              onChange={(event) => setActualContent(event.target.value)}
-              rows={5}
-              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-              placeholder="Nội dung dạy thực tế"
-            />
-          </Field>
-          <Field label="actualHomework">
-            <textarea
-              value={actualHomework}
-              onChange={(event) => setActualHomework(event.target.value)}
-              rows={5}
-              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-              placeholder="Bài tập về nhà"
-            />
-          </Field>
-        </div>
-
-        <Field label="teacherNotes">
-          <textarea
-            value={teacherNotes}
-            onChange={(event) => setTeacherNotes(event.target.value)}
-            rows={4}
-            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-            placeholder="Ghi chú giáo viên"
-          />
-        </Field>
 
         {error ? <ErrorBox message={error} /> : null}
 
         <ModalActions
           onClose={onClose}
           submitting={submitting}
-          submitLabel={isEdit ? "Lưu lesson plan" : "Tạo lesson plan"}
+          submitLabel={isTeacher ? "Lưu nội dung buổi dạy" : (isEdit ? "Lưu lesson plan" : "Tạo lesson plan")}
           showReset={false}
         />
       </form>
-    </ModalFrame>
-  );
-}
-
-function TeachingReportModal({
-  session,
-  plan,
-  loading,
-  classSyllabus,
-  onClose,
-  onSubmit,
-}: {
-  session: ClassLessonPlanSyllabusSession;
-  plan: LessonPlan | null;
-  loading: boolean;
-  classSyllabus: ClassLessonPlanSyllabus | null;
-  onClose: () => void;
-  onSubmit: (payload: {
-    lessonPlanId: string;
-    actualContent: string | null;
-    actualHomework: string | null;
-    teacherNotes: string | null;
-  }) => Promise<void>;
-}) {
-  const [actualContent, setActualContent] = useState(plan?.actualContent || session.actualContent || "");
-  const [actualHomework, setActualHomework] = useState(plan?.actualHomework || session.actualHomework || "");
-  const [teacherNotes, setTeacherNotes] = useState(plan?.teacherNotes || session.teacherNotes || "");
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (plan) {
-      setActualContent(plan.actualContent || session.actualContent || "");
-      setActualHomework(plan.actualHomework || session.actualHomework || "");
-      setTeacherNotes(plan.teacherNotes || session.teacherNotes || "");
-    }
-  }, [plan, session]);
-
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!plan?.id) return;
-
-    const trimmedContent = actualContent.trim();
-    if (!trimmedContent) {
-      setError("Vui lòng nhập nội dung dạy thực tế hôm nay.");
-      return;
-    }
-
-    setError(null);
-    setSubmitting(true);
-
-    try {
-      await onSubmit({
-        lessonPlanId: plan.id,
-        actualContent: trimmedContent || null,
-        actualHomework: actualHomework.trim() || null,
-        teacherNotes: teacherNotes.trim() || null,
-      });
-    } catch (submitError: any) {
-      setError(submitError?.message || "Không thể lưu báo cáo buổi dạy.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const sessionDateDisplay = normalizeDateValue(session.sessionDate)
-    ? formatDate(session.sessionDate, true)
-    : "Chưa xác định";
-
-  return (
-    <ModalFrame
-      title="Báo cáo buổi dạy"
-      subtitle="Cập nhật nội dung giảng dạy thực tế, bài tập về nhà và ghi chú cho buổi học hôm nay."
-      icon={ClipboardPen}
-      onClose={onClose}
-      widthClass="max-w-3xl"
-    >
-      {loading ? (
-        <div className="flex items-center justify-center py-16 text-gray-600">
-          <Loader2 size={20} className="mr-3 animate-spin text-red-600" />
-          Đang chuẩn bị...
-        </div>
-      ) : (
-        <form onSubmit={handleSubmit} className="space-y-5 p-6">
-          <div className="grid gap-4 md:grid-cols-3">
-            <InfoCard
-              icon={Users}
-              label="Lớp"
-              value={classSyllabus?.classTitle || classSyllabus?.classCode || "-"}
-            />
-            <InfoCard
-              icon={CalendarDays}
-              label="Buổi học"
-              value={getSessionDisplay(session)}
-            />
-            <InfoCard
-              icon={Clock3}
-              label="Ngày dạy"
-              value={sessionDateDisplay}
-            />
-          </div>
-
-          {session.templateSyllabusContent ? (
-            <div className="rounded-2xl border border-blue-200 bg-blue-50/60 p-4">
-              <div className="mb-2 text-sm font-semibold text-blue-700">Nội dung syllabus chuẩn (tham khảo)</div>
-              <div className="max-h-40 overflow-y-auto">
-                <StructuredContent value={session.templateSyllabusContent} placeholder="" />
-              </div>
-            </div>
-          ) : null}
-
-          {session.plannedContent ? (
-            <div className="rounded-2xl border border-red-100 bg-red-50/40 p-4">
-              <div className="mb-2 text-sm font-semibold text-red-700">Giáo án dự kiến (tham khảo)</div>
-              <div className="max-h-32 overflow-y-auto">
-                <StructuredContent value={session.plannedContent} placeholder="" />
-              </div>
-            </div>
-          ) : null}
-
-          <Field label="Nội dung dạy thực tế hôm nay *">
-            <p className="mb-2 text-xs text-gray-500">
-              Mô tả chi tiết nội dung bạn đã dạy trong buổi học. Thông tin này sẽ được Admin/Staff xem xét.
-            </p>
-            <textarea
-              value={actualContent}
-              onChange={(event) => setActualContent(event.target.value)}
-              rows={6}
-              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-200"
-              placeholder="VD: Hôm nay dạy Unit 3 - Animals, các bé học được tên các con vật, luyện phát âm và chơi game matching..."
-              autoFocus
-            />
-          </Field>
-
-          <Field label="Bài tập về nhà">
-            <textarea
-              value={actualHomework}
-              onChange={(event) => setActualHomework(event.target.value)}
-              rows={3}
-              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-200"
-              placeholder="VD: Workbook trang 15-16, học thuộc từ vựng Unit 3..."
-            />
-          </Field>
-
-          <Field label="Ghi chú thêm">
-            <textarea
-              value={teacherNotes}
-              onChange={(event) => setTeacherNotes(event.target.value)}
-              rows={3}
-              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-200"
-              placeholder="VD: Bé An vắng mặt, cần gửi bài bù. Lớp tiến bộ tốt, cần tăng tốc Unit 4..."
-            />
-          </Field>
-
-          {error ? <ErrorBox message={error} /> : null}
-
-          <div className="flex items-center justify-end gap-3 border-t border-gray-100 pt-5">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 cursor-pointer"
-            >
-              Hủy
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:shadow-lg disabled:opacity-60 cursor-pointer"
-            >
-              {submitting ? <Loader2 size={16} className="animate-spin" /> : <ClipboardPen size={16} />}
-              {submitting ? "Đang lưu..." : "Lưu báo cáo buổi dạy"}
-            </button>
-          </div>
-        </form>
-      )}
     </ModalFrame>
   );
 }
@@ -2879,7 +2598,7 @@ function DetailModal({
     return (
       <ModalFrame title={title} subtitle={subtitle} icon={state.type === "template" ? FolderOpen : FileText} onClose={onClose} widthClass="max-w-5xl">
         <div className="p-6">
-          <ErrorBox message={state.error} />
+<ErrorBox message={state.error} />
         </div>
       </ModalFrame>
     );
@@ -2927,8 +2646,7 @@ function DetailModal({
               <InfoCard icon={ShieldCheck} label="Người cập nhật" value={state.item.submittedByName || "-"} />
               <InfoCard icon={Clock3} label="Thời gian" value={formatDate(state.item.updatedAt || state.item.createdAt || state.item.submittedAt, true)} />
             </div>
-
-            <div className="grid gap-4 xl:grid-cols-2">
+<div className="grid gap-4 xl:grid-cols-2">
               <ContentPanel title="plannedContent" value={state.item.plannedContent} accent="text-red-700" />
               <ContentPanel title="actualContent" value={state.item.actualContent} accent="text-emerald-700" />
               <ContentPanel title="actualHomework" value={state.item.actualHomework} accent="text-amber-700" />
@@ -3005,7 +2723,7 @@ function ModalActions({
         {showReset && onReset && (
           <button
             type="button"
-            onClick={onReset}
+onClick={onReset}
             disabled={submitting}
             className="rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
           >
@@ -3118,8 +2836,7 @@ function StatusBadge({
         : kind === "info"
           ? "border-blue-200 bg-blue-50 text-blue-700"
           : "border-gray-200 bg-gray-50 text-gray-700";
-
-  return <span className={cn("inline-flex rounded-full border px-3 py-1 text-xs font-medium", classes)}>{children}</span>;
+return <span className={cn("inline-flex rounded-full border px-3 py-1 text-xs font-medium", classes)}>{children}</span>;
 }
 
 function StatCard({
@@ -3218,7 +2935,7 @@ function InfoCard({
 }) {
   return (
     <div className="rounded-2xl border border-gray-200 bg-red-50/60 p-4">
-      <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-red-600">
+<div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-red-600">
         <Icon size={14} />
         {label}
       </div>
@@ -3309,7 +3026,7 @@ function MetadataSheetView({ objectValue }: { objectValue: Record<string, any> }
   const duration = pickStringValue(objectValue, ["duration"]);
   const generalInformation = pickStringValue(objectValue, ["generalInformation", "generalInfo", "description"]);
   const teachingMaterials = objectValue.teachingMaterials;
-  const note = objectValue.note;
+const note = objectValue.note;
   const extraEntries = Object.entries(objectValue).filter(
     ([key]) =>
       !["title", "sheetTitle", "day", "days", "scheduleDays", "duration", "generalInformation", "generalInfo", "description", "teachingMaterials", "note"].includes(
@@ -3374,7 +3091,7 @@ function MetadataSheetView({ objectValue }: { objectValue: Record<string, any> }
 function SessionSheetView({ objectValue }: { objectValue: Record<string, any> }) {
   const activities = Array.isArray(objectValue.activities) ? objectValue.activities : [];
   const notes = Array.isArray(objectValue.notes) ? objectValue.notes : [];
-  const extraEntries = Object.entries(objectValue).filter(
+const extraEntries = Object.entries(objectValue).filter(
     ([key]) =>
       ![
         "sessionIndex",
@@ -3422,7 +3139,7 @@ function SessionSheetView({ objectValue }: { objectValue: Record<string, any> })
                   <td className="border border-gray-300 px-3 py-2"><SheetCellValue value={activity.book} /></td>
                   <td className="border border-gray-300 px-3 py-2"><SheetCellValue value={activity.skills} /></td>
                   <td className="border border-gray-300 px-3 py-2"><SheetCellValue value={activity.classwork} /></td>
-                  <td className="border border-gray-300 px-3 py-2"><SheetCellValue value={activity.requiredMaterials} /></td>
+<td className="border border-gray-300 px-3 py-2"><SheetCellValue value={activity.requiredMaterials} /></td>
                   <td className="border border-gray-300 px-3 py-2"><SheetCellValue value={activity.homeworkRequiredMaterials} /></td>
                   <td className="border border-gray-300 px-3 py-2"><SheetCellValue value={activity.extra} /></td>
                 </tr>
@@ -3490,7 +3207,7 @@ function SyllabusSheetPreview({
 }) {
   return (
     <div className="space-y-4">
-      <MetadataSheetView objectValue={metadataObject} />
+<MetadataSheetView objectValue={metadataObject} />
       <SessionSheetView objectValue={contentObject} />
     </div>
   );
@@ -3587,7 +3304,7 @@ function StructuredContent({
 
       {activities.length ? (
         <div className="space-y-3">
-          <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Activities</div>
+<div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Activities</div>
           {activities.map((activity: any, index: number) => (
             <div key={index} className="rounded-xl border border-gray-200 bg-gray-50 p-3">
               <div className="grid gap-2 md:grid-cols-2">

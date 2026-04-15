@@ -1913,7 +1913,7 @@ export default function Page() {
         </button>
         <button
           onClick={() => setActiveTab("enrollments")}
-          className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+          className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
             activeTab === "enrollments"
               ? "bg-linear-to-r from-red-600 to-red-700 text-white shadow-md"
               : "text-gray-600 hover:bg-pink-50"
@@ -1964,12 +1964,12 @@ export default function Page() {
               selectedSource={selectedSource}
               myLeadsOnly={myLeadsOnly}
               currentUserName={currentUser?.fullName}
-              pageSize={pageSize}
+              // pageSize={pageSize}
               onSearchChange={setSearchQuery}
               onStatusChange={setSelectedStatus}
               onSourceChange={setSelectedSource}
               onMyLeadsOnlyChange={setMyLeadsOnly}
-              onPageSizeChange={handlePageSizeChange}
+              // onPageSizeChange={handlePageSizeChange}
             />
           </div>
 
@@ -2123,7 +2123,7 @@ export default function Page() {
             <EnrollmentFilters
               searchQuery={enrollSearchQuery}
               selectedStatus={enrollSelectedStatus}
-              pageSize={enrollPageSize}
+              // pageSize={enrollPageSize}
               totalCount={branchScopedEnrollments.length}
               statusCounts={filteredEnrollStatusCounts}
               onSearchChange={setEnrollSearchQuery}
@@ -2131,7 +2131,7 @@ export default function Page() {
                 setEnrollSelectedStatus(status);
                 setEnrollCurrentPage(1);
               }}
-              onPageSizeChange={handleEnrollPageSizeChange}
+              // onPageSizeChange={handleEnrollPageSizeChange}
             />
           </div>
 

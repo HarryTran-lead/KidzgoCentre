@@ -1735,7 +1735,7 @@ export default function AccountsPage() {
           </div>
 
           {/* Filter Bar */}
-          <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <div className={`rounded-2xl border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
             <div className="space-y-4">
               {/* Bulk Approval Row */}
               <div className="flex flex-wrap items-center gap-3">

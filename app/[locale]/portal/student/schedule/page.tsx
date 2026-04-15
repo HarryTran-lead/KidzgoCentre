@@ -8,7 +8,7 @@ import {
   Clock3,
   MapPin,
   User2,
-  Ticket,
+  Users,
 } from "lucide-react";
 import {
   extractStudentTimetableSessions,
@@ -18,8 +18,58 @@ import { toISOStartOfDayVN, toISOEndOfDayVN } from "@/lib/datetime";
 import type { StudentTimetableSession } from "@/types/student/timetable";
 
 type TabType = "all" | "regular" | "makeup";
+type TimeSlot = "morning" | "afternoon" | "evening";
+
+interface SessionEvent {
+  id: string;
+  time: string;
+  title: string;
+  room?: string;
+  type: "regular" | "makeup";
+  teacher?: string;
+  track?: string;
+  color?: string | null;
+  attendanceStatus?: string | null;
+  absenceType?: string | null;
+}
+
+interface DaySchedule {
+  [key: string]: SessionEvent[];
+}
 
 const DAY_LABELS = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "CN"];
+const TIME_SLOTS = [
+  { key: "morning" as TimeSlot, label: "Sáng" },
+  { key: "afternoon" as TimeSlot, label: "Chiều" },
+  { key: "evening" as TimeSlot, label: "Tối" },
+];
+
+const TYPE_META = {
+  regular: {
+    text: "Regular",
+    badge: "bg-emerald-600 text-white",
+  },
+  makeup: {
+    text: "Makeup",
+    badge: "bg-amber-600 text-white",
+  },
+};
+
+function TypeBadge({ type }: { type: "regular" | "makeup" }) {
+  const { text, badge } = TYPE_META[type];
+  return <span className={`rounded-full px-3 py-1 text-xs font-semibold ${badge}`}>{text}</span>;
+}
+
+const PROGRAM_COLOR_PALETTE = [
+  { bg: "bg-gradient-to-r from-red-600 to-red-700", light: "bg-gradient-to-br from-red-50 to-red-100" },
+  { bg: "bg-gradient-to-r from-blue-600 to-blue-700", light: "bg-gradient-to-br from-blue-50 to-blue-100" },
+  { bg: "bg-gradient-to-r from-emerald-600 to-emerald-700", light: "bg-gradient-to-br from-emerald-50 to-emerald-100" },
+  { bg: "bg-gradient-to-r from-purple-600 to-purple-700", light: "bg-gradient-to-br from-purple-50 to-purple-100" },
+  { bg: "bg-gradient-to-r from-amber-500 to-orange-500", light: "bg-gradient-to-br from-amber-50 to-amber-100" },
+  { bg: "bg-gradient-to-r from-sky-500 to-blue-500", light: "bg-gradient-to-br from-sky-50 to-sky-100" },
+  { bg: "bg-gradient-to-r from-indigo-500 to-indigo-600", light: "bg-gradient-to-br from-indigo-50 to-indigo-100" },
+  { bg: "bg-gradient-to-r from-pink-500 to-rose-500", light: "bg-gradient-to-br from-pink-50 to-pink-100" },
+];
 
 function getWeekStart(date: Date) {
   const next = new Date(date);
@@ -29,80 +79,39 @@ function getWeekStart(date: Date) {
   return next;
 }
 
-function getWeekDates(weekStart: Date) {
-  return DAY_LABELS.map((_, index) => {
-    const date = new Date(weekStart);
-    date.setDate(weekStart.getDate() + index);
-    return date;
-  });
-}
+const formatDate = (d?: Date) =>
+  d
+    ? new Intl.DateTimeFormat("vi-VN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }).format(d)
+    : "";
 
-function toDateKey(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function parseSessionDate(value?: string | null) {
-  if (!value) return null;
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
-
-function formatWeekLabel(weekStart: Date) {
-  const end = new Date(weekStart);
-  end.setDate(weekStart.getDate() + 6);
-  return `${weekStart.toLocaleDateString("vi-VN")} - ${end.toLocaleDateString("vi-VN")}`;
-}
-
-function formatTimeRange(session: StudentTimetableSession) {
-  const raw = session.plannedDatetime ?? session.actualDatetime;
-  const start = parseSessionDate(raw);
-  if (!start) return "Chưa có giờ học";
-
-  const startText = start.toLocaleTimeString("vi-VN", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-
-  const duration = Number(session.durationMinutes ?? 0);
-  if (duration <= 0) return startText;
-
-  const end = new Date(start.getTime() + duration * 60 * 1000);
-  const endText = end.toLocaleTimeString("vi-VN", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-
-  return `${startText} - ${endText}`;
-}
-
-function getTrackLabel(track?: string | null) {
-  const normalized = String(track ?? "").trim().toLowerCase();
-  if (!normalized) return "Primary";
-  if (normalized === "secondary") return "Secondary";
-  if (normalized === "primary") return "Primary";
-  return track ?? "Primary";
-}
-
-function getAttendanceLabel(session: StudentTimetableSession) {
-  const attendanceStatus = String(session.attendanceStatus ?? "").trim();
-  const absenceType = String(session.absenceType ?? "").trim();
-
-  if (attendanceStatus && absenceType) {
-    return `${attendanceStatus} • ${absenceType}`;
-  }
-
-  return attendanceStatus || absenceType || "";
-}
+const formatTime = (d: Date) =>
+  d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
 
 export default function StudentSchedulePage() {
   const [activeTab, setActiveTab] = useState<TabType>("all");
+  const [selectedClass, setSelectedClass] = useState<SessionEvent | null>(null);
   const [currentWeekStart, setCurrentWeekStart] = useState(() => getWeekStart(new Date()));
   const [sessions, setSessions] = useState<StudentTimetableSession[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const weekDates = useMemo(() => {
+    return DAY_LABELS.map((_, idx) => {
+      const d = new Date(currentWeekStart);
+      d.setDate(currentWeekStart.getDate() + idx);
+      return d;
+    });
+  }, [currentWeekStart]);
+
+  const currentWeekLabel = useMemo(() => {
+    const start = weekDates[0];
+    const end = weekDates[6];
+    return `${formatDate(start)} - ${formatDate(end)}`;
+  }, [weekDates]);
 
   useEffect(() => {
     let active = true;
@@ -152,31 +161,6 @@ export default function StudentSchedulePage() {
     });
   }, [activeTab, sessions]);
 
-  const weekDates = useMemo(() => getWeekDates(currentWeekStart), [currentWeekStart]);
-
-  const sessionsByDate = useMemo(() => {
-    const map = new Map<string, StudentTimetableSession[]>();
-
-    filteredSessions.forEach((session) => {
-      const date = parseSessionDate(session.plannedDatetime ?? session.actualDatetime);
-      if (!date) return;
-      const key = toDateKey(date);
-      const current = map.get(key) ?? [];
-      current.push(session);
-      map.set(key, current);
-    });
-
-    for (const list of map.values()) {
-      list.sort((a, b) => {
-        const aTime = parseSessionDate(a.plannedDatetime ?? a.actualDatetime)?.getTime() ?? 0;
-        const bTime = parseSessionDate(b.plannedDatetime ?? b.actualDatetime)?.getTime() ?? 0;
-        return aTime - bTime;
-      });
-    }
-
-    return map;
-  }, [filteredSessions]);
-
   const summary = useMemo(() => {
     const makeupCount = sessions.filter((session) => Boolean(session.isMakeup)).length;
     return {
@@ -186,43 +170,151 @@ export default function StudentSchedulePage() {
     };
   }, [sessions]);
 
+  // Stable program → color index map
+  const programColorMap = useMemo(() => {
+    const map = new Map<string, number>();
+    let idx = 0;
+    filteredSessions.forEach((s) => {
+      const key = s.classTitle ?? s.classCode ?? "";
+      if (key && !map.has(key)) {
+        map.set(key, idx % PROGRAM_COLOR_PALETTE.length);
+        idx++;
+      }
+    });
+    return map;
+  }, [filteredSessions]);
+
+  const getLightColor = (event?: SessionEvent) => {
+    if (event?.color && (event.color.startsWith("#") || event.color.startsWith("rgb"))) {
+      return "";
+    }
+    const key = event?.title ?? "";
+    if (key && programColorMap.has(key)) {
+      return PROGRAM_COLOR_PALETTE[programColorMap.get(key)!].light;
+    }
+    return event?.type === "makeup"
+      ? "bg-gradient-to-br from-amber-50 to-amber-100"
+      : "bg-gradient-to-br from-red-50 to-red-100";
+  };
+
+  const getEventColor = (event?: SessionEvent) => {
+    if (event?.color && (event.color.startsWith("#") || event.color.startsWith("rgb"))) {
+      return "";
+    }
+    const key = event?.title ?? "";
+    if (key && programColorMap.has(key)) {
+      return PROGRAM_COLOR_PALETTE[programColorMap.get(key)!].bg;
+    }
+    return event?.type === "makeup"
+      ? "bg-gradient-to-r from-amber-500 to-amber-600"
+      : "bg-gradient-to-r from-red-600 to-red-700";
+  };
+
+  const goToPreviousWeek = () => {
+    const next = new Date(currentWeekStart);
+    next.setDate(currentWeekStart.getDate() - 7);
+    setCurrentWeekStart(next);
+  };
+
+  const goToNextWeek = () => {
+    const next = new Date(currentWeekStart);
+    next.setDate(currentWeekStart.getDate() + 7);
+    setCurrentWeekStart(next);
+  };
+
+  const goToCurrentWeek = () => {
+    setCurrentWeekStart(getWeekStart(new Date()));
+  };
+
+  // Build weekly grid schedule grouped by time slots
+  const weekSchedule = useMemo((): { [key in TimeSlot]: DaySchedule } => {
+    const blank: { [key in TimeSlot]: DaySchedule } = {
+      morning: {},
+      afternoon: {},
+      evening: {},
+    };
+    DAY_LABELS.forEach((day) => {
+      blank.morning[day] = [];
+      blank.afternoon[day] = [];
+      blank.evening[day] = [];
+    });
+
+    const toSlot = (date: Date): TimeSlot => {
+      const hour = date.getHours();
+      if (hour < 12) return "morning";
+      if (hour < 18) return "afternoon";
+      return "evening";
+    };
+
+    const toDayLabel = (date: Date) => {
+      const idx = (date.getDay() + 6) % 7;
+      return DAY_LABELS[idx];
+    };
+
+    filteredSessions.forEach((s) => {
+      const planned = s.plannedDatetime ?? s.actualDatetime;
+      if (!planned) return;
+      const start = new Date(planned);
+      if (Number.isNaN(start.getTime())) return;
+
+      const duration = Number(s.durationMinutes ?? 0);
+      const end = duration > 0 ? new Date(start.getTime() + duration * 60000) : null;
+      const timeLabel = end ? `${formatTime(start)} - ${formatTime(end)}` : formatTime(start);
+
+      const item: SessionEvent = {
+        id: s.id,
+        time: timeLabel,
+        title: s.classTitle ?? s.classCode ?? "Buổi học",
+        room: s.plannedRoomName ?? s.actualRoomName ?? undefined,
+        type: s.isMakeup ? "makeup" : "regular",
+        teacher: s.plannedTeacherName ?? s.actualTeacherName ?? undefined,
+        track: s.track ?? undefined,
+        color: s.color ?? null,
+        attendanceStatus: s.attendanceStatus ?? null,
+        absenceType: s.absenceType ?? null,
+      };
+
+      const slot = toSlot(start);
+      const day = toDayLabel(start);
+      blank[slot][day].push(item);
+    });
+
+    return blank;
+  }, [filteredSessions]);
+
+  const filterEvents = (events: SessionEvent[]) => {
+    if (activeTab === "all") return events;
+    if (activeTab === "regular") return events.filter((e) => e.type === "regular");
+    if (activeTab === "makeup") return events.filter((e) => e.type === "makeup");
+    return events;
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-4 md:p-6 space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+    <div className="flex flex-col h-full overflow-y-auto bg-gradient-to-b from-red-50/30 to-white p-4 md:p-6 space-y-6">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
         <div className="flex items-center gap-4">
-          <div className="rounded-2xl bg-gradient-to-r from-red-600 to-red-700 p-3 text-white shadow-lg">
-            <CalendarDays size={28} />
+          <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
+            <CalendarDays className="text-white" size={28} />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Lịch học của em</h1>
-            <p className="mt-1 text-sm text-gray-600">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent">
+              Lịch học của em
+            </h1>
+            <p className="text-sm text-gray-600 mt-1">
               Dữ liệu hiển thị theo session được assign thật sự từ backend.
             </p>
           </div>
         </div>
-
-        <div className="flex flex-wrap gap-2">
-          {[
-            { key: "all", label: "Tất cả" },
-            { key: "regular", label: "Regular" },
-            { key: "makeup", label: "Makeup" },
-          ].map((item) => (
-            <button
-              key={item.key}
-              type="button"
-              onClick={() => setActiveTab(item.key as TabType)}
-              className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
-                activeTab === item.key
-                  ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
-                  : "border border-red-200 bg-white text-gray-700 hover:bg-red-50"
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
       </div>
 
+      {error ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {error}
+        </div>
+      ) : null}
+
+      {/* Summary Stats */}
       <div className="grid gap-4 md:grid-cols-3">
         <div className="rounded-2xl border border-red-100 bg-white p-4 shadow-sm">
           <div className="text-sm text-gray-500">Tổng session tuần này</div>
@@ -238,153 +330,360 @@ export default function StudentSchedulePage() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-red-200 bg-white shadow-sm">
-        <div className="flex flex-col gap-3 border-b border-red-100 bg-gradient-to-r from-red-50 to-white px-5 py-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <div className="text-lg font-semibold text-gray-900">Tuần học</div>
-            <div className="text-sm text-gray-600">{formatWeekLabel(currentWeekStart)}</div>
+      {/* Tabs */}
+      <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-2 inline-flex gap-2">
+        {[
+          { key: "all", label: "Tất cả" },
+          { key: "regular", label: "Regular" },
+          { key: "makeup", label: "Makeup" },
+        ].map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => setActiveTab(tab.key as TabType)}
+            className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
+              activeTab === tab.key
+                ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                : "bg-white border border-red-200 text-gray-600 hover:bg-red-50"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Week Navigation + Calendar Grid */}
+      <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 shadow-sm overflow-x-auto">
+        <div className="flex items-center justify-between p-6 border-b border-red-200 bg-gradient-to-r from-red-50 to-red-100">
+          <div className="flex items-center gap-4">
+            <div className="relative p-3 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg">
+              <CalendarDays size={24} />
+              <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-white flex items-center justify-center">
+                <span className="text-xs font-bold text-red-600">{weekDates[0]?.getDate?.()}</span>
+              </div>
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-gray-900">Lịch tuần</div>
+              <div className="text-gray-600">{currentWeekLabel}</div>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => {
-                const next = new Date(currentWeekStart);
-                next.setDate(currentWeekStart.getDate() - 7);
-                setCurrentWeekStart(next);
-              }}
-              className="rounded-xl border border-red-200 bg-white p-2 text-gray-700 hover:bg-red-50"
+              className="p-2 rounded-lg border border-red-200 hover:bg-red-50 transition-colors cursor-pointer"
+              onClick={goToPreviousWeek}
             >
-              <ChevronLeft size={18} />
+              <ChevronLeft size={18} className="text-gray-600" />
+            </button>
+            <div className="min-w-[220px] text-center text-sm font-semibold text-gray-700">
+              Tuần từ {currentWeekLabel}
+            </div>
+            <button
+              type="button"
+              className="p-2 rounded-lg border border-red-200 hover:bg-red-50 transition-colors cursor-pointer"
+              onClick={goToNextWeek}
+            >
+              <ChevronRight size={18} className="text-gray-600" />
             </button>
             <button
               type="button"
-              onClick={() => setCurrentWeekStart(getWeekStart(new Date()))}
-              className="rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-red-50"
+              className="ml-2 rounded-xl border border-red-200 bg-white px-4 py-2 text-sm hover:bg-red-50 transition-colors cursor-pointer text-gray-700"
+              onClick={goToCurrentWeek}
             >
               Tuần này
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                const next = new Date(currentWeekStart);
-                next.setDate(currentWeekStart.getDate() + 7);
-                setCurrentWeekStart(next);
-              }}
-              className="rounded-xl border border-red-200 bg-white p-2 text-gray-700 hover:bg-red-50"
-            >
-              <ChevronRight size={18} />
             </button>
           </div>
         </div>
 
-        <div className="p-5">
-          {error ? (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
+        {/* Calendar Grid */}
+        <div>
+          <div className="min-w-[1200px]">
+            {/* Header Row */}
+            <div className="grid grid-cols-8 border-t border-red-200 bg-gradient-to-r from-red-50 to-gray-100 text-sm font-semibold text-gray-700">
+              <div className="px-4 py-3">Ca / Ngày</div>
+              {DAY_LABELS.map((day, index) => (
+                <div key={day} className="px-4 py-3 border-l border-red-200">
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="capitalize">{day}</span>
+                    <span className="h-8 w-8 flex items-center justify-center rounded-full text-sm font-bold bg-white text-gray-700 border border-red-200">
+                      {weekDates[index]?.getDate?.() ?? index + 1}
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
-          ) : null}
 
-          {loading ? (
-            <div className="py-12 text-center text-sm text-gray-500">Đang tải lịch học…</div>
-          ) : (
-            <div className="grid gap-4 xl:grid-cols-2 2xl:grid-cols-3">
-              {weekDates.map((date, index) => {
-                const dateKey = toDateKey(date);
-                const daySessions = sessionsByDate.get(dateKey) ?? [];
+            {/* Time Slots Rows */}
+            {TIME_SLOTS.map((slot, rowIdx) => (
+              <div key={slot.key} className="grid grid-cols-8 border-t border-red-200">
+                <div className="px-4 py-4 text-sm font-semibold text-gray-800 bg-gradient-to-r from-red-50 to-gray-100 flex items-center justify-center">
+                  <div className="flex flex-col items-center">
+                    <span className="font-bold text-lg">{slot.label}</span>
+                    {slot.key === "morning" && <span className="text-xs text-gray-500 mt-1">7:00-12:00</span>}
+                    {slot.key === "afternoon" && <span className="text-xs text-gray-500 mt-1">12:00-18:00</span>}
+                    {slot.key === "evening" && <span className="text-xs text-gray-500 mt-1">18:00-22:00</span>}
+                  </div>
+                </div>
 
-                return (
-                  <section
-                    key={dateKey}
-                    className="rounded-2xl border border-red-100 bg-gradient-to-b from-white to-red-50/40 p-4"
-                  >
-                    <div className="flex items-center justify-between gap-3 border-b border-red-100 pb-3">
-                      <div>
-                        <div className="text-sm font-semibold text-gray-900">{DAY_LABELS[index]}</div>
-                        <div className="text-xs text-gray-500">{date.toLocaleDateString("vi-VN")}</div>
-                      </div>
-                      <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700">
-                        {daySessions.length} session
-                      </span>
-                    </div>
+                {DAY_LABELS.map((day) => {
+                  const events = weekSchedule[slot.key][day] || [];
+                  const filteredEvents = filterEvents(events);
 
-                    <div className="mt-4 space-y-3">
-                      {daySessions.length === 0 ? (
-                        <div className="rounded-xl border border-dashed border-gray-200 bg-white px-4 py-5 text-sm text-gray-400">
-                          Không có lịch học.
-                        </div>
-                      ) : (
-                        daySessions.map((session) => {
-                          const attendanceLabel = getAttendanceLabel(session);
-                          const hexColor = session.color && (session.color.startsWith('#') || session.color.startsWith('rgb')) ? session.color : null;
+                  return (
+                    <div
+                      key={`${slot.key}-${day}`}
+                      className={`min-h-[140px] p-2 ${
+                        rowIdx % 2 ? "bg-white" : "bg-gray-50"
+                      } border-l border-red-200`}
+                    >
+                      <div className="space-y-1.5">
+                        {filteredEvents.map((event) => {
+                          const lightColor = getLightColor(event);
+                          const isHexColor = event.color && (event.color.startsWith("#") || event.color.startsWith("rgb"));
+                          const hexBgStyle = isHexColor ? { backgroundColor: `${event.color}33` } : undefined;
+                          const hexAccentStyle = isHexColor ? { backgroundColor: event.color ?? undefined } : undefined;
 
                           return (
-                            <article
-                              key={session.id}
-                              className="rounded-2xl border border-red-100 bg-white shadow-sm overflow-hidden"
-                              style={hexColor ? { backgroundColor: `${hexColor}33`, borderColor: `${hexColor}66` } : undefined}
+                            <button
+                              key={event.id}
+                              type="button"
+                              onClick={() => setSelectedClass(event)}
+                              className={`w-full text-left rounded-lg overflow-hidden text-[10px] leading-tight transition-all duration-200 hover:shadow-md cursor-pointer border ${isHexColor ? "" : "border-red-200"} ${lightColor}`}
+                              style={isHexColor ? { ...hexBgStyle, borderColor: `${event.color}66` } : undefined}
                             >
-                              {hexColor && <div className="h-1.5 w-full" style={{ backgroundColor: hexColor }} />}
-                              <div className="p-4">
-                              <div className="flex flex-wrap items-start justify-between gap-3">
-                                <div>
-                                  <div className="text-sm font-semibold text-gray-900">
-                                    {session.classTitle ?? session.classCode ?? "Buổi học"}
-                                  </div>
-                                  <div className="mt-1 flex items-center gap-2 text-sm text-gray-600">
-                                    <Clock3 size={14} className="text-red-500" />
-                                    {formatTimeRange(session)}
-                                  </div>
+                              {isHexColor && <div className="h-1 w-full" style={hexAccentStyle} />}
+                              <div className="px-1.5 py-1">
+                                <div className="font-semibold text-gray-900 truncate text-[11px]">{event.title}</div>
+                                <div className="text-gray-600 mt-0.5">{event.time}</div>
+                                <div className="text-gray-500 flex items-center gap-0.5 mt-0.5">
+                                  <MapPin size={8} className="shrink-0" />
+                                  <span className="truncate">{event.room || "—"}</span>
                                 </div>
-
-                                <div className="flex flex-wrap gap-2">
-                                  <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-700">
-                                    {getTrackLabel(session.track)}
-                                  </span>
+                                {event.teacher && (
+                                  <div className="text-gray-400 flex items-center gap-0.5 mt-0.5">
+                                    <Users size={8} className="shrink-0" />
+                                    <span className="truncate">{event.teacher}</span>
+                                  </div>
+                                )}
+                                <div className="flex flex-wrap gap-0.5 mt-1">
+                                  {event.track && (
+                                    <span className="text-[9px] px-1 py-px rounded bg-gray-100 text-gray-600 font-medium">
+                                      {event.track}
+                                    </span>
+                                  )}
                                   <span
-                                    className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                                      session.isMakeup
+                                    className={`text-[9px] px-1 py-px rounded font-medium ${
+                                      event.type === "makeup"
                                         ? "bg-amber-100 text-amber-700"
                                         : "bg-emerald-100 text-emerald-700"
                                     }`}
                                   >
-                                    {session.isMakeup ? "Makeup" : "Regular"}
+                                    {event.type === "makeup" ? "Makeup" : "Regular"}
                                   </span>
                                 </div>
+                                {(event.attendanceStatus || event.attendanceStatus === "NotMarked") && (
+                                  <div className="mt-0.5 flex flex-wrap gap-0.5">
+                                    <span
+                                      className={`text-[9px] px-1 py-px rounded font-medium ${
+                                        event.attendanceStatus === "Present"
+                                          ? "bg-green-100 text-green-700"
+                                          : event.attendanceStatus === "Absent"
+                                          ? "bg-red-100 text-red-700"
+                                          : event.attendanceStatus === "Makeup"
+                                          ? "bg-blue-100 text-blue-700"
+                                          : event.attendanceStatus === "NotMarked"
+                                          ? "bg-orange-100 text-orange-700"
+                                          : "bg-gray-100 text-gray-600"
+                                      }`}
+                                    >
+                                      {event.attendanceStatus === "Present"
+                                        ? "Có mặt"
+                                        : event.attendanceStatus === "Absent"
+                                        ? "Vắng"
+                                        : event.attendanceStatus === "Makeup"
+                                        ? "Học bù"
+                                        : event.attendanceStatus === "NotMarked"
+                                        ? "Chưa điểm danh"
+                                        : event.attendanceStatus}
+                                    </span>
+                                    {event.absenceType && (
+                                      <span className="text-[9px] px-1 py-px rounded bg-gray-100 text-gray-500 font-medium">
+                                        {event.absenceType === "WithNotice24H" ? "Báo trước 24h"
+                                          : event.absenceType === "Under24H" ? "Báo dưới 24h"
+                                          : event.absenceType === "NoNotice" ? "Không báo"
+                                          : event.absenceType === "LongTerm" ? "Nghỉ dài hạn"
+                                          : event.absenceType}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
                               </div>
-
-                              <div className="mt-3 grid gap-2 text-sm text-gray-600">
-                                <div className="flex items-center gap-2">
-                                  <MapPin size={14} className="text-red-500" />
-                                  {session.plannedRoomName ?? session.actualRoomName ?? "Chưa có phòng học"}
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <User2 size={14} className="text-red-500" />
-                                  {session.plannedTeacherName ?? session.actualTeacherName ?? "Chưa có giáo viên"}
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <Ticket size={14} className="text-red-500" />
-                                  <span className="truncate" title={session.registrationId ?? ""}>
-                                    Registration: {session.registrationId ?? "Chưa có"}
-                                  </span>
-                                </div>
-                              </div>
-
-                              {attendanceLabel ? (
-                                <div className="mt-3 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
-                                  {attendanceLabel}
-                                </div>
-                              ) : null}
-                              </div>
-                            </article>
+                            </button>
                           );
-                        })
-                      )}
+                        })}
+                        {filteredEvents.length === 0 && !loading && (
+                          <div className="text-[11px] text-gray-400 italic text-center py-3">Trống</div>
+                        )}
+                        {loading && (
+                          <div className="text-[11px] text-gray-400 italic text-center py-3">Đang tải…</div>
+                        )}
+                      </div>
                     </div>
-                  </section>
-                );
-              })}
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Class Detail Modal */}
+      {selectedClass && (
+        <div
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={() => setSelectedClass(null)}
+        >
+          <div
+            className="rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-red-200 bg-gradient-to-br from-white to-red-50"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 bg-gradient-to-r from-red-100 to-red-100 border-b border-red-200 px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div
+                  className={`p-2 rounded-xl ${getEventColor(selectedClass)} text-white shadow-md`}
+                  style={
+                    selectedClass.color &&
+                    (selectedClass.color.startsWith("#") || selectedClass.color.startsWith("rgb"))
+                      ? { backgroundColor: selectedClass.color }
+                      : undefined
+                  }
+                >
+                  <CalendarDays size={18} />
+                </div>
+                <div>
+                  <h2 className="text-lg md:text-xl font-bold text-gray-900">Chi tiết lịch học</h2>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedClass(null)}
+                className="p-2 rounded-lg hover:bg-red-200/60 bg-white/60 border border-red-200 transition-colors cursor-pointer"
+              >
+                <span className="text-lg">×</span>
+              </button>
             </div>
-          )}
+
+            <div className="p-6 space-y-4">
+              <div>
+                <div className="flex items-center gap-3 mb-3">
+                  <TypeBadge type={selectedClass.type} />
+                  <h3 className="text-lg font-semibold text-gray-900">{selectedClass.title}</h3>
+                </div>
+
+                <div className="space-y-3 text-sm">
+                  <div className="flex items-center gap-3">
+                    <Clock3 className="w-4 h-4 text-red-600" />
+                    <div>
+                      <div className="font-medium text-gray-700">Thời gian</div>
+                      <div className="text-gray-600">{selectedClass.time}</div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <MapPin className="w-4 h-4 text-red-600" />
+                    <div>
+                      <div className="font-medium text-gray-700">Phòng học</div>
+                      <div className="text-gray-600">{selectedClass.room || "—"}</div>
+                    </div>
+                  </div>
+
+                  {selectedClass.teacher && (
+                    <div className="flex items-center gap-3">
+                      <User2 className="w-4 h-4 text-red-600" />
+                      <div>
+                        <div className="font-medium text-gray-700">Giáo viên</div>
+                        <div className="text-gray-600">{selectedClass.teacher}</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedClass.track && (
+                    <div className="flex items-center gap-3">
+                      <Users className="w-4 h-4 text-red-600" />
+                      <div>
+                        <div className="font-medium text-gray-700">Track</div>
+                        <div className="text-gray-600">{selectedClass.track}</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedClass.attendanceStatus && (
+                    <div className="mt-2 p-3 rounded-xl bg-white/60 border border-red-100">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`text-xs px-2 py-1 rounded-full font-medium ${
+                            selectedClass.attendanceStatus === "Present"
+                              ? "bg-green-100 text-green-700"
+                              : selectedClass.attendanceStatus === "Absent"
+                              ? "bg-red-100 text-red-700"
+                              : selectedClass.attendanceStatus === "Makeup"
+                              ? "bg-blue-100 text-blue-700"
+                              : selectedClass.attendanceStatus === "NotMarked"
+                              ? "bg-orange-100 text-orange-700"
+                              : "bg-gray-100 text-gray-600"
+                          }`}
+                        >
+                          {selectedClass.attendanceStatus === "Present"
+                            ? "Có mặt"
+                            : selectedClass.attendanceStatus === "Absent"
+                            ? "Vắng"
+                            : selectedClass.attendanceStatus === "Makeup"
+                            ? "Học bù"
+                            : selectedClass.attendanceStatus === "NotMarked"
+                            ? "Chưa điểm danh"
+                            : selectedClass.attendanceStatus}
+                        </span>
+                        {selectedClass.absenceType && (
+                          <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-500 font-medium">
+                            {selectedClass.absenceType === "WithNotice24H" ? "Báo trước 24h"
+                              : selectedClass.absenceType === "Under24H" ? "Báo dưới 24h"
+                              : selectedClass.absenceType === "NoNotice" ? "Không báo"
+                              : selectedClass.absenceType === "LongTerm" ? "Nghỉ dài hạn"
+                              : selectedClass.absenceType}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-red-200 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setSelectedClass(null)}
+                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white hover:shadow-lg transition-all cursor-pointer"
+                >
+                  Đóng
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Legend */}
+      <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4">
+        <div className="text-sm font-semibold text-gray-900 mb-3">Chú thích:</div>
+        <div className="flex flex-wrap gap-4">
+          <div className="flex items-center gap-2">
+            <div className="h-4 w-6 rounded bg-gradient-to-r from-emerald-500 to-emerald-600"></div>
+            <span className="text-sm text-gray-600">Regular</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="h-4 w-6 rounded bg-gradient-to-r from-amber-500 to-amber-600"></div>
+            <span className="text-sm text-gray-600">Makeup</span>
+          </div>
         </div>
       </div>
     </div>

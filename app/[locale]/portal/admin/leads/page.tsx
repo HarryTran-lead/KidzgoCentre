@@ -300,11 +300,11 @@ export default function AdminLeadsPage() {
           searchQuery={searchQuery}
           selectedStatus={selectedStatus}
           selectedSource={selectedSource}
-          pageSize={pageSize}
+          // pageSize={pageSize}
           onSearchChange={setSearchQuery}
           onStatusChange={setSelectedStatus}
           onSourceChange={setSelectedSource}
-          onPageSizeChange={setPageSize}
+          // onPageSizeChange={setPageSize}
         />
       </div>
 

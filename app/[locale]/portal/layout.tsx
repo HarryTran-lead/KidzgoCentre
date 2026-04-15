@@ -9,9 +9,8 @@ type Props = {
 export default async function PortalLayout({ children, params }: Props) {
   return (
     <div className="h-dvh w-full">
-          {/* Nội dung cuộn dưới header */}
-          <div className="grow  bg-slate-50 min-w-0 overflow-y-auto">
-            {children}
+      <div className="grow bg-slate-50 min-w-0 overflow-y-auto">
+        {children}
       </div>
     </div>
   );

@@ -291,7 +291,7 @@ export default function AiQuickGradeCard({
           <button
             type="button"
             onClick={() => setShowAdvanced((prev) => !prev)}
-            className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-white px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50"
+            className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-white px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50 cursor-pointer"
           >
             <Wand2 size={14} />
             {showAdvanced ? "Ẩn tùy chỉnh" : "Mở tùy chỉnh"}
@@ -300,7 +300,7 @@ export default function AiQuickGradeCard({
             type="button"
             onClick={handleQuickGrade}
             disabled={loading}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
           >
             {loading ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
             AI chấm nhanh

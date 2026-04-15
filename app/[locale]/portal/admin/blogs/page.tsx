@@ -15,6 +15,7 @@ import { toast } from "@/hooks/use-toast";
 import BlogFormModal from "@/components/portal/admin/blogs/BlogFormModal";
 import BlogDetailModal from "@/components/portal/admin/blogs/BlogDetailModal";
 import ConfirmModal from "@/components/portal/admin/blogs/ConfirmModal";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
 
 import {
   Search,
@@ -157,7 +158,7 @@ export default function BlogManagementPage() {
   // Filter & Search
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<boolean | null>(null); // null = all, true = published, false = draft
+  const [statusFilter, setStatusFilter] = useState<"all" | "published" | "draft">("all");
 
   // Sorting & Pagination
   const [sort, setSort] = useState<SortState<Blog>>({ key: "createdAt", direction: "desc" });
@@ -342,8 +343,9 @@ export default function BlogManagementPage() {
     let result = blogs;
 
     // Status filter
-    if (statusFilter !== null) {
-      result = result.filter(blog => blog.isPublished === statusFilter);
+    if (statusFilter !== "all") {
+      const isPublished = statusFilter === "published";
+      result = result.filter(blog => blog.isPublished === isPublished);
     }
 
     // Search filter
@@ -501,49 +503,29 @@ export default function BlogManagementPage() {
         <div className="flex flex-col md:flex-row gap-4">
           {/* Search */}
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
             <input
               type="text"
-              placeholder="Tìm kiếm theo tiêu đề, nội dung, tác giả..."
+              placeholder="Tìm kiếm bài viết..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-xl border border-red-200 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
+              className="w-full pl-10 pr-4 py-2 rounded-xl border border-red-200 bg-white focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
             />
           </div>
 
           {/* Status Filter */}
-          <div className="flex gap-2">
-            <button
-              onClick={() => setStatusFilter(null)}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                statusFilter === null
-                  ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md'
-                  : 'bg-white border border-red-200 text-gray-700 hover:bg-red-50'
-              }`}
-            >
-              Tất cả
-            </button>
-            <button
-              onClick={() => setStatusFilter(true)}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                statusFilter === true
-                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md'
-                  : 'bg-white border border-red-200 text-gray-700 hover:bg-red-50'
-              }`}
-            >
-              Đã xuất bản
-            </button>
-            <button
-              onClick={() => setStatusFilter(false)}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                statusFilter === false
-                  ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md'
-                  : 'bg-white border border-red-200 text-gray-700 hover:bg-red-50'
-              }`}
-            >
-              Bản nháp
-            </button>
-          </div>
+          <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "all" | "published" | "draft")}>
+            <SelectTrigger className="w-auto min-w-max rounded-xl h-10">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tất cả trạng thái</SelectItem>
+              <SelectItem value="published">Đã xuất bản</SelectItem>
+              <SelectItem value="draft">Bản nháp</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
