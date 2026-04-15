@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { getMyStarBalance, getMyLevel, getMyAttendanceStreak } from "@/lib/api/gamificationService";
+import { buildFileUrl } from "@/constants/apiURL";
 
 type StudentHeaderProps = {
   userName?: string;
@@ -37,6 +38,11 @@ export default function StudentHeader({
     const parts = pathname.split('/');
     return parts[1] || 'vi'; // Default to 'vi' if no locale found
   }, [pathname]);
+  const displayUserName = currentUser?.fullName ?? userName ?? "Nguyen Van An";
+  const headerAvatarUrl = useMemo(() => {
+    const rawAvatar = currentUser?.avatarUrl ?? avatarUrl;
+    return rawAvatar ? buildFileUrl(rawAvatar) : "";
+  }, [currentUser?.avatarUrl, avatarUrl]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -157,16 +163,16 @@ export default function StudentHeader({
                 <div className="relative">
                   <div className="relative rounded-full p-[2px] bg-gradient-to-br from-cyan-400 via-blue-400 to-purple-400 shadow-lg">
                     <div className="relative h-[52px] w-[52px] rounded-full overflow-hidden bg-indigo-900">
-                      {avatarUrl ? (
+                      {headerAvatarUrl ? (
                         <Image
-                          src={avatarUrl}
-                          alt={userName ?? "Student"}
+                          src={headerAvatarUrl}
+                          alt={displayUserName}
                           fill
                           className="object-cover"
                         />
                       ) : (
                         <div className="flex h-full w-full items-center justify-center text-xl font-black text-white">
-                          {(userName ?? "N")[0].toUpperCase()}
+                          {(displayUserName || "N")[0].toUpperCase()}
                         </div>
                       )}
                     </div>
@@ -201,7 +207,7 @@ export default function StudentHeader({
                 <div className="flex flex-col items-start gap-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-base font-black text-white drop-shadow-md truncate max-w-[140px]">
-                      {isLoggingOut ? "Đang đăng xuất..." : userName ?? "Nguyen Van An"}
+                      {isLoggingOut ? "Đang đăng xuất..." : displayUserName}
                     </span>
                     {!isLoggingOut && (
                       <motion.div
@@ -277,7 +283,7 @@ export default function StudentHeader({
                         <div className="absolute inset-0 bg-grid-pattern opacity-10" />
                         <div className="relative">
                           <p className="text-base font-bold text-white mb-1">
-                            {userName ?? "Nguyễn Văn An"}
+                            {displayUserName}
                           </p>
                           <p className="text-xs text-white/80 truncate mb-2">
                             {currentUser?.email ?? ""}

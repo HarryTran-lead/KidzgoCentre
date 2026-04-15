@@ -699,10 +699,7 @@ export default function CreateAccountProfileModal({
                 </div>
               </div>
 
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700">
-                Profile sẽ được tạo với trạng thái <strong>chưa kích hoạt (isActive = false)</strong>.
-                Admin sẽ xác nhận và kích hoạt sau.
-              </div>
+              
 
               <div className="flex justify-between pt-4">
                 <button
@@ -763,13 +760,7 @@ export default function CreateAccountProfileModal({
                   />
                 </div>
               </div>
-
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700">
-                Profile học viên cũng sẽ được tạo với trạng thái{" "}
-                <strong>chưa kích hoạt (isActive = false)</strong>. Admin sẽ xác
-                nhận và kích hoạt sau.
-              </div>
-
+              
               <div className="flex justify-between pt-4">
                 <button
                   type="button"
