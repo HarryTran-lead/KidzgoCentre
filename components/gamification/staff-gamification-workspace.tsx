@@ -1261,9 +1261,9 @@ export function StaffGamificationWorkspace({
       const XLSX = await loadXlsxModule();
       const workbook = XLSX.read(await blob.arrayBuffer(), { type: "array" });
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const exportedRows = XLSX.utils.sheet_to_json<ExportedDeliveredRow>(worksheet, {
+      const exportedRows = XLSX.utils.sheet_to_json(worksheet, {
         defval: "",
-      });
+      }) as ExportedDeliveredRow[];
 
       if (exportedRows.length === 0) {
         toast({
