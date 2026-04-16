@@ -7,6 +7,8 @@ import type {
   PauseEnrollmentRequestActionResponse,
   PauseEnrollmentRequestDetailResponse,
   PauseEnrollmentRequestListResponse,
+  ReassignEquivalentClassPayload,
+  ReassignEquivalentClassResponse,
   UpdatePauseEnrollmentOutcomePayload,
 } from "@/types/pauseEnrollment";
 
@@ -110,6 +112,23 @@ export async function updatePauseEnrollmentOutcome(
     {
       ...payload,
       outcomeNote: payload.outcomeNote?.trim() ? payload.outcomeNote : null,
+    }
+  );
+}
+
+export async function reassignPauseEnrollmentEquivalentClass(
+  id: string,
+  payload: ReassignEquivalentClassPayload
+): Promise<ReassignEquivalentClassResponse> {
+  return post<ReassignEquivalentClassResponse>(
+    PAUSE_ENROLLMENT_ENDPOINTS.REASSIGN_EQUIVALENT_CLASS(id),
+    {
+      ...payload,
+      track: payload.track ?? "primary",
+      sessionSelectionPattern: payload.sessionSelectionPattern?.trim()
+        ? payload.sessionSelectionPattern.trim()
+        : null,
+      effectiveDate: payload.effectiveDate?.trim() ? payload.effectiveDate : null,
     }
   );
 }

@@ -267,6 +267,8 @@ export const PAUSE_ENROLLMENT_ENDPOINTS = {
   REJECT: (id: string) => `/api/pause-enrollment-requests/${id}/reject`,
   CANCEL: (id: string) => `/api/pause-enrollment-requests/${id}/cancel`,
   OUTCOME: (id: string) => `/api/pause-enrollment-requests/${id}/outcome`,
+  REASSIGN_EQUIVALENT_CLASS: (id: string) =>
+    `/api/pause-enrollment-requests/${id}/reassign-equivalent-class`,
 } as const;
 
 export const BACKEND_PAUSE_ENROLLMENT_ENDPOINTS = {
@@ -278,6 +280,8 @@ export const BACKEND_PAUSE_ENROLLMENT_ENDPOINTS = {
   REJECT: (id: string) => `/pause-enrollment-requests/${id}/reject`,
   CANCEL: (id: string) => `/pause-enrollment-requests/${id}/cancel`,
   OUTCOME: (id: string) => `/pause-enrollment-requests/${id}/outcome`,
+  REASSIGN_EQUIVALENT_CLASS: (id: string) =>
+    `/pause-enrollment-requests/${id}/reassign-equivalent-class`,
 } as const;
 
 // User Management Endpoints (Client-side → Next.js API Routes)
