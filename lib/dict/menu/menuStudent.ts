@@ -4,7 +4,7 @@ export const menuStudent = {
     groups: {
       homework: "Bài tập",
       reportsTests: "Báo cáo",
-      gamification: "Gamification",
+      gamification: "Nhiệm vụ & Đổi thưởng",
       media: "Media",
       applications: "Đơn yêu cầu",
     },
@@ -22,7 +22,7 @@ export const menuStudent = {
       testResults: "Kết quả kiểm tra",
       monthlyReports: "Báo cáo học tập",
       // Gamification
-      missions: "Nhiệm vụ (Mission)",
+      missions: "Nhiệm vụ",
       streak: "Streak học tập",
       stars: "Sao (Star)",
       xp: "XP",
@@ -40,7 +40,7 @@ export const menuStudent = {
     groups: {
       homework: "Homework",
       reportsTests: "Reports",
-      gamification: "Gamification",
+      gamification: "Missions & Rewards",
       media: "Media",
       applications: "Applications",
     },

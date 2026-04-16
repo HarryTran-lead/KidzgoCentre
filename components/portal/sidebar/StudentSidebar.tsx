@@ -181,7 +181,7 @@ export default function StudentSidebar({
       iconSrc: "/icons/phone.png",
     },
     { 
-      label: "Gamification", 
+      label: "Nhiệm vụ", 
       href: `${roleRoot}/gamification`,
       iconSrc: "/icons/mushroom.png",
     },

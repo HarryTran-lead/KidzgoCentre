@@ -3,7 +3,7 @@ export const menuParent = {
     items: {
       schedule: "Lịch học & Điểm danh",
       homework: "Bài tập & Nộp bài",
-      gamification: "Gamification",
+      gamification: "Nhiệm vụ & Đổi thưởng",
       testsReports: "Kiểm tra & Báo cáo",
       payment: "Thanh toán",
       media: "Kho tài liệu",
@@ -19,7 +19,7 @@ export const menuParent = {
     items: {
       schedule: "Schedule & Attendance",
       homework: "Homework",
-      gamification: "Gamification",
+      gamification: "Missions & Rewards",
       testsReports: "Tests & Reports",
       payment: "Payment",
       media: "Media",

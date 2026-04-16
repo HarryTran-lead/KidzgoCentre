@@ -206,7 +206,7 @@ export function LearnerGamificationWorkspace({
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white shadow-lg shadow-purple-500/30">
-              <Sparkles className="h-4 w-4" />Gamification cho {portalLabel.toLowerCase()}
+              <Sparkles className="h-4 w-4" />Nhiệm vụ và đổi thưởng cho {portalLabel.toLowerCase()}
             </div>
             <h1 className="mt-3 text-3xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-purple-600 via-pink-400 to-purple-600">
               Hành trình tích sao và chinh phục nhiệm vụ
@@ -235,7 +235,7 @@ export function LearnerGamificationWorkspace({
 
       <Tabs value={activeTab} onChange={setActiveTab} tabs={tabs} />
 
-      {loading ? <Panel className="py-14"><div className="flex items-center justify-center gap-3 text-white"><Loader2 className="h-5 w-5 animate-spin" /><span>Đang tải dữ liệu gamification...</span></div></Panel> : null}
+      {loading ? <Panel className="py-14"><div className="flex items-center justify-center gap-3 text-white"><Loader2 className="h-5 w-5 animate-spin" /><span>Đang tải dữ liệu nhiệm vụ và đổi thưởng...</span></div></Panel> : null}
       {!loading && pageError ? <Panel className="border-rose-500/30 bg-rose-500/10"><div className="flex items-start gap-3 text-rose-400"><AlertCircle className="mt-0.5 h-5 w-5" /><div><h2 className="text-lg font-semibold text-white">Không thể tải dữ liệu</h2><p className="mt-1 text-sm text-rose-300">{pageError}</p></div></div></Panel> : null}
 
       {/* Overview Tab */}

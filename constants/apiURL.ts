@@ -123,6 +123,7 @@ export const GAMIFICATION_ENDPOINTS = {
   REWARD_REDEMPTIONS: "/api/gamification/reward-redemptions",
   REWARD_REDEMPTION_BY_ID: (id: string) => `/api/gamification/reward-redemptions/${id}`,
   REWARD_REDEMPTIONS_ME: "/api/gamification/reward-redemptions/me",
+  REWARD_REDEMPTION_EXPORT_DELIVERED: "/api/gamification/reward-redemptions/export-delivered",
   REWARD_REDEMPTION_APPROVE: (id: string) =>
     `/api/gamification/reward-redemptions/${id}/approve`,
   REWARD_REDEMPTION_CANCEL: (id: string) =>

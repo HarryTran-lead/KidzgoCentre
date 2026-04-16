@@ -1,9 +1,11 @@
 import {
   CLASS_ENDPOINTS,
   GAMIFICATION_ENDPOINTS,
+  buildApiUrl,
   MISSION_ENDPOINTS,
 } from "@/constants/apiURL";
 import { del, get, patch, post, put } from "@/lib/axios";
+import { getAccessToken } from "@/lib/store/authToken";
 import type {
   AttendanceCheckInResult,
   AttendanceStreakInfo,
@@ -24,6 +26,8 @@ import type {
   PaginatedItems,
   RedemptionStatus,
   RewardRedemption,
+  RewardRedemptionExportParams,
+  RewardRedemptionExportResult,
   RewardRedemptionCancelRequest,
   RewardRedemptionListParams,
   RewardRedemptionRequest,
@@ -584,6 +588,54 @@ export async function batchDeliverRewardRedemptions(
   return unwrapData<BatchDeliverResult>(response);
 }
 
+export async function exportDeliveredRewardRedemptions(
+  params: RewardRedemptionExportParams = {}
+): Promise<RewardRedemptionExportResult> {
+  const query = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(cleanParams(params))) {
+    query.set(key, String(value));
+  }
+
+  const endpoint = GAMIFICATION_ENDPOINTS.REWARD_REDEMPTION_EXPORT_DELIVERED;
+  const url = buildApiUrl(`${endpoint}${query.toString() ? `?${query.toString()}` : ""}`);
+  const accessToken = getAccessToken();
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      Accept: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+  });
+
+  if (!response.ok) {
+    let message = "Không thể xuất báo cáo đổi thưởng.";
+    try {
+      const errorPayload = await response.json();
+      if (typeof errorPayload?.detail === "string" && errorPayload.detail.trim()) {
+        message = errorPayload.detail;
+      }
+    } catch {
+      // Ignore JSON parse errors for non-JSON error payloads.
+    }
+    throw new Error(message);
+  }
+
+  const blob = await response.blob();
+  const contentDisposition = response.headers.get("content-disposition") ?? "";
+  const fileNameMatch = /filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i.exec(contentDisposition);
+  const encodedFileName = fileNameMatch?.[1] ?? fileNameMatch?.[2] ?? "";
+  const fileName = encodedFileName
+    ? decodeURIComponent(encodedFileName)
+    : `reward-redemptions-delivered-${new Date().toISOString().slice(0, 10)}.xlsx`;
+
+  return {
+    blob,
+    fileName,
+  };
+}
+
 // ── Mission Reward Rules ────────────────────────────────────────────────────
 
 function normalizeMissionRewardRule(source: unknown): MissionRewardRule {
@@ -607,6 +659,8 @@ export async function listMissionRewardRules(): Promise<MissionRewardRule[]> {
   const payload = unwrapData<AnyRecord>(response);
   const items = Array.isArray(payload?.items)
     ? payload.items
+    : Array.isArray(payload?.rules?.items)
+      ? payload.rules.items
     : Array.isArray(payload?.rules)
       ? payload.rules
       : Array.isArray(payload)

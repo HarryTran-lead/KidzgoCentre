@@ -163,6 +163,41 @@ function useHeaderI18n(locale: Locale) {
   };
 }
 
+function normalizeNotificationLink(input: string | undefined, locale: Locale, role: Role, fallback: string): string {
+  const raw = String(input ?? "").trim();
+  if (!raw) return fallback;
+
+  const roleBase = ROLES[role];
+  const roleReportRequestPath =
+    role === "Teacher" || role === "Admin"
+      ? `/${locale}${roleBase}/report-requests`
+      : null;
+
+  let path = raw;
+  if (/^https?:\/\//i.test(raw)) {
+    try {
+      path = new URL(raw).pathname;
+    } catch {
+      return fallback;
+    }
+  }
+
+  if (!path.startsWith("/")) path = `/${path}`;
+
+  const legacyReportRequestMatch = path.match(/^\/(?:(?:vi|en)\/)?report-requests\/([0-9a-fA-F-]{36})$/);
+  if (legacyReportRequestMatch && roleReportRequestPath) {
+    const requestId = legacyReportRequestMatch[1];
+    return `${roleReportRequestPath}?requestId=${requestId}`;
+  }
+
+  const localePrefix = `/${locale}`;
+  if (!path.startsWith(localePrefix)) {
+    return `${localePrefix}${path}`;
+  }
+
+  return path;
+}
+
 /* ================= Component ================= */
 export default function PortalHeader({
   role,
@@ -381,7 +416,13 @@ export default function PortalHeader({
                                 onNotificationClick(n.id);
                                 return;
                               }
-                              router.push(n.link ?? notificationCenter.notificationsRoute);
+                              const destination = normalizeNotificationLink(
+                                n.link,
+                                locale,
+                                currentRole,
+                                notificationCenter.notificationsRoute,
+                              );
+                              router.push(destination);
                             }}
                             className={`w-full p-4 text-left hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-0 ${
                               !n.read ? "bg-blue-50/50" : ""

@@ -311,8 +311,10 @@ export function mapMissionTypeLabel(type: MissionType) {
       return "Chuỗi điểm danh";
     case "ClassAttendance":
       return "Chuyên cần lớp học";
+    case "Custom":
+      return "Nhiệm vụ khác";
     default:
-      return "Tùy chỉnh";
+      return "Nhiệm vụ khác";
   }
 }
 

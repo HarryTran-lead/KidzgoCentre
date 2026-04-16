@@ -6,6 +6,7 @@ import {
   AlertCircle,
   CheckCheck,
   Coins,
+  Download,
   Gift,
   ImageIcon,
   Loader2,
@@ -23,6 +24,7 @@ import {
 import { buildFileUrl } from "@/constants/apiURL";
 import { useToast } from "@/hooks/use-toast";
 import { isUploadSuccess, uploadFile } from "@/lib/api/fileService";
+import { getAllBranches } from "@/lib/api/branchService";
 import { getTeacherClasses } from "@/lib/api/teacherService";
 import { get } from "@/lib/axios";
 import {
@@ -34,9 +36,12 @@ import {
   createMission,
   createRewardStoreItem,
   deductStars,
+  deductXp,
   deleteMission,
   deleteRewardStoreItem,
+  exportDeliveredRewardRedemptions,
   getAttendanceStreak,
+  getGamificationSettings,
   getLevel,
   getMissionClassOptions,
   getMissionProgress,
@@ -52,6 +57,7 @@ import {
   toggleMissionRewardRuleStatus,
   markRewardRedemptionDelivered,
   toggleRewardStoreItemStatus,
+  updateGamificationSettings,
   updateMission,
   updateRewardStoreItem,
 } from "@/lib/api/gamificationService";
@@ -69,6 +75,7 @@ import type {
   RewardRedemption,
   RewardStoreItem,
 } from "@/types/gamification";
+import type { Branch } from "@/types/branch";
 import {
   cx,
   DialogShell,
@@ -98,7 +105,7 @@ import {
 } from "./shared";
 
 type StaffRole = "Admin" | "ManagementStaff" | "Teacher";
-type StaffTab = "missions" | "students" | "rewardStore" | "redemptions" | "rewardRules";
+type StaffTab = "missions" | "students" | "rewardStore" | "redemptions" | "settings";
 
 type MissionFormState = {
   id?: string;
@@ -240,17 +247,20 @@ export function StaffGamificationWorkspace({
   role: StaffRole;
   title: string;
 }) {
+  const exportFilterStorageKey = `staff-gamification-export-filters:${role}`;
   const { toast } = useToast();
   const canManageStore = role !== "Teacher";
+  const canViewRules = true;
+  const canEditRules = role !== "Teacher";
+  const canManageGamificationSettings = role !== "Teacher";
   const canDeleteMission = role !== "Teacher";
-  const canViewRedemptions = role !== "Teacher";
-  const canManageRules = role !== "Teacher";
+  const canViewRedemptions = true;
   const tabs = [
     { id: "missions" as const, label: "Nhiệm vụ" },
     { id: "students" as const, label: "Sao / XP" },
-    ...(canManageRules ? ([{ id: "rewardRules" as const, label: "Quy tắc thưởng" }] as const) : []),
     ...(canManageStore ? ([{ id: "rewardStore" as const, label: "Kho quà" }] as const) : []),
     ...(canViewRedemptions ? ([{ id: "redemptions" as const, label: "Đổi thưởng" }] as const) : []),
+    ...(canViewRules || canManageGamificationSettings ? ([{ id: "settings" as const, label: "Cài đặt" }] as const) : []),
   ];
   const [activeTab, setActiveTab] = useState<StaffTab>("missions");
   const [loading, setLoading] = useState(true);
@@ -284,11 +294,18 @@ export function StaffGamificationWorkspace({
   const [studentActionErrors, setStudentActionErrors] = useState<StudentActionErrors>({});
   const [batchYear, setBatchYear] = useState("");
   const [batchMonth, setBatchMonth] = useState("");
+  const [exportBranchId, setExportBranchId] = useState("");
+  const [exportItemId, setExportItemId] = useState("");
   const [redemptionPage, setRedemptionPage] = useState(1);
   const [redemptionTotalPages, setRedemptionTotalPages] = useState(1);
+  const [branchOptions, setBranchOptions] = useState<Branch[]>([]);
   const [rewardRules, setRewardRules] = useState<MissionRewardRule[]>([]);
   const [ruleForm, setRuleForm] = useState<MissionRewardRuleRequest & { id?: string }>({ missionType: "", progressMode: "Count", totalRequired: 0, rewardStars: 0, rewardExp: 0 });
   const [ruleDialogOpen, setRuleDialogOpen] = useState(false);
+  const [gamificationSettings, setGamificationSettings] = useState({
+    checkInRewardStars: 0,
+    checkInRewardExp: 0,
+  });
   const [imageUploading, setImageUploading] = useState(false);
   const rewardImageInputRef = useRef<HTMLInputElement>(null);
   const rewardImagePreviewUrl = buildFileUrl(rewardForm.imageUrl);
@@ -310,6 +327,32 @@ export function StaffGamificationWorkspace({
         .filter((item): item is StudentOption => Boolean(item)),
     [missionForm.targetGroupIds, students]
   );
+
+  const visibleMissions = useMemo(() => {
+    if (role !== "Teacher") {
+      return missions;
+    }
+
+    const teacherClassIds = new Set(classOptions.map((item) => item.id));
+    const teacherStudentIds = new Set(students.map((item) => item.id));
+
+    return missions.filter((mission) => {
+      if (mission.scope === "Class") {
+        return mission.targetClassId ? teacherClassIds.has(mission.targetClassId) : false;
+      }
+
+      if (mission.scope === "Student") {
+        return mission.targetStudentId ? teacherStudentIds.has(mission.targetStudentId) : false;
+      }
+
+      if (mission.scope === "Group") {
+        const targetGroup = normalizeMissionTargetGroup(mission.targetGroup);
+        return targetGroup.some((studentId) => teacherStudentIds.has(studentId));
+      }
+
+      return true;
+    });
+  }, [classOptions, missions, role, students]);
 
   function normalizeMissionTargetGroup(value: Mission["targetGroup"]): string[] {
     if (Array.isArray(value)) {
@@ -625,12 +668,18 @@ export function StaffGamificationWorkspace({
         ? listRewardStoreItems({ page: 1, pageSize: 50 })
         : Promise.resolve({ items: [], pageNumber: 1, totalPages: 1, totalCount: 0 }),
       listRewardRedemptions({ page: redemptionPage, pageSize: 10 }),
-      canManageRules
+      canViewRules
         ? listMissionRewardRules()
         : Promise.resolve([] as MissionRewardRule[]),
+      canManageGamificationSettings
+        ? getGamificationSettings()
+        : Promise.resolve({ checkInRewardStars: 0, checkInRewardExp: 0 }),
+      canManageStore
+        ? getAllBranches({ page: 1, limit: 200, isActive: true })
+        : Promise.resolve({ data: { branches: [] } } as any),
     ]);
 
-    const [missionResult, classResult, studentResult, rewardResult, redemptionResult, ruleResult] = results;
+    const [missionResult, classResult, studentResult, rewardResult, redemptionResult, ruleResult, settingsResult, branchResult] = results;
     if (missionResult.status === "fulfilled") setMissions(missionResult.value.items);
     if (classResult.status === "fulfilled") setClassOptions(classResult.value as ClassOptionLite[]);
     if (studentResult.status === "fulfilled") {
@@ -644,6 +693,18 @@ export function StaffGamificationWorkspace({
       setRedemptionTotalPages(redemptionResult.value.totalPages);
     }
     if (ruleResult.status === "fulfilled") setRewardRules(ruleResult.value as MissionRewardRule[]);
+    if (settingsResult.status === "fulfilled") {
+      setGamificationSettings(settingsResult.value as { checkInRewardStars: number; checkInRewardExp: number });
+    }
+    if (branchResult.status === "fulfilled") {
+      const payload = branchResult.value as any;
+      const branchItems = Array.isArray(payload?.data?.branches)
+        ? payload.data.branches
+        : Array.isArray(payload?.branches)
+          ? payload.branches
+          : [];
+      setBranchOptions(branchItems as Branch[]);
+    }
     if (results.every((result) => result.status === "rejected")) {
       setPageError("Không thể tải dữ liệu gamification trong thời điểm này.");
     }
@@ -672,6 +733,42 @@ export function StaffGamificationWorkspace({
   }, []);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const raw = window.localStorage.getItem(exportFilterStorageKey);
+      if (!raw) return;
+
+      const parsed = JSON.parse(raw) as {
+        batchYear?: string;
+        batchMonth?: string;
+        exportBranchId?: string;
+        exportItemId?: string;
+      };
+
+      setBatchYear(parsed.batchYear ?? "");
+      setBatchMonth(parsed.batchMonth ?? "");
+      setExportBranchId(parsed.exportBranchId ?? "");
+      setExportItemId(parsed.exportItemId ?? "");
+    } catch {
+      // Ignore invalid localStorage payload.
+    }
+  }, [exportFilterStorageKey]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const payload = {
+      batchYear,
+      batchMonth,
+      exportBranchId,
+      exportItemId,
+    };
+
+    window.localStorage.setItem(exportFilterStorageKey, JSON.stringify(payload));
+  }, [batchMonth, batchYear, exportBranchId, exportFilterStorageKey, exportItemId]);
+
+  useEffect(() => {
     if (!loading) {
       listRewardRedemptions({ page: redemptionPage, pageSize: 10 })
         .then((result) => {
@@ -685,7 +782,15 @@ export function StaffGamificationWorkspace({
   useEffect(() => {
     setStudentAction(studentActionSeed);
     setStudentActionErrors({});
-    if (selectedStudentId) void loadStudentSnapshot(selectedStudentId);
+    if (selectedStudentId) {
+      void loadStudentSnapshot(selectedStudentId);
+      return;
+    }
+
+    setStudentBalance(0);
+    setStudentLevel(null);
+    setStudentStreak(null);
+    setTransactions([]);
   }, [selectedStudentId]);
 
   function openCreateMission() {
@@ -955,7 +1060,7 @@ export function StaffGamificationWorkspace({
   }
 
   async function runStudentAction(
-    action: "addStars" | "deductStars" | "addXp"
+    action: "addStars" | "deductStars" | "addXp" | "deductXp"
   ) {
     if (!selectedStudentId) return;
 
@@ -991,6 +1096,8 @@ export function StaffGamificationWorkspace({
         });
       if (action === "addXp")
         await addXp({ studentProfileId: selectedStudentId, amount, reason });
+      if (action === "deductXp")
+        await deductXp({ studentProfileId: selectedStudentId, amount, reason });
       toast.success({ title: "Đã cập nhật dữ liệu học sinh" });
       await loadStudentSnapshot(selectedStudentId);
       setStudentAction(studentActionSeed);
@@ -1088,6 +1195,58 @@ export function StaffGamificationWorkspace({
     } catch (error) {
       toast({
         title: "Không thể chạy giao hàng loạt",
+        description: normalizeProblemMessage(error),
+        variant: "destructive",
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function runExportDelivered() {
+    try {
+      setBusyAction("export-delivered");
+      const { blob, fileName } = await exportDeliveredRewardRedemptions({
+        year: batchYear ? Number(batchYear) : undefined,
+        month: batchMonth ? Number(batchMonth) : undefined,
+        branchId: exportBranchId || undefined,
+        itemId: exportItemId || undefined,
+      });
+
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = fileName;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(objectUrl);
+
+      toast.success({ title: "Đã xuất file Excel" });
+    } catch (error) {
+      toast({
+        title: "Không thể xuất báo cáo",
+        description: normalizeProblemMessage(error),
+        variant: "destructive",
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function saveGamificationSettings() {
+    try {
+      setBusyAction("save-settings");
+      const payload = {
+        checkInRewardStars: Math.max(0, Number(gamificationSettings.checkInRewardStars) || 0),
+        checkInRewardExp: Math.max(0, Number(gamificationSettings.checkInRewardExp) || 0),
+      };
+      const updated = await updateGamificationSettings(payload);
+      setGamificationSettings(updated);
+      toast.success({ title: "Đã cập nhật cài đặt điểm danh" });
+    } catch (error) {
+      toast({
+        title: "Không thể cập nhật cài đặt",
         description: normalizeProblemMessage(error),
         variant: "destructive",
       });
@@ -1214,9 +1373,9 @@ export function StaffGamificationWorkspace({
         </div>
         <div>
           <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">
-            Gamification cho {title.toLowerCase()}
+            Nhiệm vụ và đổi thưởng cho {title.toLowerCase()}
           </h1>
-          <p className="text-sm text-gray-600">Nhiệm vụ, sao, XP và đổi thưởng trong một không gian quản lý</p>
+          <p className="text-sm text-gray-600">Quản lý nhiệm vụ, sao, XP và đổi thưởng trong một không gian</p>
         </div>
       </div>
 
@@ -1228,7 +1387,7 @@ export function StaffGamificationWorkspace({
 
       <Tabs value={activeTab} onChange={setActiveTab} tabs={tabs} theme="staff" />
 
-      {loading ? <Panel theme="staff" className="py-14"><div className="flex items-center justify-center gap-3 text-gray-500"><Loader2 className="h-5 w-5 animate-spin" /><span>Đang tải dữ liệu gamification...</span></div></Panel> : null}
+      {loading ? <Panel theme="staff" className="py-14"><div className="flex items-center justify-center gap-3 text-gray-500"><Loader2 className="h-5 w-5 animate-spin" /><span>Đang tải dữ liệu nhiệm vụ và đổi thưởng...</span></div></Panel> : null}
       {!loading && pageError ? <Panel theme="staff" className="border-rose-200 bg-rose-50"><div className="flex items-start gap-3 text-rose-700"><AlertCircle className="mt-0.5 h-5 w-5" /><div><h2 className="text-lg font-semibold">Không thể tải dữ liệu</h2><p className="mt-1 text-sm">{pageError}</p></div></div></Panel> : null}
 
       {!loading && !pageError && activeTab === "missions" ? (
@@ -1245,7 +1404,7 @@ export function StaffGamificationWorkspace({
             }
           />
           <div className="space-y-4">
-            {missions.map((mission) => (
+            {visibleMissions.map((mission) => (
               <div key={mission.id} className="rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div>
@@ -1288,7 +1447,7 @@ export function StaffGamificationWorkspace({
                 </div>
               </div>
             ))}
-            {missions.length === 0 ? <EmptyState title="Chưa có nhiệm vụ" description="Tạo nhiệm vụ đầu tiên để bắt đầu các luồng gamification cho học sinh." icon={<Target className="h-5 w-5" />} theme="staff" /> : null}
+            {visibleMissions.length === 0 ? <EmptyState title="Chưa có nhiệm vụ" description="Tạo nhiệm vụ đầu tiên để bắt đầu các luồng nhiệm vụ cho học sinh." icon={<Target className="h-5 w-5" />} theme="staff" /> : null}
           </div>
         </Panel>
       ) : null}
@@ -1299,7 +1458,18 @@ export function StaffGamificationWorkspace({
           <div className="grid gap-6 xl:grid-cols-[320px_1fr]">
             <div className="rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
               <label className="mb-2 block text-sm font-semibold text-gray-700">Lớp</label>
-              <select value={studentClassFilter} onChange={(event) => { setStudentClassFilter(event.target.value); setSelectedStudentId(""); }} className={inputClass}>
+              <select
+                value={studentClassFilter}
+                onChange={(event) => {
+                  const nextClassId = event.target.value;
+                  setStudentClassFilter(nextClassId);
+                  const filteredStudents = nextClassId
+                    ? students.filter((student) => student.classId === nextClassId)
+                    : students;
+                  setSelectedStudentId(filteredStudents[0]?.id || "");
+                }}
+                className={inputClass}
+              >
                 <option value="">Tất cả lớp</option>
                 {classOptions.map((cls) => <option key={cls.id} value={cls.id}>{cls.code ? `${cls.code} - ${cls.title ?? cls.name ?? ""}`.trim() : (cls.title ?? cls.name ?? cls.id)}</option>)}
               </select>
@@ -1375,6 +1545,7 @@ export function StaffGamificationWorkspace({
                         <input value={studentAction.xpReason} onChange={(event) => setStudentAction((current) => ({ ...current, xpReason: event.target.value }))} className={inputClass} placeholder="Lý do" />
                         <div className="flex flex-wrap gap-2">
                           <button type="button" onClick={() => void runStudentAction("addXp")} disabled={busyAction === "addXp"} className={primaryButton}><Plus className="h-4 w-4" />Cộng XP</button>
+                          <button type="button" onClick={() => void runStudentAction("deductXp")} disabled={busyAction === "deductXp"} className={ghostButton}><Coins className="h-4 w-4" />Trừ XP</button>
                         </div>
                       </div>
                     </div>
@@ -1419,19 +1590,68 @@ export function StaffGamificationWorkspace({
         </Panel>
       ) : null}
 
-      {!loading && !pageError && canManageRules && activeTab === "rewardRules" ? (
+      {!loading && !pageError && (canViewRules || canManageGamificationSettings) && activeTab === "settings" ? (
         <Panel theme="staff">
           <SectionTitle
-            title="Quy tắc thưởng tự động"
-            description="Cấu hình phần thưởng sao và XP khi học sinh hoàn thành nhiệm vụ theo loại và cách tính tiến độ."
+            title="Cài đặt nhiệm vụ và thưởng"
+            description="Quản lý quy tắc thưởng tự động theo loại nhiệm vụ, cách tính tiến độ và mục tiêu hoàn thành."
             theme="staff"
             action={
-              <button type="button" onClick={openCreateRule} className={primaryButton}>
-                <Plus className="h-4 w-4" />
-                Tạo quy tắc
-              </button>
+              canEditRules ? (
+                <button type="button" onClick={openCreateRule} className={primaryButton}>
+                  <Plus className="h-4 w-4" />
+                  Tạo quy tắc
+                </button>
+              ) : undefined
             }
           />
+          {canManageGamificationSettings ? (
+            <div className="mb-5 rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
+              <h3 className="text-base font-bold text-gray-900">Thưởng điểm danh tự động</h3>
+              <p className="mt-1 text-sm text-gray-500">Áp dụng cho check-in hàng ngày của học sinh.</p>
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                <div>
+                  <FormLabel label="Sao thưởng check-in" />
+                  <input
+                    value={gamificationSettings.checkInRewardStars}
+                    onChange={(event) =>
+                      setGamificationSettings((current) => ({
+                        ...current,
+                        checkInRewardStars: Number(event.target.value) || 0,
+                      }))
+                    }
+                    inputMode="numeric"
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <FormLabel label="XP thưởng check-in" />
+                  <input
+                    value={gamificationSettings.checkInRewardExp}
+                    onChange={(event) =>
+                      setGamificationSettings((current) => ({
+                        ...current,
+                        checkInRewardExp: Number(event.target.value) || 0,
+                      }))
+                    }
+                    inputMode="numeric"
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+              <div className="mt-4 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => void saveGamificationSettings()}
+                  disabled={busyAction === "save-settings"}
+                  className={primaryButton}
+                >
+                  {busyAction === "save-settings" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  Lưu cài đặt điểm danh
+                </button>
+              </div>
+            </div>
+          ) : null}
           <div className="grid gap-4 lg:grid-cols-2">
             {rewardRules.map((rule) => (
               <div key={rule.id} className="rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
@@ -1448,15 +1668,17 @@ export function StaffGamificationWorkspace({
                     <p className="mt-1 text-sm text-gray-500">Phần thưởng: {formatNumber(rule.rewardStars)} sao • {formatNumber(rule.rewardExp)} XP</p>
                   </div>
                 </div>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <button type="button" onClick={() => openEditRule(rule)} className={ghostButton}>
-                    <Pencil className="h-4 w-4" />
-                    Sửa
-                  </button>
-                  <button type="button" onClick={() => void handleToggleRule(rule.id)} disabled={busyAction === `toggle-rule-${rule.id}`} className={ghostButton}>
-                    {rule.isActive ? "Tắt quy tắc" : "Bật quy tắc"}
-                  </button>
-                </div>
+                {canEditRules ? (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <button type="button" onClick={() => openEditRule(rule)} className={ghostButton}>
+                      <Pencil className="h-4 w-4" />
+                      Sửa
+                    </button>
+                    <button type="button" onClick={() => void handleToggleRule(rule.id)} disabled={busyAction === `toggle-rule-${rule.id}`} className={ghostButton}>
+                      {rule.isActive ? "Tắt quy tắc" : "Bật quy tắc"}
+                    </button>
+                  </div>
+                ) : null}
               </div>
             ))}
             {rewardRules.length === 0 ? (
@@ -1556,6 +1778,21 @@ export function StaffGamificationWorkspace({
                 <div className="flex flex-wrap gap-2">
                   <input value={batchYear} onChange={(event) => setBatchYear(event.target.value)} className="w-28 rounded-2xl border border-red-200 bg-white px-3 py-2 text-sm" inputMode="numeric" placeholder="Năm" />
                   <input value={batchMonth} onChange={(event) => setBatchMonth(event.target.value)} className="w-24 rounded-2xl border border-red-200 bg-white px-3 py-2 text-sm" inputMode="numeric" placeholder="Tháng" />
+                  <select value={exportBranchId} onChange={(event) => setExportBranchId(event.target.value)} className="w-52 rounded-2xl border border-red-200 bg-white px-3 py-2 text-sm">
+                    <option value="">Tất cả chi nhánh</option>
+                    {branchOptions.map((branch) => (
+                      <option key={branch.id} value={branch.id}>
+                        {branch.code ? `${branch.code} - ${branch.name}` : branch.name}
+                      </option>
+                    ))}
+                  </select>
+                  <select value={exportItemId} onChange={(event) => setExportItemId(event.target.value)} className="w-52 rounded-2xl border border-red-200 bg-white px-3 py-2 text-sm">
+                    <option value="">Tất cả vật phẩm</option>
+                    {rewardItems.map((item) => (
+                      <option key={item.id} value={item.id}>{item.title}</option>
+                    ))}
+                  </select>
+                  <button type="button" onClick={() => void runExportDelivered()} disabled={busyAction === "export-delivered"} className={ghostButton}><Download className="h-4 w-4" />Xuất Excel</button>
                   <button type="button" onClick={() => void runBatchDeliver()} disabled={busyAction === "batch-deliver"} className={primaryButton}>Giao hàng loạt</button>
                 </div>
               ) : undefined
@@ -1690,7 +1927,6 @@ export function StaffGamificationWorkspace({
               <option value="HomeworkStreak">Chuỗi bài tập</option>
               <option value="NoUnexcusedAbsence">Chuỗi điểm danh</option>
               <option value="ClassAttendance">Chuyên cần lớp học</option>
-              <option value="Custom">Tùy chỉnh</option>
             </select>
             <FieldError message={missionErrors.missionType} />
           </div>
@@ -2221,7 +2457,6 @@ export function StaffGamificationWorkspace({
               <option value="HomeworkStreak">Chuỗi bài tập</option>
               <option value="NoUnexcusedAbsence">Chuỗi điểm danh</option>
               <option value="ClassAttendance">Chuyên cần lớp học</option>
-              <option value="Custom">Tùy chỉnh</option>
             </select>
           </div>
           <div>

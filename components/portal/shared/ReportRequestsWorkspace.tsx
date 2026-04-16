@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import {
   Plus, Search, FileText, Clock, CalendarClock, User, Users,
   BookOpen, X, ChevronLeft, ChevronRight, Send,
@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import {
   getReportRequests,
+  getReportRequestById,
   createReportRequest,
   completeReportRequest,
   cancelReportRequest,
@@ -175,36 +176,92 @@ function CreateRequestModal({
       .finally(() => setLoadingStudents(false));
   }, [selectedClass]);
 
-  // Load sessions when class selected
+  // Load sessions when class selected (and filter by selected student when provided)
   useEffect(() => {
     if (!selectedClass) { setSessionList([]); setSelectedSession(null); return; }
+    let cancelled = false;
+
     setLoadingSessions(true);
     setSelectedSession(null);
-    get<Record<string, unknown>>(`/api/sessions?classId=${selectedClass.id}&pageSize=200&pageNumber=1`)
-      .then((res) => {
+    const query = new URLSearchParams({
+      classId: selectedClass.id,
+      pageSize: "200",
+      pageNumber: "1",
+    });
+    if (selectedStudent?.profileId) {
+      query.set("studentProfileId", selectedStudent.profileId);
+    }
+
+    get<Record<string, unknown>>(`/api/sessions?${query.toString()}`)
+      .then(async (res) => {
         const raw = res as Record<string, unknown>;
         const data = raw?.data as Record<string, unknown>;
         const items = ((data?.sessions as Record<string, unknown>)?.items ?? data?.items) as Record<string, unknown>[] ?? [];
+
+        const mappedSessions = items
+          .map((s) => ({
+            id: (s.id as string) ?? "",
+            plannedDatetime: (s.plannedDatetime as string) ?? (s.actualDatetime as string) ?? "",
+            label: "",
+          }))
+          .filter((s) => s.id)
+          .sort((a, b) => a.plannedDatetime.localeCompare(b.plannedDatetime));
+
+        let filteredSessions = mappedSessions;
+
+        if (selectedStudent?.profileId && mappedSessions.length) {
+          const checks = await Promise.allSettled(
+            mappedSessions.map(async (session) => {
+              const attendanceRes = await get<Record<string, unknown>>(`/api/attendance/${session.id}`);
+              const attendanceRaw = attendanceRes as Record<string, unknown>;
+              const attendanceData = attendanceRaw?.data as Record<string, unknown>;
+
+              const students =
+                (Array.isArray(attendanceData?.students) ? attendanceData.students : null) ??
+                (Array.isArray(attendanceData?.attendances) ? attendanceData.attendances : null) ??
+                (Array.isArray(attendanceData?.items) ? attendanceData.items : null) ??
+                [];
+
+              const hasStudent = students.some((s) => {
+                const item = s as Record<string, unknown>;
+                const candidateId = String(item.studentProfileId ?? item.studentId ?? item.id ?? "").trim();
+                return candidateId === selectedStudent.profileId;
+              });
+
+              return hasStudent;
+            })
+          );
+
+          filteredSessions = mappedSessions.filter((_, idx) => {
+            const result = checks[idx];
+            return result.status === "fulfilled" && result.value;
+          });
+        }
+
+        if (cancelled) return;
+
         setSessionList(
-          items
-            .map((s) => ({
-              id: (s.id as string) ?? "",
-              plannedDatetime: (s.plannedDatetime as string) ?? (s.actualDatetime as string) ?? "",
-              label: "",
-            }))
-            .filter((s) => s.id)
-            .sort((a, b) => a.plannedDatetime.localeCompare(b.plannedDatetime))
-            .map((s, i) => ({
-              ...s,
-              label: s.plannedDatetime
-                ? `Buổi ${i + 1} – ${new Date(s.plannedDatetime).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}`
-                : `Buổi ${i + 1}`,
-            }))
+          filteredSessions.map((s, i) => ({
+            ...s,
+            label: s.plannedDatetime
+              ? `Buổi ${i + 1} – ${new Date(s.plannedDatetime).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}`
+              : `Buổi ${i + 1}`,
+          }))
         );
       })
       .catch(() => {})
-      .finally(() => setLoadingSessions(false));
-  }, [selectedClass]);
+      .finally(() => {
+        if (!cancelled) setLoadingSessions(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedClass, selectedStudent?.profileId]);
+
+  useEffect(() => {
+    setSelectedSession(null);
+  }, [selectedStudent?.profileId]);
 
   const handleSelectClass = (id: string) => {
     const c = classList.find((cl) => cl.id === id) ?? null;
@@ -260,6 +317,37 @@ function CreateRequestModal({
     if (reportType === "Session" && !selectedSession) {
       toast({ title: "Thiếu thông tin", description: "Vui lòng chọn buổi học", type: "warning" });
       return;
+    }
+
+    if (reportType === "Session" && selectedSession && selectedStudent) {
+      try {
+        const attendanceRes = await get<Record<string, unknown>>(`/api/attendance/${selectedSession.id}`);
+        const raw = attendanceRes as Record<string, unknown>;
+        const data = raw?.data as Record<string, unknown>;
+
+        const students =
+          (Array.isArray(data?.students) ? data.students : null) ??
+          (Array.isArray(data?.attendances) ? data.attendances : null) ??
+          (Array.isArray(data?.items) ? data.items : null) ??
+          [];
+
+        const isStudentInSession = students.some((s) => {
+          const item = s as Record<string, unknown>;
+          const candidateId = String(item.studentProfileId ?? item.studentId ?? item.id ?? "").trim();
+          return candidateId === selectedStudent.profileId;
+        });
+
+        if (!isStudentInSession) {
+          toast({
+            title: "Chưa thể tạo yêu cầu",
+            description: "Học sinh chưa được xếp trong buổi học đã chọn. Vui lòng chọn buổi đúng theo TKB của học sinh.",
+            type: "warning",
+          });
+          return;
+        }
+      } catch {
+        // Ignore validation fetch failures and let backend remain the source of truth.
+      }
     }
 
     const payload: CreateReportRequestPayload = {
@@ -614,6 +702,7 @@ function InfoRow({ icon: Icon, label, value }: { icon: typeof User; label: strin
 export default function ReportRequestsWorkspace({ isAdmin = false }: { isAdmin?: boolean }) {
   const { toast } = useToast();
   useCurrentUser();
+  const searchParams = useSearchParams();
   const [isPageLoaded, setIsPageLoaded] = useState(false);
   const [items, setItems] = useState<ReportRequestDto[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -627,6 +716,7 @@ export default function ReportRequestsWorkspace({ isAdmin = false }: { isAdmin?:
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<string | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
+  const requestIdFromQuery = String(searchParams.get("requestId") ?? "").trim();
 
   useEffect(() => { setIsPageLoaded(true); }, []);
 
@@ -652,6 +742,27 @@ export default function ReportRequestsWorkspace({ isAdmin = false }: { isAdmin?:
   }, [page, statusFilter, typeFilter, toast]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  useEffect(() => {
+    if (!requestIdFromQuery) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await getReportRequestById(requestIdFromQuery);
+        const detail = (res?.data ?? (res as unknown as Record<string, unknown>)?.data) as ReportRequestDto | undefined;
+        if (!cancelled && detail?.id) {
+          setSelectedRequest(detail);
+        }
+      } catch {
+        // Ignore deep-link failures and keep the list page usable.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [requestIdFromQuery]);
 
   const filteredItems = useMemo(() => {
     if (!q.trim()) return items;
