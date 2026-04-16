@@ -427,6 +427,7 @@ export const BACKEND_LEAD_ENDPOINTS = {
 // Placement Test Endpoints (Client-side → Next.js API Routes)
 export const PLACEMENT_TEST_ENDPOINTS = {
   GET_ALL: '/api/placement-tests',
+  AVAILABILITY: '/api/placement-tests/availability',
   GET_BY_ID: (id: string) => `/api/placement-tests/${id}`,
   CREATE: '/api/placement-tests',
   RETAKE: (id: string) => `/api/placement-tests/${id}/retake`,
@@ -441,6 +442,7 @@ export const PLACEMENT_TEST_ENDPOINTS = {
 // Backend Placement Test Endpoints (Next.js API Routes → Backend API)
 export const BACKEND_PLACEMENT_TEST_ENDPOINTS = {
   GET_ALL: '/placement-tests',
+  AVAILABILITY: '/placement-tests/availability',
   GET_BY_ID: (id: string) => `/placement-tests/${id}`,
   CREATE: '/placement-tests',
   RETAKE: (id: string) => `/placement-tests/${id}/retake`,

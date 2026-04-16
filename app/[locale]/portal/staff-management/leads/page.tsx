@@ -262,6 +262,7 @@ export default function Page() {
     Array<{
       id: string;
       contactName: string;
+      branchId?: string;
       children?: Array<{ id: string; name: string }>;
     }>
   >([]);
@@ -269,7 +270,7 @@ export default function Page() {
     Array<{ id: string; fullName: string; branchId?: string; profileType?: string }>
   >([]);
   const [modalClasses, setModalClasses] = useState<
-    Array<{ id: string; className: string }>
+    Array<{ id: string; className: string; branchId?: string }>
   >([]);
   const [modalInvigilators, setModalInvigilators] = useState<
     Array<{ id: string; fullName: string; role: string }>
@@ -1121,6 +1122,15 @@ export default function Page() {
             return {
               id: lead.id,
               contactName: lead.contactName || lead.fullName || "N/A",
+              branchId: String(
+                lead?.branchId ||
+                  lead?.branch?.id ||
+                  lead?.branch?.branchId ||
+                  lead?.branchPreference ||
+                  lead?.branchPreferenceId ||
+                  lead?.branchPreference?.id ||
+                  "",
+              ),
               children: children.map((c: any) => ({
                 id: c.id,
                 name: c.childName || c.name || "N/A",
@@ -1169,6 +1179,7 @@ export default function Page() {
           const mapped = classItems.map((c: any) => ({
             id: c.id,
             className: c.roomName || c.classroomName || c.name || c.code || "N/A",
+            branchId: String(c.branchId || c.branch?.id || c.branch?.branchId || ""),
           }));
           setModalClasses(mapped);
         }
@@ -1177,10 +1188,15 @@ export default function Page() {
       }
 
       // Fetch invigilators (Admin + ManagementStaff)
-      const [adminRes, staffRes] = await Promise.all([
+      const [adminRes, staffRes, teacherRes] = await Promise.all([
         getAllUsers({ role: "Admin", isActive: true, pageSize: 1000 }),
         getAllUsers({
           role: "ManagementStaff",
+          isActive: true,
+          pageSize: 1000,
+        }),
+        getAllUsers({
+          role: "Teacher",
           isActive: true,
           pageSize: 1000,
         }),
@@ -1189,12 +1205,17 @@ export default function Page() {
         adminRes.isSuccess && adminRes.data?.items ? adminRes.data.items : [];
       const staffUsers =
         staffRes.isSuccess && staffRes.data?.items ? staffRes.data.items : [];
+      const teacherUsers =
+        teacherRes.isSuccess && teacherRes.data?.items ? teacherRes.data.items : [];
       const branchMatchedAdmin = branchId
         ? adminUsers.filter((u: any) => resolveUserBranchId(u) === branchId)
         : adminUsers;
       const branchMatchedStaff = branchId
         ? staffUsers.filter((u: any) => resolveUserBranchId(u) === branchId)
         : staffUsers;
+      const branchMatchedTeacher = branchId
+        ? teacherUsers.filter((u: any) => resolveUserBranchId(u) === branchId)
+        : teacherUsers;
       const invigilators = [
         ...branchMatchedAdmin.map((u: any) => ({
           id: u.id,
@@ -1205,6 +1226,11 @@ export default function Page() {
           id: u.id,
           fullName: u.name || u.fullName || u.username || u.email || "N/A",
           role: "ManagementStaff",
+        })),
+        ...branchMatchedTeacher.map((u: any) => ({
+          id: u.id,
+          fullName: u.name || u.fullName || u.username || u.email || "N/A",
+          role: "Teacher",
         })),
       ];
       setModalInvigilators(invigilators);
