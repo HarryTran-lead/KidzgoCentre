@@ -150,6 +150,7 @@ export const BACKEND_STUDENT_ENDPOINTS = {
 export const CLASS_ENDPOINTS = {
   GET_ALL: "/api/classes",
   GET_BY_ID: (id: string) => `/api/classes/${id}`,
+  SCHEDULE_SEGMENTS: (id: string) => `/api/classes/${id}/schedule-segments`,
 } as const;
 
 export const MAKEUP_CREDIT_ENDPOINTS = {
@@ -369,6 +370,7 @@ export const ADMIN_ENDPOINTS = {
   CLASSES: '/api/classes',
   CLASSES_STATUS: (id: string) => `/api/classes/${id}/status`,
   CLASSES_COLOR: (id: string) => `/api/classes/${id}/color`,
+  CLASSES_SCHEDULE_SEGMENTS: (id: string) => `/api/classes/${id}/schedule-segments`,
   PROGRAMS: '/api/programs',
   PROGRAMS_ACTIVE: '/api/programs/active',
   PROGRAMS_MONTHLY_LEAVE_LIMIT: (id: string) => `/api/programs/${id}/monthly-leave-limit`,
@@ -543,6 +545,7 @@ export const BACKEND_ADMIN_ENDPOINTS = {
   CLASSES: '/classes',
   CLASSES_BY_ID: (id: string) => `/classes/${id}`,
   CLASSES_STATUS: (id: string) => `/classes/${id}/status`,
+  CLASSES_SCHEDULE_SEGMENTS: (id: string) => `/classes/${id}/schedule-segments`,
   PROGRAMS: '/programs',
   PROGRAMS_ACTIVE: '/programs/active',
   REGISTRATIONS: '/registrations',

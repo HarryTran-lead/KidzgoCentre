@@ -671,6 +671,59 @@ export async function updateClassStatus(
   return json?.data ?? json;
 }
 
+export type AdminClassScheduleSegmentPayload = {
+  effectiveFrom: string;
+  schedulePattern: string;
+  effectiveTo?: string | null;
+  generateSessions?: boolean;
+  onlyFutureSessions?: boolean;
+};
+
+export async function addAdminClassScheduleSegment(
+  classId: string,
+  payload: AdminClassScheduleSegmentPayload
+): Promise<any> {
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại để cập nhật lịch lớp học.");
+  }
+
+  const res = await fetch(`${ADMIN_ENDPOINTS.CLASSES_SCHEDULE_SEGMENTS(classId)}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const text = await res.text();
+  let json: any = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    json = null;
+  }
+
+  if (!res.ok) {
+    const detail = json?.detail || json?.message || json?.error;
+    const title = json?.title;
+
+    let msg = "Không thể cập nhật lịch lớp học từ máy chủ.";
+    if (detail) {
+      msg = detail;
+    } else if (title) {
+      msg = title;
+    } else if (typeof text === "string" && text.trim()) {
+      msg = text;
+    }
+
+    throw new Error(msg);
+  }
+
+  return json?.data ?? json;
+}
+
 export async function fetchAndMapAdminClassDetail(classId: string): Promise<ClassDetail> {
   const apiData = await fetchAdminClassDetail(classId);
 
