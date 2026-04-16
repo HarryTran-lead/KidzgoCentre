@@ -132,7 +132,7 @@ export default function Page() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const deepLinkHandledRef = useRef(false);
+  const handledPlacementTestIdRef = useRef("");
 
   const { toast } = useToast();
   const { user: currentUser, isLoading: isLoadingUser } = useCurrentUser();
@@ -312,7 +312,14 @@ export default function Page() {
   }, [deepLinkedTab]);
 
   useEffect(() => {
-    if (!deepLinkedPlacementTestId || deepLinkHandledRef.current) return;
+    if (!deepLinkedPlacementTestId) {
+      handledPlacementTestIdRef.current = "";
+      return;
+    }
+
+    if (handledPlacementTestIdRef.current === deepLinkedPlacementTestId) return;
+
+    handledPlacementTestIdRef.current = deepLinkedPlacementTestId;
 
     const clearPlacementTestQuery = () => {
       const params = new URLSearchParams(searchParams.toString());
@@ -336,7 +343,6 @@ export default function Page() {
       if (matchedTest) {
         setSelectedTest(matchedTest);
         setIsTestDetailModalOpen(true);
-        deepLinkHandledRef.current = true;
         clearPlacementTestQuery();
         return;
       }
@@ -364,10 +370,8 @@ export default function Page() {
           setIsTestDetailModalOpen(true);
         }
 
-        deepLinkHandledRef.current = true;
         clearPlacementTestQuery();
       } catch {
-        deepLinkHandledRef.current = true;
         clearPlacementTestQuery();
         toast({
           variant: "destructive",

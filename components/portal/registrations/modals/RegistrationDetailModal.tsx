@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
-import { Loader2, X } from "lucide-react";
+import { ExternalLink, Loader2, X } from "lucide-react";
 import type { Registration, RegistrationStatus } from "@/types/registration";
 
 type RegistrationDetailModalProps = {
@@ -76,9 +76,25 @@ function toStudyDayCodesLabel(codes?: string[]) {
     .join(", ");
 }
 
+function normalizeVietnameseScheduleText(value?: string | null) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+
+  return raw
+    .replace(/\bthu\s*2\b/gi, "Thứ 2")
+    .replace(/\bthu\s*3\b/gi, "Thứ 3")
+    .replace(/\bthu\s*4\b/gi, "Thứ 4")
+    .replace(/\bthu\s*5\b/gi, "Thứ 5")
+    .replace(/\bthu\s*6\b/gi, "Thứ 6")
+    .replace(/\bthu\s*7\b/gi, "Thứ 7")
+    .replace(/\bchu\s*nhat\b/gi, "Chủ nhật")
+    .replace(/\bhang\s*tuan\b/gi, "hàng tuần")
+    .replace(/\bngay\s*hoc\b/gi, "Ngày học");
+}
+
 function extractPlacementTestId(note?: string | null): string {
   const raw = String(note || "");
-  const matched = raw.match(/PlacementTest:([0-9a-fA-F-]{36})/);
+  const matched = raw.match(/placementtest\s*[:=]\s*([0-9a-fA-F-]{32,36})/i);
   return matched?.[1] || "";
 }
 
@@ -107,10 +123,10 @@ export default function RegistrationDetailModal({
   if (typeof window === "undefined") return null;
 
   const placementTestId = extractPlacementTestId(item?.note);
-  const noteDisplay = String(item?.note || "").replace(
-    /\.?\s*Started from PlacementTest:[0-9a-fA-F-]{36}\.?/g,
-    "",
-  ).trim();
+  const noteDisplay = String(item?.note || "")
+    .replace(/\.?\s*Started\s+from\s+PlacementTest\s*[:=]\s*[0-9a-fA-F-]{32,36}\.?/gi, "")
+    .replace(/\s*\|\s*$/, "")
+    .trim();
 
   const placementTestDetailPath = useMemo(() => {
     if (!placementTestId) return "";
@@ -125,9 +141,15 @@ export default function RegistrationDetailModal({
     )}`;
   }, [pathname, placementTestId]);
 
+  const handleOpenPlacementTest = useCallback(() => {
+    if (!placementTestId || !placementTestDetailPath) return;
+    const separator = placementTestDetailPath.includes("?") ? "&" : "?";
+    router.push(`${placementTestDetailPath}${separator}from=registration-detail&ts=${Date.now()}`);
+  }, [placementTestDetailPath, placementTestId, router]);
+
   return createPortal(
     <div
-      className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 p-4"
+      className="fixed inset-0 z-10000 flex items-center justify-center bg-black/50 p-4"
       onClick={onClose}
     >
       <div
@@ -201,7 +223,10 @@ export default function RegistrationDetailModal({
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <Info label="Ngày dự kiến" value={toDate(item.expectedStartDate)} />
                 <Info label="Ngày bắt đầu thực tế" value={toDate(item.actualStartDate)} />
-                <Info label="Lịch học mong muốn" value={item.preferredSchedule || "-"} />
+                <Info
+                  label="Lịch học mong muốn"
+                  value={normalizeVietnameseScheduleText(item.preferredSchedule) || "-"}
+                />
               </div>
 
               {!!item.actualStudySchedules?.length && (
@@ -212,9 +237,9 @@ export default function RegistrationDetailModal({
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                     {item.actualStudySchedules.map((schedule, index) => {
                       const studyDays =
-                        schedule.studyDaysSummary ||
+                        normalizeVietnameseScheduleText(schedule.studyDaysSummary) ||
                         (Array.isArray(schedule.studyDays) && schedule.studyDays.length > 0
-                          ? schedule.studyDays.join(", ")
+                          ? normalizeVietnameseScheduleText(schedule.studyDays.join(", "))
                           : toStudyDayCodesLabel(schedule.studyDayCodes) || "-");
 
                       return (
@@ -259,10 +284,11 @@ export default function RegistrationDetailModal({
                 {!!placementTestId && !!placementTestDetailPath && (
                   <button
                     type="button"
-                    onClick={() => router.push(placementTestDetailPath)}
-                    className="mt-2 text-xs font-medium text-red-600 opacity-0 transition-opacity hover:underline group-hover:opacity-100 cursor-pointer"
+                    onClick={handleOpenPlacementTest}
+                    className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-red-600 hover:underline cursor-pointer"
                     title="Ấn vào để xem bài kiểm tra đầu vào của bé này"
                   >
+                    <ExternalLink size={12} />
                     Ấn vào để xem bài kiểm tra đầu vào của bé này
                   </button>
                 )}

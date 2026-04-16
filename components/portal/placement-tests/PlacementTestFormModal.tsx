@@ -73,6 +73,8 @@ interface PlacementTestFormModalProps {
 
 const DEFAULT_DURATION_MINUTES = 60;
 const MIN_DURATION_MINUTES = 15;
+const VIETNAM_TIME_COMPENSATION_HOURS = 7;
+const UPDATE_TIME_COMPENSATION_HOURS = -7;
 
 type AvailabilityInvigilatorOption = {
   id: string;
@@ -91,10 +93,15 @@ type AvailabilityRoomOption = {
   conflicts: PlacementTestAvailabilityConflict[];
 };
 
-function toDateTimeLocal(value?: string): string {
+function shiftDateByHours(date: Date, hours: number): Date {
+  return new Date(date.getTime() + hours * 60 * 60 * 1000);
+}
+
+function toDateTimeLocal(value?: string, shiftHours = 0): string {
   if (!value) return "";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "";
+  const originalDate = new Date(value);
+  if (Number.isNaN(originalDate.getTime())) return "";
+  const d = shiftHours !== 0 ? shiftDateByHours(originalDate, shiftHours) : originalDate;
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
@@ -103,6 +110,17 @@ function normalizeDurationMinutes(value: unknown): number {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed <= 0) return DEFAULT_DURATION_MINUTES;
   return Math.max(MIN_DURATION_MINUTES, Math.round(parsed));
+}
+
+function formatDateTimeWithOffset(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const offset = -date.getTimezoneOffset();
+  const sign = offset >= 0 ? "+" : "-";
+  const abs = Math.abs(offset);
+
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
+    date.getHours()
+  )}:${pad(date.getMinutes())}:00${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`;
 }
 
 export default function PlacementTestFormModal({
@@ -124,11 +142,13 @@ export default function PlacementTestFormModal({
   tuitionPlans = [],
   defaultBranchId = "",
 }: PlacementTestFormModalProps) {
+  const isEditingExistingTest = Boolean(test?.id);
+
   const [mode, setMode] = useState<PlacementTestModalMode>("create");
   const [formData, setFormData] = useState({
     leadId: test?.leadId || "",
     leadChildId: test?.leadChildId || "",
-    scheduledAt: toDateTimeLocal(test?.scheduledAt),
+    scheduledAt: toDateTimeLocal(test?.scheduledAt, isEditingExistingTest ? UPDATE_TIME_COMPENSATION_HOURS : 0),
     durationMinutes: String(normalizeDurationMinutes((test as any)?.durationMinutes)),
     roomId: String((test as any)?.roomId || (test as any)?.plannedRoomId || test?.room || ""),
     invigilatorUserId: test?.invigilatorUserId || "",
@@ -194,7 +214,7 @@ export default function PlacementTestFormModal({
     setFormData({
       leadId: test?.leadId || "",
       leadChildId: test?.leadChildId || "",
-      scheduledAt: toDateTimeLocal(test?.scheduledAt),
+      scheduledAt: toDateTimeLocal(test?.scheduledAt, isEditingExistingTest ? UPDATE_TIME_COMPENSATION_HOURS : 0),
       durationMinutes: String(normalizeDurationMinutes((test as any)?.durationMinutes)),
       roomId: String((test as any)?.roomId || (test as any)?.plannedRoomId || test?.room || ""),
       invigilatorUserId: test?.invigilatorUserId || "",
@@ -213,6 +233,7 @@ export default function PlacementTestFormModal({
     defaultMode,
     retakeSourceTestId,
     inferredRetakeStudentProfileId,
+    isEditingExistingTest,
   ]);
 
   useEffect(() => {
@@ -251,14 +272,18 @@ export default function PlacementTestFormModal({
     setFormError("");
   };
 
-  const toIsoWithTimezone = useCallback((value: string): string => {
-    const d = new Date(value);
-    const pad = (n: number) => String(n).padStart(2, "0");
-    const offset = -d.getTimezoneOffset();
-    const sign = offset >= 0 ? "+" : "-";
-    const abs = Math.abs(offset);
-    return `${value}:00${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`;
+  const toBackendScheduledAt = useCallback((value: string, shiftHours: number): string => {
+    const selectedDate = new Date(value);
+    if (Number.isNaN(selectedDate.getTime())) return value;
+
+    const compensatedDate = shiftDateByHours(selectedDate, shiftHours);
+
+    return formatDateTimeWithOffset(compensatedDate);
   }, []);
+
+  const scheduledAtShiftHours = isEditingExistingTest
+    ? UPDATE_TIME_COMPENSATION_HOURS
+    : VIETNAM_TIME_COMPENSATION_HOURS;
 
   const availabilityDurationMinutes = useMemo(
     () => normalizeDurationMinutes(formData.durationMinutes),
@@ -283,6 +308,12 @@ export default function PlacementTestFormModal({
         conflicts: [],
       })),
     [invigilators]
+  );
+
+  const removeAdminInvigilators = useCallback(
+    (options: AvailabilityInvigilatorOption[]) =>
+      options.filter((option) => !String(option.role || "").toLowerCase().includes("admin")),
+    []
   );
 
   const staticRoomOptions = useMemo<AvailabilityRoomOption[]>(
@@ -351,7 +382,7 @@ export default function PlacementTestFormModal({
 
       try {
         const response = await getPlacementTestAvailability({
-          scheduledAt: toIsoWithTimezone(formData.scheduledAt),
+          scheduledAt: toBackendScheduledAt(formData.scheduledAt, scheduledAtShiftHours),
           durationMinutes: availabilityDurationMinutes,
           excludePlacementTestId: test?.id || undefined,
         });
@@ -429,17 +460,18 @@ export default function PlacementTestFormModal({
     formData.scheduledAt,
     availabilityDurationMinutes,
     test?.id,
-    toIsoWithTimezone,
+    scheduledAtShiftHours,
+    toBackendScheduledAt,
     staticInvigilatorOptions,
     staticRoomOptions,
   ]);
 
   const dynamicInvigilators = useMemo(() => {
     if (availabilityInvigilators && availabilityInvigilators.length > 0) {
-      return availabilityInvigilators;
+      return removeAdminInvigilators(availabilityInvigilators);
     }
-    return staticInvigilatorOptions;
-  }, [availabilityInvigilators, staticInvigilatorOptions]);
+    return removeAdminInvigilators(staticInvigilatorOptions);
+  }, [availabilityInvigilators, staticInvigilatorOptions, removeAdminInvigilators]);
 
   const dynamicRooms = useMemo(() => {
     const source = availabilityRooms && availabilityRooms.length > 0 ? availabilityRooms : staticRoomOptions;
@@ -497,13 +529,23 @@ export default function PlacementTestFormModal({
     }
   }, [dynamicRooms, formData.roomId]);
 
+  useEffect(() => {
+    if (!formData.invigilatorUserId) return;
+    const exists = dynamicInvigilators.some(
+      (invigilator) => invigilator.id === formData.invigilatorUserId
+    );
+    if (exists) return;
+
+    setFormData((prev) => ({ ...prev, invigilatorUserId: "" }));
+  }, [dynamicInvigilators, formData.invigilatorUserId]);
+
   const handleReset = () => {
     if (test) {
       // Reset về dữ liệu ban đầu của test
       setFormData({
         leadId: test.leadId || "",
         leadChildId: test.leadChildId || "",
-        scheduledAt: toDateTimeLocal(test.scheduledAt),
+        scheduledAt: toDateTimeLocal(test.scheduledAt, isEditingExistingTest ? UPDATE_TIME_COMPENSATION_HOURS : 0),
         durationMinutes: String(normalizeDurationMinutes((test as any)?.durationMinutes)),
         roomId: String((test as any)?.roomId || (test as any)?.plannedRoomId || test.room || ""),
         invigilatorUserId: test.invigilatorUserId || "",
@@ -620,7 +662,9 @@ export default function PlacementTestFormModal({
       if (onSubmit) {
         if (isEditMode) {
           const payload: UpdatePlacementTestRequest = {
-            scheduledAt: formData.scheduledAt ? toIsoWithTimezone(formData.scheduledAt) : undefined,
+            scheduledAt: formData.scheduledAt
+              ? toBackendScheduledAt(formData.scheduledAt, UPDATE_TIME_COMPENSATION_HOURS)
+              : undefined,
             durationMinutes: availabilityDurationMinutes,
             roomId: formData.roomId || undefined,
             invigilatorUserId: formData.invigilatorUserId || undefined,
@@ -632,7 +676,7 @@ export default function PlacementTestFormModal({
           const payload: CreatePlacementTestRequest = {
             leadId: formData.leadId,
             leadChildId: formData.leadChildId,
-            scheduledAt: toIsoWithTimezone(formData.scheduledAt),
+            scheduledAt: toBackendScheduledAt(formData.scheduledAt, VIETNAM_TIME_COMPENSATION_HOURS),
             durationMinutes: availabilityDurationMinutes,
             roomId: formData.roomId || undefined,
             invigilatorUserId: formData.invigilatorUserId,
@@ -645,7 +689,9 @@ export default function PlacementTestFormModal({
             newProgramId: formData.retakeProgramId,
             newTuitionPlanId: formData.retakeTuitionPlanId,
             branchId: effectiveRetakeBranchId,
-            scheduledAt: formData.scheduledAt ? toIsoWithTimezone(formData.scheduledAt) : undefined,
+            scheduledAt: formData.scheduledAt
+              ? toBackendScheduledAt(formData.scheduledAt, VIETNAM_TIME_COMPENSATION_HOURS)
+              : undefined,
             durationMinutes: availabilityDurationMinutes,
             roomId: formData.roomId || undefined,
             invigilatorUserId: formData.invigilatorUserId || undefined,
