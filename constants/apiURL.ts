@@ -13,8 +13,12 @@ export const buildApiUrl = (endpoint: string): string => {
 
   // Các endpoint dạng /GetAll/... nằm ở root, không có /api
   const base = ep.startsWith("/GetAll/") ? ROOT_BASE_URL : BASE_URL;
+  const normalizedEndpoint =
+    base === BASE_URL && /\/api$/i.test(base) && ep.startsWith("/api/")
+      ? ep.replace(/^\/api/, "")
+      : ep;
 
-  return `${base}${ep}`;
+  return `${base}${normalizedEndpoint}`;
 };
 
 // Build client API URL (from browser to Next.js API Routes)

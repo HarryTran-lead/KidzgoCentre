@@ -22,6 +22,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { buildFileUrl } from "@/constants/apiURL";
+import { useBranchFilter } from "@/hooks/useBranchFilter";
 import { useToast } from "@/hooks/use-toast";
 import { isUploadSuccess, uploadFile } from "@/lib/api/fileService";
 import { getAllBranches } from "@/lib/api/branchService";
@@ -157,6 +158,17 @@ type StudentActionState = {
 
 type StudentActionErrors = Partial<Record<"starAmount" | "xpAmount", string>>;
 
+type ExportedDeliveredRow = Record<string, string | number | boolean | null | undefined>;
+
+type PurchaseExportRow = {
+  "STT": number;
+  "Tên quà": string;
+  "Số lượng": number | "";
+  "Học sinh": string;
+  "Chi nhánh": string;
+  "Lớp": string;
+};
+
 const inputClass =
   "w-full rounded-2xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-100";
 const textareaClass = `${inputClass} min-h-[112px]`;
@@ -240,6 +252,30 @@ function parseNumericInput(value: string) {
   return Number.isFinite(parsed) ? parsed : Number.NaN;
 }
 
+async function loadXlsxModule() {
+  return import("xlsx");
+}
+
+function getExportRowValue(
+  row: ExportedDeliveredRow,
+  candidateKeys: string[]
+): string {
+  for (const key of candidateKeys) {
+    const matchedKey = Object.keys(row).find(
+      (item) => item.trim().toLowerCase() === key.trim().toLowerCase()
+    );
+    if (!matchedKey) continue;
+
+    const value = row[matchedKey];
+    if (value === null || value === undefined) continue;
+
+    const normalized = String(value).trim();
+    if (normalized) return normalized;
+  }
+
+  return "";
+}
+
 export function StaffGamificationWorkspace({
   role,
   title,
@@ -309,6 +345,7 @@ export function StaffGamificationWorkspace({
   const [imageUploading, setImageUploading] = useState(false);
   const rewardImageInputRef = useRef<HTMLInputElement>(null);
   const rewardImagePreviewUrl = buildFileUrl(rewardForm.imageUrl);
+  const { selectedBranchId, isLoaded: isBranchFilterLoaded } = useBranchFilter();
 
   const selectedStudent = useMemo(
     () => students.find((item) => item.id === selectedStudentId) ?? null,
@@ -771,6 +808,12 @@ export function StaffGamificationWorkspace({
   }, [batchMonth, batchYear, exportBranchId, exportFilterStorageKey, exportItemId]);
 
   useEffect(() => {
+    if (!isBranchFilterLoaded) return;
+
+    setExportBranchId(selectedBranchId ?? "");
+  }, [isBranchFilterLoaded, selectedBranchId]);
+
+  useEffect(() => {
     if (!loading) {
       listRewardRedemptions({ page: redemptionPage, pageSize: 10 })
         .then((result) => {
@@ -1208,21 +1251,90 @@ export function StaffGamificationWorkspace({
   async function runExportDelivered() {
     try {
       setBusyAction("export-delivered");
-      const { blob, fileName } = await exportDeliveredRewardRedemptions({
+      const { blob } = await exportDeliveredRewardRedemptions({
         year: batchYear ? Number(batchYear) : undefined,
         month: batchMonth ? Number(batchMonth) : undefined,
         branchId: exportBranchId || undefined,
         itemId: exportItemId || undefined,
       });
 
-      const objectUrl = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = objectUrl;
-      anchor.download = fileName;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      URL.revokeObjectURL(objectUrl);
+      const XLSX = await loadXlsxModule();
+      const workbook = XLSX.read(await blob.arrayBuffer(), { type: "array" });
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const exportedRows = XLSX.utils.sheet_to_json<ExportedDeliveredRow>(worksheet, {
+        defval: "",
+      });
+
+      if (exportedRows.length === 0) {
+        toast({
+          title: "Không có dữ liệu để xuất",
+          description: "Không tìm thấy redemption đã giao trong bộ lọc hiện tại.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const redemptionIds = Array.from(
+        new Set(
+          exportedRows
+            .map((row) =>
+              getExportRowValue(row, ["RedemptionId", "Redemption ID", "redemptionId", "redemptionid"])
+            )
+            .filter(Boolean)
+        )
+      );
+
+      const detailResults = await Promise.allSettled(
+        redemptionIds.map(async (id) => [id, await getRewardRedemption(id)] as const)
+      );
+
+      const detailMap = new Map<string, RewardRedemption>();
+      for (const result of detailResults) {
+        if (result.status === "fulfilled") {
+          const [id, detail] = result.value;
+          detailMap.set(id, detail);
+        }
+      }
+
+      const purchaseRows: PurchaseExportRow[] = exportedRows.map((row, index) => {
+        const redemptionId = getExportRowValue(row, [
+          "RedemptionId",
+          "Redemption ID",
+          "redemptionId",
+          "redemptionid",
+        ]);
+        const detail = redemptionId ? detailMap.get(redemptionId) : undefined;
+        const rawQuantity = getExportRowValue(row, ["Quantity", "quantity"]);
+        const quantity = detail?.quantity ?? (rawQuantity ? Number(rawQuantity) : Number.NaN);
+
+        return {
+          "STT": index + 1,
+          "Tên quà": detail?.itemName?.trim() || getExportRowValue(row, ["ItemName", "Item Name", "Tên quà"]),
+          "Số lượng": Number.isFinite(quantity) && quantity > 0 ? quantity : "",
+          "Học sinh": detail?.studentName?.trim() || getExportRowValue(row, ["StudentName", "Student Name", "Học sinh"]),
+          "Chi nhánh": detail?.branchName?.trim() || getExportRowValue(row, ["Branch", "BranchName", "Chi nhánh"]),
+          "Lớp": getExportRowValue(row, ["Class", "ClassName", "class", "className", "Lớp"]),
+        };
+      });
+
+      const purchaseSheet = XLSX.utils.json_to_sheet(purchaseRows);
+      purchaseSheet["!cols"] = [
+        { wch: 8 },
+        { wch: 32 },
+        { wch: 12 },
+        { wch: 28 },
+        { wch: 24 },
+        { wch: 20 },
+      ];
+
+      const monthSegment = (batchMonth.trim() || String(new Date().getMonth() + 1)).padStart(2, "0");
+      const yearSegment = batchYear.trim() || String(new Date().getFullYear());
+      const purchaseBook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(purchaseBook, purchaseSheet, "Danh sach mua qua");
+      XLSX.writeFile(
+        purchaseBook,
+        `reward-redemptions-purchase-${yearSegment}-${monthSegment}.xlsx`
+      );
 
       toast.success({ title: "Đã xuất file Excel" });
     } catch (error) {
