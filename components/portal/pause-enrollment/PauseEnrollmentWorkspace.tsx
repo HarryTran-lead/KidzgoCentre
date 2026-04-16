@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   AlertCircle,
   BookOpen,
@@ -25,6 +26,7 @@ import {
   updatePauseEnrollmentOutcome,
 } from "@/lib/api/pauseEnrollmentService";
 import { getAllStudents } from "@/lib/api/studentService";
+import { getDomainErrorMessage } from "@/lib/api/domainErrorMessage";
 import { useBranchFilter } from "@/hooks/useBranchFilter";
 import { todayDateOnly } from "@/lib/datetime";
 import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
@@ -790,6 +792,7 @@ function RequestDetailModal({
 }
 
 export default function PauseEnrollmentWorkspace({ context }: Props) {
+  const router = useRouter();
   const isManagement = context !== "parent";
   const isStudentPage = context === "parent";
   const { selectedProfile } = useSelectedStudentProfile();
@@ -965,11 +968,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
       } catch (error: any) {
         setRequests([]);
         setSelectedRequestId(null);
-        setRequestError(
-          error?.response?.data?.message ??
-            error?.message ??
-            "Không thể tải danh sách bảo lưu."
-        );
+        setRequestError(getDomainErrorMessage(error, "Không thể tải danh sách bảo lưu."));
       } finally {
         setRequestsLoading(false);
       }
@@ -1061,6 +1060,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
         ensureApiSuccess(response, "Không thể duyệt yêu cầu bảo lưu.");
         setRequestMessage("Đã duyệt yêu cầu bảo lưu.");
         await loadRequests(confirmAction.requestId);
+        router.refresh();
       }
 
       if (confirmAction.kind === "reject") {
@@ -1068,6 +1068,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
         ensureApiSuccess(response, "Không thể từ chối yêu cầu bảo lưu.");
         setRequestMessage("Đã từ chối yêu cầu bảo lưu.");
         await loadRequests(confirmAction.requestId);
+        router.refresh();
       }
 
       if (confirmAction.kind === "cancel") {
@@ -1075,15 +1076,12 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
         ensureApiSuccess(response, "Không thể hủy yêu cầu bảo lưu.");
         setRequestMessage("Đã hủy yêu cầu bảo lưu.");
         await loadRequests(confirmAction.requestId);
+        router.refresh();
       }
 
       setConfirmAction(null);
     } catch (error: any) {
-      setRequestError(
-        error?.response?.data?.message ??
-          error?.message ??
-          "Không thể thực hiện thao tác."
-      );
+      setRequestError(getDomainErrorMessage(error, "Không thể thực hiện thao tác."));
     } finally {
       setConfirmLoading(false);
     }
@@ -1105,13 +1103,9 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
       ensureApiSuccess(response, "Không thể cập nhật outcome.");
       setRequestMessage("Đã cập nhật kết quả sau bảo lưu.");
       await loadRequests(selectedRequest.id);
+      router.refresh();
     } catch (error: any) {
-      setRequestError(
-        error?.response?.data?.detail ??
-          error?.response?.data?.message ??
-          error?.message ??
-          "Không thể cập nhật outcome."
-      );
+      setRequestError(getDomainErrorMessage(error, "Không thể cập nhật outcome."));
     } finally {
       setActionLoadingKey(null);
     }
@@ -1589,10 +1583,12 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
         lockedStudentProfileId={isStudentLocked ? selectedProfile?.id ?? null : null}
         lockedStudentLabel={activeLockedStudent?.label ?? null}
         lockedStudentClassText={activeLockedStudent?.classText ?? null}
+        hideBusinessNote={isManagement}
         onCreated={(record) => {
           setCreateOpen(false);
           setRequestMessage("Đã tạo yêu cầu bảo lưu.");
           void loadRequests(record.id);
+          router.refresh();
         }}
       />
 

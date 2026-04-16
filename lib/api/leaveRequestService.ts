@@ -68,5 +68,13 @@ export async function rejectLeaveRequest(id: string): Promise<LeaveRequestAction
 }
 
 export async function cancelLeaveRequest(id: string): Promise<LeaveRequestActionResponse> {
-  return put<LeaveRequestActionResponse>(LEAVE_REQUEST_ENDPOINTS.CANCEL(id), {});
+  try {
+    return await put<LeaveRequestActionResponse>(LEAVE_REQUEST_ENDPOINTS.CANCEL(id), {});
+  } catch (error: any) {
+    const status = Number(error?.response?.status ?? 0);
+    if (status === 404 || status === 405) {
+      return post<LeaveRequestActionResponse>(LEAVE_REQUEST_ENDPOINTS.CANCEL(id), {});
+    }
+    throw error;
+  }
 }

@@ -597,7 +597,9 @@ export function StaffGamificationWorkspace({
     return nextErrors;
   }
 
-  function validateStudentAction(action: "addStars" | "deductStars" | "addXp") {
+  function validateStudentAction(
+    action: "addStars" | "deductStars" | "addXp" | "deductXp"
+  ) {
     const field = action.includes("Stars") ? "starAmount" : "xpAmount";
     const label = field === "starAmount" ? "số sao" : "số XP";
     const amount = parseNumericInput(

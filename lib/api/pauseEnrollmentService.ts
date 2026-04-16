@@ -84,10 +84,21 @@ export async function rejectPauseEnrollmentRequest(
 export async function cancelPauseEnrollmentRequest(
   id: string
 ): Promise<PauseEnrollmentRequestActionResponse> {
-  return put<PauseEnrollmentRequestActionResponse>(
-    PAUSE_ENROLLMENT_ENDPOINTS.CANCEL(id),
-    {}
-  );
+  try {
+    return await put<PauseEnrollmentRequestActionResponse>(
+      PAUSE_ENROLLMENT_ENDPOINTS.CANCEL(id),
+      {}
+    );
+  } catch (error: any) {
+    const status = Number(error?.response?.status ?? 0);
+    if (status === 404 || status === 405) {
+      return post<PauseEnrollmentRequestActionResponse>(
+        PAUSE_ENROLLMENT_ENDPOINTS.CANCEL(id),
+        {}
+      );
+    }
+    throw error;
+  }
 }
 
 export async function updatePauseEnrollmentOutcome(

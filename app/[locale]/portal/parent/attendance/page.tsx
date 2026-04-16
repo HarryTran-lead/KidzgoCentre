@@ -34,6 +34,7 @@ import {
 } from "@/lib/api/makeupCreditService";
 import { resolveMakeupCreditActionError } from "@/lib/makeupCreditErrors";
 import { getSessionById } from "@/lib/api/sessionService";
+import { getDomainErrorMessage } from "@/lib/api/domainErrorMessage";
 import { fetchStudentAttendanceHistory } from "@/app/api/teacher/attendance";
 import LeaveRequestCreateModal from "@/components/portal/parent/modalsLeaveRequest/LeaveRequestCreateModal";
 import MakeupSessionCreateModal, {
@@ -747,7 +748,10 @@ export default function ParentAttendancePage() {
       setCancelTarget(null);
     } catch (err: any) {
       console.error("Cancel leave request error:", err);
-      const errorText = err?.message || "Không thể hủy đơn xin nghỉ. Vui lòng thử lại.";
+      const errorText = getDomainErrorMessage(
+        err,
+        "Không thể hủy đơn xin nghỉ. Vui lòng thử lại."
+      );
       toast.destructive({
         title: "Không thể hủy đơn nghỉ",
         description: errorText,
@@ -820,18 +824,11 @@ export default function ParentAttendancePage() {
       console.error("Create leave request error:", err);
       const apiError = (err as any)?.response?.data;
       const code = apiError?.code ?? apiError?.title ?? apiError?.data?.code ?? apiError?.data?.title;
-      const description =
-        apiError?.description ??
-        apiError?.detail ??
-        apiError?.message ??
-        apiError?.data?.description ??
-        apiError?.data?.detail ??
-        apiError?.data?.message;
 
       if (code === "LeaveRequest.ExceededMonthlyLeaveLimit") {
         setError("Học viên đã vượt quá giới hạn 2 buổi nghỉ trong tháng.");
       } else {
-        setError(description ?? "Tạo đơn thất bại. Vui lòng thử lại.");
+        setError(getDomainErrorMessage(err, "Tạo đơn thất bại. Vui lòng thử lại."));
       }
     } finally {
       setSubmitting(false);

@@ -38,6 +38,7 @@ import LeaveRequestCreateModal from "@/components/portal/parent/modalsLeaveReque
 import { TEACHER_ENDPOINTS } from "@/constants/apiURL";
 import { get } from "@/lib/axios";
 import { nowISOVN } from "@/lib/datetime";
+import { getDomainErrorMessage } from "@/lib/api/domainErrorMessage";
 
 /* ===================== Types ===================== */
 
@@ -112,6 +113,13 @@ const statusOptions: (LeaveRequestStatusLabel | "Tất cả")[] = [
   "Từ chối",
   "Đã hủy",
 ];
+
+const leaveStatusBadgeStyles: Record<LeaveRequestStatusLabel, string> = {
+  "Chờ duyệt": "border-amber-200 bg-amber-50 text-amber-700",
+  "Đã duyệt": "border-emerald-200 bg-emerald-50 text-emerald-700",
+  "Từ chối": "border-rose-200 bg-rose-50 text-rose-700",
+  "Đã hủy": "border-slate-200 bg-slate-100 text-slate-700",
+};
 
 /* ===================== Helpers ===================== */
 
@@ -881,7 +889,7 @@ export default function Page() {
       await fetchLeaveRequests();
       await fetchUsedCredits();
     } catch (e: any) {
-      setActionError(e?.message ?? "Thao tác thất bại.");
+      setActionError(getDomainErrorMessage(e, "Thao tác thất bại."));
     } finally {
       setProcessingAction(false);
     }
@@ -925,7 +933,7 @@ export default function Page() {
         setActionMessage(`Đã duyệt hàng loạt ${approvedIds.length} đơn thành công.`);
       }
     } catch (error: any) {
-      setActionError(error?.message ?? "Không thể duyệt hàng loạt đơn xin nghỉ.");
+      setActionError(getDomainErrorMessage(error, "Không thể duyệt hàng loạt đơn xin nghỉ."));
     } finally {
       setProcessingBulkApprove(false);
     }
@@ -944,7 +952,7 @@ export default function Page() {
       setActionMessage("Đã cập nhật trạng thái hết hạn cho makeup credit.");
       setExpireTarget(null);
     } catch (error: any) {
-      setActionError(error?.message ?? "Không thể cập nhật trạng thái hết hạn cho makeup credit.");
+      setActionError(getDomainErrorMessage(error, "Không thể cập nhật trạng thái hết hạn cho makeup credit."));
     } finally {
       setProcessingExpire(false);
     }
@@ -1175,7 +1183,6 @@ export default function Page() {
                           </td>
                           <td className="py-4 px-6">
                             <div className="text-sm font-medium text-gray-900">{r.student}</div>
-                            <div className="text-xs text-gray-500 font-mono">{r.id}</div>
                           </td>
                           <td className="py-4 px-6 text-sm text-gray-700">{r.parentName}</td>
                           <td className="py-4 px-6 text-sm text-gray-700">{r.className}</td>
@@ -1184,7 +1191,9 @@ export default function Page() {
                             <div className="text-xs text-gray-500">{r.requestTime}</div>
                           </td>
                           <td className="py-4 px-6">
-                            <span className="inline-flex items-center rounded-xl border border-red-200 bg-gradient-to-r from-red-50 to-red-100 px-2.5 py-1 text-xs font-semibold text-red-700">
+                            <span
+                              className={`inline-flex items-center rounded-xl border px-2.5 py-1 text-xs font-semibold ${leaveStatusBadgeStyles[r.status]}`}
+                            >
                               {r.status}
                             </span>
                           </td>

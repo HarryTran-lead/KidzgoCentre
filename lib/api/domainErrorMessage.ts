@@ -21,6 +21,22 @@ type ErrorLike = {
 };
 
 const CODE_TO_VIETNAMESE_MESSAGE: Record<string, string> = {
+  // Leave Request
+  "LeaveRequest.NotFound": "Không tìm thấy đơn xin nghỉ.",
+  "LeaveRequest.AlreadyCancelled": "Đơn xin nghỉ đã được hủy trước đó.",
+  "LeaveRequest.CannotCancel": "Không thể hủy đơn xin nghỉ ở trạng thái hiện tại.",
+  "LeaveRequest.CannotCancelPastDate": "Không thể hủy đơn xin nghỉ khi buổi học đã qua.",
+  "LeaveRequest.CannotCancelApproved": "Không thể hủy đơn xin nghỉ đã được xử lý.",
+  "LeaveRequest.InvalidDateRange": "Khoảng ngày nghỉ không hợp lệ.",
+  "LeaveRequest.ExceededMonthlyLeaveLimit": "Học viên đã vượt quá giới hạn số buổi nghỉ trong tháng.",
+
+  // Pause Enrollment Request
+  "PauseEnrollmentRequest.NotFound": "Không tìm thấy yêu cầu bảo lưu.",
+  "PauseEnrollmentRequest.NoEnrollmentsInRange": "Học viên không có ghi danh đang hoạt động trong khoảng ngày bảo lưu.",
+  "PauseEnrollmentRequest.InvalidDateRange": "Khoảng ngày bảo lưu không hợp lệ.",
+  "PauseEnrollmentRequest.CannotCancel": "Không thể hủy yêu cầu bảo lưu ở trạng thái hiện tại.",
+  "PauseEnrollmentRequest.OutcomeOnlyForApproved": "Chỉ có thể cập nhật outcome cho yêu cầu đã duyệt.",
+
   // Placement Test - Not Found
   "PlacementTest.NotFound": "Không tìm thấy bài test",
   "PlacementTest.LeadNotFound": "Không tìm thấy lead",
@@ -239,6 +255,42 @@ function translateBackendMessageToVietnamese(message?: string): string | undefin
       test: /validation\s+failed|one\s+or\s+more\s+validation\s+errors\s+occurred/i,
       vi: "Dữ liệu gửi lên chưa hợp lệ. Vui lòng kiểm tra lại các trường bắt buộc.",
     },
+    {
+      test: /leave\s*request\s*.*not\s*found/i,
+      vi: "Không tìm thấy đơn xin nghỉ.",
+    },
+    {
+      test: /pause\s*enrollment\s*request\s*.*not\s*found/i,
+      vi: "Không tìm thấy yêu cầu bảo lưu.",
+    },
+    {
+      test: /already\s+cancelled|already\s+canceled/i,
+      vi: "Đơn đã được hủy trước đó.",
+    },
+    {
+      test: /cannot\s+cancel.*(past|passed|started|expired)/i,
+      vi: "Không thể hủy khi buổi học đã qua hoặc yêu cầu đã bắt đầu hiệu lực.",
+    },
+    {
+      test: /cannot\s+cancel.*(approved|processed|finalized)/i,
+      vi: "Không thể hủy đơn đã được xử lý.",
+    },
+    {
+      test: /invalid\s+date\s+range|date\s+range\s+is\s+invalid/i,
+      vi: "Khoảng ngày không hợp lệ.",
+    },
+    {
+      test: /outcome\s+.*only\s+.*approved/i,
+      vi: "Chỉ có thể cập nhật kết quả cho yêu cầu đã duyệt.",
+    },
+    {
+      test: /no\s+active\s+enrollments?\s+with\s+sessions?\s+in\s+the\s+pause\s+range/i,
+      vi: "Học viên không có ghi danh đang hoạt động trong khoảng ngày bảo lưu.",
+    },
+    {
+      test: /request\s+failed\s+with\s+status\s+code\s+409/i,
+      vi: "Yêu cầu bị từ chối do dữ liệu đang xung đột. Vui lòng kiểm tra lại thông tin và thử lại.",
+    },
   ];
 
   for (const matcher of messageMatchers) {
@@ -298,6 +350,8 @@ export function extractDomainErrorCode(error: unknown): string | undefined {
       code.startsWith("Lead.") ||
       code.startsWith("Registration.") ||
       code.startsWith("Enrollment.") ||
+      code.startsWith("LeaveRequest.") ||
+      code.startsWith("PauseEnrollmentRequest.") ||
       exactCodes.has(code),
   );
 
