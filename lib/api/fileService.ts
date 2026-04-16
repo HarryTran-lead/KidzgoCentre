@@ -72,8 +72,11 @@ export async function uploadFile(
  * Upload avatar image via dedicated avatar endpoint.
  * Validates file type and size (max 10MB) before upload.
  */
-export async function uploadAvatar(file: File): Promise<UploadFileResponse> {
-  const ALLOWED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg"];
+export async function uploadAvatar(
+  file: File,
+  options?: { targetProfileId?: string }
+): Promise<UploadFileResponse> {
+  const ALLOWED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp"];
   const MAX_SIZE = 10 * 1024 * 1024; // 10MB
 
   const ext = `.${file.name.split(".").pop()?.toLowerCase()}`;
@@ -88,7 +91,16 @@ export async function uploadAvatar(file: File): Promise<UploadFileResponse> {
   const formData = new FormData();
   formData.append("file", file);
 
-  const response = await fetch(FILE_ENDPOINTS.AVATAR, {
+  const params = new URLSearchParams();
+  if (options?.targetProfileId) {
+    params.set("targetProfileId", options.targetProfileId);
+  }
+
+  const endpoint = params.toString()
+    ? `${FILE_ENDPOINTS.AVATAR}?${params.toString()}`
+    : FILE_ENDPOINTS.AVATAR;
+
+  const response = await fetch(endpoint, {
     method: "POST",
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: formData,
