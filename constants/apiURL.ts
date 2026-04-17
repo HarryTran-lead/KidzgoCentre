@@ -682,6 +682,7 @@ export const MEDIA_ENDPOINTS = {
   BY_ID: (id: string) => `/api/media/${id}`,
   APPROVE: (id: string) => `/api/media/${id}/approve`,
   REJECT: (id: string) => `/api/media/${id}/reject`,
+  RESUBMIT: (id: string) => `/api/media/${id}/resubmit`,
   PUBLISH: (id: string) => `/api/media/${id}/publish`,
 } as const;
 
@@ -719,6 +720,7 @@ export const BACKEND_MEDIA_ENDPOINTS = {
   BY_ID: (id: string) => `/media/${id}`,
   APPROVE: (id: string) => `/media/${id}/approve`,
   REJECT: (id: string) => `/media/${id}/reject`,
+  RESUBMIT: (id: string) => `/media/${id}/resubmit`,
   PUBLISH: (id: string) => `/media/${id}/publish`,
 } as const;
 

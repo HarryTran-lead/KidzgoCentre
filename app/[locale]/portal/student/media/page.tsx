@@ -37,6 +37,7 @@ interface MediaItem {
 
 interface Album {
   id: string;
+  monthTag?: string;
   title: string;
   className: string;
   date: string;
@@ -44,6 +45,12 @@ interface Album {
   mediaCount: number;
   type: 'class' | 'personal';
   media: MediaItem[];
+}
+
+function normalizeOwnershipScope(value: unknown): Album['type'] {
+  const raw = String(value ?? '').trim().toLowerCase();
+  if (raw === 'personal' || raw === 'student' || raw === 'child') return 'personal';
+  return 'class';
 }
 
 function normalizeMediaUrl(value?: string) {
@@ -81,21 +88,27 @@ function normalizeStudentAlbums(payload: any): Album[] {
       : [];
 
   const mediaByAlbum = topItems.reduce((acc: Record<string, any[]>, item: any) => {
-    const albumId = String(item.albumId ?? item.monthTag ?? item.month ?? "general");
-    if (!acc[albumId]) acc[albumId] = [];
-    acc[albumId].push(item);
+    const category = normalizeOwnershipScope(item.ownershipScope ?? item.scope ?? item.albumType ?? item.type);
+    const albumId = String(item.monthTag ?? item.albumId ?? item.month ?? "general");
+    const bucketKey = `${category}:${albumId}`;
+    if (!acc[bucketKey]) acc[bucketKey] = [];
+    acc[bucketKey].push(item);
     return acc;
   }, {});
 
   const mappedAlbums = rawAlbums.map((album: any) => {
-    const albumId = String(album.albumId ?? album.id ?? album.monthTag ?? album.month ?? "general");
+    const albumId = String(album.monthTag ?? album.albumId ?? album.id ?? album.month ?? "general");
+    const normalizedType: Album["type"] = normalizeOwnershipScope(
+      album.ownershipScope ?? album.scope ?? album.type ?? album.albumType
+    );
+    const fallbackKey = `${normalizedType}:${albumId}`;
     const rawMedia = Array.isArray(album.media)
       ? album.media
       : Array.isArray(album.items)
         ? album.items
         : Array.isArray(album.medias)
           ? album.medias
-        : mediaByAlbum[albumId] ?? [];
+        : mediaByAlbum[fallbackKey] ?? [];
 
     const media = rawMedia.map((item: any, itemIndex: number) => {
       const rawType = String(item.type ?? item.mediaType ?? "").toLowerCase();
@@ -111,12 +124,11 @@ function normalizeStudentAlbums(payload: any): Album[] {
       } as MediaItem;
     });
 
-    const albumTypeRaw = String(album.type ?? album.albumType ?? "").toLowerCase();
-    const normalizedType: Album["type"] = albumTypeRaw.includes("personal") ? "personal" : "class";
     const fallbackCover = normalizeMediaUrl(String(album.coverUrl ?? album.coverImage ?? media[0]?.thumbnail ?? ""));
 
     return {
       id: albumId,
+      monthTag: String(album.monthTag ?? albumId),
       title: String(album.title ?? "Album lớp học"),
       className: String(album.className ?? album.classTitle ?? ""),
       date: formatDisplayDate(String(album.date ?? media[0]?.date ?? "")),
@@ -127,7 +139,9 @@ function normalizeStudentAlbums(payload: any): Album[] {
     };
   });
 
-  const fallbackAlbums = Object.entries(mediaByAlbum).map(([albumId, rawMedia], groupIndex) => {
+  const fallbackAlbums = Object.entries(mediaByAlbum).map(([bucketKey, rawMedia], groupIndex) => {
+    const [scopeRaw, monthTagRaw] = bucketKey.split(":");
+    const albumId = String(monthTagRaw ?? `album-${groupIndex}`);
     const media = (rawMedia as any[]).map((item: any, itemIndex: number) => {
       const rawType = String(item.type ?? item.mediaType ?? "").toLowerCase();
       return {
@@ -144,12 +158,13 @@ function normalizeStudentAlbums(payload: any): Album[] {
 
     return {
       id: String(albumId || `album-${groupIndex}`),
+      monthTag: String(albumId || "general"),
       title: String(albumId || "Album"),
       className: "",
       date: formatDisplayDate(String(media[0]?.date ?? "")),
       coverImage: normalizeMediaUrl(String(media[0]?.thumbnail ?? "")),
       mediaCount: Number(media.length),
-      type: "class" as const,
+      type: normalizeOwnershipScope(scopeRaw),
       media,
     };
   });
@@ -158,7 +173,7 @@ function normalizeStudentAlbums(payload: any): Album[] {
   const grouped = new Map<string, Album>();
 
   sourceAlbums.forEach((album: Album) => {
-    const key = String(album.id || album.title || "general");
+    const key = `${album.type}:${String(album.monthTag ?? (album.id || album.title || "general"))}`;
     const existing = grouped.get(key);
 
     if (!existing) {
