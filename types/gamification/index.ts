@@ -318,6 +318,18 @@ export interface BatchDeliverParams {
   month?: number;
 }
 
+export interface RewardRedemptionExportParams {
+  year?: number;
+  month?: number;
+  branchId?: string;
+  itemId?: string;
+}
+
+export interface RewardRedemptionExportResult {
+  blob: Blob;
+  fileName: string;
+}
+
 export type MissionRewardRuleProgressMode = "Count" | "Streak";
 
 export interface MissionRewardRule {

@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { createPauseEnrollmentRequest } from "@/lib/api/pauseEnrollmentService";
+import { getDomainErrorMessage } from "@/lib/api/domainErrorMessage";
 import { getStudentClasses } from "@/lib/api/studentService";
 import type {
   CreatePauseEnrollmentRequestPayload,
@@ -31,6 +32,7 @@ type Props = {
   lockedStudentProfileId?: string | null;
   lockedStudentLabel?: string | null;
   lockedStudentClassText?: string | null;
+  hideBusinessNote?: boolean;
 };
 
 type FormState = CreatePauseEnrollmentRequestPayload;
@@ -124,6 +126,7 @@ export default function PauseEnrollmentCreateModal({
   lockedStudentProfileId,
   lockedStudentLabel,
   lockedStudentClassText,
+  hideBusinessNote = false,
 }: Props) {
   const [formState, setFormState] = useState<FormState>(initialFormState);
   const [classes, setClasses] = useState<StudentClass[]>([]);
@@ -259,11 +262,7 @@ export default function PauseEnrollmentCreateModal({
       onCreated(created);
       onClose();
     } catch (error: any) {
-      setActionError(
-        error?.response?.data?.message ??
-          error?.message ??
-          "Không thể tạo yêu cầu bảo lưu."
-      );
+      setActionError(getDomainErrorMessage(error, "Không thể tạo yêu cầu bảo lưu."));
     } finally {
       setSubmitting(false);
     }
@@ -458,14 +457,16 @@ export default function PauseEnrollmentCreateModal({
                 )}
               </div>
 
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-800">
-                <div className="font-semibold text-amber-900">Lưu ý nghiệp vụ</div>
-                <ul className="mt-2 space-y-1 list-disc list-inside">
-                  <li>Chức năng này dành cho nghỉ dài ngày, không phải nghỉ lẻ từng buổi.</li>
-                  <li>Khoảng ngày sẽ được đối chiếu theo UTC date ở backend.</li>
-                  <li>Chỉ khi yêu cầu được duyệt, enrollment liên quan mới được pause.</li>
-                </ul>
-              </div>
+              {!hideBusinessNote ? (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-800">
+                  <div className="font-semibold text-amber-900">Lưu ý nghiệp vụ</div>
+                  <ul className="mt-2 space-y-1 list-disc list-inside">
+                    <li>Chức năng này dành cho nghỉ dài ngày, không phải nghỉ lẻ từng buổi.</li>
+                    <li>Khoảng ngày sẽ được đối chiếu theo UTC date ở backend.</li>
+                    <li>Chỉ khi yêu cầu được duyệt, enrollment liên quan mới được pause.</li>
+                  </ul>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>

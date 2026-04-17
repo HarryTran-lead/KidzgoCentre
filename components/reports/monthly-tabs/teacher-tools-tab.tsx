@@ -44,7 +44,8 @@ type Props = {
   sessionsLoading: boolean;
   sessionsError: string;
   actionLoading: Record<string, boolean>;
-  runAction: (reportId: string, action: string) => void;
+  runAction: (reportId: string, action: string) => Promise<void>;
+  generateAiDraftFromStudent: () => Promise<void>;
   openReportDetail: (reportId: string) => void;
   teacherClassProgress: ClassProgress[];
   teacherReports: ReportLite[];
@@ -88,6 +89,7 @@ export default function TeacherToolsTab({
   sessionsError,
   actionLoading,
   runAction,
+  generateAiDraftFromStudent,
   openReportDetail,
   teacherClassProgress,
   teacherReports,
@@ -647,9 +649,10 @@ export default function TeacherToolsTab({
                   <div className="grid gap-2 sm:grid-cols-2">
                     <button
                       disabled={!activeReport || sessionReports.length === 0 || actionLoading[`${displayReport?.id}:generate-draft`]}
-                      onClick={() =>
-                        activeReport && sessionReports.length > 0 && displayReport && runAction(displayReport.id, "generate-draft")
-                      }
+                      onClick={() => {
+                        if (!activeReport || !displayReport || sessionReports.length === 0) return;
+                        void generateAiDraftFromStudent();
+                      }}
                       className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-500 to-rose-600 px-4 py-2.5 text-xs font-semibold text-white shadow-lg shadow-red-500/30 transition-all hover:shadow-xl hover:shadow-red-500/40 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
                     >
                       {actionLoading[`${displayReport?.id}:generate-draft`] ? (

@@ -581,6 +581,7 @@ Bo sung current frontend:
 |---|---|---|
 | `POST` | `/api/gamification/reward-redemptions` | co service |
 | `GET` | `/api/gamification/reward-redemptions` | co service |
+| `GET` | `/api/gamification/reward-redemptions/export-delivered` | endpoint export Excel cho redemption da giao (bao gom `Delivered` va `Received`), phuc vu staff/admin tong hop danh sach mua qua |
 | `GET` | `/api/gamification/reward-redemptions/{id}` | co service |
 | `GET` | `/api/gamification/reward-redemptions/me` | co service |
 | `PATCH` | `/api/gamification/reward-redemptions/{id}/approve` | co service |
@@ -662,6 +663,8 @@ Bo sung current frontend:
 - Request doi qua se tru stars ngay, khong doi staff approve moi tru.
 - Cancel boi staff se refund stars va tra lai quantity.
 - Learner co the thay redemption detail theo id, nhung hien backend chua check ownership trong handler. Neu day la man learner, frontend nen goi uu tien `/me`.
+- Staff/admin co API export file Excel tu danh sach redemption da giao de xu ly quy trinh mua qua theo thang.
+- API export: `GET /api/gamification/reward-redemptions/export-delivered?year=&month=&branchId=&itemId=`. Neu khong gui `year/month`, backend mac dinh thang hien tai.
 
 Bo sung current frontend:
 

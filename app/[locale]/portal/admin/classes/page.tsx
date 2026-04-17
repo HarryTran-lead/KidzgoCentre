@@ -18,7 +18,8 @@ import {
   fetchAdminUsersByIds,
   fetchAdminClassDetail,
   updateAdminClass,
-  updateClassStatus
+  updateClassStatus,
+  addAdminClassScheduleSegment
 } from "@/app/api/admin/classes";
 import { fetchAdminRooms } from "@/app/api/admin/rooms";
 import { generateSessionsFromPattern } from "@/app/api/admin/sessions";
@@ -30,6 +31,11 @@ import { useToast } from "@/hooks/use-toast";
 import { getAccessToken } from "@/lib/store/authToken";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
 import AdminBranchSelectField from "@/components/admin/common/AdminBranchSelectField";
+import {
+  buildFutureStretchPayload,
+  validateFutureStretchPayload,
+} from "@/lib/api/classService";
+import type { WeekdayCode } from "@/lib/schedulePattern";
 
 /* ----------------------------- UI HELPERS ------------------------------ */
 function StatusBadge({ value }: { value: ClassRow["status"] }) {
@@ -1283,6 +1289,356 @@ function buildClassStatusErrorMessage(
   return rawMessage;
 }
 
+function FutureStretchModal({
+  isOpen,
+  onClose,
+  classRow,
+  onSuccess,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  classRow: ClassRow | null;
+  onSuccess: () => Promise<void>;
+}) {
+  const { toast } = useToast();
+  const [effectiveFrom, setEffectiveFrom] = useState(getFutureDateString(1));
+  const [effectiveTo, setEffectiveTo] = useState("");
+  const [targetSessions, setTargetSessions] = useState<number>(3);
+  const [selectedDays, setSelectedDays] = useState<WeekdayCode[]>(DEFAULT_DAYS_BY_TARGET[3]);
+  const [startTime, setStartTime] = useState("18:00");
+  const [durationMinutes, setDurationMinutes] = useState<number>(120);
+  const [generateSessions, setGenerateSessions] = useState(true);
+  const [onlyFutureSessions, setOnlyFutureSessions] = useState(true);
+  const [confirmedImpact, setConfirmedImpact] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const currentSessionsPerWeek = useMemo(() => {
+    if (!classRow?.schedule) return 0;
+    const { days } = extractScheduleMeta(classRow.schedule);
+    return days.length;
+  }, [classRow?.schedule]);
+
+  useEffect(() => {
+    if (!isOpen || !classRow) return;
+
+    const meta = extractScheduleMeta(classRow.schedule || "");
+    const sourceDays = meta.days
+      .map(toWeekdayCodeFromScheduleDay)
+      .filter((day): day is WeekdayCode => day !== null);
+
+    const suggestedTarget = currentSessionsPerWeek >= 3 ? 5 : 3;
+    const defaultDays = DEFAULT_DAYS_BY_TARGET[suggestedTarget] || DEFAULT_DAYS_BY_TARGET[3];
+
+    setTargetSessions(suggestedTarget);
+    setSelectedDays(defaultDays);
+    setStartTime(meta.startTime || "18:00");
+    setDurationMinutes(calculateDurationMinutes(meta.startTime, meta.endTime));
+    setEffectiveFrom(getFutureDateString(1));
+    setEffectiveTo("");
+    setGenerateSessions(true);
+    setOnlyFutureSessions(true);
+    setConfirmedImpact(false);
+    setSelectedDays(recommendFutureStretchDays(sourceDays, suggestedTarget));
+  }, [isOpen, classRow, currentSessionsPerWeek]);
+
+  if (!isOpen || !classRow) return null;
+
+  const selectedSet = new Set(selectedDays);
+
+  const toggleDay = (dayCode: WeekdayCode) => {
+    setSelectedDays((prev) => {
+      if (prev.includes(dayCode)) {
+        return prev.filter((d) => d !== dayCode);
+      }
+      if (prev.length >= targetSessions) {
+        return prev;
+      }
+      return [...prev, dayCode];
+    });
+  };
+
+  const applyTargetPreset = (nextTarget: number) => {
+    setTargetSessions(nextTarget);
+    setSelectedDays((prev) => {
+      const defaults = DEFAULT_DAYS_BY_TARGET[nextTarget] || [];
+      const seed = prev.length > 0 ? prev : defaults;
+      return recommendFutureStretchDays(seed, nextTarget);
+    });
+  };
+
+  const handleSubmit = async () => {
+    const normalizedDays = selectedDays.slice(0, targetSessions);
+
+    if (normalizedDays.length !== targetSessions) {
+      toast.destructive({
+        title: "Thiếu ngày học",
+        description: `Vui lòng chọn đủ ${targetSessions} ngày học trong tuần.`,
+      });
+      return;
+    }
+
+    const validationErrors = validateFutureStretchPayload({
+      effectiveFrom,
+      days: normalizedDays,
+      currentSessionsPerWeek,
+    });
+
+    if (validationErrors.length > 0) {
+      toast.destructive({
+        title: "Dữ liệu chưa hợp lệ",
+        description: validationErrors[0],
+      });
+      return;
+    }
+
+    if (!confirmedImpact) {
+      toast.destructive({
+        title: "Thiếu xác nhận",
+        description: "Vui lòng xác nhận thay đổi chỉ áp dụng cho lịch tương lai trước khi lưu.",
+      });
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      const payload = buildFutureStretchPayload({
+        effectiveFrom,
+        effectiveTo: effectiveTo || null,
+        days: normalizedDays,
+        startTime,
+        durationMinutes,
+        generateSessions,
+        onlyFutureSessions,
+      });
+
+      await addAdminClassScheduleSegment(classRow.id, payload);
+      await onSuccess();
+
+      toast.success({
+        title: "Giãn lịch lớp thành công",
+        description: `Lớp ${classRow.name} đã được cập nhật lên ${targetSessions} buổi/tuần từ ${effectiveFrom}.`,
+      });
+
+      onClose();
+    } catch (err: any) {
+      toast.destructive({
+        title: "Giãn lịch lớp thất bại",
+        description: err?.message || "Không thể cập nhật lịch học trong tương lai.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const previewPayload = (() => {
+    try {
+      if (selectedDays.length === 0) return "";
+      return buildFutureStretchPayload({
+        effectiveFrom,
+        effectiveTo: effectiveTo || null,
+        days: selectedDays,
+        startTime,
+        durationMinutes,
+        generateSessions,
+        onlyFutureSessions,
+      }).schedulePattern;
+    } catch {
+      return "";
+    }
+  })();
+
+  return (
+    <div className="fixed inset-0 z-[90] bg-black/45 backdrop-blur-sm p-4 md:p-6 flex items-center justify-center">
+      <div className="w-full max-w-2xl rounded-2xl border border-red-200 bg-white shadow-2xl overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-red-500/10 to-red-700/10 flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-bold text-gray-900">Giãn buổi học tương lai</h3>
+            <p className="text-sm text-gray-600 mt-1">{classRow.name} ({classRow.code || classRow.id})</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+            aria-label="Đóng"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-5 max-h-[75vh] overflow-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Ngày hiệu lực</label>
+              <input
+                type="date"
+                value={effectiveFrom}
+                min={getFutureDateString(1)}
+                onChange={(e) => setEffectiveFrom(e.target.value)}
+                className="w-full h-10 rounded-xl border border-gray-200 px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Ngày kết thúc (tuỳ chọn)</label>
+              <input
+                type="date"
+                value={effectiveTo}
+                onChange={(e) => setEffectiveTo(e.target.value)}
+                className="w-full h-10 rounded-xl border border-gray-200 px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200"
+              />
+            </div>
+          </div>
+
+          <div>
+            <div className="text-sm font-semibold text-gray-700 mb-2">Số buổi mỗi tuần</div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => applyTargetPreset(3)}
+                className={clsx(
+                  "px-3 py-1.5 rounded-lg text-sm border transition-colors",
+                  targetSessions === 3 ? "bg-red-600 text-white border-red-600" : "bg-white text-gray-700 border-gray-200 hover:bg-red-50"
+                )}
+              >
+                3 buổi/tuần
+              </button>
+              <button
+                type="button"
+                onClick={() => applyTargetPreset(5)}
+                className={clsx(
+                  "px-3 py-1.5 rounded-lg text-sm border transition-colors",
+                  targetSessions === 5 ? "bg-red-600 text-white border-red-600" : "bg-white text-gray-700 border-gray-200 hover:bg-red-50"
+                )}
+              >
+                5 buổi/tuần
+              </button>
+              <div className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-2 py-1.5">
+                <span className="text-sm text-gray-600">Tuỳ chỉnh:</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={7}
+                  value={targetSessions}
+                  onChange={(e) => applyTargetPreset(Math.max(1, Math.min(7, Number(e.target.value) || 1)))}
+                  className="w-16 h-8 rounded-md border border-gray-200 px-2 text-sm text-gray-800"
+                />
+              </div>
+              <span className="text-xs text-gray-500">Hiện tại: {currentSessionsPerWeek} buổi/tuần</span>
+            </div>
+          </div>
+
+          <div>
+            <div className="text-sm font-semibold text-gray-700 mb-2">Chọn ngày học ({selectedDays.length}/{targetSessions})</div>
+            <div className="flex flex-wrap gap-2">
+              {FUTURE_STRETCH_DAY_OPTIONS.map((day) => {
+                const isActive = selectedSet.has(day.code);
+                return (
+                  <button
+                    key={day.code}
+                    type="button"
+                    onClick={() => toggleDay(day.code)}
+                    className={clsx(
+                      "min-w-12 px-3 py-2 rounded-lg text-sm border transition-colors",
+                      isActive
+                        ? "bg-red-600 text-white border-red-600"
+                        : "bg-white text-gray-700 border-gray-200 hover:bg-red-50"
+                    )}
+                  >
+                    {day.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Giờ bắt đầu</label>
+              <input
+                type="time"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                className="w-full h-10 rounded-xl border border-gray-200 px-3 text-sm text-gray-800"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Thời lượng (phút)</label>
+              <input
+                type="number"
+                min={30}
+                step={15}
+                value={durationMinutes}
+                onChange={(e) => setDurationMinutes(Math.max(30, Number(e.target.value) || 30))}
+                className="w-full h-10 rounded-xl border border-gray-200 px-3 text-sm text-gray-800"
+              />
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 space-y-2">
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={generateSessions}
+                onChange={(e) => setGenerateSessions(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300"
+              />
+              Generate sessions sau khi đổi lịch
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={onlyFutureSessions}
+                onChange={(e) => setOnlyFutureSessions(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300"
+              />
+              Chỉ áp dụng cho buổi học tương lai
+            </label>
+          </div>
+
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+            <label className="flex items-start gap-2 text-sm text-amber-900">
+              <input
+                type="checkbox"
+                checked={confirmedImpact}
+                onChange={(e) => setConfirmedImpact(e.target.checked)}
+                className="h-4 w-4 rounded border-amber-300 mt-0.5"
+              />
+              <span>
+                Tôi xác nhận thay đổi này sẽ ảnh hưởng đến lịch học tương lai của lớp và có thể tạo lại danh sách buổi học.
+              </span>
+            </label>
+          </div>
+
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+            <div className="text-sm font-semibold text-red-700">Preview RRULE</div>
+            <div className="text-xs text-red-700 mt-1 break-all">{previewPayload || "Chưa đủ dữ liệu để tạo RRULE"}</div>
+          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t border-gray-200 bg-white flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+          >
+            Hủy
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={isSubmitting || !confirmedImpact}
+            className="px-4 py-2 rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
+          >
+            {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+            {isSubmitting ? "Đang lưu..." : "Lưu giãn lịch"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CreateClassModal({
   isOpen,
   onClose,
@@ -2468,6 +2824,8 @@ export default function Page() {
   const [error, setError] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isFutureStretchModalOpen, setIsFutureStretchModalOpen] = useState(false);
+  const [futureStretchClass, setFutureStretchClass] = useState<ClassRow | null>(null);
   const [isAddStudentModalOpen, setIsAddStudentModalOpen] = useState(false);
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [selectedClassCapacity, setSelectedClassCapacity] = useState<number>(0);
@@ -2801,6 +3159,11 @@ export default function Page() {
     }
   };
 
+  const handleOpenFutureStretch = (row: ClassRow) => {
+    setFutureStretchClass(row);
+    setIsFutureStretchModalOpen(true);
+  };
+
   const handleAddStudent = async (classId: string) => {
     // Find the class to get capacity and current enrolled
     const classItem = classes.find(c => c.id === classId);
@@ -3061,6 +3424,19 @@ export default function Page() {
                           >
                             <Pencil size={14} />
                           </button>
+                          <button
+                            onClick={() => handleOpenFutureStretch(c)}
+                            className={clsx(
+                              "p-1.5 rounded-lg transition-colors",
+                              c.status === "Đã kết thúc"
+                                ? "cursor-not-allowed text-gray-300"
+                                : "cursor-pointer hover:bg-blue-50 text-gray-400 hover:text-blue-600"
+                            )}
+                            title={c.status === "Đã kết thúc" ? "Lớp đã kết thúc, không thể giãn lịch" : "Giãn buổi tương lai"}
+                            disabled={c.status === "Đã kết thúc"}
+                          >
+                            <CalendarClock size={14} />
+                          </button>
                           <button 
                             onClick={() => handleToggleStatus(c)}
                             className={clsx(
@@ -3183,6 +3559,19 @@ export default function Page() {
         </div>
       </div>
 
+      <FutureStretchModal
+        isOpen={isFutureStretchModalOpen}
+        onClose={() => {
+          setIsFutureStretchModalOpen(false);
+          setFutureStretchClass(null);
+        }}
+        classRow={futureStretchClass}
+        onSuccess={async () => {
+          const updatedClasses = await reloadClassesByCurrentBranch();
+          setClasses(updatedClasses);
+        }}
+      />
+
       {/* Create Class Modal */}
       <CreateClassModal
         isOpen={isCreateModalOpen}
@@ -3228,4 +3617,76 @@ export default function Page() {
       )}
     </>
   );
+}
+
+const FUTURE_STRETCH_DAY_OPTIONS: Array<{ code: WeekdayCode; label: string }> = [
+  { code: "MO", label: "T2" },
+  { code: "TU", label: "T3" },
+  { code: "WE", label: "T4" },
+  { code: "TH", label: "T5" },
+  { code: "FR", label: "T6" },
+  { code: "SA", label: "T7" },
+  { code: "SU", label: "CN" },
+];
+
+const DEFAULT_DAYS_BY_TARGET: Record<number, WeekdayCode[]> = {
+  3: ["MO", "WE", "FR"],
+  5: ["MO", "TU", "WE", "TH", "FR"],
+};
+
+function toWeekdayCodeFromScheduleDay(day: string): WeekdayCode | null {
+  const normalized = day.trim().toUpperCase();
+  const map: Record<string, WeekdayCode> = {
+    "2": "MO",
+    "3": "TU",
+    "4": "WE",
+    "5": "TH",
+    "6": "FR",
+    "7": "SA",
+    "CN": "SU",
+  };
+
+  return map[normalized] ?? null;
+}
+
+function calculateDurationMinutes(startTime: string, endTime: string): number {
+  if (!startTime || !endTime) return 120;
+
+  const [startHour, startMinute] = startTime.split(":").map((v) => Number(v) || 0);
+  const [endHour, endMinute] = endTime.split(":").map((v) => Number(v) || 0);
+  const start = startHour * 60 + startMinute;
+  const end = endHour * 60 + endMinute;
+
+  return end > start ? end - start : 120;
+}
+
+function getFutureDateString(daysAhead: number): string {
+  const date = new Date();
+  date.setDate(date.getDate() + daysAhead);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function recommendFutureStretchDays(
+  sourceDays: WeekdayCode[],
+  targetSessions: number,
+): WeekdayCode[] {
+  const normalizedTarget = Math.max(1, Math.min(7, targetSessions));
+  const uniqueSource = Array.from(new Set(sourceDays));
+
+  if (uniqueSource.length >= normalizedTarget) {
+    return uniqueSource.slice(0, normalizedTarget);
+  }
+
+  const recommended: WeekdayCode[] = [...uniqueSource];
+  for (const option of FUTURE_STRETCH_DAY_OPTIONS) {
+    if (recommended.length >= normalizedTarget) break;
+    if (!recommended.includes(option.code)) {
+      recommended.push(option.code);
+    }
+  }
+
+  return recommended.slice(0, normalizedTarget);
 }

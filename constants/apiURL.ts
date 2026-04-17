@@ -13,8 +13,12 @@ export const buildApiUrl = (endpoint: string): string => {
 
   // Các endpoint dạng /GetAll/... nằm ở root, không có /api
   const base = ep.startsWith("/GetAll/") ? ROOT_BASE_URL : BASE_URL;
+  const normalizedEndpoint =
+    base === BASE_URL && /\/api$/i.test(base) && ep.startsWith("/api/")
+      ? ep.replace(/^\/api/, "")
+      : ep;
 
-  return `${base}${ep}`;
+  return `${base}${normalizedEndpoint}`;
 };
 
 // Build client API URL (from browser to Next.js API Routes)
@@ -123,6 +127,7 @@ export const GAMIFICATION_ENDPOINTS = {
   REWARD_REDEMPTIONS: "/api/gamification/reward-redemptions",
   REWARD_REDEMPTION_BY_ID: (id: string) => `/api/gamification/reward-redemptions/${id}`,
   REWARD_REDEMPTIONS_ME: "/api/gamification/reward-redemptions/me",
+  REWARD_REDEMPTION_EXPORT_DELIVERED: "/api/gamification/reward-redemptions/export-delivered",
   REWARD_REDEMPTION_APPROVE: (id: string) =>
     `/api/gamification/reward-redemptions/${id}/approve`,
   REWARD_REDEMPTION_CANCEL: (id: string) =>
@@ -145,6 +150,7 @@ export const BACKEND_STUDENT_ENDPOINTS = {
 export const CLASS_ENDPOINTS = {
   GET_ALL: "/api/classes",
   GET_BY_ID: (id: string) => `/api/classes/${id}`,
+  SCHEDULE_SEGMENTS: (id: string) => `/api/classes/${id}/schedule-segments`,
 } as const;
 
 export const MAKEUP_CREDIT_ENDPOINTS = {
@@ -266,6 +272,8 @@ export const PAUSE_ENROLLMENT_ENDPOINTS = {
   REJECT: (id: string) => `/api/pause-enrollment-requests/${id}/reject`,
   CANCEL: (id: string) => `/api/pause-enrollment-requests/${id}/cancel`,
   OUTCOME: (id: string) => `/api/pause-enrollment-requests/${id}/outcome`,
+  REASSIGN_EQUIVALENT_CLASS: (id: string) =>
+    `/api/pause-enrollment-requests/${id}/reassign-equivalent-class`,
 } as const;
 
 export const BACKEND_PAUSE_ENROLLMENT_ENDPOINTS = {
@@ -277,6 +285,8 @@ export const BACKEND_PAUSE_ENROLLMENT_ENDPOINTS = {
   REJECT: (id: string) => `/pause-enrollment-requests/${id}/reject`,
   CANCEL: (id: string) => `/pause-enrollment-requests/${id}/cancel`,
   OUTCOME: (id: string) => `/pause-enrollment-requests/${id}/outcome`,
+  REASSIGN_EQUIVALENT_CLASS: (id: string) =>
+    `/pause-enrollment-requests/${id}/reassign-equivalent-class`,
 } as const;
 
 // User Management Endpoints (Client-side → Next.js API Routes)
@@ -318,6 +328,7 @@ export const TEACHER_ENDPOINTS = {
   PROFILE: "/api/teacher/profile",
   TIMESHEET: "/api/teacher/timesheet",
   CLASSES: '/api/teacher/classes',
+  CLASS_STUDENTS: (classId: string) => `/api/teacher/classes/${classId}/students`,
   TIMETABLE: '/api/teacher/timetable',
   ENROLLMENTS: '/api/enrollments',
   ATTENDANCE: '/api/attendance',
@@ -359,6 +370,7 @@ export const ADMIN_ENDPOINTS = {
   CLASSES: '/api/classes',
   CLASSES_STATUS: (id: string) => `/api/classes/${id}/status`,
   CLASSES_COLOR: (id: string) => `/api/classes/${id}/color`,
+  CLASSES_SCHEDULE_SEGMENTS: (id: string) => `/api/classes/${id}/schedule-segments`,
   PROGRAMS: '/api/programs',
   PROGRAMS_ACTIVE: '/api/programs/active',
   PROGRAMS_MONTHLY_LEAVE_LIMIT: (id: string) => `/api/programs/${id}/monthly-leave-limit`,
@@ -533,6 +545,7 @@ export const BACKEND_ADMIN_ENDPOINTS = {
   CLASSES: '/classes',
   CLASSES_BY_ID: (id: string) => `/classes/${id}`,
   CLASSES_STATUS: (id: string) => `/classes/${id}/status`,
+  CLASSES_SCHEDULE_SEGMENTS: (id: string) => `/classes/${id}/schedule-segments`,
   PROGRAMS: '/programs',
   PROGRAMS_ACTIVE: '/programs/active',
   REGISTRATIONS: '/registrations',
@@ -673,6 +686,14 @@ export const FILE_ENDPOINTS = {
   TRANSFORM: '/api/files/transform',
 } as const;
 
+export const MEDIA_ENDPOINTS = {
+  BASE: '/api/media',
+  BY_ID: (id: string) => `/api/media/${id}`,
+  APPROVE: (id: string) => `/api/media/${id}/approve`,
+  REJECT: (id: string) => `/api/media/${id}/reject`,
+  PUBLISH: (id: string) => `/api/media/${id}/publish`,
+} as const;
+
 export const TEACHING_MATERIALS_ENDPOINTS = {
   BASE: "/api/teaching-materials",
   BY_ID: (id: string) => `/api/teaching-materials/${id}`,
@@ -700,6 +721,14 @@ export const BACKEND_FILE_ENDPOINTS = {
   AVATAR: '/files/avatar',
   DELETE: '/files',
   TRANSFORM: '/files/transform',
+} as const;
+
+export const BACKEND_MEDIA_ENDPOINTS = {
+  BASE: '/media',
+  BY_ID: (id: string) => `/media/${id}`,
+  APPROVE: (id: string) => `/media/${id}/approve`,
+  REJECT: (id: string) => `/media/${id}/reject`,
+  PUBLISH: (id: string) => `/media/${id}/publish`,
 } as const;
 
 export const BACKEND_TEACHING_MATERIALS_ENDPOINTS = {
@@ -760,7 +789,7 @@ export const PARENT_ENDPOINTS = {
   INVOICES: "/api/parent/invoices",
   PAYMENTS: "/api/parent/payments",
   HOMEWORK: "/api/parent/homework",
-  HOMEWORK_BY_ID: (id: string) => `/api/parent/homework/${id}`,
+  HOMEWORK_BY_ID: (id: string) => `/api/students/homework/${id}`,
   PROGRESS: "/api/parent/progress",
   MEDIA: "/api/parent/media",
   APPROVALS: "/api/parent/approvals",
@@ -855,6 +884,7 @@ export const STAFF_MANAGEMENT_PORTAL_ENDPOINTS = {
   MEDIA: "/api/staff-management/media",
   MEDIA_APPROVE: (id: string) => `/api/staff-management/media/${id}/approve`,
   MEDIA_REJECT: (id: string) => `/api/staff-management/media/${id}/reject`,
+  MEDIA_PUBLISH: (id: string) => `/api/staff-management/media/${id}/publish`,
 } as const;
 
 // Question Bank Endpoints (Client-side → Next.js API Routes → Backend)

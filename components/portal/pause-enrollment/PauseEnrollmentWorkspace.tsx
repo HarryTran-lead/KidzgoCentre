@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   AlertCircle,
   BookOpen,
@@ -14,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
+import { getAllClasses } from "@/lib/api/classService";
 
 import { getProfiles } from "@/lib/api/authService";
 import {
@@ -21,10 +23,13 @@ import {
 
   cancelPauseEnrollmentRequest,
   getPauseEnrollmentRequestsWithParams,
+  reassignPauseEnrollmentEquivalentClass,
   rejectPauseEnrollmentRequest,
   updatePauseEnrollmentOutcome,
 } from "@/lib/api/pauseEnrollmentService";
+import { getRegistrations } from "@/lib/api/registrationService";
 import { getAllStudents } from "@/lib/api/studentService";
+import { getDomainErrorMessage } from "@/lib/api/domainErrorMessage";
 import { useBranchFilter } from "@/hooks/useBranchFilter";
 import { todayDateOnly } from "@/lib/datetime";
 import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
@@ -33,16 +38,33 @@ import type { UserProfile } from "@/types/auth";
 import type {
 
   PauseEnrollmentOutcome,
+  ReassignEquivalentClassPayload,
   PauseEnrollmentRequestRecord,
   PauseEnrollmentRequestStatus,
   PauseEnrollmentStudentOption,
 } from "@/types/pauseEnrollment";
+import type { Registration } from "@/types/registration";
+import type { StudentClass } from "@/types/student/class";
 import type { StudentSummary } from "@/types/student/student";
 
 type Context = "parent" | "staff" | "admin";
 
 type Props = {
   context: Context;
+};
+
+type ReassignFormState = {
+  registrationId: string;
+  newClassId: string;
+  track: "primary" | "secondary";
+  sessionSelectionPattern: string;
+  effectiveDate: string;
+};
+
+type ReassignClassOption = StudentClass & {
+  programId?: string | null;
+  programName?: string | null;
+  branchId?: string | null;
 };
 
 type ConfirmAction =
@@ -149,6 +171,61 @@ function extractPauseRequestItems(payload: unknown): PauseEnrollmentRequestRecor
   if (Array.isArray(data?.pauseEnrollmentRequests?.items)) return data.pauseEnrollmentRequests.items;
   if (Array.isArray(data?.pauseEnrollmentRequests)) return data.pauseEnrollmentRequests;
   if (Array.isArray(data)) return data;
+
+  return [];
+}
+
+function classOptionLabel(item: ReassignClassOption) {
+  return item.code ?? item.name ?? item.className ?? item.title ?? item.id;
+}
+
+function toReassignClassOption(item: any): ReassignClassOption {
+  return {
+    id: String(item?.id ?? ""),
+    code: item?.code ?? null,
+    name: item?.name ?? item?.className ?? item?.title ?? null,
+    className: item?.className ?? item?.name ?? null,
+    title: item?.title ?? null,
+    mainTeacherId: item?.mainTeacherId ?? null,
+    mainTeacherName: item?.mainTeacherName ?? item?.teacherName ?? null,
+    programId:
+      typeof item?.programId === "string"
+        ? item.programId
+        : typeof item?.program?.id === "string"
+          ? item.program.id
+          : null,
+    programName:
+      typeof item?.programName === "string"
+        ? item.programName
+        : typeof item?.program?.name === "string"
+          ? item.program.name
+          : null,
+    branchId:
+      typeof item?.branchId === "string"
+        ? item.branchId
+        : typeof item?.branch?.id === "string"
+          ? item.branch.id
+          : null,
+  };
+}
+
+function extractClassOptions(payload: unknown): ReassignClassOption[] {
+  if (!payload || typeof payload !== "object") return [];
+
+  const root = payload as {
+    data?: any;
+    items?: any[];
+    classes?: any[];
+  };
+
+  if (Array.isArray(root.items)) return root.items.map(toReassignClassOption).filter((item) => Boolean(item.id));
+  if (Array.isArray(root.classes)) return root.classes.map(toReassignClassOption).filter((item) => Boolean(item.id));
+
+  const data = root.data;
+  if (Array.isArray(data?.items)) return data.items.map(toReassignClassOption).filter((item: ReassignClassOption) => Boolean(item.id));
+  if (Array.isArray(data?.classes?.items)) return data.classes.items.map(toReassignClassOption).filter((item: ReassignClassOption) => Boolean(item.id));
+  if (Array.isArray(data?.classes)) return data.classes.map(toReassignClassOption).filter((item: ReassignClassOption) => Boolean(item.id));
+  if (Array.isArray(data)) return data.map(toReassignClassOption).filter((item: ReassignClassOption) => Boolean(item.id));
 
   return [];
 }
@@ -535,6 +612,12 @@ function RequestDetailModal({
   isManagement,
   canCancel,
   outcomeForm,
+  reassignForm,
+  reassignRegistrations,
+  reassignClasses,
+  selectedReassignProgramName,
+  reassignOptionsLoading,
+  reassignOptionsError,
   actionLoadingKey,
   onClose,
   onApprove,
@@ -543,6 +626,8 @@ function RequestDetailModal({
   onOutcomeChange,
   onOutcomeNoteChange,
   onSaveOutcome,
+  onReassignChange,
+  onSubmitReassign,
 }: {
   request: PauseEnrollmentRequestRecord | null;
   student?: PauseEnrollmentStudentOption;
@@ -552,6 +637,12 @@ function RequestDetailModal({
     outcome: PauseEnrollmentOutcome;
     outcomeNote: string;
   };
+  reassignForm: ReassignFormState;
+  reassignRegistrations: Registration[];
+  reassignClasses: ReassignClassOption[];
+  selectedReassignProgramName?: string | null;
+  reassignOptionsLoading: boolean;
+  reassignOptionsError: string | null;
   actionLoadingKey: string | null;
   onClose: () => void;
   onApprove: () => void;
@@ -560,11 +651,17 @@ function RequestDetailModal({
   onOutcomeChange: (value: PauseEnrollmentOutcome) => void;
   onOutcomeNoteChange: (value: string) => void;
   onSaveOutcome: () => void;
+  onReassignChange: <K extends keyof ReassignFormState>(key: K, value: ReassignFormState[K]) => void;
+  onSubmitReassign: () => void;
 }) {
   if (!request) return null;
 
   const status = normalizeStatus(request.status);
   const canEditOutcome = isManagement && status === "Approved";
+  const shouldShowReassignPanel =
+    canEditOutcome &&
+    (outcomeForm.outcome === "ReassignEquivalentClass" ||
+      request.outcome === "ReassignEquivalentClass");
   const studentLabel = student?.label ?? "Học viên";
   const studentSubtext = student?.parentName
     ? `Phụ huynh: ${student.parentName}`
@@ -778,6 +875,148 @@ function RequestDetailModal({
                       ) : null}
                       Lưu kết quả
                     </button>
+
+                    {shouldShowReassignPanel ? (
+                      <div className="mt-2 space-y-3 rounded-2xl border border-red-200 bg-red-50/40 p-4">
+                        <div className="text-sm font-semibold text-gray-900">
+                          Chuyển lớp tương đương
+                        </div>
+                        <div className="text-xs leading-5 text-gray-600">
+                          Hãy lưu outcome là "Chuyển lớp tương đương" trước, sau đó nhập thông tin để hoàn tất reassign.
+                        </div>
+                        {selectedReassignProgramName ? (
+                          <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800">
+                            Đang lọc lớp theo chương trình: {selectedReassignProgramName}
+                          </div>
+                        ) : null}
+
+                        {reassignOptionsError ? (
+                          <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                            {reassignOptionsError}
+                          </div>
+                        ) : null}
+
+                        <label className="block">
+                          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-600">
+                            Registration
+                          </div>
+                          <select
+                            value={reassignForm.registrationId}
+                            onChange={(event) =>
+                              onReassignChange("registrationId", event.target.value)
+                            }
+                            disabled={reassignOptionsLoading}
+                            className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-200"
+                          >
+                            <option value="">
+                              {reassignOptionsLoading
+                                ? "Đang tải registrations..."
+                                : "Chọn registration"}
+                            </option>
+                            {reassignRegistrations.map((item) => (
+                              <option key={item.id} value={item.id}>
+                                {`${item.programName || "Program"} - ${item.status} - ${item.id}`}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+
+                        <label className="block">
+                          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-600">
+                            Lớp mới
+                          </div>
+                          <select
+                            value={reassignForm.newClassId}
+                            onChange={(event) =>
+                              onReassignChange("newClassId", event.target.value)
+                            }
+                            disabled={reassignOptionsLoading}
+                            className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-200"
+                          >
+                            <option value="">
+                              {reassignOptionsLoading
+                                ? "Đang tải classes..."
+                                : "Chọn lớp mới"}
+                            </option>
+                            {reassignClasses.map((item) => (
+                              <option key={item.id} value={item.id}>
+                                {`${classOptionLabel(item)}${item.programName ? ` (${item.programName})` : ""} - ${item.id}`}
+                              </option>
+                            ))}
+                          </select>
+                          {!reassignOptionsLoading && !reassignClasses.length ? (
+                            <div className="mt-1 text-xs text-amber-700">
+                              Không có lớp phù hợp với chương trình của registration đã chọn.
+                            </div>
+                          ) : null}
+                        </label>
+
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <label className="block">
+                            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-600">
+                              Track
+                            </div>
+                            <select
+                              value={reassignForm.track}
+                              onChange={(event) =>
+                                onReassignChange(
+                                  "track",
+                                  event.target.value as ReassignFormState["track"]
+                                )
+                              }
+                              className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-200"
+                            >
+                              <option value="primary">primary</option>
+                              <option value="secondary">secondary</option>
+                            </select>
+                          </label>
+
+                          <label className="block">
+                            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-600">
+                              Effective date
+                            </div>
+                            <input
+                              type="date"
+                              value={reassignForm.effectiveDate}
+                              onChange={(event) =>
+                                onReassignChange("effectiveDate", event.target.value)
+                              }
+                              className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-200"
+                            />
+                          </label>
+                        </div>
+
+                        <label className="block">
+                          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-600">
+                            Session selection pattern (optional)
+                          </div>
+                          <textarea
+                            value={reassignForm.sessionSelectionPattern}
+                            onChange={(event) =>
+                              onReassignChange(
+                                "sessionSelectionPattern",
+                                event.target.value
+                              )
+                            }
+                            rows={2}
+                            placeholder="RRULE subset nếu cần"
+                            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-200"
+                          />
+                        </label>
+
+                        <button
+                          type="button"
+                          onClick={onSubmitReassign}
+                          disabled={actionLoadingKey === `reassign:${request.id}`}
+                          className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 text-sm font-semibold text-red-700 transition cursor-pointer hover:bg-red-50 disabled:opacity-60"
+                        >
+                          {actionLoadingKey === `reassign:${request.id}` ? (
+                            <Loader2 size={16} className="animate-spin" />
+                          ) : null}
+                          Xác nhận chuyển lớp tương đương
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               ) : null}
@@ -790,6 +1029,7 @@ function RequestDetailModal({
 }
 
 export default function PauseEnrollmentWorkspace({ context }: Props) {
+  const router = useRouter();
   const isManagement = context !== "parent";
   const isStudentPage = context === "parent";
   const { selectedProfile } = useSelectedStudentProfile();
@@ -824,6 +1064,17 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
     outcome: "ContinueSameClass",
     outcomeNote: "",
   });
+  const [reassignForm, setReassignForm] = useState<ReassignFormState>({
+    registrationId: "",
+    newClassId: "",
+    track: "primary",
+    sessionSelectionPattern: "",
+    effectiveDate: "",
+  });
+  const [reassignRegistrations, setReassignRegistrations] = useState<Registration[]>([]);
+  const [reassignClasses, setReassignClasses] = useState<ReassignClassOption[]>([]);
+  const [reassignOptionsLoading, setReassignOptionsLoading] = useState(false);
+  const [reassignOptionsError, setReassignOptionsError] = useState<string | null>(null);
 
   const titles = {
     parent: {
@@ -860,6 +1111,38 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
     () => requests.find((item) => item.id === selectedRequestId) ?? null,
     [requests, selectedRequestId]
   );
+
+  const selectedReassignRegistration = useMemo(
+    () =>
+      reassignRegistrations.find((item) => item.id === reassignForm.registrationId) ?? null,
+    [reassignForm.registrationId, reassignRegistrations]
+  );
+
+  const selectedReassignProgramId = useMemo(() => {
+    if (!selectedReassignRegistration) return null;
+    if (reassignForm.track === "secondary") {
+      return selectedReassignRegistration.secondaryProgramId ?? selectedReassignRegistration.programId;
+    }
+    return selectedReassignRegistration.programId;
+  }, [reassignForm.track, selectedReassignRegistration]);
+
+  const selectedReassignProgramName = useMemo(() => {
+    if (!selectedReassignRegistration) return null;
+    if (reassignForm.track === "secondary") {
+      return (
+        selectedReassignRegistration.secondaryProgramName ??
+        selectedReassignRegistration.programName
+      );
+    }
+    return selectedReassignRegistration.programName;
+  }, [reassignForm.track, selectedReassignRegistration]);
+
+  const filteredReassignClasses = useMemo(() => {
+    if (!selectedReassignProgramId) return reassignClasses;
+    return reassignClasses.filter(
+      (item) => !item.programId || item.programId === selectedReassignProgramId
+    );
+  }, [reassignClasses, selectedReassignProgramId]);
 
   const stats = useMemo(() => {
     const total = requests.length;
@@ -965,11 +1248,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
       } catch (error: any) {
         setRequests([]);
         setSelectedRequestId(null);
-        setRequestError(
-          error?.response?.data?.message ??
-            error?.message ??
-            "Không thể tải danh sách bảo lưu."
-        );
+        setRequestError(getDomainErrorMessage(error, "Không thể tải danh sách bảo lưu."));
       } finally {
         setRequestsLoading(false);
       }
@@ -1018,8 +1297,83 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
         outcome: selectedRequest.outcome ?? "ContinueSameClass",
         outcomeNote: selectedRequest.outcomeNote ?? "",
       });
+      setReassignForm({
+        registrationId: "",
+        newClassId: "",
+        track: "primary",
+        sessionSelectionPattern: "",
+        effectiveDate: selectedRequest.pauseTo || "",
+      });
     }
   }, [selectedRequest]);
+
+  useEffect(() => {
+    if (!reassignForm.newClassId) return;
+    if (filteredReassignClasses.some((item) => item.id === reassignForm.newClassId)) return;
+
+    setReassignForm((prev) => ({
+      ...prev,
+      newClassId: "",
+    }));
+  }, [filteredReassignClasses, reassignForm.newClassId]);
+
+  const loadReassignOptions = useCallback(async () => {
+    if (!selectedRequest?.studentProfileId) {
+      setReassignRegistrations([]);
+      setReassignClasses([]);
+      setReassignOptionsError(null);
+      return;
+    }
+
+    setReassignOptionsLoading(true);
+    setReassignOptionsError(null);
+
+    try {
+      const [registrationResponse, classesResponse] = await Promise.all([
+        getRegistrations({
+          studentProfileId: selectedRequest.studentProfileId,
+          pageNumber: 1,
+          pageSize: 200,
+        }),
+        getAllClasses({
+          pageNumber: 1,
+          pageSize: 500,
+          branchId: isManagement ? selectedBranchId ?? undefined : undefined,
+        }),
+      ]);
+
+      setReassignRegistrations(registrationResponse.items ?? []);
+      setReassignClasses(extractClassOptions(classesResponse));
+    } catch {
+      setReassignRegistrations([]);
+      setReassignClasses([]);
+      setReassignOptionsError("Không thể tải danh sách registration/lớp để chuyển tương đương.");
+    } finally {
+      setReassignOptionsLoading(false);
+    }
+  }, [isManagement, selectedBranchId, selectedRequest?.studentProfileId]);
+
+  useEffect(() => {
+    if (!selectedRequest) {
+      setReassignRegistrations([]);
+      setReassignClasses([]);
+      setReassignOptionsError(null);
+      return;
+    }
+
+    const shouldLoad =
+      selectedRequest.outcome === "ReassignEquivalentClass" ||
+      outcomeForm.outcome === "ReassignEquivalentClass";
+
+    if (!shouldLoad) {
+      setReassignRegistrations([]);
+      setReassignClasses([]);
+      setReassignOptionsError(null);
+      return;
+    }
+
+    void loadReassignOptions();
+  }, [loadReassignOptions, outcomeForm.outcome, selectedRequest]);
 
   useEffect(() => {
     if (isManagement && !isBranchLoaded) return;
@@ -1061,6 +1415,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
         ensureApiSuccess(response, "Không thể duyệt yêu cầu bảo lưu.");
         setRequestMessage("Đã duyệt yêu cầu bảo lưu.");
         await loadRequests(confirmAction.requestId);
+        router.refresh();
       }
 
       if (confirmAction.kind === "reject") {
@@ -1068,6 +1423,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
         ensureApiSuccess(response, "Không thể từ chối yêu cầu bảo lưu.");
         setRequestMessage("Đã từ chối yêu cầu bảo lưu.");
         await loadRequests(confirmAction.requestId);
+        router.refresh();
       }
 
       if (confirmAction.kind === "cancel") {
@@ -1075,15 +1431,12 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
         ensureApiSuccess(response, "Không thể hủy yêu cầu bảo lưu.");
         setRequestMessage("Đã hủy yêu cầu bảo lưu.");
         await loadRequests(confirmAction.requestId);
+        router.refresh();
       }
 
       setConfirmAction(null);
     } catch (error: any) {
-      setRequestError(
-        error?.response?.data?.message ??
-          error?.message ??
-          "Không thể thực hiện thao tác."
-      );
+      setRequestError(getDomainErrorMessage(error, "Không thể thực hiện thao tác."));
     } finally {
       setConfirmLoading(false);
     }
@@ -1105,12 +1458,55 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
       ensureApiSuccess(response, "Không thể cập nhật outcome.");
       setRequestMessage("Đã cập nhật kết quả sau bảo lưu.");
       await loadRequests(selectedRequest.id);
+      router.refresh();
+    } catch (error: any) {
+      setRequestError(getDomainErrorMessage(error, "Không thể cập nhật outcome."));
+    } finally {
+      setActionLoadingKey(null);
+    }
+  };
+
+  const handleSubmitReassign = async () => {
+    if (!selectedRequest) return;
+
+    const registrationId = reassignForm.registrationId.trim();
+    const newClassId = reassignForm.newClassId.trim();
+
+    if (!registrationId) {
+      setRequestError("Vui lòng chọn registration để chuyển lớp tương đương.");
+      return;
+    }
+
+    if (!newClassId) {
+      setRequestError("Vui lòng chọn lớp mới.");
+      return;
+    }
+
+    setActionLoadingKey(`reassign:${selectedRequest.id}`);
+    setRequestError(null);
+    setRequestMessage(null);
+
+    try {
+      const payload: ReassignEquivalentClassPayload = {
+        registrationId,
+        newClassId,
+        track: reassignForm.track,
+        sessionSelectionPattern: reassignForm.sessionSelectionPattern,
+        effectiveDate: reassignForm.effectiveDate,
+      };
+
+      const response = await reassignPauseEnrollmentEquivalentClass(
+        selectedRequest.id,
+        payload
+      );
+
+      ensureApiSuccess(response, "Không thể chuyển lớp tương đương.");
+      setRequestMessage("Đã chuyển lớp tương đương thành công.");
+      await loadRequests(selectedRequest.id);
+      router.refresh();
     } catch (error: any) {
       setRequestError(
-        error?.response?.data?.detail ??
-          error?.response?.data?.message ??
-          error?.message ??
-          "Không thể cập nhật outcome."
+        getDomainErrorMessage(error, "Không thể chuyển lớp tương đương.")
       );
     } finally {
       setActionLoadingKey(null);
@@ -1528,6 +1924,12 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
         isManagement={isManagement}
         canCancel={selectedRequest ? canCancelRequest(selectedRequest) : false}
         outcomeForm={outcomeForm}
+        reassignForm={reassignForm}
+        reassignRegistrations={reassignRegistrations}
+        reassignClasses={filteredReassignClasses}
+        selectedReassignProgramName={selectedReassignProgramName}
+        reassignOptionsLoading={reassignOptionsLoading}
+        reassignOptionsError={reassignOptionsError}
         actionLoadingKey={actionLoadingKey}
         onClose={() => setSelectedRequestId(null)}
         onApprove={() => {
@@ -1578,6 +1980,13 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
           }))
         }
         onSaveOutcome={() => void handleSaveOutcome()}
+        onReassignChange={(key, value) =>
+          setReassignForm((prev) => ({
+            ...prev,
+            [key]: value,
+          }))
+        }
+        onSubmitReassign={() => void handleSubmitReassign()}
       />
 
       <PauseEnrollmentCreateModal
@@ -1589,10 +1998,12 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
         lockedStudentProfileId={isStudentLocked ? selectedProfile?.id ?? null : null}
         lockedStudentLabel={activeLockedStudent?.label ?? null}
         lockedStudentClassText={activeLockedStudent?.classText ?? null}
+        hideBusinessNote={isManagement}
         onCreated={(record) => {
           setCreateOpen(false);
           setRequestMessage("Đã tạo yêu cầu bảo lưu.");
           void loadRequests(record.id);
+          router.refresh();
         }}
       />
 

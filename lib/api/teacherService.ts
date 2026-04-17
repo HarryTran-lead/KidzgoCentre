@@ -101,3 +101,28 @@ export async function getTeacherTimetable(params: {
   const url = `${TEACHER_ENDPOINTS.TIMETABLE}?${queryParams.toString()}`;
   return get<TeacherTimetableResponse>(url);
 }
+
+export type TeacherClassStudent = {
+  id: string;
+  studentProfileId?: string;
+  fullName?: string;
+  studentName?: string;
+  name?: string;
+};
+
+export async function getTeacherClassStudents(
+  classId: string,
+  params?: {
+    pageNumber?: number;
+    pageSize?: number;
+  }
+): Promise<any> {
+  const queryParams = new URLSearchParams();
+
+  if (params?.pageNumber) queryParams.append("pageNumber", String(params.pageNumber));
+  if (params?.pageSize) queryParams.append("pageSize", String(params.pageSize));
+
+  const base = TEACHER_ENDPOINTS.CLASS_STUDENTS(classId);
+  const url = queryParams.toString() ? `${base}?${queryParams.toString()}` : base;
+  return get<any>(url);
+}

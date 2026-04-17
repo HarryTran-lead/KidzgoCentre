@@ -31,6 +31,7 @@ export const menuAdmin = {
         extracurricular: "Ngoại khóa & Trại hè",
         documents: "Giáo án & Tài liệu",
         teachingMaterials: "Teaching Materials",
+        media: "Media & Moderation",
         reportRequests: "Yêu cầu báo cáo",
       },
       finance: {
@@ -44,7 +45,7 @@ export const menuAdmin = {
         branches: "Quản lý chi nhánh",
         blogs: "Quản lý bản tin",
         reports: "Báo cáo sự cố",
-        gamification: "Gamification",
+        gamification: "Nhiệm vụ & Đổi thưởng",
         notifications: "Thông báo",
         questionBank: "Ngân hàng câu hỏi",
         settings: "Cài đặt",
@@ -83,6 +84,7 @@ export const menuAdmin = {
         extracurricular: "Extracurricular & Camps",
         documents: "Lesson Plans & Materials",
         teachingMaterials: "Teaching Materials",
+        media: "Media & Moderation",
         reportRequests: "Report Requests",
       },
       finance: {
@@ -96,7 +98,7 @@ export const menuAdmin = {
         branches: "Branches",
         blogs: "Blogs",
         reports: "Incident Reports",
-        gamification: "Gamification",
+        gamification: "Missions & Rewards",
         notifications: "Notifications",
         questionBank: "Question Bank",
         settings: "Settings",

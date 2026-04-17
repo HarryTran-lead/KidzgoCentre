@@ -170,7 +170,8 @@ const sourceClassDisplay = (s: SessionDetail | null) => {
   const classPart = [s.classCode, s.classTitle].filter(Boolean).join(" - ");
   const timePart = s.plannedDatetime ? formatDateTimeVN(s.plannedDatetime) : "";
   const meta = [s.branchName, s.plannedRoomName].filter(Boolean).join(" • ");
-  return [classPart, timePart].filter(Boolean).join(" • ") + (meta ? ` • ${meta}` : "");
+  const base = [classPart, timePart].filter(Boolean).join(" • ");
+  return `${base}${meta ? ` • ${meta}` : ""}`.trim();
 };
 
 /* ================= domain helpers ================= */
@@ -186,7 +187,7 @@ const getStudentName = (st: MakeupCreditStudent) =>
 const creditId = (c: MakeupCredit) => (pickValue(c, ["id"]) as string | undefined) ?? "";
 const creditStatus = (c: MakeupCredit) => String(pickValue(c, ["status"]) ?? "").toUpperCase();
 const creditSourceSessionId = (c: MakeupCredit) =>
-  (pickValue(c, ["sourceSessionId"]) as string | undefined) ?? "";
+  (pickValue(c, ["sourceSessionId", "sourceSession.id", "sessionId", "leaveSessionId"]) as string | undefined) ?? "";
 const creditSourceSessionDate = (c: MakeupCredit) =>
   (pickValue(c, ["sourceSessionDate", "sessionDate"]) as string | undefined) ?? "";
 const creditClassName = (c: MakeupCredit) =>
@@ -199,16 +200,16 @@ const creditExpiresAt = (c: MakeupCredit) =>
 const creditStatusLabel = (status: string) => {
   const normalized = String(status ?? "").trim().toUpperCase();
   if (!normalized || normalized.includes("AVAILABLE") || normalized.includes("ACTIVE")) {
-    return "Co the xep lich";
+    return "Có thể xếp lịch";
   }
   if (normalized.includes("USED") || normalized.includes("CONSUMED")) {
-    return "Da xep lich";
+    return "Đã xếp lịch";
   }
   if (normalized.includes("EXPIRE")) {
-    return "Da het han";
+    return "Đã hết hạn";
   }
   if (normalized.includes("CANCEL")) {
-    return "Da huy";
+    return "Đã hủy";
   }
   return normalized;
 };
@@ -672,20 +673,21 @@ export default function MakeupSessionCreateModal({
       try {
         const s = await getSessionById(sourceId);
         setSourceSession(s);
+        const sourceClassId = String(pickValue(credit, ["classId", "sourceClassId"]) ?? "");
         setPayload((p) => {
           if (shouldLoadSessionsFirst) {
             return {
               ...p,
-              fromClassId: s?.classId ?? "",
+              fromClassId: s?.classId ?? sourceClassId,
             };
           }
 
           return {
             ...p,
-            fromClassId: s?.classId ?? "",
-          // nếu user chưa chọn date/time thì set default theo plannedDatetime để suggestions có input
-          date: p.date || (s?.plannedDatetime ? toDateInputValue(new Date(s.plannedDatetime)) : ""),
-          time: p.time || (s?.plannedDatetime ? toTimeInputValue(new Date(s.plannedDatetime)) : ""),
+            fromClassId: s?.classId ?? sourceClassId,
+            // nếu user chưa chọn date/time thì set default theo plannedDatetime để suggestions có input
+            date: p.date || (s?.plannedDatetime ? toDateInputValue(new Date(s.plannedDatetime)) : ""),
+            time: p.time || (s?.plannedDatetime ? toTimeInputValue(new Date(s.plannedDatetime)) : ""),
           };
         });
       } catch {
@@ -843,10 +845,14 @@ export default function MakeupSessionCreateModal({
   const selectedStudentName = useMemo(() => {
     if (!payload.studentProfileId) return "";
     if (lockedStudentProfileId && payload.studentProfileId === lockedStudentProfileId) {
-      return lockedStudentLabel ?? lockedStudentProfileId;
+      return (
+        lockedStudentLabel ??
+        studentOptions.find((s) => s.id === payload.studentProfileId)?.name ??
+        "Học viên đã chọn"
+      );
     }
     return (
-      studentOptions.find((s) => s.id === payload.studentProfileId)?.name ?? payload.studentProfileId
+      studentOptions.find((s) => s.id === payload.studentProfileId)?.name ?? "Học viên đã chọn"
     );
   }, [lockedStudentLabel, lockedStudentProfileId, payload.studentProfileId, studentOptions]);
 
@@ -868,14 +874,10 @@ export default function MakeupSessionCreateModal({
       ]
         .filter(Boolean)
         .join(" • ");
-      const className = classText;
-      const srcClassText = "";
       const created = sourceDate ? "" : formatDateVN(creditCreatedAt(c));
-      const src: string = "";
 
       const detailParts = [
-        src ? `Source: ${src.slice(0, 8)}…` : "",
-        className ? `Lớp: ${className}` : srcClassText ? `Lớp: ${srcClassText}` : "",
+        classText ? `Lớp: ${classText}` : "",
         created ? `Tạo: ${created}` : "",
         expires ? `Hết hạn: ${expires}` : "",
       ].filter(Boolean);
@@ -1421,7 +1423,7 @@ export default function MakeupSessionCreateModal({
               payload.makeupCreditId &&
               suggestions.length === 0 ? (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                  Hien chua co buoi nao khac con slot trong cung chuong trinh bu nay de thay doi.
+                  Hiện chưa có buổi nào khác còn slot trong cùng chương trình bù này để thay đổi.
                 </div>
               ) : null}
             </div>
@@ -1439,7 +1441,9 @@ export default function MakeupSessionCreateModal({
                   <div className="font-medium break-words">{selectedCreditLabel || "?"}</div>
                   
                   <div className="text-gray-500">Lớp nguồn:</div>
-                  <div className="font-medium">{sourceClassDisplay(sourceSession) || "?"}</div>
+                  <div className="font-medium">
+                    {selectedCreditSummary?.classText || sourceClassDisplay(sourceSession) || "Chưa có thông tin lớp nguồn"}
+                  </div>
                   
                   <div className="text-gray-500">Lớp bù:</div>
                   <div className="font-medium">{selectedTargetClassLabel || "?"}</div>
@@ -1491,7 +1495,7 @@ export default function MakeupSessionCreateModal({
               disabled={submitting}
               className="px-5 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-700 font-medium hover:bg-gray-50 transition-all disabled:opacity-60 cursor-pointer"
             >
-              Huỷ
+              Hủy
             </button>
 
             {step < 3 ? (

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { 
   Image as ImageIcon, 
   Video, 
@@ -27,9 +28,11 @@ import {
   Loader2
 } from "lucide-react";
 import Image from "next/image";
-import { FilterTabs, TabOption } from "@/components/portal/student/FilterTabs";
+import { FilterTabs } from "@/components/portal/student/FilterTabs";
 import { getStudentMedia } from "@/lib/api/studentPortalService";
 import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
+import { useSearchParams } from "next/navigation";
+import { buildFileUrl } from "@/constants/apiURL";
 
 // --- Types ---
 interface MediaItem {
@@ -53,21 +56,205 @@ interface Album {
   mediaCount: number;
   type: 'class' | 'personal';
   media: MediaItem[];
-  description?: string;
+}
+
+function normalizeMediaUrl(value?: string) {
+  const url = String(value ?? "").trim();
+  if (!url) return "";
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  if (url.startsWith("/api/files/serve")) return url;
+  return buildFileUrl(url);
+}
+
+function formatDisplayDate(value?: string) {
+  if (!value) return "-";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value.slice(0, 10);
+  return parsed.toLocaleDateString("vi-VN");
+}
+
+function isVideoAssetUrl(url?: string) {
+  if (!url) return false;
+  return /\.(mp4|mov|webm|avi|m4v|mkv)(\?|$)/i.test(url);
+}
+
+function normalizeStudentAlbums(payload: any): Album[] {
+  const layer = payload?.data?.data ?? payload?.data ?? payload ?? {};
+  const source = layer?.media ?? layer;
+  const rawAlbums = Array.isArray(source?.albums)
+    ? source.albums
+    : Array.isArray(layer?.albums)
+      ? layer.albums
+      : [];
+  const topItems = Array.isArray(source?.items)
+    ? source.items
+    : Array.isArray(layer?.items)
+      ? layer.items
+      : [];
+
+  const mediaByAlbum = topItems.reduce((acc: Record<string, any[]>, item: any) => {
+    const albumId = String(item.albumId ?? item.monthTag ?? item.month ?? "general");
+    if (!acc[albumId]) acc[albumId] = [];
+    acc[albumId].push(item);
+    return acc;
+  }, {});
+
+  const mappedAlbums = rawAlbums.map((album: any) => {
+    const albumId = String(album.albumId ?? album.id ?? album.monthTag ?? album.month ?? "general");
+    const rawMedia = Array.isArray(album.media)
+      ? album.media
+      : Array.isArray(album.items)
+        ? album.items
+        : Array.isArray(album.medias)
+          ? album.medias
+        : mediaByAlbum[albumId] ?? [];
+
+    const media = rawMedia.map((item: any, itemIndex: number) => {
+      const rawType = String(item.type ?? item.mediaType ?? "").toLowerCase();
+      return {
+        id: String(item.id ?? item.mediaId ?? `${albumId}-${itemIndex}`),
+        type: rawType.includes("video") ? "video" : "image",
+        url: normalizeMediaUrl(String(item.url ?? item.fileUrl ?? item.coverUrl ?? "")),
+        thumbnail: normalizeMediaUrl(String(item.thumbnail ?? item.coverUrl ?? item.url ?? item.fileUrl ?? "")),
+        title: String(item.title ?? item.caption ?? album.title ?? "Media"),
+        date: formatDisplayDate(String(item.date ?? item.createdAt ?? album.date ?? "")),
+        likes: Number(item.likes ?? 0),
+        isLiked: Boolean(item.isLiked),
+      } as MediaItem;
+    });
+
+    const albumTypeRaw = String(album.type ?? album.albumType ?? "").toLowerCase();
+    const normalizedType: Album["type"] = albumTypeRaw.includes("personal") ? "personal" : "class";
+    const fallbackCover = normalizeMediaUrl(String(album.coverUrl ?? album.coverImage ?? media[0]?.thumbnail ?? ""));
+
+    return {
+      id: albumId,
+      title: String(album.title ?? "Album lớp học"),
+      className: String(album.className ?? album.classTitle ?? ""),
+      date: formatDisplayDate(String(album.date ?? media[0]?.date ?? "")),
+      coverImage: fallbackCover,
+      mediaCount: Number(album.count ?? album.mediaCount ?? media.length ?? 0),
+      type: normalizedType,
+      media,
+    };
+  });
+
+  const fallbackAlbums = Object.entries(mediaByAlbum).map(([albumId, rawMedia], groupIndex) => {
+    const media = (rawMedia as any[]).map((item: any, itemIndex: number) => {
+      const rawType = String(item.type ?? item.mediaType ?? "").toLowerCase();
+      return {
+        id: String(item.id ?? item.mediaId ?? `${albumId}-${itemIndex}`),
+        type: rawType.includes("video") ? "video" : "image",
+        url: normalizeMediaUrl(String(item.url ?? item.fileUrl ?? item.coverUrl ?? "")),
+        thumbnail: normalizeMediaUrl(String(item.thumbnail ?? item.coverUrl ?? item.url ?? item.fileUrl ?? "")),
+        title: String(item.title ?? item.caption ?? `Media ${itemIndex + 1}`),
+        date: formatDisplayDate(String(item.date ?? item.createdAt ?? albumId ?? "")),
+        likes: Number(item.likes ?? 0),
+        isLiked: Boolean(item.isLiked),
+      } as MediaItem;
+    });
+
+    return {
+      id: String(albumId || `album-${groupIndex}`),
+      title: String(albumId || "Album"),
+      className: "",
+      date: formatDisplayDate(String(media[0]?.date ?? "")),
+      coverImage: normalizeMediaUrl(String(media[0]?.thumbnail ?? "")),
+      mediaCount: Number(media.length),
+      type: "class" as const,
+      media,
+    };
+  });
+
+  const sourceAlbums = mappedAlbums.length > 0 ? mappedAlbums : fallbackAlbums;
+  const grouped = new Map<string, Album>();
+
+  sourceAlbums.forEach((album: Album) => {
+    const key = String(album.id || album.title || "general");
+    const existing = grouped.get(key);
+
+    if (!existing) {
+      grouped.set(key, {
+        ...album,
+        mediaCount: album.media.length,
+      });
+      return;
+    }
+
+    const mergedMediaMap = new Map<string, MediaItem>();
+    [...existing.media, ...album.media].forEach((item) => {
+      const mediaKey = String(item.id || item.url || item.thumbnail);
+      if (!mergedMediaMap.has(mediaKey)) {
+        mergedMediaMap.set(mediaKey, item);
+      }
+    });
+
+    const mergedMedia = Array.from(mergedMediaMap.values());
+    grouped.set(key, {
+      ...existing,
+      title: existing.title || album.title,
+      className: existing.className || album.className,
+      date: existing.date !== "-" ? existing.date : album.date,
+      coverImage: existing.coverImage || album.coverImage || mergedMedia[0]?.thumbnail || "",
+      media: mergedMedia,
+      mediaCount: mergedMedia.length,
+    });
+  });
+
+  return Array.from(grouped.values());
+}
+
+// --- Reusable Components ---
+function GlassCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div className={`rounded-3xl border border-white/20 bg-white/10 backdrop-blur-md shadow-lg ${className}`}>
+      {children}
+    </div>
+  );
+}
+
+function SectionTitle({ icon: Icon, title, action }: { icon: any, title: string, action?: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center gap-2">
+        <div className="p-2 rounded-xl bg-white/10 text-cyan-300 shadow-[0_0_15px_rgba(34,211,238,0.3)]">
+          <Icon size={20} strokeWidth={2.5} />
+        </div>
+        <h2 className="text-xl font-black text-white uppercase tracking-wide drop-shadow-md">
+          {title}
+        </h2>
+      </div>
+      {action && <div>{action}</div>}
+    </div>
+  );
 }
 
 // --- Album Card Component ---
-function AlbumCard({ album, onClick }: { album: Album; onClick: () => void }) {
+function AlbumCard({ album, onClick }: { album: Album, onClick: () => void }) {
+  const showVideoCover = isVideoAssetUrl(album.coverImage);
+
   return (
-    <div className="rounded-2xl border border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-slate-900/80 backdrop-blur-xl overflow-hidden cursor-pointer transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl hover:shadow-purple-500/20 group shadow-xl shadow-purple-500/10">
-      <div className="relative h-52 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent z-10" />
-        <Image 
-          src={album.coverImage} 
-          alt={album.title}
-          fill
-          className="object-cover transition-transform duration-700 group-hover:scale-110"
-        />
+    <GlassCard className="overflow-hidden cursor-pointer hover:scale-105 transition-transform duration-300 group">
+      <div className="relative h-48 overflow-hidden">
+        <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent z-10" />
+        {album.coverImage ? (
+          showVideoCover ? (
+            <video
+              src={album.coverImage}
+              muted
+              playsInline
+              preload="metadata"
+              className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-500"
+            />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={album.coverImage} alt={album.title} className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-500" />
+          )
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-white/10">
+            <ImageIcon className="text-white/60" size={36} />
+          </div>
+        )}
         <div className="absolute top-3 right-3 z-20">
           <div className={`px-3 py-1.5 rounded-full text-[11px] font-bold backdrop-blur-md border shadow-lg ${
             album.type === 'class' 
@@ -99,7 +286,7 @@ function AlbumCard({ album, onClick }: { album: Album; onClick: () => void }) {
       <div className="p-4">
         <button
           onClick={onClick}
-          className="w-full py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold rounded-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-purple-500/30 cursor-pointer"
+          className="w-full py-2 bg-linear-to-r from-cyan-500 to-blue-500 text-white font-bold rounded-xl hover:from-cyan-400 hover:to-blue-400 transition-all shadow-lg hover:shadow-cyan-500/50"
         >
           <span className="flex items-center justify-center gap-2">
             <FolderOpen size={16} />
@@ -112,20 +299,24 @@ function AlbumCard({ album, onClick }: { album: Album; onClick: () => void }) {
 }
 
 // --- Media Grid Item ---
-function MediaGridItem({ item, onClick }: { item: MediaItem; onClick: () => void }) {
+function MediaGridItem({ item, onClick }: { item: MediaItem, onClick: () => void }) {
+  const previewSource = item.thumbnail || (item.type === "image" ? item.url : "");
+
   return (
     <div 
       className="group relative aspect-square rounded-xl overflow-hidden cursor-pointer border border-purple-500/30 hover:border-purple-400/60 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-purple-500/20 bg-gradient-to-br from-purple-500/10 to-slate-900/80"
       onClick={onClick}
     >
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10" />
+      <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/0 to-black/0 opacity-0 group-hover:opacity-100 transition-opacity z-10" />
       
-      <Image 
-        src={item.thumbnail} 
-        alt={item.title}
-        fill
-        className="object-cover transition-transform duration-500 group-hover:scale-110"
-      />
+      {previewSource ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={previewSource} alt={item.title} className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-500" />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center bg-white/10">
+          <ImageIcon size={30} className="text-white/70" />
+        </div>
+      )}
 
       {item.type === 'video' && (
         <div className="absolute inset-0 flex items-center justify-center z-20">
@@ -159,103 +350,65 @@ function MediaViewer({
   onPrev: () => void;
 }) {
   const current = media[currentIndex];
+  if (!current) return null;
 
-  // Keyboard navigation
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-      if (e.key === 'ArrowLeft') onPrev();
-      if (e.key === 'ArrowRight') onNext();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose, onPrev, onNext]);
+  if (typeof document === "undefined") return null;
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-in fade-in duration-300">
+  return createPortal(
+    <div className="fixed inset-0 z-3000 flex items-center justify-center bg-black/95 p-4" onClick={onClose}>
       {/* Close Button */}
       <button
-        onClick={onClose}
-        className="absolute top-6 right-6 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all duration-300 hover:scale-110 z-50 border border-white/20 cursor-pointer"
+        onClick={(event) => {
+          event.stopPropagation();
+          onClose();
+        }}
+        className="absolute right-6 top-6 rounded-full border border-white/30 bg-black/70 p-2 text-white transition-all"
       >
-        <X size={24} />
-      </button>
-
-      {/* Navigation Buttons */}
-      <button
-        onClick={onPrev}
-        className="absolute left-6 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all duration-300 hover:scale-110 disabled:opacity-30 disabled:hover:scale-100 z-50 border border-white/20 cursor-pointer"
-        disabled={currentIndex === 0}
-      >
-        <ChevronLeft size={28} />
-      </button>
-      <button
-        onClick={onNext}
-        className="absolute right-6 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all duration-300 hover:scale-110 disabled:opacity-30 disabled:hover:scale-100 z-50 border border-white/20 cursor-pointer"
-        disabled={currentIndex === media.length - 1}
-      >
-        <ChevronRight size={28} />
+        <X size={20} />
       </button>
 
       {/* Media Content */}
-      <div className="max-w-6xl w-full">
-        <div className="relative rounded-2xl overflow-hidden bg-black/50 shadow-2xl">
+      <div
+        className="relative w-full max-w-4xl overflow-hidden rounded-2xl border border-white/20 bg-black/40"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <button
+          onClick={onPrev}
+          className="absolute left-3 top-1/2 z-20 -translate-y-1/2 rounded-full border border-white/30 bg-black/70 p-2 text-white transition-all"
+        >
+          <ChevronLeft size={22} />
+        </button>
+        <button
+          onClick={onNext}
+          className="absolute right-3 top-1/2 z-20 -translate-y-1/2 rounded-full border border-white/30 bg-black/70 p-2 text-white transition-all"
+        >
+          <ChevronRight size={22} />
+        </button>
+
+        <div className="flex items-center justify-between border-b border-white/10 px-4 py-3 text-white">
+          <div>
+            <h3 className="text-sm font-semibold">{current.title}</h3>
+            <p className="text-xs text-white/70">{current.date}</p>
+          </div>
+          <div className="text-xs text-white/70">{currentIndex + 1} / {media.length}</div>
+        </div>
+
+        <div className="flex h-[70vh] items-center justify-center overflow-hidden bg-black/70 p-8">
           {current.type === 'image' ? (
-            <div className="relative max-h-[80vh] min-h-[400px]">
-              <Image 
-                src={current.url} 
-                alt={current.title}
-                width={1200}
-                height={800}
-                className="object-contain max-h-[80vh] w-auto mx-auto"
-                unoptimized
-              />
-            </div>
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={current.url} alt={current.title} className="max-h-full w-auto max-w-full rounded-lg object-contain" />
           ) : (
             <video 
               src={current.url} 
               controls 
               autoPlay
-              className="w-full max-h-[80vh]"
+              className="max-h-full w-auto max-w-full rounded-lg object-contain"
             />
           )}
         </div>
-
-        {/* Media Info */}
-        <div className="mt-4 flex items-center justify-between text-white">
-          <div>
-            <h3 className="text-xl font-bold mb-1 bg-gradient-to-r from-purple-300 to-pink-300 bg-clip-text text-transparent">
-              {current.title}
-            </h3>
-            <p className="text-white/50 text-sm flex items-center gap-2">
-              <Calendar size={14} />
-              {current.date}
-            </p>
-            {current.description && (
-              <p className="text-white/70 text-sm mt-2">{current.description}</p>
-            )}
-          </div>
-          
-          <div className="flex items-center gap-3">
-            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-all duration-300 cursor-pointer">
-              <Heart size={18} className={current.isLiked ? "fill-red-500 text-red-500" : "text-white/70"} />
-              <span className="text-sm">{current.likes}</span>
-            </button>
-            <button className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-all duration-300 cursor-pointer">
-              <Download size={18} />
-            </button>
-            <button className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-all duration-300 cursor-pointer">
-              <Maximize2 size={18} />
-            </button>
-          </div>
-        </div>
-
-        {/* Counter */}
-        <div className="text-center mt-4 text-white/50 text-sm">
-          {currentIndex + 1} / {media.length}
-        </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -277,6 +430,7 @@ function SkeletonLoader() {
 
 // --- Main Page Component ---
 export default function MediaPage() {
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<'all' | 'class' | 'personal'>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
@@ -287,22 +441,64 @@ export default function MediaPage() {
   const { selectedProfile } = useSelectedStudentProfile();
 
   useEffect(() => {
-    setIsPageLoaded(true);
-  }, []);
+    if (viewerIndex === null) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [viewerIndex]);
 
   useEffect(() => {
     let alive = true;
     const studentProfileId = selectedProfile?.studentId ?? selectedProfile?.id;
+    setLoading(true);
     getStudentMedia(studentProfileId ? { studentProfileId } : undefined)
       .then((res: any) => {
         if (!alive) return;
-        const raw = res?.data?.data?.items ?? res?.data?.data ?? res?.data ?? [];
-        setAlbums(Array.isArray(raw) ? raw : []);
+        setAlbums(normalizeStudentAlbums(res));
       })
       .catch(() => {})
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
-  }, [selectedProfile?.id]);
+  }, [selectedProfile?.id, selectedProfile?.studentId]);
+
+  useEffect(() => {
+    if (viewerIndex === null || !selectedAlbum) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setViewerIndex(null);
+        return;
+      }
+      if (event.key === "ArrowLeft") {
+        setViewerIndex((prev) => {
+          if (typeof prev !== "number") return prev;
+          return prev <= 0 ? selectedAlbum.media.length - 1 : prev - 1;
+        });
+      }
+      if (event.key === "ArrowRight") {
+        setViewerIndex((prev) => {
+          if (typeof prev !== "number") return prev;
+          return prev >= selectedAlbum.media.length - 1 ? 0 : prev + 1;
+        });
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [viewerIndex, selectedAlbum]);
+
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab === "class" || tab === "personal") {
+      setActiveTab(tab);
+      return;
+    }
+    setActiveTab("all");
+  }, [searchParams]);
 
   const filteredAlbums = albums.filter(album => {
     if (activeTab === 'all') return true;
@@ -419,7 +615,11 @@ export default function MediaPage() {
             {loading && <SkeletonLoader />}
 
             {/* Albums Grid */}
-            {!loading && (
+            {loading ? (
+              <div className="rounded-2xl border border-white/20 bg-white/10 p-8 text-center text-white/80">
+                Đang tải thư viện media...
+              </div>
+            ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredAlbums.map((album) => (
                   <AlbumCard
@@ -450,17 +650,16 @@ export default function MediaPage() {
             {/* Back Button */}
             <button
               onClick={() => setSelectedAlbum(null)}
-              className="flex items-center gap-2 mb-6 px-4 py-2.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 transition-all duration-300 border border-purple-500/30 hover:scale-105 cursor-pointer"
+              className="flex items-center gap-2 mb-6 px-4 py-2 rounded-xl bg-black/50 hover:bg-white/20 text-white transition-all border border-white/20"
             >
               <ChevronLeft size={18} />
               <span className="font-semibold">Quay lại thư viện</span>
             </button>
 
             {/* Album Header */}
-            <div className="rounded-2xl border border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-slate-900/80 backdrop-blur-xl p-6 mb-6 overflow-hidden relative shadow-xl shadow-purple-500/10">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-full blur-3xl" />
-              <div className="flex flex-col md:flex-row items-start gap-6 relative z-10">
-                <div className="relative w-32 h-32 rounded-2xl overflow-hidden flex-shrink-0 border-2 border-purple-400/30 shadow-lg">
+            <GlassCard className="p-6 mb-6">
+              <div className="flex items-start gap-4">
+                <div className="relative h-32 w-32 shrink-0 overflow-hidden rounded-2xl border-2 border-white/30">
                   <Image 
                     src={selectedAlbum.coverImage} 
                     alt={selectedAlbum.title}
@@ -527,8 +726,18 @@ export default function MediaPage() {
             media={selectedAlbum.media}
             currentIndex={viewerIndex}
             onClose={() => setViewerIndex(null)}
-            onNext={() => setViewerIndex(Math.min(viewerIndex + 1, selectedAlbum.media.length - 1))}
-            onPrev={() => setViewerIndex(Math.max(viewerIndex - 1, 0))}
+            onNext={() =>
+              setViewerIndex((prev) => {
+                if (typeof prev !== "number") return prev;
+                return prev >= selectedAlbum.media.length - 1 ? 0 : prev + 1;
+              })
+            }
+            onPrev={() =>
+              setViewerIndex((prev) => {
+                if (typeof prev !== "number") return prev;
+                return prev <= 0 ? selectedAlbum.media.length - 1 : prev - 1;
+              })
+            }
           />
         )}
       </div>

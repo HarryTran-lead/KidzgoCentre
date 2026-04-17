@@ -106,6 +106,8 @@ type SessionReportPayload = Paginated<SessionReportItem> & {
 };
 const REPORT_PAGE_SIZE = 200;
 const REPORT_MAX_PAGES = 50;
+const SESSION_REPORT_PAGE_SIZE = 100;
+const SESSION_REPORT_MAX_PAGES = 30;
 
 function getPaginatedItems<T>(
   payload: Paginated<T> | { [key: string]: unknown } | undefined,
@@ -960,19 +962,36 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
     setSessionsError("");
 
     const { fromDate, toDate } = getMonthRange(year, month);
-    const query = new URLSearchParams({
-      studentProfileId: selectedStudentId,
-      classId: selectedClassId,
-      fromDate,
-      toDate,
-      pageNumber: "1",
-      pageSize: "50",
-    });
+    const fetchAllSessionReports = async () => {
+      const collected: SessionReportItem[] = [];
 
-    apiFetch<SessionReportPayload>(`/api/session-reports?${query.toString()}`)
-      .then((result) => {
+      for (let page = 1; page <= SESSION_REPORT_MAX_PAGES; page += 1) {
+        const query = new URLSearchParams({
+          studentProfileId: selectedStudentId,
+          classId: selectedClassId,
+          fromDate,
+          toDate,
+          pageNumber: `${page}`,
+          pageSize: `${SESSION_REPORT_PAGE_SIZE}`,
+        });
+
+        const result = await apiFetch<SessionReportPayload>(`/api/session-reports?${query.toString()}`);
+        const pageItems = getPaginatedItems(result, "sessionReports");
+
+        if (!pageItems.length) break;
+        collected.push(...pageItems);
+        if (pageItems.length < SESSION_REPORT_PAGE_SIZE) break;
+      }
+
+      return Array.from(
+        new Map(collected.map((item) => [String(item.id ?? item.sessionId ?? Math.random()), item])).values(),
+      );
+    };
+
+    fetchAllSessionReports()
+      .then((items) => {
         if (!alive) return;
-        setSessionReports(getPaginatedItems(result, "sessionReports"));
+        setSessionReports(items);
       })
       .catch((e: unknown) => {
         if (!alive) return;
@@ -1147,6 +1166,16 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
     },
     [focusReport],
   );
+
+  const generateAiDraftFromStudent = useCallback(async () => {
+    if (!displayReport?.id || !sessionReports.length) {
+      setError("Vui lòng chọn học sinh có dữ liệu session report để tạo nháp AI.");
+      return;
+    }
+
+    await runAction(displayReport.id, "generate-draft");
+    openReportDetail(displayReport.id);
+  }, [displayReport?.id, openReportDetail, runAction, sessionReports.length]);
 
   const syncScopeToReports = useCallback((classId: string | null, studentId: string | null, openReports = true) => {
     setSelectedClassId(classId);
@@ -1684,6 +1713,7 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
           sessionsError={sessionsError}
           actionLoading={actionLoading}
           runAction={(reportId, action) => runAction(reportId, action)}
+          generateAiDraftFromStudent={generateAiDraftFromStudent}
           openReportDetail={openReportDetail}
           teacherClassProgress={teacherClassProgress}
           teacherReports={reports}
