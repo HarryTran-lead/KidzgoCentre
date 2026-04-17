@@ -35,6 +35,8 @@ type SortState<T> = {
   direction: SortDirection;
 };
 
+type ProfileSortMode = "newest" | "emailGrouped";
+
 function quickSort<T>(
   items: T[],
   compare: (a: T, b: T) => number
@@ -477,6 +479,7 @@ export default function AccountsPage() {
   const [profileSearchTerm, setProfileSearchTerm] = useState("");
   const [profileFilterType, setProfileFilterType] = useState<"all" | "Parent" | "Student">("all");
   const [profileApprovalFilter, setProfileApprovalFilter] = useState<"all" | "pending" | "approved">("all");
+  const [profileSortMode, setProfileSortMode] = useState<ProfileSortMode>("newest");
   const [profileCurrentPage, setProfileCurrentPage] = useState(1);
   const [profileItemsPerPage, setProfileItemsPerPage] = useState(10);
   const [selectedProfileRows, setSelectedProfileRows] = useState<string[]>([]);
@@ -836,26 +839,42 @@ export default function AccountsPage() {
       );
     }
 
-    // Group same email next to each other for easier profile actions
-    filtered = [...filtered].sort((a, b) => {
-      const emailA = String(a.userEmail || "").trim().toLowerCase();
-      const emailB = String(b.userEmail || "").trim().toLowerCase();
+    if (profileSortMode === "emailGrouped") {
+      // Legacy sort: keep profiles with the same email next to each other.
+      filtered = [...filtered].sort((a, b) => {
+        const emailA = String(a.userEmail || "").trim().toLowerCase();
+        const emailB = String(b.userEmail || "").trim().toLowerCase();
 
-      if (emailA !== emailB) {
-        if (!emailA) return 1;
-        if (!emailB) return -1;
-        return emailA.localeCompare(emailB, "vi");
-      }
+        if (emailA !== emailB) {
+          if (!emailA) return 1;
+          if (!emailB) return -1;
+          return emailA.localeCompare(emailB, "vi");
+        }
 
-      const bt = new Date(b.createdAt || 0).getTime();
-      const at = new Date(a.createdAt || 0).getTime();
-      return bt - at;
-    });
+        const bt = new Date(b.createdAt || 0).getTime();
+        const at = new Date(a.createdAt || 0).getTime();
+        return bt - at;
+      });
+    } else {
+      // New sort mode: show newest profiles first globally.
+      filtered = [...filtered].sort((a, b) => {
+        const createdB = new Date(b.createdAt || 0).getTime();
+        const createdA = new Date(a.createdAt || 0).getTime();
+
+        if (createdB !== createdA) {
+          return createdB - createdA;
+        }
+
+        const updatedB = new Date(b.updatedAt || 0).getTime();
+        const updatedA = new Date(a.updatedAt || 0).getTime();
+        return updatedB - updatedA;
+      });
+    }
 
     setFilteredProfiles(filtered);
     setSelectedProfileRows([]);
     setProfileCurrentPage(1); // Reset to page 1 when filters change
-  }, [profiles, profileFilterType, profileApprovalFilter, profileSearchTerm]);
+  }, [profiles, profileFilterType, profileApprovalFilter, profileSearchTerm, profileSortMode]);
 
   // Handle create parent profile
   const handleCreateParent = async (profileData: CreateParentProfileRequest) => {
@@ -1775,6 +1794,17 @@ export default function AccountsPage() {
                       <SelectItem value="all">{tProfiles.filters.all} ({profiles.length})</SelectItem>
                       <SelectItem value="Parent">{tProfiles.filters.parents} ({profiles.filter(p => p.profileType === "Parent").length})</SelectItem>
                       <SelectItem value="Student">{tProfiles.filters.students} ({profiles.filter(p => p.profileType === "Student").length})</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  {/* Sort Mode Select */}
+                  <Select value={profileSortMode} onValueChange={(value) => setProfileSortMode(value as ProfileSortMode)}>
+                    <SelectTrigger className="w-full sm:w-auto h-10 px-3 py-2 rounded-xl border border-red-200 bg-white text-sm text-gray-700 transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 data-[state=open]:border-red-400 data-[state=open]:ring-2 data-[state=open]:ring-red-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="newest">Mới nhất trước</SelectItem>
+                      <SelectItem value="emailGrouped">Nhóm theo email (kiểu cũ)</SelectItem>
                     </SelectContent>
                   </Select>
 
