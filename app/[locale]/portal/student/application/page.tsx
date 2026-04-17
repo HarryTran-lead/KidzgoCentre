@@ -9,9 +9,17 @@ import {
   AlertCircle,
   Plus,
   History,
-  MessageSquare
+  MessageSquare,
+  Sparkles,
+  ChevronRight,
+  HelpCircle,
+  Mail,
+  Phone,
+  Building2,
+  UserCheck,
+  Loader2,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { FilterTabs, TabOption } from "@/components/portal/student/FilterTabs";
 import { createTicket, getTickets, getTicketById } from "@/lib/api/ticketService";
 import type { CreateTicket, TicketCategory, Ticket, TicketComment } from "@/types/student/ticket";
@@ -25,6 +33,8 @@ type TicketCategoryOption = {
   id: TicketCategory;
   name: string;
   nameVi: string;
+  icon: React.ReactNode;
+  color: string;
 };
 
 type TicketType = CreateTicket["type"];
@@ -45,6 +55,83 @@ const normalizeClassItems = (response: any): StudentClass[] => {
   return [];
 };
 
+// Ticket Categories with icons
+const ticketCategories: TicketCategoryOption[] = [
+  { id: 'Homework', name: 'Homework', nameVi: 'Bài tập', icon: <FileText size={16} />, color: 'from-emerald-500 to-teal-500' },
+  { id: 'Finance', name: 'Finance', nameVi: 'Học phí', icon: <Building2 size={16} />, color: 'from-amber-500 to-orange-500' },
+  { id: 'Schedule', name: 'Schedule', nameVi: 'Lịch học', icon: <Clock size={16} />, color: 'from-blue-500 to-cyan-500' },
+  { id: 'Tech', name: 'Tech', nameVi: 'Kỹ thuật', icon: <HelpCircle size={16} />, color: 'from-purple-500 to-pink-500' },
+  { id: 'Other', name: 'Other', nameVi: 'Khác', icon: <Sparkles size={16} />, color: 'from-gray-500 to-slate-500' },
+];
+
+function StatusBadge({ status }: { status: string }) {
+  const config: Record<string, { icon: React.ReactNode; label: string; color: string }> = {
+    Resolved: {
+      icon: <CheckCircle size={12} />,
+      label: 'Đã xử lý',
+      color: 'bg-green-500/30 border border-green-400/40 text-green-300'
+    },
+    Closed: {
+      icon: <CheckCircle size={12} />,
+      label: 'Đã đóng',
+      color: 'bg-gray-500/30 border border-gray-400/40 text-gray-300'
+    },
+    Open: {
+      icon: <Clock size={12} />,
+      label: 'Mới tạo',
+      color: 'bg-amber-500/30 border border-amber-400/40 text-amber-300'
+    },
+    InProgress: {
+      icon: <Loader2 size={12} className="animate-spin" />,
+      label: 'Đang xử lý',
+      color: 'bg-blue-500/30 border border-blue-400/40 text-blue-300'
+    },
+  };
+
+  const { icon, label, color } = config[status] || {
+    icon: <AlertCircle size={12} />,
+    label: status,
+    color: 'bg-purple-500/30 border border-purple-400/40 text-purple-300'
+  };
+
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold backdrop-blur-sm ${color}`}>
+      {icon}
+      {label}
+    </span>
+  );
+}
+
+function CategorySelectCard({ 
+  category, 
+  isSelected, 
+  onClick 
+}: { 
+  category: TicketCategoryOption; 
+  isSelected: boolean; 
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`group rounded-xl p-3 border transition-all duration-300 cursor-pointer ${
+        isSelected
+          ? `border-purple-400/60 bg-gradient-to-br ${category.color} bg-opacity-20 shadow-lg shadow-purple-500/20 scale-[1.02]`
+          : 'border-purple-500/30 bg-purple-500/5 hover:bg-purple-500/15 hover:border-purple-400/50 hover:scale-[1.01]'
+      }`}
+    >
+      <div className="flex flex-col items-center text-center gap-1.5">
+        <div className={`p-2 rounded-lg transition-all ${isSelected ? 'bg-white/20' : 'bg-purple-500/20 group-hover:bg-purple-500/30'}`}>
+          <span className={isSelected ? 'text-white' : 'text-purple-300'}>{category.icon}</span>
+        </div>
+        <div className="font-bold text-xs text-white">{category.nameVi}</div>
+        <div className="text-[10px] text-purple-400/70">{category.name}</div>
+      </div>
+    </button>
+  );
+}
+
 export default function ApplicationPage() {
   const { selectedProfile } = useSelectedStudentProfile();
   const { user } = useCurrentUser();
@@ -60,14 +147,18 @@ export default function ApplicationPage() {
   const [ticketType, setTicketType] = useState<TicketType>('General');
   const [selectedTeacherOptionKey, setSelectedTeacherOptionKey] = useState('');
   const [teacherOptions, setTeacherOptions] = useState<TeacherOption[]>([]);
+  const [isPageLoaded, setIsPageLoaded] = useState(false);
 
-  // Resolve profileId: prefer selectedProfile from localStorage, fallback to user.selectedProfile from /me API, then Student profile
+  useEffect(() => {
+    setIsPageLoaded(true);
+  }, []);
+
   const resolvedProfileId = selectedProfile?.id 
     || user?.selectedProfile?.id 
     || user?.profiles?.find(p => p.profileType === 'Student')?.id 
     || null;
 
-  // Fetch student classes to get classId and available main teachers.
+  // Fetch student classes
   useEffect(() => {
     const fetchClasses = async () => {
       if (!resolvedProfileId) {
@@ -111,7 +202,7 @@ export default function ApplicationPage() {
     fetchClasses();
   }, [resolvedProfileId]);
 
-  // Load tickets on entry so history count is available immediately.
+  // Load tickets
   useEffect(() => {
     if (resolvedProfileId) {
       loadTickets();
@@ -119,9 +210,7 @@ export default function ApplicationPage() {
   }, [activeView, resolvedProfileId, user]);
 
   const loadTickets = async () => {
-    if (!resolvedProfileId) {
-      return;
-    }
+    if (!resolvedProfileId) return;
 
     try {
       setIsLoading(true);
@@ -134,13 +223,11 @@ export default function ApplicationPage() {
         const allTickets = Array.isArray(data) 
           ? data 
           : (data.items ?? data.tickets?.items ?? []);
-        // Client-side filter: only show tickets matching current profileId
         const filtered = resolvedProfileId
           ? allTickets.filter((t: any) => t.openedByProfileId === resolvedProfileId)
           : allTickets;
         setTickets(filtered);
 
-        // Fetch latest comment for tickets that have comments (parallel)
         const ticketsWithComments = filtered.filter((t: Ticket) => t.commentCount > 0);
         if (ticketsWithComments.length > 0) {
           const results = await Promise.allSettled(
@@ -170,75 +257,44 @@ export default function ApplicationPage() {
     }
   };
 
-  // Tab options for FilterTabs
   const tabOptions: TabOption[] = [
-    { id: 'send', label: 'Gửi đơn mới', icon: <Plus className="w-4 h-4" /> },
-    { id: 'history', label: 'Lịch sử đơn', count: tickets?.length || 0, icon: <History className="w-4 h-4" /> },
-  ];
-
-  // Ticket Categories
-  const ticketCategories: TicketCategoryOption[] = [
-    { id: 'Homework', name: 'Homework', nameVi: 'Bài tập' },
-    { id: 'Finance', name: 'Finance', nameVi: 'Học phí' },
-    { id: 'Schedule', name: 'Schedule', nameVi: 'Lịch học' },
-    { id: 'Tech', name: 'Tech', nameVi: 'Kỹ thuật' },
-    { id: 'Other', name: 'Other', nameVi: 'Khác' },
+    { id: 'send', label: 'Gửi đơn mới', icon: <Plus size={16} /> },
+    { id: 'history', label: 'Lịch sử đơn', count: tickets?.length || 0, icon: <History size={16} /> },
   ];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!ticketCategory) {
-      toast.warning({
-        title: 'Thiếu thông tin',
-        description: 'Vui lòng chọn danh mục'
-      });
+      toast.warning({ title: 'Thiếu thông tin', description: 'Vui lòng chọn danh mục' });
       return;
     }
     if (!subject.trim()) {
-      toast.warning({
-        title: 'Thiếu thông tin',
-        description: 'Vui lòng nhập tiêu đề'
-      });
+      toast.warning({ title: 'Thiếu thông tin', description: 'Vui lòng nhập tiêu đề' });
       return;
     }
     if (!message.trim()) {
-      toast.warning({
-        title: 'Thiếu thông tin',
-        description: 'Vui lòng nhập nội dung'
-      });
+      toast.warning({ title: 'Thiếu thông tin', description: 'Vui lòng nhập nội dung' });
       return;
     }
-
     if (ticketType === 'DirectToTeacher' && !selectedTeacherOptionKey) {
-      toast.warning({
-        title: 'Thiếu thông tin',
-        description: 'Vui lòng chọn giáo viên để gửi trực tiếp'
-      });
+      toast.warning({ title: 'Thiếu thông tin', description: 'Vui lòng chọn giáo viên để gửi trực tiếp' });
       return;
     }
 
     try {
       setIsSubmitting(true);
       
-      // Validate required fields
       if (!resolvedProfileId) {
-        toast.destructive({
-          title: 'Lỗi dữ liệu',
-          description: 'Không tìm thấy thông tin profile. Vui lòng chọn lại học sinh.'
-        });
+        toast.destructive({ title: 'Lỗi dữ liệu', description: 'Không tìm thấy thông tin profile. Vui lòng chọn lại học sinh.' });
         return;
       }
       
       if (!user?.branchId) {
-        toast.destructive({
-          title: 'Lỗi dữ liệu',
-          description: 'Không tìm thấy thông tin chi nhánh. Vui lòng đăng nhập lại.'
-        });
+        toast.destructive({ title: 'Lỗi dữ liệu', description: 'Không tìm thấy thông tin chi nhánh. Vui lòng đăng nhập lại.' });
         return;
       }
       
-      // Build payload with all required fields
       const selectedTeacher = teacherOptions.find((teacher) => teacher.optionKey === selectedTeacherOptionKey);
       const payload: CreateTicket = {
         openedByProfileId: resolvedProfileId,
@@ -253,10 +309,7 @@ export default function ApplicationPage() {
         ? selectedTeacher?.classId ?? classId
         : classId;
 
-      if (classIdForTicket) {
-        payload.classId = classIdForTicket;
-      }
-
+      if (classIdForTicket) payload.classId = classIdForTicket;
       if (ticketType === 'DirectToTeacher' && selectedTeacher?.teacherId) {
         payload.assignedToUserId = selectedTeacher.teacherId;
       }
@@ -267,23 +320,17 @@ export default function ApplicationPage() {
         toast.success({
           title: 'Thành công!',
           description: 'Đã gửi đơn hỗ trợ thành công. Chúng tôi sẽ phản hồi trong vòng 48 giờ.',
-          variant: 'success',
         });
-        // Reset form
         setTicketCategory('');
         setSubject('');
         setMessage('');
         setTicketType('General');
         setSelectedTeacherOptionKey(teacherOptions[0]?.optionKey ?? '');
-        // Reload tickets if in history view
-        if (activeView === 'history') {
-          loadTickets();
-        }
+        if (activeView === 'history') loadTickets();
       } else {
         toast.destructive({
           title: 'Gửi đơn thất bại',
           description: response.message || 'Không thể gửi đơn. Vui lòng thử lại.',
-          variant: 'destructive',
         });
       }
     } catch (error) {
@@ -291,50 +338,20 @@ export default function ApplicationPage() {
       toast.destructive({
         title: 'Lỗi hệ thống',
         description: 'Đã xảy ra lỗi khi gửi đơn. Vui lòng thử lại sau.',
-        variant: 'destructive',
       });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'Resolved':
-      case 'Closed':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-500/20 text-green-400 border border-green-500/30">
-            <CheckCircle className="w-3 h-3" />
-            Đã xử lý
-          </span>
-        );
-      case 'Open':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
-            <Clock className="w-3 h-3" />
-            Mới tạo
-          </span>
-        );
-      case 'InProgress':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-400 border border-blue-500/30">
-            <Clock className="w-3 h-3" />
-            Đang xử lý
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-500/20 text-gray-400 border border-gray-500/30">
-            <Clock className="w-3 h-3" />
-            {status}
-          </span>
-        );
-    }
-  };
-
   const getCategoryLabel = (category: string) => {
     const cat = ticketCategories.find(c => c.id === category);
     return cat?.nameVi || category;
+  };
+
+  const getCategoryColor = (category: string) => {
+    const cat = ticketCategories.find(c => c.id === category);
+    return cat?.color || 'from-purple-500 to-pink-500';
   };
 
   const formatDate = (dateString: string) => {
@@ -348,265 +365,387 @@ export default function ApplicationPage() {
     });
   };
 
+  const stats = useMemo(() => ({
+    total: tickets.length,
+    open: tickets.filter(t => t.status === 'Open').length,
+    inProgress: tickets.filter(t => t.status === 'InProgress').length,
+    resolved: tickets.filter(t => t.status === 'Resolved').length,
+  }), [tickets]);
+
+  const selectedCategoryObj = ticketCategories.find(c => c.id === ticketCategory);
+
   return (
-    <div className="min-h-[calc(100vh-120px)] text-white pb-4 md:pb-6">
-      {/* Header */}
-      <div className="mb-5">
-        <h1 className="text-xl md:text-2xl font-black flex items-center gap-2.5 mb-2">
-          <div className="p-2 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg">
-            <FileText className="w-5 h-5" />
+    <div className="flex flex-col h-[calc(100vh-120px)]">
+      {/* Header Section */}
+      <div className={`shrink-0 px-6 pt-6 pb-4 transition-all duration-700 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"}`}>
+        
+        {/* Hero Header */}
+        <div className="mb-8 relative">
+          <div className="text-center pt-4">
+            <div className="inline-block relative">
+              {/* Glowing background effect */}
+              <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-purple-500 via-pink-500 to-violet-500 opacity-30 blur-2xl"></div>
+
+              {/* Main frame */}
+              <div
+                className="relative rounded-3xl px-8 md:px-16 py-8 md:py-10 bg-gradient-to-br from-purple-500/20 via-pink-500/15 to-violet-500/20 backdrop-blur-xl border border-transparent flex flex-col items-center justify-center"
+                style={{
+                  backgroundImage: "linear-gradient(135deg, rgba(168,85,247,0.3), rgba(236,72,153,0.3), rgba(217,70,239,0.3)), linear-gradient(to right, rgba(168,85,247,0.1), rgba(236,72,153,0.1))",
+                  boxShadow: "0 0 60px rgba(168,85,247,0.3), 0 0 30px rgba(236,72,153,0.2), inset 0 1px 0 rgba(255,255,255,0.1)",
+                }}
+              >
+                <div
+                  className="absolute inset-0 rounded-3xl p-[2px] pointer-events-none"
+                  style={{
+                    background: "linear-gradient(135deg, #a855f7, #ec4899, #d946ef, #a855f7)",
+                    WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+                    WebkitMaskComposite: "xor",
+                    maskComposite: "exclude",
+                    padding: "4px",
+                  }}
+                ></div>
+
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <HelpCircle className="w-8 h-8 text-purple-400 animate-pulse" />
+                    <h1 className="text-5xl md:text-6xl lg:text-5xl font-bold bg-gradient-to-r from-purple-300 via-pink-300 to-fuchsia-300 bg-clip-text text-transparent drop-shadow-lg">
+                      HỖ TRỢ
+                    </h1>
+                    <Sparkles className="w-8 h-8 text-pink-400 animate-pulse" />
+                  </div>
+                  <p className="text-base md:text-lg font-medium text-purple-200/80">
+                    Gửi yêu cầu hỗ trợ đến trung tâm hoặc giáo viên trực tiếp
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
-          Đơn yêu cầu hỗ trợ
-        </h1>
+        </div>
+
+        {/* Contact Info Bar */}
+        <div className="flex items-center justify-center gap-4 flex-wrap mb-6">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-purple-500/10 border border-purple-500/30 backdrop-blur-sm">
+            <Mail size={14} className="text-purple-400" />
+            <span className="text-xs text-purple-300">support@rex.edu.vn</span>
+          </div>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-purple-500/10 border border-purple-500/30 backdrop-blur-sm">
+            <Phone size={14} className="text-purple-400" />
+            <span className="text-xs text-purple-300">028.73005585</span>
+          </div>
+        </div>
+
+        {/* Tab Navigation */}
+        <FilterTabs 
+          tabs={tabOptions}
+          activeTab={activeView}
+          onChange={setActiveView}
+          variant="outline"
+          size="md"
+          className="mb-5"
+        />
       </div>
 
-      {/* Tab Navigation */}
-      <FilterTabs 
-        tabs={tabOptions}
-        activeTab={activeView}
-        onChange={setActiveView}
-        variant="outline"
-        size="md"
-        className="mb-5"
-      />
-
       {/* Content */}
-      {activeView === 'send' ? (
-        /* Send Ticket Form */
-        <div className="bg-slate-900/50 backdrop-blur-xl rounded-xl border border-white/10 p-4 md:p-5 mb-4 md:mb-6">
-          {/* Notice */}
-          <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 pb-2 mb-3 md:mb-4">
-            <div className="flex items-start gap-2.5">
-              <AlertCircle className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
-              <div className="text-sm text-blue-300">
-                <p className="font-semibold mb-1">Lưu ý:</p>
-                <ul className="list-disc list-inside space-y-0.5 text-blue-300/80">
-                  <li>Bộ phận xử lý sẽ trả lời đơn của học sinh trong vòng 48h.</li>
-                  <li>Vui lòng cung cấp thông tin chi tiết để được hỗ trợ nhanh chóng.</li>
-                  <li>Bạn có thể theo dõi trạng thái xử lý đơn tại mục "Lịch sử đơn".</li>
+      <div className={`flex-1 px-6 pb-6 overflow-y-auto custom-scrollbar transition-all duration-700 delay-100 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+        
+        {/* Send Ticket Form */}
+        {activeView === 'send' ? (
+          <div className="grid gap-6 lg:grid-cols-3">
+            {/* Form */}
+            <div className="lg:col-span-2">
+              <div className="rounded-2xl border border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-slate-900/80 backdrop-blur-xl shadow-xl shadow-purple-500/10 overflow-hidden">
+                <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 px-5 py-3 border-b border-purple-500/30">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500">
+                      <Send size={14} className="text-white" />
+                    </div>
+                    <h2 className="font-bold text-white">Tạo đơn hỗ trợ mới</h2>
+                  </div>
+                </div>
+
+                <form onSubmit={handleSubmit} className="p-5 space-y-5">
+                  {/* Ticket Type */}
+                  <div>
+                    <label className="block text-sm font-semibold text-purple-300 mb-2">
+                      Loại hỗ trợ <span className="text-pink-400">*</span>
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setTicketType('General')}
+                        className={`p-3 rounded-xl border transition-all duration-300 cursor-pointer ${
+                          ticketType === 'General'
+                            ? 'border-purple-400/60 bg-gradient-to-r from-purple-500/20 to-pink-500/20 shadow-lg shadow-purple-500/20'
+                            : 'border-purple-500/30 bg-purple-500/5 hover:bg-purple-500/15 hover:border-purple-400/50'
+                        }`}
+                      >
+                        <div className="text-center">
+                          <div className="font-bold text-white text-sm">Gửi trung tâm</div>
+                          <div className="text-xs text-purple-400/70 mt-0.5">Hỗ trợ chung</div>
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTicketType('DirectToTeacher')}
+                        className={`p-3 rounded-xl border transition-all duration-300 cursor-pointer ${
+                          ticketType === 'DirectToTeacher'
+                            ? 'border-purple-400/60 bg-gradient-to-r from-purple-500/20 to-pink-500/20 shadow-lg shadow-purple-500/20'
+                            : 'border-purple-500/30 bg-purple-500/5 hover:bg-purple-500/15 hover:border-purple-400/50'
+                        }`}
+                      >
+                        <div className="text-center">
+                          <div className="font-bold text-white text-sm">Gửi giáo viên</div>
+                          <div className="text-xs text-purple-400/70 mt-0.5">Hỗ trợ trực tiếp</div>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Teacher Select */}
+                  {ticketType === 'DirectToTeacher' && (
+                    <div>
+                      <label className="block text-sm font-semibold text-purple-300 mb-2">
+                        Giáo viên nhận đơn <span className="text-pink-400">*</span>
+                      </label>
+                      <select
+                        value={selectedTeacherOptionKey}
+                        onChange={(e) => setSelectedTeacherOptionKey(e.target.value)}
+                        className="w-full bg-slate-900/80 border border-purple-500/30 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all cursor-pointer"
+                      >
+                        <option value="" className="text-white">Chọn giáo viên</option>
+                        {teacherOptions.map((teacher) => (
+                          <option key={teacher.optionKey} value={teacher.optionKey} className="text-white">
+                            {teacher.teacherName}{teacher.classLabel ? ` - ${teacher.classLabel}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                      {teacherOptions.length === 0 && (
+                        <p className="text-xs text-amber-300 mt-1.5">
+                          Chưa tìm thấy giáo viên chủ nhiệm trong danh sách lớp của học sinh.
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Category Selection */}
+                  <div>
+                    <label className="block text-sm font-semibold text-purple-300 mb-2">
+                      Danh mục <span className="text-pink-400">*</span>
+                    </label>
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                      {ticketCategories.map((cat) => (
+                        <CategorySelectCard
+                          key={cat.id}
+                          category={cat}
+                          isSelected={ticketCategory === cat.id}
+                          onClick={() => setTicketCategory(cat.id)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Subject */}
+                  <div>
+                    <label className="block text-sm font-semibold text-purple-300 mb-2">
+                      Tiêu đề <span className="text-pink-400">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={subject}
+                      onChange={(e) => setSubject(e.target.value)}
+                      placeholder="Nhập tiêu đề ngắn gọn..."
+                      className="w-full bg-slate-900/80 border border-purple-500/30 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all placeholder:text-purple-400/40"
+                    />
+                  </div>
+
+                  {/* Message */}
+                  <div>
+                    <label className="block text-sm font-semibold text-purple-300 mb-2">
+                      Nội dung <span className="text-pink-400">*</span>
+                    </label>
+                    <textarea
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      placeholder="Mô tả chi tiết vấn đề bạn cần hỗ trợ..."
+                      rows={5}
+                      className="w-full bg-slate-900/80 border border-purple-500/30 rounded-xl px-4 py-2.5 text-sm text-white resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all placeholder:text-purple-400/40"
+                    />
+                  </div>
+
+                  {/* Submit Buttons */}
+                  <div className="flex items-center gap-3 pt-3 border-t border-purple-500/30 justify-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTicketCategory('');
+                        setSubject('');
+                        setMessage('');
+                        setTicketType('General');
+                        setSelectedTeacherOptionKey(teacherOptions[0]?.optionKey ?? '');
+                      }}
+                      className="px-5 py-2.5 text-sm bg-purple-500/10 border border-purple-500/30 hover:bg-purple-500/20 rounded-xl font-semibold transition-all text-purple-300 hover:text-white cursor-pointer"
+                    >
+                      Hủy bỏ
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="flex items-center gap-2 px-5 py-2.5 text-sm bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 rounded-xl font-semibold transition-all shadow-lg shadow-purple-500/25 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    >
+                      {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                      {isSubmitting ? 'Đang gửi...' : 'Gửi đơn'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+
+            {/* Info Sidebar */}
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-slate-900/80 backdrop-blur-xl shadow-xl shadow-purple-500/10 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <AlertCircle size={18} className="text-purple-400" />
+                  <h3 className="font-bold text-white">Lưu ý quan trọng</h3>
+                </div>
+                <ul className="space-y-2 text-sm text-purple-300/70">
+                  <li className="flex items-start gap-2">
+                    <span className="text-purple-400">•</span>
+                    Bộ phận xử lý sẽ trả lời trong vòng 48h
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-purple-400">•</span>
+                    Cung cấp thông tin chi tiết để được hỗ trợ nhanh chóng
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-purple-400">•</span>
+                    Theo dõi trạng thái đơn tại mục "Lịch sử đơn"
+                  </li>
                 </ul>
               </div>
-            </div>
-          </div>
 
-          <form onSubmit={handleSubmit} className="space-y-3 md:space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-            {/* Category Selection */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-300 mb-1.5">
-                Danh mục <span className="text-red-400">*</span>
-              </label>
-              <select
-                value={ticketCategory}
-                onChange={(e) => setTicketCategory(e.target.value as TicketCategory)}
-                className="w-full bg-slate-800/50 border border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all"
-              >
-                <option value="" className="text-white">Chọn danh mục</option>
-                {ticketCategories.map((cat) => (
-                  <option key={cat.id} value={cat.id} className="text-white">
-                    {cat.nameVi} ({cat.name})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Ticket Type */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-300 mb-1.5">
-                Loại hỗ trợ <span className="text-red-400">*</span>
-              </label>
-              <select
-                value={ticketType}
-                onChange={(e) => setTicketType(e.target.value as TicketType)}
-                className="w-full bg-slate-800/50 border border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all"
-              >
-                <option value="General" className="text-white">Gửi trung tâm</option>
-                <option value="DirectToTeacher" className="text-white">Gửi trực tiếp giáo viên</option>
-              </select>
-            </div>
-            </div>
-
-            {ticketType === 'DirectToTeacher' && (
-              <div>
-                <label className="block text-sm font-semibold text-gray-300 mb-1.5">
-                  Giáo viên nhận đơn <span className="text-red-400">*</span>
-                </label>
-                <select
-                  value={selectedTeacherOptionKey}
-                  onChange={(e) => setSelectedTeacherOptionKey(e.target.value)}
-                  className="w-full bg-slate-800/50 border border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all"
-                >
-                  <option value="" className="text-white">Chọn giáo viên</option>
-                  {teacherOptions.map((teacher) => (
-                    <option key={teacher.optionKey} value={teacher.optionKey} className="text-white">
-                      {teacher.teacherName}{teacher.classLabel ? ` - ${teacher.classLabel}` : ''}
-                    </option>
-                  ))}
-                </select>
-                {teacherOptions.length === 0 && (
-                  <p className="text-xs text-amber-300 mt-1.5">
-                    Chưa tìm thấy giáo viên chủ nhiệm trong danh sách lớp của học sinh.
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Subject */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-300 mb-1.5">
-                Tiêu đề <span className="text-red-400">*</span>
-              </label>
-              <input
-                type="text"
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                placeholder="Nhập tiêu đề..."
-                className="w-full bg-slate-800/50 border border-white/10 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all placeholder:text-gray-500"
-              />
-            </div>
-
-            {/* Message */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-300 mb-1.5">
-                Nội dung <span className="text-red-400">*</span>
-              </label>
-              <textarea
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder="Nhập nội dung chi tiết..."
-                rows={4}
-                className="w-full bg-slate-800/50 border border-white/10 rounded-lg px-3.5 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all placeholder:text-gray-500"
-              />
-            </div>
-
-            {/* Submit Buttons */}
-            <div className="flex items-center gap-2 md:gap-3 pt-2 md:pt-3 mt-1 md:mt-2 border-t border-white/10 justify-end">
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="flex items-center gap-2 px-5 py-2.5 text-sm bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 rounded-lg font-semibold transition-all shadow-lg shadow-cyan-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Send className="w-4 h-4" />
-                {isSubmitting ? 'Đang gửi...' : 'Gửi đơn'}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setTicketCategory('');
-                  setSubject('');
-                  setMessage('');
-                  setTicketType('General');
-                  setSelectedTeacherOptionKey(teacherOptions[0]?.optionKey ?? '');
-                }}
-                className="px-5 py-2.5 text-sm bg-slate-800/50 border border-white/10 hover:bg-slate-800 rounded-lg font-semibold transition-all text-gray-400 hover:text-white"
-              >
-                Hủy bỏ
-              </button>
-            </div>
-          </form>
-        </div>
-      ) : (
-        /* Ticket History */
-        <div className="bg-slate-900/50 backdrop-blur-xl rounded-xl border border-white/10 overflow-hidden">
-          {/* Table Header */}
-          <div className="bg-gradient-to-r from-cyan-600 to-blue-600 text-white">
-            <h2 className="text-base font-bold px-5 py-3">Lịch sử đơn hỗ trợ</h2>
-          </div>
-
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-cyan-500 mx-auto mb-3"></div>
-                <p className="text-gray-400 text-sm">Đang tải...</p>
-              </div>
-            </div>
-          ) : (
-            <>
-              {/* Table */}
-              <div className="overflow-x-auto max-h-[calc(100vh-320px)] overflow-y-auto scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                <style jsx>{`div::-webkit-scrollbar { display: none; }`}</style>
-                <table className="w-full">
-                  <thead className="sticky top-0 z-10">
-                    <tr className="bg-slate-800 border-b border-white/10">
-                      <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider w-28">Danh mục</th>
-                      <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Tiêu đề</th>
-                      <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Nội dung</th>
-                      <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Phản hồi</th>
-                      <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider w-28">Ngày tạo</th>
-                      <th className="px-3 py-2.5 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider w-28">Trạng thái</th>
-                      <th className="px-3 py-2.5 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider w-20">Bình luận</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5">
-                    {(tickets || []).map((ticket) => (
-                      <tr key={ticket.id} className="hover:bg-white/5 transition-all">
-                        <td className="px-3 py-3">
-                          <span className="text-sm font-medium text-cyan-400">{getCategoryLabel(ticket.category)}</span>
-                        </td>
-                        <td className="px-3 py-3">
-                          <p className="text-sm text-gray-300 font-medium">{ticket.subject}</p>
-                        </td>
-                        <td className="px-3 py-3">
-                          <p className="text-sm text-gray-300 line-clamp-2">{ticket.message}</p>
-                        </td>
-                        <td className="px-3 py-3 max-w-55">
-                          {latestComments[ticket.id] ? (
-                            <div className="space-y-0.5">
-                              <p className="text-xs text-cyan-400 font-medium truncate">
-                                {latestComments[ticket.id].commenterProfileName || latestComments[ticket.id].commenterUserName}
-                              </p>
-                              <p className="text-sm text-gray-300 line-clamp-2">{latestComments[ticket.id].message}</p>
-                            </div>
-                          ) : (
-                            <span className="text-xs text-gray-300 italic">Chưa có phản hồi</span>
-                          )}
-                        </td>
-                        <td className="px-3 py-3">
-                          <span className="text-sm text-gray-400">{formatDate(ticket.createdAt)}</span>
-                        </td>
-                        <td className="px-3 py-3 text-center">
-                          {getStatusBadge(ticket.status)}
-                        </td>
-                        <td className="px-3 py-3 text-center">
-                          <div className="flex items-center justify-center gap-1">
-                            <MessageSquare className="w-3.5 h-3.5 text-gray-400" />
-                            <span className="text-sm text-gray-400">{ticket.commentCount}</span>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Empty State */}
-              {(!tickets || tickets.length === 0) && (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <FileText className="w-12 h-12 text-gray-600 mb-3" />
-                  <h3 className="text-base font-semibold text-gray-400 mb-1.5">Chưa có đơn nào</h3>
-                  <p className="text-gray-500 text-sm">Bạn chưa gửi đơn hỗ trợ nào</p>
-                  <button
-                    onClick={() => setActiveView('send')}
-                    className="mt-4 flex items-center gap-2 px-4 py-2 text-sm bg-cyan-500/20 text-cyan-400 rounded-lg hover:bg-cyan-500/30 transition-all"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Gửi đơn mới
-                  </button>
+              <div className="rounded-2xl border border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-slate-900/80 backdrop-blur-xl shadow-xl shadow-purple-500/10 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <UserCheck size={18} className="text-purple-400" />
+                  <h3 className="font-bold text-white">Thông tin liên hệ</h3>
                 </div>
-              )}
-            </>
-          )}
-
-          {/* Footer Note */}
-          <div className="px-5 py-2 bg-slate-800/30 border-t border-white/10">
-            <p className="text-[11px] text-gray-500 text-center">
-              Học sinh có nhu cầu thực hiện các thủ tục, dịch vụ vui lòng liên hệ Trung tâm Dịch vụ Học sinh, 
-              điện thoại: <span className="text-cyan-400">028.73005585</span>, 
-              email: <span className="text-cyan-400">support@rex.edu.vn</span>
-            </p>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-purple-300/70 text-sm">
+                    <Phone size={14} className="text-purple-400" />
+                    <span>028.73005585</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-purple-300/70 text-sm">
+                    <Mail size={14} className="text-purple-400" />
+                    <span>support@rex.edu.vn</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        ) : (
+          /* Ticket History */
+          <div className="rounded-2xl border border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-slate-900/80 backdrop-blur-xl shadow-xl shadow-purple-500/10 overflow-hidden">
+            <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 px-5 py-3 border-b border-purple-500/30">
+              <div className="flex items-center gap-2">
+                <History size={18} className="text-purple-300" />
+                <h2 className="font-bold text-white">Lịch sử đơn hỗ trợ</h2>
+                <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-purple-500/20 text-purple-300">
+                  {tickets.length} đơn
+                </span>
+              </div>
+            </div>
+
+            {isLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="w-8 h-8 animate-spin text-white" />
+                <span className="ml-3 text-white font-semibold">Đang tải...</span>
+              </div>
+            ) : tickets.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16">
+                <div className="p-4 rounded-full bg-purple-500/10 mb-3">
+                  <FileText className="w-12 h-12 text-purple-400/40" />
+                </div>
+                <h3 className="font-bold text-purple-300 mb-1">Chưa có đơn nào</h3>
+                <p className="text-purple-400/60 text-sm">Bạn chưa gửi đơn hỗ trợ nào</p>
+                <button
+                  onClick={() => setActiveView('send')}
+                  className="mt-4 flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl hover:scale-105 transition-all cursor-pointer"
+                >
+                  <Plus size={14} />
+                  Gửi đơn mới
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="bg-purple-950/40 border-b border-purple-500/30">
+                        <th className="px-4 py-3 text-left text-xs font-bold text-purple-400 uppercase tracking-wider">Danh mục</th>
+                        <th className="px-4 py-3 text-left text-xs font-bold text-purple-400 uppercase tracking-wider">Tiêu đề</th>
+                        <th className="px-4 py-3 text-left text-xs font-bold text-purple-400 uppercase tracking-wider hidden md:table-cell">Nội dung</th>
+                        <th className="px-4 py-3 text-left text-xs font-bold text-purple-400 uppercase tracking-wider hidden lg:table-cell">Phản hồi mới</th>
+                        <th className="px-4 py-3 text-left text-xs font-bold text-purple-400 uppercase tracking-wider hidden sm:table-cell">Ngày tạo</th>
+                        <th className="px-4 py-3 text-center text-xs font-bold text-purple-400 uppercase tracking-wider">Trạng thái</th>
+                        <th className="px-4 py-3 text-center text-xs font-bold text-purple-400 uppercase tracking-wider">Bình luận</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-purple-500/20">
+                      {tickets.map((ticket) => (
+                        <tr key={ticket.id} className="hover:bg-purple-500/5 transition-all">
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-bold bg-gradient-to-r ${getCategoryColor(ticket.category)} bg-opacity-20 text-purple-200`}>
+                              {getCategoryLabel(ticket.category)}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <p className="text-sm text-white font-medium">{ticket.subject}</p>
+                          </td>
+                          <td className="px-4 py-3 hidden md:table-cell">
+                            <p className="text-sm text-purple-300/70 line-clamp-2">{ticket.message}</p>
+                          </td>
+                          <td className="px-4 py-3 hidden lg:table-cell max-w-[200px]">
+                            {latestComments[ticket.id] ? (
+                              <div className="space-y-0.5">
+                                <p className="text-xs text-purple-400 font-medium truncate">
+                                  {latestComments[ticket.id].commenterProfileName || latestComments[ticket.id].commenterUserName}
+                                </p>
+                                <p className="text-sm text-purple-300/70 line-clamp-2">{latestComments[ticket.id].message}</p>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-purple-400/50 italic">Chưa có phản hồi</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 hidden sm:table-cell">
+                            <span className="text-xs text-purple-400/70">{formatDate(ticket.createdAt)}</span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <StatusBadge status={ticket.status} />
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <MessageSquare size={14} className="text-purple-400" />
+                              <span className="text-sm text-purple-300 font-semibold">{ticket.commentCount}</span>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Footer Note */}
+                <div className="px-5 py-3 bg-purple-950/20 border-t border-purple-500/30">
+                  <p className="text-[11px] text-purple-400/60 text-center">
+                    Học sinh có nhu cầu thực hiện các thủ tục, dịch vụ vui lòng liên hệ Trung tâm Dịch vụ Học sinh, 
+                    điện thoại: <span className="text-purple-300">028.73005585</span>, 
+                    email: <span className="text-purple-300">support@rex.edu.vn</span>
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -15,6 +15,14 @@ import {
   Volume2,
   VolumeX,
   WandSparkles,
+  Sparkles,
+  ChevronDown,
+  ChevronUp,
+  Play,
+  StopCircle,
+  CheckCircle2,
+  AlertCircle,
+  ArrowRight,
 } from "lucide-react";
 
 import { toast } from "@/hooks/use-toast";
@@ -38,35 +46,34 @@ function ResultPills({
 }: {
   title: string;
   items?: string[];
-  tone?: "purple" | "blue" | "amber" | "emerald" | "rose" | "cyan";
+  tone?: "purple" | "blue" | "amber" | "emerald" | "rose" | "cyan" | "pink";
 }) {
   if (!items || items.length === 0) {
     return null;
   }
 
-  const toneClass =
-    tone === "blue"
-      ? "border-blue-400/20 bg-blue-500/10 text-blue-100"
-      : tone === "amber"
-        ? "border-amber-400/20 bg-amber-500/10 text-amber-100"
-        : tone === "emerald"
-          ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-100"
-          : tone === "rose"
-            ? "border-rose-400/20 bg-rose-500/10 text-rose-100"
-            : tone === "purple"
-              ? "border-purple-400/20 bg-purple-500/10 text-purple-100"
-              : "border-cyan-400/20 bg-cyan-500/10 text-cyan-100";
+  const toneClassMap = {
+    purple: "border-purple-400/30 bg-purple-500/15 text-purple-100",
+    pink: "border-pink-400/30 bg-pink-500/15 text-pink-100",
+    blue: "border-blue-400/30 bg-blue-500/15 text-blue-100",
+    amber: "border-amber-400/30 bg-amber-500/15 text-amber-100",
+    emerald: "border-emerald-400/30 bg-emerald-500/15 text-emerald-100",
+    rose: "border-rose-400/30 bg-rose-500/15 text-rose-100",
+    cyan: "border-cyan-400/30 bg-cyan-500/15 text-cyan-100",
+  };
+
+  const toneClass = toneClassMap[tone] || toneClassMap.cyan;
 
   return (
     <div className="space-y-2">
-      <div className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+      <div className="text-xs font-bold uppercase tracking-[0.2em] text-purple-400">
         {title}
       </div>
       <div className="flex flex-wrap gap-2">
         {items.map((item, index) => (
           <span
             key={`${title}-${index}-${item}`}
-            className={`rounded-full border px-3 py-1 text-xs font-medium ${toneClass}`}
+            className={`rounded-full border px-3 py-1 text-xs font-semibold ${toneClass}`}
           >
             {item}
           </span>
@@ -83,7 +90,10 @@ function WarningsBlock({ warnings }: { warnings?: string[] }) {
 
   return (
     <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
-      <div className="mb-2 text-sm font-semibold text-amber-200">Lưu ý từ AI</div>
+      <div className="mb-2 text-sm font-bold text-amber-200 flex items-center gap-2">
+        <AlertCircle size={14} />
+        Lưu ý từ AI
+      </div>
       <ul className="space-y-1 text-sm text-amber-50/85">
         {warnings.map((warning, index) => (
           <li key={`speaking-warning-${index}`} className="leading-relaxed">
@@ -102,25 +112,29 @@ function SpeakingResultCard({
   title: string;
   result: HomeworkSpeakingAnalysisResult;
 }) {
+  const [expanded, setExpanded] = useState(true);
+
   return (
-    <div className="space-y-4 rounded-2xl border border-cyan-500/20 bg-slate-900/70 p-5">
+    <div className="space-y-4 rounded-2xl border border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-slate-900/80 p-5 backdrop-blur-xl shadow-xl shadow-purple-500/10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <div className="text-sm font-semibold text-white">{title}</div>
+          <div className="text-sm font-bold bg-gradient-to-r from-purple-300 to-pink-300 bg-clip-text text-transparent">
+            {title}
+          </div>
           {result.summary ? (
-            <p className="mt-1 text-sm leading-relaxed text-slate-300">
+            <p className="mt-1 text-sm leading-relaxed text-purple-200/70">
               {result.summary}
             </p>
           ) : null}
         </div>
         <div className="flex flex-wrap gap-2">
           {result.stars !== undefined ? (
-            <span className="rounded-full border border-yellow-400/20 bg-yellow-500/10 px-3 py-1 text-xs font-semibold text-yellow-100">
-              {result.stars} sao
+            <span className="rounded-full border border-yellow-400/30 bg-yellow-500/15 px-3 py-1 text-xs font-bold text-yellow-100">
+              ⭐ {result.stars} sao
             </span>
           ) : null}
           {result.overallScore !== undefined ? (
-            <span className="rounded-full border border-cyan-400/20 bg-cyan-500/10 px-3 py-1 text-xs font-semibold text-cyan-100">
+            <span className="rounded-full border border-purple-400/30 bg-purple-500/15 px-3 py-1 text-xs font-bold text-purple-100">
               Tổng điểm {result.overallScore}
             </span>
           ) : null}
@@ -131,27 +145,27 @@ function SpeakingResultCard({
         result.fluencyScore !== undefined ||
         result.accuracyScore !== undefined) && (
         <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-4">
-            <div className="text-xs uppercase tracking-wide text-slate-400">
+          <div className="rounded-xl border border-purple-500/30 bg-slate-900/80 p-4">
+            <div className="text-xs uppercase tracking-wide text-purple-400 font-bold">
               Phát âm
             </div>
-            <div className="mt-2 text-xl font-bold text-cyan-200">
+            <div className="mt-2 text-2xl font-bold text-purple-200">
               {result.pronunciationScore ?? "—"}
             </div>
           </div>
-          <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-4">
-            <div className="text-xs uppercase tracking-wide text-slate-400">
+          <div className="rounded-xl border border-purple-500/30 bg-slate-900/80 p-4">
+            <div className="text-xs uppercase tracking-wide text-purple-400 font-bold">
               Trôi chảy
             </div>
-            <div className="mt-2 text-xl font-bold text-cyan-200">
+            <div className="mt-2 text-2xl font-bold text-purple-200">
               {result.fluencyScore ?? "—"}
             </div>
           </div>
-          <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-4">
-            <div className="text-xs uppercase tracking-wide text-slate-400">
+          <div className="rounded-xl border border-purple-500/30 bg-slate-900/80 p-4">
+            <div className="text-xs uppercase tracking-wide text-purple-400 font-bold">
               Chính xác
             </div>
-            <div className="mt-2 text-xl font-bold text-cyan-200">
+            <div className="mt-2 text-2xl font-bold text-purple-200">
               {result.accuracyScore ?? "—"}
             </div>
           </div>
@@ -159,56 +173,68 @@ function SpeakingResultCard({
       )}
 
       {result.transcript ? (
-        <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-4">
-          <div className="mb-2 text-xs uppercase tracking-wide text-slate-400">
+        <div className="rounded-xl border border-purple-500/30 bg-slate-900/80 p-4">
+          <div className="mb-2 text-xs uppercase tracking-wide text-purple-400 font-bold">
             AI nghe được
           </div>
-          <div className="text-sm leading-relaxed text-slate-200">
-            {result.transcript}
+          <div className="text-sm leading-relaxed text-purple-100">
+            "{result.transcript}"
           </div>
         </div>
       ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <ResultPills title="Điểm mạnh" items={result.strengths} tone="emerald" />
-        <ResultPills title="Cần cải thiện" items={result.issues} tone="rose" />
-      </div>
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center gap-2 text-xs font-semibold text-purple-400 hover:text-purple-300 transition-colors cursor-pointer"
+      >
+        {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        {expanded ? "Thu gọn chi tiết" : "Xem thêm chi tiết"}
+      </button>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <ResultPills
-          title="Từ cần luyện"
-          items={result.mispronouncedWords}
-          tone="amber"
-        />
-        <ResultPills title="Kế hoạch luyện tập" items={result.practicePlan} tone="blue" />
-      </div>
-
-      <ResultPills title="Gợi ý tiếp theo" items={result.suggestions} tone="purple" />
-
-      {result.wordFeedback.length > 0 ? (
-        <div className="space-y-3">
-          <div className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
-            Phản hồi theo từ
+      {expanded && (
+        <div className="space-y-4 pt-2">
+          <div className="grid gap-4 lg:grid-cols-2">
+            <ResultPills title="Điểm mạnh" items={result.strengths} tone="emerald" />
+            <ResultPills title="Cần cải thiện" items={result.issues} tone="rose" />
           </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            {result.wordFeedback.map((item, index) => (
-              <div
-                key={`${item.word}-${index}`}
-                className="rounded-xl border border-slate-700 bg-slate-950/60 p-4"
-              >
-                <div className="font-semibold text-white">{item.word}</div>
-                {item.heardAs ? (
-                  <div className="mt-1 text-xs text-slate-400">
-                    AI nghe được: {item.heardAs}
-                  </div>
-                ) : null}
-                <div className="mt-2 text-sm text-rose-200">{item.issue}</div>
-                <div className="mt-2 text-sm text-cyan-100">{item.tip}</div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <ResultPills
+              title="Từ cần luyện"
+              items={result.mispronouncedWords}
+              tone="amber"
+            />
+            <ResultPills title="Kế hoạch luyện tập" items={result.practicePlan} tone="blue" />
+          </div>
+
+          <ResultPills title="Gợi ý tiếp theo" items={result.suggestions} tone="purple" />
+
+          {result.wordFeedback.length > 0 ? (
+            <div className="space-y-3">
+              <div className="text-xs font-bold uppercase tracking-[0.2em] text-purple-400">
+                Phản hồi theo từ
               </div>
-            ))}
-          </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                {result.wordFeedback.map((item, index) => (
+                  <div
+                    key={`${item.word}-${index}`}
+                    className="rounded-xl border border-purple-500/30 bg-slate-900/80 p-4"
+                  >
+                    <div className="font-bold text-white">{item.word}</div>
+                    {item.heardAs ? (
+                      <div className="mt-1 text-xs text-purple-400">
+                        AI nghe được: {item.heardAs}
+                      </div>
+                    ) : null}
+                    <div className="mt-2 text-sm text-rose-200">{item.issue}</div>
+                    <div className="mt-2 text-sm text-purple-200">{item.tip}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
-      ) : null}
+      )}
 
       <WarningsBlock warnings={result.warnings} />
     </div>
@@ -374,7 +400,6 @@ function makeTurnId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-// Build a conversational AI reply from BE analysis result.
 function buildAiReplyText(result: HomeworkSpeakingAnalysisResult): string {
   if (result.summary) return result.summary;
 
@@ -451,14 +476,14 @@ function TopicSelector({
             key={option.value}
             type="button"
             onClick={() => onChange(option.value)}
-            className={`rounded-2xl border px-4 py-3 text-left transition ${
+            className={`rounded-2xl border p-4 text-left transition-all duration-300 cursor-pointer ${
               topic === option.value
-                ? "border-cyan-400/30 bg-cyan-500/15 shadow-lg shadow-cyan-900/10"
-                : "border-white/10 bg-white/5 hover:bg-white/10"
+                ? "border-purple-400/60 bg-gradient-to-r from-purple-500/20 to-pink-500/20 shadow-lg shadow-purple-500/20 scale-[1.02]"
+                : "border-purple-500/30 bg-purple-500/5 hover:bg-purple-500/15 hover:border-purple-400/50 hover:scale-[1.01]"
             }`}
           >
-            <div className="text-sm font-semibold text-white">{option.label}</div>
-            <div className="mt-1 text-xs leading-relaxed text-slate-400">
+            <div className="text-sm font-bold text-white">{option.label}</div>
+            <div className="mt-1 text-xs leading-relaxed text-purple-300/70">
               {option.description}
             </div>
           </button>
@@ -473,28 +498,26 @@ function ConversationBubble({ turn }: { turn: SpeakingConversationTurn }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div
-      className={`flex ${isAi ? "justify-start" : "justify-end"}`}
-    >
+    <div className={`flex ${isAi ? "justify-start" : "justify-end"} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
       <div
         className={`max-w-[85%] space-y-2 rounded-3xl px-5 py-4 ${
           isAi
-            ? "rounded-tl-lg border border-cyan-400/20 bg-gradient-to-br from-cyan-500/10 to-slate-900/60"
-            : "rounded-tr-lg border border-fuchsia-400/20 bg-gradient-to-br from-fuchsia-500/10 to-slate-900/60"
+            ? "rounded-tl-lg border border-purple-400/30 bg-gradient-to-br from-purple-500/15 to-slate-900/80 backdrop-blur-sm"
+            : "rounded-tr-lg border border-pink-400/30 bg-gradient-to-br from-pink-500/15 to-slate-900/80 backdrop-blur-sm"
         }`}
       >
         <div className="flex items-center gap-2">
           {isAi ? (
-            <MessageCircle size={14} className="text-cyan-300" />
+            <Sparkles size={14} className="text-purple-300" />
           ) : (
-            <Mic size={14} className="text-fuchsia-300" />
+            <Mic size={14} className="text-pink-300" />
           )}
           <span
-            className={`text-xs font-semibold uppercase tracking-[0.15em] ${
-              isAi ? "text-cyan-200" : "text-fuchsia-200"
+            className={`text-xs font-bold uppercase tracking-[0.15em] ${
+              isAi ? "text-purple-200" : "text-pink-200"
             }`}
           >
-            {isAi ? "AI" : "Con"}
+            {isAi ? "AI Tutor" : "Con"}
           </span>
         </div>
 
@@ -503,7 +526,7 @@ function ConversationBubble({ turn }: { turn: SpeakingConversationTurn }) {
         </div>
 
         {turn.audioUrl ? (
-          <audio controls className="mt-2 w-full" src={turn.audioUrl} />
+          <audio controls className="mt-2 w-full rounded-lg" src={turn.audioUrl} />
         ) : null}
 
         {turn.analysis && isAi ? (
@@ -511,8 +534,9 @@ function ConversationBubble({ turn }: { turn: SpeakingConversationTurn }) {
             <button
               type="button"
               onClick={() => setExpanded((c) => !c)}
-              className="text-xs font-medium text-cyan-300 transition hover:text-white"
+              className="text-xs font-semibold text-purple-300 transition hover:text-purple-100 flex items-center gap-1 cursor-pointer"
             >
+              {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
               {expanded ? "Ẩn chi tiết" : "Xem chi tiết phân tích"}
             </button>
             {expanded ? (
@@ -568,26 +592,27 @@ export default function StudentAiSpeakingWorkspace() {
   const [recordingState, setRecordingState] = useState<RecordingState>("idle");
   const [recordedSeconds, setRecordedSeconds] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [isPageLoaded, setIsPageLoaded] = useState(false);
 
   // Homework context
   const [selectedAssignment, setSelectedAssignment] = useState<AssignmentDetail | null>(null);
   const [contextLoading, setContextLoading] = useState(false);
   const [contextError, setContextError] = useState<string | null>(null);
 
-  // Refs – analyze tab (MediaRecorder)
+  // Refs
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<number | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
-  // Refs – conversation tab (MediaRecorder only; no SpeechRecognition to avoid dual-mic conflict on Windows)
   const convChunksRef = useRef<Blob[]>([]);
   const convRecorderRef = useRef<MediaRecorder | null>(null);
   const convStreamRef = useRef<MediaStream | null>(null);
 
-  // ---------------------------------------------------------------------------
-  // Helpers
-  // ---------------------------------------------------------------------------
+  // Page load animation
+  useEffect(() => {
+    setIsPageLoaded(true);
+  }, []);
 
   const stopTimer = () => {
     if (timerRef.current !== null) {
@@ -664,9 +689,7 @@ export default function StudentAiSpeakingWorkspace() {
       setAnalyzeMode(assignment.speakingMode || "speaking");
       setExpectedText(assignment.speakingExpectedText || "");
       setTargetWords((assignment.targetWords || []).join(", "));
-      setShowAdvanced(
-        Boolean(assignment.speakingExpectedText || assignment.targetWords?.length)
-      );
+      setShowAdvanced(Boolean(assignment.speakingExpectedText || assignment.targetWords?.length));
       setContextLoading(false);
     };
 
@@ -713,18 +736,15 @@ export default function StudentAiSpeakingWorkspace() {
     setAiSpeaking(false);
   };
 
-  // processConversationTurn – records audio → sends to BE → gets AI reply.
-  // Student bubble text comes from result.transcript (BE) or fallback placeholder.
   const processConversationTurn = async (audioBlob: Blob | null) => {
     const studentTurnIndex = turns.filter((t) => t.role === "student").length;
 
     const studentTurnId = makeTurnId();
     const aiTurnId = makeTurnId();
 
-    // Add student turn (processing placeholder) + AI placeholder immediately
     setTurns((prev) => [
       ...prev,
-      { id: studentTurnId, role: "student", text: "đang xử lý...", timestamp: Date.now() },
+      { id: studentTurnId, role: "student", text: "Đang xử lý...", timestamp: Date.now() },
       { id: aiTurnId, role: "ai", text: "...", timestamp: Date.now() },
     ]);
 
@@ -735,7 +755,6 @@ export default function StudentAiSpeakingWorkspace() {
     if (audioBlob && audioBlob.size > 0) {
       setLoading(true);
 
-      // Build conversation history as JSON string per BE spec
       const historyForBE = JSON.stringify(
         turns.slice(-8).map((t) => ({ role: t.role, text: t.text }))
       );
@@ -758,15 +777,12 @@ export default function StudentAiSpeakingWorkspace() {
         studentText = analysis.transcript?.trim() || studentText;
         aiText = buildAiReplyText(analysis);
       } else {
-        // BE unavailable (500 / network) – use local response
         aiText = generateLocalResponse(studentText, topic, language, studentTurnIndex);
       }
     } else {
-      // No audio captured
       aiText = generateLocalResponse(studentText, topic, language, studentTurnIndex);
     }
 
-    // Update both placeholders with final text
     setTurns((prev) =>
       prev.map((t) => {
         if (t.id === studentTurnId) return { ...t, text: studentText };
@@ -782,8 +798,7 @@ export default function StudentAiSpeakingWorkspace() {
   };
 
   // ---------------------------------------------------------------------------
-  // Recording – Conversation tab uses SpeechRecognition (browser STT, no BE).
-  // Analyze tab uses MediaRecorder + file upload.
+  // Recording functions
   // ---------------------------------------------------------------------------
 
   const handleStartRecording = () => {
@@ -802,8 +817,6 @@ export default function StudentAiSpeakingWorkspace() {
     }
   };
 
-  // ---- Conversation tab: MediaRecorder only (no SpeechRecognition to avoid dual-mic conflict) ----
-
   const startConvRecording = async () => {
     if (
       typeof window === "undefined" ||
@@ -813,7 +826,6 @@ export default function StudentAiSpeakingWorkspace() {
       toast({
         title: "Thiết bị chưa hỗ trợ mic",
         description: "Trình duyệt hiện tại chưa cho ghi âm trực tiếp.",
-        type: "destructive",
       });
       return;
     }
@@ -831,7 +843,6 @@ export default function StudentAiSpeakingWorkspace() {
       toast({
         title: "Không thể truy cập micro",
         description: "Vui lòng cho phép ứng dụng sử dụng micro trong cài đặt trình duyệt.",
-        type: "destructive",
       });
       return;
     }
@@ -875,11 +886,9 @@ export default function StudentAiSpeakingWorkspace() {
     stopTimer();
     setRecordingState("idle");
     if (convRecorderRef.current && convRecorderRef.current.state !== "inactive") {
-      convRecorderRef.current.stop(); // triggers onstop → processConversationTurn
+      convRecorderRef.current.stop();
     }
   };
-
-  // ---- MediaRecorder (analyze tab) ----
 
   const startMediaRecorder = async () => {
     if (
@@ -890,7 +899,6 @@ export default function StudentAiSpeakingWorkspace() {
       toast({
         title: "Thiết bị chưa hỗ trợ mic",
         description: "Trình duyệt hiện tại chưa cho ghi âm trực tiếp.",
-        type: "destructive",
       });
       return;
     }
@@ -926,7 +934,6 @@ export default function StudentAiSpeakingWorkspace() {
           toast({
             title: "Chưa thu được âm thanh",
             description: "Con thử nói lại gần mic hơn nhé.",
-            type: "warning",
           });
           return;
         }
@@ -941,7 +948,6 @@ export default function StudentAiSpeakingWorkspace() {
         toast({
           title: "Đã thu âm xong",
           description: "Con có thể bấm Phân tích với AI ngay bây giờ.",
-          type: "success",
         });
       };
 
@@ -959,7 +965,6 @@ export default function StudentAiSpeakingWorkspace() {
       toast({
         title: "Không mở được mic",
         description: "Con hãy kiểm tra quyền microphone rồi thử lại nhé.",
-        type: "destructive",
       });
     }
   };
@@ -993,7 +998,6 @@ export default function StudentAiSpeakingWorkspace() {
       toast({
         title: "Chưa có audio",
         description: "Con hãy bấm mic hoặc chọn file trước nha.",
-        type: "warning",
       });
       return;
     }
@@ -1014,17 +1018,16 @@ export default function StudentAiSpeakingWorkspace() {
       toast({
         title: "AI chưa nghe được",
         description: response.message || "Con thử lại thêm một lần nữa nha.",
-        type: "destructive",
       });
       return;
     }
 
     setAnalyzeResult(response.data);
+    toast({
+      title: "Phân tích hoàn tất",
+      description: "AI đã đánh giá bài nói của con!",
+    });
   };
-
-  // ---------------------------------------------------------------------------
-  // Derived
-  // ---------------------------------------------------------------------------
 
   const homeworkHref = selectedAssignment
     ? `/${locale}/portal/student/homework/${selectedAssignment.id}`
@@ -1032,108 +1035,96 @@ export default function StudentAiSpeakingWorkspace() {
 
   const isAnalyzeVideoFile = Boolean(analyzeFile?.type?.startsWith("video/"));
 
-  // ---------------------------------------------------------------------------
-  // Render
-  // ---------------------------------------------------------------------------
-
   return (
-    <div className="relative h-full overflow-y-auto pb-8">
-      <div className="mx-auto w-full max-w-[1240px] px-4 py-5 sm:px-6 lg:px-8">
-        {/* Header */}
-        <section className="rounded-[34px] border border-white/10 bg-gradient-to-br from-[#071226] via-[#10203f] to-[#111827] p-6 shadow-2xl shadow-cyan-950/20">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="max-w-3xl">
-              <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-cyan-100">
-                <Mic size={14} />
-                AI Speaking
-              </div>
-              <h1 className="mt-4 text-3xl font-bold tracking-tight text-white lg:text-4xl">
-                Nói chuyện trực tiếp với AI
-              </h1>
-              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-300 lg:text-base">
-                Bấm mic, nói, AI sẽ nghe và trả lời bằng giọng nói. Con có thể luyện
-                hội thoại qua lại nhiều lượt liên tục.
-              </p>
-            </div>
+    <div className="flex flex-col h-[calc(100vh-120px)]">
+      {/* Header Section */}
+      <div className={`shrink-0 px-6 pt-6 pb-4 transition-all duration-700 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"}`}>
+        
+        {/* Hero Header */}
+        <div className="mb-8 relative">
+          <div className="text-center pt-4">
+            <div className="inline-block relative">
+              {/* Glowing background effect */}
+              <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-purple-500 via-pink-500 to-violet-500 opacity-30 blur-2xl"></div>
 
-            {/* Tab toggle */}
-            <div className="flex rounded-2xl border border-white/10 bg-white/5 p-1">
-              <button
-                type="button"
-                onClick={() => setTab("conversation")}
-                className={`rounded-xl px-4 py-2.5 text-sm font-medium transition ${
-                  tab === "conversation"
-                    ? "bg-cyan-500/20 text-cyan-100"
-                    : "text-slate-400 hover:text-white"
-                }`}
+              {/* Main frame */}
+              <div
+                className="relative rounded-3xl px-8 md:px-16 py-8 md:py-10 bg-gradient-to-br from-purple-500/20 via-pink-500/15 to-violet-500/20 backdrop-blur-xl border border-transparent flex flex-col items-center justify-center"
+                style={{
+                  backgroundImage: "linear-gradient(135deg, rgba(168,85,247,0.3), rgba(236,72,153,0.3), rgba(217,70,239,0.3)), linear-gradient(to right, rgba(168,85,247,0.1), rgba(236,72,153,0.1))",
+                  boxShadow: "0 0 60px rgba(168,85,247,0.3), 0 0 30px rgba(236,72,153,0.2), inset 0 1px 0 rgba(255,255,255,0.1)",
+                }}
               >
-                <MessageCircle size={15} className="mr-1.5 inline -mt-0.5" />
-                Hội thoại
-              </button>
-              <button
-                type="button"
-                onClick={() => setTab("analyze")}
-                className={`rounded-xl px-4 py-2.5 text-sm font-medium transition ${
-                  tab === "analyze"
-                    ? "bg-cyan-500/20 text-cyan-100"
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                <WandSparkles size={15} className="mr-1.5 inline -mt-0.5" />
-                Phân tích
-              </button>
+                <div
+                  className="absolute inset-0 rounded-3xl p-[2px] pointer-events-none"
+                  style={{
+                    background: "linear-gradient(135deg, #a855f7, #ec4899, #d946ef, #a855f7)",
+                    WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+                    WebkitMaskComposite: "xor",
+                    maskComposite: "exclude",
+                    padding: "4px",
+                  }}
+                ></div>
+
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <Mic className="w-8 h-8 text-purple-400 animate-pulse" />
+                    <h1 className="text-5xl md:text-6xl lg:text-5xl font-bold bg-gradient-to-r from-purple-300 via-pink-300 to-fuchsia-300 bg-clip-text text-transparent drop-shadow-lg">
+                      AI SPEAKING
+                    </h1>
+                    <Sparkles className="w-8 h-8 text-pink-400 animate-pulse" />
+                  </div>
+                  <p className="text-base md:text-lg font-medium text-purple-200/80">
+                    Nói chuyện trực tiếp với AI - Luyện phát âm và phản xạ
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
+        </div>
 
-          {/* Homework context */}
-          {contextLoading ? (
-            <div className="mt-5 flex items-center rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200">
-              <Loader2 size={16} className="mr-2 animate-spin" />
-              Đang lấy ngữ cảnh từ homework...
-            </div>
-          ) : null}
+        {/* Tab Toggle */}
+        <div className="flex rounded-2xl border border-purple-500/30 bg-purple-500/10 p-1 w-fit mx-auto mb-6">
+          <button
+            type="button"
+            onClick={() => setTab("conversation")}
+            className={`rounded-xl px-5 py-2.5 text-sm font-bold transition-all duration-300 cursor-pointer ${
+              tab === "conversation"
+                ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/30"
+                : "text-purple-300 hover:text-white hover:bg-purple-500/20"
+            }`}
+          >
+            <MessageCircle size={15} className="mr-1.5 inline -mt-0.5" />
+            Hội thoại
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("analyze")}
+            className={`rounded-xl px-5 py-2.5 text-sm font-bold transition-all duration-300 cursor-pointer ${
+              tab === "analyze"
+                ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/30"
+                : "text-purple-300 hover:text-white hover:bg-purple-500/20"
+            }`}
+          >
+            <WandSparkles size={15} className="mr-1.5 inline -mt-0.5" />
+            Phân tích
+          </button>
+        </div>
+      </div>
 
-          {contextError ? (
-            <div className="mt-5 rounded-2xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
-              {contextError}
-            </div>
-          ) : null}
-
-          {selectedAssignment ? (
-            <div className="mt-5 flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/5 p-4 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100">
-                  <BookOpen size={13} />
-                  Gắn với homework
-                </div>
-                <div className="mt-3 text-base font-semibold text-white">
-                  {selectedAssignment.title}
-                </div>
-              </div>
-              {homeworkHref ? (
-                <Link
-                  href={homeworkHref}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-white/10"
-                >
-                  <BookOpen size={15} />
-                  Mở homework gốc
-                </Link>
-              ) : null}
-            </div>
-          ) : null}
-        </section>
-
-        {/* ================================================================ */}
-        {/* CONVERSATION TAB                                                 */}
-        {/* ================================================================ */}
+      {/* Content */}
+      <div className={`flex-1 px-6 pb-6 overflow-y-auto custom-scrollbar transition-all duration-700 delay-100 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+        
+        {/* CONVERSATION TAB */}
         {tab === "conversation" ? (
-          <div className="mt-6 space-y-5">
-            {/* Topic + settings row */}
+          <div className="space-y-5">
             {!conversationStarted ? (
-              <section className="rounded-[28px] border border-white/10 bg-slate-950/60 p-5 space-y-5">
+              <div className="rounded-[28px] border border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-slate-900/80 p-6 space-y-5 backdrop-blur-xl shadow-xl shadow-purple-500/10">
                 <div>
-                  <h2 className="text-lg font-semibold text-white">Chọn chủ đề</h2>
-                  <p className="mt-1 text-sm text-slate-400">
+                  <h2 className="text-xl font-bold bg-gradient-to-r from-purple-300 to-pink-300 bg-clip-text text-transparent">
+                    Chọn chủ đề
+                  </h2>
+                  <p className="mt-1 text-sm text-purple-300/70">
                     Chọn chủ đề để AI biết cần hội thoại theo hướng nào.
                   </p>
                 </div>
@@ -1143,14 +1134,13 @@ export default function StudentAiSpeakingWorkspace() {
                   hasHomework={Boolean(selectedAssignment)}
                 />
 
-                {/* Settings inline */}
-                <div className="flex flex-wrap items-center gap-4">
-                  <label className="flex items-center gap-2 text-sm text-slate-300">
+                <div className="flex flex-wrap items-center gap-4 pt-2">
+                  <label className="flex items-center gap-2 text-sm text-purple-300">
                     <span>Ngôn ngữ:</span>
                     <select
                       value={language}
                       onChange={(e) => setLanguage(e.target.value)}
-                      className="rounded-xl border border-white/10 bg-slate-900/80 px-3 py-2 text-sm text-white outline-none focus:border-cyan-400/40"
+                      className="rounded-xl border border-purple-500/30 bg-slate-900/80 px-3 py-2 text-sm text-white outline-none focus:border-purple-400/60 focus:ring-1 focus:ring-purple-400/30 cursor-pointer"
                     >
                       <option value="en">English</option>
                       <option value="vi">Tiếng Việt</option>
@@ -1160,7 +1150,7 @@ export default function StudentAiSpeakingWorkspace() {
                   <button
                     type="button"
                     onClick={() => setTtsEnabled((c) => !c)}
-                    className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-300 transition hover:bg-white/10"
+                    className="flex items-center gap-2 rounded-xl border border-purple-500/30 bg-purple-500/10 px-3 py-2 text-sm text-purple-300 transition-all duration-300 hover:bg-purple-500/20 hover:scale-105 cursor-pointer"
                   >
                     {ttsEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
                     {ttsEnabled ? "AI nói bằng giọng" : "AI chỉ hiện text"}
@@ -1170,25 +1160,24 @@ export default function StudentAiSpeakingWorkspace() {
                 <button
                   type="button"
                   onClick={startConversation}
-                  className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-500 px-6 py-4 text-base font-semibold text-white shadow-lg shadow-cyan-900/20 transition hover:brightness-110"
+                  className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 px-6 py-4 text-base font-bold text-white shadow-lg shadow-purple-500/30 transition-all duration-300 hover:scale-105 hover:shadow-xl cursor-pointer"
                 >
-                  <MessageCircle size={18} />
+                  <Sparkles size={18} />
                   Bắt đầu hội thoại
                 </button>
-              </section>
+              </div>
             ) : null}
 
             {/* Conversation area */}
             {conversationStarted ? (
-              <section className="flex flex-col rounded-[28px] border border-cyan-400/15 bg-slate-950/70 shadow-2xl shadow-cyan-950/10">
-                {/* Top bar */}
-                <div className="flex items-center justify-between border-b border-white/10 px-5 py-3">
+              <div className="flex flex-col rounded-[28px] border border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-slate-900/80 shadow-2xl shadow-purple-500/10 backdrop-blur-xl overflow-hidden">
+                <div className="flex items-center justify-between border-b border-purple-500/30 px-5 py-3 bg-purple-500/5">
                   <div className="flex items-center gap-3">
-                    <div className="text-sm font-semibold text-white">
+                    <div className="text-sm font-bold text-white">
                       {TOPIC_OPTIONS.find((o) => o.value === topic)?.label || "Hội thoại"}
                     </div>
                     {aiSpeaking ? (
-                      <span className="inline-flex items-center gap-1.5 rounded-full border border-cyan-400/20 bg-cyan-500/10 px-2.5 py-1 text-[11px] font-medium text-cyan-200">
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-purple-400/30 bg-purple-500/15 px-2.5 py-1 text-[11px] font-semibold text-purple-200">
                         <Volume2 size={12} className="animate-pulse" />
                         AI đang nói...
                       </span>
@@ -1199,7 +1188,7 @@ export default function StudentAiSpeakingWorkspace() {
                     <button
                       type="button"
                       onClick={() => setTtsEnabled((c) => !c)}
-                      className="rounded-xl border border-white/10 bg-white/5 p-2 text-slate-400 transition hover:text-white"
+                      className="rounded-xl border border-purple-500/30 bg-purple-500/10 p-2 text-purple-400 transition-all duration-300 hover:text-white hover:bg-purple-500/20 hover:scale-105 cursor-pointer"
                       title={ttsEnabled ? "Tắt giọng AI" : "Bật giọng AI"}
                     >
                       {ttsEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
@@ -1207,14 +1196,14 @@ export default function StudentAiSpeakingWorkspace() {
                     <button
                       type="button"
                       onClick={() => setShowSettings((c) => !c)}
-                      className="rounded-xl border border-white/10 bg-white/5 p-2 text-slate-400 transition hover:text-white"
+                      className="rounded-xl border border-purple-500/30 bg-purple-500/10 p-2 text-purple-400 transition-all duration-300 hover:text-white hover:bg-purple-500/20 hover:scale-105 cursor-pointer"
                     >
                       <Settings2 size={16} />
                     </button>
                     <button
                       type="button"
                       onClick={resetConversation}
-                      className="rounded-xl border border-white/10 bg-white/5 p-2 text-slate-400 transition hover:text-white"
+                      className="rounded-xl border border-purple-500/30 bg-purple-500/10 p-2 text-purple-400 transition-all duration-300 hover:text-white hover:bg-purple-500/20 hover:scale-105 cursor-pointer"
                       title="Bắt đầu lại"
                     >
                       <RotateCcw size={16} />
@@ -1222,16 +1211,15 @@ export default function StudentAiSpeakingWorkspace() {
                   </div>
                 </div>
 
-                {/* Settings panel (collapsible) */}
                 {showSettings ? (
-                  <div className="border-b border-white/10 px-5 py-4">
+                  <div className="border-b border-purple-500/30 px-5 py-4 bg-purple-500/5">
                     <div className="flex flex-wrap gap-4">
-                      <label className="flex items-center gap-2 text-sm text-slate-300">
+                      <label className="flex items-center gap-2 text-sm text-purple-300">
                         <span>Ngôn ngữ:</span>
                         <select
                           value={language}
                           onChange={(e) => setLanguage(e.target.value)}
-                          className="rounded-xl border border-white/10 bg-slate-900/80 px-3 py-2 text-sm text-white outline-none"
+                          className="rounded-xl border border-purple-500/30 bg-slate-900/80 px-3 py-2 text-sm text-white outline-none cursor-pointer"
                         >
                           <option value="en">English</option>
                           <option value="vi">Tiếng Việt</option>
@@ -1241,7 +1229,6 @@ export default function StudentAiSpeakingWorkspace() {
                   </div>
                 ) : null}
 
-                {/* Messages */}
                 <div className="flex-1 space-y-4 overflow-y-auto px-5 py-5" style={{ maxHeight: "60vh", minHeight: 260 }}>
                   {turns.map((turn) => (
                     <ConversationBubble key={turn.id} turn={turn} />
@@ -1249,16 +1236,16 @@ export default function StudentAiSpeakingWorkspace() {
 
                   {recordingState === "recording" ? (
                     <div className="flex justify-end">
-                      <div className="flex items-center gap-2 rounded-3xl rounded-tr-lg border border-fuchsia-400/20 bg-fuchsia-500/10 px-5 py-4 text-sm italic text-fuchsia-300">
-                        <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-fuchsia-400" />
-                        Đang ghi âm...
+                      <div className="flex items-center gap-2 rounded-3xl rounded-tr-lg border border-pink-400/30 bg-pink-500/15 px-5 py-4 text-sm italic text-pink-300 backdrop-blur-sm">
+                        <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-pink-400" />
+                        Đang ghi âm... {formatDuration(recordedSeconds)}
                       </div>
                     </div>
                   ) : null}
 
                   {loading ? (
                     <div className="flex justify-start">
-                      <div className="flex items-center gap-2 rounded-3xl rounded-tl-lg border border-cyan-400/20 bg-cyan-500/10 px-5 py-4 text-sm text-cyan-200">
+                      <div className="flex items-center gap-2 rounded-3xl rounded-tl-lg border border-purple-400/30 bg-purple-500/15 px-5 py-4 text-sm text-purple-200 backdrop-blur-sm">
                         <Loader2 size={16} className="animate-spin" />
                         AI đang suy nghĩ...
                       </div>
@@ -1268,29 +1255,28 @@ export default function StudentAiSpeakingWorkspace() {
                   <div ref={chatEndRef} />
                 </div>
 
-                {/* Bottom mic bar */}
-                <div className="border-t border-white/10 px-5 py-4">
+                <div className="border-t border-purple-500/30 px-5 py-4 bg-purple-500/5">
                   <div className="flex items-center justify-center gap-4">
                     {recordingState === "recording" ? (
                       <div className="flex items-center gap-4">
-                        <span className="text-lg font-bold text-red-400 tabular-nums">
+                        <span className="text-lg font-bold text-pink-400 tabular-nums">
                           {formatDuration(recordedSeconds)}
                         </span>
                         <button
                           type="button"
                           onClick={handleStopRecording}
-                          className="flex h-16 w-16 items-center justify-center rounded-full bg-rose-500 text-white shadow-lg shadow-rose-900/30 transition hover:bg-rose-400"
+                          className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-lg shadow-rose-900/30 transition-all duration-300 hover:scale-110 cursor-pointer"
                         >
                           <Square size={24} />
                         </button>
-                        <span className="text-sm text-slate-400">Bấm để dừng</span>
+                        <span className="text-sm text-purple-400">Bấm để dừng</span>
                       </div>
                     ) : (
                       <button
                         type="button"
                         onClick={handleStartRecording}
                         disabled={loading || recordingState === "processing" || aiSpeaking}
-                        className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-900/30 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/30 transition-all duration-300 hover:scale-110 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
                         title={aiSpeaking ? "Đợi AI nói xong" : "Bấm để nói"}
                       >
                         {recordingState === "processing" ? (
@@ -1303,34 +1289,31 @@ export default function StudentAiSpeakingWorkspace() {
                   </div>
 
                   {recordingState === "idle" && !loading ? (
-                    <p className="mt-3 text-center text-sm text-slate-500">
+                    <p className="mt-3 text-center text-sm text-purple-400/70">
                       {aiSpeaking
                         ? "Đợi AI nói xong rồi bấm mic nhé"
                         : "Bấm nút mic để nói với AI"}
                     </p>
                   ) : null}
                 </div>
-              </section>
+              </div>
             ) : null}
           </div>
         ) : null}
 
-        {/* ================================================================ */}
-        {/* ANALYZE TAB (one-shot, preserved from phase 1)                   */}
-        {/* ================================================================ */}
+        {/* ANALYZE TAB */}
         {tab === "analyze" ? (
-          <section className="mt-6 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-            {/* Left – record / upload */}
-            <div className="rounded-[30px] border border-cyan-400/15 bg-slate-950/70 p-6 shadow-2xl shadow-cyan-950/10">
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <div className="text-sm font-semibold text-white">Bước 1</div>
-                <div className="mt-1 text-sm text-slate-300">
+          <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+            {/* Left Column - Recording */}
+            <div className="rounded-[30px] border border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-slate-900/80 p-6 shadow-2xl shadow-purple-500/10 backdrop-blur-xl">
+              <div className="rounded-2xl border border-purple-500/30 bg-purple-500/10 p-4">
+                <div className="text-sm font-bold text-purple-300">Bước 1</div>
+                <div className="mt-1 text-sm text-purple-300/70">
                   Bấm mic để nói, hoặc chọn file nếu con đã thu sẵn.
                 </div>
               </div>
 
-              {/* Mic area */}
-              <div className="mt-5 rounded-[28px] border border-cyan-400/20 bg-gradient-to-br from-cyan-500/10 to-slate-900/70 p-5">
+              <div className="mt-5 rounded-[28px] border border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-slate-900/70 p-5">
                 <button
                   type="button"
                   onClick={
@@ -1339,16 +1322,16 @@ export default function StudentAiSpeakingWorkspace() {
                       : handleStartRecording
                   }
                   disabled={recordingState === "processing" || loading}
-                  className={`flex w-full items-center justify-center gap-3 rounded-[24px] px-5 py-5 text-base font-semibold text-white transition ${
+                  className={`flex w-full items-center justify-center gap-3 rounded-[24px] px-5 py-5 text-base font-bold text-white transition-all duration-300 cursor-pointer ${
                     recordingState === "recording"
-                      ? "bg-rose-500 hover:bg-rose-400"
-                      : "bg-gradient-to-r from-cyan-500 to-blue-500 hover:brightness-110"
+                      ? "bg-gradient-to-r from-rose-500 to-pink-500 hover:scale-[1.02]"
+                      : "bg-gradient-to-r from-purple-500 to-pink-500 hover:scale-[1.02]"
                   } disabled:cursor-not-allowed disabled:opacity-60`}
                 >
                   {recordingState === "processing" ? (
                     <Loader2 size={20} className="animate-spin" />
                   ) : recordingState === "recording" ? (
-                    <Square size={20} />
+                    <StopCircle size={20} />
                   ) : (
                     <Mic size={20} />
                   )}
@@ -1360,24 +1343,23 @@ export default function StudentAiSpeakingWorkspace() {
                 </button>
 
                 <div className="mt-4 grid gap-3 md:grid-cols-2">
-                  <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-4">
-                    <div className="text-xs uppercase tracking-wide text-slate-400">
+                  <div className="rounded-2xl border border-purple-500/30 bg-slate-900/80 p-4">
+                    <div className="text-xs uppercase tracking-wide text-purple-400 font-bold">
                       Thời lượng
                     </div>
-                    <div className="mt-2 text-2xl font-bold text-cyan-100">
+                    <div className="mt-2 text-2xl font-bold text-purple-200">
                       {formatDuration(recordedSeconds)}
                     </div>
                   </div>
-                  <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-4 text-sm text-slate-300">
+                  <div className="rounded-2xl border border-purple-500/30 bg-slate-900/80 p-4 text-sm text-purple-300/70">
                     Con cứ nói tự nhiên. Nói xong thì bấm lại để dừng.
                   </div>
                 </div>
               </div>
 
-              {/* File upload */}
-              <label className="mt-5 flex min-h-[140px] cursor-pointer flex-col items-center justify-center rounded-[24px] border border-dashed border-cyan-400/25 bg-slate-900/60 px-5 py-6 text-center transition hover:border-cyan-300/40 hover:bg-slate-900/80">
-                <UploadCloud size={28} className="text-cyan-300" />
-                <div className="mt-3 text-base font-semibold text-white">
+              <label className="mt-5 flex min-h-[140px] cursor-pointer flex-col items-center justify-center rounded-[24px] border-2 border-dashed border-purple-400/30 bg-slate-900/80 px-5 py-6 text-center transition-all duration-300 hover:border-purple-400/50 hover:bg-purple-500/10">
+                <UploadCloud size={28} className="text-purple-300" />
+                <div className="mt-3 text-base font-bold text-white">
                   Hoặc chọn file audio/video sẵn
                 </div>
                 <input
@@ -1389,21 +1371,24 @@ export default function StudentAiSpeakingWorkspace() {
               </label>
 
               {analyzeFile ? (
-                <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="text-sm font-semibold text-white">File đã chọn</div>
-                  <div className="mt-2 text-sm text-slate-300">{analyzeFile.name}</div>
+                <div className="mt-5 rounded-2xl border border-purple-500/30 bg-purple-500/10 p-4">
+                  <div className="text-sm font-bold text-white flex items-center gap-2">
+                    <CheckCircle2 size={14} className="text-emerald-400" />
+                    File đã chọn
+                  </div>
+                  <div className="mt-2 text-sm text-purple-300/70">{analyzeFile.name}</div>
                 </div>
               ) : null}
 
               {analyzePreviewUrl && analyzeFile ? (
-                <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="text-sm font-semibold text-white">Nghe lại</div>
+                <div className="mt-5 rounded-2xl border border-purple-500/30 bg-purple-500/10 p-4">
+                  <div className="text-sm font-bold text-white">Nghe lại</div>
                   {isAnalyzeVideoFile ? (
                     <video controls className="mt-3 max-h-[320px] w-full rounded-2xl bg-black">
                       <source src={analyzePreviewUrl} type={analyzeFile.type} />
                     </video>
                   ) : (
-                    <audio controls className="mt-3 w-full">
+                    <audio controls className="mt-3 w-full rounded-lg">
                       <source src={analyzePreviewUrl} type={analyzeFile.type} />
                     </audio>
                   )}
@@ -1411,11 +1396,11 @@ export default function StudentAiSpeakingWorkspace() {
               ) : null}
             </div>
 
-            {/* Right – analyze button + result */}
-            <div className="rounded-[30px] border border-white/10 bg-slate-950/70 p-6 shadow-2xl shadow-slate-950/10">
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <div className="text-sm font-semibold text-white">Bước 2</div>
-                <div className="mt-1 text-sm text-slate-300">
+            {/* Right Column - Analyze Controls */}
+            <div className="rounded-[30px] border border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-slate-900/80 p-6 shadow-2xl shadow-purple-500/10 backdrop-blur-xl">
+              <div className="rounded-2xl border border-purple-500/30 bg-purple-500/10 p-4">
+                <div className="text-sm font-bold text-purple-300">Bước 2</div>
+                <div className="mt-1 text-sm text-purple-300/70">
                   Bấm nút để AI nghe và chỉ ra điểm cần sửa.
                 </div>
               </div>
@@ -1424,12 +1409,12 @@ export default function StudentAiSpeakingWorkspace() {
                 type="button"
                 onClick={handleAnalyze}
                 disabled={loading || recordingState === "recording" || !analyzeFile}
-                className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-500 px-5 py-4 text-base font-semibold text-white shadow-lg shadow-cyan-900/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+                className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 px-5 py-4 text-base font-bold text-white shadow-lg shadow-purple-500/30 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
               >
                 {loading ? (
                   <Loader2 size={18} className="animate-spin" />
                 ) : (
-                  <Mic size={18} />
+                  <WandSparkles size={18} />
                 )}
                 Phân tích với AI
               </button>
@@ -1437,15 +1422,15 @@ export default function StudentAiSpeakingWorkspace() {
               <button
                 type="button"
                 onClick={() => setShowAdvanced((current) => !current)}
-                className="mt-5 inline-flex items-center gap-2 text-sm font-medium text-cyan-200 transition hover:text-white"
+                className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-purple-300 transition-all duration-300 hover:text-purple-100 cursor-pointer"
               >
-                <WandSparkles size={15} />
+                {showAdvanced ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
                 {showAdvanced ? "Ẩn tùy chọn thêm" : "Mở tùy chọn thêm"}
               </button>
 
               {selectedAssignment?.speakingExpectedText ? (
-                <div className="mt-4 rounded-2xl border border-cyan-400/20 bg-cyan-500/5 p-4 text-sm text-slate-200">
-                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100">
+                <div className="mt-4 rounded-2xl border border-purple-500/30 bg-purple-500/10 p-4 text-sm text-purple-200">
+                  <div className="text-xs font-bold uppercase tracking-[0.18em] text-purple-400">
                     Đã lấy sẵn từ homework
                   </div>
                   <div className="mt-2 line-clamp-4 leading-relaxed">
@@ -1455,15 +1440,15 @@ export default function StudentAiSpeakingWorkspace() {
               ) : null}
             </div>
 
-            {/* Advanced settings */}
+            {/* Advanced Options */}
             {showAdvanced ? (
-              <div className="col-span-full grid gap-4 rounded-[28px] border border-white/10 bg-slate-950/60 p-5 md:grid-cols-2">
+              <div className="col-span-full grid gap-4 rounded-[28px] border border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-slate-900/80 p-5 backdrop-blur-xl md:grid-cols-2">
                 <label className="space-y-2">
-                  <span className="text-sm font-medium text-slate-200">Ngôn ngữ</span>
+                  <span className="text-sm font-semibold text-purple-300">Ngôn ngữ</span>
                   <select
                     value={language}
                     onChange={(e) => setLanguage(e.target.value)}
-                    className="w-full rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm text-white outline-none focus:border-cyan-400/40"
+                    className="w-full rounded-2xl border border-purple-500/30 bg-slate-900/80 px-4 py-3 text-sm text-white outline-none focus:border-purple-400/60 focus:ring-1 focus:ring-purple-400/30 cursor-pointer"
                   >
                     <option value="vi">Tiếng Việt</option>
                     <option value="en">English</option>
@@ -1471,11 +1456,11 @@ export default function StudentAiSpeakingWorkspace() {
                 </label>
 
                 <label className="space-y-2">
-                  <span className="text-sm font-medium text-slate-200">Kiểu bài nói</span>
+                  <span className="text-sm font-semibold text-purple-300">Kiểu bài nói</span>
                   <select
                     value={analyzeMode}
                     onChange={(e) => setAnalyzeMode(e.target.value)}
-                    className="w-full rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm text-white outline-none focus:border-cyan-400/40"
+                    className="w-full rounded-2xl border border-purple-500/30 bg-slate-900/80 px-4 py-3 text-sm text-white outline-none focus:border-purple-400/60 focus:ring-1 focus:ring-purple-400/30 cursor-pointer"
                   >
                     <option value="speaking">Speaking</option>
                     <option value="phonics">Phonics</option>
@@ -1483,50 +1468,51 @@ export default function StudentAiSpeakingWorkspace() {
                 </label>
 
                 <label className="space-y-2 md:col-span-2">
-                  <span className="text-sm font-medium text-slate-200">Đoạn mẫu</span>
+                  <span className="text-sm font-semibold text-purple-300">Đoạn mẫu</span>
                   <textarea
                     value={expectedText}
                     onChange={(e) => setExpectedText(e.target.value)}
                     rows={3}
                     placeholder="Dán đoạn văn mẫu nếu muốn AI đối chiếu."
-                    className="w-full rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-cyan-400/40"
+                    className="w-full rounded-2xl border border-purple-500/30 bg-slate-900/80 px-4 py-3 text-sm text-white outline-none placeholder:text-purple-400/50 focus:border-purple-400/60 focus:ring-1 focus:ring-purple-400/30"
                   />
                 </label>
 
                 <label className="space-y-2">
-                  <span className="text-sm font-medium text-slate-200">Từ muốn luyện</span>
+                  <span className="text-sm font-semibold text-purple-300">Từ muốn luyện</span>
                   <input
                     value={targetWords}
                     onChange={(e) => setTargetWords(e.target.value)}
                     placeholder="hello, family, teacher"
-                    className="w-full rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-cyan-400/40"
+                    className="w-full rounded-2xl border border-purple-500/30 bg-slate-900/80 px-4 py-3 text-sm text-white outline-none placeholder:text-purple-400/50 focus:border-purple-400/60 focus:ring-1 focus:ring-purple-400/30"
                   />
                 </label>
 
-                <div className="rounded-2xl border border-white/10 bg-slate-900/60 px-4 py-3 text-sm text-slate-300">
+                <div className="rounded-2xl border border-purple-500/30 bg-purple-500/10 px-4 py-3 text-sm text-purple-300/70">
+                  <Sparkles size={14} className="inline mr-2" />
                   Nếu con đang vào từ homework, AI sẽ tự gắn ngữ cảnh bài đó.
                 </div>
 
                 <label className="space-y-2 md:col-span-2">
-                  <span className="text-sm font-medium text-slate-200">Ghi chú thêm</span>
+                  <span className="text-sm font-semibold text-purple-300">Ghi chú thêm</span>
                   <textarea
                     value={instructions}
                     onChange={(e) => setInstructions(e.target.value)}
                     rows={3}
                     placeholder="Ví dụ: nhờ AI nghe kỹ ending sound và nhấn trọng âm."
-                    className="w-full rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-cyan-400/40"
+                    className="w-full rounded-2xl border border-purple-500/30 bg-slate-900/80 px-4 py-3 text-sm text-white outline-none placeholder:text-purple-400/50 focus:border-purple-400/60 focus:ring-1 focus:ring-purple-400/30"
                   />
                 </label>
               </div>
             ) : null}
 
-            {/* Result */}
+            {/* Results */}
             {analyzeResult ? (
               <div className="col-span-full">
                 <SpeakingResultCard title="Kết quả luyện nói" result={analyzeResult} />
               </div>
             ) : null}
-          </section>
+          </div>
         ) : null}
       </div>
     </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   CalendarDays,
   ChevronLeft,
@@ -9,6 +10,13 @@ import {
   MapPin,
   User2,
   Users,
+  BookOpen,
+  GraduationCap,
+  Sparkles,
+  CheckCircle2,
+  XCircle,
+  AlertCircle,
+  ChevronDown,
 } from "lucide-react";
 import {
   extractStudentTimetableSessions,
@@ -39,36 +47,77 @@ interface DaySchedule {
 
 const DAY_LABELS = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "CN"];
 const TIME_SLOTS = [
-  { key: "morning" as TimeSlot, label: "Sáng" },
-  { key: "afternoon" as TimeSlot, label: "Chiều" },
-  { key: "evening" as TimeSlot, label: "Tối" },
+  { key: "morning" as TimeSlot, label: "Sáng", hours: "7:00 - 12:00" },
+  { key: "afternoon" as TimeSlot, label: "Chiều", hours: "12:00 - 18:00" },
+  { key: "evening" as TimeSlot, label: "Tối", hours: "18:00 - 22:00" },
 ];
 
 const TYPE_META = {
   regular: {
     text: "Regular",
-    badge: "bg-emerald-600 text-white",
+    badge: "bg-emerald-500/20 border border-emerald-400/30 text-emerald-300",
+    glow: "shadow-emerald-500/20",
   },
   makeup: {
     text: "Makeup",
-    badge: "bg-amber-600 text-white",
+    badge: "bg-amber-500/20 border border-amber-400/30 text-amber-300",
+    glow: "shadow-amber-500/20",
   },
 };
 
 function TypeBadge({ type }: { type: "regular" | "makeup" }) {
   const { text, badge } = TYPE_META[type];
-  return <span className={`rounded-full px-3 py-1 text-xs font-semibold ${badge}`}>{text}</span>;
+  return (
+    <span
+      className={`rounded-full px-3 py-1 text-[11px] font-semibold backdrop-blur-sm ${badge}`}
+    >
+      {text}
+    </span>
+  );
 }
 
+// Extended color palette with more vibrant options
 const PROGRAM_COLOR_PALETTE = [
-  { bg: "bg-gradient-to-r from-red-600 to-red-700", light: "bg-gradient-to-br from-red-50 to-red-100" },
-  { bg: "bg-gradient-to-r from-blue-600 to-blue-700", light: "bg-gradient-to-br from-blue-50 to-blue-100" },
-  { bg: "bg-gradient-to-r from-emerald-600 to-emerald-700", light: "bg-gradient-to-br from-emerald-50 to-emerald-100" },
-  { bg: "bg-gradient-to-r from-purple-600 to-purple-700", light: "bg-gradient-to-br from-purple-50 to-purple-100" },
-  { bg: "bg-gradient-to-r from-amber-500 to-orange-500", light: "bg-gradient-to-br from-amber-50 to-amber-100" },
-  { bg: "bg-gradient-to-r from-sky-500 to-blue-500", light: "bg-gradient-to-br from-sky-50 to-sky-100" },
-  { bg: "bg-gradient-to-r from-indigo-500 to-indigo-600", light: "bg-gradient-to-br from-indigo-50 to-indigo-100" },
-  { bg: "bg-gradient-to-r from-pink-500 to-rose-500", light: "bg-gradient-to-br from-pink-50 to-pink-100" },
+  {
+    bg: "bg-gradient-to-r from-purple-500 to-purple-600",
+    light: "bg-gradient-to-br from-purple-500/15 to-purple-600/5",
+    border: "border-purple-500/30",
+  },
+  {
+    bg: "bg-gradient-to-r from-pink-500 to-pink-600",
+    light: "bg-gradient-to-br from-pink-500/15 to-pink-600/5",
+    border: "border-pink-500/30",
+  },
+  {
+    bg: "bg-gradient-to-r from-indigo-500 to-indigo-600",
+    light: "bg-gradient-to-br from-indigo-500/15 to-indigo-600/5",
+    border: "border-indigo-500/30",
+  },
+  {
+    bg: "bg-gradient-to-r from-violet-500 to-violet-600",
+    light: "bg-gradient-to-br from-violet-500/15 to-violet-600/5",
+    border: "border-violet-500/30",
+  },
+  {
+    bg: "bg-gradient-to-r from-fuchsia-500 to-fuchsia-600",
+    light: "bg-gradient-to-br from-fuchsia-500/15 to-fuchsia-600/5",
+    border: "border-fuchsia-500/30",
+  },
+  {
+    bg: "bg-gradient-to-r from-rose-500 to-rose-600",
+    light: "bg-gradient-to-br from-rose-500/15 to-rose-600/5",
+    border: "border-rose-500/30",
+  },
+  {
+    bg: "bg-gradient-to-r from-sky-500 to-sky-600",
+    light: "bg-gradient-to-br from-sky-500/15 to-sky-600/5",
+    border: "border-sky-500/30",
+  },
+  {
+    bg: "bg-gradient-to-r from-teal-500 to-teal-600",
+    light: "bg-gradient-to-br from-teal-500/15 to-teal-600/5",
+    border: "border-teal-500/30",
+  },
 ];
 
 function getWeekStart(date: Date) {
@@ -92,12 +141,20 @@ const formatTime = (d: Date) =>
   d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
 
 export default function StudentSchedulePage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>("all");
   const [selectedClass, setSelectedClass] = useState<SessionEvent | null>(null);
-  const [currentWeekStart, setCurrentWeekStart] = useState(() => getWeekStart(new Date()));
+  const [currentWeekStart, setCurrentWeekStart] = useState(() =>
+    getWeekStart(new Date())
+  );
   const [sessions, setSessions] = useState<StudentTimetableSession[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isPageLoaded, setIsPageLoaded] = useState(false);
+
+  useEffect(() => {
+    setIsPageLoaded(true);
+  }, []);
 
   const weekDates = useMemo(() => {
     return DAY_LABELS.map((_, idx) => {
@@ -162,7 +219,9 @@ export default function StudentSchedulePage() {
   }, [activeTab, sessions]);
 
   const summary = useMemo(() => {
-    const makeupCount = sessions.filter((session) => Boolean(session.isMakeup)).length;
+    const makeupCount = sessions.filter((session) =>
+      Boolean(session.isMakeup)
+    ).length;
     return {
       total: sessions.length,
       regular: sessions.length - makeupCount,
@@ -170,7 +229,6 @@ export default function StudentSchedulePage() {
     };
   }, [sessions]);
 
-  // Stable program → color index map
   const programColorMap = useMemo(() => {
     const map = new Map<string, number>();
     let idx = 0;
@@ -185,7 +243,10 @@ export default function StudentSchedulePage() {
   }, [filteredSessions]);
 
   const getLightColor = (event?: SessionEvent) => {
-    if (event?.color && (event.color.startsWith("#") || event.color.startsWith("rgb"))) {
+    if (
+      event?.color &&
+      (event.color.startsWith("#") || event.color.startsWith("rgb"))
+    ) {
       return "";
     }
     const key = event?.title ?? "";
@@ -193,12 +254,15 @@ export default function StudentSchedulePage() {
       return PROGRAM_COLOR_PALETTE[programColorMap.get(key)!].light;
     }
     return event?.type === "makeup"
-      ? "bg-gradient-to-br from-amber-50 to-amber-100"
-      : "bg-gradient-to-br from-red-50 to-red-100";
+      ? "bg-gradient-to-br from-amber-500/15 to-amber-600/5"
+      : "bg-gradient-to-br from-purple-500/15 to-purple-600/5";
   };
 
   const getEventColor = (event?: SessionEvent) => {
-    if (event?.color && (event.color.startsWith("#") || event.color.startsWith("rgb"))) {
+    if (
+      event?.color &&
+      (event.color.startsWith("#") || event.color.startsWith("rgb"))
+    ) {
       return "";
     }
     const key = event?.title ?? "";
@@ -206,8 +270,8 @@ export default function StudentSchedulePage() {
       return PROGRAM_COLOR_PALETTE[programColorMap.get(key)!].bg;
     }
     return event?.type === "makeup"
-      ? "bg-gradient-to-r from-amber-500 to-amber-600"
-      : "bg-gradient-to-r from-red-600 to-red-700";
+      ? "bg-gradient-to-r from-amber-500 to-orange-500"
+      : "bg-gradient-to-r from-purple-500 to-pink-500";
   };
 
   const goToPreviousWeek = () => {
@@ -226,7 +290,6 @@ export default function StudentSchedulePage() {
     setCurrentWeekStart(getWeekStart(new Date()));
   };
 
-  // Build weekly grid schedule grouped by time slots
   const weekSchedule = useMemo((): { [key in TimeSlot]: DaySchedule } => {
     const blank: { [key in TimeSlot]: DaySchedule } = {
       morning: {},
@@ -258,8 +321,11 @@ export default function StudentSchedulePage() {
       if (Number.isNaN(start.getTime())) return;
 
       const duration = Number(s.durationMinutes ?? 0);
-      const end = duration > 0 ? new Date(start.getTime() + duration * 60000) : null;
-      const timeLabel = end ? `${formatTime(start)} - ${formatTime(end)}` : formatTime(start);
+      const end =
+        duration > 0 ? new Date(start.getTime() + duration * 60000) : null;
+      const timeLabel = end
+        ? `${formatTime(start)} - ${formatTime(end)}`
+        : formatTime(start);
 
       const item: SessionEvent = {
         id: s.id,
@@ -289,400 +355,516 @@ export default function StudentSchedulePage() {
     return events;
   };
 
+  const getAttendanceIcon = (status?: string | null) => {
+    switch (status) {
+      case "Present":
+        return <CheckCircle2 className="w-3 h-3 text-emerald-400" />;
+      case "Absent":
+        return <XCircle className="w-3 h-3 text-rose-400" />;
+      default:
+        return <AlertCircle className="w-3 h-3 text-amber-400" />;
+    }
+  };
+
+  const getAttendanceLabel = (status?: string | null) => {
+    switch (status) {
+      case "Present":
+        return "Có mặt";
+      case "Absent":
+        return "Vắng mặt";
+      case "Makeup":
+        return "Học bù";
+      case "NotMarked":
+        return "Chưa điểm danh";
+      default:
+        return status || "Chưa cập nhật";
+    }
+  };
+
   return (
-    <div className="flex flex-col h-full overflow-y-auto bg-gradient-to-b from-red-50/30 to-white p-4 md:p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
-            <CalendarDays className="text-white" size={28} />
-          </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent">
-              Lịch học của em
-            </h1>
-            <p className="text-sm text-gray-600 mt-1">
-              Dữ liệu hiển thị theo session được assign thật sự từ backend.
-            </p>
-          </div>
-        </div>
-      </div>
+    <div className="flex flex-col h-full bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900">
+      <div
+        className={`flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 space-y-6 transition-all duration-700 custom-scrollbar ${
+          isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+        }`}
+      >
+        {/* Header Section */}
+        <div className="shrink-0 mb-6 relative">
+          <div className="text-center">
+            <div className="inline-block relative">
+              <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-purple-500 via-pink-500 to-violet-500 opacity-30 blur-2xl animate-pulse"></div>
 
-      {error ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-          {error}
-        </div>
-      ) : null}
-
-      {/* Summary Stats */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-2xl border border-red-100 bg-white p-4 shadow-sm">
-          <div className="text-sm text-gray-500">Tổng session tuần này</div>
-          <div className="mt-1 text-3xl font-bold text-gray-900">{summary.total}</div>
-        </div>
-        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4 shadow-sm">
-          <div className="text-sm text-emerald-700">Regular</div>
-          <div className="mt-1 text-3xl font-bold text-emerald-700">{summary.regular}</div>
-        </div>
-        <div className="rounded-2xl border border-amber-100 bg-amber-50/60 p-4 shadow-sm">
-          <div className="text-sm text-amber-700">Makeup</div>
-          <div className="mt-1 text-3xl font-bold text-amber-700">{summary.makeup}</div>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-2 inline-flex gap-2">
-        {[
-          { key: "all", label: "Tất cả" },
-          { key: "regular", label: "Regular" },
-          { key: "makeup", label: "Makeup" },
-        ].map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            onClick={() => setActiveTab(tab.key as TabType)}
-            className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
-              activeTab === tab.key
-                ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
-                : "bg-white border border-red-200 text-gray-600 hover:bg-red-50"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Week Navigation + Calendar Grid */}
-      <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 shadow-sm overflow-x-auto">
-        <div className="flex items-center justify-between p-6 border-b border-red-200 bg-gradient-to-r from-red-50 to-red-100">
-          <div className="flex items-center gap-4">
-            <div className="relative p-3 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg">
-              <CalendarDays size={24} />
-              <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-white flex items-center justify-center">
-                <span className="text-xs font-bold text-red-600">{weekDates[0]?.getDate?.()}</span>
-              </div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-gray-900">Lịch tuần</div>
-              <div className="text-gray-600">{currentWeekLabel}</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              className="p-2 rounded-lg border border-red-200 hover:bg-red-50 transition-colors cursor-pointer"
-              onClick={goToPreviousWeek}
-            >
-              <ChevronLeft size={18} className="text-gray-600" />
-            </button>
-            <div className="min-w-[220px] text-center text-sm font-semibold text-gray-700">
-              Tuần từ {currentWeekLabel}
-            </div>
-            <button
-              type="button"
-              className="p-2 rounded-lg border border-red-200 hover:bg-red-50 transition-colors cursor-pointer"
-              onClick={goToNextWeek}
-            >
-              <ChevronRight size={18} className="text-gray-600" />
-            </button>
-            <button
-              type="button"
-              className="ml-2 rounded-xl border border-red-200 bg-white px-4 py-2 text-sm hover:bg-red-50 transition-colors cursor-pointer text-gray-700"
-              onClick={goToCurrentWeek}
-            >
-              Tuần này
-            </button>
-          </div>
-        </div>
-
-        {/* Calendar Grid */}
-        <div>
-          <div className="min-w-[1200px]">
-            {/* Header Row */}
-            <div className="grid grid-cols-8 border-t border-red-200 bg-gradient-to-r from-red-50 to-gray-100 text-sm font-semibold text-gray-700">
-              <div className="px-4 py-3">Ca / Ngày</div>
-              {DAY_LABELS.map((day, index) => (
-                <div key={day} className="px-4 py-3 border-l border-red-200">
-                  <div className="flex flex-col items-center gap-1">
-                    <span className="capitalize">{day}</span>
-                    <span className="h-8 w-8 flex items-center justify-center rounded-full text-sm font-bold bg-white text-gray-700 border border-red-200">
-                      {weekDates[index]?.getDate?.() ?? index + 1}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Time Slots Rows */}
-            {TIME_SLOTS.map((slot, rowIdx) => (
-              <div key={slot.key} className="grid grid-cols-8 border-t border-red-200">
-                <div className="px-4 py-4 text-sm font-semibold text-gray-800 bg-gradient-to-r from-red-50 to-gray-100 flex items-center justify-center">
-                  <div className="flex flex-col items-center">
-                    <span className="font-bold text-lg">{slot.label}</span>
-                    {slot.key === "morning" && <span className="text-xs text-gray-500 mt-1">7:00-12:00</span>}
-                    {slot.key === "afternoon" && <span className="text-xs text-gray-500 mt-1">12:00-18:00</span>}
-                    {slot.key === "evening" && <span className="text-xs text-gray-500 mt-1">18:00-22:00</span>}
-                  </div>
-                </div>
-
-                {DAY_LABELS.map((day) => {
-                  const events = weekSchedule[slot.key][day] || [];
-                  const filteredEvents = filterEvents(events);
-
-                  return (
-                    <div
-                      key={`${slot.key}-${day}`}
-                      className={`min-h-[140px] p-2 ${
-                        rowIdx % 2 ? "bg-white" : "bg-gray-50"
-                      } border-l border-red-200`}
-                    >
-                      <div className="space-y-1.5">
-                        {filteredEvents.map((event) => {
-                          const lightColor = getLightColor(event);
-                          const isHexColor = event.color && (event.color.startsWith("#") || event.color.startsWith("rgb"));
-                          const hexBgStyle = isHexColor ? { backgroundColor: `${event.color}33` } : undefined;
-                          const hexAccentStyle = isHexColor ? { backgroundColor: event.color ?? undefined } : undefined;
-
-                          return (
-                            <button
-                              key={event.id}
-                              type="button"
-                              onClick={() => setSelectedClass(event)}
-                              className={`w-full text-left rounded-lg overflow-hidden text-[10px] leading-tight transition-all duration-200 hover:shadow-md cursor-pointer border ${isHexColor ? "" : "border-red-200"} ${lightColor}`}
-                              style={isHexColor ? { ...hexBgStyle, borderColor: `${event.color}66` } : undefined}
-                            >
-                              {isHexColor && <div className="h-1 w-full" style={hexAccentStyle} />}
-                              <div className="px-1.5 py-1">
-                                <div className="font-semibold text-gray-900 truncate text-[11px]">{event.title}</div>
-                                <div className="text-gray-600 mt-0.5">{event.time}</div>
-                                <div className="text-gray-500 flex items-center gap-0.5 mt-0.5">
-                                  <MapPin size={8} className="shrink-0" />
-                                  <span className="truncate">{event.room || "—"}</span>
-                                </div>
-                                {event.teacher && (
-                                  <div className="text-gray-400 flex items-center gap-0.5 mt-0.5">
-                                    <Users size={8} className="shrink-0" />
-                                    <span className="truncate">{event.teacher}</span>
-                                  </div>
-                                )}
-                                <div className="flex flex-wrap gap-0.5 mt-1">
-                                  {event.track && (
-                                    <span className="text-[9px] px-1 py-px rounded bg-gray-100 text-gray-600 font-medium">
-                                      {event.track}
-                                    </span>
-                                  )}
-                                  <span
-                                    className={`text-[9px] px-1 py-px rounded font-medium ${
-                                      event.type === "makeup"
-                                        ? "bg-amber-100 text-amber-700"
-                                        : "bg-emerald-100 text-emerald-700"
-                                    }`}
-                                  >
-                                    {event.type === "makeup" ? "Makeup" : "Regular"}
-                                  </span>
-                                </div>
-                                {(event.attendanceStatus || event.attendanceStatus === "NotMarked") && (
-                                  <div className="mt-0.5 flex flex-wrap gap-0.5">
-                                    <span
-                                      className={`text-[9px] px-1 py-px rounded font-medium ${
-                                        event.attendanceStatus === "Present"
-                                          ? "bg-green-100 text-green-700"
-                                          : event.attendanceStatus === "Absent"
-                                          ? "bg-red-100 text-red-700"
-                                          : event.attendanceStatus === "Makeup"
-                                          ? "bg-blue-100 text-blue-700"
-                                          : event.attendanceStatus === "NotMarked"
-                                          ? "bg-orange-100 text-orange-700"
-                                          : "bg-gray-100 text-gray-600"
-                                      }`}
-                                    >
-                                      {event.attendanceStatus === "Present"
-                                        ? "Có mặt"
-                                        : event.attendanceStatus === "Absent"
-                                        ? "Vắng"
-                                        : event.attendanceStatus === "Makeup"
-                                        ? "Học bù"
-                                        : event.attendanceStatus === "NotMarked"
-                                        ? "Chưa điểm danh"
-                                        : event.attendanceStatus}
-                                    </span>
-                                    {event.absenceType && (
-                                      <span className="text-[9px] px-1 py-px rounded bg-gray-100 text-gray-500 font-medium">
-                                        {event.absenceType === "WithNotice24H" ? "Báo trước 24h"
-                                          : event.absenceType === "Under24H" ? "Báo dưới 24h"
-                                          : event.absenceType === "NoNotice" ? "Không báo"
-                                          : event.absenceType === "LongTerm" ? "Nghỉ dài hạn"
-                                          : event.absenceType}
-                                      </span>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            </button>
-                          );
-                        })}
-                        {filteredEvents.length === 0 && !loading && (
-                          <div className="text-[11px] text-gray-400 italic text-center py-3">Trống</div>
-                        )}
-                        {loading && (
-                          <div className="text-[11px] text-gray-400 italic text-center py-3">Đang tải…</div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Class Detail Modal */}
-      {selectedClass && (
-        <div
-          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-          onClick={() => setSelectedClass(null)}
-        >
-          <div
-            className="rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-red-200 bg-gradient-to-br from-white to-red-50"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="sticky top-0 bg-gradient-to-r from-red-100 to-red-100 border-b border-red-200 px-6 py-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
+              <div
+                className="relative rounded-3xl px-8   md:px-16  md:py-10 bg-gradient-to-br from-purple-500/20 via-pink-500/15 to-violet-500/20 backdrop-blur-xl border border-white/10 flex flex-col items-center justify-center"
+                style={{
+                  boxShadow:
+                    "0 0 60px rgba(168,85,247,0.3), 0 0 30px rgba(236,72,153,0.2), inset 0 1px 0 rgba(255,255,255,0.1)",
+                }}
+              >
                 <div
-                  className={`p-2 rounded-xl ${getEventColor(selectedClass)} text-white shadow-md`}
-                  style={
-                    selectedClass.color &&
-                    (selectedClass.color.startsWith("#") || selectedClass.color.startsWith("rgb"))
-                      ? { backgroundColor: selectedClass.color }
-                      : undefined
-                  }
-                >
-                  <CalendarDays size={18} />
+                  className="absolute inset-0 rounded-3xl p-[2px] pointer-events-none"
+                  style={{
+                    background:
+                      "linear-gradient(135deg, #a855f7, #ec4899, #d946ef, #a855f7)",
+                    WebkitMask:
+                      "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+                    WebkitMaskComposite: "xor",
+                    maskComposite: "exclude",
+                    padding: "3px",
+                  }}
+                ></div>
+
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-2">
+                    <Sparkles className="w-8 h-8 text-purple-400 animate-pulse" />
+                    <h1 className="text-2xl md:text-6xl lg:text-5xl font-bold bg-gradient-to-r from-purple-300 via-pink-300 to-fuchsia-300 bg-clip-text text-transparent drop-shadow-lg leading-relaxed">
+                      LỊCH HỌC
+                    </h1>
+                    <Sparkles className="w-8 h-8 text-pink-400 animate-pulse" />
+                  </div>
+                  <p className="text-base md:text-lg font-medium text-purple-200/80">
+                    Theo dõi thời khóa biểu hàng tuần
+                  </p>
                 </div>
-                <div>
-                  <h2 className="text-lg md:text-xl font-bold text-gray-900">Chi tiết lịch học</h2>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Error State */}
+        {error && (
+          <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 backdrop-blur-sm p-4 text-sm text-rose-300 flex items-center gap-2">
+            <AlertCircle className="w-5 h-5" />
+            {error}
+          </div>
+        )}
+
+        
+        {/* Tabs */}
+        <div className="rounded-2xl border border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-slate-900/80 backdrop-blur-xl p-2 inline-flex gap-2">
+          {[
+            { key: "all", label: "Tất cả" },
+            { key: "regular", label: "Regular" },
+            { key: "makeup", label: "Makeup" },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setActiveTab(tab.key as TabType)}
+              className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer ${
+                activeTab === tab.key
+                  ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/40 scale-105"
+                  : "bg-slate-800/50 border border-purple-500/30 text-purple-300 hover:border-purple-400/50 hover:text-white hover:bg-purple-500/20 backdrop-blur-sm"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Week Navigation + Calendar Grid */}
+        <div className="rounded-2xl border border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-slate-900/80 backdrop-blur-xl shadow-xl shadow-purple-500/10 overflow-hidden">
+          {/* Navigation Bar */}
+          <div className="flex flex-wrap items-center justify-between gap-4 p-6 border-b border-purple-500/30 bg-gradient-to-r from-purple-500/10 to-pink-500/10">
+            <div className="flex items-center gap-4">
+              <div className="relative p-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 shadow-lg shadow-purple-500/30">
+                <CalendarDays size={24} className="text-white" />
+                <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-white flex items-center justify-center shadow-md">
+                  <span className="text-xs font-bold text-purple-600">
+                    {weekDates[0]?.getDate?.()}
+                  </span>
                 </div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
+                  Thời khóa biểu
+                </div>
+                <div className="text-purple-300/70 text-sm mt-1">
+                  {currentWeekLabel}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                className="p-2 rounded-lg border border-purple-500/30 bg-slate-800/50 hover:bg-purple-500/30 hover:scale-110 transition-all duration-200 cursor-pointer"
+                onClick={goToPreviousWeek}
+              >
+                <ChevronLeft size={18} className="text-purple-300" />
+              </button>
+              <div className="min-w-[220px] text-center text-sm font-semibold text-purple-300 bg-purple-500/10 py-2 px-3 rounded-lg">
+                Tuần {currentWeekLabel}
               </div>
               <button
                 type="button"
-                onClick={() => setSelectedClass(null)}
-                className="p-2 rounded-lg hover:bg-red-200/60 bg-white/60 border border-red-200 transition-colors cursor-pointer"
+                className="p-2 rounded-lg border border-purple-500/30 bg-slate-800/50 hover:bg-purple-500/30 hover:scale-110 transition-all duration-200 cursor-pointer"
+                onClick={goToNextWeek}
               >
-                <span className="text-lg">×</span>
+                <ChevronRight size={18} className="text-purple-300" />
+              </button>
+              <button
+                type="button"
+                className="ml-2 rounded-xl border border-purple-500/30 bg-gradient-to-r from-purple-500/30 to-pink-500/30 backdrop-blur-sm px-5 py-2 text-sm font-semibold hover:from-purple-500/50 hover:to-pink-500/50 hover:scale-105 transition-all duration-200 cursor-pointer text-white shadow-lg"
+                onClick={goToCurrentWeek}
+              >
+                Tuần này
               </button>
             </div>
+          </div>
 
-            <div className="p-6 space-y-4">
-              <div>
-                <div className="flex items-center gap-3 mb-3">
-                  <TypeBadge type={selectedClass.type} />
-                  <h3 className="text-lg font-semibold text-gray-900">{selectedClass.title}</h3>
+          {/* Calendar Grid */}
+          <div className="overflow-x-auto">
+            <div className="min-w-[1200px]">
+              {/* Header Row */}
+              <div className="grid grid-cols-8 border-t border-purple-500/30 bg-gradient-to-r from-purple-500/10 to-pink-500/10">
+                <div className="px-4 py-4 text-sm font-bold text-purple-300 text-center">
+                  Ca / Ngày
                 </div>
-
-                <div className="space-y-3 text-sm">
-                  <div className="flex items-center gap-3">
-                    <Clock3 className="w-4 h-4 text-red-600" />
-                    <div>
-                      <div className="font-medium text-gray-700">Thời gian</div>
-                      <div className="text-gray-600">{selectedClass.time}</div>
+                {DAY_LABELS.map((day, index) => (
+                  <div
+                    key={day}
+                    className="px-4 py-4 border-l border-purple-500/30 text-center"
+                  >
+                    <div className="flex flex-col items-center gap-2">
+                      <span className="capitalize text-purple-300 font-semibold text-lg">
+                        {day}
+                      </span>
+                      <span className="h-10 w-10 flex items-center justify-center rounded-full text-sm font-bold bg-gradient-to-r from-purple-500/30 to-pink-500/30 text-purple-200 border border-purple-500/40 shadow-lg">
+                        {weekDates[index]?.getDate?.() ?? index + 1}
+                      </span>
                     </div>
                   </div>
-
-                  <div className="flex items-center gap-3">
-                    <MapPin className="w-4 h-4 text-red-600" />
-                    <div>
-                      <div className="font-medium text-gray-700">Phòng học</div>
-                      <div className="text-gray-600">{selectedClass.room || "—"}</div>
-                    </div>
-                  </div>
-
-                  {selectedClass.teacher && (
-                    <div className="flex items-center gap-3">
-                      <User2 className="w-4 h-4 text-red-600" />
-                      <div>
-                        <div className="font-medium text-gray-700">Giáo viên</div>
-                        <div className="text-gray-600">{selectedClass.teacher}</div>
-                      </div>
-                    </div>
-                  )}
-
-                  {selectedClass.track && (
-                    <div className="flex items-center gap-3">
-                      <Users className="w-4 h-4 text-red-600" />
-                      <div>
-                        <div className="font-medium text-gray-700">Track</div>
-                        <div className="text-gray-600">{selectedClass.track}</div>
-                      </div>
-                    </div>
-                  )}
-
-                  {selectedClass.attendanceStatus && (
-                    <div className="mt-2 p-3 rounded-xl bg-white/60 border border-red-100">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span
-                          className={`text-xs px-2 py-1 rounded-full font-medium ${
-                            selectedClass.attendanceStatus === "Present"
-                              ? "bg-green-100 text-green-700"
-                              : selectedClass.attendanceStatus === "Absent"
-                              ? "bg-red-100 text-red-700"
-                              : selectedClass.attendanceStatus === "Makeup"
-                              ? "bg-blue-100 text-blue-700"
-                              : selectedClass.attendanceStatus === "NotMarked"
-                              ? "bg-orange-100 text-orange-700"
-                              : "bg-gray-100 text-gray-600"
-                          }`}
-                        >
-                          {selectedClass.attendanceStatus === "Present"
-                            ? "Có mặt"
-                            : selectedClass.attendanceStatus === "Absent"
-                            ? "Vắng"
-                            : selectedClass.attendanceStatus === "Makeup"
-                            ? "Học bù"
-                            : selectedClass.attendanceStatus === "NotMarked"
-                            ? "Chưa điểm danh"
-                            : selectedClass.attendanceStatus}
-                        </span>
-                        {selectedClass.absenceType && (
-                          <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-500 font-medium">
-                            {selectedClass.absenceType === "WithNotice24H" ? "Báo trước 24h"
-                              : selectedClass.absenceType === "Under24H" ? "Báo dưới 24h"
-                              : selectedClass.absenceType === "NoNotice" ? "Không báo"
-                              : selectedClass.absenceType === "LongTerm" ? "Nghỉ dài hạn"
-                              : selectedClass.absenceType}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                ))}
               </div>
 
-              <div className="pt-4 border-t border-red-200 flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => setSelectedClass(null)}
-                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white hover:shadow-lg transition-all cursor-pointer"
+              {/* Time Slots Rows */}
+              {TIME_SLOTS.map((slot, rowIdx) => (
+                <div
+                  key={slot.key}
+                  className="grid grid-cols-8 border-t border-purple-500/30"
                 >
-                  Đóng
-                </button>
-              </div>
+                  <div className="px-4 py-4 bg-gradient-to-r from-purple-500/10 to-pink-500/10 flex items-center justify-center">
+                    <div className="flex flex-col items-center">
+                      <span className="font-bold text-purple-300 text-xl">
+                        {slot.label}
+                      </span>
+                      <span className="text-xs text-purple-400/70 mt-1">
+                        {slot.hours}
+                      </span>
+                    </div>
+                  </div>
+
+                  {DAY_LABELS.map((day) => {
+                    const events = weekSchedule[slot.key][day] || [];
+                    const filteredEvents = filterEvents(events);
+
+                    return (
+                      <div
+                        key={`${slot.key}-${day}`}
+                        className={`min-h-[180px] p-3 ${
+                          rowIdx % 2 ? "bg-purple-500/5" : "bg-slate-900/30"
+                        } border-l border-purple-500/30 transition-all duration-200`}
+                      >
+                        <div className="space-y-2">
+                          {filteredEvents.map((event) => {
+                            const lightColor = getLightColor(event);
+                            const isHexColor =
+                              event.color &&
+                              (event.color.startsWith("#") ||
+                                event.color.startsWith("rgb"));
+                            const hexBgStyle = isHexColor
+                              ? { backgroundColor: `${event.color}33` }
+                              : undefined;
+                            const hexAccentStyle = isHexColor
+                              ? { backgroundColor: event.color ?? undefined }
+                              : undefined;
+
+                            return (
+                              <button
+                                key={event.id}
+                                type="button"
+                                onClick={() => setSelectedClass(event)}
+                                className={`w-full text-left rounded-xl overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:shadow-xl cursor-pointer border backdrop-blur-sm group ${
+                                  isHexColor ? "" : "border-purple-500/30"
+                                } ${lightColor}`}
+                                style={
+                                  isHexColor
+                                    ? {
+                                        ...hexBgStyle,
+                                        borderColor: `${event.color}66`,
+                                      }
+                                    : undefined
+                                }
+                              >
+                                {isHexColor && (
+                                  <div
+                                    className="h-1 w-full"
+                                    style={hexAccentStyle}
+                                  />
+                                )}
+                                <div className="px-3 py-2">
+                                  <div className="font-bold text-purple-100 truncate text-sm group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-purple-300 group-hover:to-pink-300 transition-all duration-200">
+                                    {event.title}
+                                  </div>
+                                  <div className="text-purple-300/70 text-[11px] mt-1.5 flex items-center gap-1.5">
+                                    <Clock3 size={10} />
+                                    <span>{event.time}</span>
+                                  </div>
+                                  {event.room && (
+                                    <div className="text-purple-400/60 text-[10px] flex items-center gap-1.5 mt-1">
+                                      <MapPin size={10} />
+                                      <span className="truncate">
+                                        {event.room}
+                                      </span>
+                                    </div>
+                                  )}
+                                  <div className="flex flex-wrap gap-1.5 mt-2">
+                                    <span
+                                      className={`text-[9px] px-2 py-0.5 rounded-full font-medium ${
+                                        event.type === "makeup"
+                                          ? "bg-amber-500/20 text-amber-300 border border-amber-400/30"
+                                          : "bg-emerald-500/20 text-emerald-300 border border-emerald-400/30"
+                                      }`}
+                                    >
+                                      {event.type === "makeup"
+                                        ? "Makeup"
+                                        : "Regular"}
+                                    </span>
+                                    {event.attendanceStatus &&
+                                      event.attendanceStatus !== "NotMarked" && (
+                                        <span
+                                          className={`text-[9px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1 ${
+                                            event.attendanceStatus === "Present"
+                                              ? "bg-green-500/20 text-green-300 border border-green-400/30"
+                                              : event.attendanceStatus === "Absent"
+                                              ? "bg-red-500/20 text-red-300 border border-red-400/30"
+                                              : "bg-gray-500/20 text-gray-300 border border-gray-400/30"
+                                          }`}
+                                        >
+                                          {getAttendanceIcon(
+                                            event.attendanceStatus
+                                          )}
+                                          {getAttendanceLabel(
+                                            event.attendanceStatus
+                                          )}
+                                        </span>
+                                      )}
+                                  </div>
+                                </div>
+                              </button>
+                            );
+                          })}
+                          {filteredEvents.length === 0 && !loading && (
+                            <div className="text-[11px] text-purple-400/50 italic text-center py-6">
+                              Trống
+                            </div>
+                          )}
+                          {loading && (
+                            <div className="text-[11px] text-purple-400/50 italic text-center py-6">
+                              <div className="animate-pulse flex items-center justify-center gap-2">
+                                <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" />
+                                <div className="w-2 h-2 bg-pink-400 rounded-full animate-bounce delay-100" />
+                                <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce delay-200" />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
           </div>
         </div>
-      )}
 
-      {/* Legend */}
-      <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4">
-        <div className="text-sm font-semibold text-gray-900 mb-3">Chú thích:</div>
-        <div className="flex flex-wrap gap-4">
-          <div className="flex items-center gap-2">
-            <div className="h-4 w-6 rounded bg-gradient-to-r from-emerald-500 to-emerald-600"></div>
-            <span className="text-sm text-gray-600">Regular</span>
+        {/* Class Detail Modal */}
+        {selectedClass && (
+          <div
+            className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-200"
+            onClick={() => setSelectedClass(null)}
+          >
+            <div
+              className="rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-purple-500/30 bg-gradient-to-br from-slate-900 to-purple-950/90 backdrop-blur-xl animate-in zoom-in-95 duration-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="sticky top-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 border-b border-purple-500/30 px-6 py-4 flex items-center justify-between backdrop-blur-sm">
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`p-2 rounded-xl ${getEventColor(
+                      selectedClass
+                    )} text-white shadow-md`}
+                    style={
+                      selectedClass.color &&
+                      (selectedClass.color.startsWith("#") ||
+                        selectedClass.color.startsWith("rgb"))
+                        ? { backgroundColor: selectedClass.color }
+                        : undefined
+                    }
+                  >
+                    <GraduationCap size={18} />
+                  </div>
+                  <div>
+                    <h2 className="text-lg md:text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
+                      Chi tiết buổi học
+                    </h2>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedClass(null)}
+                  className="p-2 rounded-lg hover:bg-purple-500/30 bg-slate-800/50 border border-purple-500/30 transition-all duration-200 cursor-pointer text-purple-300 hover:text-white hover:scale-110"
+                >
+                  <span className="text-lg">✕</span>
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div>
+                  <div className="flex items-center gap-3 mb-4">
+                    <TypeBadge type={selectedClass.type} />
+                    <h3 className="text-lg font-bold text-white">
+                      {selectedClass.title}
+                    </h3>
+                  </div>
+
+                  <div className="space-y-3 text-sm">
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 hover:bg-purple-500/20 transition-all duration-200">
+                      <Clock3 className="w-4 h-4 text-purple-400" />
+                      <div>
+                        <div className="font-medium text-purple-300">
+                          Thời gian
+                        </div>
+                        <div className="text-purple-100">
+                          {selectedClass.time}
+                        </div>
+                      </div>
+                    </div>
+
+                    {selectedClass.room && (
+                      <div className="flex items-center gap-3 p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 hover:bg-purple-500/20 transition-all duration-200">
+                        <MapPin className="w-4 h-4 text-purple-400" />
+                        <div>
+                          <div className="font-medium text-purple-300">
+                            Phòng học
+                          </div>
+                          <div className="text-purple-100">
+                            {selectedClass.room}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedClass.teacher && (
+                      <div className="flex items-center gap-3 p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 hover:bg-purple-500/20 transition-all duration-200">
+                        <User2 className="w-4 h-4 text-purple-400" />
+                        <div>
+                          <div className="font-medium text-purple-300">
+                            Giáo viên
+                          </div>
+                          <div className="text-purple-100">
+                            {selectedClass.teacher}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedClass.track && (
+                      <div className="flex items-center gap-3 p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 hover:bg-purple-500/20 transition-all duration-200">
+                        <BookOpen className="w-4 h-4 text-purple-400" />
+                        <div>
+                          <div className="font-medium text-purple-300">
+                            Track
+                          </div>
+                          <div className="text-purple-100">
+                            {selectedClass.track}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {(selectedClass.attendanceStatus ||
+                      selectedClass.absenceType) && (
+                      <div className="p-3 rounded-xl bg-gradient-to-r from-purple-500/15 to-pink-500/15 border border-purple-500/20">
+                        <div className="flex flex-wrap items-center gap-2">
+                          {selectedClass.attendanceStatus && (
+                            <span
+                              className={`text-xs px-3 py-1 rounded-full font-medium flex items-center gap-1.5 ${
+                                selectedClass.attendanceStatus === "Present"
+                                  ? "bg-green-500/20 text-green-300 border border-green-400/30"
+                                  : selectedClass.attendanceStatus === "Absent"
+                                  ? "bg-red-500/20 text-red-300 border border-red-400/30"
+                                  : selectedClass.attendanceStatus === "Makeup"
+                                  ? "bg-blue-500/20 text-blue-300 border border-blue-400/30"
+                                  : selectedClass.attendanceStatus === "NotMarked"
+                                  ? "bg-orange-500/20 text-orange-300 border border-orange-400/30"
+                                  : "bg-gray-500/20 text-gray-300 border border-gray-400/30"
+                              }`}
+                            >
+                              {getAttendanceIcon(selectedClass.attendanceStatus)}
+                              {getAttendanceLabel(selectedClass.attendanceStatus)}
+                            </span>
+                          )}
+                          {selectedClass.absenceType && (
+                            <span className="text-xs px-3 py-1 rounded-full bg-gray-500/20 text-gray-300 border border-gray-400/30 font-medium">
+                              {selectedClass.absenceType === "WithNotice24H"
+                                ? "Báo trước 24h"
+                                : selectedClass.absenceType === "Under24H"
+                                ? "Báo dưới 24h"
+                                : selectedClass.absenceType === "NoNotice"
+                                ? "Không báo"
+                                : selectedClass.absenceType === "LongTerm"
+                                ? "Nghỉ dài hạn"
+                                : selectedClass.absenceType}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-purple-500/30 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedClass(null)}
+                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold hover:shadow-xl hover:shadow-purple-500/40 hover:scale-105 transition-all duration-200 cursor-pointer"
+                  >
+                    Đóng
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="h-4 w-6 rounded bg-gradient-to-r from-amber-500 to-amber-600"></div>
-            <span className="text-sm text-gray-600">Makeup</span>
+        )}
+
+        {/* Legend */}
+        <div className="rounded-2xl border border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-slate-900/80 backdrop-blur-xl p-5">
+          <div className="text-sm font-bold text-purple-300 mb-4 flex items-center gap-2">
+            <ChevronDown size={16} className="text-purple-400" />
+            Chú thích
+          </div>
+          <div className="flex flex-wrap gap-6">
+            <div className="flex items-center gap-2.5">
+              <div className="h-4 w-6 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 shadow-sm"></div>
+              <span className="text-sm text-purple-200">Regular</span>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <div className="h-4 w-6 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 shadow-sm"></div>
+              <span className="text-sm text-purple-200">Makeup</span>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <CheckCircle2 size={16} className="text-emerald-400" />
+              <span className="text-sm text-purple-200">Có mặt</span>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <XCircle size={16} className="text-rose-400" />
+              <span className="text-sm text-purple-200">Vắng mặt</span>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <AlertCircle size={16} className="text-amber-400" />
+              <span className="text-sm text-purple-200">Chưa điểm danh</span>
+            </div>
           </div>
         </div>
       </div>
