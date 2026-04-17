@@ -56,6 +56,7 @@ interface Album {
   coverImage: string;
   mediaCount: number;
   type: 'class' | 'personal';
+  description?: string;
   media: MediaItem[];
 }
 
@@ -147,6 +148,7 @@ function normalizeStudentAlbums(payload: any): Album[] {
       coverImage: fallbackCover,
       mediaCount: Number(album.count ?? album.mediaCount ?? media.length ?? 0),
       type: normalizedType,
+      description: typeof album.description === "string" ? album.description : undefined,
       media,
     };
   });
@@ -309,7 +311,7 @@ function AlbumCard({ album, onClick }: { album: Album, onClick: () => void }) {
           </span>
         </button>
       </div>
-    </div>
+    </GlassCard>
   );
 }
 
@@ -710,7 +712,7 @@ export default function MediaPage() {
                   )}
                 </div>
               </div>
-            </div>
+            </GlassCard>
 
             {/* Media Grid */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
