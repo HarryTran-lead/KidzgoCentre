@@ -8,6 +8,7 @@ import { localizePath } from "@/lib/i18n";
 import { ROLES } from "@/lib/role";
 import type { UserProfile } from "@/types/auth";
 import { clearAccessToken, clearRefreshToken, setAccessToken } from "@/lib/store/authToken";
+import { buildFileUrl } from "@/constants/apiURL";
 import * as authService from "@/lib/api/authService";
 import { writeSelectedProfile } from "@/hooks/useSelectedStudentProfile";
 import {
@@ -40,6 +41,12 @@ const DEFAULT_ERROR_MESSAGE =
 
 function initialAvatar(name: string) {
   return name?.trim()?.charAt(0)?.toUpperCase() || "?";
+}
+
+function normalizeAvatarUrl(avatarUrl?: string) {
+  if (!avatarUrl) return undefined;
+  const normalized = buildFileUrl(avatarUrl);
+  return normalized || undefined;
 }
 
 function toViErrorMessage(message?: string, fallback = "Có lỗi xảy ra") {
@@ -371,7 +378,7 @@ export default function AccountChooser({ locale }: Props) {
                   <div className="relative">
                     <Avatar className="w-35 h-35 border-4 border-blue-300 shadow-xl group-hover:scale-110 transition-transform">
                       <AvatarImage
-                        src={student.avatarUrl || undefined}
+                        src={normalizeAvatarUrl(student.avatarUrl)}
                         alt={student.displayName}
                       />
                       <AvatarFallback className="bg-blue-100 text-blue-700 text-3xl font-bold">
@@ -403,7 +410,7 @@ export default function AccountChooser({ locale }: Props) {
                   <div className="relative">
                     <Avatar className="w-35 h-35 border-4 border-amber-300 shadow-xl group-hover:scale-110 transition-transform">
                       <AvatarImage
-                        src={parent.avatarUrl || undefined}
+                        src={normalizeAvatarUrl(parent.avatarUrl)}
                         alt={parent.displayName}
                       />
                       <AvatarFallback className="bg-amber-100 text-amber-700 text-3xl font-bold">
@@ -443,7 +450,7 @@ export default function AccountChooser({ locale }: Props) {
                 <div className="relative">
                   <Avatar className="w-35 h-35 border-4 border-amber-300 shadow-xl">
                     <AvatarImage
-                      src={selectedParent.avatarUrl || undefined}
+                      src={normalizeAvatarUrl(selectedParent.avatarUrl)}
                       alt={selectedParent.displayName}
                     />
                     <AvatarFallback className="bg-amber-100 text-amber-700 text-3xl font-bold">

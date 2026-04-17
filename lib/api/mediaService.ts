@@ -37,6 +37,10 @@ export async function rejectMediaRecord(id: string, payload: Record<string, unkn
   return post<any>(MEDIA_ENDPOINTS.REJECT(id), payload);
 }
 
+export async function resubmitMediaRecord(id: string, payload: Record<string, unknown> = {}): Promise<any> {
+  return post<any>(MEDIA_ENDPOINTS.RESUBMIT(id), payload);
+}
+
 export async function publishMediaRecord(id: string, payload: Record<string, unknown> = {}): Promise<any> {
   return post<any>(MEDIA_ENDPOINTS.PUBLISH(id), payload);
 }

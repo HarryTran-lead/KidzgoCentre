@@ -149,7 +149,40 @@ export async function getUserMe(): Promise<UserMeApiResponse> {
  * Update current user information (token auto-injected)
  */
 export async function updateUserMe(data: UpdateUserMeRequest): Promise<UpdateUserMeApiResponse> {
-  return put<UpdateUserMeApiResponse>(AUTH_ENDPOINTS.ME, data);
+  const formData = new FormData();
+
+  if (data.fullName !== undefined) {
+    formData.append("FullName", data.fullName);
+  }
+
+  if (data.email !== undefined) {
+    formData.append("Email", data.email);
+  }
+
+  if (data.phoneNumber !== undefined) {
+    formData.append("PhoneNumber", data.phoneNumber);
+  }
+
+  if (data.avatar) {
+    formData.append("Avatar", data.avatar);
+  }
+
+  if (data.targetProfileId) {
+    formData.append("TargetProfileId", data.targetProfileId);
+  }
+
+  if (Array.isArray(data.profiles)) {
+    data.profiles.forEach((profile, index) => {
+      formData.append(`Profiles[${index}].Id`, profile.id);
+      formData.append(`Profiles[${index}].DisplayName`, profile.displayName);
+    });
+  }
+
+  return put<UpdateUserMeApiResponse>(AUTH_ENDPOINTS.ME, formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
 }
 
 /**

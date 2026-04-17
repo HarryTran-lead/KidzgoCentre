@@ -12,6 +12,7 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { getMyStarBalance, getMyLevel, getMyAttendanceStreak } from "@/lib/api/gamificationService";
 import { buildFileUrl } from "@/constants/apiURL";
+import type { UserProfile } from "@/types/auth";
 
 type StudentHeaderProps = {
   userName?: string;
@@ -38,11 +39,34 @@ export default function StudentHeader({
     const parts = pathname.split('/');
     return parts[1] || 'vi'; // Default to 'vi' if no locale found
   }, [pathname]);
-  const displayUserName = currentUser?.fullName ?? userName ?? "Nguyen Van An";
+
+  const activeStudentProfile = useMemo<UserProfile | undefined>(() => {
+    const profiles = currentUser?.profiles ?? [];
+
+    if (currentUser?.selectedProfile?.profileType === "Student") {
+      return currentUser.selectedProfile;
+    }
+
+    if (currentUser?.selectedProfileId) {
+      const byId = profiles.find(
+        (profile) => profile.profileType === "Student" && profile.id === currentUser.selectedProfileId
+      );
+      if (byId) return byId;
+    }
+
+    return profiles.find((profile) => profile.profileType === "Student");
+  }, [currentUser?.profiles, currentUser?.selectedProfile, currentUser?.selectedProfileId]);
+
+  const displayUserName =
+    activeStudentProfile?.displayName ??
+    currentUser?.fullName ??
+    userName ??
+    "Nguyen Van An";
+
   const headerAvatarUrl = useMemo(() => {
-    const rawAvatar = currentUser?.avatarUrl ?? avatarUrl;
+    const rawAvatar = activeStudentProfile?.avatarUrl ?? currentUser?.avatarUrl ?? avatarUrl;
     return rawAvatar ? buildFileUrl(rawAvatar) : "";
-  }, [currentUser?.avatarUrl, avatarUrl]);
+  }, [activeStudentProfile?.avatarUrl, currentUser?.avatarUrl, avatarUrl]);
 
   // Close dropdown when clicking outside
   useEffect(() => {

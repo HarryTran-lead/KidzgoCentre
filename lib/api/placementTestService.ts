@@ -11,6 +11,9 @@ import type {
   PlacementTest,
   CreatePlacementTestRequest,
   UpdatePlacementTestRequest,
+  PlacementTestAvailabilityRequest,
+  PlacementTestAvailabilityResponse,
+  PlacementTestAvailabilityConflict,
   PlacementTestResult,
   PlacementTestNote,
   PlacementTestRetakeRequest,
@@ -91,6 +94,82 @@ function extractData<T>(response: any): T {
   const payload = extractPayload(response);
   if (payload?.data !== undefined) return payload.data as T;
   return payload as T;
+}
+
+function normalizeAvailabilityConflicts(value: unknown): PlacementTestAvailabilityConflict[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((conflict) => {
+      if (!conflict || typeof conflict !== "object") return null;
+      const casted = conflict as Record<string, unknown>;
+      return {
+        type: casted.type ? String(casted.type) : undefined,
+        title: casted.title ? String(casted.title) : undefined,
+        startAt: casted.startAt ? String(casted.startAt) : undefined,
+        endAt: casted.endAt ? String(casted.endAt) : undefined,
+      };
+    })
+    .filter(Boolean) as PlacementTestAvailabilityConflict[];
+}
+
+function normalizeAvailabilityResponse(response: any): PlacementTestAvailabilityResponse {
+  const payload = extractPayload(response);
+  const data = payload?.data ?? payload ?? {};
+
+  const rawItems = Array.isArray(data?.items) ? data.items : [];
+  const rawRooms = Array.isArray(data?.rooms) ? data.rooms : [];
+
+  const items = rawItems
+    .map((item: any, index: number) => {
+      const id = String(
+        item?.id ?? item?.userId ?? item?.invigilatorUserId ?? item?.teacherId ?? `invigilator-${index}`
+      );
+
+      return {
+        id,
+        fullName: item?.fullName ? String(item.fullName) : item?.name ? String(item.name) : undefined,
+        role: item?.role ? String(item.role) : undefined,
+        branchId: item?.branchId
+          ? String(item.branchId)
+          : item?.branch?.id
+          ? String(item.branch.id)
+          : undefined,
+        isAvailable: item?.isAvailable !== false,
+        conflicts: normalizeAvailabilityConflicts(item?.conflicts),
+      };
+    })
+    .filter((item: any) => item.id);
+
+  const rooms = rawRooms
+    .map((room: any, index: number) => {
+      const id = String(room?.id ?? room?.roomId ?? room?.classroomId ?? `room-${index}`);
+
+      return {
+        id,
+        roomName: room?.roomName
+          ? String(room.roomName)
+          : room?.name
+          ? String(room.name)
+          : room?.room
+          ? String(room.room)
+          : undefined,
+        name: room?.name ? String(room.name) : undefined,
+        branchId: room?.branchId
+          ? String(room.branchId)
+          : room?.branch?.id
+          ? String(room.branch.id)
+          : undefined,
+        isAvailable: room?.isAvailable !== false,
+        conflicts: normalizeAvailabilityConflicts(room?.conflicts),
+      };
+    })
+    .filter((room: any) => room.id);
+
+  return {
+    items,
+    rooms,
+  };
 }
 
 function extractErrorPayload(error: unknown): ProblemPayload {
@@ -307,6 +386,35 @@ export async function getAllPlacementTests(params?: {
     };
   } catch (error) {
     throw toPlacementTestApiError(error, "Khong the tai danh sach placement test");
+  }
+}
+
+/**
+ * Check invigilator/room availability for placement test scheduling
+ */
+export async function getPlacementTestAvailability(
+  params: PlacementTestAvailabilityRequest
+): Promise<ApiResponse<PlacementTestAvailabilityResponse>> {
+  try {
+    const queryParams = new URLSearchParams();
+    queryParams.append("scheduledAt", params.scheduledAt);
+    queryParams.append("durationMinutes", String(params.durationMinutes));
+    if (params.excludePlacementTestId) {
+      queryParams.append("excludePlacementTestId", params.excludePlacementTestId);
+    }
+
+    const response = await get<any>(
+      `${PLACEMENT_TEST_ENDPOINTS.AVAILABILITY}?${queryParams.toString()}`
+    );
+    const payload = extractPayload(response);
+
+    return {
+      isSuccess: payload?.isSuccess ?? payload?.success ?? true,
+      message: payload?.message,
+      data: normalizeAvailabilityResponse(response),
+    };
+  } catch (error) {
+    throw toPlacementTestApiError(error, "Khong the kiem tra lich ranh placement test");
   }
 }
 

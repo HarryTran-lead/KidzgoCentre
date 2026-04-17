@@ -14,7 +14,9 @@ export interface PlacementTest {
   classId?: string;
   className?: string;
   scheduledAt: string;
+  durationMinutes?: number;
   status: "Scheduled" | "Completed" | "Cancelled" | "NoShow";
+  roomId?: string;
   room?: string;
   invigilatorUserId?: string;
   invigilatorName?: string;
@@ -97,6 +99,8 @@ export interface CreatePlacementTestRequest {
   leadId?: string;
   leadChildId?: string;
   scheduledAt: string;
+  durationMinutes: number;
+  roomId?: string;
   room?: string;
   invigilatorUserId?: string;
   studentProfileId?: string;
@@ -110,7 +114,9 @@ export interface CreatePlacementTestResponse {
   studentProfileId?: string;
   classId?: string;
   scheduledAt: string;
+  durationMinutes?: number;
   status: string;
+  roomId?: string;
   room?: string;
   invigilatorUserId: string;
   createdAt: string;
@@ -118,11 +124,49 @@ export interface CreatePlacementTestResponse {
 
 export interface UpdatePlacementTestRequest {
   scheduledAt?: string;
+  durationMinutes?: number;
+  roomId?: string;
   room?: string;
   invigilatorUserId?: string;
   studentProfileId?: string;
   classId?: string;
   notes?: string;
+}
+
+export interface PlacementTestAvailabilityRequest {
+  scheduledAt: string;
+  durationMinutes: number;
+  excludePlacementTestId?: string;
+}
+
+export interface PlacementTestAvailabilityConflict {
+  type?: string;
+  title?: string;
+  startAt?: string;
+  endAt?: string;
+}
+
+export interface PlacementTestAvailabilityInvigilator {
+  id: string;
+  fullName?: string;
+  role?: string;
+  branchId?: string;
+  isAvailable: boolean;
+  conflicts?: PlacementTestAvailabilityConflict[];
+}
+
+export interface PlacementTestAvailabilityRoom {
+  id: string;
+  roomName?: string;
+  name?: string;
+  branchId?: string;
+  isAvailable: boolean;
+  conflicts?: PlacementTestAvailabilityConflict[];
+}
+
+export interface PlacementTestAvailabilityResponse {
+  items: PlacementTestAvailabilityInvigilator[];
+  rooms: PlacementTestAvailabilityRoom[];
 }
 
 export interface PlacementTestFilters {
@@ -154,6 +198,8 @@ export interface PlacementTestRetakeRequest {
   newTuitionPlanId: string;
   branchId: string;
   scheduledAt?: string;
+  durationMinutes?: number;
+  roomId?: string;
   room?: string;
   invigilatorUserId?: string;
   note?: string;

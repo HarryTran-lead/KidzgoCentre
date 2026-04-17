@@ -437,6 +437,7 @@ export const BACKEND_LEAD_ENDPOINTS = {
 // Placement Test Endpoints (Client-side → Next.js API Routes)
 export const PLACEMENT_TEST_ENDPOINTS = {
   GET_ALL: '/api/placement-tests',
+  AVAILABILITY: '/api/placement-tests/availability',
   GET_BY_ID: (id: string) => `/api/placement-tests/${id}`,
   CREATE: '/api/placement-tests',
   RETAKE: (id: string) => `/api/placement-tests/${id}/retake`,
@@ -451,6 +452,7 @@ export const PLACEMENT_TEST_ENDPOINTS = {
 // Backend Placement Test Endpoints (Next.js API Routes → Backend API)
 export const BACKEND_PLACEMENT_TEST_ENDPOINTS = {
   GET_ALL: '/placement-tests',
+  AVAILABILITY: '/placement-tests/availability',
   GET_BY_ID: (id: string) => `/placement-tests/${id}`,
   CREATE: '/placement-tests',
   RETAKE: (id: string) => `/placement-tests/${id}/retake`,
@@ -691,6 +693,7 @@ export const MEDIA_ENDPOINTS = {
   BY_ID: (id: string) => `/api/media/${id}`,
   APPROVE: (id: string) => `/api/media/${id}/approve`,
   REJECT: (id: string) => `/api/media/${id}/reject`,
+  RESUBMIT: (id: string) => `/api/media/${id}/resubmit`,
   PUBLISH: (id: string) => `/api/media/${id}/publish`,
 } as const;
 
@@ -728,6 +731,7 @@ export const BACKEND_MEDIA_ENDPOINTS = {
   BY_ID: (id: string) => `/media/${id}`,
   APPROVE: (id: string) => `/media/${id}/approve`,
   REJECT: (id: string) => `/media/${id}/reject`,
+  RESUBMIT: (id: string) => `/media/${id}/resubmit`,
   PUBLISH: (id: string) => `/media/${id}/publish`,
 } as const;
 

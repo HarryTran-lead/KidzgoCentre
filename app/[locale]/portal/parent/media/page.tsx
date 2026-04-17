@@ -18,12 +18,14 @@ import { buildFileUrl } from "@/constants/apiURL";
 import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
 import { getParentMedia } from "@/lib/api/parentPortalService";
 
-type AlbumTab = "all" | "class" | "personal";
+type AlbumTab = "class" | "personal";
 type MediaKind = "image" | "video";
 
 type ParentMediaItem = {
   id: string;
   albumId: string;
+  monthTag?: string;
+  ownershipScope?: string;
   title: string;
   type: MediaKind;
   url: string;
@@ -33,12 +35,19 @@ type ParentMediaItem = {
 
 type ParentAlbum = {
   id: string;
+  monthTag?: string;
   title: string;
   date: string;
   category: "class" | "personal";
   coverUrl: string;
   media: ParentMediaItem[];
 };
+
+function normalizeOwnershipScope(value: unknown): "class" | "personal" {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (raw === "personal" || raw === "student" || raw === "child") return "personal";
+  return "class";
+}
 
 function normalizeMediaUrl(value?: string) {
   const url = String(value ?? "").trim();
@@ -75,7 +84,9 @@ function normalizeParentAlbums(payload: any): ParentAlbum[] {
       : [];
 
   const mediaByAlbum = items.reduce((acc: Record<string, ParentMediaItem[]>, item: any, index: number) => {
-    const albumId = String(item.albumId ?? item.monthTag ?? item.month ?? "general");
+    const category = normalizeOwnershipScope(item.ownershipScope ?? item.scope ?? item.albumType ?? item.type);
+    const albumId = String(item.monthTag ?? item.albumId ?? item.month ?? "general");
+    const bucketKey = `${category}:${albumId}`;
     const rawType = String(item.type ?? item.mediaType ?? item.contentType ?? "").toLowerCase();
     const isVideo = rawType.includes("video") || rawType.includes("film");
     const mediaUrl = normalizeMediaUrl(String(item.url ?? item.fileUrl ?? item.coverUrl ?? item.thumbnail ?? ""));
@@ -84,6 +95,8 @@ function normalizeParentAlbums(payload: any): ParentAlbum[] {
     const mapped: ParentMediaItem = {
       id: String(item.id ?? `${albumId}-${index}`),
       albumId,
+      monthTag: String(item.monthTag ?? albumId),
+      ownershipScope: String(item.ownershipScope ?? ""),
       title: String(item.title ?? item.caption ?? "Media"),
       type: isVideo ? "video" : "image",
       url: mediaUrl,
@@ -91,17 +104,23 @@ function normalizeParentAlbums(payload: any): ParentAlbum[] {
       date: normalizeDate(item.date ?? item.createdAt),
     };
 
-    if (!acc[albumId]) acc[albumId] = [];
-    acc[albumId].push(mapped);
+    if (!acc[bucketKey]) acc[bucketKey] = [];
+    acc[bucketKey].push(mapped);
     return acc;
   }, {});
 
   const mappedAlbums = albums.map((album: any) => {
-    const id = String(album.albumId ?? album.id ?? album.monthTag ?? album.month ?? "general");
+    const id = String(album.monthTag ?? album.albumId ?? album.id ?? album.month ?? "general");
+    const category: "class" | "personal" = normalizeOwnershipScope(
+      album.ownershipScope ?? album.scope ?? album.type ?? album.albumType
+    );
+    const fallbackKey = `${category}:${id}`;
     const media = Array.isArray(album.media)
       ? album.media.map((item: any, index: number) => ({
           id: String(item.id ?? `${id}-${index}`),
           albumId: id,
+          monthTag: String(item.monthTag ?? id),
+          ownershipScope: String(item.ownershipScope ?? album.ownershipScope ?? ""),
           title: String(item.title ?? item.caption ?? album.title ?? "Media"),
           type: String(item.type ?? item.mediaType ?? "").toLowerCase().includes("video") ? "video" : "image",
           url: normalizeMediaUrl(String(item.url ?? item.fileUrl ?? item.coverUrl ?? item.thumbnail ?? "")),
@@ -112,18 +131,19 @@ function normalizeParentAlbums(payload: any): ParentAlbum[] {
         ? album.items.map((item: any, index: number) => ({
             id: String(item.id ?? `${id}-${index}`),
             albumId: id,
+            monthTag: String(item.monthTag ?? id),
+            ownershipScope: String(item.ownershipScope ?? album.ownershipScope ?? ""),
             title: String(item.title ?? item.caption ?? album.title ?? "Media"),
             type: String(item.type ?? item.mediaType ?? "").toLowerCase().includes("video") ? "video" : "image",
             url: normalizeMediaUrl(String(item.url ?? item.fileUrl ?? item.coverUrl ?? item.thumbnail ?? "")),
             coverUrl: normalizeMediaUrl(String(item.coverUrl ?? item.thumbnail ?? item.url ?? item.fileUrl ?? "")) || normalizeMediaUrl(String(item.url ?? item.fileUrl ?? "")),
             date: normalizeDate(item.date ?? item.createdAt ?? album.date),
           }))
-        : mediaByAlbum[id] ?? [];
-    const albumTypeRaw = String(album.type ?? album.albumType ?? "").toLowerCase();
-    const category: "class" | "personal" = albumTypeRaw.includes("personal") ? "personal" : "class";
+        : mediaByAlbum[fallbackKey] ?? [];
 
     return {
       id,
+      monthTag: String(album.monthTag ?? id),
       title: String(album.title ?? "Album"),
       date: normalizeDate(album.date),
       category,
@@ -132,13 +152,17 @@ function normalizeParentAlbums(payload: any): ParentAlbum[] {
     };
   });
 
-  const fallbackAlbums = Object.entries(mediaByAlbum).map(([id, media]) => {
+  const fallbackAlbums = Object.entries(mediaByAlbum).map(([bucketKey, media]) => {
+    const [categoryRaw, idRaw] = bucketKey.split(":");
+    const id = String(idRaw ?? "general");
+    const category = normalizeOwnershipScope(categoryRaw);
     const typedMedia = media as ParentMediaItem[];
     return {
       id,
+      monthTag: id,
       title: id === "general" ? "Album" : id,
       date: typedMedia[0]?.date ?? "-",
-      category: "class" as const,
+      category,
       coverUrl: typedMedia[0]?.coverUrl ?? typedMedia[0]?.url ?? "",
       media: typedMedia,
     };
@@ -148,7 +172,7 @@ function normalizeParentAlbums(payload: any): ParentAlbum[] {
   const grouped = new Map<string, ParentAlbum>();
 
   sourceAlbums.forEach((album: ParentAlbum) => {
-    const key = String(album.id || album.title || "general");
+    const key = `${album.category}:${String(album.monthTag ?? (album.id || album.title || "general"))}`;
     const existing = grouped.get(key);
     if (!existing) {
       grouped.set(key, {
@@ -184,7 +208,7 @@ export default function ParentMediaPage() {
 
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [tab, setTab] = useState<AlbumTab>("all");
+  const [tab, setTab] = useState<AlbumTab>("personal");
   const [albums, setAlbums] = useState<ParentAlbum[]>([]);
 
   const [activeAlbum, setActiveAlbum] = useState<ParentAlbum | null>(null);
@@ -246,7 +270,7 @@ export default function ParentMediaPage() {
   const filteredAlbums = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
     return albums.filter((album) => {
-      const matchTab = tab === "all" || album.category === tab;
+      const matchTab = album.category === tab;
       const matchSearch =
         !normalizedSearch ||
         album.title.toLowerCase().includes(normalizedSearch) ||
@@ -283,24 +307,17 @@ export default function ParentMediaPage() {
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <button
             type="button"
-            className={`rounded-xl px-4 py-2 text-sm font-medium ${tab === "all" ? "bg-red-600 text-white" : "border border-gray-200 text-gray-700"}`}
-            onClick={() => setTab("all")}
-          >
-            Tất cả ({albums.length})
-          </button>
-          <button
-            type="button"
             className={`rounded-xl px-4 py-2 text-sm font-medium ${tab === "class" ? "bg-red-600 text-white" : "border border-gray-200 text-gray-700"}`}
             onClick={() => setTab("class")}
           >
-            <span className="inline-flex items-center gap-1"><Users size={14} /> Lớp học</span>
+            <span className="inline-flex items-center gap-1"><Users size={14} /> Ảnh của lớp ({albums.filter((album) => album.category === "class").length})</span>
           </button>
           <button
             type="button"
             className={`rounded-xl px-4 py-2 text-sm font-medium ${tab === "personal" ? "bg-red-600 text-white" : "border border-gray-200 text-gray-700"}`}
             onClick={() => setTab("personal")}
           >
-            <span className="inline-flex items-center gap-1"><User size={14} /> Cá nhân</span>
+            <span className="inline-flex items-center gap-1"><User size={14} /> Ảnh của con ({albums.filter((album) => album.category === "personal").length})</span>
           </button>
           <input
             className="ml-auto h-10 min-w-65 rounded-xl border border-gray-200 px-3 text-sm"

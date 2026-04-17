@@ -40,6 +40,7 @@ export interface MediaAsset {
   className?: string;
   studentProfileId?: string;
   studentName?: string;
+  ownershipScope?: MediaOwnershipScope;
   monthTag?: string; // Định dạng "YYYY-MM"
   type: MediaType;
   contentType: MediaContentType;
@@ -48,6 +49,7 @@ export interface MediaAsset {
   visibility: Visibility;
   approvalStatus: ApprovalStatus;
   isPublished: boolean;
+  rejectReason?: string;
   approvedById?: string;
   approvedByName?: string;
   approvedAt?: string; // ISO Date string
@@ -62,6 +64,8 @@ export interface ParentAlbumItem {
   date: string;
   coverUrl: string;
   count: number;
+  ownershipScope?: MediaOwnershipScope;
+  monthTag?: string;
 }
 
 export interface ParentMediaItem {
@@ -73,11 +77,13 @@ export interface ParentMediaItem {
   coverUrl: string;
   url: string;
   count: number;
+  ownershipScope?: MediaOwnershipScope;
+  monthTag?: string;
 }
 
 export interface ParentMediaResponse {
   albums: ParentAlbumItem[];
-  items: ParentMediaItem[];
+  items?: ParentMediaItem[];
 }
 
 // Dùng cho POST /api/media

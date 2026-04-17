@@ -81,6 +81,18 @@ const toViErrorMessage = (message?: string, fallback = "Có lỗi xảy ra") => 
   if (normalized.includes("users.invalidcurrentpassword")) {
     return "Mật khẩu hiện tại không đúng.";
   }
+  if (normalized.includes("no file provided")) {
+    return "Bạn chưa chọn file ảnh.";
+  }
+  if (normalized.includes("file type is not allowed")) {
+    return "Định dạng ảnh không hợp lệ. Chỉ nhận JPG, PNG, WEBP.";
+  }
+  if (normalized.includes("file size exceeds maximum allowed size of 10mb")) {
+    return "Kích thước ảnh vượt quá 10MB.";
+  }
+  if (normalized.includes("parent account must select a student profile")) {
+    return "Phụ huynh cần chọn học sinh trước khi cập nhật thông tin học sinh.";
+  }
   if (normalized.includes("request failed with status code")) {
     return fallback;
   }
@@ -90,6 +102,41 @@ const toViErrorMessage = (message?: string, fallback = "Có lỗi xảy ra") => 
 
 const findParentProfile = (profiles?: UserProfile[]): UserProfile | undefined => {
   return profiles?.find((profile) => profile.profileType === "Parent");
+};
+
+const findStudentProfile = (user?: UserMeResponse | null): UserProfile | undefined => {
+  if (!user) return undefined;
+  const targetStudentId = findStudentProfileId(user);
+  if (!targetStudentId) return undefined;
+  return user.profiles?.find(
+    (profile) => profile.profileType === "Student" && profile.id === targetStudentId
+  );
+};
+
+const findActiveProfileByRole = (
+  user: UserMeResponse,
+  role: string | null
+): UserProfile | undefined => {
+  if (role === "Student") {
+    return findStudentProfile(user);
+  }
+
+  if (role === "Parent") {
+    return findParentProfile(user.profiles);
+  }
+
+  return undefined;
+};
+
+const findStudentProfileId = (user?: UserMeResponse | null): string => {
+  if (!user) return "";
+
+  return (
+    user.selectedProfileId ??
+    user.selectedProfile?.id ??
+    user.profiles?.find((profile) => profile.profileType === "Student")?.id ??
+    ""
+  );
 };
 
 const getEffectiveRole = (rawRole?: string): string | null => {
@@ -144,6 +191,8 @@ export default function UserProfileWorkspace() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [selectedStudentProfileId, setSelectedStudentProfileId] = useState("");
+  const [profileDisplayNames, setProfileDisplayNames] = useState<Record<string, string>>({});
   const [isSavingInfo, setIsSavingInfo] = useState(false);
 
   // Change password state
@@ -168,6 +217,41 @@ export default function UserProfileWorkspace() {
     sms: false,
   });
 
+  const effectiveRole = portalRole ?? getEffectiveRole(user?.role);
+  const isStudentPortal = effectiveRole === "Student";
+
+  const activeProfile = useMemo(() => {
+    if (!user?.profiles?.length) return undefined;
+
+    if (effectiveRole === "Parent") {
+      return findParentProfile(user.profiles);
+    }
+
+    if (effectiveRole === "Student") {
+      return findStudentProfile(user);
+    }
+
+    return undefined;
+  }, [effectiveRole, user]);
+
+  const editableProfiles = useMemo(() => {
+    if (!user?.profiles?.length) {
+      return [] as UserProfile[];
+    }
+
+    if (effectiveRole === "Parent") {
+      const parent = findParentProfile(user.profiles);
+      return parent ? [parent] : [];
+    }
+
+    if (effectiveRole === "Student") {
+      const student = findStudentProfile(user);
+      return student ? [student] : [];
+    }
+
+    return [] as UserProfile[];
+  }, [effectiveRole, user]);
+
   const applyUserState = (nextUser: UserMeResponse) => {
     const normalizedRole = getEffectiveRole(nextUser.role);
     const resolvedRole = portalRole ?? normalizedRole;
@@ -177,28 +261,48 @@ export default function UserProfileWorkspace() {
       avatarUrl: (nextUser as any).avatarUrl ?? (nextUser as any).avatar ?? undefined,
     } as UserMeResponse;
 
-    const selectedStudentProfile =
-      normalizedUser.selectedProfile?.profileType === "Student"
-        ? normalizedUser.selectedProfile
-        : normalizedUser.profiles?.find((profile) => profile.profileType === "Student");
-    const preferredFullName =
-      resolvedRole === "Student" && selectedStudentProfile?.displayName
-        ? selectedStudentProfile.displayName
-        : normalizedUser.fullName ?? "";
+    const normalizedProfiles = Array.isArray(normalizedUser.profiles)
+      ? normalizedUser.profiles
+      : [];
 
     setUser(normalizedUser);
-    setFullName(preferredFullName);
+    const studentProfile =
+      resolvedRole === "Student"
+        ? findStudentProfile(normalizedUser)
+        : undefined;
+
+    const parentProfile =
+      resolvedRole === "Parent"
+        ? findParentProfile(normalizedProfiles)
+        : undefined;
+
+    const mappedDisplayName =
+      studentProfile?.displayName ??
+      parentProfile?.displayName ??
+      normalizedUser.fullName ??
+      "";
+
+    setFullName(mappedDisplayName);
     setEmail(normalizedUser.email ?? "");
     setPhoneNumber(normalizedUser.phoneNumber ?? "");
+    setSelectedStudentProfileId(findStudentProfileId(normalizedUser));
+    setProfileDisplayNames(() => {
+      const nextProfileNames: Record<string, string> = {};
+      normalizedProfiles.forEach((profile) => {
+        if (!profile?.id) return;
+        nextProfileNames[profile.id] = profile.displayName ?? "";
+      });
+      return nextProfileNames;
+    });
 
-    const parentProfile = findParentProfile(normalizedUser.profiles);
+    const parentProfileState = findParentProfile(normalizedProfiles);
     const parentDetected = resolvedRole === "Parent";
 
     setIsParentRole(parentDetected);
 
-    if (parentDetected && parentProfile?.id) {
-      setParentProfileId(parentProfile.id);
-      setHasPinSetup(Boolean(parentProfile.hasPinSetup));
+    if (parentDetected && parentProfileState?.id) {
+      setParentProfileId(parentProfileState.id);
+      setHasPinSetup(Boolean(parentProfileState.hasPinSetup));
     } else {
       setParentProfileId("");
       setHasPinSetup(false);
@@ -210,6 +314,25 @@ export default function UserProfileWorkspace() {
       if (parentDetected && prev === "preferences") return "info";
       if (!parentDetected && prev === "pin") return "info";
       return prev;
+    });
+  };
+
+  const emitHeaderProfileUpdate = (nextUser: UserMeResponse, fallbackAvatarUrl?: string) => {
+    const resolvedRole = portalRole ?? getEffectiveRole(nextUser.role);
+    const activeProfileByRole = findActiveProfileByRole(nextUser, resolvedRole);
+    const resolvedName =
+      activeProfileByRole?.displayName ??
+      ((nextUser as any).fullName ?? (nextUser as any).name ?? "");
+    const resolvedAvatar =
+      activeProfileByRole?.avatarUrl ??
+      ((nextUser as any).avatarUrl ?? (nextUser as any).avatar ?? fallbackAvatarUrl);
+
+    emitCurrentUserUpdated({
+      fullName: resolvedName,
+      avatarUrl: resolvedAvatar,
+      profiles: nextUser.profiles,
+      selectedProfile: nextUser.selectedProfile,
+      selectedProfileId: nextUser.selectedProfileId,
     });
   };
 
@@ -252,12 +375,28 @@ export default function UserProfileWorkspace() {
       toast({ title: "Lỗi", description: "Họ tên không được để trống", variant: "destructive" });
       return;
     }
+
+    const profileUpdates = editableProfiles.map((profile) => ({
+      id: profile.id,
+      displayName: (profileDisplayNames[profile.id] ?? profile.displayName ?? "").trim(),
+    }));
+
+    if (profileUpdates.some((profile) => !profile.displayName)) {
+      toast({
+        title: "Lỗi",
+        description: "Tên hiển thị của profile không được để trống",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       setIsSavingInfo(true);
       const response = await updateUserMe({
-        fullName: fullName.trim(),
-        email: email.trim(),
-        phoneNumber: phoneNumber.trim(),
+        fullName: isStudentPortal ? undefined : fullName.trim(),
+        email: isStudentPortal ? undefined : email.trim(),
+        phoneNumber: isStudentPortal ? undefined : phoneNumber.trim(),
+        profiles: profileUpdates.length ? profileUpdates : undefined,
       });
 
       if (hasExplicitFailure(response)) {
@@ -272,10 +411,14 @@ export default function UserProfileWorkspace() {
       const updatedUser = unwrapApiData<UserMeResponse>(response);
       if (updatedUser && typeof updatedUser === "object") {
         applyUserState(updatedUser);
+        emitHeaderProfileUpdate(updatedUser);
       } else {
         const meResponse = await getUserMe();
         const latestUser = unwrapApiData<UserMeResponse>(meResponse);
-        if (latestUser) applyUserState(latestUser);
+        if (latestUser) {
+          applyUserState(latestUser);
+          emitHeaderProfileUpdate(latestUser);
+        }
       }
 
       toast({ title: "Thành công", description: "Đã cập nhật thông tin cá nhân", variant: "success" });
@@ -327,13 +470,35 @@ export default function UserProfileWorkspace() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith("image/")) {
-      toast({ title: "Lỗi", description: "Vui lòng chọn file ảnh", variant: "destructive" });
+    const targetProfileId =
+      effectiveRole === "Parent"
+        ? parentProfileId
+        : effectiveRole === "Student"
+          ? selectedStudentProfileId
+          : "";
+
+    if ((effectiveRole === "Parent" || effectiveRole === "Student") && !targetProfileId) {
+      const description =
+        effectiveRole === "Parent"
+          ? "Không tìm thấy hồ sơ phụ huynh để cập nhật avatar"
+          : "Không tìm thấy hồ sơ học sinh đang được chọn để cập nhật avatar";
+      toast({ title: "Lỗi", description, variant: "destructive" });
+      if (e.target) e.target.value = "";
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast({ title: "Lỗi", description: "Kích thước ảnh không được vượt quá 5MB", variant: "destructive" });
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type.toLowerCase())) {
+      toast({
+        title: "Lỗi",
+        description: "Định dạng ảnh không hợp lệ. Chỉ nhận JPG, PNG, WEBP.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ title: "Lỗi", description: "Kích thước ảnh không được vượt quá 10MB", variant: "destructive" });
       return;
     }
 
@@ -345,9 +510,10 @@ export default function UserProfileWorkspace() {
 
     try {
       setIsUploadingAvatar(true);
-      const response = await uploadAvatar(file);
+      const response = await uploadAvatar(file, {
+        targetProfileId: targetProfileId || undefined,
+      });
       if (isUploadSuccess(response)) {
-        emitCurrentUserUpdated({ avatarUrl: response.url });
         toast({ title: "Thành công", description: "Đã cập nhật ảnh đại diện", variant: "success" });
 
         setAvatarVersion(Date.now());
@@ -357,10 +523,7 @@ export default function UserProfileWorkspace() {
           const latestUser = unwrapApiData<UserMeResponse>(meResponse);
           if (latestUser) {
             applyUserState(latestUser);
-            emitCurrentUserUpdated({
-              avatarUrl: (latestUser as any)?.avatarUrl ?? (latestUser as any)?.avatar ?? response.url,
-              fullName: latestUser.fullName,
-            });
+            emitHeaderProfileUpdate(latestUser, response.url);
           }
         }
 
@@ -511,14 +674,18 @@ export default function UserProfileWorkspace() {
     );
   }
 
-  const avatarLetter = (fullName ?? user?.fullName ?? user?.userName ?? "?")[0]?.toUpperCase() ?? "?";
-  const effectiveRole = portalRole ?? getEffectiveRole(user?.role);
+  const displayName = activeProfile?.displayName ?? fullName ?? user?.fullName ?? user?.userName ?? "";
+  const avatarLetter = (displayName || "?")[0]?.toUpperCase() ?? "?";
   const roleInfo = ROLE_LABEL[effectiveRole ?? ""] ?? {
     label: user?.role ?? "",
     color: "bg-gray-100 text-gray-700 border-gray-200",
     icon: null,
   };
-  const avatarSrc = user?.avatarUrl ? buildFileUrl(user.avatarUrl) : "";
+  const avatarSrc = activeProfile?.avatarUrl
+    ? buildFileUrl(activeProfile.avatarUrl)
+    : user?.avatarUrl
+      ? buildFileUrl(user.avatarUrl)
+      : "";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 p-4 md:p-8">
@@ -604,12 +771,15 @@ export default function UserProfileWorkspace() {
                     />
                   </div>
                 </div>
+                <p className="text-center text-xs text-gray-500 mb-4">
+                  Ảnh JPG/PNG/WEBP, dung lượng tối đa 10MB.
+                </p>
 
                 <div className="text-center">
                   <h2 className="text-xl font-bold text-gray-900">
-                    {fullName || user?.fullName || user?.userName}
+                    {displayName || user?.userName}
                   </h2>
-                  <p className="text-sm text-gray-500 mt-0.5">{user?.email}</p>
+                  {!isStudentPortal && <p className="text-sm text-gray-500 mt-0.5">{user?.email}</p>}
                 </div>
 
                 {/* Chips */}
@@ -636,7 +806,7 @@ export default function UserProfileWorkspace() {
                   </span>
                 </div>
                 {/* Account meta */}
-                {user?.userName && (
+                {!isStudentPortal && user?.userName && (
                   <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
                     <div className="flex items-center gap-3">
                       <div className="p-1.5 bg-gray-100 rounded-lg">
@@ -740,33 +910,77 @@ export default function UserProfileWorkspace() {
                     />
                   </div>
 
-                  <div>
-                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                      <Mail size={14} className="text-red-500" />
-                      Email
-                    </label>
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="example@gmail.com"
-                      className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50/50 text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
-                    />
-                  </div>
+                  {!isStudentPortal && (
+                    <>
+                      <div>
+                        <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                          <Mail size={14} className="text-red-500" />
+                          Email
+                        </label>
+                        <input
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="example@gmail.com"
+                          className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50/50 text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
+                        />
+                      </div>
 
-                  <div>
-                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                      <Smartphone size={14} className="text-red-500" />
-                      Số điện thoại
-                    </label>
-                    <input
-                      type="tel"
-                      value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value)}
-                      placeholder="0901234567"
-                      className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50/50 text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
-                    />
-                  </div>
+                      <div>
+                        <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                          <Smartphone size={14} className="text-red-500" />
+                          Số điện thoại
+                        </label>
+                        <input
+                          type="tel"
+                          value={phoneNumber}
+                          onChange={(e) => setPhoneNumber(e.target.value)}
+                          placeholder="0901234567"
+                          className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50/50 text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {editableProfiles.length > 0 && (
+                    <div className="md:col-span-2 space-y-3">
+                      <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                        <Users size={14} className="text-red-500" />
+                        Tên hiển thị profile
+                      </label>
+                      <div className="space-y-3">
+                        {editableProfiles.map((profile) => {
+                          const typeLabel = profile.profileType === "Parent" ? "Phụ huynh" : "Học sinh";
+                          const typeColor =
+                            profile.profileType === "Parent"
+                              ? "bg-rose-50 text-rose-700 border-rose-200"
+                              : "bg-sky-50 text-sky-700 border-sky-200";
+
+                          return (
+                            <div key={profile.id} className="rounded-xl border border-gray-200 bg-gray-50/50 p-3 space-y-2">
+                              <div className="flex items-center gap-2 text-xs text-gray-500">
+                                <span className={`inline-flex items-center px-2 py-1 rounded-full border font-medium ${typeColor}`}>
+                                  {typeLabel}
+                                </span>
+                              </div>
+                              <input
+                                type="text"
+                                value={profileDisplayNames[profile.id] ?? ""}
+                                onChange={(event) =>
+                                  setProfileDisplayNames((prev) => ({
+                                    ...prev,
+                                    [profile.id]: event.target.value,
+                                  }))
+                                }
+                                placeholder={`Nhập tên hiển thị cho ${typeLabel.toLowerCase()}`}
+                                className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
 
                   
                 </div>

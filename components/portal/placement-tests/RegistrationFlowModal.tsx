@@ -15,6 +15,7 @@ import {
 import { getAllClasses } from "@/lib/api/classService";
 import { getTuitionPlans } from "@/lib/api/tuitionPlanService";
 import { getActiveProgramsForDropdown } from "@/lib/api/programService";
+import { getAllPlacementTests } from "@/lib/api/placementTestService";
 import {
   extractDomainErrorCode,
   getDomainErrorMessage,
@@ -137,7 +138,7 @@ export default function RegistrationFlowModal({
   onSuccess,
 }: RegistrationFlowModalProps) {
   const { toast } = useToast();
-  const studentName = (test?.studentName || "").trim();
+  const studentName = (test?.studentName || test?.childName || "").trim();
   const modalRef = useRef<HTMLDivElement>(null);
   const lastAutoSuggestRegistrationIdRef = useRef<string>("");
 
@@ -207,8 +208,15 @@ export default function RegistrationFlowModal({
   const [resolvedStudentProfileId, setResolvedStudentProfileId] = useState("");
   const [isCreating, setIsCreating] = useState(false);
 
-  const normalizeName = (value?: string | null) =>
+  const removeDiacritics = (value?: string | null) =>
     String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/đ/g, "d")
+      .replace(/Đ/g, "D");
+
+  const normalizeName = (value?: string | null) =>
+    removeDiacritics(value)
       .trim()
       .replace(/\s+/g, " ")
       .toLowerCase();
@@ -640,21 +648,73 @@ export default function RegistrationFlowModal({
         setNote(studentName);
         setResolvedStudentProfileId("");
 
-        if (test?.studentProfileId || studentName) {
+        let inferredStudentProfileId = String(test?.studentProfileId || "").trim();
+        if (!inferredStudentProfileId && branchId && (test?.leadChildId || test?.leadId || studentName)) {
+          try {
+            const historyResponse = await getAllPlacementTests({
+              page: 1,
+              pageSize: 500,
+              branchId,
+              searchTerm: studentName || undefined,
+            });
+
+            const historyItems = Array.isArray(historyResponse?.data?.items)
+              ? historyResponse.data.items
+              : [];
+            const targetLeadChildId = String(test?.leadChildId || "").trim();
+            const targetLeadId = String(test?.leadId || "").trim();
+            const targetName = normalizeName(studentName || test?.childName || test?.studentName || "");
+
+            const matchedHistory = historyItems
+              .filter((item: PlacementTest) => {
+                if (!item) return false;
+                if (String(item.id || "") === String(test?.id || "")) return false;
+
+                const profileId = String(item.studentProfileId || "").trim();
+                if (!profileId) return false;
+
+                const itemLeadChildId = String(item.leadChildId || "").trim();
+                const itemLeadId = String(item.leadId || "").trim();
+                const itemName = normalizeName(item.studentName || item.childName || "");
+
+                if (targetLeadChildId && itemLeadChildId && targetLeadChildId === itemLeadChildId) {
+                  return true;
+                }
+
+                if (targetLeadId && itemLeadId && targetLeadId === itemLeadId && targetName && itemName) {
+                  return targetName === itemName;
+                }
+
+                return false;
+              })
+              .sort((a: PlacementTest, b: PlacementTest) => {
+                const bt = new Date(b.updatedAt || b.createdAt || b.scheduledAt || "").getTime();
+                const at = new Date(a.updatedAt || a.createdAt || a.scheduledAt || "").getTime();
+                return (Number.isNaN(bt) ? 0 : bt) - (Number.isNaN(at) ? 0 : at);
+              });
+
+            inferredStudentProfileId = String(matchedHistory[0]?.studentProfileId || "").trim();
+          } catch (error) {
+            console.warn("Failed to infer student profile from placement test history", error);
+          }
+        }
+
+        if (inferredStudentProfileId || studentName) {
           const registrationsResponse = await getRegistrations({
             branchId,
             pageNumber: 1,
             pageSize: 500,
+            studentProfileId: inferredStudentProfileId || undefined,
           });
 
           const normalizedStudentName = normalizeName(studentName);
           const filteredRegistrations = (
             registrationsResponse.items || []
           ).filter((r) => {
-            if (test?.studentProfileId) {
+            if (inferredStudentProfileId) {
               return (
                 String(r.studentProfileId || "") ===
-                String(test.studentProfileId)
+                String(inferredStudentProfileId)
               );
             }
             if (!normalizedStudentName) {
@@ -711,7 +771,7 @@ export default function RegistrationFlowModal({
           setRegistrationId("");
           if (!test?.studentProfileId) {
             setResolvedStudentProfileId(
-              String(defaultRegistration?.studentProfileId || ""),
+              String(defaultRegistration?.studentProfileId || inferredStudentProfileId || ""),
             );
           }
         } else {
@@ -767,7 +827,6 @@ export default function RegistrationFlowModal({
     }
 
     if (!registrationId) {
-      setResolvedStudentProfileId("");
       return;
     }
 
@@ -1307,7 +1366,7 @@ export default function RegistrationFlowModal({
         style={{ width: "96vw", maxWidth: "1050px" }}
       >
         <RegistrationFlowHeader
-          studentName={test?.studentName || ""}
+          studentName={studentName}
           onClose={onClose}
         />
 
@@ -1334,8 +1393,11 @@ export default function RegistrationFlowModal({
                   const selectedRegistration = registrationOptions.find(
                     (item) => item.id === normalizedValue,
                   );
+                  const fallbackStudentProfileId = normalizedValue
+                    ? selectedRegistration?.studentProfileId
+                    : resolvedStudentProfileId || registrationOptions[0]?.studentProfileId;
                   setResolvedStudentProfileId(
-                    String(selectedRegistration?.studentProfileId || ""),
+                    String(fallbackStudentProfileId || ""),
                   );
                 }
               }}

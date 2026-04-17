@@ -64,6 +64,8 @@ const CODE_TO_VIETNAMESE_MESSAGE: Record<string, string> = {
   // Placement Test - Conflict
   "PlacementTest.LeadAlreadyEnrolled": "Lead đã được chuyển thành học viên",
   "PlacementTest.StudentProfileAlreadyAssigned": "Học viên đã được gán cho child khác",
+  "PlacementTest.RoomUnavailable": "Phòng đã bị chiếm dụng, vui lòng chọn phòng khác",
+  "PlacementTest.InvigilatorUnavailable": "Người giám sát đang bận, vui lòng chọn người khác",
 
   // Lead - Not Found
   "Lead.NotFound": "Lead không tồn tại",

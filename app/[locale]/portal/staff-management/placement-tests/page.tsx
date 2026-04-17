@@ -98,11 +98,13 @@ export default function PlacementTestsPage() {
   });
 
   // Mock data for dropdowns - replace with API calls
-  const [leads, setLeads] = useState<any[]>([]);
+  const [leads, setLeads] = useState<
+    Array<{ id: string; contactName: string; branchId?: string; children?: Array<{ id: string; name: string }> }>
+  >([]);
   const [studentProfiles, setStudentProfiles] = useState<
     Array<{ id: string; fullName: string; branchId?: string; profileType?: string }>
   >([]);
-  const [classes, setClasses] = useState<any[]>([]);
+  const [classes, setClasses] = useState<Array<{ id: string; className: string; branchId?: string }>>([]);
   const [invigilators, setInvigilators] = useState<any[]>([]);
   const [retakeBranches, setRetakeBranches] = useState<Array<{ id: string; name: string }>>([]);
   const [retakePrograms, setRetakePrograms] = useState<Array<{ id: string; name: string; branchId?: string }>>([]);
@@ -267,7 +269,7 @@ export default function PlacementTestsPage() {
 
   const fetchInvigilators = async () => {
     try {
-      // Fetch both Admin and ManagementStaff users with pagination
+      // Fetch Admin, ManagementStaff and Teacher users with pagination
       const adminParams = new URLSearchParams();
       adminParams.append("role", "Admin");
       adminParams.append("isActive", "true");
@@ -280,7 +282,13 @@ export default function PlacementTestsPage() {
       staffParams.append("pageSize", "1000");
       staffParams.append("page", "1");
 
-      const [adminResponse, staffResponse] = await Promise.all([
+      const teacherParams = new URLSearchParams();
+      teacherParams.append("role", "Teacher");
+      teacherParams.append("isActive", "true");
+      teacherParams.append("pageSize", "1000");
+      teacherParams.append("page", "1");
+
+      const [adminResponse, staffResponse, teacherResponse] = await Promise.all([
         fetch(`${USER_ENDPOINTS.GET_ALL}?${adminParams.toString()}`, {
           headers: {
             Authorization: `Bearer ${getAccessToken()}`,
@@ -291,11 +299,17 @@ export default function PlacementTestsPage() {
             Authorization: `Bearer ${getAccessToken()}`,
           },
         }),
+        fetch(`${USER_ENDPOINTS.GET_ALL}?${teacherParams.toString()}`, {
+          headers: {
+            Authorization: `Bearer ${getAccessToken()}`,
+          },
+        }),
       ]);
 
-      if (adminResponse.ok && staffResponse.ok) {
+      if (adminResponse.ok && staffResponse.ok && teacherResponse.ok) {
         const adminData = await adminResponse.json();
         const staffData = await staffResponse.json();
+        const teacherData = await teacherResponse.json();
 
         // Handle multiple response formats
         const adminItems =
@@ -312,6 +326,13 @@ export default function PlacementTestsPage() {
           staffData.items ||
           staffData.users ||
           [];
+        const teacherItems =
+          teacherData.data?.items ||
+          teacherData.data?.users ||
+          teacherData.data ||
+          teacherData.items ||
+          teacherData.users ||
+          [];
 
         const admins = adminItems.map((user: any) => ({
           id: user.id,
@@ -327,7 +348,14 @@ export default function PlacementTestsPage() {
           branchId: user.branchId || user.branch?.id || "",
         }));
 
-        setInvigilators([...admins, ...staff]);
+        const teachers = teacherItems.map((user: any) => ({
+          id: user.id,
+          fullName: user.fullName || user.userName || user.name || "N/A",
+          role: "Teacher",
+          branchId: user.branchId || user.branch?.id || "",
+        }));
+
+        setInvigilators([...admins, ...staff, ...teachers]);
       } else {
         console.error(
           "❌ Failed to fetch invigilators:",
@@ -335,6 +363,8 @@ export default function PlacementTestsPage() {
           adminResponse.status,
           "Staff:",
           staffResponse.status,
+          "Teacher:",
+          teacherResponse.status,
         );
       }
     } catch (error) {
@@ -448,6 +478,15 @@ export default function PlacementTestsPage() {
             return {
               id: lead.id,
               contactName: lead.contactName || lead.fullName || "N/A",
+              branchId: String(
+                lead.branchId ||
+                  lead.branch?.id ||
+                  lead.branch?.branchId ||
+                  lead.branchPreference ||
+                  lead.branchPreferenceId ||
+                  lead.branchPreference?.id ||
+                  "",
+              ),
               children: mappedChildren,
             };
           }),
@@ -571,6 +610,15 @@ export default function PlacementTestsPage() {
             return {
               id: lead.id,
               contactName: lead.contactName || lead.fullName || "N/A",
+              branchId: String(
+                lead.branchId ||
+                  lead.branch?.id ||
+                  lead.branch?.branchId ||
+                  lead.branchPreference ||
+                  lead.branchPreferenceId ||
+                  lead.branchPreference?.id ||
+                  "",
+              ),
               children: mappedChildren,
             };
           }),
@@ -688,6 +736,7 @@ export default function PlacementTestsPage() {
         const mappedClasses = classesData.map((cls: any) => ({
           id: cls.id,
           className: cls.roomName || cls.classroomName || cls.name || cls.code || "N/A",
+          branchId: String(cls.branchId || cls.branch?.id || cls.branch?.branchId || ""),
         }));
 
         setClasses(mappedClasses);

@@ -260,9 +260,19 @@ export default function ResultFormModal({
     return Number(((listening + speaking + reading + writing) / 4).toFixed(1));
   }, [formData.listeningScore, formData.speakingScore, formData.readingScore, formData.writingScore]);
 
+  const isDuplicateProgramSelection =
+    Boolean(formData.programRecommendationId) &&
+    Boolean(formData.secondaryProgramRecommendationId) &&
+    formData.programRecommendationId === formData.secondaryProgramRecommendationId;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError("");
+
+    if (isDuplicateProgramSelection) {
+      setFormError("Chương trình chính và chương trình song song không được trùng nhau.");
+      return;
+    }
 
     const parsedScores: Record<string, number> = {};
     for (const field of SCORE_FIELDS) {
@@ -316,7 +326,7 @@ export default function ResultFormModal({
     <div className="fixed inset-0 z-9999 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div className="relative w-full max-w-3xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
         {/* Header - Gradient đỏ như modal mẫu */}
-        <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
+        <div className="bg-linear-to-r from-red-600 to-red-700 p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
@@ -462,11 +472,33 @@ export default function ResultFormModal({
                   value={formData.programRecommendationId}
                   onValueChange={(value) => {
                     const selected = programOptions.find((p) => p.id === value);
+                    const isConflictedSecondary =
+                      Boolean(formData.secondaryProgramRecommendationId) &&
+                      formData.secondaryProgramRecommendationId === value;
+
                     setFormData((prev) => ({
                       ...prev,
                       programRecommendationId: value,
                       programRecommendationName: selected?.name || "",
+                      secondaryProgramRecommendationId: isConflictedSecondary
+                        ? ""
+                        : prev.secondaryProgramRecommendationId,
+                      secondaryProgramRecommendationName: isConflictedSecondary
+                        ? ""
+                        : prev.secondaryProgramRecommendationName,
+                      isSecondaryProgramSupplementary: isConflictedSecondary
+                        ? false
+                        : prev.isSecondaryProgramSupplementary,
+                      secondaryProgramSkillFocus: isConflictedSecondary
+                        ? ""
+                        : prev.secondaryProgramSkillFocus,
                     }));
+
+                    if (isConflictedSecondary) {
+                      setFormError("Chương trình song song đã được xóa vì trùng với chương trình chính.");
+                    } else {
+                      setFormError("");
+                    }
                   }}
                   disabled={isLoadingPrograms || !branchId}
                 >
@@ -504,7 +536,17 @@ export default function ResultFormModal({
                   value={formData.secondaryProgramRecommendationId}
                   onValueChange={(value) => {
                     const nextValue = value === "__none__" ? "" : value;
+                    if (
+                      nextValue &&
+                      formData.programRecommendationId &&
+                      nextValue === formData.programRecommendationId
+                    ) {
+                      setFormError("Chương trình song song không được trùng với chương trình chính.");
+                      return;
+                    }
+
                     const selected = nextValue ? programOptions.find((p) => p.id === nextValue) : null;
+                    setFormError("");
                     setFormData((prev) => ({
                       ...prev,
                       secondaryProgramRecommendationId: nextValue,
@@ -530,7 +572,9 @@ export default function ResultFormModal({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">Không có secondary</SelectItem>
-                    {programOptions.map((program) => (
+                    {programOptions
+                      .filter((program) => program.id !== formData.programRecommendationId)
+                      .map((program) => (
                       <SelectItem key={`secondary-${program.id}`} value={program.id}>
                         {program.name}
                         {program.isSupplementary ? " • Phụ trợ" : ""}
@@ -541,6 +585,11 @@ export default function ResultFormModal({
                 <p className="text-xs text-gray-500">
                   Để trống nếu không có học chương trình song song.
                 </p>
+                {isDuplicateProgramSelection ? (
+                  <p className="text-xs text-red-600">
+                    Chương trình chính và chương trình song song đang bị trùng. Vui lòng chọn lại.
+                  </p>
+                ) : null}
               </div>
 
               {formData.secondaryProgramRecommendationId ? (
@@ -645,7 +694,7 @@ export default function ResultFormModal({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-6">
+        <div className="border-t border-gray-200 bg-linear-to-r from-red-500/5 to-red-700/5 p-6">
           <div className="flex items-center justify-between">
             <button
               type="button"
@@ -668,7 +717,7 @@ export default function ResultFormModal({
                 type="submit"
                 onClick={handleSubmit}
                 disabled={isSubmitting || isUploadingAttachment}
-                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
+                className="px-6 py-2.5 rounded-xl bg-linear-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {isSubmitting ? "Đang lưu..." : "Lưu kết quả"}
               </button>
