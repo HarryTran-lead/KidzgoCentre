@@ -60,6 +60,12 @@ type FormState = {
 };
 
 const ACCEPTED_SOURCE_FILE_TYPES = ".txt,.md,.csv,.json,.xml,.html,.htm,.docx,.pdf,.xlsx,.xls";
+const MAX_SOURCE_FILE_SIZE = 20 * 1024 * 1024;
+const ACCEPTED_SOURCE_FILE_EXTENSIONS = new Set(
+  ACCEPTED_SOURCE_FILE_TYPES.split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean)
+);
 
 const DEFAULT_FORM_STATE: Omit<FormState, "questionType"> = {
   programId: "",
@@ -161,6 +167,42 @@ export default function AiCreatorModal({
   const [result, setResult] = useState<AiGenerateQuestionResult | null>(null);
   const [sourceFile, setSourceFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSourceFileChange = (file: File | null) => {
+    if (!file) {
+      setSourceFile(null);
+      return;
+    }
+
+    const fileName = file.name || "";
+    const dotIndex = fileName.lastIndexOf(".");
+    const extension = dotIndex >= 0 ? fileName.slice(dotIndex).toLowerCase() : "";
+
+    if (!ACCEPTED_SOURCE_FILE_EXTENSIONS.has(extension)) {
+      toast({
+        title: "Định dạng file chưa hỗ trợ",
+        description:
+          "Vui lòng chọn file .txt, .md, .csv, .json, .xml, .html, .htm, .docx, .pdf, .xlsx hoặc .xls.",
+        type: "destructive",
+      });
+      setSourceFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    if (file.size > MAX_SOURCE_FILE_SIZE) {
+      toast({
+        title: "File vượt quá giới hạn",
+        description: "Dung lượng file nguồn không được vượt quá 20MB.",
+        type: "destructive",
+      });
+      setSourceFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    setSourceFile(file);
+  };
 
   useEffect(() => {
     if (!isOpen) {
@@ -493,11 +535,11 @@ export default function AiCreatorModal({
                   className="hidden"
                   onChange={(event) => {
                     const file = event.target.files?.[0] ?? null;
-                    setSourceFile(file);
+                    handleSourceFileChange(file);
                   }}
                 />
                 <p className="mt-1 text-[11px] text-gray-400">
-                  Hỗ trợ: .txt, .md, .csv, .json, .xml, .html, .docx, .pdf, .xlsx
+                  Hỗ trợ: .txt, .md, .csv, .json, .xml, .html, .htm, .docx, .pdf, .xlsx, .xls (tối đa 20MB)
                 </p>
               </div>
 
@@ -689,15 +731,15 @@ export default function AiCreatorModal({
 
           <div className="overflow-y-auto p-6">
             {!result ? (
-              <div className="flex h-full items-center justify-center rounded-3xl border border-dashed border-red-200 bg-red-50/30 p-10 text-center">
+              <div className="flex min-h-[220px] items-center justify-center rounded-3xl border border-dashed border-red-200 bg-red-50/30 p-6 text-center">
                 <div className="max-w-md">
-                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-red-100 text-red-600">
-                    <Wand2 size={28} />
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-red-100 text-red-600">
+                    <Wand2 size={22} />
                   </div>
-                  <h3 className="mt-4 text-lg font-semibold text-gray-900">
+                  <h3 className="mt-3 text-base font-semibold text-gray-900">
                     AI đang chờ thông tin
                   </h3>
-                  <p className="mt-2 text-sm leading-relaxed text-gray-600">
+                  <p className="mt-1.5 text-sm leading-relaxed text-gray-600">
                     {emptyStateDescription}
                   </p>
                 </div>

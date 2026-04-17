@@ -14,13 +14,12 @@ import {
   Loader2,
   HelpCircle,
   ChevronRight,
+  ChevronLeft,
+  Sparkles,
   AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/lightswind/button";
-import type {
-  AssignmentListItem,
-  SortOption,
-} from "@/types/student/homework";
+import type { AssignmentListItem, SortOption } from "@/types/student/homework";
 import {
   getStudentHomework,
   getStudentHomeworkFeedback,
@@ -34,14 +33,14 @@ const DEBOUNCE_DELAY = 300;
 // Helper functions
 const getTypeLabel = (type: string): string => {
   const map: Record<string, string> = {
-    "File": "Nộp file",
-    "Quiz": "Trắc nghiệm",
-    "Essay": "Bài viết",
-    "PROJECT": "Dự án",
-    "PRESENTATION": "Thuyết trình",
+    File: "Nộp file",
+    Quiz: "Trắc nghiệm",
+    Essay: "Bài viết",
+    PROJECT: "Dự án",
+    PRESENTATION: "Thuyết trình",
     FILE_UPLOAD: "Nộp file",
     ESSAY: "Bài viết",
-    QUIZ: "Trắc nghiệm",
+    MULTIPLECHOICE: "Trắc nghiệm",
   };
   return map[type] || "Bài tập";
 };
@@ -68,9 +67,9 @@ const getTypeIcon = (type: string) => {
 const hasGradingResult = (assignment: AssignmentListItem): boolean =>
   Boolean(
     assignment.gradedAt ||
-      assignment.score !== null ||
-      (assignment.teacherFeedback && assignment.teacherFeedback.trim()) ||
-      (assignment.aiFeedback && assignment.aiFeedback.trim())
+    assignment.score !== null ||
+    (assignment.teacherFeedback && assignment.teacherFeedback.trim()) ||
+    (assignment.aiFeedback && assignment.aiFeedback.trim()),
   );
 
 const getFeedbackPreview = (assignment: AssignmentListItem): string =>
@@ -82,10 +81,12 @@ const getFeedbackPreview = (assignment: AssignmentListItem): string =>
       ? "Da co ket qua cham bai"
       : "");
 
-const formatDate = (dateString: string, locale: string = 'vi-VN') => {
-  if (!dateString) return '-';
+const formatDate = (dateString: string, locale: string = "vi-VN") => {
+  if (!dateString) return "-";
   try {
-    const match = String(dateString).match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::\d{2})?(?:\.\d+)?(?:Z|([+-]\d{2}:?\d{2}))?$/);
+    const match = String(dateString).match(
+      /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::\d{2})?(?:\.\d+)?(?:Z|([+-]\d{2}:?\d{2}))?$/,
+    );
     let date: Date;
     if (match) {
       const [, year, month, day, hours, minutes] = match;
@@ -94,7 +95,7 @@ const formatDate = (dateString: string, locale: string = 'vi-VN') => {
         parseInt(month) - 1,
         parseInt(day),
         parseInt(hours) - 7,
-        parseInt(minutes)
+        parseInt(minutes),
       );
       date = new Date(vnMs);
     } else {
@@ -102,20 +103,22 @@ const formatDate = (dateString: string, locale: string = 'vi-VN') => {
       if (isNaN(date.getTime())) return dateString;
     }
     return date.toLocaleDateString(locale, {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      timeZone: 'Asia/Ho_Chi_Minh',
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      timeZone: "Asia/Ho_Chi_Minh",
     });
   } catch {
     return dateString;
   }
 };
 
-const formatDateTime = (dateString: string, locale: string = 'vi-VN') => {
-  if (!dateString) return '-';
+const formatDateTime = (dateString: string, locale: string = "vi-VN") => {
+  if (!dateString) return "-";
   try {
-    const match = String(dateString).match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::\d{2})?(?:\.\d+)?(?:Z|([+-]\d{2}:?\d{2}))?$/);
+    const match = String(dateString).match(
+      /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::\d{2})?(?:\.\d+)?(?:Z|([+-]\d{2}:?\d{2}))?$/,
+    );
     let date: Date;
     if (match) {
       const [, year, month, day, hours, minutes] = match;
@@ -124,7 +127,7 @@ const formatDateTime = (dateString: string, locale: string = 'vi-VN') => {
         parseInt(month) - 1,
         parseInt(day),
         parseInt(hours) - 7,
-        parseInt(minutes)
+        parseInt(minutes),
       );
       date = new Date(vnMs);
     } else {
@@ -132,12 +135,12 @@ const formatDateTime = (dateString: string, locale: string = 'vi-VN') => {
       if (isNaN(date.getTime())) return dateString;
     }
     return date.toLocaleString(locale, {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZone: 'Asia/Ho_Chi_Minh',
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "Asia/Ho_Chi_Minh",
     });
   } catch {
     return dateString;
@@ -147,7 +150,9 @@ const formatDateTime = (dateString: string, locale: string = 'vi-VN') => {
 const isToday = (dateString: string): boolean => {
   if (!dateString) return false;
   try {
-    const match = String(dateString).match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::\d{2})?(?:\.\d+)?(?:Z|([+-]\d{2}:?\d{2}))?$/);
+    const match = String(dateString).match(
+      /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::\d{2})?(?:\.\d+)?(?:Z|([+-]\d{2}:?\d{2}))?$/,
+    );
     let date: Date;
     if (match) {
       const [, year, month, day] = match;
@@ -166,7 +171,9 @@ const isToday = (dateString: string): boolean => {
 const isTomorrow = (dateString: string): boolean => {
   if (!dateString) return false;
   try {
-    const match = String(dateString).match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::\d{2})?(?:\.\d+)?(?:Z|([+-]\d{2}:?\d{2}))?$/);
+    const match = String(dateString).match(
+      /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::\d{2})?(?:\.\d+)?(?:Z|([+-]\d{2}:?\d{2}))?$/,
+    );
     let date: Date;
     if (match) {
       const [, year, month, day] = match;
@@ -184,28 +191,33 @@ const isTomorrow = (dateString: string): boolean => {
 };
 
 // Sub-components
-function StatusBadge({ 
-  status, 
-  score, 
+function StatusBadge({
+  status,
+  score,
   maxScore,
   isGraded = false,
-}: { 
-  status: string; 
-  score?: number | null; 
+}: {
+  status: string;
+  score?: number | null;
   maxScore?: number;
   isGraded?: boolean;
 }) {
   if (isGraded) {
     return (
       <span className="px-3 py-1 rounded-lg text-[11px] font-bold backdrop-blur-sm bg-cyan-500/30 border border-cyan-400/40 text-cyan-200">
-        {score !== undefined && score !== null ? `${score}/${maxScore}` : "Da cham"}
+        {score !== undefined && score !== null
+          ? `${score}/${maxScore}`
+          : "Da cham"}
       </span>
     );
   }
 
   const config: Record<string, { label: string; className: string }> = {
     SUBMITTED: {
-      label: score !== undefined && score !== null ? `${score}/${maxScore}` : "Đã nộp",
+      label:
+        score !== undefined && score !== null
+          ? `${score}/${maxScore}`
+          : "Đã nộp",
       className: "bg-green-500/30 border border-green-400/40 text-green-300",
     },
     ASSIGNED: {
@@ -229,18 +241,20 @@ function StatusBadge({
   const currentConfig = config[status] || config.ASSIGNED;
 
   return (
-    <span className={`px-3 py-1 rounded-lg text-[11px] font-bold backdrop-blur-sm ${currentConfig.className}`}>
+    <span
+      className={`px-3 py-1 rounded-lg text-[11px] font-bold backdrop-blur-sm ${currentConfig.className}`}
+    >
       {currentConfig.label}
     </span>
   );
 }
 
-function TodayHomeworkSection({ 
-  assignments, 
+function TodayHomeworkSection({
+  assignments,
   onViewAll,
   locale,
-  onAssignmentClick
-}: { 
+  onAssignmentClick,
+}: {
   assignments: AssignmentListItem[];
   onViewAll: () => void;
   locale: string;
@@ -248,8 +262,8 @@ function TodayHomeworkSection({
 }) {
   const todayAssignments = useMemo(() => {
     return assignments
-      .filter(a => {
-        if (a.status === 'SUBMITTED' || a.status === 'LATE') return false;
+      .filter((a) => {
+        if (a.status === "SUBMITTED" || a.status === "LATE") return false;
         return isToday(a.dueAt);
       })
       .slice(0, 3);
@@ -330,7 +344,7 @@ export default function HomeworkPage() {
   const router = useRouter();
   const params = useParams();
   const locale = params.locale as string;
-  
+
   // State
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -353,7 +367,7 @@ export default function HomeworkPage() {
     const fetchHomework = async () => {
       setIsLoading(true);
       setError(null);
-      
+
       try {
         const response =
           statusFilter === "FEEDBACK"
@@ -362,15 +376,15 @@ export default function HomeworkPage() {
                 pageSize: PAGE_SIZE,
               })
             : statusFilter === "SUBMITTED"
-            ? await getStudentSubmittedHomework({
-                pageNumber: 1,
-                pageSize: PAGE_SIZE,
-              })
-            : await getStudentHomework({
-                pageNumber: 1,
-                pageSize: PAGE_SIZE,
-              });
-        
+              ? await getStudentSubmittedHomework({
+                  pageNumber: 1,
+                  pageSize: PAGE_SIZE,
+                })
+              : await getStudentHomework({
+                  pageNumber: 1,
+                  pageSize: PAGE_SIZE,
+                });
+
         if (response.isSuccess && response.data?.homeworkAssignments?.items) {
           setAssignments(response.data.homeworkAssignments.items);
         } else {
@@ -389,34 +403,38 @@ export default function HomeworkPage() {
   }, [statusFilter]);
 
   // Stats calculation
-  const stats = useMemo(() => ({
-    total: assignments.length,
-    notSubmitted: assignments.filter(a => a.status === 'PENDING').length,
-    submitted: assignments.filter(a => a.status === 'SUBMITTED').length,
-    late: assignments.filter(a => a.status === 'LATE').length,
-    missing: assignments.filter(a => a.status === 'MISSING').length,
-    feedback: assignments.filter(hasGradingResult).length,
-  }), [assignments]);
+  const stats = useMemo(
+    () => ({
+      total: assignments.length,
+      notSubmitted: assignments.filter((a) => a.status === "PENDING").length,
+      submitted: assignments.filter((a) => a.status === "SUBMITTED").length,
+      late: assignments.filter((a) => a.status === "LATE").length,
+      missing: assignments.filter((a) => a.status === "MISSING").length,
+      feedback: assignments.filter(hasGradingResult).length,
+    }),
+    [assignments],
+  );
 
   // Filter and sort logic
   const filteredAssignments = useMemo(() => {
     let result = [...assignments];
-    
+
     // Apply search filter
     if (debouncedSearch) {
       const searchLower = debouncedSearch.toLowerCase();
-      result = result.filter(a => 
-        a.assignmentTitle?.toLowerCase().includes(searchLower) || 
-        a.classTitle?.toLowerCase().includes(searchLower) ||
-        a.subject?.toLowerCase().includes(searchLower)
+      result = result.filter(
+        (a) =>
+          a.assignmentTitle?.toLowerCase().includes(searchLower) ||
+          a.classTitle?.toLowerCase().includes(searchLower) ||
+          a.subject?.toLowerCase().includes(searchLower),
       );
     }
-    
+
     // Apply status filter
     if (statusFilter !== "ALL" && statusFilter !== "FEEDBACK") {
-      result = result.filter(a => a.status === statusFilter);
+      result = result.filter((a) => a.status === statusFilter);
     }
-    
+
     // Apply sorting
     result.sort((a, b) => {
       switch (sortBy) {
@@ -425,13 +443,18 @@ export default function HomeworkPage() {
         case "DUE_DATE_DESC":
           return new Date(b.dueAt).getTime() - new Date(a.dueAt).getTime();
         case "STATUS":
-          const statusOrder: Record<string, number> = { 'PENDING': 1, 'LATE': 2, 'SUBMITTED': 3, 'MISSING': 4 };
+          const statusOrder: Record<string, number> = {
+            PENDING: 1,
+            LATE: 2,
+            SUBMITTED: 3,
+            MISSING: 4,
+          };
           return (statusOrder[a.status] || 99) - (statusOrder[b.status] || 99);
         default:
           return 0;
       }
     });
-    
+
     return result;
   }, [assignments, debouncedSearch, statusFilter, sortBy]);
 
@@ -440,31 +463,82 @@ export default function HomeworkPage() {
     setStatusFilter("PENDING");
   }, []);
 
-  const handleAssignmentClick = useCallback((assignmentId: string) => {
-    router.push(`/${locale}/portal/student/homework/${assignmentId}`);
-  }, [locale, router]);
+  const handleAssignmentClick = useCallback(
+    (assignmentId: string) => {
+      router.push(`/${locale}/portal/student/homework/${assignmentId}`);
+    },
+    [locale, router],
+  );
 
   // Tab options
-  const homeworkTabs = useMemo(() => [
-    { id: 'ALL', label: 'Tất cả', count: stats.total },
-    { id: 'PENDING', label: 'Chưa nộp', count: stats.notSubmitted },
-    { id: 'SUBMITTED', label: 'Đã nộp', count: stats.submitted },
-    { id: 'FEEDBACK', label: 'Kết quả', count: stats.feedback },
-    { id: 'LATE', label: 'Nộp trễ', count: stats.late },
-    { id: 'MISSING', label: 'Quá hạn', count: stats.missing },
-  ], [stats]);
+  const homeworkTabs = useMemo(
+    () => [
+      { id: "ALL", label: "Tất cả", count: stats.total },
+      { id: "PENDING", label: "Chưa nộp", count: stats.notSubmitted },
+      { id: "SUBMITTED", label: "Đã nộp", count: stats.submitted },
+      { id: "FEEDBACK", label: "Kết quả", count: stats.feedback },
+      { id: "LATE", label: "Nộp trễ", count: stats.late },
+      { id: "MISSING", label: "Quá hạn", count: stats.missing },
+    ],
+    [stats],
+  );
 
   return (
     <div className="flex flex-col h-[calc(100vh-120px)]">
       {/* Header Section */}
-      <div className={`shrink-0 px-6 pt-6 pb-4 transition-all duration-700 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"}`}>
-        <div className="mb-6">
-          <h1 className="text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 via-pink-400 to-purple-400 drop-shadow-lg">Bài tập</h1>
-          <p className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 drop-shadow-lg">Quản lý và nộp bài tập của bạn</p>
+      <div
+        className={`shrink-0 px-6 pt-6 pb-4 transition-all duration-700 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"}`}
+      >
+        <div className="mb-8 relative">
+          {/* Centered Title */}
+          <div className="text-center pt-4">
+            <div className="inline-block relative">
+              {/* Glowing background effect */}
+              <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-purple-500 via-pink-500 to-violet-500 opacity-30 blur-2xl"></div>
+
+              {/* Main frame */}
+              <div
+                className="relative rounded-3xl px-8 md:px-16 py-8 md:py-10 bg-gradient-to-br from-purple-500/20 via-pink-500/15 to-violet-500/20 backdrop-blur-xl border border-transparent flex flex-col items-center justify-center"
+                style={{
+                  backgroundImage:
+                    "linear-gradient(135deg, rgba(168,85,247,0.3), rgba(236,72,153,0.3), rgba(217,70,239,0.3)), linear-gradient(to right, rgba(168,85,247,0.1), rgba(236,72,153,0.1))",
+                  boxShadow:
+                    "0 0 60px rgba(168,85,247,0.3), 0 0 30px rgba(236,72,153,0.2), inset 0 1px 0 rgba(255,255,255,0.1)",
+                }}
+              >
+                {/* Decorative gradient border */}
+                <div
+                  className="absolute inset-0 rounded-3xl p-[2px] pointer-events-none"
+                  style={{
+                    background:
+                      "linear-gradient(135deg, #a855f7, #ec4899, #d946ef, #a855f7)",
+                    WebkitMask:
+                      "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+                    WebkitMaskComposite: "xor",
+                    maskComposite: "exclude",
+                    padding: "4px",
+                  }}
+                ></div>
+
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-2">
+                    <Sparkles className="w-8 h-8 text-purple-400 animate-pulse" />
+                    <h1 className="text-5xl md:text-6xl lg:text-5xl font-bold bg-gradient-to-r from-purple-300 via-pink-300 to-fuchsia-300 bg-clip-text text-transparent drop-shadow-lg leading-relaxed">
+                      BÀI TẬP
+                    </h1>
+                    <Sparkles className="w-8 h-8 text-pink-400 animate-pulse" />
+                  </div>
+                  <p className="text-base md:text-lg font-medium text-purple-200/80">
+                    Quản lý và nộp bài tập của bạn
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Today's Homework Section */}
-        <TodayHomeworkSection 
+        <TodayHomeworkSection
           assignments={assignments}
           onViewAll={handleViewAllToday}
           locale={locale}
@@ -484,9 +558,11 @@ export default function HomeworkPage() {
               }`}
             >
               {tab.label}
-              <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                statusFilter === tab.id ? "bg-white/20" : "bg-purple-500/20"
-              }`}>
+              <span
+                className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                  statusFilter === tab.id ? "bg-white/20" : "bg-purple-500/20"
+                }`}
+              >
                 {tab.count}
               </span>
             </button>
@@ -496,7 +572,10 @@ export default function HomeworkPage() {
         {/* Search & Sort Bar */}
         <div className="flex gap-3">
           <div className="flex-1 relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-purple-400" size={18} />
+            <Search
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-purple-400"
+              size={18}
+            />
             <input
               type="text"
               placeholder="Tìm kiếm bài tập..."
@@ -515,18 +594,25 @@ export default function HomeworkPage() {
               <option value="DUE_DATE_DESC">Hạn nộp: Xa nhất</option>
               <option value="STATUS">Trạng thái</option>
             </select>
-            <ChevronRight size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-purple-400 rotate-90 pointer-events-none" />
+            <ChevronRight
+              size={16}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-purple-400 rotate-90 pointer-events-none"
+            />
           </div>
         </div>
       </div>
 
       {/* List Content */}
-      <div className={`flex-1 px-6 pb-6 overflow-y-auto custom-scrollbar transition-all duration-700 delay-100 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+      <div
+        className={`flex-1 px-6 pb-6 overflow-y-auto custom-scrollbar transition-all duration-700 delay-100 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}
+      >
         {/* Loading State */}
         {isLoading && (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="w-8 h-8 animate-spin text-white" />
-            <span className="ml-3 text-white font-semibold">Đang tải bài tập...</span>
+            <span className="ml-3 text-white font-semibold">
+              Đang tải bài tập...
+            </span>
           </div>
         )}
 
@@ -547,7 +633,9 @@ export default function HomeworkPage() {
         {!isLoading && !error && filteredAssignments.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20">
             <FileText className="w-16 h-16 text-white/50 mb-4" />
-            <p className="text-white font-semibold text-lg">Không có bài tập nào</p>
+            <p className="text-white font-semibold text-lg">
+              Không có bài tập nào
+            </p>
             <p className="text-white/70">Danh sách bài tập trống</p>
           </div>
         )}
@@ -556,8 +644,10 @@ export default function HomeworkPage() {
         {!isLoading && !error && filteredAssignments.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filteredAssignments.map((assignment) => {
-              const isSubmitted = assignment.status === 'SUBMITTED' || assignment.status === 'LATE';
-              const isLate = assignment.status === 'LATE';
+              const isSubmitted =
+                assignment.status === "SUBMITTED" ||
+                assignment.status === "LATE";
+              const isLate = assignment.status === "LATE";
               const isGraded = hasGradingResult(assignment);
               const feedbackPreview = getFeedbackPreview(assignment);
               const isDueToday = isToday(assignment.dueAt) && !isSubmitted;
@@ -568,26 +658,30 @@ export default function HomeworkPage() {
                   onClick={() => handleAssignmentClick(assignment.id)}
                   className={`rounded-2xl overflow-hidden cursor-pointer flex flex-col border backdrop-blur-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl group ${
                     isDueToday
-                      ? 'border-orange-500/50 bg-gradient-to-b from-orange-500/10 to-slate-900/90 shadow-orange-500/20'
+                      ? "border-orange-500/50 bg-gradient-to-b from-orange-500/10 to-slate-900/90 shadow-orange-500/20"
                       : isGraded
-                        ? 'border-cyan-500/30 bg-gradient-to-b from-cyan-500/10 to-slate-900/90 shadow-cyan-500/10'
-                      : isSubmitted
-                        ? isLate
-                          ? 'border-amber-500/30 bg-gradient-to-b from-amber-500/10 to-slate-900/90 shadow-amber-500/10'
-                          : 'border-green-500/30 bg-gradient-to-b from-green-500/10 to-slate-900/90 shadow-green-500/10'
-                        : 'border-purple-500/30 bg-gradient-to-b from-purple-500/10 to-slate-900/90 shadow-purple-500/10 hover:border-purple-400/50'
+                        ? "border-cyan-500/30 bg-gradient-to-b from-cyan-500/10 to-slate-900/90 shadow-cyan-500/10"
+                        : isSubmitted
+                          ? isLate
+                            ? "border-amber-500/30 bg-gradient-to-b from-amber-500/10 to-slate-900/90 shadow-amber-500/10"
+                            : "border-green-500/30 bg-gradient-to-b from-green-500/10 to-slate-900/90 shadow-green-500/10"
+                          : "border-purple-500/30 bg-gradient-to-b from-purple-500/10 to-slate-900/90 shadow-purple-500/10 hover:border-purple-400/50"
                   }`}
                 >
                   {/* Cover Area */}
-                  <div className={`relative w-full h-36 flex items-center justify-center overflow-hidden ${
-                    isDueToday ? 'bg-gradient-to-br from-orange-500/30 via-pink-500/20 to-purple-500/20' :
-                    isGraded
-                      ? 'bg-gradient-to-br from-cyan-500/20 via-sky-500/20 to-emerald-500/20'
-                      :
-                    isSubmitted
-                      ? isLate ? 'bg-gradient-to-br from-amber-500/20 via-orange-500/20 to-yellow-500/20' : 'bg-gradient-to-br from-green-500/20 via-emerald-500/20 to-teal-500/20'
-                      : 'bg-gradient-to-br from-violet-500/20 via-purple-500/20 to-fuchsia-500/20'
-                  }`}>
+                  <div
+                    className={`relative w-full h-36 flex items-center justify-center overflow-hidden ${
+                      isDueToday
+                        ? "bg-gradient-to-br from-orange-500/30 via-pink-500/20 to-purple-500/20"
+                        : isGraded
+                          ? "bg-gradient-to-br from-cyan-500/20 via-sky-500/20 to-emerald-500/20"
+                          : isSubmitted
+                            ? isLate
+                              ? "bg-gradient-to-br from-amber-500/20 via-orange-500/20 to-yellow-500/20"
+                              : "bg-gradient-to-br from-green-500/20 via-emerald-500/20 to-teal-500/20"
+                            : "bg-gradient-to-br from-violet-500/20 via-purple-500/20 to-fuchsia-500/20"
+                    }`}
+                  >
                     {/* Decoration blobs */}
                     <div className="absolute top-2 left-2 w-10 h-10 rounded-full bg-purple-500/20" />
                     <div className="absolute bottom-3 right-3 w-8 h-8 rounded-full bg-blue-500/20" />
@@ -595,19 +689,28 @@ export default function HomeworkPage() {
 
                     {/* Icon */}
                     <div className="relative z-10 flex flex-col items-center">
-                      <div className={`w-16 h-16 rounded-2xl backdrop-blur-sm flex items-center justify-center shadow-lg border ${
-                        isDueToday ? 'bg-orange-500/40 border-orange-400/40' :
-                        isGraded
-                          ? 'bg-cyan-500/40 border-cyan-400/40'
-                          :
-                        isSubmitted
-                          ? isLate ? 'bg-amber-500/40 border-amber-400/40' : 'bg-green-500/40 border-green-400/40'
-                          : 'bg-purple-500/40 border-purple-400/40'
-                      }`}>
+                      <div
+                        className={`w-16 h-16 rounded-2xl backdrop-blur-sm flex items-center justify-center shadow-lg border ${
+                          isDueToday
+                            ? "bg-orange-500/40 border-orange-400/40"
+                            : isGraded
+                              ? "bg-cyan-500/40 border-cyan-400/40"
+                              : isSubmitted
+                                ? isLate
+                                  ? "bg-amber-500/40 border-amber-400/40"
+                                  : "bg-green-500/40 border-green-400/40"
+                                : "bg-purple-500/40 border-purple-400/40"
+                        }`}
+                      >
                         {isGraded ? (
                           <Award size={32} className="text-cyan-200" />
                         ) : isSubmitted ? (
-                          <CheckCircle size={32} className={isLate ? 'text-amber-400' : 'text-green-400'} />
+                          <CheckCircle
+                            size={32}
+                            className={
+                              isLate ? "text-amber-400" : "text-green-400"
+                            }
+                          />
                         ) : (
                           getTypeIcon(assignment.submissionType || "")
                         )}
@@ -632,7 +735,9 @@ export default function HomeworkPage() {
                     {/* Help Button */}
                     {!isSubmitted && (
                       <button
-                        onClick={(e) => { e.stopPropagation(); }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                        }}
                         className="absolute bottom-2 right-2 z-20 w-8 h-8 rounded-full bg-yellow-400/80 hover:bg-yellow-400 shadow-md flex items-center justify-center cursor-pointer transition-all duration-200 hover:scale-110 backdrop-blur-sm"
                       >
                         <HelpCircle size={18} className="text-violet-600" />
@@ -641,18 +746,33 @@ export default function HomeworkPage() {
 
                     {/* Submitted overlay */}
                     {isSubmitted && (
-                      <div className={`absolute bottom-2 right-2 z-20 flex items-center gap-1 px-2 py-1 rounded-full bg-slate-900/80 backdrop-blur-sm shadow-sm ${
-                        isGraded ? 'border border-cyan-500/20' : 'border border-green-500/20'
-                      }`}>
+                      <div
+                        className={`absolute bottom-2 right-2 z-20 flex items-center gap-1 px-2 py-1 rounded-full bg-slate-900/80 backdrop-blur-sm shadow-sm ${
+                          isGraded
+                            ? "border border-cyan-500/20"
+                            : "border border-green-500/20"
+                        }`}
+                      >
                         {isGraded ? (
                           <Award size={12} className="text-cyan-300" />
                         ) : (
-                          <CheckCircle size={12} className={isLate ? 'text-amber-400' : 'text-green-400'} />
+                          <CheckCircle
+                            size={12}
+                            className={
+                              isLate ? "text-amber-400" : "text-green-400"
+                            }
+                          />
                         )}
-                        <span className={`text-[10px] font-bold ${
-                          isGraded ? 'text-cyan-200' : isLate ? 'text-amber-300' : 'text-green-300'
-                        }`}>
-                          {isGraded ? 'Đã chấm' : isLate ? 'Nộp trễ' : 'Đã nộp'}
+                        <span
+                          className={`text-[10px] font-bold ${
+                            isGraded
+                              ? "text-cyan-200"
+                              : isLate
+                                ? "text-amber-300"
+                                : "text-green-300"
+                          }`}
+                        >
+                          {isGraded ? "Đã chấm" : isLate ? "Nộp trễ" : "Đã nộp"}
                         </span>
                       </div>
                     )}
@@ -660,31 +780,47 @@ export default function HomeworkPage() {
 
                   {/* Card Body */}
                   <div className="p-3 flex flex-col flex-1">
-                    <h3 className={`font-bold text-[13px] leading-snug mb-1 line-clamp-2 ${
-                      isSubmitted ? 'text-slate-400' : 'text-white'
-                    }`}>
+                    <h3
+                      className={`font-bold text-[13px] leading-snug mb-1 line-clamp-2 ${
+                        isSubmitted ? "text-slate-400" : "text-white"
+                      }`}
+                    >
                       {assignment.assignmentTitle}
                     </h3>
 
-                    <div className={`flex items-center gap-1.5 text-[11px] font-semibold mb-2 ${isSubmitted ? 'text-slate-500' : 'text-purple-300'}`}>
+                    <div
+                      className={`flex items-center gap-1.5 text-[11px] font-semibold mb-2 ${isSubmitted ? "text-slate-500" : "text-purple-300"}`}
+                    >
                       <BookOpen size={11} />
                       <span className="truncate">{assignment.classTitle}</span>
                       <span className="text-purple-500">•</span>
-                      <span>{getTypeLabel(assignment.submissionType || "")}</span>
+                      <span>
+                        {getTypeLabel(assignment.submissionType || "")}
+                      </span>
                     </div>
 
                     <div className="space-y-0.5 mb-3 mt-auto">
                       {assignment.submittedAt && (
-                        <span className={`text-[11px] font-semibold flex items-center gap-1.5 ${isLate ? 'text-amber-400' : 'text-green-400'}`}>
-                          <Calendar size={12} /> Đã nộp: {formatDate(assignment.submittedAt, locale)}
+                        <span
+                          className={`text-[11px] font-semibold flex items-center gap-1.5 ${isLate ? "text-amber-400" : "text-green-400"}`}
+                        >
+                          <Calendar size={12} /> Đã nộp:{" "}
+                          {formatDate(assignment.submittedAt, locale)}
                         </span>
                       )}
-                      <span className={`text-[11px] flex items-center gap-1.5 font-bold ${
-                        isDueToday ? 'text-orange-400' :
-                        isLate ? 'text-amber-500' :
-                        isSubmitted ? 'text-slate-500' : 'text-purple-400'
-                      }`}>
-                        <Clock size={12} /> Hạn: {formatDateTime(assignment.dueAt, locale)}
+                      <span
+                        className={`text-[11px] flex items-center gap-1.5 font-bold ${
+                          isDueToday
+                            ? "text-orange-400"
+                            : isLate
+                              ? "text-amber-500"
+                              : isSubmitted
+                                ? "text-slate-500"
+                                : "text-purple-400"
+                        }`}
+                      >
+                        <Clock size={12} /> Hạn:{" "}
+                        {formatDateTime(assignment.dueAt, locale)}
                         {isTomorrow(assignment.dueAt) && !isSubmitted && (
                           <span className="ml-1 text-[9px] bg-yellow-500/20 text-yellow-300 border border-yellow-400/30 px-1.5 py-0.5 rounded-full">
                             Ngày mai
@@ -718,14 +854,14 @@ export default function HomeworkPage() {
                     <button
                       className={`w-full h-9 rounded-xl text-[12px] font-bold shadow-md hover:shadow-lg mt-auto cursor-pointer transition-all duration-200 flex items-center justify-center gap-1.5 ${
                         isGraded
-                          ? 'bg-gradient-to-r from-cyan-500 to-sky-500 hover:from-cyan-600 hover:to-sky-600 text-white'
+                          ? "bg-gradient-to-r from-cyan-500 to-sky-500 hover:from-cyan-600 hover:to-sky-600 text-white"
                           : isSubmitted
-                          ? isLate
-                            ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white'
-                            : 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white'
-                          : isDueToday
-                            ? 'bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white animate-pulse'
-                            : 'bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 text-white'
+                            ? isLate
+                              ? "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white"
+                              : "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white"
+                            : isDueToday
+                              ? "bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white animate-pulse"
+                              : "bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 text-white"
                       }`}
                     >
                       {isGraded ? (

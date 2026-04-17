@@ -41,6 +41,10 @@ export interface PauseEnrollmentRequestRecord {
   outcomeNote?: string | null;
   outcomeBy?: string | null;
   outcomeAt?: string | null;
+  reassignedClassId?: string | null;
+  reassignedEnrollmentId?: string | null;
+  outcomeCompletedBy?: string | null;
+  outcomeCompletedAt?: string | null;
   classes?: PauseEnrollmentClassSummary[];
 }
 
@@ -54,6 +58,29 @@ export interface CreatePauseEnrollmentRequestPayload {
 export interface UpdatePauseEnrollmentOutcomePayload {
   outcome: PauseEnrollmentOutcome;
   outcomeNote?: string | null;
+}
+
+export interface ReassignEquivalentClassPayload {
+  registrationId: string;
+  newClassId: string;
+  track?: "primary" | "secondary";
+  sessionSelectionPattern?: string | null;
+  effectiveDate?: string | null;
+}
+
+export interface ReassignEquivalentClassResult {
+  pauseEnrollmentRequestId?: string;
+  registrationId?: string;
+  oldClassId?: string | null;
+  oldClassName?: string | null;
+  newClassId?: string;
+  newClassName?: string | null;
+  droppedEnrollmentId?: string | null;
+  newEnrollmentId?: string | null;
+  track?: "primary" | "secondary" | string;
+  effectiveDate?: string | null;
+  registrationStatus?: string | null;
+  outcomeCompletedAt?: string | null;
 }
 
 export interface PauseEnrollmentBulkApprovePayload {
@@ -96,3 +123,6 @@ export type PauseEnrollmentRequestActionResponse =
 
 export type PauseEnrollmentBulkApproveResponse =
   ApiResponse<PauseEnrollmentBulkApproveResult>;
+
+export type ReassignEquivalentClassResponse =
+  ApiResponse<ReassignEquivalentClassResult>;

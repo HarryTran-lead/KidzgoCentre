@@ -35,7 +35,18 @@ const CODE_TO_VIETNAMESE_MESSAGE: Record<string, string> = {
   "PauseEnrollmentRequest.NoEnrollmentsInRange": "Học viên không có ghi danh đang hoạt động trong khoảng ngày bảo lưu.",
   "PauseEnrollmentRequest.InvalidDateRange": "Khoảng ngày bảo lưu không hợp lệ.",
   "PauseEnrollmentRequest.CannotCancel": "Không thể hủy yêu cầu bảo lưu ở trạng thái hiện tại.",
+  "PauseEnrollmentRequest.DuplicateActiveRequest": "Đã tồn tại yêu cầu bảo lưu pending/approved trong khoảng ngày đã chọn.",
+  "PauseEnrollmentRequest.AlreadyApproved": "Yêu cầu bảo lưu đã được duyệt trước đó.",
+  "PauseEnrollmentRequest.AlreadyRejected": "Yêu cầu bảo lưu đã bị từ chối trước đó.",
+  "PauseEnrollmentRequest.AlreadyCancelled": "Yêu cầu bảo lưu đã được hủy trước đó.",
+  "PauseEnrollmentRequest.CancelWindowExpired": "Đã quá thời gian cho phép hủy yêu cầu bảo lưu.",
   "PauseEnrollmentRequest.OutcomeOnlyForApproved": "Chỉ có thể cập nhật outcome cho yêu cầu đã duyệt.",
+  "PauseEnrollmentRequest.OutcomeNotAllowed": "Outcome chỉ được cập nhật khi yêu cầu đã duyệt.",
+  "PauseEnrollmentRequest.OutcomeAlreadyCompleted": "Outcome này đã hoàn tất, không thể cập nhật lại.",
+  "PauseEnrollmentRequest.OutcomeMustBeReassignEquivalentClass": "Cần chọn outcome Chuyển lớp tương đương trước khi thực hiện thao tác này.",
+  "PauseEnrollmentRequest.NoPausedEnrollmentToReassign": "Không tìm thấy enrollment đang Paused để chuyển lớp.",
+  "PauseEnrollmentRequest.EffectiveDateBeforePauseEnd": "Ngày hiệu lực phải sau ngày kết thúc bảo lưu.",
+  "PauseEnrollmentRequest.RegistrationStudentMismatch": "Registration không thuộc học sinh của yêu cầu bảo lưu.",
 
   // Placement Test - Not Found
   "PlacementTest.NotFound": "Không tìm thấy bài test",

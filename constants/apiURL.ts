@@ -13,8 +13,12 @@ export const buildApiUrl = (endpoint: string): string => {
 
   // Các endpoint dạng /GetAll/... nằm ở root, không có /api
   const base = ep.startsWith("/GetAll/") ? ROOT_BASE_URL : BASE_URL;
+  const normalizedEndpoint =
+    base === BASE_URL && /\/api$/i.test(base) && ep.startsWith("/api/")
+      ? ep.replace(/^\/api/, "")
+      : ep;
 
-  return `${base}${ep}`;
+  return `${base}${normalizedEndpoint}`;
 };
 
 // Build client API URL (from browser to Next.js API Routes)
@@ -146,6 +150,7 @@ export const BACKEND_STUDENT_ENDPOINTS = {
 export const CLASS_ENDPOINTS = {
   GET_ALL: "/api/classes",
   GET_BY_ID: (id: string) => `/api/classes/${id}`,
+  SCHEDULE_SEGMENTS: (id: string) => `/api/classes/${id}/schedule-segments`,
 } as const;
 
 export const MAKEUP_CREDIT_ENDPOINTS = {
@@ -267,6 +272,8 @@ export const PAUSE_ENROLLMENT_ENDPOINTS = {
   REJECT: (id: string) => `/api/pause-enrollment-requests/${id}/reject`,
   CANCEL: (id: string) => `/api/pause-enrollment-requests/${id}/cancel`,
   OUTCOME: (id: string) => `/api/pause-enrollment-requests/${id}/outcome`,
+  REASSIGN_EQUIVALENT_CLASS: (id: string) =>
+    `/api/pause-enrollment-requests/${id}/reassign-equivalent-class`,
 } as const;
 
 export const BACKEND_PAUSE_ENROLLMENT_ENDPOINTS = {
@@ -278,6 +285,8 @@ export const BACKEND_PAUSE_ENROLLMENT_ENDPOINTS = {
   REJECT: (id: string) => `/pause-enrollment-requests/${id}/reject`,
   CANCEL: (id: string) => `/pause-enrollment-requests/${id}/cancel`,
   OUTCOME: (id: string) => `/pause-enrollment-requests/${id}/outcome`,
+  REASSIGN_EQUIVALENT_CLASS: (id: string) =>
+    `/pause-enrollment-requests/${id}/reassign-equivalent-class`,
 } as const;
 
 // User Management Endpoints (Client-side → Next.js API Routes)
@@ -361,6 +370,7 @@ export const ADMIN_ENDPOINTS = {
   CLASSES: '/api/classes',
   CLASSES_STATUS: (id: string) => `/api/classes/${id}/status`,
   CLASSES_COLOR: (id: string) => `/api/classes/${id}/color`,
+  CLASSES_SCHEDULE_SEGMENTS: (id: string) => `/api/classes/${id}/schedule-segments`,
   PROGRAMS: '/api/programs',
   PROGRAMS_ACTIVE: '/api/programs/active',
   PROGRAMS_MONTHLY_LEAVE_LIMIT: (id: string) => `/api/programs/${id}/monthly-leave-limit`,
@@ -537,6 +547,7 @@ export const BACKEND_ADMIN_ENDPOINTS = {
   CLASSES: '/classes',
   CLASSES_BY_ID: (id: string) => `/classes/${id}`,
   CLASSES_STATUS: (id: string) => `/classes/${id}/status`,
+  CLASSES_SCHEDULE_SEGMENTS: (id: string) => `/classes/${id}/schedule-segments`,
   PROGRAMS: '/programs',
   PROGRAMS_ACTIVE: '/programs/active',
   REGISTRATIONS: '/registrations',

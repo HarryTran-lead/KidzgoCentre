@@ -6,8 +6,50 @@
  */
 
 import { CLASS_ENDPOINTS } from "@/constants/apiURL";
-import { get } from "@/lib/axios";
+import { get, post } from "@/lib/axios";
+import {
+  buildWeeklyRRule,
+  type WeekdayCode,
+  validateFutureStretchInput as validateFutureStretchInputCore,
+} from "@/lib/schedulePattern";
+import type { ApiResponse } from "@/types/apiResponse";
 import type { StudentClassResponse } from "@/types/student/class";
+
+export interface AddClassScheduleSegmentRequest {
+  effectiveFrom: string;
+  schedulePattern: string;
+  effectiveTo?: string | null;
+  generateSessions?: boolean;
+  onlyFutureSessions?: boolean;
+}
+
+export interface ClassScheduleSegmentResult {
+  id: string;
+  classId: string;
+  programId?: string;
+  effectiveFrom: string;
+  effectiveTo?: string | null;
+  schedulePattern: string;
+  generatedSessionsCount?: number;
+}
+
+export type AddClassScheduleSegmentResponse = ApiResponse<ClassScheduleSegmentResult>;
+
+export interface BuildFutureStretchPayloadInput {
+  effectiveFrom: string;
+  days: WeekdayCode[];
+  effectiveTo?: string | null;
+  generateSessions?: boolean;
+  onlyFutureSessions?: boolean;
+  startTime?: string;
+  durationMinutes?: number;
+}
+
+export interface ValidateFutureStretchPayloadInput {
+  effectiveFrom: string;
+  days: WeekdayCode[];
+  currentSessionsPerWeek?: number;
+}
 
 /**
  * Get all classes with optional pagination
@@ -37,4 +79,40 @@ export async function getClassById(id: string): Promise<StudentClassResponse> {
     : `/api/classes/${id}`;
 
   return get<StudentClassResponse>(endpoint);
+}
+
+export async function addClassScheduleSegment(
+  id: string,
+  payload: AddClassScheduleSegmentRequest
+): Promise<AddClassScheduleSegmentResponse> {
+  return post<AddClassScheduleSegmentResponse>(
+    CLASS_ENDPOINTS.SCHEDULE_SEGMENTS(id),
+    payload
+  );
+}
+
+export function buildFutureStretchPayload(
+  input: BuildFutureStretchPayloadInput
+): AddClassScheduleSegmentRequest {
+  return {
+    effectiveFrom: input.effectiveFrom,
+    effectiveTo: input.effectiveTo ?? null,
+    schedulePattern: buildWeeklyRRule({
+      days: input.days,
+      startTime: input.startTime,
+      durationMinutes: input.durationMinutes,
+    }),
+    generateSessions: input.generateSessions ?? true,
+    onlyFutureSessions: input.onlyFutureSessions ?? true,
+  };
+}
+
+export function validateFutureStretchPayload(
+  input: ValidateFutureStretchPayloadInput
+): string[] {
+  return validateFutureStretchInputCore({
+    effectiveFrom: input.effectiveFrom,
+    days: input.days,
+    currentSessionsPerWeek: input.currentSessionsPerWeek,
+  });
 }
