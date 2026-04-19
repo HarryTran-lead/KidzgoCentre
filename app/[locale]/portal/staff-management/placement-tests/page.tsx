@@ -34,6 +34,7 @@ import { useCreateAccountFromTest } from "@/hooks/useCreateAccountFromTest";
 import {
   createPlacementTest,
   createPlacementTestRetake,
+  getPlacementTestById,
   getPlacementTestErrorMessage,
   updatePlacementTest,
 } from "@/lib/api/placementTestService";
@@ -136,6 +137,41 @@ export default function PlacementTestsPage() {
     });
   };
 
+  const normalizeAttachmentUrls = (value: unknown): string[] => {
+    if (Array.isArray(value)) {
+      return value.map((item) => String(item || "").trim()).filter(Boolean);
+    }
+    if (typeof value === "string") {
+      const raw = value.trim();
+      if (!raw) return [];
+      return raw
+        .split(/[\n,]/)
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+    return [];
+  };
+
+  const normalizePlacementTestItem = (item: any): PlacementTest => {
+    const attachmentUrls = Array.from(
+      new Set([
+        ...normalizeAttachmentUrls(item?.attachmentUrls),
+        ...normalizeAttachmentUrls(item?.attachmentUrl),
+      ])
+    );
+
+    const attachmentUrl =
+      (typeof item?.attachmentUrl === "string" ? item.attachmentUrl.trim() : "") ||
+      attachmentUrls[0] ||
+      undefined;
+
+    return {
+      ...(item || {}),
+      attachmentUrl,
+      attachmentUrls,
+    } as PlacementTest;
+  };
+
   const filteredInvigilators = useMemo(() => {
     if (!activeBranchId) return invigilators;
     return invigilators.filter((i: any) => String(i.branchId || "") === activeBranchId);
@@ -205,7 +241,7 @@ export default function PlacementTestsPage() {
         const targetTest = data?.data?.placementTest || data?.data || null;
 
         if (targetTest) {
-          setSelectedTest(targetTest);
+          setSelectedTest(normalizePlacementTestItem(targetTest));
           setIsDetailModalOpen(true);
         }
 
@@ -252,7 +288,11 @@ export default function PlacementTestsPage() {
       if (!response.ok) throw new Error("Failed to fetch placement tests");
 
       const data = await response.json();
-      setTests(sortPlacementTestsNewest(data.data?.placementTests || data.data?.items || []));
+      const rawItems = data.data?.placementTests || data.data?.items || [];
+      const normalizedItems = Array.isArray(rawItems)
+        ? rawItems.map((item: any) => normalizePlacementTestItem(item))
+        : [];
+      setTests(sortPlacementTestsNewest(normalizedItems));
       setTotalCount(data.data?.totalCount || 0);
       setTotalPages(data.data?.totalPages || 0);
     } catch (error) {
@@ -264,6 +304,17 @@ export default function PlacementTestsPage() {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const syncPlacementTestDetail = async (testId: string) => {
+    try {
+      const response = await getPlacementTestById(testId);
+      if (response.isSuccess && response.data) {
+        setSelectedTest(normalizePlacementTestItem(response.data));
+      }
+    } catch (error) {
+      console.warn("Failed to fetch placement test detail:", error);
     }
   };
 
@@ -967,13 +1018,15 @@ export default function PlacementTestsPage() {
   };
 
   const handleView = (test: PlacementTest) => {
-    setSelectedTest(test);
+    setSelectedTest(normalizePlacementTestItem(test));
     setIsDetailModalOpen(true);
+    void syncPlacementTestDetail(test.id);
   };
 
   const handleAddResult = (test: PlacementTest) => {
-    setSelectedTest(test);
+    setSelectedTest(normalizePlacementTestItem(test));
     setIsResultModalOpen(true);
+    void syncPlacementTestDetail(test.id);
   };
 
   const handleCancel = (test: PlacementTest) => {
@@ -1053,6 +1106,17 @@ export default function PlacementTestsPage() {
     if (!selectedTest) return;
 
     try {
+      const attachmentUrls = Array.from(
+        new Set([
+          ...normalizeAttachmentUrls(data.attachmentUrls),
+          ...normalizeAttachmentUrls(data.attachmentUrl),
+        ])
+      );
+      const attachmentPayload =
+        attachmentUrls.length > 1
+          ? attachmentUrls
+          : attachmentUrls[0] || "";
+
       // Build the result payload matching API expectations
       const resultPayload = {
         listeningScore: data.listeningScore ?? 0,
@@ -1065,7 +1129,8 @@ export default function PlacementTestsPage() {
         secondaryProgramRecommendationId: data.secondaryProgramRecommendationId || null,
         secondaryProgramRecommendationName: data.secondaryProgramRecommendationName || null,
         secondaryProgramSkillFocus: data.secondaryProgramSkillFocus || null,
-        attachmentUrl: data.attachmentUrl || "",
+        attachmentUrl: attachmentPayload,
+        attachmentUrls,
       };
 
       const token = getAccessToken();
@@ -1368,6 +1433,7 @@ export default function PlacementTestsPage() {
           onSubmit={handleResultSubmit}
           testId={selectedTest?.id || ""}
           branchId={currentUserBranchId}
+          initialData={selectedTest}
         />
 
         <PlacementTestDetailModal

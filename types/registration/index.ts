@@ -21,7 +21,19 @@ export interface RegistrationStudySchedule {
   effectiveSchedulePattern?: string | null;
   studyDayCodes?: string[];
   studyDays?: string[];
+  studyDayDisplayNames?: string[];
   studyDaysSummary?: string | null;
+}
+
+export interface RegistrationFirstStudySession {
+  track?: RegistrationTrackType | null;
+  classId?: string | null;
+  className?: string | null;
+  sessionDate?: string | null;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  studyDayCode?: string | null;
+  studyDayName?: string | null;
 }
 
 export interface RegistrationRequest {
@@ -50,6 +62,7 @@ export interface AssignClassRequest {
   classId?: string | null;
   entryType?: EntryType;
   track?: RegistrationTrackType;
+  firstStudyDate?: string | null;
   sessionSelectionPattern?: string | null;
 }
 
@@ -80,6 +93,7 @@ export interface Registration {
   totalSessions: number;
   usedSessions: number;
   remainingSessions: number;
+  firstStudySession?: RegistrationFirstStudySession | null;
   actualStudySchedules?: RegistrationStudySchedule[];
   expiryDate: string | null;
   createdAt: string;

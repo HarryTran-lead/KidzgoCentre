@@ -20,14 +20,45 @@ function resolveAttachmentUrl(value?: string) {
   const raw = String(value || "").trim();
   if (!raw) return "";
 
+  if (raw.startsWith("/api/files/serve")) {
+    return raw;
+  }
+
   // Always prefer FE proxy path to avoid exposing backend host directly.
   if (/^https?:\/\//i.test(raw)) {
-    const stripped = raw.replace(/^https?:\/\/[^/]+/i, "");
-    const normalizedPath = stripped.startsWith("/") ? stripped : `/${stripped}`;
-    return buildFileUrl(normalizedPath);
+    try {
+      const parsed = new URL(raw);
+      const normalizedPath = `${parsed.pathname}${parsed.search || ""}${parsed.hash || ""}`;
+      if (normalizedPath.startsWith("/api/files/serve")) {
+        return normalizedPath;
+      }
+      return buildFileUrl(normalizedPath);
+    } catch {
+      const stripped = raw.replace(/^https?:\/\/[^/]+/i, "");
+      const normalizedPath = stripped.startsWith("/") ? stripped : `/${stripped}`;
+      if (normalizedPath.startsWith("/api/files/serve")) {
+        return normalizedPath;
+      }
+      return buildFileUrl(normalizedPath);
+    }
   }
 
   return buildFileUrl(raw);
+}
+
+function normalizeAttachmentUrls(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item || "").trim()).filter(Boolean);
+  }
+  if (typeof value === "string") {
+    const raw = value.trim();
+    if (!raw) return [];
+    return raw
+      .split(/[\n,]/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  return [];
 }
 
 function getAttachmentLabel(url?: string) {
@@ -53,8 +84,18 @@ export default function PlacementTestDetailModal({
 }: PlacementTestDetailModalProps) {
   if (!isOpen || !test) return null;
 
-  const attachmentUrl = resolveAttachmentUrl(test.attachmentUrl);
-  const attachmentLabel = getAttachmentLabel(test.attachmentUrl);
+  const attachments = Array.from(
+    new Set([
+      ...normalizeAttachmentUrls(test.attachmentUrls),
+      ...normalizeAttachmentUrls(test.attachmentUrl),
+    ])
+  )
+    .map((rawUrl) => ({
+      rawUrl,
+      href: resolveAttachmentUrl(rawUrl),
+      label: getAttachmentLabel(rawUrl),
+    }))
+    .filter((item) => Boolean(item.href));
 
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { bg: string; text: string; icon: any }> = {
@@ -268,20 +309,25 @@ export default function PlacementTestDetailModal({
                   )}
 
                   {/* Attachment URL */}
-                  {attachmentUrl && (
+                  {attachments.length > 0 && (
                     <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                       <p className="text-sm text-gray-500 mb-1 flex items-center gap-2">
                         <Paperclip size={14} className="text-red-500" />
                         Tài liệu đính kèm
                       </p>
-                      <a
-                        href={attachmentUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100"
-                      >
-                        Mở tài liệu: {attachmentLabel || "Xem file"}
-                      </a>
+                      <div className="space-y-2">
+                        {attachments.map((item, index) => (
+                          <a
+                            key={`${item.rawUrl}-${index}`}
+                            href={item.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100"
+                          >
+                            Mở tài liệu {index + 1}: {item.label || "Xem file"}
+                          </a>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>

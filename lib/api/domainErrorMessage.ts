@@ -98,6 +98,9 @@ const CODE_TO_VIETNAMESE_MESSAGE: Record<string, string> = {
   "Registration.SecondaryClassAssigned": "Đã xếp lớp cho secondary, không thể gỡ secondary lúc này.",
   "Registration.SecondaryProgramMissing": "Thiếu chương trình secondary cho thao tác này.",
   "Registration.ClassAlreadyAssigned": "Track này đã được xếp lớp.",
+  "ClassAlreadyAssigned": "Track này đã được xếp lớp. Vui lòng dùng chuyển lớp nếu cần thay đổi.",
+  "Registration.StudentScheduleConflict": "Học viên bị trùng lịch với lớp khác ở khung giờ này.",
+  "StudentScheduleConflict": "Học viên bị trùng lịch với lớp khác ở khung giờ này.",
   "DifferentProgram": "Gói học mới phải cùng chương trình với đăng ký hiện tại.",
 
   // Suggest/Assign/Transfer/Upgrade
@@ -105,6 +108,7 @@ const CODE_TO_VIETNAMESE_MESSAGE: Record<string, string> = {
   "Registration.ClassNotFound": "Không tìm thấy lớp. Vui lòng tải lại danh sách lớp.",
   "Registration.ClassNotMatchingProgram": "Lớp không thuộc đúng chương trình của đăng ký.",
   "Registration.ClassFull": "Lớp đã hết chỗ.",
+  "ClassFull": "Lớp đã hết chỗ.",
   "ClassNotAvailable": "Lớp hiện không khả dụng để xếp.",
   "AlreadyEnrolled": "Học viên đã được ghi danh.",
   "NoClassAssigned": "Chưa có lớp hiện tại để chuyển lớp.",
@@ -123,6 +127,9 @@ const CODE_TO_VIETNAMESE_MESSAGE: Record<string, string> = {
   "Enrollment.CannotPause": "Không thể bảo lưu ghi danh ở trạng thái hiện tại.",
   "Enrollment.CannotDrop": "Không thể cho nghỉ ghi danh ở trạng thái hiện tại.",
   "Enrollment.CannotReactivate": "Không thể kích hoạt lại ghi danh ở trạng thái hiện tại.",
+  "Registration.FirstStudyDateInPast": "Ngày vào học đầu tiên không được ở quá khứ.",
+  "Registration.FirstStudyDateInvalid": "Ngày vào học đầu tiên không hợp lệ với lịch lớp.",
+  "Registration.FirstStudyDateOutsideClassRange": "Ngày vào học đầu tiên nằm ngoài thời gian hoạt động của lớp.",
 };
 
 function normalizeCode(value?: string): string {
@@ -215,6 +222,22 @@ function translateBackendMessageToVietnamese(message?: string): string | undefin
     {
       test: /class\s+.*already\s+assigned|track\s+.*already\s+assigned/i,
       vi: "Track này đã được xếp lớp.",
+    },
+    {
+      test: /student\s*schedule\s*conflict|schedule\s*conflict\s*for\s*student|enrollment\.studentscheduleconflict/i,
+      vi: "Học viên bị trùng lịch với lớp khác ở khung giờ này.",
+    },
+    {
+      test: /first\s*study\s*date.*(past|before\s*today)/i,
+      vi: "Ngày vào học đầu tiên không được ở quá khứ.",
+    },
+    {
+      test: /first\s*study\s*date.*(mismatch|not\s*match|invalid\s*class\s*schedule)/i,
+      vi: "Ngày vào học đầu tiên phải trùng với lịch học của lớp.",
+    },
+    {
+      test: /first\s*study\s*date.*(outside|out\s*of).*class/i,
+      vi: "Ngày vào học đầu tiên nằm ngoài thời gian hoạt động của lớp.",
     },
     {
       test: /cannot\s+transfer\s+to\s+same\s+class/i,
@@ -355,6 +378,9 @@ export function extractDomainErrorCode(error: unknown): string | undefined {
     "ClassNotAvailable",
     "AlreadyEnrolled",
     "NoClassAssigned",
+    "StudentScheduleConflict",
+    "ClassFull",
+    "ClassAlreadyAssigned",
   ]);
 
   const domainCode = candidates.find(

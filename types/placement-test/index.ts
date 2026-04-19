@@ -32,6 +32,7 @@ export interface PlacementTest {
   isSecondaryProgramSupplementary?: boolean;
   secondaryProgramSkillFocus?: string;
   attachmentUrl?: string;
+  attachmentUrls?: string[];
   isAccountProfileCreated?: boolean;
   isConvertedToEnrolled?: boolean;
   notes?: string;
@@ -51,7 +52,8 @@ export interface PlacementTestResultResponse {
   secondaryProgramRecommendationId?: string | null;
   secondaryProgramRecommendationName?: string | null;
   secondaryProgramSkillFocus?: string | null;
-  attachmentUrl: string;
+  attachmentUrl?: string;
+  attachmentUrls?: string[];
   status: "Scheduled" | "Completed" | "Cancelled" | "NoShow";
   updatedAt: string;
 }
@@ -69,7 +71,8 @@ export interface PlacementTestResultRequest {
   secondaryProgramRecommendationName?: string | null;
   isSecondaryProgramSupplementary?: boolean | null;
   secondaryProgramSkillFocus?: string | null;
-  attachmentUrl: string;
+  attachmentUrl?: string | string[] | null;
+  attachmentUrls?: string[] | null;
 }
 
 export interface PlacementTestResult {
@@ -84,7 +87,8 @@ export interface PlacementTestResult {
   secondaryProgramRecommendationId?: string | null;
   secondaryProgramRecommendationName?: string | null;
   secondaryProgramSkillFocus?: string | null;
-  attachmentUrl?: string;
+  attachmentUrl?: string | string[] | null;
+  attachmentUrls?: string[];
 }
 
 export interface PlacementTestNote {

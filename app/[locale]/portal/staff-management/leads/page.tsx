@@ -17,6 +17,7 @@ import {
 } from "@/lib/api/leadService";
 import {
   getAllPlacementTests,
+  getPlacementTestById,
   createPlacementTest,
   createPlacementTestRetake,
   getPlacementTestErrorMessage,
@@ -109,6 +110,43 @@ function sortPlacementTestsByNewest(items: PlacementTest[]): PlacementTest[] {
     const at = parseDateValue(a.createdAt || a.scheduledAt);
     return bt - at;
   });
+}
+
+function normalizeAttachmentUrls(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item || "").trim()).filter(Boolean);
+  }
+
+  if (typeof value === "string") {
+    const raw = value.trim();
+    if (!raw) return [];
+    return raw
+      .split(/[\n,]/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
+function normalizePlacementTestItem(item: any): PlacementTest {
+  const attachmentUrls = Array.from(
+    new Set([
+      ...normalizeAttachmentUrls(item?.attachmentUrls),
+      ...normalizeAttachmentUrls(item?.attachmentUrl),
+    ])
+  );
+
+  const attachmentUrl =
+    (typeof item?.attachmentUrl === "string" ? item.attachmentUrl.trim() : "") ||
+    attachmentUrls[0] ||
+    undefined;
+
+  return {
+    ...(item || {}),
+    attachmentUrl,
+    attachmentUrls,
+  } as PlacementTest;
 }
 
 function resolveUserBranchId(user: any): string {
@@ -352,22 +390,12 @@ export default function Page() {
       }
 
       try {
-        const response = await fetch(PLACEMENT_TEST_ENDPOINTS.GET_BY_ID(deepLinkedPlacementTestId), {
-          headers: {
-            Authorization: `Bearer ${getAccessToken()}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error("Không tìm thấy bài kiểm tra đầu vào");
-        }
-
-        const data = await response.json();
-        const placementTest = data?.data?.placementTest || data?.data || null;
-
-        if (placementTest) {
-          setSelectedTest(placementTest);
+        const response = await getPlacementTestById(deepLinkedPlacementTestId);
+        if (response.isSuccess && response.data) {
+          setSelectedTest(normalizePlacementTestItem(response.data));
           setIsTestDetailModalOpen(true);
+        } else {
+          throw new Error(response.message || "Không tìm thấy bài kiểm tra đầu vào");
         }
 
         clearPlacementTestQuery();
@@ -1325,9 +1353,21 @@ export default function Page() {
     setIsTestFormModalOpen(true);
   };
 
+  const syncPlacementTestDetail = async (testId: string) => {
+    try {
+      const response = await getPlacementTestById(testId);
+      if (response.isSuccess && response.data) {
+        setSelectedTest(normalizePlacementTestItem(response.data));
+      }
+    } catch (error) {
+      console.warn("Failed to fetch placement test detail:", error);
+    }
+  };
+
   const handleViewTest = (test: PlacementTest) => {
-    setSelectedTest(test);
+    setSelectedTest(normalizePlacementTestItem(test));
     setIsTestDetailModalOpen(true);
+    void syncPlacementTestDetail(test.id);
   };
 
   const handleEditTest = (test: PlacementTest) => {
@@ -1350,8 +1390,9 @@ export default function Page() {
   };
 
   const handleAddResult = (test: PlacementTest) => {
-    setSelectedTest(test);
+    setSelectedTest(normalizePlacementTestItem(test));
     setIsTestResultModalOpen(true);
+    void syncPlacementTestDetail(test.id);
   };
 
   const handleCancelTest = (test: PlacementTest) => {
@@ -1444,17 +1485,64 @@ export default function Page() {
     if (!selectedTest) return;
 
     try {
+      const normalizeAttachmentUrls = (value: unknown): string[] => {
+        if (Array.isArray(value)) {
+          return value.map((item) => String(item || "").trim()).filter(Boolean);
+        }
+
+        if (typeof value === "string") {
+          const raw = value.trim();
+          if (!raw) return [];
+          return raw
+            .split(/[\n,]/)
+            .map((item) => item.trim())
+            .filter(Boolean);
+        }
+
+        return [];
+      };
+
+      const attachmentUrls = Array.from(
+        new Set([
+          ...normalizeAttachmentUrls(data.attachmentUrls),
+          ...normalizeAttachmentUrls(data.attachmentUrl),
+        ])
+      );
+      const attachmentPayload =
+        attachmentUrls.length > 1
+          ? attachmentUrls
+          : attachmentUrls[0] || "";
+
       const token = getAccessToken();
       const headers = {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       };
 
+      const resultPayload = {
+        listeningScore: data.listeningScore ?? 0,
+        speakingScore: data.speakingScore ?? 0,
+        readingScore: data.readingScore ?? 0,
+        writingScore: data.writingScore ?? 0,
+        resultScore: data.resultScore ?? 0,
+        programRecommendationId: data.programRecommendationId || null,
+        programRecommendationName: data.programRecommendationName || null,
+        secondaryProgramRecommendationId:
+          data.secondaryProgramRecommendationId || null,
+        secondaryProgramRecommendationName:
+          data.secondaryProgramRecommendationName || null,
+        isSecondaryProgramSupplementary:
+          data.isSecondaryProgramSupplementary ?? null,
+        secondaryProgramSkillFocus: data.secondaryProgramSkillFocus || null,
+        attachmentUrl: attachmentPayload,
+        attachmentUrls,
+      };
+
       const apiCalls: Promise<Response>[] = [
         fetch(PLACEMENT_TEST_ENDPOINTS.UPDATE_RESULTS(selectedTest.id), {
           method: "PUT",
           headers,
-          body: JSON.stringify(data),
+          body: JSON.stringify(resultPayload),
         }),
       ];
 
@@ -2259,6 +2347,7 @@ export default function Page() {
         onSubmit={handleTestResultSubmit}
         testId={selectedTest?.id || ""}
         branchId={resolveUserBranchId(currentUser)}
+        initialData={selectedTest}
       />
 
       <NoteFormModal
