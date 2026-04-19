@@ -172,6 +172,47 @@ function normalizeAvailabilityResponse(response: any): PlacementTestAvailability
   };
 }
 
+function normalizeAttachmentUrls(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => String(item || "").trim())
+      .filter(Boolean);
+  }
+
+  if (typeof value === "string") {
+    const raw = value.trim();
+    if (!raw) return [];
+
+    // Keep compatibility when backend or legacy data returns comma/newline separated URLs.
+    return raw
+      .split(/[\n,]/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
+function normalizePlacementTest(item: any): PlacementTest {
+  const attachmentUrls = Array.from(
+    new Set([
+      ...normalizeAttachmentUrls(item?.attachmentUrls),
+      ...normalizeAttachmentUrls(item?.attachmentUrl),
+    ])
+  );
+
+  const primaryAttachment =
+    (typeof item?.attachmentUrl === "string" ? item.attachmentUrl.trim() : "") ||
+    attachmentUrls[0] ||
+    "";
+
+  return {
+    ...(item || {}),
+    attachmentUrl: primaryAttachment || undefined,
+    attachmentUrls,
+  } as PlacementTest;
+}
+
 function extractErrorPayload(error: unknown): ProblemPayload {
   if (axios.isAxiosError(error)) {
     const data = error.response?.data as ProblemPayload | undefined;
@@ -368,7 +409,10 @@ export async function getAllPlacementTests(params?: {
 
     const payload = extractPayload(response);
     const data = payload?.data ?? payload;
-    const placementTests = data?.placementTests || data?.items || [];
+    const placementTestsRaw = data?.placementTests || data?.items || [];
+    const placementTests = Array.isArray(placementTestsRaw)
+      ? placementTestsRaw.map((item: any) => normalizePlacementTest(item))
+      : [];
     const totalCount = Number(data?.totalCount ?? placementTests.length ?? 0);
     const pageNumber = Number(data?.page ?? data?.pageNumber ?? 1);
     const pageSize = Number(data?.pageSize ?? params?.pageSize ?? 10);
@@ -428,7 +472,7 @@ export async function getPlacementTestById(id: string): Promise<ApiResponse<Plac
     return {
       isSuccess: payload?.isSuccess ?? payload?.success ?? true,
       message: payload?.message,
-      data: extractData<PlacementTest>(response),
+      data: normalizePlacementTest(extractData<any>(response)),
     };
   } catch (error) {
     throw toPlacementTestApiError(error, "Khong the lay chi tiet placement test");
@@ -447,7 +491,7 @@ export async function createPlacementTest(
     return {
       isSuccess: payload?.isSuccess ?? payload?.success ?? true,
       message: payload?.message,
-      data: extractData<PlacementTest>(response),
+      data: normalizePlacementTest(extractData<any>(response)),
     };
   } catch (error) {
     throw toPlacementTestApiError(error, "Khong the tao placement test");
@@ -487,7 +531,7 @@ export async function updatePlacementTest(
     return {
       isSuccess: payload?.isSuccess ?? payload?.success ?? true,
       message: payload?.message,
-      data: extractData<PlacementTest>(response),
+      data: normalizePlacementTest(extractData<any>(response)),
     };
   } catch (error) {
     throw toPlacementTestApiError(error, "Khong the cap nhat placement test");
@@ -541,6 +585,17 @@ export async function updatePlacementTestResults(
   results: PlacementTestResult
 ): Promise<ApiResponse<void>> {
   try {
+    const attachmentUrls = Array.from(
+      new Set([
+        ...normalizeAttachmentUrls(results.attachmentUrls),
+        ...normalizeAttachmentUrls(results.attachmentUrl),
+      ])
+    );
+    const attachmentPayload =
+      attachmentUrls.length > 1
+        ? attachmentUrls
+        : attachmentUrls[0] || "";
+
     const payload = {
       listeningScore: results.listeningScore ?? 0,
       speakingScore: results.speakingScore ?? 0,
@@ -553,7 +608,8 @@ export async function updatePlacementTestResults(
       secondaryProgramRecommendationName:
         results.secondaryProgramRecommendationName || null,
       secondaryProgramSkillFocus: results.secondaryProgramSkillFocus || undefined,
-      attachmentUrl: results.attachmentUrl || "",
+      attachmentUrl: attachmentPayload,
+      attachmentUrls,
     };
 
     const response = await put<any>(

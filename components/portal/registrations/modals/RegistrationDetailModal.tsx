@@ -53,6 +53,13 @@ function toDateTime(value?: string | null) {
   return d.toLocaleString("vi-VN");
 }
 
+function toDateTimeOrRaw(value?: string | null) {
+  const formatted = toDateTime(value);
+  if (formatted !== "-") return formatted;
+  const raw = String(value || "").trim();
+  return raw || "-";
+}
+
 function toTrackLabel(track?: string | null) {
   const normalized = String(track || "").toLowerCase();
   if (normalized === "secondary") return "Chương trình song song";
@@ -74,6 +81,11 @@ function toStudyDayCodesLabel(codes?: string[]) {
     .map((value) => map[String(value || "").toUpperCase()] || String(value))
     .filter(Boolean)
     .join(", ");
+}
+
+function toStudyDayCodeLabel(code?: string | null) {
+  if (!code) return "";
+  return toStudyDayCodesLabel([String(code)]);
 }
 
 function normalizeVietnameseScheduleText(value?: string | null) {
@@ -123,6 +135,7 @@ export default function RegistrationDetailModal({
   if (typeof window === "undefined") return null;
 
   const placementTestId = extractPlacementTestId(item?.note);
+  const firstStudySession = item?.firstStudySession;
   const noteDisplay = String(item?.note || "")
     .replace(/\.?\s*Started\s+from\s+PlacementTest\s*[:=]\s*[0-9a-fA-F-]{32,36}\.?/gi, "")
     .replace(/\s*\|\s*$/, "")
@@ -227,7 +240,44 @@ export default function RegistrationDetailModal({
                   label="Lịch học mong muốn"
                   value={normalizeVietnameseScheduleText(item.preferredSchedule) || "-"}
                 />
+                <Info
+                  label="Buổi học đầu tiên"
+                  value={
+                    firstStudySession
+                      ? [
+                          toDateTime(
+                            firstStudySession.sessionDate ||
+                              firstStudySession.startsAt ||
+                              null,
+                          ),
+                          normalizeVietnameseScheduleText(
+                            firstStudySession.studyDayName,
+                          ) ||
+                            toStudyDayCodeLabel(firstStudySession.studyDayCode) ||
+                            "",
+                        ]
+                          .filter((part) => part && part !== "-")
+                          .join(" • ") || "-"
+                      : "-"
+                  }
+                />
               </div>
+
+              {firstStudySession ? (
+                <div className="rounded-xl border border-emerald-200 bg-white p-3">
+                  <div className="text-sm font-semibold text-gray-900">
+                    {toTrackLabel(firstStudySession.track)}
+                  </div>
+                  <div className="mt-2 space-y-1 text-xs text-gray-700">
+                    <div>
+                      Lớp: <span className="font-semibold">{firstStudySession.className || "Chưa xác định"}</span>
+                    </div>
+                    <div>
+                      Ca học: <span className="font-semibold">{toDateTimeOrRaw(firstStudySession.startsAt || null)}</span>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
 
               {!!item.actualStudySchedules?.length && (
                 <div className="space-y-2">
@@ -238,6 +288,10 @@ export default function RegistrationDetailModal({
                     {item.actualStudySchedules.map((schedule, index) => {
                       const studyDays =
                         normalizeVietnameseScheduleText(schedule.studyDaysSummary) ||
+                        (Array.isArray(schedule.studyDayDisplayNames) &&
+                        schedule.studyDayDisplayNames.length > 0
+                          ? normalizeVietnameseScheduleText(schedule.studyDayDisplayNames.join(", "))
+                          : "") ||
                         (Array.isArray(schedule.studyDays) && schedule.studyDays.length > 0
                           ? normalizeVietnameseScheduleText(schedule.studyDays.join(", "))
                           : toStudyDayCodesLabel(schedule.studyDayCodes) || "-");

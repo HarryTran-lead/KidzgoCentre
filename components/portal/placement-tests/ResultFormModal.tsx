@@ -30,6 +30,32 @@ interface ResultFormModalProps {
   initialData?: Partial<PlacementTestResultRequest> | null;
 }
 
+function normalizeAttachmentUrls(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item || "").trim()).filter(Boolean);
+  }
+
+  if (typeof value === "string") {
+    const raw = value.trim();
+    if (!raw) return [];
+    return raw
+      .split(/[\n,]/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
+function getInitialAttachmentUrls(initialData?: Partial<PlacementTestResultRequest> | null): string[] {
+  return Array.from(
+    new Set([
+      ...normalizeAttachmentUrls(initialData?.attachmentUrls),
+      ...normalizeAttachmentUrls(initialData?.attachmentUrl),
+    ])
+  );
+}
+
 export default function ResultFormModal({
   isOpen,
   onClose,
@@ -39,6 +65,7 @@ export default function ResultFormModal({
   initialData,
 }: ResultFormModalProps) {
   const { toast } = useToast();
+  const formId = `placement-test-result-form-${testId || "new"}`;
   const [formData, setFormData] = useState({
     listeningScore: initialData?.listeningScore?.toString() || "",
     speakingScore: initialData?.speakingScore?.toString() || "",
@@ -50,7 +77,7 @@ export default function ResultFormModal({
     secondaryProgramRecommendationName: initialData?.secondaryProgramRecommendationName || "",
     isSecondaryProgramSupplementary: Boolean(initialData?.isSecondaryProgramSupplementary),
     secondaryProgramSkillFocus: initialData?.secondaryProgramSkillFocus || "",
-    attachmentUrl: initialData?.attachmentUrl || "",
+    attachmentUrls: getInitialAttachmentUrls(initialData),
     note: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -73,7 +100,7 @@ export default function ResultFormModal({
       secondaryProgramRecommendationName: initialData?.secondaryProgramRecommendationName || "",
       isSecondaryProgramSupplementary: Boolean(initialData?.isSecondaryProgramSupplementary),
       secondaryProgramSkillFocus: initialData?.secondaryProgramSkillFocus || "",
-      attachmentUrl: initialData?.attachmentUrl || "",
+      attachmentUrls: getInitialAttachmentUrls(initialData),
       note: "",
     });
     setFormError("");
@@ -124,7 +151,7 @@ export default function ResultFormModal({
         secondaryProgramRecommendationName: initialData?.secondaryProgramRecommendationName || "",
         isSecondaryProgramSupplementary: Boolean(initialData?.isSecondaryProgramSupplementary),
         secondaryProgramSkillFocus: initialData?.secondaryProgramSkillFocus || "",
-        attachmentUrl: initialData?.attachmentUrl || "",
+        attachmentUrls: getInitialAttachmentUrls(initialData),
         note: "",
       });
     } else {
@@ -140,7 +167,7 @@ export default function ResultFormModal({
         secondaryProgramRecommendationName: "",
         isSecondaryProgramSupplementary: false,
         secondaryProgramSkillFocus: "",
-        attachmentUrl: "",
+        attachmentUrls: [],
         note: "",
       });
     }
@@ -150,32 +177,56 @@ export default function ResultFormModal({
   const handleAttachmentUpload = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
 
     setIsUploadingAttachment(true);
     try {
-      const result = await uploadFile(file, "placement-tests");
-      if (!isUploadSuccess(result)) {
-        const errMessage =
-          result.detail ||
-          result.error ||
-          result.title ||
-          "Không thể tải tài liệu lên";
-        toast({
-          title: "Lỗi tải file",
-          description: errMessage,
-          variant: "destructive",
-        });
-        return;
+      const uploadedUrls: string[] = [];
+      const failedFiles: string[] = [];
+
+      for (const file of files) {
+        const result = await uploadFile(file, "placement-tests");
+        if (!isUploadSuccess(result)) {
+          failedFiles.push(file.name);
+          continue;
+        }
+
+        if (result.url) {
+          uploadedUrls.push(result.url);
+        }
       }
 
-      setFormData((prev) => ({ ...prev, attachmentUrl: result.url }));
-      toast({
-        title: "Thành công",
-        description: "Đã tải tài liệu lên thành công",
-        variant: "success",
-      });
+      if (uploadedUrls.length > 0) {
+        setFormData((prev) => ({
+          ...prev,
+          attachmentUrls: Array.from(
+            new Set([...prev.attachmentUrls, ...uploadedUrls])
+          ),
+        }));
+      }
+
+      if (uploadedUrls.length > 0 && failedFiles.length === 0) {
+        toast({
+          title: "Thành công",
+          description:
+            uploadedUrls.length === 1
+              ? "Đã tải 1 tài liệu lên thành công"
+              : `Đã tải ${uploadedUrls.length} tài liệu lên thành công`,
+          variant: "success",
+        });
+      }
+
+      if (failedFiles.length > 0) {
+        toast({
+          title: "Lỗi tải file",
+          description:
+            failedFiles.length === files.length
+              ? "Không thể tải các tài liệu đã chọn"
+              : `Không thể tải ${failedFiles.length} tài liệu. Vui lòng thử lại.`,
+          variant: "destructive",
+        });
+      }
     } catch (error) {
       console.error("Error uploading attachment:", error);
       toast({
@@ -290,6 +341,11 @@ export default function ResultFormModal({
     try {
       const secondaryProgramRecommendationId = formData.secondaryProgramRecommendationId.trim();
       const secondaryProgramSkillFocus = formData.secondaryProgramSkillFocus.trim();
+      const attachmentUrls = Array.from(new Set(formData.attachmentUrls.filter(Boolean)));
+      const attachmentPayload =
+        attachmentUrls.length > 1
+          ? attachmentUrls
+          : attachmentUrls[0] || "";
       const submitData: Omit<PlacementTestResultRequest, "id"> = {
         listeningScore: parsedScores.listeningScore,
         speakingScore: parsedScores.speakingScore,
@@ -308,7 +364,8 @@ export default function ResultFormModal({
         secondaryProgramSkillFocus: secondaryProgramRecommendationId
           ? secondaryProgramSkillFocus || null
           : null,
-        attachmentUrl: formData.attachmentUrl || "",
+        attachmentUrl: attachmentPayload,
+        attachmentUrls,
       };
 
       await onSubmit(submitData, formData.note.trim());
@@ -354,7 +411,7 @@ export default function ResultFormModal({
 
         {/* Form Body */}
         <div className="p-6 max-h-[75vh] overflow-y-auto">
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form id={formId} onSubmit={handleSubmit} className="space-y-6">
             {/* Scores Section */}
             <div className="space-y-4">
               <div className="flex items-center gap-2">
@@ -638,30 +695,60 @@ export default function ResultFormModal({
                     )}
                     <input
                       type="file"
+                      multiple
                       className="hidden"
                       onChange={handleAttachmentUpload}
                       disabled={isUploadingAttachment}
                     />
                   </label>
 
-                  {formData.attachmentUrl ? (
+                  {formData.attachmentUrls.length > 0 ? (
                     <button
                       type="button"
-                      onClick={() => setFormData((prev) => ({ ...prev, attachmentUrl: "" }))}
+                      onClick={() =>
+                        setFormData((prev) => ({ ...prev, attachmentUrls: [] }))
+                      }
                       className="px-4 py-2.5 rounded-xl border border-gray-200 text-red-600 font-semibold hover:bg-red-50 transition-colors"
                     >
-                      Xóa file
+                      Xóa tất cả
                     </button>
                   ) : null}
                 </div>
 
-                <input
-                  type="text"
-                  value={formData.attachmentUrl}
-                  readOnly
-                  placeholder="Chưa có file được tải lên"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-gray-600 outline-none"
-                />
+                {formData.attachmentUrls.length > 0 ? (
+                  <div className="space-y-2 rounded-xl border border-gray-200 bg-gray-50 p-3">
+                    {formData.attachmentUrls.map((url, index) => (
+                      <div
+                        key={`${url}-${index}`}
+                        className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2"
+                      >
+                        <p className="truncate text-sm text-gray-700" title={url}>
+                          {url}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              attachmentUrls: prev.attachmentUrls.filter((_, i) => i !== index),
+                            }))
+                          }
+                          className="rounded-lg border border-gray-200 px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50"
+                        >
+                          Xóa
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <input
+                    type="text"
+                    value=""
+                    readOnly
+                    placeholder="Chưa có file được tải lên"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-gray-600 outline-none"
+                  />
+                )}
               </div>
             </div>
 
@@ -715,11 +802,18 @@ export default function ResultFormModal({
               </button>
               <button
                 type="submit"
-                onClick={handleSubmit}
+                form={formId}
                 disabled={isSubmitting || isUploadingAttachment}
                 className="px-6 py-2.5 rounded-xl bg-linear-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {isSubmitting ? "Đang lưu..." : "Lưu kết quả"}
+                {isSubmitting ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 size={16} className="animate-spin" />
+                    Đang lưu...
+                  </span>
+                ) : (
+                  "Lưu kết quả"
+                )}
               </button>
             </div>
           </div>

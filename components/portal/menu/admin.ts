@@ -6,6 +6,7 @@ import {
   CalendarClock,
   CalendarRange,
   ClipboardCheck,
+  CreditCard,
   FileText,
   Folder,
   GraduationCap,
@@ -58,6 +59,7 @@ export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     [t.groups.system.gamification, Sparkles, "/gamification"],
     [t.groups.system.notifications, Bell, "/notifications"],
     [t.groups.system.settings, Settings, "/settings"],
+    ["Cấu hình thanh toán", CreditCard, "/payment-setting"],
   ];
 
   // Create feedback group item

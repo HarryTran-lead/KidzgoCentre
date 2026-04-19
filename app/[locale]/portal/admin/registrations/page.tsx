@@ -291,21 +291,21 @@ export default function AdminRegistrationsPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
+        <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-linear-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
           <div className="text-sm text-gray-500">Tổng đăng ký</div>
           <div className="mt-1 text-2xl font-bold text-gray-900">{rows.length}</div>
         </div>
-        <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
+        <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-linear-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
           <div className="text-sm text-gray-500">Đã xếp lớp</div>
           <div className="mt-1 text-2xl font-bold text-gray-900">{rows.filter((x) => x.className !== "Chưa xếp lớp").length}</div>
         </div>
-        <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
+        <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-linear-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
           <div className="text-sm text-gray-500">Chưa xếp lớp</div>
           <div className="mt-1 text-2xl font-bold text-gray-900">{rows.filter((x) => x.className === "Chưa xếp lớp").length}</div>
         </div>
       </div>
 
-      <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4">
+      <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50 p-4">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
           <div className="relative flex-1">
             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />

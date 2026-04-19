@@ -483,6 +483,8 @@ export const REGISTRATION_ENDPOINTS = {
   GET_BY_ID: (id: string) => `/api/registrations/${id}`,
   CREATE: '/api/registrations',
   UPDATE: (id: string) => `/api/registrations/${id}`,
+  ENROLLMENT_CONFIRMATION_PAYMENT_SETTING:
+    '/api/registrations/enrollment-confirmation-payment-setting',
   CANCEL: (id: string) => `/api/registrations/${id}/cancel`,
   SUGGEST_CLASSES: (id: string) => `/api/registrations/${id}/suggest-classes`,
   ASSIGN_CLASS: (id: string) => `/api/registrations/${id}/assign-class`,
@@ -510,6 +512,8 @@ export const BACKEND_REGISTRATION_ENDPOINTS = {
   GET_BY_ID: (id: string) => `/registrations/${id}`,
   CREATE: '/registrations',
   UPDATE: (id: string) => `/registrations/${id}`,
+  ENROLLMENT_CONFIRMATION_PAYMENT_SETTING:
+    '/registrations/enrollment-confirmation-payment-setting',
   CANCEL: (id: string) => `/registrations/${id}/cancel`,
   SUGGEST_CLASSES: (id: string) => `/registrations/${id}/suggest-classes`,
   ASSIGN_CLASS: (id: string) => `/registrations/${id}/assign-class`,

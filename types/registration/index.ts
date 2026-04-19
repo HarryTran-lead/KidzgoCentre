@@ -21,7 +21,19 @@ export interface RegistrationStudySchedule {
   effectiveSchedulePattern?: string | null;
   studyDayCodes?: string[];
   studyDays?: string[];
+  studyDayDisplayNames?: string[];
   studyDaysSummary?: string | null;
+}
+
+export interface RegistrationFirstStudySession {
+  track?: RegistrationTrackType | null;
+  classId?: string | null;
+  className?: string | null;
+  sessionDate?: string | null;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  studyDayCode?: string | null;
+  studyDayName?: string | null;
 }
 
 export interface RegistrationRequest {
@@ -50,6 +62,7 @@ export interface AssignClassRequest {
   classId?: string | null;
   entryType?: EntryType;
   track?: RegistrationTrackType;
+  firstStudyDate?: string | null;
   sessionSelectionPattern?: string | null;
 }
 
@@ -80,6 +93,7 @@ export interface Registration {
   totalSessions: number;
   usedSessions: number;
   remainingSessions: number;
+  firstStudySession?: RegistrationFirstStudySession | null;
   actualStudySchedules?: RegistrationStudySchedule[];
   expiryDate: string | null;
   createdAt: string;
@@ -150,3 +164,27 @@ export interface RegistrationActionResponse {
     [key: string]: any;
   } | any;
 }
+
+export interface EnrollmentPaymentSetting {
+  id: string | null;
+  branchId: string | null;
+  isFallbackToGlobal?: boolean;
+  paymentMethod: string;
+  accountName: string | null;
+  accountNumber: string | null;
+  bankName: string | null;
+  bankCode: string | null;
+  bankBin: string | null;
+  vietQrTemplate: string;
+  logoUrl: string | null;
+  qrPreviewUrl: string | null;
+  isActive: boolean;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  updatedBy?: string | null;
+}
+
+export type UpsertPaymentSettingRequest = Omit<
+  EnrollmentPaymentSetting,
+  "id" | "isFallbackToGlobal" | "qrPreviewUrl" | "createdAt" | "updatedAt" | "updatedBy"
+>;
