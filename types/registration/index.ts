@@ -164,3 +164,27 @@ export interface RegistrationActionResponse {
     [key: string]: any;
   } | any;
 }
+
+export interface EnrollmentPaymentSetting {
+  id: string | null;
+  branchId: string | null;
+  isFallbackToGlobal?: boolean;
+  paymentMethod: string;
+  accountName: string | null;
+  accountNumber: string | null;
+  bankName: string | null;
+  bankCode: string | null;
+  bankBin: string | null;
+  vietQrTemplate: string;
+  logoUrl: string | null;
+  qrPreviewUrl: string | null;
+  isActive: boolean;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  updatedBy?: string | null;
+}
+
+export type UpsertPaymentSettingRequest = Omit<
+  EnrollmentPaymentSetting,
+  "id" | "isFallbackToGlobal" | "qrPreviewUrl" | "createdAt" | "updatedAt" | "updatedBy"
+>;
