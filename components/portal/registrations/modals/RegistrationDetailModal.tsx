@@ -221,7 +221,7 @@ export default function RegistrationDetailModal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
       onClick={onClose}
     >
       <div
@@ -374,7 +374,7 @@ export default function RegistrationDetailModal({
                   label="Lịch học mong muốn"
                   value={normalizeVietnameseScheduleText(item.preferredSchedule) || "-"}
                 />
-                <Info
+                <InfoCard
                   label="Buổi học đầu tiên"
                   value={
                     firstStudySession
