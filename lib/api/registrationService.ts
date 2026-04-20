@@ -2,6 +2,7 @@ import { get, patch, post, put } from "@/lib/axios";
 import { REGISTRATION_ENDPOINTS } from "@/constants/apiURL";
 import type {
   AssignClassRequest,
+  RegistrationFirstStudySession,
   Registration,
   RegistrationActionResponse,
   RegistrationFilterParams,
@@ -112,6 +113,64 @@ function mapToRegistration(item: any): Registration {
       ? item.ActualStudySchedules
       : [];
 
+  const firstStudySessionRaw =
+    item?.firstStudySession && typeof item.firstStudySession === "object"
+      ? item.firstStudySession
+      : item?.FirstStudySession && typeof item.FirstStudySession === "object"
+        ? item.FirstStudySession
+        : null;
+
+  const firstStudySession: RegistrationFirstStudySession | null = firstStudySessionRaw
+    ? {
+        track: toTrack(firstStudySessionRaw?.track),
+        classId: firstStudySessionRaw?.classId
+          ? String(firstStudySessionRaw.classId)
+          : null,
+        className:
+          typeof firstStudySessionRaw?.className === "string"
+            ? firstStudySessionRaw.className
+            : null,
+        sessionDate:
+          typeof firstStudySessionRaw?.sessionDate === "string"
+            ? firstStudySessionRaw.sessionDate
+            : typeof firstStudySessionRaw?.firstStudyDate === "string"
+              ? firstStudySessionRaw.firstStudyDate
+              : typeof firstStudySessionRaw?.date === "string"
+                ? firstStudySessionRaw.date
+                : null,
+        startsAt:
+          typeof firstStudySessionRaw?.startsAt === "string"
+            ? firstStudySessionRaw.startsAt
+            : typeof firstStudySessionRaw?.startAt === "string"
+              ? firstStudySessionRaw.startAt
+              : typeof firstStudySessionRaw?.startTime === "string"
+                ? firstStudySessionRaw.startTime
+                : null,
+        endsAt:
+          typeof firstStudySessionRaw?.endsAt === "string"
+            ? firstStudySessionRaw.endsAt
+            : typeof firstStudySessionRaw?.endAt === "string"
+              ? firstStudySessionRaw.endAt
+              : typeof firstStudySessionRaw?.endTime === "string"
+                ? firstStudySessionRaw.endTime
+                : null,
+        studyDayCode:
+          typeof firstStudySessionRaw?.studyDayCode === "string"
+            ? firstStudySessionRaw.studyDayCode
+            : typeof firstStudySessionRaw?.dayCode === "string"
+              ? firstStudySessionRaw.dayCode
+              : null,
+        studyDayName:
+          typeof firstStudySessionRaw?.studyDayName === "string"
+            ? firstStudySessionRaw.studyDayName
+            : typeof firstStudySessionRaw?.dayName === "string"
+              ? firstStudySessionRaw.dayName
+              : typeof firstStudySessionRaw?.dayDisplayName === "string"
+                ? firstStudySessionRaw.dayDisplayName
+                : null,
+      }
+    : null;
+
   const actualStudySchedules: RegistrationStudySchedule[] = actualStudySchedulesRaw
     .map((schedule: any) => ({
       track: toTrack(schedule?.track),
@@ -135,13 +194,24 @@ function mapToRegistration(item: any): Registration {
           : null,
       studyDayCodes: Array.isArray(schedule?.studyDayCodes)
         ? schedule.studyDayCodes.map((code: any) => String(code))
+        : Array.isArray(schedule?.dayCodes)
+          ? schedule.dayCodes.map((code: any) => String(code))
         : [],
       studyDays: Array.isArray(schedule?.studyDays)
         ? schedule.studyDays.map((day: any) => String(day))
+        : Array.isArray(schedule?.studyDayNames)
+          ? schedule.studyDayNames.map((day: any) => String(day))
+        : [],
+      studyDayDisplayNames: Array.isArray(schedule?.studyDayDisplayNames)
+        ? schedule.studyDayDisplayNames.map((day: any) => String(day))
+        : Array.isArray(schedule?.displayStudyDays)
+          ? schedule.displayStudyDays.map((day: any) => String(day))
         : [],
       studyDaysSummary:
         typeof schedule?.studyDaysSummary === "string"
           ? schedule.studyDaysSummary
+          : typeof schedule?.studyDaysDisplayText === "string"
+            ? schedule.studyDaysDisplayText
           : null,
     }))
     .filter(
@@ -182,6 +252,7 @@ function mapToRegistration(item: any): Registration {
     totalSessions: Number(item?.totalSessions ?? 0),
     usedSessions: Number(item?.usedSessions ?? 0),
     remainingSessions: Number(item?.remainingSessions ?? 0),
+    firstStudySession,
     actualStudySchedules,
     expiryDate: item?.expiryDate ?? null,
     createdAt: String(item?.createdAt ?? ""),

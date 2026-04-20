@@ -3,7 +3,12 @@
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import SuggestAssignStep from "@/components/portal/placement-tests/registration-flow/SuggestAssignStep";
-import type { Registration, RegistrationTrackType, SuggestedClassBucket } from "@/types/registration";
+import type {
+  EntryType,
+  Registration,
+  RegistrationTrackType,
+  SuggestedClassBucket,
+} from "@/types/registration";
 
 type ManualClassOption = {
   id: string;
@@ -28,17 +33,20 @@ type RegistrationAssignModalProps = {
   hasSecondaryTrack: boolean;
   selectedTrack: RegistrationTrackType;
   setSelectedTrack: (value: RegistrationTrackType) => void;
+  selectedEntryType: EntryType;
+  setSelectedEntryType: (value: EntryType) => void;
   selectedClassId: string;
   setSelectedClassId: (value: string) => void;
   activeSuggestedClasses: any[];
   activeAlternativeClasses: any[];
   formatSchedulePattern: (value?: string | null) => string;
-  handleAssignClass: (sessionSelectionPattern?: string) => void;
+  handleAssignClass: (sessionSelectionPattern?: string, entryType?: EntryType) => void;
   handleAssignSuggestedClasses: (payload: {
     primaryClassId: string;
     primarySessionSelectionPattern?: string;
     secondaryClassId?: string;
     secondarySessionSelectionPattern?: string;
+    entryType?: EntryType;
   }) => void;
   isAssigning: boolean;
   manualClasses: any[];
@@ -51,7 +59,7 @@ type RegistrationAssignModalProps = {
   setManualPrimarySessionPattern: (value: string) => void;
   manualSecondarySessionPattern: string;
   setManualSecondarySessionPattern: (value: string) => void;
-  handleAssignManualClasses: () => void;
+  handleAssignManualClasses: (entryType?: EntryType) => void;
 };
 
 export default function RegistrationAssignModal({
@@ -70,6 +78,8 @@ export default function RegistrationAssignModal({
   hasSecondaryTrack,
   selectedTrack,
   setSelectedTrack,
+  selectedEntryType,
+  setSelectedEntryType,
   selectedClassId,
   setSelectedClassId,
   activeSuggestedClasses,
@@ -135,6 +145,8 @@ export default function RegistrationAssignModal({
             hasSecondaryTrack={hasSecondaryTrack}
             selectedTrack={selectedTrack}
             setSelectedTrack={setSelectedTrack}
+            selectedEntryType={selectedEntryType}
+            setSelectedEntryType={setSelectedEntryType}
             selectedClassId={selectedClassId}
             setSelectedClassId={setSelectedClassId}
             activeSuggestedClasses={activeSuggestedClasses}

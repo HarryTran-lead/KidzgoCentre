@@ -6,6 +6,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { BACKEND_PLACEMENT_TEST_ENDPOINTS, buildApiUrl } from '@/constants/apiURL';
 
+function normalizeAttachmentUrls(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item || '').trim()).filter(Boolean);
+  }
+
+  if (typeof value === 'string') {
+    const raw = value.trim();
+    if (!raw) return [];
+    return raw
+      .split(/[\n,]/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -25,6 +42,37 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
+    const attachmentUrls = Array.from(
+      new Set([
+        ...normalizeAttachmentUrls(body?.attachmentUrls),
+        ...normalizeAttachmentUrls(body?.attachmentUrl),
+      ])
+    );
+
+    const normalizedBody = {
+      ...(body || {}),
+      ...(attachmentUrls.length > 0
+        ? {
+            attachmentUrl:
+              attachmentUrls.length > 1 ? attachmentUrls : attachmentUrls[0],
+            attachmentUrls,
+          }
+        : {}),
+    };
+
+    if (process.env.NODE_ENV !== 'production') {
+      console.info('[placement-tests/results] Forward payload attachments', {
+        attachmentUrlType: Array.isArray(normalizedBody.attachmentUrl)
+          ? 'array'
+          : typeof normalizedBody.attachmentUrl,
+        attachmentUrlCount: Array.isArray(normalizedBody.attachmentUrl)
+          ? normalizedBody.attachmentUrl.length
+          : normalizeAttachmentUrls(normalizedBody.attachmentUrl).length,
+        attachmentUrlsCount: Array.isArray(normalizedBody.attachmentUrls)
+          ? normalizedBody.attachmentUrls.length
+          : 0,
+      });
+    }
 
     // Forward to backend API
     const backendUrl = buildApiUrl(BACKEND_PLACEMENT_TEST_ENDPOINTS.UPDATE_RESULTS(id));
@@ -35,7 +83,7 @@ export async function PUT(
         'Content-Type': 'application/json',
         'Authorization': authHeader,
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(normalizedBody),
     });
 
     const data = await response.json();

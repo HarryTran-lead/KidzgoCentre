@@ -37,6 +37,7 @@ import {
   getMediaList,
   publishMediaRecord,
   rejectMediaRecord,
+  resubmitMediaRecord,
   updateMediaRecord,
   uploadMediaFile,
 } from "@/lib/api/mediaService";
@@ -78,6 +79,7 @@ type MediaRow = {
   uploaderName?: string;
   uploaderId?: string;
   createdAt?: string;
+  rejectReason?: string;
 };
 
 type ModerationAction = "approve" | "reject" | "publish";
@@ -315,6 +317,10 @@ function normalizeRows(payload: any): MediaRow[] {
     uploaderName: item.uploaderName ?? item.uploader,
     uploaderId: item.uploaderId,
     createdAt: item.createdAt,
+    rejectReason:
+      (typeof item.rejectReason === "string" ? item.rejectReason : undefined) ??
+      (typeof item.rejectionReason === "string" ? item.rejectionReason : undefined) ??
+      (typeof item.reason === "string" ? item.reason : undefined),
   }));
 }
 
@@ -392,7 +398,9 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
   const [previewTarget, setPreviewTarget] = useState<MediaRow | null>(null);
   const [moderationTarget, setModerationTarget] = useState<MediaRow | null>(null);
   const [moderationAction, setModerationAction] = useState<ModerationAction>("approve");
+  const [moderationReason, setModerationReason] = useState("");
   const [moderating, setModerating] = useState(false);
+  const [resubmittingId, setResubmittingId] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -691,8 +699,14 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
       return;
     }
 
-    if (!createForm.classId.trim()) {
-      toast.warning({ title: "Bạn cần chọn lớp học" });
+    const selectedScope = createForm.ownershipScope;
+    if (selectedScope === MediaOwnershipScope.Class && !createForm.classId.trim()) {
+      toast.warning({ title: "Phạm vi Lớp học yêu cầu chọn lớp học" });
+      return;
+    }
+
+    if (selectedScope === MediaOwnershipScope.Personal && !createForm.studentProfileId.trim()) {
+      toast.warning({ title: "Phạm vi Cá nhân yêu cầu chọn học viên" });
       return;
     }
 
@@ -809,10 +823,14 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
     }
   };
 
-  const runModeration = async (id: string, action: "approve" | "reject" | "publish") => {
+  const runModeration = async (
+    id: string,
+    action: "approve" | "reject" | "publish",
+    reason?: string
+  ) => {
     try {
       if (action === "approve") await approveMediaRecord(id);
-      if (action === "reject") await rejectMediaRecord(id);
+      if (action === "reject") await rejectMediaRecord(id, { reason: String(reason ?? "").trim() });
       if (action === "publish") await publishMediaRecord(id);
 
       const actionLabel = action === "approve" ? "duyệt" : action === "reject" ? "từ chối" : "công khai";
@@ -829,16 +847,43 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
   const openModerationModal = (row: MediaRow, action: ModerationAction) => {
     setModerationTarget(row);
     setModerationAction(action);
+    setModerationReason("");
   };
 
   const handleConfirmModeration = async () => {
     if (!moderationTarget) return;
+    const trimmedReason = moderationReason.trim();
+    if (moderationAction === "reject" && !trimmedReason) {
+      toast.warning({ title: "Vui lòng nhập lý do từ chối" });
+      return;
+    }
+
     setModerating(true);
     try {
-      await runModeration(moderationTarget.id, moderationAction);
+      await runModeration(moderationTarget.id, moderationAction, trimmedReason);
       setModerationTarget(null);
+      setModerationReason("");
     } finally {
       setModerating(false);
+    }
+  };
+
+  const handleResubmit = async (row: MediaRow) => {
+    setResubmittingId(row.id);
+    try {
+      await resubmitMediaRecord(row.id);
+      toast.success({
+        title: "Đã nộp lại tư liệu",
+        description: "Tư liệu đã được chuyển lại trạng thái chờ duyệt.",
+      });
+      setRefreshSeed((seed) => seed + 1);
+    } catch (error: any) {
+      toast.destructive({
+        title: "Nộp lại tư liệu thất bại",
+        description: error?.message || "Vui lòng thử lại.",
+      });
+    } finally {
+      setResubmittingId(null);
     }
   };
 
@@ -971,6 +1016,11 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
                           </div>
                           <div>
                             <div className="font-medium text-gray-900">{row.caption || "(Chưa có chú thích)"}</div>
+                            {mode === "teacher" && row.approvalStatus === ApprovalStatus.Rejected && row.rejectReason && (
+                              <div className="mt-1 inline-flex max-w-136 rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-xs text-rose-700">
+                                Lý do từ chối: {row.rejectReason}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -1033,6 +1083,17 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
                             </button>
                           )}
 
+                          {canModerate && row.approvalStatus === ApprovalStatus.Pending && (
+                            <button
+                              type="button"
+                              onClick={() => openModerationModal(row, "reject")}
+                              className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-rose-200 text-rose-700"
+                              title="Từ chối"
+                            >
+                              <ShieldQuestion size={13} />
+                            </button>
+                          )}
+
                           {canModerate && row.approvalStatus === ApprovalStatus.Approved && !row.isPublished && (
                             <button
                               type="button"
@@ -1052,6 +1113,19 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
                               title="Xóa tệp"
                             >
                               <AlertCircle size={13} />
+                            </button>
+                          )}
+
+                          {mode === "teacher" && canEditRow(row) && row.approvalStatus === ApprovalStatus.Rejected && (
+                            <button
+                              type="button"
+                              onClick={() => handleResubmit(row)}
+                              disabled={resubmittingId === row.id}
+                              className="inline-flex h-7 items-center justify-center gap-1 rounded-lg border border-amber-200 px-2 text-[11px] font-semibold text-amber-700 disabled:opacity-60"
+                              title="Nộp lại"
+                            >
+                              <Megaphone size={12} />
+                              {resubmittingId === row.id ? "Đang gửi" : "Nộp lại"}
                             </button>
                           )}
                         </div>
@@ -1374,8 +1448,11 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
       />
 
       <ConfirmModal
-        isOpen={Boolean(moderationTarget)}
-        onClose={() => setModerationTarget(null)}
+        isOpen={Boolean(moderationTarget) && moderationAction !== "reject"}
+        onClose={() => {
+          setModerationTarget(null);
+          setModerationReason("");
+        }}
         onConfirm={handleConfirmModeration}
         title={
           moderationAction === "approve"
@@ -1401,6 +1478,45 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
         variant={moderationAction === "publish" ? "warning" : moderationAction === "approve" ? "warning" : "danger"}
         isLoading={moderating}
       />
+
+      {Boolean(moderationTarget) && moderationAction === "reject" && (
+        <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/30 p-4">
+          <section className="w-full max-w-lg rounded-2xl border border-rose-200 bg-white p-5">
+            <h3 className="text-base font-semibold text-gray-900">Từ chối tư liệu</h3>
+            <p className="mt-1 text-sm text-gray-600">
+              Nhập lý do từ chối để giáo viên có thể chỉnh sửa và nộp lại.
+            </p>
+
+            <textarea
+              value={moderationReason}
+              onChange={(event) => setModerationReason(event.target.value)}
+              placeholder="Nhập lý do từ chối..."
+              className="mt-3 h-28 w-full rounded-xl border border-rose-200 px-3 py-2 text-sm outline-none focus:border-rose-400"
+            />
+
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setModerationTarget(null);
+                  setModerationReason("");
+                }}
+                className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmModeration}
+                disabled={moderating || !moderationReason.trim()}
+                className="rounded-xl bg-linear-to-r from-rose-600 to-rose-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              >
+                {moderating ? "Đang gửi..." : "Xác nhận từ chối"}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

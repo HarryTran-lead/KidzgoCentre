@@ -71,18 +71,46 @@ export async function PUT(req: Request) {
       );
     }
 
-    const body = await req.json();
+    const contentType = req.headers.get("content-type") || "";
+    const isMultipart = contentType.toLowerCase().includes("multipart/form-data");
 
-    const upstream = await fetch(buildApiUrl(BACKEND_AUTH_ENDPOINTS.ME), {
-      method: "PUT",
-      headers: {
-        "Authorization": authHeader,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
+    const upstream = await (async () => {
+      if (isMultipart) {
+        const incomingFormData = await req.formData();
+        const upstreamFormData = new FormData();
+        incomingFormData.forEach((value, key) => {
+          upstreamFormData.append(key, value);
+        });
 
-    const data: UserMeApiResponse = await upstream.json();
+        return fetch(buildApiUrl(BACKEND_AUTH_ENDPOINTS.ME), {
+          method: "PUT",
+          headers: {
+            "Authorization": authHeader,
+          },
+          body: upstreamFormData,
+        });
+      }
+
+      const body = await req.json();
+      return fetch(buildApiUrl(BACKEND_AUTH_ENDPOINTS.ME), {
+        method: "PUT",
+        headers: {
+          "Authorization": authHeader,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+    })();
+
+    const rawText = await upstream.text();
+    let data: UserMeApiResponse | { message?: string } = {};
+    if (rawText) {
+      try {
+        data = JSON.parse(rawText);
+      } catch {
+        data = { message: rawText };
+      }
+    }
 
     return NextResponse.json(data, { status: upstream.status });
   } catch (error) {

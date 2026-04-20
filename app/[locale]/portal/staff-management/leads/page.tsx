@@ -17,6 +17,7 @@ import {
 } from "@/lib/api/leadService";
 import {
   getAllPlacementTests,
+  getPlacementTestById,
   createPlacementTest,
   createPlacementTestRetake,
   getPlacementTestErrorMessage,
@@ -111,6 +112,43 @@ function sortPlacementTestsByNewest(items: PlacementTest[]): PlacementTest[] {
   });
 }
 
+function normalizeAttachmentUrls(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item || "").trim()).filter(Boolean);
+  }
+
+  if (typeof value === "string") {
+    const raw = value.trim();
+    if (!raw) return [];
+    return raw
+      .split(/[\n,]/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
+function normalizePlacementTestItem(item: any): PlacementTest {
+  const attachmentUrls = Array.from(
+    new Set([
+      ...normalizeAttachmentUrls(item?.attachmentUrls),
+      ...normalizeAttachmentUrls(item?.attachmentUrl),
+    ])
+  );
+
+  const attachmentUrl =
+    (typeof item?.attachmentUrl === "string" ? item.attachmentUrl.trim() : "") ||
+    attachmentUrls[0] ||
+    undefined;
+
+  return {
+    ...(item || {}),
+    attachmentUrl,
+    attachmentUrls,
+  } as PlacementTest;
+}
+
 function resolveUserBranchId(user: any): string {
   return String(user?.branchId || user?.branch?.id || "");
 }
@@ -132,7 +170,7 @@ export default function Page() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const deepLinkHandledRef = useRef(false);
+  const handledPlacementTestIdRef = useRef("");
 
   const { toast } = useToast();
   const { user: currentUser, isLoading: isLoadingUser } = useCurrentUser();
@@ -262,6 +300,7 @@ export default function Page() {
     Array<{
       id: string;
       contactName: string;
+      branchId?: string;
       children?: Array<{ id: string; name: string }>;
     }>
   >([]);
@@ -269,7 +308,7 @@ export default function Page() {
     Array<{ id: string; fullName: string; branchId?: string; profileType?: string }>
   >([]);
   const [modalClasses, setModalClasses] = useState<
-    Array<{ id: string; className: string }>
+    Array<{ id: string; className: string; branchId?: string }>
   >([]);
   const [modalInvigilators, setModalInvigilators] = useState<
     Array<{ id: string; fullName: string; role: string }>
@@ -311,7 +350,14 @@ export default function Page() {
   }, [deepLinkedTab]);
 
   useEffect(() => {
-    if (!deepLinkedPlacementTestId || deepLinkHandledRef.current) return;
+    if (!deepLinkedPlacementTestId) {
+      handledPlacementTestIdRef.current = "";
+      return;
+    }
+
+    if (handledPlacementTestIdRef.current === deepLinkedPlacementTestId) return;
+
+    handledPlacementTestIdRef.current = deepLinkedPlacementTestId;
 
     const clearPlacementTestQuery = () => {
       const params = new URLSearchParams(searchParams.toString());
@@ -335,7 +381,6 @@ export default function Page() {
       if (matchedTest) {
         setSelectedTest(matchedTest);
         setIsTestDetailModalOpen(true);
-        deepLinkHandledRef.current = true;
         clearPlacementTestQuery();
         return;
       }
@@ -345,28 +390,16 @@ export default function Page() {
       }
 
       try {
-        const response = await fetch(PLACEMENT_TEST_ENDPOINTS.GET_BY_ID(deepLinkedPlacementTestId), {
-          headers: {
-            Authorization: `Bearer ${getAccessToken()}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error("Không tìm thấy bài kiểm tra đầu vào");
-        }
-
-        const data = await response.json();
-        const placementTest = data?.data?.placementTest || data?.data || null;
-
-        if (placementTest) {
-          setSelectedTest(placementTest);
+        const response = await getPlacementTestById(deepLinkedPlacementTestId);
+        if (response.isSuccess && response.data) {
+          setSelectedTest(normalizePlacementTestItem(response.data));
           setIsTestDetailModalOpen(true);
+        } else {
+          throw new Error(response.message || "Không tìm thấy bài kiểm tra đầu vào");
         }
 
-        deepLinkHandledRef.current = true;
         clearPlacementTestQuery();
       } catch {
-        deepLinkHandledRef.current = true;
         clearPlacementTestQuery();
         toast({
           variant: "destructive",
@@ -1121,6 +1154,15 @@ export default function Page() {
             return {
               id: lead.id,
               contactName: lead.contactName || lead.fullName || "N/A",
+              branchId: String(
+                lead?.branchId ||
+                  lead?.branch?.id ||
+                  lead?.branch?.branchId ||
+                  lead?.branchPreference ||
+                  lead?.branchPreferenceId ||
+                  lead?.branchPreference?.id ||
+                  "",
+              ),
               children: children.map((c: any) => ({
                 id: c.id,
                 name: c.childName || c.name || "N/A",
@@ -1169,6 +1211,7 @@ export default function Page() {
           const mapped = classItems.map((c: any) => ({
             id: c.id,
             className: c.roomName || c.classroomName || c.name || c.code || "N/A",
+            branchId: String(c.branchId || c.branch?.id || c.branch?.branchId || ""),
           }));
           setModalClasses(mapped);
         }
@@ -1177,10 +1220,15 @@ export default function Page() {
       }
 
       // Fetch invigilators (Admin + ManagementStaff)
-      const [adminRes, staffRes] = await Promise.all([
+      const [adminRes, staffRes, teacherRes] = await Promise.all([
         getAllUsers({ role: "Admin", isActive: true, pageSize: 1000 }),
         getAllUsers({
           role: "ManagementStaff",
+          isActive: true,
+          pageSize: 1000,
+        }),
+        getAllUsers({
+          role: "Teacher",
           isActive: true,
           pageSize: 1000,
         }),
@@ -1189,12 +1237,17 @@ export default function Page() {
         adminRes.isSuccess && adminRes.data?.items ? adminRes.data.items : [];
       const staffUsers =
         staffRes.isSuccess && staffRes.data?.items ? staffRes.data.items : [];
+      const teacherUsers =
+        teacherRes.isSuccess && teacherRes.data?.items ? teacherRes.data.items : [];
       const branchMatchedAdmin = branchId
         ? adminUsers.filter((u: any) => resolveUserBranchId(u) === branchId)
         : adminUsers;
       const branchMatchedStaff = branchId
         ? staffUsers.filter((u: any) => resolveUserBranchId(u) === branchId)
         : staffUsers;
+      const branchMatchedTeacher = branchId
+        ? teacherUsers.filter((u: any) => resolveUserBranchId(u) === branchId)
+        : teacherUsers;
       const invigilators = [
         ...branchMatchedAdmin.map((u: any) => ({
           id: u.id,
@@ -1205,6 +1258,11 @@ export default function Page() {
           id: u.id,
           fullName: u.name || u.fullName || u.username || u.email || "N/A",
           role: "ManagementStaff",
+        })),
+        ...branchMatchedTeacher.map((u: any) => ({
+          id: u.id,
+          fullName: u.name || u.fullName || u.username || u.email || "N/A",
+          role: "Teacher",
         })),
       ];
       setModalInvigilators(invigilators);
@@ -1295,9 +1353,21 @@ export default function Page() {
     setIsTestFormModalOpen(true);
   };
 
+  const syncPlacementTestDetail = async (testId: string) => {
+    try {
+      const response = await getPlacementTestById(testId);
+      if (response.isSuccess && response.data) {
+        setSelectedTest(normalizePlacementTestItem(response.data));
+      }
+    } catch (error) {
+      console.warn("Failed to fetch placement test detail:", error);
+    }
+  };
+
   const handleViewTest = (test: PlacementTest) => {
-    setSelectedTest(test);
+    setSelectedTest(normalizePlacementTestItem(test));
     setIsTestDetailModalOpen(true);
+    void syncPlacementTestDetail(test.id);
   };
 
   const handleEditTest = (test: PlacementTest) => {
@@ -1320,8 +1390,9 @@ export default function Page() {
   };
 
   const handleAddResult = (test: PlacementTest) => {
-    setSelectedTest(test);
+    setSelectedTest(normalizePlacementTestItem(test));
     setIsTestResultModalOpen(true);
+    void syncPlacementTestDetail(test.id);
   };
 
   const handleCancelTest = (test: PlacementTest) => {
@@ -1414,17 +1485,64 @@ export default function Page() {
     if (!selectedTest) return;
 
     try {
+      const normalizeAttachmentUrls = (value: unknown): string[] => {
+        if (Array.isArray(value)) {
+          return value.map((item) => String(item || "").trim()).filter(Boolean);
+        }
+
+        if (typeof value === "string") {
+          const raw = value.trim();
+          if (!raw) return [];
+          return raw
+            .split(/[\n,]/)
+            .map((item) => item.trim())
+            .filter(Boolean);
+        }
+
+        return [];
+      };
+
+      const attachmentUrls = Array.from(
+        new Set([
+          ...normalizeAttachmentUrls(data.attachmentUrls),
+          ...normalizeAttachmentUrls(data.attachmentUrl),
+        ])
+      );
+      const attachmentPayload =
+        attachmentUrls.length > 1
+          ? attachmentUrls
+          : attachmentUrls[0] || "";
+
       const token = getAccessToken();
       const headers = {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       };
 
+      const resultPayload = {
+        listeningScore: data.listeningScore ?? 0,
+        speakingScore: data.speakingScore ?? 0,
+        readingScore: data.readingScore ?? 0,
+        writingScore: data.writingScore ?? 0,
+        resultScore: data.resultScore ?? 0,
+        programRecommendationId: data.programRecommendationId || null,
+        programRecommendationName: data.programRecommendationName || null,
+        secondaryProgramRecommendationId:
+          data.secondaryProgramRecommendationId || null,
+        secondaryProgramRecommendationName:
+          data.secondaryProgramRecommendationName || null,
+        isSecondaryProgramSupplementary:
+          data.isSecondaryProgramSupplementary ?? null,
+        secondaryProgramSkillFocus: data.secondaryProgramSkillFocus || null,
+        attachmentUrl: attachmentPayload,
+        attachmentUrls,
+      };
+
       const apiCalls: Promise<Response>[] = [
         fetch(PLACEMENT_TEST_ENDPOINTS.UPDATE_RESULTS(selectedTest.id), {
           method: "PUT",
           headers,
-          body: JSON.stringify(data),
+          body: JSON.stringify(resultPayload),
         }),
       ];
 
@@ -2229,6 +2347,7 @@ export default function Page() {
         onSubmit={handleTestResultSubmit}
         testId={selectedTest?.id || ""}
         branchId={resolveUserBranchId(currentUser)}
+        initialData={selectedTest}
       />
 
       <NoteFormModal

@@ -12,10 +12,13 @@ export async function POST(req: Request) {
       );
     }
 
-    const formData = await req.formData();
-    const file = formData.get("file");
+    const { searchParams } = new URL(req.url);
+    const targetProfileId = searchParams.get("targetProfileId");
 
-    if (!file) {
+    const formData = await req.formData();
+    const file = formData.get("file") ?? formData.get("avatar") ?? formData.get("Avatar");
+
+    if (!file || !(file instanceof Blob)) {
       return NextResponse.json(
         { error: "No file provided" },
         { status: 400 }
@@ -25,13 +28,25 @@ export async function POST(req: Request) {
     const upstreamForm = new FormData();
     upstreamForm.append("file", file);
 
-    const upstream = await fetch(buildApiUrl(BACKEND_FILE_ENDPOINTS.AVATAR), {
+    const endpoint = targetProfileId
+      ? `${BACKEND_FILE_ENDPOINTS.AVATAR}?targetProfileId=${encodeURIComponent(targetProfileId)}`
+      : BACKEND_FILE_ENDPOINTS.AVATAR;
+
+    const upstream = await fetch(buildApiUrl(endpoint), {
       method: "POST",
       headers: { Authorization: authHeader },
       body: upstreamForm,
     });
 
-    const data = await upstream.json();
+    const rawText = await upstream.text();
+    let data: any = {};
+    if (rawText) {
+      try {
+        data = JSON.parse(rawText);
+      } catch {
+        data = { message: rawText };
+      }
+    }
     return NextResponse.json(data, { status: upstream.status });
   } catch (error) {
     console.error("Avatar upload error:", error);

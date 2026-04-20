@@ -22,6 +22,12 @@ export interface UpdateUserMeRequest {
   fullName?: string;
   email?: string;
   phoneNumber?: string;
+  avatar?: File;
+  targetProfileId?: string;
+  profiles?: Array<{
+    id: string;
+    displayName: string;
+  }>;
 }
 
 // Forget Password Request
@@ -156,6 +162,7 @@ export interface UserMeResponse {
   updatedAt?: string;
   profiles?: UserProfile[];
   permissions?: string[];
+  selectedProfileId?: string;
   selectedProfile?: UserProfile;
 }
 

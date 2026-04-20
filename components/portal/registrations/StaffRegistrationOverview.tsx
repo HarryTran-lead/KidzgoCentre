@@ -24,6 +24,7 @@ import RegistrationUpgradeModal from "@/components/portal/registrations/modals/R
 import { useToast } from "@/hooks/use-toast";
 import {
   assignClassToRegistration,
+  extractRegistrationIdFromAction,
   getRegistrationById,
   getRegistrations,
   suggestClassesForRegistration,
@@ -32,8 +33,13 @@ import {
 } from "@/lib/api/registrationService";
 import { getAllClasses } from "@/lib/api/classService";
 import { getTuitionPlans } from "@/lib/api/tuitionPlanService";
+import {
+  extractDomainErrorCode,
+  getDomainErrorMessage,
+} from "@/lib/api/domainErrorMessage";
 import type { TuitionPlan } from "@/types/admin/tuition_plan";
 import type {
+  EntryType,
   Registration,
   RegistrationStatus,
   RegistrationTrackType,
@@ -199,6 +205,7 @@ export default function StaffRegistrationOverview({
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [suggestedClasses, setSuggestedClasses] = useState<SuggestedClassBucket | null>(null);
   const [selectedTrack, setSelectedTrack] = useState<RegistrationTrackType>("primary");
+  const [assignEntryType, setAssignEntryType] = useState<EntryType>("Immediate");
   const [selectedClassId, setSelectedClassId] = useState("");
   const [manualClasses, setManualClasses] = useState<any[]>([]);
   const [manualPrimaryClassId, setManualPrimaryClassId] = useState("");
@@ -572,18 +579,38 @@ export default function StaffRegistrationOverview({
   };
 
   const getErrorMessage = (error: any, fallback: string) => {
-    return (
-      error?.response?.data?.detail ||
-      error?.response?.data?.message ||
-      error?.message ||
-      fallback
-    );
+    const status = Number(error?.response?.status || error?.status || 0);
+    const code = extractDomainErrorCode(error);
+
+    if (status === 409 && (code === "Enrollment.StudentScheduleConflict" || code === "Registration.StudentScheduleConflict" || code === "StudentScheduleConflict")) {
+      return "Học viên bị trùng lịch học ở thời gian đã chọn. Vui lòng chọn lớp/track hoặc mẫu buổi học khác.";
+    }
+
+    return getDomainErrorMessage(error, fallback);
   };
 
-  const getErrorTitle = (error: any) =>
-    error?.response?.data?.title === "Enrollment.StudentScheduleConflict"
-      ? "Trùng lịch học"
-      : "Lỗi";
+  const getErrorTitle = (error: any) => {
+    const status = Number(error?.response?.status || error?.status || 0);
+    const code = extractDomainErrorCode(error);
+
+    if (code === "Enrollment.StudentScheduleConflict" || code === "Registration.StudentScheduleConflict" || code === "StudentScheduleConflict") {
+      return "Trùng lịch học";
+    }
+
+    if (code === "Registration.ClassFull" || code === "ClassFull") {
+      return "Lớp đã đủ sĩ số";
+    }
+
+    if (code === "Registration.ClassAlreadyAssigned" || code === "ClassAlreadyAssigned") {
+      return "Đã xếp lớp";
+    }
+
+    if (status === 409) {
+      return "Xung đột dữ liệu";
+    }
+
+    return "Lỗi";
+  };
 
   const refreshRegistrationData = async () => {
     await Promise.all([fetchRows(), fetchSummary()]);
@@ -653,6 +680,7 @@ export default function StaffRegistrationOverview({
     setAssignViewMode("none");
     setSuggestedClasses(null);
     setSelectedTrack("primary");
+    setAssignEntryType("Immediate");
     setSelectedClassId("");
     setManualClasses([]);
     setManualPrimaryClassId("");
@@ -759,20 +787,36 @@ export default function StaffRegistrationOverview({
     }
   };
 
-  const handleAssignClass = async (sessionSelectionPattern?: string) => {
+  const handleAssignClass = async (
+    sessionSelectionPattern?: string,
+    entryType: EntryType = "Immediate",
+  ) => {
     if (!selectedActionRegistration?.id || !selectedClassId) return;
 
     try {
       setIsAssigning(true);
-      await assignClassToRegistration(selectedActionRegistration.id, {
+      const response = await assignClassToRegistration(selectedActionRegistration.id, {
         classId: selectedClassId,
-        entryType: "Immediate",
+        entryType,
         track: selectedTrack,
         sessionSelectionPattern: sessionSelectionPattern || undefined,
       });
+
+      const nextRegistrationId =
+        extractRegistrationIdFromAction(response) || selectedActionRegistration.id;
+      const isRetakeNewRegistration = nextRegistrationId !== selectedActionRegistration.id;
+
+      if (isRetakeNewRegistration) {
+        setSelectedActionRegistration((prev) =>
+          prev ? { ...prev, id: nextRegistrationId } : prev,
+        );
+      }
+
       toast({
         title: "Thành công",
-        description: "Đã xếp lớp cho đăng ký.",
+        description: isRetakeNewRegistration
+          ? `Đã xếp lớp và tạo đăng ký mới (${nextRegistrationId}).`
+          : "Đã xếp lớp cho đăng ký.",
         variant: "success",
       });
       setAssignOpen(false);
@@ -793,35 +837,50 @@ export default function StaffRegistrationOverview({
     primarySessionSelectionPattern?: string;
     secondaryClassId?: string;
     secondarySessionSelectionPattern?: string;
+    entryType?: EntryType;
   }) => {
     if (!selectedActionRegistration?.id || !payload.primaryClassId) return;
 
     try {
       setIsAssigning(true);
+      const selectedEntryType = payload.entryType || "Immediate";
+      let targetRegistrationId = selectedActionRegistration.id;
 
-      await assignClassToRegistration(selectedActionRegistration.id, {
+      const primaryResponse = await assignClassToRegistration(targetRegistrationId, {
         classId: payload.primaryClassId,
-        entryType: "Immediate",
+        entryType: selectedEntryType,
         track: "primary",
         sessionSelectionPattern:
           payload.primarySessionSelectionPattern || undefined,
       });
 
+      targetRegistrationId = extractRegistrationIdFromAction(primaryResponse) || targetRegistrationId;
+
       if (payload.secondaryClassId) {
-        await assignClassToRegistration(selectedActionRegistration.id, {
+        const secondaryResponse = await assignClassToRegistration(targetRegistrationId, {
           classId: payload.secondaryClassId,
-          entryType: "Immediate",
+          entryType: selectedEntryType,
           track: "secondary",
           sessionSelectionPattern:
             payload.secondarySessionSelectionPattern || undefined,
         });
+        targetRegistrationId = extractRegistrationIdFromAction(secondaryResponse) || targetRegistrationId;
+      }
+
+      const isRetakeNewRegistration = targetRegistrationId !== selectedActionRegistration.id;
+      if (isRetakeNewRegistration) {
+        setSelectedActionRegistration((prev) =>
+          prev ? { ...prev, id: targetRegistrationId } : prev,
+        );
       }
 
       toast({
         title: "Thành công",
-        description: payload.secondaryClassId
-          ? "Đã xếp lớp gợi ý cho cả Primary và Secondary."
-          : "Đã xếp lớp gợi ý cho đăng ký.",
+        description: isRetakeNewRegistration
+          ? `Đã xếp lớp và tạo đăng ký mới (${targetRegistrationId}).`
+          : payload.secondaryClassId
+            ? "Đã xếp lớp gợi ý cho cả Primary và Secondary."
+            : "Đã xếp lớp gợi ý cho đăng ký.",
         variant: "success",
       });
       setAssignOpen(false);
@@ -837,7 +896,7 @@ export default function StaffRegistrationOverview({
     }
   };
 
-  const handleAssignManualClasses = async () => {
+  const handleAssignManualClasses = async (entryType: EntryType = "Immediate") => {
     if (!selectedActionRegistration?.id || !manualPrimaryClassId) return;
 
     if (hasSecondaryTrack && !manualSecondaryClassId) {
@@ -878,25 +937,39 @@ export default function StaffRegistrationOverview({
 
     try {
       setIsAssigning(true);
-      await assignClassToRegistration(selectedActionRegistration.id, {
+      let targetRegistrationId = selectedActionRegistration.id;
+
+      const primaryResponse = await assignClassToRegistration(targetRegistrationId, {
         classId: manualPrimaryClassId,
-        entryType: "Immediate",
+        entryType,
         track: "primary",
         sessionSelectionPattern: manualPrimarySessionPattern,
       });
 
+      targetRegistrationId = extractRegistrationIdFromAction(primaryResponse) || targetRegistrationId;
+
       if (hasSecondaryTrack && manualSecondaryClassId) {
-        await assignClassToRegistration(selectedActionRegistration.id, {
+        const secondaryResponse = await assignClassToRegistration(targetRegistrationId, {
           classId: manualSecondaryClassId,
-          entryType: "Immediate",
+          entryType,
           track: "secondary",
           sessionSelectionPattern: manualSecondarySessionPattern,
         });
+        targetRegistrationId = extractRegistrationIdFromAction(secondaryResponse) || targetRegistrationId;
+      }
+
+      const isRetakeNewRegistration = targetRegistrationId !== selectedActionRegistration.id;
+      if (isRetakeNewRegistration) {
+        setSelectedActionRegistration((prev) =>
+          prev ? { ...prev, id: targetRegistrationId } : prev,
+        );
       }
 
       toast({
         title: "Thành công",
-        description: "Đã xếp lớp thủ công cho đăng ký.",
+        description: isRetakeNewRegistration
+          ? `Đã xếp lớp và tạo đăng ký mới (${targetRegistrationId}).`
+          : "Đã xếp lớp thủ công cho đăng ký.",
         variant: "success",
       });
       setAssignOpen(false);
@@ -1271,6 +1344,8 @@ export default function StaffRegistrationOverview({
         hasSecondaryTrack={hasSecondaryTrack}
         selectedTrack={selectedTrack}
         setSelectedTrack={setSelectedTrack}
+        selectedEntryType={assignEntryType}
+        setSelectedEntryType={setAssignEntryType}
         selectedClassId={selectedClassId}
         setSelectedClassId={setSelectedClassId}
         activeSuggestedClasses={activeSuggestedClasses}

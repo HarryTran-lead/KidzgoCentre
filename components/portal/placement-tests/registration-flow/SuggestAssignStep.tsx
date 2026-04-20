@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, Loader2, School } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/lightswind/select";
 import type {
+  EntryType,
   RegistrationTrackType,
   SuggestedClassBucket,
 } from "@/types/registration";
@@ -115,6 +123,12 @@ function toTrackLabel(track?: RegistrationTrackType | string | null): string {
     : "chương trình chính";
 }
 
+function toEntryTypeLabel(entryType: EntryType): string {
+  if (entryType === "Makeup") return "Học bù";
+  if (entryType === "Retake") return "Học lại";
+  return "Vào học ngay";
+}
+
 interface SuggestAssignStepProps {
   mode?: "full" | "suggested-only" | "manual-wait-only";
   registrationId: string;
@@ -131,17 +145,23 @@ interface SuggestAssignStepProps {
   hasSecondaryTrack: boolean;
   selectedTrack: RegistrationTrackType;
   setSelectedTrack: (value: RegistrationTrackType) => void;
+  selectedEntryType: EntryType;
+  setSelectedEntryType: (value: EntryType) => void;
   selectedClassId: string;
   setSelectedClassId: (value: string) => void;
   activeSuggestedClasses: any[];
   activeAlternativeClasses: any[];
   formatSchedulePattern: (value?: string | null) => string;
-  handleAssignClass: (sessionSelectionPattern?: string) => void;
+  handleAssignClass: (
+    sessionSelectionPattern?: string,
+    entryType?: EntryType,
+  ) => void;
   handleAssignSuggestedClasses: (payload: {
     primaryClassId: string;
     primarySessionSelectionPattern?: string;
     secondaryClassId?: string;
     secondarySessionSelectionPattern?: string;
+    entryType?: EntryType;
   }) => void;
   isAssigning: boolean;
   manualClasses: any[];
@@ -164,7 +184,7 @@ interface SuggestAssignStepProps {
   setManualPrimarySessionPattern: (value: string) => void;
   manualSecondarySessionPattern: string;
   setManualSecondarySessionPattern: (value: string) => void;
-  handleAssignManualClasses: () => void;
+  handleAssignManualClasses: (entryType?: EntryType) => void;
 }
 
 export default function SuggestAssignStep({
@@ -183,6 +203,8 @@ export default function SuggestAssignStep({
   hasSecondaryTrack,
   selectedTrack,
   setSelectedTrack,
+  selectedEntryType,
+  setSelectedEntryType,
   selectedClassId,
   setSelectedClassId,
   activeSuggestedClasses,
@@ -626,6 +648,7 @@ export default function SuggestAssignStep({
         secondaryClassId: selectedSecondarySuggestedClassId || undefined,
         secondarySessionSelectionPattern:
           suggestedSecondarySessionPattern || fallbackSecondaryPattern || undefined,
+        entryType: selectedEntryType,
       });
       return;
     }
@@ -638,7 +661,10 @@ export default function SuggestAssignStep({
       selectedTrack === "secondary"
         ? fallbackSecondaryPattern
         : fallbackPrimaryPattern;
-    handleAssignClass(currentPattern || currentFallbackPattern || undefined);
+    handleAssignClass(
+      currentPattern || currentFallbackPattern || undefined,
+      selectedEntryType,
+    );
   };
 
   const renderTrackSessionSelector = ({
@@ -786,6 +812,32 @@ export default function SuggestAssignStep({
         </div>
 
         <div className="rounded-xl border border-red-100 bg-white/80 p-3">
+          {(isSuggestedMode || isManualMode) && (
+            <div className="mb-3 rounded-xl border border-red-100 bg-red-50/50 p-3">
+              <label className="text-xs font-semibold text-gray-700">
+                Hình thức vào lớp
+              </label>
+              <div className="mt-1.5">
+                <Select
+                  value={selectedEntryType}
+                  onValueChange={(value) => setSelectedEntryType(value as EntryType)}
+                >
+                  <SelectTrigger className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100">
+                    <SelectValue placeholder="Chọn hình thức vào lớp" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Immediate">Vào học ngay</SelectItem>
+                    <SelectItem value="Makeup">Học bù</SelectItem>
+                    <SelectItem value="Retake">Học lại</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <p className="mt-1 text-[11px] text-gray-500">
+                Nếu muốn chuyển trạng thái chờ lớp, dùng nút "Đưa vào danh sách chờ".
+              </p>
+            </div>
+          )}
+
           {showSuggestedActions && isSuggestedMode && suggestedClasses && (
             <div className="space-y-3">
               
@@ -1030,8 +1082,8 @@ export default function SuggestAssignStep({
                 {isAssigning
                   ? "Đang xếp lớp..."
                   : hasSecondaryTrack
-                    ? "Xếp lớp gợi ý (Chính + Song song)"
-                    : "Xếp vào lớp đã chọn"}
+                    ? `Xếp lớp gợi ý (${toEntryTypeLabel(selectedEntryType)})`
+                    : `Xếp vào lớp đã chọn (${toEntryTypeLabel(selectedEntryType)})`}
               </button>
             </div>
           )}
@@ -1139,7 +1191,7 @@ export default function SuggestAssignStep({
 
               <button
                 type="button"
-                onClick={handleAssignManualClasses}
+                onClick={() => handleAssignManualClasses(selectedEntryType)}
                 disabled={
                   !manualPrimaryClassId ||
                   isAssigning ||
@@ -1153,8 +1205,8 @@ export default function SuggestAssignStep({
                 {isAssigning
                   ? "Đang xếp lớp..."
                   : hasSecondaryTrack
-                    ? "Xếp lớp thủ công (Chính + Song song)"
-                    : "Xếp lớp thủ công (Chương trình chính)"}
+                    ? `Xếp lớp thủ công (${toEntryTypeLabel(selectedEntryType)})`
+                    : `Xếp lớp thủ công (${toEntryTypeLabel(selectedEntryType)})`}
               </button>
             </div>
           )}

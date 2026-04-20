@@ -34,6 +34,7 @@ import { useCreateAccountFromTest } from "@/hooks/useCreateAccountFromTest";
 import {
   createPlacementTest,
   createPlacementTestRetake,
+  getPlacementTestById,
   getPlacementTestErrorMessage,
   updatePlacementTest,
 } from "@/lib/api/placementTestService";
@@ -98,11 +99,13 @@ export default function PlacementTestsPage() {
   });
 
   // Mock data for dropdowns - replace with API calls
-  const [leads, setLeads] = useState<any[]>([]);
+  const [leads, setLeads] = useState<
+    Array<{ id: string; contactName: string; branchId?: string; children?: Array<{ id: string; name: string }> }>
+  >([]);
   const [studentProfiles, setStudentProfiles] = useState<
     Array<{ id: string; fullName: string; branchId?: string; profileType?: string }>
   >([]);
-  const [classes, setClasses] = useState<any[]>([]);
+  const [classes, setClasses] = useState<Array<{ id: string; className: string; branchId?: string }>>([]);
   const [invigilators, setInvigilators] = useState<any[]>([]);
   const [retakeBranches, setRetakeBranches] = useState<Array<{ id: string; name: string }>>([]);
   const [retakePrograms, setRetakePrograms] = useState<Array<{ id: string; name: string; branchId?: string }>>([]);
@@ -132,6 +135,41 @@ export default function PlacementTestsPage() {
       const at = new Date(a.createdAt || a.scheduledAt || "").getTime();
       return (Number.isNaN(bt) ? 0 : bt) - (Number.isNaN(at) ? 0 : at);
     });
+  };
+
+  const normalizeAttachmentUrls = (value: unknown): string[] => {
+    if (Array.isArray(value)) {
+      return value.map((item) => String(item || "").trim()).filter(Boolean);
+    }
+    if (typeof value === "string") {
+      const raw = value.trim();
+      if (!raw) return [];
+      return raw
+        .split(/[\n,]/)
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+    return [];
+  };
+
+  const normalizePlacementTestItem = (item: any): PlacementTest => {
+    const attachmentUrls = Array.from(
+      new Set([
+        ...normalizeAttachmentUrls(item?.attachmentUrls),
+        ...normalizeAttachmentUrls(item?.attachmentUrl),
+      ])
+    );
+
+    const attachmentUrl =
+      (typeof item?.attachmentUrl === "string" ? item.attachmentUrl.trim() : "") ||
+      attachmentUrls[0] ||
+      undefined;
+
+    return {
+      ...(item || {}),
+      attachmentUrl,
+      attachmentUrls,
+    } as PlacementTest;
   };
 
   const filteredInvigilators = useMemo(() => {
@@ -203,7 +241,7 @@ export default function PlacementTestsPage() {
         const targetTest = data?.data?.placementTest || data?.data || null;
 
         if (targetTest) {
-          setSelectedTest(targetTest);
+          setSelectedTest(normalizePlacementTestItem(targetTest));
           setIsDetailModalOpen(true);
         }
 
@@ -250,7 +288,11 @@ export default function PlacementTestsPage() {
       if (!response.ok) throw new Error("Failed to fetch placement tests");
 
       const data = await response.json();
-      setTests(sortPlacementTestsNewest(data.data?.placementTests || data.data?.items || []));
+      const rawItems = data.data?.placementTests || data.data?.items || [];
+      const normalizedItems = Array.isArray(rawItems)
+        ? rawItems.map((item: any) => normalizePlacementTestItem(item))
+        : [];
+      setTests(sortPlacementTestsNewest(normalizedItems));
       setTotalCount(data.data?.totalCount || 0);
       setTotalPages(data.data?.totalPages || 0);
     } catch (error) {
@@ -265,9 +307,20 @@ export default function PlacementTestsPage() {
     }
   };
 
+  const syncPlacementTestDetail = async (testId: string) => {
+    try {
+      const response = await getPlacementTestById(testId);
+      if (response.isSuccess && response.data) {
+        setSelectedTest(normalizePlacementTestItem(response.data));
+      }
+    } catch (error) {
+      console.warn("Failed to fetch placement test detail:", error);
+    }
+  };
+
   const fetchInvigilators = async () => {
     try {
-      // Fetch both Admin and ManagementStaff users with pagination
+      // Fetch Admin, ManagementStaff and Teacher users with pagination
       const adminParams = new URLSearchParams();
       adminParams.append("role", "Admin");
       adminParams.append("isActive", "true");
@@ -280,7 +333,13 @@ export default function PlacementTestsPage() {
       staffParams.append("pageSize", "1000");
       staffParams.append("page", "1");
 
-      const [adminResponse, staffResponse] = await Promise.all([
+      const teacherParams = new URLSearchParams();
+      teacherParams.append("role", "Teacher");
+      teacherParams.append("isActive", "true");
+      teacherParams.append("pageSize", "1000");
+      teacherParams.append("page", "1");
+
+      const [adminResponse, staffResponse, teacherResponse] = await Promise.all([
         fetch(`${USER_ENDPOINTS.GET_ALL}?${adminParams.toString()}`, {
           headers: {
             Authorization: `Bearer ${getAccessToken()}`,
@@ -291,11 +350,17 @@ export default function PlacementTestsPage() {
             Authorization: `Bearer ${getAccessToken()}`,
           },
         }),
+        fetch(`${USER_ENDPOINTS.GET_ALL}?${teacherParams.toString()}`, {
+          headers: {
+            Authorization: `Bearer ${getAccessToken()}`,
+          },
+        }),
       ]);
 
-      if (adminResponse.ok && staffResponse.ok) {
+      if (adminResponse.ok && staffResponse.ok && teacherResponse.ok) {
         const adminData = await adminResponse.json();
         const staffData = await staffResponse.json();
+        const teacherData = await teacherResponse.json();
 
         // Handle multiple response formats
         const adminItems =
@@ -312,6 +377,13 @@ export default function PlacementTestsPage() {
           staffData.items ||
           staffData.users ||
           [];
+        const teacherItems =
+          teacherData.data?.items ||
+          teacherData.data?.users ||
+          teacherData.data ||
+          teacherData.items ||
+          teacherData.users ||
+          [];
 
         const admins = adminItems.map((user: any) => ({
           id: user.id,
@@ -327,7 +399,14 @@ export default function PlacementTestsPage() {
           branchId: user.branchId || user.branch?.id || "",
         }));
 
-        setInvigilators([...admins, ...staff]);
+        const teachers = teacherItems.map((user: any) => ({
+          id: user.id,
+          fullName: user.fullName || user.userName || user.name || "N/A",
+          role: "Teacher",
+          branchId: user.branchId || user.branch?.id || "",
+        }));
+
+        setInvigilators([...admins, ...staff, ...teachers]);
       } else {
         console.error(
           "❌ Failed to fetch invigilators:",
@@ -335,6 +414,8 @@ export default function PlacementTestsPage() {
           adminResponse.status,
           "Staff:",
           staffResponse.status,
+          "Teacher:",
+          teacherResponse.status,
         );
       }
     } catch (error) {
@@ -448,6 +529,15 @@ export default function PlacementTestsPage() {
             return {
               id: lead.id,
               contactName: lead.contactName || lead.fullName || "N/A",
+              branchId: String(
+                lead.branchId ||
+                  lead.branch?.id ||
+                  lead.branch?.branchId ||
+                  lead.branchPreference ||
+                  lead.branchPreferenceId ||
+                  lead.branchPreference?.id ||
+                  "",
+              ),
               children: mappedChildren,
             };
           }),
@@ -571,6 +661,15 @@ export default function PlacementTestsPage() {
             return {
               id: lead.id,
               contactName: lead.contactName || lead.fullName || "N/A",
+              branchId: String(
+                lead.branchId ||
+                  lead.branch?.id ||
+                  lead.branch?.branchId ||
+                  lead.branchPreference ||
+                  lead.branchPreferenceId ||
+                  lead.branchPreference?.id ||
+                  "",
+              ),
               children: mappedChildren,
             };
           }),
@@ -688,6 +787,7 @@ export default function PlacementTestsPage() {
         const mappedClasses = classesData.map((cls: any) => ({
           id: cls.id,
           className: cls.roomName || cls.classroomName || cls.name || cls.code || "N/A",
+          branchId: String(cls.branchId || cls.branch?.id || cls.branch?.branchId || ""),
         }));
 
         setClasses(mappedClasses);
@@ -918,13 +1018,15 @@ export default function PlacementTestsPage() {
   };
 
   const handleView = (test: PlacementTest) => {
-    setSelectedTest(test);
+    setSelectedTest(normalizePlacementTestItem(test));
     setIsDetailModalOpen(true);
+    void syncPlacementTestDetail(test.id);
   };
 
   const handleAddResult = (test: PlacementTest) => {
-    setSelectedTest(test);
+    setSelectedTest(normalizePlacementTestItem(test));
     setIsResultModalOpen(true);
+    void syncPlacementTestDetail(test.id);
   };
 
   const handleCancel = (test: PlacementTest) => {
@@ -1004,6 +1106,17 @@ export default function PlacementTestsPage() {
     if (!selectedTest) return;
 
     try {
+      const attachmentUrls = Array.from(
+        new Set([
+          ...normalizeAttachmentUrls(data.attachmentUrls),
+          ...normalizeAttachmentUrls(data.attachmentUrl),
+        ])
+      );
+      const attachmentPayload =
+        attachmentUrls.length > 1
+          ? attachmentUrls
+          : attachmentUrls[0] || "";
+
       // Build the result payload matching API expectations
       const resultPayload = {
         listeningScore: data.listeningScore ?? 0,
@@ -1016,7 +1129,8 @@ export default function PlacementTestsPage() {
         secondaryProgramRecommendationId: data.secondaryProgramRecommendationId || null,
         secondaryProgramRecommendationName: data.secondaryProgramRecommendationName || null,
         secondaryProgramSkillFocus: data.secondaryProgramSkillFocus || null,
-        attachmentUrl: data.attachmentUrl || "",
+        attachmentUrl: attachmentPayload,
+        attachmentUrls,
       };
 
       const token = getAccessToken();
@@ -1319,6 +1433,7 @@ export default function PlacementTestsPage() {
           onSubmit={handleResultSubmit}
           testId={selectedTest?.id || ""}
           branchId={currentUserBranchId}
+          initialData={selectedTest}
         />
 
         <PlacementTestDetailModal

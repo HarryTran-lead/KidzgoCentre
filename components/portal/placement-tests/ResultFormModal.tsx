@@ -30,6 +30,32 @@ interface ResultFormModalProps {
   initialData?: Partial<PlacementTestResultRequest> | null;
 }
 
+function normalizeAttachmentUrls(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item || "").trim()).filter(Boolean);
+  }
+
+  if (typeof value === "string") {
+    const raw = value.trim();
+    if (!raw) return [];
+    return raw
+      .split(/[\n,]/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
+function getInitialAttachmentUrls(initialData?: Partial<PlacementTestResultRequest> | null): string[] {
+  return Array.from(
+    new Set([
+      ...normalizeAttachmentUrls(initialData?.attachmentUrls),
+      ...normalizeAttachmentUrls(initialData?.attachmentUrl),
+    ])
+  );
+}
+
 export default function ResultFormModal({
   isOpen,
   onClose,
@@ -39,6 +65,7 @@ export default function ResultFormModal({
   initialData,
 }: ResultFormModalProps) {
   const { toast } = useToast();
+  const formId = `placement-test-result-form-${testId || "new"}`;
   const [formData, setFormData] = useState({
     listeningScore: initialData?.listeningScore?.toString() || "",
     speakingScore: initialData?.speakingScore?.toString() || "",
@@ -50,7 +77,7 @@ export default function ResultFormModal({
     secondaryProgramRecommendationName: initialData?.secondaryProgramRecommendationName || "",
     isSecondaryProgramSupplementary: Boolean(initialData?.isSecondaryProgramSupplementary),
     secondaryProgramSkillFocus: initialData?.secondaryProgramSkillFocus || "",
-    attachmentUrl: initialData?.attachmentUrl || "",
+    attachmentUrls: getInitialAttachmentUrls(initialData),
     note: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -73,7 +100,7 @@ export default function ResultFormModal({
       secondaryProgramRecommendationName: initialData?.secondaryProgramRecommendationName || "",
       isSecondaryProgramSupplementary: Boolean(initialData?.isSecondaryProgramSupplementary),
       secondaryProgramSkillFocus: initialData?.secondaryProgramSkillFocus || "",
-      attachmentUrl: initialData?.attachmentUrl || "",
+      attachmentUrls: getInitialAttachmentUrls(initialData),
       note: "",
     });
     setFormError("");
@@ -124,7 +151,7 @@ export default function ResultFormModal({
         secondaryProgramRecommendationName: initialData?.secondaryProgramRecommendationName || "",
         isSecondaryProgramSupplementary: Boolean(initialData?.isSecondaryProgramSupplementary),
         secondaryProgramSkillFocus: initialData?.secondaryProgramSkillFocus || "",
-        attachmentUrl: initialData?.attachmentUrl || "",
+        attachmentUrls: getInitialAttachmentUrls(initialData),
         note: "",
       });
     } else {
@@ -140,7 +167,7 @@ export default function ResultFormModal({
         secondaryProgramRecommendationName: "",
         isSecondaryProgramSupplementary: false,
         secondaryProgramSkillFocus: "",
-        attachmentUrl: "",
+        attachmentUrls: [],
         note: "",
       });
     }
@@ -150,32 +177,56 @@ export default function ResultFormModal({
   const handleAttachmentUpload = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
 
     setIsUploadingAttachment(true);
     try {
-      const result = await uploadFile(file, "placement-tests");
-      if (!isUploadSuccess(result)) {
-        const errMessage =
-          result.detail ||
-          result.error ||
-          result.title ||
-          "Không thể tải tài liệu lên";
-        toast({
-          title: "Lỗi tải file",
-          description: errMessage,
-          variant: "destructive",
-        });
-        return;
+      const uploadedUrls: string[] = [];
+      const failedFiles: string[] = [];
+
+      for (const file of files) {
+        const result = await uploadFile(file, "placement-tests");
+        if (!isUploadSuccess(result)) {
+          failedFiles.push(file.name);
+          continue;
+        }
+
+        if (result.url) {
+          uploadedUrls.push(result.url);
+        }
       }
 
-      setFormData((prev) => ({ ...prev, attachmentUrl: result.url }));
-      toast({
-        title: "Thành công",
-        description: "Đã tải tài liệu lên thành công",
-        variant: "success",
-      });
+      if (uploadedUrls.length > 0) {
+        setFormData((prev) => ({
+          ...prev,
+          attachmentUrls: Array.from(
+            new Set([...prev.attachmentUrls, ...uploadedUrls])
+          ),
+        }));
+      }
+
+      if (uploadedUrls.length > 0 && failedFiles.length === 0) {
+        toast({
+          title: "Thành công",
+          description:
+            uploadedUrls.length === 1
+              ? "Đã tải 1 tài liệu lên thành công"
+              : `Đã tải ${uploadedUrls.length} tài liệu lên thành công`,
+          variant: "success",
+        });
+      }
+
+      if (failedFiles.length > 0) {
+        toast({
+          title: "Lỗi tải file",
+          description:
+            failedFiles.length === files.length
+              ? "Không thể tải các tài liệu đã chọn"
+              : `Không thể tải ${failedFiles.length} tài liệu. Vui lòng thử lại.`,
+          variant: "destructive",
+        });
+      }
     } catch (error) {
       console.error("Error uploading attachment:", error);
       toast({
@@ -260,9 +311,19 @@ export default function ResultFormModal({
     return Number(((listening + speaking + reading + writing) / 4).toFixed(1));
   }, [formData.listeningScore, formData.speakingScore, formData.readingScore, formData.writingScore]);
 
+  const isDuplicateProgramSelection =
+    Boolean(formData.programRecommendationId) &&
+    Boolean(formData.secondaryProgramRecommendationId) &&
+    formData.programRecommendationId === formData.secondaryProgramRecommendationId;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError("");
+
+    if (isDuplicateProgramSelection) {
+      setFormError("Chương trình chính và chương trình song song không được trùng nhau.");
+      return;
+    }
 
     const parsedScores: Record<string, number> = {};
     for (const field of SCORE_FIELDS) {
@@ -280,6 +341,11 @@ export default function ResultFormModal({
     try {
       const secondaryProgramRecommendationId = formData.secondaryProgramRecommendationId.trim();
       const secondaryProgramSkillFocus = formData.secondaryProgramSkillFocus.trim();
+      const attachmentUrls = Array.from(new Set(formData.attachmentUrls.filter(Boolean)));
+      const attachmentPayload =
+        attachmentUrls.length > 1
+          ? attachmentUrls
+          : attachmentUrls[0] || "";
       const submitData: Omit<PlacementTestResultRequest, "id"> = {
         listeningScore: parsedScores.listeningScore,
         speakingScore: parsedScores.speakingScore,
@@ -298,7 +364,8 @@ export default function ResultFormModal({
         secondaryProgramSkillFocus: secondaryProgramRecommendationId
           ? secondaryProgramSkillFocus || null
           : null,
-        attachmentUrl: formData.attachmentUrl || "",
+        attachmentUrl: attachmentPayload,
+        attachmentUrls,
       };
 
       await onSubmit(submitData, formData.note.trim());
@@ -316,7 +383,7 @@ export default function ResultFormModal({
     <div className="fixed inset-0 z-9999 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div className="relative w-full max-w-3xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
         {/* Header - Gradient đỏ như modal mẫu */}
-        <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
+        <div className="bg-linear-to-r from-red-600 to-red-700 p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
@@ -344,7 +411,7 @@ export default function ResultFormModal({
 
         {/* Form Body */}
         <div className="p-6 max-h-[75vh] overflow-y-auto">
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form id={formId} onSubmit={handleSubmit} className="space-y-6">
             {/* Scores Section */}
             <div className="space-y-4">
               <div className="flex items-center gap-2">
@@ -462,11 +529,33 @@ export default function ResultFormModal({
                   value={formData.programRecommendationId}
                   onValueChange={(value) => {
                     const selected = programOptions.find((p) => p.id === value);
+                    const isConflictedSecondary =
+                      Boolean(formData.secondaryProgramRecommendationId) &&
+                      formData.secondaryProgramRecommendationId === value;
+
                     setFormData((prev) => ({
                       ...prev,
                       programRecommendationId: value,
                       programRecommendationName: selected?.name || "",
+                      secondaryProgramRecommendationId: isConflictedSecondary
+                        ? ""
+                        : prev.secondaryProgramRecommendationId,
+                      secondaryProgramRecommendationName: isConflictedSecondary
+                        ? ""
+                        : prev.secondaryProgramRecommendationName,
+                      isSecondaryProgramSupplementary: isConflictedSecondary
+                        ? false
+                        : prev.isSecondaryProgramSupplementary,
+                      secondaryProgramSkillFocus: isConflictedSecondary
+                        ? ""
+                        : prev.secondaryProgramSkillFocus,
                     }));
+
+                    if (isConflictedSecondary) {
+                      setFormError("Chương trình song song đã được xóa vì trùng với chương trình chính.");
+                    } else {
+                      setFormError("");
+                    }
                   }}
                   disabled={isLoadingPrograms || !branchId}
                 >
@@ -504,7 +593,17 @@ export default function ResultFormModal({
                   value={formData.secondaryProgramRecommendationId}
                   onValueChange={(value) => {
                     const nextValue = value === "__none__" ? "" : value;
+                    if (
+                      nextValue &&
+                      formData.programRecommendationId &&
+                      nextValue === formData.programRecommendationId
+                    ) {
+                      setFormError("Chương trình song song không được trùng với chương trình chính.");
+                      return;
+                    }
+
                     const selected = nextValue ? programOptions.find((p) => p.id === nextValue) : null;
+                    setFormError("");
                     setFormData((prev) => ({
                       ...prev,
                       secondaryProgramRecommendationId: nextValue,
@@ -530,7 +629,9 @@ export default function ResultFormModal({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">Không có secondary</SelectItem>
-                    {programOptions.map((program) => (
+                    {programOptions
+                      .filter((program) => program.id !== formData.programRecommendationId)
+                      .map((program) => (
                       <SelectItem key={`secondary-${program.id}`} value={program.id}>
                         {program.name}
                         {program.isSupplementary ? " • Phụ trợ" : ""}
@@ -541,6 +642,11 @@ export default function ResultFormModal({
                 <p className="text-xs text-gray-500">
                   Để trống nếu không có học chương trình song song.
                 </p>
+                {isDuplicateProgramSelection ? (
+                  <p className="text-xs text-red-600">
+                    Chương trình chính và chương trình song song đang bị trùng. Vui lòng chọn lại.
+                  </p>
+                ) : null}
               </div>
 
               {formData.secondaryProgramRecommendationId ? (
@@ -589,30 +695,60 @@ export default function ResultFormModal({
                     )}
                     <input
                       type="file"
+                      multiple
                       className="hidden"
                       onChange={handleAttachmentUpload}
                       disabled={isUploadingAttachment}
                     />
                   </label>
 
-                  {formData.attachmentUrl ? (
+                  {formData.attachmentUrls.length > 0 ? (
                     <button
                       type="button"
-                      onClick={() => setFormData((prev) => ({ ...prev, attachmentUrl: "" }))}
+                      onClick={() =>
+                        setFormData((prev) => ({ ...prev, attachmentUrls: [] }))
+                      }
                       className="px-4 py-2.5 rounded-xl border border-gray-200 text-red-600 font-semibold hover:bg-red-50 transition-colors"
                     >
-                      Xóa file
+                      Xóa tất cả
                     </button>
                   ) : null}
                 </div>
 
-                <input
-                  type="text"
-                  value={formData.attachmentUrl}
-                  readOnly
-                  placeholder="Chưa có file được tải lên"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-gray-600 outline-none"
-                />
+                {formData.attachmentUrls.length > 0 ? (
+                  <div className="space-y-2 rounded-xl border border-gray-200 bg-gray-50 p-3">
+                    {formData.attachmentUrls.map((url, index) => (
+                      <div
+                        key={`${url}-${index}`}
+                        className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2"
+                      >
+                        <p className="truncate text-sm text-gray-700" title={url}>
+                          {url}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              attachmentUrls: prev.attachmentUrls.filter((_, i) => i !== index),
+                            }))
+                          }
+                          className="rounded-lg border border-gray-200 px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50"
+                        >
+                          Xóa
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <input
+                    type="text"
+                    value=""
+                    readOnly
+                    placeholder="Chưa có file được tải lên"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-gray-600 outline-none"
+                  />
+                )}
               </div>
             </div>
 
@@ -645,7 +781,7 @@ export default function ResultFormModal({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-6">
+        <div className="border-t border-gray-200 bg-linear-to-r from-red-500/5 to-red-700/5 p-6">
           <div className="flex items-center justify-between">
             <button
               type="button"
@@ -666,11 +802,18 @@ export default function ResultFormModal({
               </button>
               <button
                 type="submit"
-                onClick={handleSubmit}
+                form={formId}
                 disabled={isSubmitting || isUploadingAttachment}
-                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
+                className="px-6 py-2.5 rounded-xl bg-linear-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {isSubmitting ? "Đang lưu..." : "Lưu kết quả"}
+                {isSubmitting ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 size={16} className="animate-spin" />
+                    Đang lưu...
+                  </span>
+                ) : (
+                  "Lưu kết quả"
+                )}
               </button>
             </div>
           </div>

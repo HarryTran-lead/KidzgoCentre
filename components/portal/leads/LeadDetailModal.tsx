@@ -581,7 +581,7 @@ export default function LeadDetailModal({
                         </label>
 
                         <div className="space-y-2">
-                          <span className="text-xs font-medium text-gray-500">Follow-up (lịch hẹn)</span>
+                          <span className="text-xs font-medium text-gray-500">Hành động tiếp theo</span>
                           <div className="space-y-2 rounded-xl border border-gray-200 bg-white p-3">
                             <label className="flex items-start gap-2 text-sm text-gray-700 cursor-pointer">
                               <input

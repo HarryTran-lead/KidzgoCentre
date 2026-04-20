@@ -20,6 +20,7 @@ export interface CurrentUser {
   branchName?: string;
   avatarUrl?: string;
   isActive: boolean;
+  selectedProfileId?: string;
   profiles?: UserProfile[];
   selectedProfile?: UserProfile;
 }
@@ -33,6 +34,10 @@ const normalizeCurrentUserPayload = (payload: any): CurrentUser | null => {
     ...(payload as CurrentUser),
     fullName: payload.fullName ?? payload.displayName ?? payload.name ?? '',
     avatarUrl: payload.avatarUrl ?? payload.avatar ?? undefined,
+    selectedProfileId:
+      payload.selectedProfileId ??
+      payload.selectedProfile?.id ??
+      undefined,
   };
 };
 
@@ -89,6 +94,9 @@ export function useCurrentUser() {
           ...next,
           fullName: next.fullName ?? prev.fullName,
           avatarUrl: next.avatarUrl ?? prev.avatarUrl,
+          selectedProfileId: next.selectedProfileId ?? prev.selectedProfileId,
+          profiles: next.profiles ?? prev.profiles,
+          selectedProfile: next.selectedProfile ?? prev.selectedProfile,
         };
       });
     };
