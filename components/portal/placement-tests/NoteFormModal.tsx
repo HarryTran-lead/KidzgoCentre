@@ -124,10 +124,10 @@ export default function NoteFormModal({
   const isEditMode = !!initialNote;
 
   return (
-    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={onClose}>
       <div
         ref={modalRef}
-        className="w-full max-w-lg overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl transition-all duration-200 animate-in zoom-in-95"
+        className="w-full max-w-lg overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl transition-all duration-200 animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}
       >
         {/* Header - Red gradient */}
         <div className="bg-gradient-to-r from-red-600 to-red-700 px-6 py-4">

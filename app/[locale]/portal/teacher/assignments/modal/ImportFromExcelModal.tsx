@@ -100,6 +100,7 @@ export function ImportFromExcelModal({ isOpen, onClose, onImport }: ImportFromEx
         return {
           id: `temp-${index}`,
           question: row["Question"] || row["Câu hỏi"] || "",
+          program: row["Program"] || row["Chương trình"] || "",
           options,
           correctIndex,
           explanation: row["Explanation"] || row["Giải thích"] || "",
@@ -126,6 +127,7 @@ export function ImportFromExcelModal({ isOpen, onClose, onImport }: ImportFromEx
     const template = [
       {
         "Question": "What is the capital of Vietnam?",
+        "Program": "Cambridge Flyers",
         "Option A": "Hanoi",
         "Option B": "Ho Chi Minh City",
         "Option C": "Da Nang",
@@ -136,6 +138,7 @@ export function ImportFromExcelModal({ isOpen, onClose, onImport }: ImportFromEx
       },
       {
         "Question": "Which of the following is a renewable energy source?",
+        "Program": "Cambridge Flyers",
         "Option A": "Coal",
         "Option B": "Natural Gas",
         "Option C": "Solar Power",
@@ -162,6 +165,7 @@ export function ImportFromExcelModal({ isOpen, onClose, onImport }: ImportFromEx
     const formattedQuestions = validQuestions.map(q => ({
       id: crypto.randomUUID(),
       question: q.question,
+      program: q.program || undefined,
       options: q.options.map((opt: string) => ({
         id: crypto.randomUUID(),
         text: opt,
@@ -172,7 +176,7 @@ export function ImportFromExcelModal({ isOpen, onClose, onImport }: ImportFromEx
     }));
 
     formattedQuestions.forEach((q, idx) => {
-      const correctIndex = previewData[idx].correctIndex;
+      const correctIndex = previewData.filter(p => p.isValid)[idx].correctIndex;
       if (correctIndex !== -1 && q.options[correctIndex]) {
         q.options[correctIndex].isCorrect = true;
       }
@@ -317,8 +321,13 @@ export function ImportFromExcelModal({ isOpen, onClose, onImport }: ImportFromEx
                       }`}>
                         {idx + 1}
                       </div>
-                      <div className="flex-1">
+                  <div className="flex-1">
                         <p className="font-medium text-gray-900">{q.question || "Không có câu hỏi"}</p>
+                        {q.program && (
+                          <p className="text-xs text-blue-600 font-semibold mt-1">
+                            Chương trình: {q.program}
+                          </p>
+                        )}
                         {q.options.length > 0 && (
                           <div className="grid grid-cols-2 gap-2 mt-2">
                             {q.options.map((opt: string, optIdx: number) => (

@@ -75,11 +75,7 @@ const hasGradingResult = (assignment: AssignmentListItem): boolean =>
 const getFeedbackPreview = (assignment: AssignmentListItem): string =>
   assignment.teacherFeedback?.trim() ||
   assignment.aiFeedback?.trim() ||
-  (assignment.score !== null
-    ? `Da co diem ${assignment.score}/${assignment.maxScore ?? "-"}`
-    : assignment.gradedAt
-      ? "Da co ket qua cham bai"
-      : "");
+  "";
 
 const formatDate = (dateString: string, locale: string = "vi-VN") => {
   if (!dateString) return "-";
@@ -489,54 +485,6 @@ export default function HomeworkPage() {
       <div
         className={`shrink-0 px-6 pt-6 pb-4 transition-all duration-700 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"}`}
       >
-        <div className="mb-8 relative">
-          {/* Centered Title */}
-          <div className="text-center pt-4">
-            <div className="inline-block relative">
-              {/* Glowing background effect */}
-              <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-purple-500 via-pink-500 to-violet-500 opacity-30 blur-2xl"></div>
-
-              {/* Main frame */}
-              <div
-                className="relative rounded-3xl px-8 md:px-16 py-8 md:py-10 bg-gradient-to-br from-purple-500/20 via-pink-500/15 to-violet-500/20 backdrop-blur-xl border border-transparent flex flex-col items-center justify-center"
-                style={{
-                  backgroundImage:
-                    "linear-gradient(135deg, rgba(168,85,247,0.3), rgba(236,72,153,0.3), rgba(217,70,239,0.3)), linear-gradient(to right, rgba(168,85,247,0.1), rgba(236,72,153,0.1))",
-                  boxShadow:
-                    "0 0 60px rgba(168,85,247,0.3), 0 0 30px rgba(236,72,153,0.2), inset 0 1px 0 rgba(255,255,255,0.1)",
-                }}
-              >
-                {/* Decorative gradient border */}
-                <div
-                  className="absolute inset-0 rounded-3xl p-[2px] pointer-events-none"
-                  style={{
-                    background:
-                      "linear-gradient(135deg, #a855f7, #ec4899, #d946ef, #a855f7)",
-                    WebkitMask:
-                      "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
-                    WebkitMaskComposite: "xor",
-                    maskComposite: "exclude",
-                    padding: "4px",
-                  }}
-                ></div>
-
-                <div className="text-center">
-                  <div className="flex items-center justify-center gap-2">
-                    <Sparkles className="w-8 h-8 text-purple-400 animate-pulse" />
-                    <h1 className="text-5xl md:text-6xl lg:text-5xl font-bold bg-gradient-to-r from-purple-300 via-pink-300 to-fuchsia-300 bg-clip-text text-transparent drop-shadow-lg leading-relaxed">
-                      BÀI TẬP
-                    </h1>
-                    <Sparkles className="w-8 h-8 text-pink-400 animate-pulse" />
-                  </div>
-                  <p className="text-base md:text-lg font-medium text-purple-200/80">
-                    Quản lý và nộp bài tập của bạn
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Today's Homework Section */}
         <TodayHomeworkSection
           assignments={assignments}
@@ -546,27 +494,29 @@ export default function HomeworkPage() {
         />
 
         {/* Filters Row */}
-        <div className="flex items-center gap-2 flex-wrap mb-4">
-          {homeworkTabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setStatusFilter(tab.id)}
-              className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-200 cursor-pointer ${
-                statusFilter === tab.id
-                  ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg shadow-purple-500/30"
-                  : "bg-slate-800/50 border border-purple-500/30 text-purple-300 hover:border-purple-400/50 hover:text-white backdrop-blur-sm"
-              }`}
-            >
-              {tab.label}
-              <span
-                className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                  statusFilter === tab.id ? "bg-white/20" : "bg-purple-500/20"
+        <div className="flex justify-center mb-4">
+          <div className="flex items-center gap-2 flex-wrap">
+            {homeworkTabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setStatusFilter(tab.id)}
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-200 cursor-pointer ${
+                  statusFilter === tab.id
+                    ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg shadow-purple-500/30"
+                    : "bg-slate-800/50 border border-purple-500/30 text-purple-300 hover:border-purple-400/50 hover:text-white backdrop-blur-sm"
                 }`}
               >
-                {tab.count}
-              </span>
-            </button>
-          ))}
+                {tab.label}
+                <span
+                  className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                    statusFilter === tab.id ? "bg-white/20" : "bg-purple-500/20"
+                  }`}
+                >
+                  {tab.count}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Search & Sort Bar */}
@@ -834,8 +784,8 @@ export default function HomeworkPage() {
                         <div className="flex items-center justify-between gap-2 text-[11px] font-bold text-cyan-100">
                           <span>
                             {assignment.score !== null
-                              ? `Diem: ${assignment.score}/${assignment.maxScore ?? "-"}`
-                              : "Da co ket qua cham bai"}
+                              ? `Điểm: ${assignment.score}/${assignment.maxScore ?? "-"}`
+                              : "Đã có kết quả chấm bài"}
                           </span>
                           {assignment.gradedAt && (
                             <span className="text-[10px] text-cyan-200/80">

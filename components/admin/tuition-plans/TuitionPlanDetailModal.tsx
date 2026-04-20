@@ -34,8 +34,8 @@ export default function TuitionPlanDetailModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-1000 flex items-center justify-center p-4 bg-black/55 backdrop-blur-sm">
-      <div className="relative w-full max-w-3xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-1000 flex items-center justify-center p-4 bg-black/55 backdrop-blur-sm" onClick={onClose}>
+      <div className="relative w-full max-w-3xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div className="bg-linear-to-r from-red-600 to-red-700 p-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">

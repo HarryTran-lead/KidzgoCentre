@@ -416,6 +416,7 @@ export default function Sidebar({
 
   // default mở rộng
   const [collapsed, setCollapsed] = useState(false);
+  const [modalHiddenCount, setModalHiddenCount] = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const navRef = useRef<HTMLDivElement | null>(null);
@@ -477,6 +478,26 @@ export default function Sidebar({
     window.addEventListener("portal:sidebar-open", open);
     return () => window.removeEventListener("portal:sidebar-open", open);
   }, []);
+
+  useEffect(() => {
+    const hideForModal = () => {
+      setModalHiddenCount((prev) => prev + 1);
+      setMobileOpen(false);
+    };
+    const showAfterModal = () => {
+      setModalHiddenCount((prev) => Math.max(0, prev - 1));
+    };
+
+    window.addEventListener("portal:sidebar-modal-open", hideForModal);
+    window.addEventListener("portal:sidebar-modal-close", showAfterModal);
+
+    return () => {
+      window.removeEventListener("portal:sidebar-modal-open", hideForModal);
+      window.removeEventListener("portal:sidebar-modal-close", showAfterModal);
+    };
+  }, []);
+
+  const sidebarHiddenByModal = modalHiddenCount > 0;
 
   /* ===================== STUDENT SIDEBAR ===================== */
   const isStudent = role === "Student";
@@ -720,7 +741,11 @@ export default function Sidebar({
 
       <aside
         className={`bg-white h-screen shrink-0 flex flex-col shadow-xl transition-all duration-500 ease-out border-r border-slate-200 ${
-          collapsed ? "w-[72px]" : "w-[280px]"
+          sidebarHiddenByModal
+            ? "w-0 overflow-hidden border-r-0 shadow-none"
+            : collapsed
+              ? "w-[72px]"
+              : "w-[280px]"
         } fixed top-0 left-0 z-80 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         } lg:sticky lg:translate-x-0 lg:z-60`}

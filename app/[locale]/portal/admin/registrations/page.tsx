@@ -490,7 +490,7 @@ export default function AdminRegistrationsPage() {
     </div>
 
     {isDetailOpen && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/40 p-4">
         <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl overflow-hidden">
           <div className="bg-linear-to-r from-red-600 to-red-700 px-6 py-4 flex items-center justify-between">
             <h3 className="text-lg font-semibold text-white">Chi tiết đăng ký lớp</h3>

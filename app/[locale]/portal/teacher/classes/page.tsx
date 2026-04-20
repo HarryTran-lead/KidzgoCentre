@@ -21,7 +21,9 @@ import {
   RefreshCcw,
   CheckCircle2,
   XCircle,
-  TrendingUp
+  TrendingUp,
+  CalendarDays,
+  ArrowRight,
 } from "lucide-react";
 import { fetchTeacherClasses } from "@/app/api/teacher/classes";
 import type { ClassItem, Track } from "@/types/teacher/classes";
@@ -152,6 +154,190 @@ function ProgressBar({ progress }: { progress: number }) {
 
 function cn(...classes: (string | boolean | undefined | null)[]) {
   return classes.filter(Boolean).join(' ');
+}
+
+/* ----------------------------- Schedule Display Component ----------------------------- */
+function parseRRULEToSchedule(rrule: string): string {
+  if (!rrule || !rrule.trim()) {
+    return "Chưa có lịch";
+  }
+
+  try {
+    // Remove RRULE: prefix if present
+    const rule = rrule.replace(/^RRULE:/i, "");
+    const parts: Record<string, string> = {};
+    
+    rule.split(";").forEach((part) => {
+      const [key, value] = part.split("=");
+      if (key && value) parts[key] = value;
+    });
+
+    const freq = parts.FREQ || "";
+    const byDay = parts.BYDAY || "";
+    const byHour = parts.BYHOUR || "18";
+    const byMinute = parts.BYMINUTE || "0";
+    const duration = parseInt(parts.DURATION || "120", 10);
+
+    if (freq !== "WEEKLY" || !byDay) {
+      return "Chưa có lịch";
+    }
+
+    // Map RRULE days to Vietnamese
+    const dayMap: Record<string, string> = {
+      "MO": "Thứ 2",
+      "TU": "Thứ 3",
+      "WE": "Thứ 4",
+      "TH": "Thứ 5",
+      "FR": "Thứ 6",
+      "SA": "Thứ 7",
+      "SU": "CN",
+    };
+
+    // Parse days và sắp xếp theo thứ tự
+    const days = byDay.split(",").map((d) => d.trim());
+    const dayOrder = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
+    days.sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b));
+    
+    // Format days
+    const vietnameseDays = days.map(d => dayMap[d] || d);
+    
+    // Nhóm các ngày Thứ
+    const thuDays = vietnameseDays.filter(d => d.startsWith("Thứ")).map(d => d.replace("Thứ ", ""));
+    const hasSunday = vietnameseDays.includes("CN");
+    
+    let dayString = "";
+    if (thuDays.length > 0) {
+      dayString = `Thứ ${thuDays.join(",")}`;
+      if (hasSunday) dayString += " & CN";
+    } else if (hasSunday) {
+      dayString = "CN";
+    } else {
+      dayString = vietnameseDays.join(", ");
+    }
+    
+    // Format time
+    const hour = parseInt(byHour, 10);
+    const minute = parseInt(byMinute, 10);
+    const startTime = `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
+    
+    // Calculate end time
+    const endMinutes = hour * 60 + minute + duration;
+    const endHour = Math.floor(endMinutes / 60);
+    const endMin = endMinutes % 60;
+    const endTime = `${endHour.toString().padStart(2, "0")}:${endMin.toString().padStart(2, "0")}`;
+
+    return `${dayString} (${startTime} - ${endTime})`;
+  } catch (error) {
+    console.error("Error parsing RRULE:", error);
+    return rrule;
+  }
+}
+
+function ScheduleDisplay({ schedule, classId, locale, router }: { schedule: string; classId?: string; locale?: string; router?: any }) {
+  // Convert RRULE to readable format if needed
+  const readableSchedule = schedule.includes("RRULE") 
+    ? parseRRULEToSchedule(schedule)
+    : schedule;
+
+  if (!readableSchedule || readableSchedule === "Chưa có lịch") {
+    return (
+      <div className="text-xs text-gray-500">
+        Chưa có lịch
+      </div>
+    );
+  }
+
+  // Parse schedule string format: "Thứ 2,5 (08:00 - 10:00)"
+  const match = readableSchedule.match(/(.+?)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/);
+  
+  if (!match) {
+    return (
+      <div className="text-xs text-gray-700">
+        {readableSchedule}
+      </div>
+    );
+  }
+
+  const [, dayPart, startTime, endTime] = match;
+  
+  // Parse days into array
+  const dayNumbers: string[] = [];
+  const hasSunday = dayPart.includes("CN");
+  
+  // Extract day numbers from "Thứ 2,5" or "Thứ 2,5 & CN"
+  const thuMatch = dayPart.match(/Thứ\s*([\d,]+)/);
+  if (thuMatch) {
+    dayNumbers.push(...thuMatch[1].split(",").map(d => d.trim()));
+  }
+  
+  // Day display configuration
+  const dayConfig: Record<string, { label: string; bg: string; text: string; }> = {
+    "2": { label: "T2", bg: "bg-blue-100", text: "text-blue-700" },
+    "3": { label: "T3", bg: "bg-indigo-100", text: "text-indigo-700" },
+    "4": { label: "T4", bg: "bg-purple-100", text: "text-purple-700" },
+    "5": { label: "T5", bg: "bg-pink-100", text: "text-pink-700" },
+    "6": { label: "T6", bg: "bg-amber-100", text: "text-amber-700" },
+    "7": { label: "T7", bg: "bg-orange-100", text: "text-orange-700" },
+  };
+  
+  const sundayConfig = { label: "CN", bg: "bg-rose-100", text: "text-rose-700" };
+
+  // Combine all days for display
+  const allDays = [
+    ...dayNumbers.map(day => ({ 
+      day, 
+      ...(dayConfig[day] || { label: `T${day}`, bg: "bg-gray-100", text: "text-gray-700" })
+    })),
+    ...(hasSunday ? [{ day: "CN", ...sundayConfig }] : [])
+  ];
+
+  // Calculate duration in hours
+  const startHour = parseInt(startTime.split(':')[0]);
+  const startMin = parseInt(startTime.split(':')[1]);
+  const endHour = parseInt(endTime.split(':')[0]);
+  const endMin = parseInt(endTime.split(':')[1]);
+  const durationHours = ((endHour * 60 + endMin) - (startHour * 60 + startMin)) / 60;
+  const durationText = durationHours === Math.floor(durationHours) 
+    ? `${durationHours}h` 
+    : `${durationHours.toFixed(1)}h`;
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      {/* Days */}
+      <div className="flex flex-wrap gap-1">
+        {allDays.map(({ day, label, bg, text }) => (
+          <span
+            key={day}
+            className={`inline-flex items-center justify-center w-6 h-6 rounded text-[10px] font-semibold ${bg} ${text}`}
+          >
+            {label}
+          </span>
+        ))}
+      </div>
+      
+      {/* Time */}
+      <div className="flex items-center gap-1 text-xs text-gray-700">
+        <Clock size={12} className="text-gray-400" />
+        <span>{startTime} - {endTime}</span>
+      </div>
+
+      {/* Duration */}
+      <div className="text-xs text-gray-500">
+        {durationText}
+      </div>
+
+      {/* View Schedule Link */}
+      {classId && locale && router && (
+        <button
+          onClick={() => router.push(`/${locale}/portal/teacher/classes/${classId}`)}
+          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold text-blue-700 bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 hover:from-blue-100 hover:to-cyan-100 hover:border-blue-300 transition-all cursor-pointer group"
+        >
+          <span>Xem lịch</span>
+          <ArrowRight size={11} className="group-hover:translate-x-0.5 transition-transform" />
+        </button>
+      )}
+    </div>
+  );
 }
 
 /* ----------------------------- Page ----------------------------- */
@@ -456,10 +642,7 @@ export default function Page() {
                             </div>
                             <div>
                               <div className="font-semibold text-gray-900 text-sm">{classItem.name}</div>
-                              <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
-                                <GraduationCap size={10} />
-                                {classItem.teacher || "Chưa có giáo viên"}
-                              </div>
+                              
                             </div>
                           </div>
                         </td>
@@ -476,15 +659,18 @@ export default function Page() {
                           </div>
                         </td>
                         <td className="py-4 px-6">
-                          <div className="flex items-center gap-2">
-                            <Clock size={14} className="text-gray-400" />
-                            <span className="text-sm text-gray-700">{classItem.schedule}</span>
-                          </div>
+                          <ScheduleDisplay 
+                            schedule={classItem.schedule} 
+                            classId={classItem.id}
+                            locale={locale}
+                            router={router}
+                          />
                         </td>
                         <td className="py-4 px-6">
                           <button
                             onClick={() => handleViewDetail(classItem.id)}
-                            className="inline-flex items-center justify-center h-10 w-10 rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer"
+                            title="Xem chi tiết"
+                            className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors text-gray-400 hover:text-blue-600 cursor-pointer"
                           >
                             <Eye size={16} />
                           </button>

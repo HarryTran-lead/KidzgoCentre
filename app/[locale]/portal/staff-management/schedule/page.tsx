@@ -1689,7 +1689,7 @@ export default function Page() {
       typeof created.durationMinutes === "number" && created.durationMinutes > 0
         ? created.durationMinutes
         : payload.durationMinutes;
-    const startDate = new Date(plannedDatetime);
+    const startDate = parseISODate(plannedDatetime);
     const newSlot: Slot = {
       id: created.id,
       classId: String(created.classId ?? payload.classId ?? ""),

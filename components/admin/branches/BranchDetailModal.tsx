@@ -39,14 +39,14 @@ export default function BranchDetailModal({ isOpen, onClose, branch }: BranchDet
   if (!isOpen || !branch) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 bg-gradient-to-r from-red-600 to-red-700 p-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Building2 className="w-6 h-6 text-white" />
             <h2 className="text-xl font-bold text-white">Chi tiết chi nhánh</h2>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-lg transition-colors">
+          <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-lg transition-colors cursor-pointer">
             <X className="w-5 h-5 text-white" />
           </button>
         </div>

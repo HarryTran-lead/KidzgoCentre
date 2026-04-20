@@ -123,8 +123,8 @@ export default function AssignStaffModal({
   if (!isOpen || !lead) return null;
 
   return (
-    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 p-4">
-      <div className="relative w-full max-w-2xl max-h-[90vh] overflow-hidden rounded-2xl bg-white shadow-xl">
+    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="relative w-full max-w-2xl max-h-[90vh] overflow-hidden rounded-2xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="bg-gradient-to-r from-pink-500 to-rose-500 px-6 py-4">
           <div className="flex items-center justify-between">

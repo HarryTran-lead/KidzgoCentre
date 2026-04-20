@@ -10,6 +10,7 @@ import {
   X,
 } from "lucide-react";
 
+import { getAccessToken } from "@/lib/store/authToken";
 import { getActiveProgramsForDropdown, getAllProgramsForDropdown } from "@/lib/api/programService";
 import { fetchQuestionBankItems } from "@/lib/api/homeworkService";
 import type {
@@ -33,6 +34,8 @@ interface ImportFromBankModalProps {
   isOpen: boolean;
   onClose: () => void;
   onImport: (questions: ImportedQuestion[]) => void;
+  selectedClassId?: string;
+  classesData?: Array<{ id: string; name: string; code?: string; programId?: string; programName?: string }>;
 }
 
 const LEVEL_OPTIONS: Array<{
@@ -111,6 +114,8 @@ export function ImportFromBankModal({
   isOpen,
   onClose,
   onImport,
+  selectedClassId,
+  classesData,
 }: ImportFromBankModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const [programs, setPrograms] = useState<Array<{ id: string; name: string }>>(
@@ -126,6 +131,9 @@ export function ImportFromBankModal({
   const [isLoadingPrograms, setIsLoadingPrograms] = useState(false);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [classProgramId, setClassProgramId] = useState<string | null>(null);
+  const [selectedClassName, setSelectedClassName] = useState<string | null>(null);
+  const [selectedProgramName, setSelectedProgramName] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -158,6 +166,61 @@ export function ImportFromBankModal({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isOpen, onClose]);
 
+  // Extract class program from classesData
+  useEffect(() => {
+    if (!isOpen || !selectedClassId) {
+      setClassProgramId(null);
+      setSelectedClassName(null);
+      setSelectedProgramName(null);
+      return;
+    }
+
+    // Try to find program from classesData first
+    if (classesData?.length) {
+      const selectedClass = classesData.find(c => c.id === selectedClassId);
+      if (selectedClass) {
+        setSelectedClassName(selectedClass.name);
+        if (selectedClass.programId) {
+          setClassProgramId(selectedClass.programId);
+          setSelectedProgramName(selectedClass.programName || "Chương trình");
+          return;
+        }
+      }
+    }
+
+    // Fallback: fetch class detail from API
+    const fetchClassDetail = async () => {
+      try {
+        const token = getAccessToken();
+        if (!token) return;
+
+        const res = await fetch(`/api/teacher/classes/${selectedClassId}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (res.ok) {
+          const json = await res.json();
+          const classDetail = json?.data;
+          if (classDetail) {
+            const programId = classDetail.programId || classDetail.program?.id;
+            const programName = classDetail.programName || classDetail.program?.name;
+            if (programId) {
+              setClassProgramId(programId);
+              setSelectedClassName(classDetail.title || classDetail.name || classDetail.className);
+              setSelectedProgramName(programName || "Chương trình");
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching class detail:", error);
+      }
+    };
+
+    fetchClassDetail();
+  }, [isOpen, selectedClassId, classesData]);
+
   useEffect(() => {
     if (!isOpen) return;
 
@@ -171,7 +234,13 @@ export function ImportFromBankModal({
         }));
 
         setPrograms(mappedPrograms);
-        setSelectedProgramId("");
+        
+        // Auto-select class program if available
+        if (classProgramId) {
+          setSelectedProgramId(classProgramId);
+        } else {
+          setSelectedProgramId("");
+        }
       } catch (loadError) {
         console.error("Error loading programs:", loadError);
         setPrograms([]);
@@ -181,7 +250,7 @@ export function ImportFromBankModal({
     };
 
     loadPrograms();
-  }, [isOpen]);
+  }, [isOpen, classProgramId]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -219,6 +288,9 @@ export function ImportFromBankModal({
       setMaxPoints(100);
       setQuestions([]);
       setError(null);
+      setClassProgramId(null);
+      setSelectedClassName(null);
+      setSelectedProgramName(null);
     }
   }, [isOpen]);
 
@@ -330,53 +402,79 @@ export function ImportFromBankModal({
           </div>
         </div>
 
-        <div className="grid gap-4 border-b border-gray-200 p-6 md:grid-cols-[1.1fr_0.7fr_1fr_0.8fr_0.8fr]">
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-700">Program</label>
-            <select
-              value={selectedProgramId}
-              onChange={(event) => setSelectedProgramId(event.target.value)}
-              disabled={isLoadingPrograms && programOptions.length === 0}
-              className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <option value="">
-                {isLoadingPrograms && programOptions.length === 0
-                  ? "Đang tải program..."
-                  : "Tất cả program"}
-              </option>
-              {programOptions.map((program) => (
-                <option key={program.id} value={program.id}>
-                  {program.name}
-                </option>
-              ))}
-            </select>
+        <div className="border-b border-gray-200 p-6">
+          {/* Row 1: Class, Program, Filters */}
+          <div className="grid gap-4 md:grid-cols-[1fr_1fr_0.8fr_0.8fr_0.8fr] mb-4">
+            {/* Class Card */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-gray-700 ">Lớp học</label>
+              <div className="rounded-xl border border-purple-200 bg-gradient-to-br from-purple-50 to-purple-100/50 px-3 py-2">
+                <div className="text-sm font-semibold text-purple-900">{selectedClassName || "Chưa chọn lớp"}</div>
+              </div>
+            </div>
+
+            {/* Program Card */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-gray-700 ">Chương trình</label>
+              <div className="rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100/50 px-3 py-2">
+                <div className="text-sm font-semibold text-blue-900">{selectedProgramName || "Chưa có chương trình"}</div>
+              </div>
+            </div>
+
+            {/* Difficulty Filter */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-gray-700 ">Độ khó</label>
+              <select
+                value={selectedLevel}
+                onChange={(event) =>
+                  setSelectedLevel(event.target.value as "ALL" | QuestionBankDifficulty)
+                }
+                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200"
+              >
+                {LEVEL_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Min Points */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-gray-700 ">Điểm tối thiểu</label>
+              <input
+                type="number"
+                value={minPoints}
+                onChange={(event) => setMinPoints(event.target.value ? Number(event.target.value) : "")}
+                placeholder="0"
+                min="0"
+                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200"
+              />
+            </div>
+
+            {/* Max Points */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-gray-700 ">Điểm tối đa</label>
+              <input
+                type="number"
+                value={maxPoints}
+                onChange={(event) => setMaxPoints(event.target.value ? Number(event.target.value) : "")}
+                placeholder="100"
+                min="0"
+                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200"
+              />
+            </div>
           </div>
 
+          {/* Row 2: Search Box */}
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-700">Độ khó</label>
-            <select
-              value={selectedLevel}
-              onChange={(event) =>
-                setSelectedLevel(event.target.value as "ALL" | QuestionBankDifficulty)
-              }
-              className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200"
-            >
-              {LEVEL_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-700">Tìm kiếm</label>
+            <label className="text-xs font-semibold text-gray-700 ">Tìm kiếm</label>
             <div className="relative">
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Nội dung câu hỏi, đáp án..."
+                placeholder="Tìm kiếm theo nội dung câu hỏi, đáp án..."
                 className="w-full rounded-xl border border-gray-200 px-4 py-3 pl-10 text-sm text-gray-900 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200"
               />
               <Search
@@ -384,30 +482,6 @@ export function ImportFromBankModal({
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
               />
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-700">Điểm tối thiểu</label>
-            <input
-              type="number"
-              value={minPoints}
-              onChange={(event) => setMinPoints(event.target.value ? Number(event.target.value) : "")}
-              placeholder="0"
-              min="0"
-              className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-700">Điểm tối đa</label>
-            <input
-              type="number"
-              value={maxPoints}
-              onChange={(event) => setMaxPoints(event.target.value ? Number(event.target.value) : "")}
-              placeholder="100"
-              min="0"
-              className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200"
-            />
           </div>
         </div>
 

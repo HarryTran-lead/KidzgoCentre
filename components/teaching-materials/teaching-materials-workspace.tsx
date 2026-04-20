@@ -488,31 +488,31 @@ export default function TeachingMaterialsWorkspace({ viewerRole }: { viewerRole:
                 <Inbox size={12} /> Đang lọc:
               </span>
               {filters.searchTerm && (
-                <button onClick={() => setFilters(c => ({ ...c, searchTerm: "" }))} className="group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-50/80 text-red-600 text-xs font-medium border border-red-100/50 hover:bg-red-100/80 transition-colors">
+                <button onClick={() => setFilters(c => ({ ...c, searchTerm: "" }))} className="group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-50/80 text-red-600 text-xs font-medium border border-red-100/50 hover:bg-red-100/80 transition-colors cursor-pointer">
                   &ldquo;{filters.searchTerm}&rdquo;
                   <X size={11} className="opacity-60 group-hover:opacity-100 transition-opacity" />
                 </button>
               )}
               {filters.programId && (
-                <button onClick={() => setFilters(c => ({ ...c, programId: "" }))} className="group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-50/80 text-red-600 text-xs font-medium border border-red-100/50 hover:bg-red-100/80 transition-colors">
+                <button onClick={() => setFilters(c => ({ ...c, programId: "" }))} className="group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-50/80 text-red-600 text-xs font-medium border border-red-100/50 hover:bg-red-100/80 transition-colors cursor-pointer">
                   {programs.find(p => p.id === filters.programId)?.name || filters.programId}
                   <X size={11} className="opacity-60 group-hover:opacity-100 transition-opacity" />
                 </button>
               )}
               {filters.unitNumber && (
-                <button onClick={() => setFilters(c => ({ ...c, unitNumber: "" }))} className="group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-50/80 text-red-600 text-xs font-medium border border-red-100/50 hover:bg-red-100/80 transition-colors">
+                <button onClick={() => setFilters(c => ({ ...c, unitNumber: "" }))} className="group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-50/80 text-red-600 text-xs font-medium border border-red-100/50 hover:bg-red-100/80 transition-colors cursor-pointer">
                   Unit {filters.unitNumber}
                   <X size={11} className="opacity-60 group-hover:opacity-100 transition-opacity" />
                 </button>
               )}
               {filters.lessonNumber && (
-                <button onClick={() => setFilters(c => ({ ...c, lessonNumber: "" }))} className="group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-50/80 text-red-600 text-xs font-medium border border-red-100/50 hover:bg-red-100/80 transition-colors">
+                <button onClick={() => setFilters(c => ({ ...c, lessonNumber: "" }))} className="group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-50/80 text-red-600 text-xs font-medium border border-red-100/50 hover:bg-red-100/80 transition-colors cursor-pointer">
                   Lesson {filters.lessonNumber}
                   <X size={11} className="opacity-60 group-hover:opacity-100 transition-opacity" />
                 </button>
               )}
               {filters.category && (
-                <button onClick={() => setFilters(c => ({ ...c, category: "" }))} className="group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-50/80 text-red-600 text-xs font-medium border border-red-100/50 hover:bg-red-100/80 transition-colors">
+                <button onClick={() => setFilters(c => ({ ...c, category: "" }))} className="group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-50/80 text-red-600 text-xs font-medium border border-red-100/50 hover:bg-red-100/80 transition-colors cursor-pointer">
                   {filters.category}
                   <X size={11} className="opacity-60 group-hover:opacity-100 transition-opacity" />
                 </button>

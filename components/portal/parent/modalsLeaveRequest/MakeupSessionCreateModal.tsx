@@ -1071,8 +1071,8 @@ export default function MakeupSessionCreateModal({
   })();
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="w-full max-w-3xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="w-full max-w-3xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
         {/* header - gradient đỏ */}
         <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
           <div className="flex items-start justify-between gap-4">

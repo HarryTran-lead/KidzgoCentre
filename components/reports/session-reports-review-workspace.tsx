@@ -995,8 +995,8 @@ export default function SessionReportsReviewWorkspace() {
       {/* Detail Modal */}
       {/* Detail Modal - Improved Version */}
       {detailReport && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="relative w-full max-w-4xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setDetailReport(null)}>
+          <div className="relative w-full max-w-4xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
             {/* Modal Header */}
             <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
               <div className="flex items-center justify-between">
@@ -1223,8 +1223,8 @@ export default function SessionReportsReviewWorkspace() {
       {/* Reject Modal */}
       {/* Reject Modal - Improved Version */}
       {rejectTarget && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="relative w-full max-w-lg bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setRejectTarget(null)}>
+          <div className="relative w-full max-w-lg bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
             {/* Modal Header */}
             <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
               <div className="flex items-center justify-between">

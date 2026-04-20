@@ -1438,10 +1438,10 @@ export default function RegistrationFlowModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={onClose}>
       <div
         ref={modalRef}
-        className="h-[90dvh] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl flex flex-col transition-all duration-200 animate-in zoom-in-95"
+        className="h-[90dvh] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl flex flex-col transition-all duration-200 animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}
         style={{ width: "96vw", maxWidth: "1050px" }}
       >
         <RegistrationFlowHeader
