@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { X, Award, FileText, Paperclip, Upload, Loader2, AlertCircle } from "lucide-react";
-import { ADMIN_ENDPOINTS } from "@/constants/apiURL";
+import { ADMIN_ENDPOINTS, buildFileUrl } from "@/constants/apiURL";
 import { getAccessToken } from "@/lib/store/authToken";
 import { uploadFile, isUploadSuccess } from "@/lib/api/fileService";
 import { useToast } from "@/hooks/use-toast";
@@ -54,6 +54,49 @@ function getInitialAttachmentUrls(initialData?: Partial<PlacementTestResultReque
       ...normalizeAttachmentUrls(initialData?.attachmentUrl),
     ])
   );
+}
+
+function resolveAttachmentUrl(value?: string) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+
+  if (raw.startsWith("/api/files/serve")) {
+    return raw;
+  }
+
+  if (/^https?:\/\//i.test(raw)) {
+    try {
+      const parsed = new URL(raw);
+      const normalizedPath = `${parsed.pathname}${parsed.search || ""}${parsed.hash || ""}`;
+      if (normalizedPath.startsWith("/api/files/serve")) {
+        return normalizedPath;
+      }
+      return buildFileUrl(normalizedPath);
+    } catch {
+      const stripped = raw.replace(/^https?:\/\/[^/]+/i, "");
+      const normalizedPath = stripped.startsWith("/") ? stripped : `/${stripped}`;
+      if (normalizedPath.startsWith("/api/files/serve")) {
+        return normalizedPath;
+      }
+      return buildFileUrl(normalizedPath);
+    }
+  }
+
+  return buildFileUrl(raw);
+}
+
+function isImageAttachment(url?: string) {
+  const raw = String(url || "").trim().split(/[?#]/)[0].toLowerCase();
+  return /\.(png|jpe?g|gif|webp|bmp|svg)$/.test(raw);
+}
+
+function getAttachmentFileName(url?: string) {
+  const raw = String(url || "").trim();
+  if (!raw) return "Tài liệu đính kèm";
+
+  const withoutQuery = raw.split(/[?#]/)[0];
+  const parts = withoutQuery.split("/").filter(Boolean);
+  return decodeURIComponent(parts[parts.length - 1] || "Tài liệu đính kèm");
 }
 
 export default function ResultFormModal({
@@ -717,14 +760,46 @@ export default function ResultFormModal({
 
                 {formData.attachmentUrls.length > 0 ? (
                   <div className="space-y-2 rounded-xl border border-gray-200 bg-gray-50 p-3">
-                    {formData.attachmentUrls.map((url, index) => (
+                    {formData.attachmentUrls.map((url, index) => {
+                      const previewUrl = resolveAttachmentUrl(url);
+                      const fileName = getAttachmentFileName(url);
+                      const isImage = isImageAttachment(url);
+
+                      return (
                       <div
                         key={`${url}-${index}`}
-                        className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2"
+                        className="flex items-start justify-between gap-3 rounded-lg border border-gray-200 bg-white p-3"
                       >
-                        <p className="truncate text-sm text-gray-700" title={url}>
-                          {url}
-                        </p>
+                        <div className="min-w-0 flex-1 space-y-2">
+                          {isImage && previewUrl ? (
+                            <a
+                              href={previewUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block overflow-hidden rounded-lg border border-gray-200 bg-gray-50"
+                            >
+                              <img
+                                src={previewUrl}
+                                alt={fileName}
+                                className="h-28 w-full object-cover"
+                              />
+                            </a>
+                          ) : null}
+
+                          <a
+                            href={previewUrl || url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block truncate text-sm font-semibold text-red-700 hover:underline"
+                            title={fileName}
+                          >
+                            {fileName}
+                          </a>
+
+                          <p className="truncate text-xs text-gray-500" title={url}>
+                            {url}
+                          </p>
+                        </div>
                         <button
                           type="button"
                           onClick={() =>
@@ -738,7 +813,8 @@ export default function ResultFormModal({
                           Xóa
                         </button>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <input

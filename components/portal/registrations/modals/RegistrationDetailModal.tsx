@@ -1,9 +1,11 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
-import { ExternalLink, Loader2, X } from "lucide-react";
+import { Download, ExternalLink, Loader2, X } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { exportRegistrationEnrollmentConfirmationPdf } from "@/lib/api/registrationService";
 import type { Registration, RegistrationStatus } from "@/types/registration";
 
 type RegistrationDetailModalProps = {
@@ -129,17 +131,10 @@ export default function RegistrationDetailModal({
 }: RegistrationDetailModalProps) {
   const router = useRouter();
   const pathname = usePathname();
-
-  if (!isOpen) return null;
-  if (!item && !isLoading) return null;
-  if (typeof window === "undefined") return null;
+  const { toast } = useToast();
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   const placementTestId = extractPlacementTestId(item?.note);
-  const firstStudySession = item?.firstStudySession;
-  const noteDisplay = String(item?.note || "")
-    .replace(/\.?\s*Started\s+from\s+PlacementTest\s*[:=]\s*[0-9a-fA-F-]{32,36}\.?/gi, "")
-    .replace(/\s*\|\s*$/, "")
-    .trim();
 
   const placementTestDetailPath = useMemo(() => {
     if (!placementTestId) return "";
@@ -159,6 +154,39 @@ export default function RegistrationDetailModal({
     const separator = placementTestDetailPath.includes("?") ? "&" : "?";
     router.push(`${placementTestDetailPath}${separator}from=registration-detail&ts=${Date.now()}`);
   }, [placementTestDetailPath, placementTestId, router]);
+
+  const handleExportPdf = useCallback(async () => {
+    if (!item?.id || isExportingPdf) return;
+
+    try {
+      setIsExportingPdf(true);
+      const fileName = await exportRegistrationEnrollmentConfirmationPdf(item.id);
+      toast({
+        title: "Thành công",
+        description: `Đã xuất file PDF: ${fileName}`,
+        variant: "success",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Lỗi",
+        description:
+          error?.message || "Không thể xuất PDF xác nhận ghi danh.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExportingPdf(false);
+    }
+  }, [isExportingPdf, item?.id, toast]);
+
+  if (!isOpen) return null;
+  if (!item && !isLoading) return null;
+  if (typeof window === "undefined") return null;
+
+  const firstStudySession = item?.firstStudySession;
+  const noteDisplay = String(item?.note || "")
+    .replace(/\.?\s*Started\s+from\s+PlacementTest\s*[:=]\s*[0-9a-fA-F-]{32,36}\.?/gi, "")
+    .replace(/\s*\|\s*$/, "")
+    .trim();
 
   return createPortal(
     <div
@@ -194,11 +222,26 @@ export default function RegistrationDetailModal({
                   {item.studentName || "Không có thông tin"}
                 </div>
               </div>
-              <span
-                className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-medium ${statusBadgeClass(item.status)}`}
-              >
-                {statusLabel(item.status)}
-              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleExportPdf}
+                  disabled={isExportingPdf}
+                  className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-700 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isExportingPdf ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <Download size={14} />
+                  )}
+                  Xuất PDF
+                </button>
+                <span
+                  className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-medium ${statusBadgeClass(item.status)}`}
+                >
+                  {statusLabel(item.status)}
+                </span>
+              </div>
             </div>
 
             <div className="space-y-3 rounded-xl border border-blue-200 bg-blue-50 p-4">

@@ -71,6 +71,11 @@ function getAttachmentLabel(url?: string) {
   return decodeURIComponent(fileName);
 }
 
+function isImageAttachment(url?: string) {
+  const raw = String(url || "").trim().split(/[?#]/)[0].toLowerCase();
+  return /\.(png|jpe?g|gif|webp|bmp|svg)$/.test(raw);
+}
+
 interface PlacementTestDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -315,17 +320,33 @@ export default function PlacementTestDetailModal({
                         <Paperclip size={14} className="text-red-500" />
                         Tài liệu đính kèm
                       </p>
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         {attachments.map((item, index) => (
-                          <a
+                          <div
                             key={`${item.rawUrl}-${index}`}
-                            href={item.href}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100"
+                            className="overflow-hidden rounded-xl border border-red-100 bg-red-50/40"
                           >
-                            Mở tài liệu {index + 1}: {item.label || "Xem file"}
-                          </a>
+                            {isImageAttachment(item.rawUrl) ? (
+                              <a href={item.href} target="_blank" rel="noopener noreferrer">
+                                <img
+                                  src={item.href}
+                                  alt={item.label || `Tài liệu ${index + 1}`}
+                                  className="h-44 w-full object-cover"
+                                />
+                              </a>
+                            ) : null}
+
+                            <div className="px-3 py-2">
+                              <a
+                                href={item.href}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center rounded-lg border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50"
+                              >
+                                Mở tài liệu {index + 1}: {item.label || "Xem file"}
+                              </a>
+                            </div>
+                          </div>
                         ))}
                       </div>
                     </div>

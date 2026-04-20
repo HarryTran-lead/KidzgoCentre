@@ -1,5 +1,6 @@
 import { get, patch, post, put } from "@/lib/axios";
 import { REGISTRATION_ENDPOINTS } from "@/constants/apiURL";
+import { getAccessToken } from "@/lib/store/authToken";
 import type {
   AssignClassRequest,
   RegistrationFirstStudySession,
@@ -96,6 +97,78 @@ function pickDetail(payload: any): any {
   if (payload?.data) return payload.data;
   if (payload?.registration) return payload.registration;
   return payload;
+}
+
+function extractFileName(contentDisposition?: string | null) {
+  if (!contentDisposition) {
+    return undefined;
+  }
+
+  const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) {
+    return decodeURIComponent(utf8Match[1]);
+  }
+
+  const quotedMatch = contentDisposition.match(/filename=\"([^\"]+)\"/i);
+  if (quotedMatch?.[1]) {
+    return quotedMatch[1];
+  }
+
+  const plainMatch = contentDisposition.match(/filename=([^;]+)/i);
+  if (plainMatch?.[1]) {
+    return plainMatch[1].trim();
+  }
+
+  return undefined;
+}
+
+export type RegistrationPdfFile = {
+  blob: Blob;
+  fileName: string;
+};
+
+export async function getRegistrationEnrollmentConfirmationPdf(
+  id: string,
+): Promise<RegistrationPdfFile> {
+  const accessToken = getAccessToken();
+  const response = await fetch(
+    REGISTRATION_ENDPOINTS.ENROLLMENT_CONFIRMATION_PDF(id),
+    {
+      method: "GET",
+      headers: {
+        Accept: "application/pdf",
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
+    },
+  );
+
+  if (!response.ok) {
+    let message = "Không thể tải PDF xác nhận ghi danh.";
+    try {
+      const errorPayload = await response.json();
+      const detail = String(errorPayload?.detail || "").trim();
+      const title = String(errorPayload?.title || "").trim();
+      if (detail) {
+        message = detail;
+      } else if (title) {
+        message = title;
+      }
+    } catch {
+      // Ignore JSON parse errors for non-JSON error payloads.
+    }
+
+    throw new Error(message);
+  }
+
+  const blob = await response.blob();
+  const fileName =
+    extractFileName(response.headers.get("content-disposition")) ||
+    `registration-confirmation-${id}.pdf`;
+
+  return {
+    blob,
+    fileName,
+  };
 }
 
 function mapToRegistration(item: any): Registration {
@@ -324,6 +397,25 @@ export async function getRegistrations(
 export async function getRegistrationById(id: string): Promise<Registration> {
   const response = await get<any>(REGISTRATION_ENDPOINTS.GET_BY_ID(id));
   return mapToRegistration(pickDetail(response));
+}
+
+export async function exportRegistrationEnrollmentConfirmationPdf(
+  id: string,
+): Promise<string> {
+  const { blob, fileName } = await getRegistrationEnrollmentConfirmationPdf(id);
+
+  if (typeof window !== "undefined") {
+    const objectUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = objectUrl;
+    anchor.download = fileName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(objectUrl);
+  }
+
+  return fileName;
 }
 
 export async function createRegistration(payload: RegistrationRequest): Promise<RegistrationActionResponse> {

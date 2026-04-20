@@ -32,6 +32,7 @@ import SuggestAssignStep from "@/components/portal/placement-tests/registration-
 import RegistrationFlowHeader from "@/components/portal/placement-tests/registration-flow/RegistrationFlowHeader";
 import RegistrationFlowStepTabs from "@/components/portal/placement-tests/registration-flow/RegistrationFlowStepTabs";
 import RegistrationSelectorCard from "@/components/portal/placement-tests/registration-flow/RegistrationSelectorCard";
+import RegistrationCompletionPdfModal from "@/components/portal/registrations/modals/RegistrationCompletionPdfModal";
 
 interface RegistrationFlowModalProps {
   isOpen: boolean;
@@ -277,6 +278,7 @@ export default function RegistrationFlowModal({
     useState("");
   const [manualSecondarySessionPattern, setManualSecondarySessionPattern] =
     useState("");
+  const [isCompletionPdfOpen, setIsCompletionPdfOpen] = useState(false);
 
   // Handle click outside to close
   useEffect(() => {
@@ -1070,6 +1072,7 @@ export default function RegistrationFlowModal({
   const handleAssignClass = async (
     sessionSelectionPattern?: string,
     entryType: EntryType = "Immediate",
+    firstStudyDate?: string,
   ) => {
     if (!registrationId || !selectedClassId) return;
 
@@ -1079,6 +1082,7 @@ export default function RegistrationFlowModal({
         classId: selectedClassId,
         entryType,
         track: selectedTrack,
+        firstStudyDate: firstStudyDate?.trim() || undefined,
         sessionSelectionPattern: sessionSelectionPattern || undefined,
       });
 
@@ -1110,18 +1114,21 @@ export default function RegistrationFlowModal({
     secondaryClassId?: string;
     secondarySessionSelectionPattern?: string;
     entryType?: EntryType;
+    firstStudyDate?: string;
   }) => {
     if (!registrationId || !payload.primaryClassId) return;
 
     try {
       setIsAssigning(true);
       const selectedEntryType = payload.entryType || "Immediate";
+      const normalizedFirstStudyDate = payload.firstStudyDate?.trim() || undefined;
       let targetRegistrationId = registrationId;
 
       const primaryResponse = await assignClassToRegistration(targetRegistrationId, {
         classId: payload.primaryClassId,
         entryType: selectedEntryType,
         track: "primary",
+        firstStudyDate: normalizedFirstStudyDate,
         sessionSelectionPattern:
           payload.primarySessionSelectionPattern || undefined,
       });
@@ -1133,6 +1140,7 @@ export default function RegistrationFlowModal({
           classId: payload.secondaryClassId,
           entryType: selectedEntryType,
           track: "secondary",
+          firstStudyDate: normalizedFirstStudyDate,
           sessionSelectionPattern:
             payload.secondarySessionSelectionPattern || undefined,
         });
@@ -1283,7 +1291,10 @@ export default function RegistrationFlowModal({
     }
   };
 
-  const handleAssignManualClasses = async (entryType: EntryType = "Immediate") => {
+  const handleAssignManualClasses = async (
+    entryType: EntryType = "Immediate",
+    firstStudyDate?: string,
+  ) => {
     if (!registrationId || !manualPrimaryClassId) return;
 
     if (hasSecondaryTrack) {
@@ -1328,12 +1339,14 @@ export default function RegistrationFlowModal({
 
     try {
       setIsAssigning(true);
+      const normalizedFirstStudyDate = firstStudyDate?.trim() || undefined;
       let targetRegistrationId = registrationId;
 
       const primaryResponse = await assignClassToRegistration(targetRegistrationId, {
         classId: manualPrimaryClassId,
         entryType,
         track: "primary",
+        firstStudyDate: normalizedFirstStudyDate,
         sessionSelectionPattern: manualPrimarySessionPattern,
       });
 
@@ -1344,6 +1357,7 @@ export default function RegistrationFlowModal({
           classId: manualSecondaryClassId,
           entryType,
           track: "secondary",
+          firstStudyDate: normalizedFirstStudyDate,
           sessionSelectionPattern: manualSecondarySessionPattern,
         });
         targetRegistrationId = extractRegistrationIdFromAction(secondaryResponse) || targetRegistrationId;
@@ -1395,6 +1409,19 @@ export default function RegistrationFlowModal({
     } finally {
       setIsWaiting(false);
     }
+  };
+
+  const handleOpenEnrollmentConfirmationPdf = () => {
+    if (!registrationId) {
+      toast({
+        title: "Thiếu dữ liệu",
+        description: "Vui lòng chọn hoặc tạo đăng ký trước khi xem phiếu hoàn thành.",
+        variant: "warning",
+      });
+      return;
+    }
+
+    setIsCompletionPdfOpen(true);
   };
 
   useEffect(() => {
@@ -1538,6 +1565,7 @@ export default function RegistrationFlowModal({
                         isLoadingManualClasses={isLoadingManualClasses}
                         branchId={branchId}
                         handleMoveToWaitingList={handleMoveToWaitingList}
+                        handleOpenEnrollmentConfirmationPdf={handleOpenEnrollmentConfirmationPdf}
                         isWaiting={isWaiting}
                         suggestedClasses={suggestedClasses}
                         hasSecondaryTrack={hasSecondaryTrack}
@@ -1593,6 +1621,7 @@ export default function RegistrationFlowModal({
                     isLoadingManualClasses={isLoadingManualClasses}
                     branchId={branchId}
                     handleMoveToWaitingList={handleMoveToWaitingList}
+                    handleOpenEnrollmentConfirmationPdf={handleOpenEnrollmentConfirmationPdf}
                     isWaiting={isWaiting}
                     suggestedClasses={suggestedClasses}
                     hasSecondaryTrack={hasSecondaryTrack}
@@ -1640,6 +1669,13 @@ export default function RegistrationFlowModal({
           </div>
         </div>
       </div>
+
+      <RegistrationCompletionPdfModal
+        isOpen={isCompletionPdfOpen}
+        registrationId={registrationId}
+        studentName={studentName}
+        onClose={() => setIsCompletionPdfOpen(false)}
+      />
     </div>
   );
 }

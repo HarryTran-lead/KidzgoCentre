@@ -9,6 +9,7 @@ import {
   ClipboardList,
   Clock3,
   Eye,
+  FileText,
   Loader2,
   RefreshCw,
   Rocket,
@@ -18,6 +19,7 @@ import {
 } from "lucide-react";
 import LeadPagination from "@/components/portal/leads/LeadPagination";
 import RegistrationAssignModal from "@/components/portal/registrations/modals/RegistrationAssignModal";
+import RegistrationCompletionPdfModal from "@/components/portal/registrations/modals/RegistrationCompletionPdfModal";
 import RegistrationDetailModal from "@/components/portal/registrations/modals/RegistrationDetailModal";
 import RegistrationTransferModal from "@/components/portal/registrations/modals/RegistrationTransferModal";
 import RegistrationUpgradeModal from "@/components/portal/registrations/modals/RegistrationUpgradeModal";
@@ -188,6 +190,9 @@ export default function StaffRegistrationOverview({
   const [selectedDetail, setSelectedDetail] = useState<Registration | null>(
     null,
   );
+  const [isCompletionPdfOpen, setIsCompletionPdfOpen] = useState(false);
+  const [completionPdfRegistration, setCompletionPdfRegistration] =
+    useState<Registration | null>(null);
   const [sortKey, setSortKey] = useState<RegistrationSortKey | null>("createdAt");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
@@ -578,6 +583,11 @@ export default function StaffRegistrationOverview({
     }
   };
 
+  const openCompletionPdf = (row: Registration) => {
+    setCompletionPdfRegistration(row);
+    setIsCompletionPdfOpen(true);
+  };
+
   const getErrorMessage = (error: any, fallback: string) => {
     const status = Number(error?.response?.status || error?.status || 0);
     const code = extractDomainErrorCode(error);
@@ -790,6 +800,7 @@ export default function StaffRegistrationOverview({
   const handleAssignClass = async (
     sessionSelectionPattern?: string,
     entryType: EntryType = "Immediate",
+    firstStudyDate?: string,
   ) => {
     if (!selectedActionRegistration?.id || !selectedClassId) return;
 
@@ -799,6 +810,7 @@ export default function StaffRegistrationOverview({
         classId: selectedClassId,
         entryType,
         track: selectedTrack,
+        firstStudyDate: firstStudyDate?.trim() || undefined,
         sessionSelectionPattern: sessionSelectionPattern || undefined,
       });
 
@@ -838,18 +850,21 @@ export default function StaffRegistrationOverview({
     secondaryClassId?: string;
     secondarySessionSelectionPattern?: string;
     entryType?: EntryType;
+    firstStudyDate?: string;
   }) => {
     if (!selectedActionRegistration?.id || !payload.primaryClassId) return;
 
     try {
       setIsAssigning(true);
       const selectedEntryType = payload.entryType || "Immediate";
+      const normalizedFirstStudyDate = payload.firstStudyDate?.trim() || undefined;
       let targetRegistrationId = selectedActionRegistration.id;
 
       const primaryResponse = await assignClassToRegistration(targetRegistrationId, {
         classId: payload.primaryClassId,
         entryType: selectedEntryType,
         track: "primary",
+        firstStudyDate: normalizedFirstStudyDate,
         sessionSelectionPattern:
           payload.primarySessionSelectionPattern || undefined,
       });
@@ -861,6 +876,7 @@ export default function StaffRegistrationOverview({
           classId: payload.secondaryClassId,
           entryType: selectedEntryType,
           track: "secondary",
+          firstStudyDate: normalizedFirstStudyDate,
           sessionSelectionPattern:
             payload.secondarySessionSelectionPattern || undefined,
         });
@@ -896,7 +912,10 @@ export default function StaffRegistrationOverview({
     }
   };
 
-  const handleAssignManualClasses = async (entryType: EntryType = "Immediate") => {
+  const handleAssignManualClasses = async (
+    entryType: EntryType = "Immediate",
+    firstStudyDate?: string,
+  ) => {
     if (!selectedActionRegistration?.id || !manualPrimaryClassId) return;
 
     if (hasSecondaryTrack && !manualSecondaryClassId) {
@@ -937,12 +956,14 @@ export default function StaffRegistrationOverview({
 
     try {
       setIsAssigning(true);
+      const normalizedFirstStudyDate = firstStudyDate?.trim() || undefined;
       let targetRegistrationId = selectedActionRegistration.id;
 
       const primaryResponse = await assignClassToRegistration(targetRegistrationId, {
         classId: manualPrimaryClassId,
         entryType,
         track: "primary",
+        firstStudyDate: normalizedFirstStudyDate,
         sessionSelectionPattern: manualPrimarySessionPattern,
       });
 
@@ -953,6 +974,7 @@ export default function StaffRegistrationOverview({
           classId: manualSecondaryClassId,
           entryType,
           track: "secondary",
+          firstStudyDate: normalizedFirstStudyDate,
           sessionSelectionPattern: manualSecondarySessionPattern,
         });
         targetRegistrationId = extractRegistrationIdFromAction(secondaryResponse) || targetRegistrationId;
@@ -1249,6 +1271,15 @@ export default function StaffRegistrationOverview({
                           <Eye size={12} />
                         </button>
 
+                        <button
+                          type="button"
+                          onClick={() => openCompletionPdf(row)}
+                          title="Xem/In phiếu hoàn thành đăng ký"
+                          className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
+                        >
+                          <FileText size={12} />
+                        </button>
+
                         {(!row.classId || row.status === "WaitingForClass" || row.status === "New") && (
                           <button
                             type="button"
@@ -1316,6 +1347,16 @@ export default function StaffRegistrationOverview({
         }}
       />
 
+      <RegistrationCompletionPdfModal
+        isOpen={isCompletionPdfOpen}
+        registrationId={String(completionPdfRegistration?.id || "")}
+        studentName={completionPdfRegistration?.studentName || ""}
+        onClose={() => {
+          setIsCompletionPdfOpen(false);
+          setCompletionPdfRegistration(null);
+        }}
+      />
+
       <RegistrationUpgradeModal
         isOpen={upgradeOpen}
         onClose={() => setUpgradeOpen(false)}
@@ -1342,6 +1383,7 @@ export default function StaffRegistrationOverview({
         isWaiting={isWaiting}
         suggestedClasses={suggestedClasses}
         hasSecondaryTrack={hasSecondaryTrack}
+        showEntryTypeSelector={false}
         selectedTrack={selectedTrack}
         setSelectedTrack={setSelectedTrack}
         selectedEntryType={assignEntryType}
