@@ -1565,7 +1565,7 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
                 className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-red-600 to-red-700 px-3 py-1.5 text-sm font-semibold text-white shadow-md transition-all hover:shadow-lg hover:shadow-red-500/25 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <FileBarChart size={14} />
-                {jobFlowLoading ? "Đang đồng bộ..." : "Khởi tạo dữ liệu"}
+                {jobFlowLoading ? "Đang đồng bộ..." : "Mở kỳ báo cáo tháng"}
               </button>
             )}
           </div>
