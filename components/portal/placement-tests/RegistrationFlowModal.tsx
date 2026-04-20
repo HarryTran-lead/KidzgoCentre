@@ -40,6 +40,7 @@ interface RegistrationFlowModalProps {
   test: PlacementTest | null;
   branchId?: string;
   allowManualAssign?: boolean;
+  showEntryTypeSelector?: boolean;
   onSuccess?: () => void;
 }
 
@@ -138,6 +139,7 @@ export default function RegistrationFlowModal({
   test,
   branchId,
   allowManualAssign = false,
+  showEntryTypeSelector = true,
   onSuccess,
 }: RegistrationFlowModalProps) {
   const { toast } = useToast();
@@ -1573,6 +1575,7 @@ export default function RegistrationFlowModal({
                         setSelectedTrack={setSelectedTrack}
                         selectedEntryType={assignEntryType}
                         setSelectedEntryType={setAssignEntryType}
+                        showEntryTypeSelector={showEntryTypeSelector}
                         selectedClassId={selectedClassId}
                         setSelectedClassId={setSelectedClassId}
                         activeSuggestedClasses={activeSuggestedClasses}
@@ -1629,6 +1632,7 @@ export default function RegistrationFlowModal({
                     setSelectedTrack={setSelectedTrack}
                     selectedEntryType={assignEntryType}
                     setSelectedEntryType={setAssignEntryType}
+                    showEntryTypeSelector={showEntryTypeSelector}
                     selectedClassId={selectedClassId}
                     setSelectedClassId={setSelectedClassId}
                     activeSuggestedClasses={activeSuggestedClasses}

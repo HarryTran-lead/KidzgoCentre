@@ -122,36 +122,76 @@ function extractFileName(contentDisposition?: string | null) {
   return undefined;
 }
 
-export type RegistrationPdfFile = {
-  blob: Blob;
-  fileName: string;
+export type EnrollmentConfirmationPdfResponse = {
+  registrationId: string;
+  enrollmentId: string;
+  pdfRecordId: string;
+  track: string;
+  formType: string;
+  pdfUrl: string;
+  pdfGeneratedAt: string;
+  reusedExistingPdf: boolean;
+  enrollDate: string;
+  firstStudyDate: string | null;
+  studentName: string;
+  classCode: string;
+  classTitle: string;
+  programName: string;
+  tuitionPlanName: string;
+  tuitionAmount: number;
+  currency: string;
 };
+
+const PDF_ERROR_MESSAGES: Record<string, string> = {
+  "No active enrollment was found": "Không tìm thấy đăng ký học đang hoạt động cho học viên này.",
+  "Registration not found": "Không tìm thấy đăng ký.",
+  "PDF generation failed": "Không thể tạo file PDF. Vui lòng thử lại.",
+  "Unauthorized": "Bạn chưa đăng nhập hoặc phiên đã hết hạn.",
+  "Forbidden": "Bạn không có quyền thực hiện thao tác này.",
+};
+
+function translatePdfError(message: string): string {
+  for (const [key, viMessage] of Object.entries(PDF_ERROR_MESSAGES)) {
+    if (message.toLowerCase().includes(key.toLowerCase())) {
+      return viMessage;
+    }
+  }
+  return message;
+}
 
 export async function getRegistrationEnrollmentConfirmationPdf(
   id: string,
-): Promise<RegistrationPdfFile> {
+  options?: {
+    track?: string;
+    regenerate?: boolean;
+    formType?: string;
+  },
+): Promise<EnrollmentConfirmationPdfResponse> {
   const accessToken = getAccessToken();
-  const response = await fetch(
-    REGISTRATION_ENDPOINTS.ENROLLMENT_CONFIRMATION_PDF(id),
-    {
-      method: "GET",
-      headers: {
-        Accept: "application/pdf",
-        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-      },
+  const track = options?.track || "primary";
+  const regenerate = options?.regenerate ?? false;
+  const formType = options?.formType || "auto";
+  const queryString = `track=${encodeURIComponent(track)}&regenerate=${regenerate}&formType=${encodeURIComponent(formType)}`;
+  const url = `${REGISTRATION_ENDPOINTS.ENROLLMENT_CONFIRMATION_PDF(id)}?${queryString}`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
     },
-  );
+  });
 
   if (!response.ok) {
-    let message = "Không thể tải PDF xác nhận ghi danh.";
+    let message = "Không thể tải phiếu xác nhận ghi danh.";
     try {
       const errorPayload = await response.json();
       const detail = String(errorPayload?.detail || "").trim();
       const title = String(errorPayload?.title || "").trim();
       if (detail) {
-        message = detail;
+        message = translatePdfError(detail);
       } else if (title) {
-        message = title;
+        message = translatePdfError(title);
       }
     } catch {
       // Ignore JSON parse errors for non-JSON error payloads.
@@ -160,14 +200,31 @@ export async function getRegistrationEnrollmentConfirmationPdf(
     throw new Error(message);
   }
 
-  const blob = await response.blob();
-  const fileName =
-    extractFileName(response.headers.get("content-disposition")) ||
-    `registration-confirmation-${id}.pdf`;
+  const payload = await response.json();
+  const data = payload?.data || payload;
+
+  if (!data?.pdfUrl) {
+    throw new Error("Không tìm thấy đường dẫn file PDF từ hệ thống.");
+  }
 
   return {
-    blob,
-    fileName,
+    registrationId: data.registrationId || id,
+    enrollmentId: data.enrollmentId || "",
+    pdfRecordId: data.pdfRecordId || "",
+    track: data.track || track,
+    formType: data.formType || "",
+    pdfUrl: data.pdfUrl,
+    pdfGeneratedAt: data.pdfGeneratedAt || "",
+    reusedExistingPdf: !!data.reusedExistingPdf,
+    enrollDate: data.enrollDate || "",
+    firstStudyDate: data.firstStudyDate || null,
+    studentName: data.studentName || "",
+    classCode: data.classCode || "",
+    classTitle: data.classTitle || "",
+    programName: data.programName || "",
+    tuitionPlanName: data.tuitionPlanName || "",
+    tuitionAmount: data.tuitionAmount || 0,
+    currency: data.currency || "VND",
   };
 }
 
@@ -402,9 +459,14 @@ export async function getRegistrationById(id: string): Promise<Registration> {
 export async function exportRegistrationEnrollmentConfirmationPdf(
   id: string,
 ): Promise<string> {
-  const { blob, fileName } = await getRegistrationEnrollmentConfirmationPdf(id);
+  const { pdfUrl, studentName } = await getRegistrationEnrollmentConfirmationPdf(id);
+  const { buildFileUrl } = await import("@/constants/apiURL");
+  const downloadUrl = buildFileUrl(pdfUrl);
+  const fileName = pdfUrl.split("/").pop() || `phieu-dang-ky-${studentName || id}.pdf`;
 
   if (typeof window !== "undefined") {
+    const response = await fetch(downloadUrl);
+    const blob = await response.blob();
     const objectUrl = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = objectUrl;

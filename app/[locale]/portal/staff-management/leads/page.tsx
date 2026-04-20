@@ -2381,6 +2381,7 @@ export default function Page() {
         test={selectedTest}
         branchId={resolveUserBranchId(currentUser)}
         allowManualAssign
+        showEntryTypeSelector={false}
         onSuccess={() => {
           fetchPlacementTests();
           fetchInitialTestData();
