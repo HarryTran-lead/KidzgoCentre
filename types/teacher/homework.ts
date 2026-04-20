@@ -188,6 +188,8 @@ export interface ClassOption {
   id: string;
   name: string;
   code?: string;
+  programId?: string;
+  programName?: string;
 }
 
 // Session option for dropdown

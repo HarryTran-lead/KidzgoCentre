@@ -1040,48 +1040,6 @@ export default function StudentAiSpeakingWorkspace() {
       {/* Header Section */}
       <div className={`shrink-0 px-6 pt-6 pb-4 transition-all duration-700 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"}`}>
         
-        {/* Hero Header */}
-        <div className="mb-8 relative">
-          <div className="text-center pt-4">
-            <div className="inline-block relative">
-              {/* Glowing background effect */}
-              <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-purple-500 via-pink-500 to-violet-500 opacity-30 blur-2xl"></div>
-
-              {/* Main frame */}
-              <div
-                className="relative rounded-3xl px-8 md:px-16 py-8 md:py-10 bg-gradient-to-br from-purple-500/20 via-pink-500/15 to-violet-500/20 backdrop-blur-xl border border-transparent flex flex-col items-center justify-center"
-                style={{
-                  backgroundImage: "linear-gradient(135deg, rgba(168,85,247,0.3), rgba(236,72,153,0.3), rgba(217,70,239,0.3)), linear-gradient(to right, rgba(168,85,247,0.1), rgba(236,72,153,0.1))",
-                  boxShadow: "0 0 60px rgba(168,85,247,0.3), 0 0 30px rgba(236,72,153,0.2), inset 0 1px 0 rgba(255,255,255,0.1)",
-                }}
-              >
-                <div
-                  className="absolute inset-0 rounded-3xl p-[2px] pointer-events-none"
-                  style={{
-                    background: "linear-gradient(135deg, #a855f7, #ec4899, #d946ef, #a855f7)",
-                    WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
-                    WebkitMaskComposite: "xor",
-                    maskComposite: "exclude",
-                    padding: "4px",
-                  }}
-                ></div>
-
-                <div className="text-center">
-                  <div className="flex items-center justify-center gap-2 mb-2">
-                    <Mic className="w-8 h-8 text-purple-400 animate-pulse" />
-                    <h1 className="text-5xl md:text-6xl lg:text-5xl font-bold bg-gradient-to-r from-purple-300 via-pink-300 to-fuchsia-300 bg-clip-text text-transparent drop-shadow-lg">
-                      AI SPEAKING
-                    </h1>
-                    <Sparkles className="w-8 h-8 text-pink-400 animate-pulse" />
-                  </div>
-                  <p className="text-base md:text-lg font-medium text-purple-200/80">
-                    Nói chuyện trực tiếp với AI - Luyện phát âm và phản xạ
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
 
         {/* Tab Toggle */}
         <div className="flex rounded-2xl border border-purple-500/30 bg-purple-500/10 p-1 w-fit mx-auto mb-6">

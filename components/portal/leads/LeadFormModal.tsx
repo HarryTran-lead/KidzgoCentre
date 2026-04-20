@@ -211,8 +211,8 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-9999 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="relative w-full max-w-2xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-9999 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
+      <div className="relative w-full max-w-2xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
         {/* Header - Gradient đỏ như modal mẫu */}
         <div className="bg-linear-to-r from-red-600 to-red-700 p-6">
           <div className="flex items-center justify-between">
@@ -280,20 +280,23 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
                     required
                   />
                 </div>
+              </div>
 
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                    <Mail size={16} className="text-gray-400" />
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
-                    placeholder="email@example.com"
-                  />
-                </div>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <Mail size={16} className="text-gray-400" />
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                  placeholder="email@example.com"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
                 {/* <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
@@ -319,43 +322,41 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
                 <h3 className="text-sm font-semibold text-gray-700">Nguồn khách tiềm năng</h3>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                    Nguồn
-                  </label>
-                  <Select
-                    value={formData.source || LeadSource.Landing}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, source: normalizeLeadSource(value) })
-                    }
-                  >
-                    <SelectTrigger className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all">
-                      <SelectValue placeholder="Chọn nguồn khách tiềm năng" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {LEAD_SOURCE_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                    Chiến dịch
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.campaign}
-                    onChange={(e) => setFormData({ ...formData, campaign: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
-                    placeholder="Tên chiến dịch"
-                  />
-                </div> */}
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  Nguồn
+                </label>
+                <Select
+                  value={formData.source || LeadSource.Landing}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, source: normalizeLeadSource(value) })
+                  }
+                >
+                  <SelectTrigger className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all">
+                    <SelectValue placeholder="Chọn nguồn khách tiềm năng" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LEAD_SOURCE_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
+
+              {/* <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  Chiến dịch
+                </label>
+                <input
+                  type="text"
+                  value={formData.campaign}
+                  onChange={(e) => setFormData({ ...formData, campaign: e.target.value })}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                  placeholder="Tên chiến dịch"
+                />
+              </div> */}
             </div>
 
             {/* Preferences Section */}

@@ -72,8 +72,8 @@ export default function SelfAssignModal({
   if (!isOpen || !lead) return null;
 
   return (
-    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 p-4">
-      <div className="relative w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-xl">
+    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="relative w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="bg-gradient-to-r from-red-600 to-red-700 px-6 py-4">
           <div className="flex items-center justify-between">

@@ -35,7 +35,7 @@ export default function CourseCard({
       </div>
 
       <div className="mt-4">
-        <button className="w-full rounded-xl border px-4 py-2 text-sm font-medium hover:bg-slate-50">
+        <button className="w-full rounded-xl border px-4 py-2 text-sm font-medium hover:bg-slate-50 cursor-pointer">
           Xem chương trình học
         </button>
       </div>

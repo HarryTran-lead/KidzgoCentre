@@ -102,7 +102,7 @@ export default function Page() {
     if (!showNoticesPopup) return null;
 
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setShowNoticesPopup(false)}>
+      <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setShowNoticesPopup(false)}>
         <div 
           className="relative w-full max-w-2xl max-h-[80vh] bg-gradient-to-br from-blue-900/95 via-indigo-900/95 to-purple-900/95 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl animate-scale-in overflow-hidden"
           onClick={(e) => e.stopPropagation()}

@@ -1418,7 +1418,50 @@ export default function AccountsPage() {
       {/* Filter Bar */}
       <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         <div className="space-y-4">
-          {/* Search and Filters Row */}
+          {/* Role Filter Tabs */}
+          <div className="flex flex-wrap gap-2 pb-4 border-b border-red-200">
+            {(['ALL', 'Admin', 'Teacher', 'Parent', 'ManagementStaff'] as const).map((r) => {
+              const counts: Record<typeof r, number> = {
+                'ALL': fixedCounts.total,
+                'Admin': fixedCounts.admin,
+                'Teacher': fixedCounts.teacher,
+                'Parent': fixedCounts.parent,
+                'ManagementStaff': fixedCounts.managementStaff,
+              };
+              
+              const labels: Record<typeof r, string> = {
+                'ALL': t.filters.all,
+                'Admin': t.filters.admin,
+                'Teacher': t.filters.teacher,
+                'Parent': t.filters.parent,
+                'ManagementStaff': t.filters.staff,
+              };
+
+              const isActive = role === r;
+              return (
+                <button
+                  key={r}
+                  onClick={() => setRole(r)}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all cursor-pointer ${
+                    isActive
+                      ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md'
+                      : 'bg-white border border-red-200 text-gray-700 hover:bg-red-50'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <span>{labels[r]}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+                      isActive ? 'bg-white/20' : 'bg-red-100 text-red-700'
+                    }`}>
+                      {counts[r]}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Search and Status Filter Row */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
             {/* Search Box - Full Width */}
             <div className="relative flex-1">
@@ -1431,24 +1474,9 @@ export default function AccountsPage() {
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             </div>
 
-            {/* Filters */}
-            <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
-              {/* Role Filter Select */}
-              <Select value={role} onValueChange={(value) => setRole(value as typeof role)}>
-                <SelectTrigger className="w-full sm:w-auto h-10 px-3 py-2 rounded-xl border border-red-200 bg-white text-sm text-gray-700 transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 data-[state=open]:border-red-400 data-[state=open]:ring-2 data-[state=open]:ring-red-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">{t.filters.all} ({fixedCounts.total})</SelectItem>
-                  <SelectItem value="Admin">{t.filters.admin} ({fixedCounts.admin})</SelectItem>
-                  <SelectItem value="Teacher">{t.filters.teacher} ({fixedCounts.teacher})</SelectItem>
-                  <SelectItem value="Parent">{t.filters.parent} ({fixedCounts.parent})</SelectItem>
-                  <SelectItem value="ManagementStaff">{t.filters.staff} ({fixedCounts.managementStaff})</SelectItem>
-                </SelectContent>
-              </Select>
-
+            {/* Status Filter */}
+            <div className="flex items-center gap-2">
               <Filter size={16} className="text-gray-500" />
-              {/* Status Filter */}
               <Select value={status === null ? 'ALL' : status ? 'ACTIVE' : 'INACTIVE'} onValueChange={(val) => {
                 setStatus(val === 'ALL' ? null : val === 'ACTIVE');
               }}>

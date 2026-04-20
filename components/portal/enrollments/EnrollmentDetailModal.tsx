@@ -11,6 +11,12 @@ import {
   PauseCircle,
   XCircle,
   History,
+  GraduationCap,
+  Users,
+  Tag,
+  FileText,
+  AlertCircle,
+  Loader2,
 } from "lucide-react";
 import type { Enrollment, EnrollmentHistoryItem } from "@/types/enrollment";
 import { getStudentEnrollmentHistory } from "@/lib/api/enrollmentService";
@@ -27,6 +33,36 @@ interface EnrollmentDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   enrollment: Enrollment | null;
+}
+
+function cn(...classNames: Array<string | false | null | undefined>) {
+  return classNames.filter(Boolean).join(" ");
+}
+
+function InfoCard({ icon, label, value, iconColor = "text-red-500" }: { icon?: React.ReactNode; label: string; value: string; iconColor?: string }) {
+  return (
+    <div className="rounded-xl bg-white p-3 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+      <div className="flex items-center gap-2">
+        {icon && <div className={cn("flex-shrink-0", iconColor)}>{icon}</div>}
+        <div className="text-xs font-medium uppercase tracking-wide text-gray-500">
+          {label}
+        </div>
+      </div>
+      <div className="mt-1 break-all text-sm font-semibold text-gray-900">{value || "-"}</div>
+    </div>
+  );
+}
+
+function Section({ title, icon, children, colorClass = "border-red-200 bg-red-50/40" }: { title: string; icon?: React.ReactNode; children: React.ReactNode; colorClass?: string }) {
+  return (
+    <div className={cn("space-y-3 rounded-xl border p-4", colorClass)}>
+      <div className="flex items-center gap-2">
+        {icon && <div className="flex-shrink-0">{icon}</div>}
+        <h3 className="text-sm font-semibold text-gray-700">{title}</h3>
+      </div>
+      {children}
+    </div>
+  );
 }
 
 export default function EnrollmentDetailModal({
@@ -77,14 +113,14 @@ export default function EnrollmentDetailModal({
   const getStatusBadge = (status: string) => {
     const statusText = STATUS_MAPPING[status as StatusType] || status;
     const statusMap: Record<string, { bg: string; text: string; icon: any }> = {
-      "Đang học": { bg: "bg-emerald-100", text: "text-emerald-700", icon: CheckCircle2 },
+      "Đang học": { bg: "bg-green-100", text: "text-green-700", icon: CheckCircle2 },
       "Tạm nghỉ": { bg: "bg-amber-100", text: "text-amber-700", icon: PauseCircle },
       "Đã nghỉ": { bg: "bg-rose-100", text: "text-rose-700", icon: XCircle },
     };
     const config = statusMap[statusText] || statusMap["Đang học"];
     const Icon = config.icon;
     return (
-      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium ${config.bg} ${config.text}`}>
+      <span className={cn("inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold", config.bg, config.text)}>
         <Icon size={14} />
         {statusText}
       </span>
@@ -92,45 +128,60 @@ export default function EnrollmentDetailModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-9999 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="bg-linear-to-r from-red-600 to-red-700 text-white p-5 rounded-t-2xl flex justify-between items-center">
-          <h2 className="text-xl font-bold flex items-center gap-2">
-            <BookOpen size={22} />
-            Chi tiết ghi danh
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-1 rounded-lg hover:bg-white/10 transition-colors text-white"
-          >
-            <X size={22} />
-          </button>
+    <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="relative max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        {/* Modal Header - Gradient đỏ như các modal khác */}
+        <div className="sticky top-0 z-10 bg-gradient-to-r from-red-600 to-red-700 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
+                <BookOpen size={20} className="text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">Chi tiết ghi danh</h3>
+                <p className="text-xs text-red-100">Thông tin chi tiết về ghi danh học</p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer"
+              aria-label="Đóng"
+            >
+              <X size={20} className="text-white" />
+            </button>
+          </div>
         </div>
 
         {/* Tabs */}
-        <div className="border-b border-gray-200 px-6">
-          <div className="flex gap-4">
+        <div className="border-b border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6">
+          <div className="flex gap-1">
             <button
               onClick={() => setActiveTab("details")}
-              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={cn(
+                "px-5 py-3 text-sm font-medium transition-all cursor-pointer",
                 activeTab === "details"
-                  ? "border-purple-500 text-purple-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
-              }`}
+                  ? "border-b-2 border-red-600 text-red-600 bg-white -mb-px rounded-t-lg"
+                  : "text-gray-500 hover:text-gray-700"
+              )}
             >
-              Thông tin
+              <div className="flex items-center gap-2">
+                <FileText size={14} />
+                Thông tin
+              </div>
             </button>
             <button
               onClick={() => setActiveTab("history")}
-              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
+              className={cn(
+                "px-5 py-3 text-sm font-medium transition-all cursor-pointer",
                 activeTab === "history"
-                  ? "border-purple-500 text-purple-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
-              }`}
+                  ? "border-b-2 border-red-600 text-red-600 bg-white -mb-px rounded-t-lg"
+                  : "text-gray-500 hover:text-gray-700"
+              )}
             >
-              <History size={14} />
-              Lịch sử
+              <div className="flex items-center gap-2">
+                <History size={14} />
+                Lịch sử
+              </div>
             </button>
           </div>
         </div>
@@ -138,119 +189,153 @@ export default function EnrollmentDetailModal({
         {/* Content */}
         <div className="p-6">
           {activeTab === "details" && (
-            <div className="space-y-4">
-              {/* Status */}
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-500">Trạng thái</span>
-                {getStatusBadge(enrollment.status)}
-              </div>
-
-              {/* Student Info */}
-              <div className="bg-gray-50 rounded-xl p-4 space-y-3">
-                <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                  <User size={16} className="text-purple-500" />
-                  Thông tin học viên
-                </h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-xs text-gray-500">Họ tên</p>
-                    <p className="text-sm font-medium">{enrollment.studentName || "N/A"}</p>
+            <div className="space-y-5">
+              {/* Status Card */}
+              <div className="rounded-xl border border-red-200 bg-gradient-to-r from-red-50/50 to-white p-5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 rounded-xl bg-gradient-to-r from-red-600 to-red-700 shadow-md">
+                      <GraduationCap size={20} className="text-white" />
+                    </div>
+                    <div>
+                      <div className="text-xs uppercase tracking-wide text-gray-500">Trạng thái</div>
+                      <div className="text-lg font-bold text-gray-900">
+                        {getStatusBadge(enrollment.status)}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Class Info */}
-              <div className="bg-blue-50 rounded-xl p-4 space-y-3">
-                <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                  <BookOpen size={16} className="text-blue-500" />
-                  Thông tin lớp học
-                </h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-xs text-gray-500">Tên lớp</p>
-                    <p className="text-sm font-medium">{enrollment.classTitle || "N/A"}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Mã lớp</p>
-                    <p className="text-sm font-medium">{enrollment.classCode || "N/A"}</p>
-                  </div>
+              {/* Student Info Section */}
+              <Section 
+                title="Thông tin học viên" 
+                icon={<User size={16} className="text-blue-600" />}
+                colorClass="border-blue-200 bg-blue-50/40"
+              >
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <InfoCard
+                    icon={<User size={14} />}
+                    label="Họ tên học viên"
+                    value={enrollment.studentName || "N/A"}
+                  />
+                  
+                </div>
+              </Section>
+
+              {/* Class Info Section */}
+              <Section 
+                title="Thông tin lớp học" 
+                icon={<BookOpen size={16} className="text-emerald-600" />}
+                colorClass="border-emerald-200 bg-emerald-50/40"
+              >
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <InfoCard
+                    icon={<BookOpen size={14} />}
+                    label="Tên lớp"
+                    value={enrollment.classTitle || "N/A"}
+                  />
+                  <InfoCard
+                    icon={<Tag size={14} />}
+                    label="Mã lớp"
+                    value={enrollment.classCode || "N/A"}
+                  />
                   {enrollment.schedulePattern && (
-                    <div className="col-span-2">
-                      <p className="text-xs text-gray-500">Lịch học</p>
-                      <p className="text-sm font-medium">{enrollment.schedulePattern}</p>
-                    </div>
+                    <InfoCard
+                      icon={<Clock size={14} />}
+                      label="Lịch học"
+                      value={enrollment.schedulePattern}
+                    />
                   )}
-                  {enrollment.capacity !== undefined && enrollment.capacity !== null && (
-                    <div>
-                      <p className="text-xs text-gray-500">Sĩ số</p>
-                      <p className="text-sm font-medium">{enrollment.capacity}</p>
-                    </div>
-                  )}
+                  
                 </div>
-              </div>
+              </Section>
 
-              {/* Enrollment Info */}
-              <div className="bg-green-50 rounded-xl p-4 space-y-3">
-                <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                  <Calendar size={16} className="text-green-500" />
-                  Thông tin ghi danh
-                </h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-xs text-gray-500">Ngày ghi danh</p>
-                    <p className="text-sm font-medium">{formatDate(enrollment.enrollDate)}</p>
-                  </div>
+              {/* Enrollment Info Section */}
+              <Section 
+                title="Thông tin ghi danh" 
+                icon={<Calendar size={16} className="text-purple-600" />}
+                colorClass="border-purple-200 bg-purple-50/40"
+              >
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <InfoCard
+                    icon={<Calendar size={14} />}
+                    label="Ngày ghi danh"
+                    value={formatDate(enrollment.enrollDate)}
+                  />
                   {enrollment.tuitionPlanName && (
-                    <div>
-                      <p className="text-xs text-gray-500">Gói học phí</p>
-                      <p className="text-sm font-medium">{enrollment.tuitionPlanName}</p>
-                    </div>
+                    <InfoCard
+                      icon={<Tag size={14} />}
+                      label="Gói học phí"
+                      value={enrollment.tuitionPlanName}
+                    />
                   )}
                   {enrollment.createdAt && (
-                    <div>
-                      <p className="text-xs text-gray-500">Ngày tạo</p>
-                      <p className="text-sm font-medium">{formatDate(enrollment.createdAt)}</p>
-                    </div>
+                    <InfoCard
+                      icon={<Calendar size={14} />}
+                      label="Ngày tạo"
+                      value={formatDate(enrollment.createdAt)}
+                    />
                   )}
                   {enrollment.updatedAt && (
-                    <div>
-                      <p className="text-xs text-gray-500">Cập nhật lần cuối</p>
-                      <p className="text-sm font-medium">{formatDate(enrollment.updatedAt)}</p>
-                    </div>
+                    <InfoCard
+                      icon={<Clock size={14} />}
+                      label="Cập nhật lần cuối"
+                      value={formatDate(enrollment.updatedAt)}
+                    />
                   )}
                 </div>
-              </div>
+              </Section>
             </div>
           )}
 
           {activeTab === "history" && (
             <div className="space-y-3">
               {isLoadingHistory ? (
-                <div className="text-center py-8">
-                  <div className="animate-spin w-8 h-8 border-4 border-purple-300 border-t-purple-600 rounded-full mx-auto mb-3" />
-                  <p className="text-sm text-gray-500">Đang tải lịch sử...</p>
+                <div className="flex items-center justify-center gap-2 py-12">
+                  <Loader2 size={20} className="animate-spin text-red-500" />
+                  <span className="text-sm text-gray-500">Đang tải lịch sử...</span>
                 </div>
               ) : history.length === 0 ? (
-                <div className="text-center py-8">
-                  <Clock size={36} className="mx-auto text-gray-300 mb-3" />
-                  <p className="text-sm text-gray-500">Chưa có lịch sử ghi danh</p>
+                <div className="text-center py-12">
+                  <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center">
+                    <History size={24} className="text-gray-400" />
+                  </div>
+                  <div className="text-gray-600 font-medium">Chưa có lịch sử ghi danh</div>
+                  <div className="text-sm text-gray-500 mt-1">Học viên chưa có lịch sử thay đổi lớp</div>
                 </div>
               ) : (
-                history.map((item) => (
+                history.map((item, index) => (
                   <div
-                    key={item.id}
-                    className="flex items-start gap-3 p-4 rounded-xl border border-gray-200 hover:border-purple-200 transition-colors"
+                    key={item.id || index}
+                    className="group rounded-xl border border-gray-200 bg-white p-4 hover:border-red-200 hover:shadow-md transition-all duration-200"
                   >
-                    <div className="shrink-0 mt-0.5">
-                      {getStatusBadge(item.status)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900">
-                        {item.classTitle || item.classCode || "N/A"}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        Ghi danh: {formatDate(item.enrollDate)}
-                      </p>
+                    <div className="flex flex-wrap items-start gap-3">
+                      <div className="flex-shrink-0">
+                        <div className="p-2 rounded-lg bg-red-50">
+                          <BookOpen size={16} className="text-red-500" />
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <h4 className="text-sm font-semibold text-gray-900">
+                            {item.classTitle || item.classCode || "N/A"}
+                          </h4>
+                          {getStatusBadge(item.status)}
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-gray-500">
+                          <div className="flex items-center gap-1.5">
+                            <Calendar size={12} className="text-gray-400" />
+                            <span>Ghi danh: {formatDate(item.enrollDate)}</span>
+                          </div>
+                          {item.classCode && (
+                            <div className="flex items-center gap-1.5">
+                              <Tag size={12} className="text-gray-400" />
+                              <span>Mã lớp: {item.classCode}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ))
@@ -260,13 +345,15 @@ export default function EnrollmentDetailModal({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-gray-200 px-6 py-4 flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-6 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
-          >
-            Đóng
-          </button>
+        <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
+          <div className="flex items-center justify-end">
+            <button
+              onClick={onClose}
+              className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer"
+            >
+              Đóng
+            </button>
+          </div>
         </div>
       </div>
     </div>

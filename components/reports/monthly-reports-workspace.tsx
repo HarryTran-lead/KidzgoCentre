@@ -1832,8 +1832,8 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
 
       {/* Detail Modal — portal */}
       {detailModalOpen && displayReport && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="relative w-full max-w-4xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setDetailModalOpen(false)}>
+          <div className="relative w-full max-w-4xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
             {/* Header */}
             <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
               <div className="flex items-center justify-between">
@@ -2006,8 +2006,8 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
 
       {/* Comment Modal — portal */}
       {commentModalOpen && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="relative w-full max-w-lg bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={closeCommentDialog}>
+          <div className="relative w-full max-w-lg bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
             {/* Header */}
             <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
               <div className="flex items-center justify-between">
