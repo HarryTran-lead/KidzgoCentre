@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, CalendarDays, MapPin, Users, Clock3 } from "lucide-react";
 import { getParentTimetable, type ParentTimetableSession } from "@/lib/api/parentScheduleService";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { parseApiDateKeepWallClock } from "@/lib/datetime";
 
 type TabType = "all" | "classes" | "makeup" | "events";
 type TimeSlot = "morning" | "afternoon" | "evening";
@@ -327,7 +328,7 @@ export default function SchedulePage() {
     filteredSessions.forEach((s) => {
       const planned = s.plannedDatetime ?? s.actualDatetime;
       if (!planned) return;
-      const start = new Date(planned);
+      const start = parseApiDateKeepWallClock(planned);
       if (Number.isNaN(start.getTime())) return;
 
       const duration = Number(s.durationMinutes ?? 0);

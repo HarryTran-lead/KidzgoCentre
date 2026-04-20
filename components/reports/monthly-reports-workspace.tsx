@@ -33,6 +33,14 @@ const STATUS_ALIAS: Record<string, string> = {
   Review: "Submitted",
 };
 
+const STATUS_LABEL_VI: Record<string, string> = {
+  Draft: "Nháp",
+  Submitted: "Đã gửi",
+  Approved: "Đã duyệt",
+  Rejected: "Cần chỉnh sửa",
+  Published: "Đã công bố",
+};
+
 function normalizeStatus(status?: string) {
   const normalized = String(status ?? "").trim();
   return STATUS_ALIAS[normalized] ?? normalized;
@@ -239,6 +247,7 @@ async function apiFetch<T = unknown>(url: string, init?: RequestInit): Promise<T
 
 function StatusBadge({ status }: { status: ReportStatus }) {
   const displayStatus = STATUS_ALIAS[status] ?? status;
+  const label = STATUS_LABEL_VI[displayStatus] ?? displayStatus;
   const map: Record<string, string> = {
     Draft: "bg-amber-50 text-amber-700 border-amber-200",
     Submitted: "bg-red-50 text-red-700 border-red-200",
@@ -261,7 +270,7 @@ function StatusBadge({ status }: { status: ReportStatus }) {
         }`}
     >
       {icons[displayStatus] || <FileText size={12} />}
-      {displayStatus}
+      {label}
     </span>
   );
 }
@@ -896,7 +905,37 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
     [activeReportId, activeReportSource],
   );
 
-  const displayReport = activeReportDetail ?? activeReport;
+  const displayReport = useMemo(() => {
+    if (!activeReportDetail) return activeReport;
+
+    const rawDetail = activeReportDetail as MonthlyReport & {
+      assignedTeacherName?: string;
+      teacherFullName?: string;
+      teacher?: { name?: string };
+    };
+
+    const teacherName =
+      rawDetail.teacherName ||
+      rawDetail.assignedTeacherName ||
+      rawDetail.teacherFullName ||
+      rawDetail.teacher?.name ||
+      activeReport?.teacherName ||
+      "";
+
+    return {
+      ...rawDetail,
+      teacherName,
+    };
+  }, [activeReport, activeReportDetail]);
+
+  useEffect(() => {
+    if (!detailModalOpen) return;
+
+    window.dispatchEvent(new CustomEvent("portal:sidebar-modal-open"));
+    return () => {
+      window.dispatchEvent(new CustomEvent("portal:sidebar-modal-close"));
+    };
+  }, [detailModalOpen]);
 
   useEffect(() => {
     if (!isTeacher) return;

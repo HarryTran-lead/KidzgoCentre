@@ -1569,7 +1569,7 @@ export default function AdminSchedulePage() {
         ? created.durationMinutes
         : payload.durationMinutes;
 
-    const startDate = new Date(plannedDatetime);
+    const startDate = parseISODate(plannedDatetime);
     const newSlot: Slot = {
       id: created.id,
       classId: String(created.classId ?? payload.classId ?? ""),

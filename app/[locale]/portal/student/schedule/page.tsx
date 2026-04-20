@@ -22,7 +22,11 @@ import {
   extractStudentTimetableSessions,
   getStudentTimetable,
 } from "@/lib/api/studentTimetableService";
-import { toISOStartOfDayVN, toISOEndOfDayVN } from "@/lib/datetime";
+import {
+  parseApiDateKeepWallClock,
+  toISOStartOfDayVN,
+  toISOEndOfDayVN,
+} from "@/lib/datetime";
 import type { StudentTimetableSession } from "@/types/student/timetable";
 
 type TabType = "all" | "regular" | "makeup";
@@ -317,7 +321,7 @@ export default function StudentSchedulePage() {
     filteredSessions.forEach((s) => {
       const planned = s.plannedDatetime ?? s.actualDatetime;
       if (!planned) return;
-      const start = new Date(planned);
+      const start = parseApiDateKeepWallClock(planned);
       if (Number.isNaN(start.getTime())) return;
 
       const duration = Number(s.durationMinutes ?? 0);

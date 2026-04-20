@@ -486,7 +486,7 @@ export default function TeacherAttendancePage() {
   const [filterStatus, setFilterStatus] = useState<AttendanceStatus | "ALL">("ALL");
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [sortColumn, setSortColumn] = useState<"student" | "studentCode">("student");
+  const [sortColumn, setSortColumn] = useState<"student">("student");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   const [isSaving, setIsSaving] = useState(false);
@@ -818,7 +818,7 @@ export default function TeacherAttendancePage() {
     refreshAttendance();
   }, [refreshAttendance, selectedSessionId]);
 
-  const handleSort = (column: "student" | "studentCode") => {
+  const handleSort = (column: "student") => {
     if (sortColumn === column) {
       setSortDirection(sortDirection === "asc" ? "desc" : "asc");
     } else {
@@ -1163,8 +1163,6 @@ export default function TeacherAttendancePage() {
       let comparison = 0;
       if (sortColumn === "student") {
         comparison = (a.name ?? "").localeCompare(b.name ?? "");
-      } else {
-        comparison = (a.studentCode ?? "").localeCompare(b.studentCode ?? "");
       }
       return sortDirection === "asc" ? comparison : -comparison;
     });
@@ -1888,15 +1886,6 @@ export default function TeacherAttendancePage() {
                           onSort={handleSort}
                         />
                       </th>
-                      <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">
-                        <SortableHeader
-                          label="Mã HV"
-                          column="studentCode"
-                          sortColumn={sortColumn}
-                          sortDirection={sortDirection}
-                          onSort={handleSort}
-                        />
-                      </th>
                       <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">Trạng thái</th>
                       <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">Ghi chú</th>
                       <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">Thao tác</th>
@@ -1942,9 +1931,6 @@ export default function TeacherAttendancePage() {
                               </div>
                             </div>
                           </td>
-
-                          <td className="px-4 py-4 text-sm text-gray-900 font-medium">{record.studentCode || "—"}</td>
-
                           <td className="px-4 py-4">
                             <div className="space-y-2">
                               {shouldCollapseStatus ? (

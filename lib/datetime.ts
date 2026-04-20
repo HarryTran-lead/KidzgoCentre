@@ -123,6 +123,37 @@ export function toISODateTimeVN(date: string, time: string): string {
   return `${date}T${hh}:${mm}:${ss}+07:00`;
 }
 
+/**
+ * Parse API datetime and keep wall-clock fields unchanged.
+ *
+ * Use this only for legacy endpoints that may serialize local time with a trailing
+ * timezone suffix (for example "Z") even when the intended display time should
+ * stay the same as the original hour/minute in payload.
+ */
+export function parseApiDateKeepWallClock(value?: string | null): Date {
+  if (!value) return new Date(NaN);
+
+  const normalized = value.trim();
+  const match = normalized.match(
+    /^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,7})?)?(?:Z|[+-]\d{2}:?\d{2})?$/
+  );
+
+  if (!match) {
+    return new Date(normalized);
+  }
+
+  const [, y, m, d, hh, mm, ss] = match;
+  return new Date(
+    Number(y),
+    Number(m) - 1,
+    Number(d),
+    Number(hh),
+    Number(mm),
+    Number(ss ?? "0"),
+    0
+  );
+}
+
 // ─── Internal ───────────────────────────────────────────────────────
 
 function getVNParts(date: Date) {

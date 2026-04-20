@@ -575,6 +575,15 @@ function DetailModal({
 }) {
   const router = useRouter();
   const params = useParams();
+
+  useEffect(() => {
+    if (!request) return;
+    window.dispatchEvent(new CustomEvent("portal:sidebar-modal-open"));
+    return () => {
+      window.dispatchEvent(new CustomEvent("portal:sidebar-modal-close"));
+    };
+  }, [request]);
+
   if (!request) return null;
 
   const canComplete = request.status === "Requested" || request.status === "InProgress";
