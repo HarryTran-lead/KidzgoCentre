@@ -30,7 +30,7 @@ import {
 } from "@/types/teacher/homework";
 
 /**
- * Fetch classes for dropdown - uses teacher enrollments API
+ * Fetch classes for dropdown - uses teacher classes API to get only teacher's classes
  */
 export async function fetchClasses(): Promise<ClassOption[]> {
   const token = getAccessToken();
@@ -41,7 +41,7 @@ export async function fetchClasses(): Promise<ClassOption[]> {
 
   try {
     const pageSize = 100;
-    const res = await fetch(`${TEACHER_ENDPOINTS.ENROLLMENTS}?pageNumber=1&pageSize=${pageSize}`, {
+    const res = await fetch(`${TEACHER_ENDPOINTS.CLASSES}?pageNumber=1&pageSize=${pageSize}`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -54,32 +54,28 @@ export async function fetchClasses(): Promise<ClassOption[]> {
 
     const json = await res.json();
     
-    // Process enrollment data to get unique classes
+    // Process class data from /api/teacher/classes endpoint
+    // Structure: { isSuccess: true, data: { classes: { items: [...] } } }
     let rawItems: any[] = [];
-    if (json?.data?.enrollments?.items) {
-      rawItems = json.data.enrollments.items;
-    } else if (json?.data?.items) {
+    
+    if (json?.data?.classes?.items && Array.isArray(json.data.classes.items)) {
+      rawItems = json.data.classes.items;
+    } else if (json?.data?.items && Array.isArray(json.data.items)) {
       rawItems = json.data.items;
     } else if (Array.isArray(json?.data)) {
       rawItems = json.data;
     }
 
-    // Aggregate by classId
-    const classMap = new Map<string, ClassOption>();
-    for (const item of rawItems) {
-      const classId = String(item.classId || item.id || "");
-      if (!classId) continue;
-      
-      if (!classMap.has(classId)) {
-        classMap.set(classId, {
-          id: classId,
-          name: item.classTitle || item.className || item.classCode || "Lớp học",
-          code: item.classCode || "",
-        });
-      }
-    }
-
-    return Array.from(classMap.values());
+    // Map to ClassOption
+    const result = rawItems.map((item) => ({
+      id: String(item.id || item.classId || ""),
+      name: item.title || item.name || item.className || "Lớp học",
+      code: item.code || item.classCode || "",
+      programId: item.programId || item.program?.id,
+      programName: item.programName || item.program?.name,
+    })).filter((c) => c.id);
+    
+    return result;
   } catch (error) {
     console.error("Error fetching classes:", error);
     return [];

@@ -212,9 +212,7 @@ export default function ClassDetailPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
   const [isPageLoaded, setIsPageLoaded] = useState(false);
-  const selectAllCheckboxRef = useRef<HTMLInputElement>(null);
   const itemsPerPage = 10;
   useEffect(() => {
     const controller = new AbortController();
@@ -270,50 +268,6 @@ export default function ClassDetailPage() {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const paginatedStudents = filteredStudents.slice(startIndex, endIndex);
-
-  // Selection handlers
-  const handleSelectStudent = (studentId: string) => {
-    setSelectedStudents((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(studentId)) {
-        newSet.delete(studentId);
-      } else {
-        newSet.add(studentId);
-      }
-      return newSet;
-    });
-  };
-
-  const handleSelectAll = () => {
-    const allIds = paginatedStudents.map((s) => s.id);
-    const allSelected = allIds.every((id) => selectedStudents.has(id));
-
-    if (allSelected) {
-      // Deselect all on current page
-      setSelectedStudents((prev) => {
-        const newSet = new Set(prev);
-        allIds.forEach((id) => newSet.delete(id));
-        return newSet;
-      });
-    } else {
-      // Select all on current page
-      setSelectedStudents((prev) => {
-        const newSet = new Set(prev);
-        allIds.forEach((id) => newSet.add(id));
-        return newSet;
-      });
-    }
-  };
-
-  const isAllSelected = paginatedStudents.length > 0 && paginatedStudents.every((s) => selectedStudents.has(s.id));
-  const isIndeterminate = paginatedStudents.some((s) => selectedStudents.has(s.id)) && !isAllSelected;
-
-  // Set indeterminate state for select all checkbox
-  useEffect(() => {
-    if (selectAllCheckboxRef.current) {
-      selectAllCheckboxRef.current.indeterminate = isIndeterminate;
-    }
-  }, [isIndeterminate]);
 
   if (loading || !classData) {
     return (
@@ -487,16 +441,9 @@ export default function ClassDetailPage() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-semibold text-gray-900">Danh sách học viên</h2>
-              <div className="flex items-center gap-3 mt-1">
-                <p className="text-sm text-gray-600">
-                  {filteredStudents.length} / {allStudents.length} học viên
-                </p>
-                {selectedStudents.size > 0 && (
-                  <span className="text-sm font-semibold text-red-600 bg-red-50 px-3 py-1 rounded-full border border-red-200">
-                    Đã chọn: {selectedStudents.size}
-                  </span>
-                )}
-              </div>
+              <p className="text-sm text-gray-600 mt-1">
+                {filteredStudents.length} / {allStudents.length} học viên
+              </p>
             </div>
 
             <div className="flex items-center gap-3">
@@ -550,17 +497,6 @@ export default function ClassDetailPage() {
           <table className="w-full">
             <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-gray-200">
               <tr>
-                <th className="px-6 py-4 w-12">
-                  <div className="flex items-center justify-center">
-                    <input
-                      type="checkbox"
-                      ref={selectAllCheckboxRef}
-                      checked={isAllSelected}
-                      onChange={handleSelectAll}
-                      className="w-4 h-4 text-red-600 bg-white border-gray-300 rounded focus:ring-red-500 focus:ring-2 cursor-pointer"
-                    />
-                  </div>
-                </th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Học viên</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Liên hệ</th>
                 <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">Đã vắng</th>
@@ -574,18 +510,8 @@ export default function ClassDetailPage() {
                 paginatedStudents.map((student, index) => (
                   <tr
                     key={student.id}
-                    className={`group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200 ${selectedStudents.has(student.id) ? "bg-red-50/50" : ""}`}
+                    className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200"
                   >
-                    <td className="px-6 py-3">
-                      <div className="flex items-center justify-center">
-                        <input
-                          type="checkbox"
-                          checked={selectedStudents.has(student.id)}
-                          onChange={() => handleSelectStudent(student.id)}
-                          className="w-4 h-4 text-red-600 bg-white border-gray-300 rounded focus:ring-red-500 focus:ring-2 cursor-pointer"
-                        />
-                      </div>
-                    </td>
                     <td className="px-6 py-3">
                       <div className="flex items-center gap-3">
                         <StudentAvatar name={student.name} />

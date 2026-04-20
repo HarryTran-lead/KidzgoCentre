@@ -24,7 +24,7 @@ export default function ExamRow({
       <div className="col-span-1 text-slate-600">{duration}</div>
       <div className="col-span-1"><Pill color={color as any}>{status}</Pill></div>
       <div className="col-span-1 flex justify-end">
-        <button className="rounded-lg border px-2.5 py-2 hover:bg-slate-50" title="Tải xuống">
+        <button className="rounded-lg border px-2.5 py-2 hover:bg-slate-50 cursor-pointer" title="Tải xuống">
           <Download size={16} />
         </button>
       </div>

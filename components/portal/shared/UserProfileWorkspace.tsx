@@ -1382,7 +1382,7 @@ export default function UserProfileWorkspace() {
                 </div>
 
                 <div className="pt-2">
-                  <button className="group relative flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white text-sm font-semibold rounded-xl hover:shadow-lg transition-all duration-300 overflow-hidden">
+                  <button className="group relative flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white text-sm font-semibold rounded-xl hover:shadow-lg transition-all duration-300 overflow-hidden cursor-pointer">
                     <div className="absolute inset-0 bg-gradient-to-r from-red-700 to-red-800 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                     <span className="relative flex items-center gap-2">
                       <Save size={16} />

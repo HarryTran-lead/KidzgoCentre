@@ -52,6 +52,7 @@ import { fetchHomework, mapSubmissionToUi, createHomework, fetchClasses, fetchSe
 import { uploadFile, isUploadSuccess } from "@/lib/api/fileService";
 import { getActiveProgramsForDropdown, getAllProgramsForDropdown } from "@/lib/api/programService";
 import { dateOnlyVN } from "@/lib/datetime";
+import { toast } from "@/hooks/use-toast";
 import type { HomeworkSubmission, CreateHomeworkPayload, ClassOption, SessionOption, MultipleChoiceQuestion } from "@/types/teacher/homework";
 import type { AiGeneratedQuestionDraft } from "@/app/api/admin/question-bank";
 import AiCreatorModal from "@/components/question-bank/AiCreatorModal";
@@ -413,6 +414,9 @@ function CreateAssignmentModal({
   const [sessions, setSessions] = useState<SessionOption[]>([]);
   const [isLoadingSessions, setIsLoadingSessions] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
+  const titleRef = useRef<HTMLInputElement>(null);
+  const dueDateRef = useRef<HTMLInputElement>(null);
+  const classSelectRef = useRef<HTMLDivElement>(null);
   const hasChildModalOpen =
     showImportBankModal || showImportExcelModal || showAiCreatorModal;
 
@@ -616,19 +620,44 @@ function CreateAssignmentModal({
     e.preventDefault();
 
     if (!title.trim()) {
-      setError("Vui lòng nhập tiêu đề bài tập");
+      toast({
+        title: "Thiếu thông tin",
+        description: "Vui lòng nhập tiêu đề bài tập",
+        variant: "destructive",
+        duration: 3000,
+      });
+      titleRef.current?.focus();
+      titleRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
     if (!selectedClass) {
-      setError("Vui lòng chọn lớp học");
+      toast({
+        title: "Thiếu thông tin",
+        description: "Vui lòng chọn lớp học",
+        variant: "destructive",
+        duration: 3000,
+      });
+      classSelectRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
     if (!dueDate) {
-      setError("Vui lòng chọn ngày hết hạn");
+      toast({
+        title: "Thiếu thông tin",
+        description: "Vui lòng chọn ngày hết hạn",
+        variant: "destructive",
+        duration: 3000,
+      });
+      dueDateRef.current?.focus();
+      dueDateRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
     if (activeTab === "MULTIPLE_CHOICE" && questions.length === 0) {
-      setError("Vui lòng thêm ít nhất 1 câu hỏi");
+      toast({
+        title: "Thiếu thông tin",
+        description: "Vui lòng thêm ít nhất 1 câu hỏi",
+        variant: "destructive",
+        duration: 3000,
+      });
       return;
     }
 
@@ -662,9 +691,21 @@ function CreateAssignmentModal({
         });
 
         if (result.ok) {
+          toast({
+            title: "Thành công",
+            description: "Bài tập trắc nghiệm đã được tạo và giao cho học viên.",
+            variant: "success",
+            duration: 5000,
+          });
           onSuccess();
         } else {
           setError(result.error || "Có lỗi xảy ra. Vui lòng thử lại.");
+          toast({
+            title: "Lỗi",
+            description: result.error || "Có lỗi xảy ra. Vui lòng thử lại.",
+            variant: "destructive",
+            duration: 5000,
+          });
         }
       } else {
         const uploadedAttachmentUrls: string[] = [];
@@ -710,13 +751,32 @@ function CreateAssignmentModal({
         const result = await createHomework(payload);
 
         if (result.ok) {
+          toast({
+            title: "Thành công",
+            description: "Bài tập đã được tạo và giao cho học viên.",
+            variant: "success",
+            duration: 5000,
+          });
           onSuccess();
         } else {
           setError(result.error || "Có lỗi xảy ra. Vui lòng thử lại.");
+          toast({
+            title: "Lỗi",
+            description: result.error || "Có lỗi xảy ra. Vui lòng thử lại.",
+            variant: "destructive",
+            duration: 5000,
+          });
         }
       }
-    } catch (err) {
-      setError("Có lỗi xảy ra. Vui lòng thử lại.");
+    } catch {
+      const errorMessage = "Có lỗi xảy ra. Vui lòng thử lại.";
+      setError(errorMessage);
+      toast({
+        title: "Lỗi",
+        description: errorMessage,
+        variant: "destructive",
+        duration: 5000,
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -816,6 +876,7 @@ function CreateAssignmentModal({
                   Tiêu đề bài tập <span className="text-red-500">*</span>
                 </label>
                 <input
+                  ref={titleRef}
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
@@ -830,7 +891,7 @@ function CreateAssignmentModal({
                     <Users size={16} className="text-red-600" />
                     Lớp học <span className="text-red-500">*</span>
                   </label>
-                  <div onClick={(e) => e.stopPropagation()}>
+                  <div onClick={(e) => e.stopPropagation()} ref={classSelectRef}>
                     <Select
                       value={selectedClass}
                       onValueChange={(val) => {
@@ -944,6 +1005,7 @@ function CreateAssignmentModal({
                     Ngày hết hạn <span className="text-red-500">*</span>
                   </label>
                   <input
+                    ref={dueDateRef}
                     type="date"
                     value={dueDate}
                     onChange={(e) => setDueDate(e.target.value)}
@@ -1560,6 +1622,8 @@ function CreateAssignmentModal({
         isOpen={showImportBankModal}
         onClose={() => setShowImportBankModal(false)}
         onImport={handleImportFromBank}
+        selectedClassId={selectedClass}
+        classesData={classes}
       />
 
       <AiCreatorModal
@@ -1622,16 +1686,32 @@ function UpdateAssignmentModal({
   const [pages, setPages] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const updateTitleRef = useRef<HTMLInputElement>(null);
+  const updateDueDateRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!title.trim()) {
-      setError("Vui lòng nhập tiêu đề bài tập");
+      toast({
+        title: "Thiếu thông tin",
+        description: "Vui lòng nhập tiêu đề bài tập",
+        variant: "destructive",
+        duration: 3000,
+      });
+      updateTitleRef.current?.focus();
+      updateTitleRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
     if (!dueDate) {
-      setError("Vui lòng chọn ngày hết hạn");
+      toast({
+        title: "Thiếu thông tin",
+        description: "Vui lòng chọn ngày hết hạn",
+        variant: "destructive",
+        duration: 3000,
+      });
+      updateDueDateRef.current?.focus();
+      updateDueDateRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
 
@@ -1651,12 +1731,31 @@ function UpdateAssignmentModal({
       const result = await updateHomework(homeworkId, payload);
 
       if (result.ok) {
+        toast({
+          title: "Thành công",
+          description: "Bài tập đã được cập nhật.",
+          variant: "success",
+          duration: 5000,
+        });
         onSuccess();
       } else {
         setError(result.error || "Có lỗi xảy ra. Vui lòng thử lại.");
+        toast({
+          title: "Lỗi",
+          description: result.error || "Có lỗi xảy ra. Vui lòng thử lại.",
+          variant: "destructive",
+          duration: 5000,
+        });
       }
-    } catch (err) {
-      setError("Có lỗi xảy ra. Vui lòng thử lại.");
+    } catch {
+      const errorMessage = "Có lỗi xảy ra. Vui lòng thử lại.";
+      setError(errorMessage);
+      toast({
+        title: "Lỗi",
+        description: errorMessage,
+        variant: "destructive",
+        duration: 5000,
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -1709,6 +1808,7 @@ function UpdateAssignmentModal({
               Tiêu đề bài tập <span className="text-red-500">*</span>
             </label>
             <input
+              ref={updateTitleRef}
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -1736,6 +1836,7 @@ function UpdateAssignmentModal({
                 Ngày hết hạn <span className="text-red-500">*</span>
               </label>
               <input
+                ref={updateDueDateRef}
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
@@ -1862,13 +1963,31 @@ export default function TeacherAssignmentsPage() {
     try {
       const result = await deleteHomework(homeworkToDelete);
       if (result.ok) {
+        toast({
+          title: "Thành công",
+          description: "Bài tập đã được xóa.",
+          variant: "success",
+          duration: 5000,
+        });
         setDeleteModalOpen(false);
         setHomeworkToDelete(null);
         loadHomework(1);
       } else {
+        toast({
+          title: "Lỗi",
+          description: result.error || "Không thể xóa bài tập. Vui lòng thử lại.",
+          variant: "destructive",
+          duration: 5000,
+        });
         console.error("Failed to delete homework:", result.error);
       }
     } catch (error) {
+      toast({
+        title: "Lỗi",
+        description: "Có lỗi xảy ra. Vui lòng thử lại.",
+        variant: "destructive",
+        duration: 5000,
+      });
       console.error("Error deleting homework:", error);
     } finally {
       setIsDeleting(false);

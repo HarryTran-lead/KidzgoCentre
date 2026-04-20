@@ -14,6 +14,7 @@ import {
   Phone,
   Lock,
   Building2,
+  AlertCircle,
 } from "lucide-react";
 import {
   USER_ENDPOINTS,
@@ -462,51 +463,54 @@ export default function CreateAccountProfileModal({
   const stepIndex = steps.findIndex((s) => s.key === currentStep);
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-9999 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-9999 p-3 animate-in fade-in duration-200" onClick={handleClose}>
+      <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div className="sticky top-0 bg-linear-to-r from-red-600 to-red-700 text-white p-6 rounded-t-2xl flex justify-between items-center">
+        <div className="sticky top-0 bg-gradient-to-r from-red-600 via-red-600 to-red-700 text-white px-6 py-4 flex justify-between items-center shadow-lg">
           <h2 className="text-xl font-bold flex items-center gap-2">
-            <UserPlus size={24} />
-            Tạo tài khoản & Profile
+            <div className="p-1.5 bg-white/20 rounded-lg backdrop-blur-sm">
+              <UserPlus size={20} />
+            </div>
+            <span>Tạo tài khoản & Profile</span>
           </h2>
           <button
             onClick={handleClose}
-            className="p-1 rounded-lg hover:bg-white/10 transition-colors text-white"
+            className="p-1.5 rounded-lg hover:bg-white/20 transition-all hover:scale-110 text-white hover:shadow-lg cursor-pointer"
           >
-            <X size={24} />
+            <X size={20} />
           </button>
         </div>
 
         {/* Steps indicator */}
-        <div className="px-6 py-4 bg-gray-50 border-b">
-          <div className="flex items-center justify-between">
+        <div className="px-6 py-3 bg-gradient-to-b from-gray-50 to-white border-b border-gray-200">
+          <div className="flex items-center justify-between gap-2">
             {steps.map((step, idx) => {
               const Icon = step.icon;
               const isActive = idx === stepIndex;
               const isCompleted = idx < stepIndex;
               return (
-                <div key={step.key} className="flex items-center gap-1">
+                <div key={step.key} className="flex items-center flex-1 gap-1.5">
                   <div
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg font-medium transition-all whitespace-nowrap text-xs ${
                       isActive
-                        ? "bg-red-100 text-red-600 border border-red-700"
+                        ? "bg-red-100 text-red-700 border-2 border-red-500 shadow-md scale-105"
                         : isCompleted
-                          ? "bg-red-500 text-white"
-                          : "bg-gray-100 text-gray-400"
+                          ? "bg-gradient-to-r from-red-400 to-red-500 text-white shadow-sm"
+                          : "bg-gray-100 text-gray-500"
                     }`}
                   >
                     {isCompleted ? (
-                      <CheckCircle2 size={14} />
+                      <CheckCircle2 size={14} className="flex-shrink-0" />
                     ) : (
-                      <Icon size={14} />
+                      <Icon size={14} className="flex-shrink-0" />
                     )}
-                    <span className="hidden sm:inline">{step.label}</span>
+                    <span className="hidden sm:inline text-xs">{step.label}</span>
                   </div>
                   {idx < steps.length - 1 && (
-                    <ChevronRight
-                      size={14}
-                      className={`mx-1 ${isCompleted ? "text-red-400" : "text-gray-300"}`}
+                    <div
+                      className={`h-0.5 flex-1 rounded-full transition-all ${
+                        isCompleted ? "bg-gradient-to-r from-red-400 to-red-500" : "bg-gray-200"
+                      }`}
                     />
                   )}
                 </div>
@@ -517,25 +521,30 @@ export default function CreateAccountProfileModal({
 
         {/* Error message */}
         {error && (
-          <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-            {error}
+          <div className="mx-6 mt-4 p-3 bg-gradient-to-r from-red-50 to-rose-50 border-l-4 border-red-500 rounded-lg text-red-700 text-xs font-medium shadow-sm animate-in slide-in-from-top duration-200">
+            <div className="flex items-start gap-2">
+              <AlertCircle size={14} className="flex-shrink-0 mt-0.5" />
+              <span>{error}</span>
+            </div>
           </div>
         )}
 
         {/* Step Content */}
-        <div className="p-6">
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
           {/* Step 1: Create Account */}
           {currentStep === "account" && (
             <div className="space-y-4">
-              <div className="bg-rose-50 border border-rose-200 rounded-lg p-3 text-sm text-rose-700">
-                Tạo tài khoản đăng nhập cho phụ huynh từ thông tin lead. Mật
-                khẩu mặc định là <strong>123456</strong>.
+              <div className="bg-gradient-to-r from-rose-50 to-red-50 border-l-4 border-rose-400 rounded-lg p-3 text-xs text-rose-700 shadow-sm">
+                <p className="font-medium">Hướng dẫn:</p>
+                <p className="mt-1">Tạo tài khoản đăng nhập cho phụ huynh từ thông tin lead. Mật khẩu mặc định là <strong>123456</strong>.</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
-                    <User size={14} />
+                  <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
+                    <div className="p-1 bg-red-100 rounded-lg text-red-600">
+                      <User size={12} />
+                    </div>
                     Họ tên
                   </label>
                   <input
@@ -547,13 +556,16 @@ export default function CreateAccountProfileModal({
                         name: e.target.value,
                       }))
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400 outline-none"
+                    placeholder="Nhập họ tên"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-300 focus:border-red-500 outline-none transition-all bg-white hover:border-gray-400"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
-                    <Mail size={14} />
+                  <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
+                    <div className="p-1 bg-red-100 rounded-lg text-red-600">
+                      <Mail size={12} />
+                    </div>
                     Email
                   </label>
                   <input
@@ -565,13 +577,16 @@ export default function CreateAccountProfileModal({
                         email: e.target.value,
                       }))
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400 outline-none"
+                    placeholder="email@example.com"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-300 focus:border-red-500 outline-none transition-all bg-white hover:border-gray-400"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
-                    <User size={14} />
+                  <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
+                    <div className="p-1 bg-red-100 rounded-lg text-red-600">
+                      <User size={12} />
+                    </div>
                     Username
                   </label>
                   <input
@@ -583,13 +598,16 @@ export default function CreateAccountProfileModal({
                         username: e.target.value,
                       }))
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400 outline-none"
+                    placeholder="Tên đăng nhập"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-300 focus:border-red-500 outline-none transition-all bg-white hover:border-gray-400"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
-                    <Phone size={14} />
+                  <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
+                    <div className="p-1 bg-red-100 rounded-lg text-red-600">
+                      <Phone size={12} />
+                    </div>
                     Số điện thoại
                   </label>
                   <input
@@ -601,44 +619,49 @@ export default function CreateAccountProfileModal({
                         phoneNumber: e.target.value,
                       }))
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400 outline-none"
+                    placeholder="+84..."
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-300 focus:border-red-500 outline-none transition-all bg-white hover:border-gray-400"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
-                    <Lock size={14} />
+                  <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
+                    <div className="p-1 bg-gray-100 rounded-lg text-gray-600">
+                      <Lock size={12} />
+                    </div>
                     Mật khẩu (mặc định)
                   </label>
                   <input
                     type="text"
                     value={accountForm.password}
                     readOnly
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 text-gray-600 font-mono text-center"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
-                    <Building2 size={14} />
+                  <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
+                    <div className="p-1 bg-red-100 rounded-lg text-red-600">
+                      <Building2 size={12} />
+                    </div>
                     Chi nhánh
                   </label>
                   <input
                     type="text"
                     value={leadInfo?.branchName || accountForm.branchId}
                     readOnly
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 text-gray-600"
                   />
                 </div>
               </div>
-              <div className="flex justify-end pt-4">
+              <div className="flex justify-end pt-2">
                 <button
                   type="button"
                   onClick={handleCreateAccount}
                   disabled={
                     isSubmitting || !accountForm.email || !accountForm.username
                   }
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-linear-to-r from-red-600 to-red-700 text-white font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-5 py-2 rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold text-sm hover:shadow-lg hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 cursor-pointer"
                 >
                   {isSubmitting ? (
                     <Loader2 size={16} className="animate-spin" />
@@ -654,15 +677,19 @@ export default function CreateAccountProfileModal({
           {/* Step 2: Create Parent Profile */}
           {currentStep === "parent-profile" && (
             <div className="space-y-4">
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-700">
-                <CheckCircle2 size={14} className="inline mr-1" />
-                Tài khoản đã được tạo thành công! Tiếp tục tạo profile phụ huynh.
+              <div className="bg-gradient-to-r from-emerald-50 to-green-50 border-l-4 border-emerald-400 rounded-lg p-3 text-xs text-emerald-700 shadow-sm">
+                <div className="flex items-start gap-2">
+                  <CheckCircle2 size={14} className="flex-shrink-0 mt-0.5" />
+                  <p><span className="font-semibold">✓ Hoàn tất!</span> Tài khoản đã được tạo thành công. Tiếp tục tạo profile phụ huynh.</p>
+                </div>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div className="space-y-1.5">
-                  <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
-                    <User size={14} />
+                  <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
+                    <div className="p-1 bg-red-100 rounded-lg text-red-600">
+                      <User size={12} />
+                    </div>
                     Tên hiển thị (Display Name)
                   </label>
                   <input
@@ -674,13 +701,16 @@ export default function CreateAccountProfileModal({
                         displayName: e.target.value,
                       }))
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400 outline-none"
+                    placeholder="Nhập tên hiển thị"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-300 focus:border-red-500 outline-none transition-all bg-white hover:border-gray-400"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
-                    <Lock size={14} />
+                  <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
+                    <div className="p-1 bg-red-100 rounded-lg text-red-600">
+                      <Lock size={12} />
+                    </div>
                     Mã PIN (để chuyển đổi profile)
                   </label>
                   <input
@@ -694,21 +724,20 @@ export default function CreateAccountProfileModal({
                     }
                     placeholder="Nhập mã PIN 4 số"
                     maxLength={6}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400 outline-none"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-300 focus:border-red-500 outline-none transition-all bg-white hover:border-gray-400"
                   />
+                  <p className="text-xs text-gray-500">VD: 1234 hoặc 5678</p>
                 </div>
               </div>
 
-              
-
-              <div className="flex justify-between pt-4">
+              <div className="flex justify-between pt-2 gap-2">
                 <button
                   type="button"
                   onClick={() => setCurrentStep("account")}
                   disabled={isSubmitting}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-gray-300 text-gray-700 font-semibold text-sm hover:bg-gray-50 hover:border-gray-400 transition-all disabled:opacity-50 cursor-pointer"
                 >
-                  <ChevronLeft size={16} />
+                  <ChevronLeft size={14} />
                   Quay lại
                 </button>
                 <button
@@ -717,7 +746,7 @@ export default function CreateAccountProfileModal({
                   disabled={
                     isSubmitting || !parentProfileForm.displayName || !createdUserId
                   }
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-linear-to-r from-red-600 to-red-700 text-white font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-5 py-2 rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold text-sm hover:shadow-lg hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 cursor-pointer"
                 >
                   {isSubmitting ? (
                     <Loader2 size={16} className="animate-spin" />
@@ -735,16 +764,19 @@ export default function CreateAccountProfileModal({
           {/* Step 3: Create Student Profile */}
           {currentStep === "student-profile" && (
             <div className="space-y-4">
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-700">
-                <CheckCircle2 size={14} className="inline mr-1" />
-                Profile phụ huynh đã được tạo thành công! Bây giờ tạo profile
-                cho học viên.
+              <div className="bg-gradient-to-r from-emerald-50 to-green-50 border-l-4 border-emerald-400 rounded-lg p-3 text-xs text-emerald-700 shadow-sm">
+                <div className="flex items-start gap-2">
+                  <CheckCircle2 size={14} className="flex-shrink-0 mt-0.5" />
+                  <p><span className="font-semibold">✓ Hoàn tất!</span> Profile phụ huynh đã được tạo thành công. Bây giờ tạo profile cho học viên.</p>
+                </div>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div className="space-y-1.5">
-                  <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
-                    <Users size={14} />
+                  <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
+                    <div className="p-1 bg-red-100 rounded-lg text-red-600">
+                      <Users size={12} />
+                    </div>
                     Tên hiển thị học viên (Display Name)
                   </label>
                   <input
@@ -756,19 +788,20 @@ export default function CreateAccountProfileModal({
                         displayName: e.target.value,
                       }))
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none"
+                    placeholder="Nhập tên hiển thị học viên"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-300 focus:border-red-500 outline-none transition-all bg-white hover:border-gray-400"
                   />
                 </div>
               </div>
               
-              <div className="flex justify-between pt-4">
+              <div className="flex justify-between pt-2 gap-2">
                 <button
                   type="button"
                   onClick={() => setCurrentStep("parent-profile")}
                   disabled={isSubmitting}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-gray-300 text-gray-700 font-semibold text-sm hover:bg-gray-50 hover:border-gray-400 transition-all disabled:opacity-50 cursor-pointer"
                 >
-                  <ChevronLeft size={16} />
+                  <ChevronLeft size={14} />
                   Quay lại
                 </button>
                 <button
@@ -777,7 +810,7 @@ export default function CreateAccountProfileModal({
                   disabled={
                     isSubmitting || !studentProfileForm.displayName || !createdUserId
                   }
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-linear-to-r from-red-600 to-red-700 text-white font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-5 py-2 rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold text-sm hover:shadow-lg hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 cursor-pointer"
                 >
                   {isSubmitting ? (
                     <Loader2 size={16} className="animate-spin" />
@@ -795,21 +828,23 @@ export default function CreateAccountProfileModal({
           {/* Step 4: Convert To Enrolled */}
           {currentStep === "convert" && (
             <div className="space-y-4">
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-700">
-                <CheckCircle2 size={14} className="inline mr-1" />
-                Profile học viên đã được tạo thành công. Hệ thống đang chuyển thành học viên.
+              <div className="bg-gradient-to-r from-emerald-50 to-green-50 border-l-4 border-emerald-400 rounded-lg p-3 text-xs text-emerald-700 shadow-sm">
+                <div className="flex items-start gap-2">
+                  <CheckCircle2 size={14} className="flex-shrink-0 mt-0.5" />
+                  <p><span className="font-semibold">✓ Hoàn tất!</span> Profile học viên đã được tạo thành công. Hệ thống đang chuyển thành học viên.</p>
+                </div>
               </div>
 
-              <div className="rounded-lg border border-red-200 bg-red-50/40 p-4 text-sm text-gray-700">
+              <div className="rounded-lg border-l-4 border-blue-400 bg-gradient-to-r from-blue-50 to-cyan-50 p-3 text-sm shadow-sm">
                 {isSubmitting && (
-                  <div className="flex items-center gap-2 text-red-700">
-                    <Loader2 size={16} className="animate-spin" />
-                    Đang chuyển thành học viên...
+                  <div className="flex items-center gap-2 text-blue-700 font-medium">
+                    <Loader2 size={14} className="animate-spin flex-shrink-0" />
+                    <span className="text-xs">Đang chuyển thành học viên...</span>
                   </div>
                 )}
                 {!isSubmitting && convertStatus === "failed" && (
-                  <p className="text-rose-700">
-                    Chuyển thành học viên thất bại: {convertMessage}
+                  <p className="text-rose-700 font-medium text-xs">
+                    ❌ Chuyển thành học viên thất bại: {convertMessage}
                   </p>
                 )}
               </div>
@@ -819,7 +854,7 @@ export default function CreateAccountProfileModal({
                   <button
                     type="button"
                     onClick={handleConvertStep}
-                    className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-linear-to-r from-red-600 to-red-700 text-white font-medium hover:shadow-lg transition-all"
+                    className="flex items-center gap-2 px-5 py-2 rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold text-sm hover:shadow-lg hover:scale-105 transition-all cursor-pointer"
                   >
                     <UserPlus size={16} />
                     Thử lại chuyển đổi
@@ -831,47 +866,60 @@ export default function CreateAccountProfileModal({
 
           {/* Step 5: Done */}
           {currentStep === "done" && (
-            <div className="text-center py-8 space-y-4">
-              <div className="w-20 h-20 rounded-full bg-linear-to-r from-red-400 to-red-500 flex items-center justify-center mx-auto shadow-lg">
-                <CheckCircle2 size={40} className="text-white" />
+            <div className="text-center py-4 space-y-4 animate-in fade-in duration-500">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-emerald-400 to-green-600 flex items-center justify-center mx-auto shadow-2xl animate-in zoom-in-50 duration-700">
+                <CheckCircle2 size={32} className="text-white" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900">
-                Hoàn tất!
-              </h3>
-              <div className="text-gray-600 space-y-1 text-sm">
-                <p>
-                  Tài khoản và profile đã được tạo thành công với trạng thái{" "}
-                  <strong className="text-amber-600">chưa kích hoạt</strong>.
-                </p>
-                <p>
-                  Admin sẽ xem danh sách và kích hoạt các profile này.
-                </p>
-                <p>
-                  Sau đó phụ huynh sẽ đăng nhập và xác minh profile qua link
-                  email.
-                </p>
-                <p className="text-emerald-700">
-                  Chuyển đổi thành học viên: thành công.
-                </p>
+              
+              <div className="space-y-1">
+                <h3 className="text-2xl font-bold bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent">
+                  Hoàn tất!
+                </h3>
+                <p className="text-sm text-gray-600">Tài khoản và profile đã được tạo thành công</p>
               </div>
 
-              <div className="bg-gray-50 border rounded-lg p-4 text-left text-sm space-y-2 mt-4">
-                <div className="font-medium text-gray-800">
-                  Thông tin đăng nhập:
+              <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-xl p-4 text-left text-xs space-y-2 shadow-sm">
+                <div className="font-semibold text-gray-900 text-center mb-3">📋 Trạng thái</div>
+                <div className="flex items-start gap-2">
+                  <div className="mt-0.5">✓</div>
+                  <p className="text-gray-700">Tài khoản và profile được tạo với trạng thái <strong className="text-amber-600">chưa kích hoạt</strong></p>
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-gray-600">
-                  <span>Email:</span>
-                  <span className="font-medium">{accountForm.email}</span>
-                  <span>Mật khẩu:</span>
-                  <span className="font-medium">{accountForm.password}</span>
+                <div className="flex items-start gap-2">
+                  <div className="mt-0.5">✓</div>
+                  <p className="text-gray-700">Admin sẽ kiểm tra và kích hoạt các profile trong danh sách chờ</p>
+                </div>
+                <div className="flex items-start gap-2">
+                  <div className="mt-0.5">✓</div>
+                  <p className="text-gray-700">Phụ huynh sẽ nhận email để xác minh profile</p>
+                </div>
+                <div className="flex items-start gap-2">
+                  <div className="mt-0.5">✓</div>
+                  <p className="text-emerald-700 font-medium">Chuyển đổi thành học viên: ✓ Thành công</p>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 border-2 border-gray-200 rounded-xl p-4 text-left space-y-2 shadow-sm">
+                <div className="font-bold text-gray-900 flex items-center gap-1.5 text-sm">
+                  <Lock size={14} className="text-red-600" />
+                  Thông tin đăng nhập
+                </div>
+                <div className="grid gap-2">
+                  <div className="flex items-center justify-between p-2 bg-white rounded-lg border border-gray-200 text-sm">
+                    <span className="text-gray-600">Email:</span>
+                    <span className="font-mono font-semibold text-gray-800 text-xs">{accountForm.email}</span>
+                  </div>
+                  <div className="flex items-center justify-between p-2 bg-white rounded-lg border border-gray-200 text-sm">
+                    <span className="text-gray-600">Mật khẩu:</span>
+                    <span className="font-mono font-semibold text-gray-800 text-xs">{accountForm.password}</span>
+                  </div>
                 </div>
               </div>
 
               <button
                 onClick={handleClose}
-                className="mt-4 px-8 py-2.5 rounded-lg bg-linear-to-r from-red-600 to-red-700 text-white font-medium hover:shadow-lg transition-all"
+                className="w-full mt-3 px-6 py-2 rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white font-bold text-sm hover:shadow-lg hover:scale-105 transition-all cursor-pointer"
               >
-                Đóng
+                Đóng & Hoàn tất
               </button>
             </div>
           )}

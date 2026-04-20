@@ -61,7 +61,7 @@ function mapApiClassToClassItem(item: any): ClassItem {
 
 /**
  * Fetch classes for teacher
- * Uses enrollments API to get list of classes with student counts
+ * Uses /api/teacher/classes endpoint to get direct list of teacher's classes
  */
 export async function fetchTeacherClasses(
   params: FetchClassesParams = {}
@@ -77,7 +77,7 @@ export async function fetchTeacherClasses(
     pageSize: pageSize.toString(),
   });
 
-  const res = await fetch(`${TEACHER_ENDPOINTS.ENROLLMENTS}?${queryParams.toString()}`, {
+  const res = await fetch(`${TEACHER_ENDPOINTS.CLASSES}?${queryParams.toString()}`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -89,74 +89,32 @@ export async function fetchTeacherClasses(
     throw new Error("Không thể tải danh sách lớp học từ máy chủ.");
   }
 
-  const json: EnrollmentApiResponse = await res.json();
+  const json = await res.json();
 
-  // Response: json.data.enrollments.items (mỗi dòng là 1 học viên trong lớp)
-  let rawItems: EnrollmentApiItem[] = [];
-  if (json?.data && !Array.isArray(json.data)) {
-    // data is an object, check for nested structure
-    if (json.data.enrollments?.items && Array.isArray(json.data.enrollments.items)) {
-      rawItems = json.data.enrollments.items;
-    } else if (Array.isArray(json.data.items)) {
-      rawItems = json.data.items;
-    }
+  // Response structure: { isSuccess: true, data: { classes: { items: [...] } } }
+  let rawItems: any[] = [];
+  if (json?.data?.classes?.items && Array.isArray(json.data.classes.items)) {
+    rawItems = json.data.classes.items;
+  } else if (json?.data?.items && Array.isArray(json.data.items)) {
+    rawItems = json.data.items;
   } else if (Array.isArray(json?.data)) {
     rawItems = json.data;
-  } else if (Array.isArray(json)) {
-    rawItems = json;
   }
 
-  // Gom theo classId để ra danh sách lớp + sĩ số
-  const classMap = new Map<string, any>();
-  for (const item of rawItems) {
-    const classId = String(item.classId ?? "");
-    if (!classId) continue;
-
-    const existing = classMap.get(classId) ?? {
-      classId,
-      classCode: item.classCode ?? "",
-      classTitle: item.classTitle ?? "Lớp học",
-      currentEnrollmentCount: 0,
-      programName: item.programName,
-      schedulePattern: item.schedulePattern,
-      capacity: item.capacity,
-      mainTeacherName: item.mainTeacherName,
-    };
-
-    existing.currentEnrollmentCount += 1;
-    classMap.set(classId, existing);
-  }
-
-  const aggregatedClasses = Array.from(classMap.values());
-
-  // Extract pagination info safely
-  const getPaginationInfo = () => {
-    if (!json?.data || Array.isArray(json.data)) {
-      return { totalPages: undefined, totalCount: undefined };
-    }
-    return {
-      totalPages: json.data.enrollments?.totalPages ?? json.data.totalPages,
-      totalCount: json.data.enrollments?.totalCount ?? json.data.totalCount,
-    };
-  };
-
-  const paginationInfo = getPaginationInfo();
-
-  console.log("Fetched classes from enrollments:", {
-    totalClasses: aggregatedClasses.length,
+  console.log("Fetched classes from /api/teacher/classes:", {
+    totalClasses: rawItems.length,
     pageNumber,
-    totalPages: paginationInfo.totalPages,
-    sampleClass: aggregatedClasses[0],
+    sampleClass: rawItems[0],
   });
 
-  const mappedClasses = aggregatedClasses
+  const mappedClasses = rawItems
     .map(mapApiClassToClassItem)
     .filter((c: ClassItem) => c.id);
 
   return {
     classes: mappedClasses,
-    totalPages: paginationInfo.totalPages,
-    totalCount: paginationInfo.totalCount,
+    totalPages: json?.data?.classes?.totalPages,
+    totalCount: json?.data?.classes?.totalCount,
   };
 }
 

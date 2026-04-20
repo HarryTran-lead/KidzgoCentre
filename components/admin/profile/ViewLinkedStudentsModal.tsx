@@ -124,8 +124,8 @@ export default function ViewLinkedStudentsModal({
   };
 
   return (
-    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-white rounded-2xl shadow-2xl m-4">
+    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
+      <div className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-white rounded-2xl shadow-2xl m-4" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="sticky top-0 bg-gradient-to-r from-emerald-500 to-teal-500 px-6 py-4 flex items-center justify-between">
           <div>

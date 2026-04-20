@@ -54,12 +54,12 @@ const TIME_SLOTS = [
 
 const TYPE_META = {
   regular: {
-    text: "Regular",
+    text: "Buổi thường",
     badge: "bg-emerald-500/20 border border-emerald-400/30 text-emerald-300",
     glow: "shadow-emerald-500/20",
   },
   makeup: {
-    text: "Makeup",
+    text: "Buổi bù",
     badge: "bg-amber-500/20 border border-amber-400/30 text-amber-300",
     glow: "shadow-amber-500/20",
   },
@@ -388,49 +388,6 @@ export default function StudentSchedulePage() {
           isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
         }`}
       >
-        {/* Header Section */}
-        <div className="shrink-0 mb-6 relative">
-          <div className="text-center">
-            <div className="inline-block relative">
-              <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-purple-500 via-pink-500 to-violet-500 opacity-30 blur-2xl animate-pulse"></div>
-
-              <div
-                className="relative rounded-3xl px-8   md:px-16  md:py-10 bg-gradient-to-br from-purple-500/20 via-pink-500/15 to-violet-500/20 backdrop-blur-xl border border-white/10 flex flex-col items-center justify-center"
-                style={{
-                  boxShadow:
-                    "0 0 60px rgba(168,85,247,0.3), 0 0 30px rgba(236,72,153,0.2), inset 0 1px 0 rgba(255,255,255,0.1)",
-                }}
-              >
-                <div
-                  className="absolute inset-0 rounded-3xl p-[2px] pointer-events-none"
-                  style={{
-                    background:
-                      "linear-gradient(135deg, #a855f7, #ec4899, #d946ef, #a855f7)",
-                    WebkitMask:
-                      "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
-                    WebkitMaskComposite: "xor",
-                    maskComposite: "exclude",
-                    padding: "3px",
-                  }}
-                ></div>
-
-                <div className="text-center">
-                  <div className="flex items-center justify-center gap-2">
-                    <Sparkles className="w-8 h-8 text-purple-400 animate-pulse" />
-                    <h1 className="text-2xl md:text-6xl lg:text-5xl font-bold bg-gradient-to-r from-purple-300 via-pink-300 to-fuchsia-300 bg-clip-text text-transparent drop-shadow-lg leading-relaxed">
-                      LỊCH HỌC
-                    </h1>
-                    <Sparkles className="w-8 h-8 text-pink-400 animate-pulse" />
-                  </div>
-                  <p className="text-base md:text-lg font-medium text-purple-200/80">
-                    Theo dõi thời khóa biểu hàng tuần
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Error State */}
         {error && (
           <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 backdrop-blur-sm p-4 text-sm text-rose-300 flex items-center gap-2">
@@ -441,25 +398,27 @@ export default function StudentSchedulePage() {
 
         
         {/* Tabs */}
-        <div className="rounded-2xl border border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-slate-900/80 backdrop-blur-xl p-2 inline-flex gap-2">
-          {[
-            { key: "all", label: "Tất cả" },
-            { key: "regular", label: "Regular" },
-            { key: "makeup", label: "Makeup" },
-          ].map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => setActiveTab(tab.key as TabType)}
-              className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer ${
-                activeTab === tab.key
-                  ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/40 scale-105"
-                  : "bg-slate-800/50 border border-purple-500/30 text-purple-300 hover:border-purple-400/50 hover:text-white hover:bg-purple-500/20 backdrop-blur-sm"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+        <div className="flex justify-center">
+          <div className="rounded-2xl border border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-slate-900/80 backdrop-blur-xl p-2 inline-flex gap-2">
+            {[
+              { key: "all", label: "Tất cả" },
+              { key: "regular", label: "Buổi thường" },
+              { key: "makeup", label: "Buổi bù" },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setActiveTab(tab.key as TabType)}
+                className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer ${
+                  activeTab === tab.key
+                    ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/40 scale-105"
+                    : "bg-slate-800/50 border border-purple-500/30 text-purple-300 hover:border-purple-400/50 hover:text-white hover:bg-purple-500/20 backdrop-blur-sm"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Week Navigation + Calendar Grid */}
@@ -627,8 +586,8 @@ export default function StudentSchedulePage() {
                                       }`}
                                     >
                                       {event.type === "makeup"
-                                        ? "Makeup"
-                                        : "Regular"}
+                                        ? "Buổi bù"
+                                        : "Buổi thường"}
                                     </span>
                                     {event.attendanceStatus &&
                                       event.attendanceStatus !== "NotMarked" && (
@@ -847,11 +806,11 @@ export default function StudentSchedulePage() {
           <div className="flex flex-wrap gap-6">
             <div className="flex items-center gap-2.5">
               <div className="h-4 w-6 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 shadow-sm"></div>
-              <span className="text-sm text-purple-200">Regular</span>
+              <span className="text-sm text-purple-200">Buổi thường</span>
             </div>
             <div className="flex items-center gap-2.5">
               <div className="h-4 w-6 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 shadow-sm"></div>
-              <span className="text-sm text-purple-200">Makeup</span>
+              <span className="text-sm text-purple-200">Buổi bù</span>
             </div>
             <div className="flex items-center gap-2.5">
               <CheckCircle2 size={16} className="text-emerald-400" />

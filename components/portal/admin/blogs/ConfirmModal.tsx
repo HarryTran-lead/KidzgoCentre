@@ -52,8 +52,8 @@ export default function ConfirmModal({
   };
 
   return (
-    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className={`flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r ${styles.bg}`}>
           <div className="flex items-center gap-3">

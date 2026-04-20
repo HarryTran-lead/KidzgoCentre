@@ -533,7 +533,7 @@ export default function MultipleChoiceForm({
       )}
 
       {showSubmitModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+        <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/70 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-2xl border border-purple-500/30 bg-gradient-to-b from-slate-900/95 to-slate-950/95 shadow-2xl shadow-purple-900/50 animate-in fade-in zoom-in duration-200">
             <div className="border-b border-purple-500/20 p-6"><h3 className="text-xl font-bold text-white flex items-center gap-2"><HelpCircle className="h-5 w-5 text-blue-400" /> Xác nhận nộp bài</h3></div>
             <div className="p-6">
@@ -562,7 +562,7 @@ export default function MultipleChoiceForm({
       )}
 
       {timeUpModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+        <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/70 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-2xl border border-purple-500/30 bg-gradient-to-b from-slate-900/95 to-slate-950/95 shadow-2xl shadow-purple-900/50 animate-in fade-in zoom-in duration-200">
             <div className="border-b border-purple-500/20 p-6 text-center">
               <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-rose-500/20 border border-rose-400/40"><AlertTriangle className="h-8 w-8 text-rose-400" /></div>

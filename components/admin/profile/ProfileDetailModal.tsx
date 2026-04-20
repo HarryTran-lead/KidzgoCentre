@@ -69,8 +69,8 @@ export default function ProfileDetailModal({
   };
 
   return (
-    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white rounded-2xl shadow-2xl m-4">
+    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
+      <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white rounded-2xl shadow-2xl m-4" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className={`sticky top-0 px-6 py-4 flex items-center justify-between ${
           profile?.profileType === "Parent" 

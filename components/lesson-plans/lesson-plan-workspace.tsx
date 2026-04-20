@@ -3153,8 +3153,8 @@ function ModalFrame({
   widthClass?: string;
 }) {
   return (
-    <div className="fixed inset-0 z-100 flex items-start justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm">
-      <div className={cn("my-8 w-full rounded-2xl border border-gray-200 bg-white shadow-2xl", widthClass)}>
+    <div className="fixed inset-0 z-100 flex items-start justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className={cn("my-8 w-full rounded-2xl border border-gray-200 bg-white shadow-2xl", widthClass)} onClick={(e) => e.stopPropagation()}>
         <div className="bg-gradient-to-r from-red-600 to-red-700 px-6 py-5">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-start gap-4">

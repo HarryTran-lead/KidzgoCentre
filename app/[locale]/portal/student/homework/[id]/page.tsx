@@ -4,9 +4,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
-  Calendar,
   Clock,
-  User, 
   FileText,
   CheckCircle,
   Paperclip,
@@ -126,6 +124,26 @@ const formatDueDateVn = (dateString?: string): string => {
         timeZone: "Asia/Ho_Chi_Minh",
       });
     }
+  } catch {
+    return dateString || "Chưa có";
+  }
+};
+
+// Format graded date với timezone VN chuẩn xác
+const formatGradedDate = (dateString?: string): string => {
+  if (!dateString) return "Chưa có";
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "Chưa có";
+    
+    return date.toLocaleString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "Asia/Ho_Chi_Minh",
+    });
   } catch {
     return dateString || "Chưa có";
   }
@@ -281,34 +299,52 @@ export default function AssignmentDetailPage() {
   const canReviewQuiz = isMultipleChoiceAssignment &&
     assignment?.review?.showReview &&
     (assignment.review.answerResults?.length ?? 0) > 0;
-  const reviewAnswerResults = assignment?.review?.answerResults ?? [];
-  const reviewSummary = useMemo(
-    () => ({
+  
+  const reviewSummary = useMemo(() => {
+    const reviewAnswerResults = assignment?.review?.answerResults ?? [];
+    return {
       correct: reviewAnswerResults.filter((item) => item.isCorrect === true).length,
       wrong: reviewAnswerResults.filter((item) => item.isCorrect === false).length,
       earnedPoints: reviewAnswerResults.reduce(
         (sum, item) => sum + (item.earnedPoints || 0),
         0
       ),
-    }),
-    [reviewAnswerResults]
-  );
+    };
+  }, [assignment?.review?.answerResults]);
   const hasGradingResult = Boolean(
     assignment?.grading ||
       assignment?.gradedAt ||
       assignment?.grading?.teacherComment ||
       assignment?.grading?.aiFeedback
   );
-  const teacherFeedbackText = assignment?.grading?.teacherComment?.trim();
-  const aiFeedbackText = assignment?.grading?.aiFeedback?.trim();
 
   // Format time function for the warning modal
-  const formatTime = (seconds: number): string => {
-    if (seconds <= 0) return "00:00";
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-  };
+const formatTime = (seconds: number): string => {
+  if (seconds <= 0) return "00:00";
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+};
+
+// Format graded date - handle various date formats
+const formatGradedDate = (dateString?: string): string => {
+  if (!dateString) return "Chưa có";
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "Chưa có";
+    
+    return date.toLocaleString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "Asia/Ho_Chi_Minh",
+    });
+  } catch {
+    return dateString || "Chưa có";
+  }
+};
 
   // Get time remaining from localStorage if available
   const getTimeRemaining = () => {
@@ -369,7 +405,7 @@ export default function AssignmentDetailPage() {
 
   return (
     <>
-      <div className="h-[calc(100vh-120px)] overflow-y-auto custom-scrollbar p-8">
+      <div className="h-[calc(100vh-120px)] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] p-8">
         <div className="space-y-6">
           {/* Back Button */}
           <button
@@ -440,64 +476,74 @@ export default function AssignmentDetailPage() {
             </div>
           </div>
 
-          {hasGradingResult && !canReviewQuiz && assignment.grading && (
-            <div className="rounded-2xl border border-cyan-500/30 bg-gradient-to-b from-cyan-500/10 to-slate-950/95 backdrop-blur-xl p-6 shadow-xl shadow-cyan-900/20">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div className="flex-1">
-                  <h2 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
-                    <Award size={20} className="text-cyan-300" />
-                    Kết quả chấm bài & nhận xét
-                  </h2>
-                  <p className="text-sm text-cyan-50/80 leading-relaxed">
-                    {teacherFeedbackText
-                      ? "Bài nộp của bạn đã được chấm và giáo viên đã để lại nhận xét chi tiết."
-                      : "Bài nộp của bạn đã được chấm. Xem thông tin điểm và phản hồi ngay bên dưới."}
-                  </p>
-                </div>
+          {/* Grading Section */}
+          {assignment.grading && (
+            <div className="rounded-2xl border border-purple-500/30 bg-gradient-to-b from-slate-900/95 to-slate-950/95 backdrop-blur-xl p-6 shadow-xl shadow-purple-900/20">
+              <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <Award size={20} className="text-purple-400" />
+                {canReviewQuiz ? "Kết quả chấm điểm" : "Kết quả chấm bài & nhận xét"}
+              </h2>
 
-                <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[440px]">
-                  <div className="rounded-xl border border-cyan-400/20 bg-slate-900/50 p-4">
-                    <div className="text-xs uppercase tracking-wide text-cyan-200/70">Điểm</div>
-                    <div className="mt-2 text-2xl font-black text-cyan-200">
-                      {assignment.grading.score}/{assignment.grading.maxScore}
-                    </div>
-                  </div>
-                  <div className="rounded-xl border border-cyan-400/20 bg-slate-900/50 p-4">
-                    <div className="text-xs uppercase tracking-wide text-cyan-200/70">Chấm lúc</div>
-                    <div className="mt-2 text-sm font-semibold text-white">
-                      {assignment.gradedAt ? formatDueDateVn(assignment.gradedAt) : "Chưa có"}
-                    </div>
-                  </div>
-                  <div className="rounded-xl border border-cyan-400/20 bg-slate-900/50 p-4">
-                    <div className="text-xs uppercase tracking-wide text-cyan-200/70">Feedback</div>
-                    <div className="mt-2 text-sm font-semibold text-white">
-                      {teacherFeedbackText || aiFeedbackText ? "Đã có phản hồi" : "Đã chấm điểm"}
-                    </div>
-                  </div>
+              {/* Score */}
+              <div className="p-6 rounded-xl bg-gradient-to-br from-green-500/10 to-blue-500/10 border border-green-500/30 mb-6 text-center">
+                <div className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-br from-green-400 to-cyan-400 mb-2">
+                  {assignment.grading.score}/{assignment.grading.maxScore}
                 </div>
+                {assignment.gradedAt && (
+                  <div className="text-sm text-slate-500 mt-2">
+                    Chấm điểm lúc: {formatGradedDate(assignment.gradedAt)}
+                  </div>
+                )}
               </div>
 
-              {(teacherFeedbackText || aiFeedbackText) && (
-                <div className="mt-4 grid gap-4 md:grid-cols-2">
-                  {teacherFeedbackText && (
-                    <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 p-4">
-                      <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-blue-200">
-                        <MessageSquare size={16} />
-                        Nhận xét của giáo viên
-                      </div>
-                      <p className="text-sm leading-relaxed text-slate-200">{teacherFeedbackText}</p>
-                    </div>
-                  )}
+              {/* Teacher Comment */}
+              {assignment.grading.teacherComment && (
+                <div className="mb-6">
+                  <h3 className="font-medium text-white mb-3 flex items-center gap-2">
+                    <MessageSquare size={18} className="text-purple-400" />
+                    Nhận xét của giáo viên
+                  </h3>
+                  <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/30 text-slate-300">
+                    {assignment.grading.teacherComment}
+                  </div>
+                </div>
+              )}
 
-                  {aiFeedbackText && (
-                    <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-4">
-                      <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-amber-200">
-                        <Sparkles size={16} />
-                        Gợi ý từ AI
+              {assignment.grading.aiFeedback && (
+                <div className="mb-6">
+                  <h3 className="font-medium text-white mb-3 flex items-center gap-2">
+                    <Sparkles size={18} className="text-amber-400" />
+                    Gợi ý từ AI
+                  </h3>
+                  <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-100/90">
+                    {assignment.grading.aiFeedback}
+                  </div>
+                </div>
+              )}
+
+              {/* Graded Files */}
+              {assignment.grading.gradedFiles && assignment.grading.gradedFiles.length > 0 && (
+                <div>
+                  <h3 className="font-medium text-white mb-3">Bài đã chấm:</h3>
+                  <div className="space-y-2">
+                    {assignment.grading.gradedFiles.map((file) => (
+                      <div
+                        key={file.id}
+                        className="flex items-center justify-between p-3 rounded-xl bg-slate-800/40 border border-purple-500/20"
+                      >
+                        <div className="flex items-center gap-3">
+                          <AttachmentIcon type={file.type} />
+                          <div>
+                            <div className="font-medium text-white">{file.name}</div>
+                            {file.size && <div className="text-sm text-slate-500">{file.size}</div>}
+                          </div>
+                        </div>
+                        <button className="p-2 hover:bg-purple-500/20 rounded-lg transition">
+                          <Download size={18} className="text-purple-400" />
+                        </button>
                       </div>
-                      <p className="text-sm leading-relaxed text-amber-50/90">{aiFeedbackText}</p>
-                    </div>
-                  )}
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -720,7 +766,7 @@ export default function AssignmentDetailPage() {
           )}
 
           {/* Submission History */}
-          {assignment.submission && (
+          {assignment.submission && !isMultipleChoiceAssignment && (
             <div className="rounded-2xl border border-purple-500/30 bg-gradient-to-b from-slate-900/95 to-slate-950/95 backdrop-blur-xl p-6 shadow-xl shadow-purple-900/20">
               <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                 <FileCheck size={20} className="text-purple-400" />
@@ -767,6 +813,14 @@ export default function AssignmentDetailPage() {
                   </div>
                 )}
 
+                {assignment.submission.content?.text && (
+                  <div>
+                    <h3 className="font-medium text-white mb-2">Nội dung:</h3>
+                    <div className="p-4 rounded-xl bg-slate-800/40 border border-purple-500/20 text-slate-300">
+                      {assignment.submission.content.text}
+                    </div>
+                  </div>
+                )}
 
                 {assignment.submission.content?.links &&
                   assignment.submission.content.links.length > 0 && (
@@ -792,82 +846,6 @@ export default function AssignmentDetailPage() {
                     </div>
                   )}
               </div>
-            </div>
-          )}
-
-          {/* Grading Section */}
-          {assignment.grading && (
-            <div className="rounded-2xl border border-purple-500/30 bg-gradient-to-b from-slate-900/95 to-slate-950/95 backdrop-blur-xl p-6 shadow-xl shadow-purple-900/20">
-              <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <Award size={20} className="text-purple-400" />
-                {canReviewQuiz ? "Kết quả chấm điểm" : "Kết quả chấm bài & nhận xét"}
-              </h2>
-
-              {/* Score */}
-              <div className="p-6 rounded-xl bg-gradient-to-br from-green-500/10 to-blue-500/10 border border-green-500/30 mb-6 text-center">
-                <div className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-br from-green-400 to-cyan-400 mb-2">
-                  {assignment.grading.score}/{assignment.grading.maxScore}
-                </div>
-                <div className="text-lg text-slate-300">
-                  Điểm số: <span className="font-bold text-green-400">{assignment.grading.percentage}%</span>
-                </div>
-                {assignment.gradedAt && (
-                  <div className="text-sm text-slate-500 mt-2">
-                    Chấm điểm lúc: {formatDueDateVn(assignment.gradedAt)}
-                  </div>
-                )}
-              </div>
-
-              {/* Teacher Comment */}
-              {assignment.grading.teacherComment && (
-                <div className="mb-6">
-                  <h3 className="font-medium text-white mb-3 flex items-center gap-2">
-                    <MessageSquare size={18} className="text-purple-400" />
-                    Nhận xét của giáo viên
-                  </h3>
-                  <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/30 text-slate-300">
-                    {assignment.grading.teacherComment}
-                  </div>
-                </div>
-              )}
-
-              {assignment.grading.aiFeedback && (
-                <div className="mb-6">
-                  <h3 className="font-medium text-white mb-3 flex items-center gap-2">
-                    <Sparkles size={18} className="text-amber-400" />
-                    Gợi ý từ AI
-                  </h3>
-                  <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-100/90">
-                    {assignment.grading.aiFeedback}
-                  </div>
-                </div>
-              )}
-
-              {/* Graded Files */}
-              {assignment.grading.gradedFiles && assignment.grading.gradedFiles.length > 0 && (
-                <div>
-                  <h3 className="font-medium text-white mb-3">Bài đã chấm:</h3>
-                  <div className="space-y-2">
-                    {assignment.grading.gradedFiles.map((file) => (
-                      <div
-                        key={file.id}
-                        className="flex items-center justify-between p-3 rounded-xl bg-slate-800/40 border border-purple-500/20"
-                      >
-                        <div className="flex items-center gap-3">
-                          <AttachmentIcon type={file.type} />
-                          <div>
-                            <div className="font-medium text-white">{file.name}</div>
-                            {file.size && <div className="text-sm text-slate-500">{file.size}</div>}
-                          </div>
-                        </div>
-                        <button className="p-2 hover:bg-purple-500/20 rounded-lg transition">
-                          <Download size={18} className="text-purple-400" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           )}
 

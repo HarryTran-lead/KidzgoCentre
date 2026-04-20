@@ -7,7 +7,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Image from "next/image";
-import { Plus, Edit, Trash2, User, Calendar, Book, Activity, Clock, CheckCircle } from "lucide-react";
+import { Plus, Edit, Trash2, User, Calendar, Book, Activity, Clock, CheckCircle, X, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import ConfirmModal from "@/components/ConfirmModal";
@@ -312,7 +312,7 @@ export default function LeadChildrenManager({
         {isEditable && (
           <button
             onClick={() => setIsFormOpen(true)}
-            className="inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-600 transition-colors"
+            className="inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-600 transition-colors cursor-pointer"
           >
             <Plus size={16} />
             Thêm bé mới
@@ -328,7 +328,7 @@ export default function LeadChildrenManager({
           {isEditable && (
             <button
               onClick={() => setIsFormOpen(true)}
-              className="mt-3 text-sm text-pink-600 hover:text-pink-700"
+              className="mt-3 text-sm text-pink-600 hover:text-pink-700 cursor-pointer"
             >
               Thêm thông tin con
             </button>
@@ -418,14 +418,14 @@ export default function LeadChildrenManager({
                   <div className="flex gap-2 ml-4">
                     <button
                       onClick={() => handleEdit(child)}
-                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                       title="Sửa"
                     >
                       <Edit size={16} />
                     </button>
                     <button
                       onClick={() => handleDelete(child.id)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                       title="Xóa"
                     >
                       <Trash2 size={16} />
@@ -440,137 +440,177 @@ export default function LeadChildrenManager({
 
       {/* Form Modal */}
       {isFormOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl">
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">
-              {editingChild ? "Sửa thông tin bé" : "Thêm bé mới"}
-            </h3>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tên con <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.childName}
-                  onChange={(e) =>
-                    setFormData({ ...formData, childName: e.target.value })
-                  }
-                  required
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-500/20"
-                  placeholder="Nhập tên con"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Ngày sinh
-                </label>
-                <input
-                  type="date"
-                  value={formData.dob}
-                  onChange={(e) =>
-                    setFormData({ ...formData, dob: e.target.value })
-                  }
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-500/20"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Giới tính
-                </label>
-                <Select
-                  value={formData.gender || ""}
-                  onValueChange={(value) =>
-                    setFormData({
-                      ...formData,
-                      gender: (value as "Male" | "Female") || undefined,
-                    })
-                  }
-                >
-                  <SelectTrigger className="h-10.5 rounded-lg border border-gray-300 px-3 py-2 text-left focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-500/20">
-                    <SelectValue placeholder="-- Chọn giới tính --" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">-- Chọn giới tính --</SelectItem>
-                    <SelectItem value="Male">Nam</SelectItem>
-                    <SelectItem value="Female">Nữ</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Chương trình quan tâm
-                </label>
-                <Select
-                  value={formData.programInterest || ""}
-                  onValueChange={(value) =>
-                    setFormData({
-                      ...formData,
-                      programInterest: value,
-                    })
-                  }
-                  disabled={isProgramsLoading || programOptions.length === 0}
-                >
-                  <SelectTrigger className="h-10.5 rounded-lg border border-gray-300 px-3 py-2 text-left focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-500/20">
-                    <SelectValue
-                      placeholder={
-                        isProgramsLoading
-                          ? "Đang tải chương trình..."
-                          : programOptions.length > 0
-                            ? "Tìm và chọn chương trình"
-                            : "Không có chương trình theo chi nhánh"
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Không chọn chương trình</SelectItem>
-                    {programOptions.map((program) => (
-                      <SelectItem key={program.value} value={program.value}>
-                        {program.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="mt-1 text-xs text-gray-500">
-                  Gõ vào ô chọn để tìm nhanh chương trình theo chi nhánh tài khoản.
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Ghi chú
-                </label>
-                <textarea
-                  value={formData.notes}
-                  onChange={(e) =>
-                    setFormData({ ...formData, notes: e.target.value })
-                  }
-                  rows={3}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-500/20"
-                  placeholder="Ghi chú thêm..."
-                />
-              </div>
-
-              <div className="flex gap-3 pt-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="relative w-full max-w-2xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
+                    <User size={24} className="text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">
+                      {editingChild ? "Sửa thông tin bé" : "Thêm bé mới"}
+                    </h2>
+                    <p className="text-sm text-red-100">
+                      {editingChild ? "Cập nhật thông tin chi tiết của bé" : "Nhập thông tin chi tiết về bé"}
+                    </p>
+                  </div>
+                </div>
                 <button
-                  type="button"
                   onClick={resetForm}
-                  className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                  className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer"
+                  aria-label="Đóng"
                 >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 rounded-lg bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-600 transition-colors"
-                >
-                  {editingChild ? "Cập nhật" : "Thêm"}
+                  <X size={24} className="text-white" />
                 </button>
               </div>
-            </form>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 max-h-[70vh] overflow-y-auto">
+              <form onSubmit={handleSubmit} className="space-y-5">
+                {/* Tên con */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <User size={16} className="text-red-600" />
+                    Tên con <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={formData.childName}
+                      onChange={(e) =>
+                        setFormData({ ...formData, childName: e.target.value })
+                      }
+                      required
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                      placeholder="Nhập tên con"
+                    />
+                  </div>
+                </div>
+
+                {/* Ngày sinh & Giới tính */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <Calendar size={16} className="text-red-600" />
+                      Ngày sinh
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.dob}
+                      onChange={(e) =>
+                        setFormData({ ...formData, dob: e.target.value })
+                      }
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <User size={16} className="text-red-600" />
+                      Giới tính
+                    </label>
+                    <Select
+                      value={formData.gender || ""}
+                      onValueChange={(value) =>
+                        setFormData({
+                          ...formData,
+                          gender: (value as "Male" | "Female") || undefined,
+                        })
+                      }
+                    >
+                      <SelectTrigger className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all h-auto">
+                        <SelectValue placeholder="Chọn giới tính" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">-- Không chọn --</SelectItem>
+                        <SelectItem value="Male">Nam</SelectItem>
+                        <SelectItem value="Female">Nữ</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Chương trình quan tâm */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <Book size={16} className="text-red-600" />
+                    Chương trình quan tâm
+                  </label>
+                  <Select
+                    value={formData.programInterest || ""}
+                    onValueChange={(value) =>
+                      setFormData({
+                        ...formData,
+                        programInterest: value,
+                      })
+                    }
+                    disabled={isProgramsLoading || programOptions.length === 0}
+                  >
+                    <SelectTrigger className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all h-auto">
+                      <SelectValue
+                        placeholder={
+                          isProgramsLoading
+                            ? "Đang tải chương trình..."
+                            : programOptions.length > 0
+                              ? "Tìm và chọn chương trình"
+                              : "Không có chương trình theo chi nhánh"
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Không chọn chương trình</SelectItem>
+                      {programOptions.map((program) => (
+                        <SelectItem key={program.value} value={program.value}>
+                          {program.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-gray-500 flex items-center gap-1 mt-1.5">
+                    <AlertCircle size={12} />
+                    Gõ vào ô chọn để tìm nhanh chương trình theo chi nhánh tài khoản.
+                  </p>
+                </div>
+
+                {/* Ghi chú */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <Book size={16} className="text-red-600" />
+                    Ghi chú
+                  </label>
+                  <textarea
+                    value={formData.notes}
+                    onChange={(e) =>
+                      setFormData({ ...formData, notes: e.target.value })
+                    }
+                    rows={3}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all resize-none"
+                    placeholder="Ghi chú thêm..."
+                  />
+                </div>
+
+                {/* Buttons */}
+                <div className="flex gap-3 pt-6 border-t border-gray-100">
+                  <button
+                    type="button"
+                    onClick={resetForm}
+                    className="flex-1 px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {editingChild ? "Cập nhật" : "Thêm"}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}

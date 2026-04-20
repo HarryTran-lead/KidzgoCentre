@@ -641,12 +641,13 @@ export function DialogShell({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={onClose}>
       <div
         className={cx(
           "relative w-full overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl",
           widthClass
         )}
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
           <div className="flex items-center justify-between">

@@ -3,7 +3,7 @@
 import { useCallback, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
-import { ExternalLink, Loader2, X } from "lucide-react";
+import { ExternalLink, Loader2, X, User, Calendar, BookOpen, Clock, Tag, Users, GraduationCap, CalendarClock, FileText, CheckCircle, AlertCircle } from "lucide-react";
 import type { Registration, RegistrationStatus } from "@/types/registration";
 
 type RegistrationDetailModalProps = {
@@ -28,15 +28,27 @@ function statusLabel(status: RegistrationStatus) {
 
 function statusBadgeClass(status: RegistrationStatus) {
   const classes: Record<RegistrationStatus, string> = {
-    New: "bg-blue-100 text-blue-700",
-    WaitingForClass: "bg-amber-100 text-amber-700",
-    ClassAssigned: "bg-cyan-100 text-cyan-700",
-    Studying: "bg-emerald-100 text-emerald-700",
-    Paused: "bg-orange-100 text-orange-700",
-    Completed: "bg-emerald-100 text-emerald-700",
-    Cancelled: "bg-rose-100 text-rose-700",
+    New: "bg-blue-100 text-blue-700 border border-blue-200",
+    WaitingForClass: "bg-amber-100 text-amber-700 border border-amber-200",
+    ClassAssigned: "bg-cyan-100 text-cyan-700 border border-cyan-200",
+    Studying: "bg-green-100 text-green-700 border border-green-200",
+    Paused: "bg-orange-100 text-orange-700 border border-orange-200",
+    Completed: "bg-emerald-100 text-emerald-700 border border-emerald-200",
+    Cancelled: "bg-rose-100 text-rose-700 border border-rose-200",
   };
   return classes[status];
+}
+
+function statusIcon(status: RegistrationStatus) {
+  switch (status) {
+    case "Studying":
+    case "Completed":
+      return <CheckCircle size={14} className="mr-1" />;
+    case "Cancelled":
+      return <AlertCircle size={14} className="mr-1" />;
+    default:
+      return <Clock size={14} className="mr-1" />;
+  }
 }
 
 function toDate(value?: string | null) {
@@ -98,15 +110,34 @@ function extractPlacementTestId(note?: string | null): string {
   return matched?.[1] || "";
 }
 
-function Info({ label, value }: { label: string; value: string }) {
+function InfoCard({ icon, label, value, iconColor = "text-red-500" }: { icon?: React.ReactNode; label: string; value: string; iconColor?: string }) {
   return (
-    <div className="rounded-xl bg-white p-3">
-      <div className="text-xs font-medium uppercase tracking-wide text-gray-500">
-        {label}
+    <div className="rounded-xl bg-white p-3 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+      <div className="flex items-center gap-2">
+        {icon && <div className={cn("flex-shrink-0", iconColor)}>{icon}</div>}
+        <div className="text-xs font-medium uppercase tracking-wide text-gray-500">
+          {label}
+        </div>
       </div>
-      <div className="mt-1 break-all text-sm font-semibold text-gray-900">{value}</div>
+      <div className="mt-1 break-all text-sm font-semibold text-gray-900">{value || "-"}</div>
     </div>
   );
+}
+
+function Section({ title, icon, children, colorClass = "border-red-200 bg-red-50/40" }: { title: string; icon?: React.ReactNode; children: React.ReactNode; colorClass?: string }) {
+  return (
+    <div className={cn("space-y-3 rounded-xl border p-4", colorClass)}>
+      <div className="flex items-center gap-2">
+        {icon && <div className="flex-shrink-0">{icon}</div>}
+        <h3 className="text-sm font-semibold text-gray-700">{title}</h3>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function cn(...classNames: Array<string | false | null | undefined>) {
+  return classNames.filter(Boolean).join(" ");
 }
 
 export default function RegistrationDetailModal({
@@ -149,49 +180,78 @@ export default function RegistrationDetailModal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-10000 flex items-center justify-center bg-black/50 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
       onClick={onClose}
     >
       <div
-        className="max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl"
+        className="relative max-h-[85vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="sticky top-0 flex items-center justify-between border-b border-red-100 bg-linear-to-r from-red-600 to-red-700 px-5 py-3 text-white">
-          <h3 className="text-lg font-semibold">Chi tiết đăng ký</h3>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-md p-1.5 hover:bg-white/15"
-            aria-label="Đóng"
-          >
-            <X size={18} />
-          </button>
+        {/* Modal Header - Gradient đỏ như các modal khác */}
+        <div className="sticky top-0 z-10 bg-gradient-to-r from-red-600 to-red-700 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
+                <FileText size={20} className="text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">Chi tiết đăng ký</h3>
+                <p className="text-xs text-red-100">Thông tin chi tiết về đăng ký học</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer"
+              aria-label="Đóng"
+            >
+              <X size={20} className="text-white" />
+            </button>
+          </div>
         </div>
 
         {isLoading ? (
-          <div className="flex items-center justify-center gap-2 px-6 py-12 text-sm text-gray-600">
-            <Loader2 size={16} className="animate-spin" /> Đang tải chi tiết...
+          <div className="flex items-center justify-center gap-2 py-16 text-sm text-gray-600">
+            <Loader2 size={20} className="animate-spin text-red-500" />
+            <span>Đang tải chi tiết...</span>
           </div>
         ) : item ? (
-          <div className="space-y-4 p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-100 bg-red-50/50 p-4">
-              <div>
-                <div className="text-xs uppercase tracking-wide text-gray-500">Học viên</div>
-                <div className="text-lg font-semibold text-gray-900">
-                  {item.studentName || "Không có thông tin"}
+          <div className="space-y-5 p-6">
+            {/* Student Info Card */}
+            <div className="rounded-xl border border-red-200 bg-gradient-to-r from-red-50/50 to-white p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 rounded-xl bg-gradient-to-r from-red-600 to-red-700 shadow-md">
+                    <User size={20} className="text-white" />
+                  </div>
+                  <div>
+                    <div className="text-xs uppercase tracking-wide text-gray-500">Học viên</div>
+                    <div className="text-xl font-bold text-gray-900">
+                      {item.studentName || "Không có thông tin"}
+                    </div>
+                  </div>
                 </div>
+                <span
+                  className={cn(
+                    "inline-flex items-center rounded-full px-3 py-1.5 text-sm font-semibold",
+                    statusBadgeClass(item.status)
+                  )}
+                >
+                  {statusIcon(item.status)}
+                  {statusLabel(item.status)}
+                </span>
               </div>
-              <span
-                className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-medium ${statusBadgeClass(item.status)}`}
-              >
-                {statusLabel(item.status)}
-              </span>
             </div>
 
-            <div className="space-y-3 rounded-xl border border-blue-200 bg-blue-50 p-4">
-              <h3 className="text-sm font-semibold text-gray-700">Thông tin chương trình</h3>
+            {/* Program Information Section */}
+            <Section 
+              title="Thông tin chương trình" 
+              icon={<GraduationCap size={16} className="text-blue-600" />}
+              colorClass="border-blue-200 bg-blue-50/40"
+            >
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <Info
+                <InfoCard
+                  icon={<BookOpen size={14} />}
                   label="Chương trình"
                   value={
                     item.secondaryProgramName
@@ -199,8 +259,13 @@ export default function RegistrationDetailModal({
                       : item.programName || "-"
                   }
                 />
-                <Info label="Gói học" value={item.tuitionPlanName || "-"} />
-                <Info
+                <InfoCard
+                  icon={<Tag size={14} />}
+                  label="Gói học"
+                  value={item.tuitionPlanName || "-"}
+                />
+                <InfoCard
+                  icon={<Users size={14} />}
                   label="Lớp"
                   value={
                     item.secondaryClassName
@@ -208,30 +273,57 @@ export default function RegistrationDetailModal({
                       : item.className || "Chưa xếp lớp"
                   }
                 />
-                <Info
+                <InfoCard
+                  icon={<BookOpen size={14} />}
                   label="Chú trọng kĩ năng"
                   value={item.secondaryProgramSkillFocus || item.secondaryEntryType || "Chưa có"}
                 />
-                <Info label="Tổng số buổi" value={String(item.totalSessions ?? 0)} />
-                <Info label="Đã học" value={String(item.usedSessions ?? 0)} />
-                <Info label="Buổi còn lại" value={String(item.remainingSessions ?? 0)} />
+                <InfoCard
+                  icon={<Calendar size={14} />}
+                  label="Tổng số buổi"
+                  value={String(item.totalSessions ?? 0)}
+                />
+                <InfoCard
+                  icon={<CheckCircle size={14} />}
+                  label="Đã học"
+                  value={String(item.usedSessions ?? 0)}
+                />
+                <InfoCard
+                  icon={<Clock size={14} />}
+                  label="Buổi còn lại"
+                  value={String(item.remainingSessions ?? 0)}
+                />
               </div>
-            </div>
+            </Section>
 
-            <div className="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-              <h3 className="text-sm font-semibold text-gray-700">Thông tin lịch học</h3>
+            {/* Schedule Information Section */}
+            <Section 
+              title="Thông tin lịch học" 
+              icon={<CalendarClock size={16} className="text-emerald-600" />}
+              colorClass="border-emerald-200 bg-emerald-50/40"
+            >
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <Info label="Ngày dự kiến" value={toDate(item.expectedStartDate)} />
-                <Info label="Ngày bắt đầu thực tế" value={toDate(item.actualStartDate)} />
-                <Info
+                <InfoCard
+                  icon={<Calendar size={14} />}
+                  label="Ngày dự kiến"
+                  value={toDate(item.expectedStartDate)}
+                />
+                <InfoCard
+                  icon={<Calendar size={14} />}
+                  label="Ngày bắt đầu thực tế"
+                  value={toDate(item.actualStartDate)}
+                />
+                <InfoCard
+                  icon={<Clock size={14} />}
                   label="Lịch học mong muốn"
                   value={normalizeVietnameseScheduleText(item.preferredSchedule) || "-"}
                 />
               </div>
 
               {!!item.actualStudySchedules?.length && (
-                <div className="space-y-2">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                <div className="mt-3 space-y-2">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-emerald-700 flex items-center gap-1">
+                    <Clock size={12} />
                     Lịch học thực tế theo tuần
                   </div>
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -245,17 +337,32 @@ export default function RegistrationDetailModal({
                       return (
                         <div
                           key={`${schedule.track || "track"}-${schedule.classId || index}`}
-                          className="rounded-xl border border-emerald-200 bg-white p-3"
+                          className="rounded-xl border border-emerald-200 bg-white p-3 shadow-sm hover:shadow-md transition-shadow"
                         >
-                          <div className="text-sm font-semibold text-gray-900">
-                            {toTrackLabel(schedule.track)}
-                          </div>
-                          <div className="mt-2 space-y-1 text-xs text-gray-700">
-                            <div>
-                              Lớp: <span className="font-semibold">{schedule.className || "Chưa xếp lớp"}</span>
+                          <div className="flex items-center gap-2">
+                            <div className="p-1.5 rounded-lg bg-emerald-100">
+                              {schedule.track === "secondary" ? (
+                                <BookOpen size={12} className="text-emerald-600" />
+                              ) : (
+                                <GraduationCap size={12} className="text-emerald-600" />
+                              )}
                             </div>
-                            <div>
-                              Ngày học: <span className="font-semibold">{studyDays} hàng tuần</span>
+                            <div className="text-sm font-semibold text-gray-900">
+                              {toTrackLabel(schedule.track)}
+                            </div>
+                          </div>
+                          <div className="mt-2 space-y-1.5 text-xs text-gray-700">
+                            <div className="flex items-start gap-1">
+                              <Users size={12} className="text-gray-400 mt-0.5 flex-shrink-0" />
+                              <span>
+                                Lớp: <span className="font-semibold">{schedule.className || "Chưa xếp lớp"}</span>
+                              </span>
+                            </div>
+                            <div className="flex items-start gap-1">
+                              <Calendar size={12} className="text-gray-400 mt-0.5 flex-shrink-0" />
+                              <span>
+                                Ngày học: <span className="font-semibold">{studyDays} hàng tuần</span>
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -264,20 +371,35 @@ export default function RegistrationDetailModal({
                   </div>
                 </div>
               )}
-            </div>
+            </Section>
 
-            <div className="space-y-3 rounded-xl border border-red-200 bg-red-50/40 p-4">
-              <h3 className="text-sm font-semibold text-gray-700">Thông tin hệ thống</h3>
+            {/* System Information Section */}
+            <Section 
+              title="Thông tin hệ thống" 
+              icon={<FileText size={16} className="text-red-600" />}
+              colorClass="border-red-200 bg-red-50/40"
+            >
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <Info label="Ngày tạo" value={toDateTime(item.createdAt)} />
-                <Info label="Cập nhật lần cuối" value={toDateTime(item.updatedAt)} />
+                <InfoCard
+                  icon={<Calendar size={14} />}
+                  label="Ngày tạo"
+                  value={toDateTime(item.createdAt)}
+                />
+                <InfoCard
+                  icon={<Calendar size={14} />}
+                  label="Cập nhật lần cuối"
+                  value={toDateTime(item.updatedAt)}
+                />
               </div>
 
-              <div className="group rounded-xl bg-white p-3">
-                <div className="text-xs font-medium uppercase tracking-wide text-gray-500">
-                  Ghi chú
+              <div className="rounded-xl bg-white p-3 border border-gray-100 shadow-sm">
+                <div className="flex items-center gap-2">
+                  <FileText size={14} className="text-red-500" />
+                  <div className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                    Ghi chú
+                  </div>
                 </div>
-                <div className="mt-1 break-all text-sm font-semibold text-gray-900">
+                <div className="mt-1 break-all text-sm font-medium text-gray-900">
                   {noteDisplay || "-"}
                 </div>
 
@@ -285,15 +407,15 @@ export default function RegistrationDetailModal({
                   <button
                     type="button"
                     onClick={handleOpenPlacementTest}
-                    className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-red-600 hover:underline cursor-pointer"
+                    className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-red-600 hover:text-red-700 hover:underline transition-colors cursor-pointer"
                     title="Ấn vào để xem bài kiểm tra đầu vào của bé này"
                   >
                     <ExternalLink size={12} />
-                    Ấn vào để xem bài kiểm tra đầu vào của bé này
+                    Xem bài kiểm tra đầu vào
                   </button>
                 )}
               </div>
-            </div>
+            </Section>
           </div>
         ) : null}
       </div>

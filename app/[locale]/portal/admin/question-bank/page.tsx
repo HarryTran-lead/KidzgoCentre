@@ -820,7 +820,7 @@ ${rows}
         title="Xác nhận xóa câu hỏi" message="Hành động này không thể hoàn tác." confirmText="Xóa" cancelText="Hủy" variant="danger" isLoading={isDeleting} />
 
       {showDetailModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="relative w-full max-w-3xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
             <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
               <div className="flex items-center justify-between">
