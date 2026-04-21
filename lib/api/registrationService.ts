@@ -1,5 +1,6 @@
 import { get, patch, post, put } from "@/lib/axios";
 import { REGISTRATION_ENDPOINTS } from "@/constants/apiURL";
+import { getAccessToken } from "@/lib/store/authToken";
 import type {
   AssignClassRequest,
   RegistrationFirstStudySession,
@@ -96,6 +97,135 @@ function pickDetail(payload: any): any {
   if (payload?.data) return payload.data;
   if (payload?.registration) return payload.registration;
   return payload;
+}
+
+function extractFileName(contentDisposition?: string | null) {
+  if (!contentDisposition) {
+    return undefined;
+  }
+
+  const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) {
+    return decodeURIComponent(utf8Match[1]);
+  }
+
+  const quotedMatch = contentDisposition.match(/filename=\"([^\"]+)\"/i);
+  if (quotedMatch?.[1]) {
+    return quotedMatch[1];
+  }
+
+  const plainMatch = contentDisposition.match(/filename=([^;]+)/i);
+  if (plainMatch?.[1]) {
+    return plainMatch[1].trim();
+  }
+
+  return undefined;
+}
+
+export type EnrollmentConfirmationPdfResponse = {
+  registrationId: string;
+  enrollmentId: string;
+  pdfRecordId: string;
+  track: string;
+  formType: string;
+  pdfUrl: string;
+  pdfGeneratedAt: string;
+  reusedExistingPdf: boolean;
+  enrollDate: string;
+  firstStudyDate: string | null;
+  studentName: string;
+  classCode: string;
+  classTitle: string;
+  programName: string;
+  tuitionPlanName: string;
+  tuitionAmount: number;
+  currency: string;
+};
+
+const PDF_ERROR_MESSAGES: Record<string, string> = {
+  "No active enrollment was found": "Không tìm thấy đăng ký học đang hoạt động cho học viên này.",
+  "Registration not found": "Không tìm thấy đăng ký.",
+  "PDF generation failed": "Không thể tạo file PDF. Vui lòng thử lại.",
+  "Unauthorized": "Bạn chưa đăng nhập hoặc phiên đã hết hạn.",
+  "Forbidden": "Bạn không có quyền thực hiện thao tác này.",
+};
+
+function translatePdfError(message: string): string {
+  for (const [key, viMessage] of Object.entries(PDF_ERROR_MESSAGES)) {
+    if (message.toLowerCase().includes(key.toLowerCase())) {
+      return viMessage;
+    }
+  }
+  return message;
+}
+
+export async function getRegistrationEnrollmentConfirmationPdf(
+  id: string,
+  options?: {
+    track?: string;
+    regenerate?: boolean;
+    formType?: string;
+  },
+): Promise<EnrollmentConfirmationPdfResponse> {
+  const accessToken = getAccessToken();
+  const track = options?.track || "primary";
+  const regenerate = options?.regenerate ?? false;
+  const formType = options?.formType || "auto";
+  const queryString = `track=${encodeURIComponent(track)}&regenerate=${regenerate}&formType=${encodeURIComponent(formType)}`;
+  const url = `${REGISTRATION_ENDPOINTS.ENROLLMENT_CONFIRMATION_PDF(id)}?${queryString}`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+  });
+
+  if (!response.ok) {
+    let message = "Không thể tải phiếu xác nhận ghi danh.";
+    try {
+      const errorPayload = await response.json();
+      const detail = String(errorPayload?.detail || "").trim();
+      const title = String(errorPayload?.title || "").trim();
+      if (detail) {
+        message = translatePdfError(detail);
+      } else if (title) {
+        message = translatePdfError(title);
+      }
+    } catch {
+      // Ignore JSON parse errors for non-JSON error payloads.
+    }
+
+    throw new Error(message);
+  }
+
+  const payload = await response.json();
+  const data = payload?.data || payload;
+
+  if (!data?.pdfUrl) {
+    throw new Error("Không tìm thấy đường dẫn file PDF từ hệ thống.");
+  }
+
+  return {
+    registrationId: data.registrationId || id,
+    enrollmentId: data.enrollmentId || "",
+    pdfRecordId: data.pdfRecordId || "",
+    track: data.track || track,
+    formType: data.formType || "",
+    pdfUrl: data.pdfUrl,
+    pdfGeneratedAt: data.pdfGeneratedAt || "",
+    reusedExistingPdf: !!data.reusedExistingPdf,
+    enrollDate: data.enrollDate || "",
+    firstStudyDate: data.firstStudyDate || null,
+    studentName: data.studentName || "",
+    classCode: data.classCode || "",
+    classTitle: data.classTitle || "",
+    programName: data.programName || "",
+    tuitionPlanName: data.tuitionPlanName || "",
+    tuitionAmount: data.tuitionAmount || 0,
+    currency: data.currency || "VND",
+  };
 }
 
 function mapToRegistration(item: any): Registration {
@@ -324,6 +454,30 @@ export async function getRegistrations(
 export async function getRegistrationById(id: string): Promise<Registration> {
   const response = await get<any>(REGISTRATION_ENDPOINTS.GET_BY_ID(id));
   return mapToRegistration(pickDetail(response));
+}
+
+export async function exportRegistrationEnrollmentConfirmationPdf(
+  id: string,
+): Promise<string> {
+  const { pdfUrl, studentName } = await getRegistrationEnrollmentConfirmationPdf(id);
+  const { buildFileUrl } = await import("@/constants/apiURL");
+  const downloadUrl = buildFileUrl(pdfUrl);
+  const fileName = pdfUrl.split("/").pop() || `phieu-dang-ky-${studentName || id}.pdf`;
+
+  if (typeof window !== "undefined") {
+    const response = await fetch(downloadUrl);
+    const blob = await response.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = objectUrl;
+    anchor.download = fileName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(objectUrl);
+  }
+
+  return fileName;
 }
 
 export async function createRegistration(payload: RegistrationRequest): Promise<RegistrationActionResponse> {

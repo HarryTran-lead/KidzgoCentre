@@ -140,6 +140,7 @@ interface SuggestAssignStepProps {
   isLoadingManualClasses: boolean;
   branchId?: string;
   handleMoveToWaitingList: () => void;
+  handleOpenEnrollmentConfirmationPdf?: () => void;
   isWaiting: boolean;
   suggestedClasses: SuggestedClassBucket | null;
   hasSecondaryTrack: boolean;
@@ -147,6 +148,7 @@ interface SuggestAssignStepProps {
   setSelectedTrack: (value: RegistrationTrackType) => void;
   selectedEntryType: EntryType;
   setSelectedEntryType: (value: EntryType) => void;
+  showEntryTypeSelector?: boolean;
   selectedClassId: string;
   setSelectedClassId: (value: string) => void;
   activeSuggestedClasses: any[];
@@ -155,6 +157,7 @@ interface SuggestAssignStepProps {
   handleAssignClass: (
     sessionSelectionPattern?: string,
     entryType?: EntryType,
+    firstStudyDate?: string,
   ) => void;
   handleAssignSuggestedClasses: (payload: {
     primaryClassId: string;
@@ -162,6 +165,7 @@ interface SuggestAssignStepProps {
     secondaryClassId?: string;
     secondarySessionSelectionPattern?: string;
     entryType?: EntryType;
+    firstStudyDate?: string;
   }) => void;
   isAssigning: boolean;
   manualClasses: any[];
@@ -184,7 +188,10 @@ interface SuggestAssignStepProps {
   setManualPrimarySessionPattern: (value: string) => void;
   manualSecondarySessionPattern: string;
   setManualSecondarySessionPattern: (value: string) => void;
-  handleAssignManualClasses: (entryType?: EntryType) => void;
+  handleAssignManualClasses: (
+    entryType?: EntryType,
+    firstStudyDate?: string,
+  ) => void;
 }
 
 export default function SuggestAssignStep({
@@ -198,6 +205,7 @@ export default function SuggestAssignStep({
   isLoadingManualClasses,
   branchId,
   handleMoveToWaitingList,
+  handleOpenEnrollmentConfirmationPdf,
   isWaiting,
   suggestedClasses,
   hasSecondaryTrack,
@@ -205,6 +213,7 @@ export default function SuggestAssignStep({
   setSelectedTrack,
   selectedEntryType,
   setSelectedEntryType,
+  showEntryTypeSelector = true,
   selectedClassId,
   setSelectedClassId,
   activeSuggestedClasses,
@@ -234,6 +243,9 @@ export default function SuggestAssignStep({
   const showManualActions = mode !== "suggested-only";
   const isSuggestedMode = assignViewMode === "suggested";
   const isManualMode = assignViewMode === "manual";
+  const effectiveEntryType: EntryType = showEntryTypeSelector
+    ? selectedEntryType
+    : "Immediate";
   const classMap = useMemo(
     () =>
       new Map<string, any>(
@@ -275,6 +287,7 @@ export default function SuggestAssignStep({
     useState("");
   const [selectedSecondarySuggestedClassId, setSelectedSecondarySuggestedClassId] =
     useState("");
+  const [firstStudyDate, setFirstStudyDate] = useState("");
 
   const preferredDays = useMemo(
     () => parsePreferredScheduleDays(preferredSchedule),
@@ -625,6 +638,7 @@ export default function SuggestAssignStep({
   };
 
   const handleAssignSuggestedClass = () => {
+    const normalizedFirstStudyDate = firstStudyDate.trim() || undefined;
     const fallbackPrimaryPattern = buildSessionSelectionPattern(
       suggestedPrimaryDays.length > 0
         ? suggestedPrimaryDays
@@ -648,7 +662,8 @@ export default function SuggestAssignStep({
         secondaryClassId: selectedSecondarySuggestedClassId || undefined,
         secondarySessionSelectionPattern:
           suggestedSecondarySessionPattern || fallbackSecondaryPattern || undefined,
-        entryType: selectedEntryType,
+        entryType: effectiveEntryType,
+        firstStudyDate: normalizedFirstStudyDate,
       });
       return;
     }
@@ -663,7 +678,8 @@ export default function SuggestAssignStep({
         : fallbackPrimaryPattern;
     handleAssignClass(
       currentPattern || currentFallbackPattern || undefined,
-      selectedEntryType,
+      effectiveEntryType,
+      normalizedFirstStudyDate,
     );
   };
 
@@ -809,31 +825,56 @@ export default function SuggestAssignStep({
             {isWaiting ? "Đang xử lý..." : "Đưa vào danh sách chờ"}
             </button>
           )}
+
+          {handleOpenEnrollmentConfirmationPdf && Boolean(registrationId) && (
+            <button
+            type="button"
+            onClick={handleOpenEnrollmentConfirmationPdf}
+            className="w-full rounded-xl border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 cursor-pointer hover:bg-red-50"
+          >
+            Xem/In phiếu hoàn thành đăng ký
+            </button>
+          )}
         </div>
 
         <div className="rounded-xl border border-red-100 bg-white/80 p-3">
           {(isSuggestedMode || isManualMode) && (
             <div className="mb-3 rounded-xl border border-red-100 bg-red-50/50 p-3">
-              <label className="text-xs font-semibold text-gray-700">
-                Hình thức vào lớp
-              </label>
-              <div className="mt-1.5">
-                <Select
-                  value={selectedEntryType}
-                  onValueChange={(value) => setSelectedEntryType(value as EntryType)}
-                >
-                  <SelectTrigger className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100">
-                    <SelectValue placeholder="Chọn hình thức vào lớp" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Immediate">Vào học ngay</SelectItem>
-                    <SelectItem value="Makeup">Học bù</SelectItem>
-                    <SelectItem value="Retake">Học lại</SelectItem>
-                  </SelectContent>
-                </Select>
+              {showEntryTypeSelector && (
+                <>
+                  <label className="text-xs font-semibold text-gray-700">
+                    Hình thức vào lớp
+                  </label>
+                  <div className="mt-1.5">
+                    <Select
+                      value={selectedEntryType}
+                      onValueChange={(value) => setSelectedEntryType(value as EntryType)}
+                    >
+                      <SelectTrigger className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100">
+                        <SelectValue placeholder="Chọn hình thức vào lớp" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Immediate">Vào học ngay</SelectItem>
+                        <SelectItem value="Makeup">Học bù</SelectItem>
+                        <SelectItem value="Retake">Học lại</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
+              <div className="mt-3 space-y-1.5">
+                <label className="text-xs font-semibold text-gray-700">
+                  Ngày học đầu tiên (tùy chọn)
+                </label>
+                <input
+                  type="date"
+                  value={firstStudyDate}
+                  onChange={(e) => setFirstStudyDate(e.target.value)}
+                  className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+                />
               </div>
               <p className="mt-1 text-[11px] text-gray-500">
-                Nếu muốn chuyển trạng thái chờ lớp, dùng nút "Đưa vào danh sách chờ".
+                Nếu để trống, hệ thống sẽ sử dụng lịch mặc định khi xếp lớp. Nếu muốn chuyển trạng thái chờ lớp, dùng nút "Đưa vào danh sách chờ".
               </p>
             </div>
           )}
@@ -1082,8 +1123,12 @@ export default function SuggestAssignStep({
                 {isAssigning
                   ? "Đang xếp lớp..."
                   : hasSecondaryTrack
-                    ? `Xếp lớp gợi ý (${toEntryTypeLabel(selectedEntryType)})`
-                    : `Xếp vào lớp đã chọn (${toEntryTypeLabel(selectedEntryType)})`}
+                    ? showEntryTypeSelector
+                      ? `Xếp lớp gợi ý (${toEntryTypeLabel(effectiveEntryType)})`
+                      : "Xếp lớp gợi ý"
+                    : showEntryTypeSelector
+                      ? `Xếp vào lớp đã chọn (${toEntryTypeLabel(effectiveEntryType)})`
+                      : "Xếp vào lớp đã chọn"}
               </button>
             </div>
           )}
@@ -1191,7 +1236,12 @@ export default function SuggestAssignStep({
 
               <button
                 type="button"
-                onClick={() => handleAssignManualClasses(selectedEntryType)}
+                onClick={() =>
+                  handleAssignManualClasses(
+                    effectiveEntryType,
+                    firstStudyDate.trim() || undefined,
+                  )
+                }
                 disabled={
                   !manualPrimaryClassId ||
                   isAssigning ||
@@ -1204,9 +1254,9 @@ export default function SuggestAssignStep({
               >
                 {isAssigning
                   ? "Đang xếp lớp..."
-                  : hasSecondaryTrack
-                    ? `Xếp lớp thủ công (${toEntryTypeLabel(selectedEntryType)})`
-                    : `Xếp lớp thủ công (${toEntryTypeLabel(selectedEntryType)})`}
+                  : showEntryTypeSelector
+                    ? `Xếp lớp thủ công (${toEntryTypeLabel(effectiveEntryType)})`
+                    : "Xếp lớp thủ công"}
               </button>
             </div>
           )}

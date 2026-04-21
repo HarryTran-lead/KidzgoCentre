@@ -11,6 +11,7 @@ import {
   ChevronRight,
   ClipboardList,
   Eye,
+  FileText,
   Loader2,
   RefreshCw,
   Search,
@@ -21,6 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useBranchFilter } from "@/hooks/useBranchFilter";
 import { getRegistrationById, getRegistrations } from "@/lib/api/registrationService";
+import RegistrationCompletionPdfModal from "@/components/portal/registrations/modals/RegistrationCompletionPdfModal";
 import type { Registration, RegistrationStatus } from "@/types/registration";
 
 function cn(...a: Array<string | false | null | undefined>) {
@@ -151,6 +153,8 @@ export default function AdminRegistrationsPage() {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedDetail, setSelectedDetail] = useState<Registration | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [isCompletionPdfOpen, setIsCompletionPdfOpen] = useState(false);
+  const [completionPdfRow, setCompletionPdfRow] = useState<RegistrationRow | null>(null);
 
   const loadData = async () => {
     try {
@@ -434,6 +438,16 @@ export default function AdminRegistrationsPage() {
                         >
                           <Eye size={14} />
                         </button>
+                        <button
+                          onClick={() => {
+                            setCompletionPdfRow(row);
+                            setIsCompletionPdfOpen(true);
+                          }}
+                          className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-700 cursor-pointer"
+                          title="Xem/In phiếu hoàn thành đăng ký"
+                        >
+                          <FileText size={14} />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -562,6 +576,16 @@ export default function AdminRegistrationsPage() {
         </div>
       </div>
     )}
+
+    <RegistrationCompletionPdfModal
+      isOpen={isCompletionPdfOpen}
+      registrationId={String(completionPdfRow?.id || "")}
+      studentName={completionPdfRow?.studentName || ""}
+      onClose={() => {
+        setIsCompletionPdfOpen(false);
+        setCompletionPdfRow(null);
+      }}
+    />
     </>
   );
 }

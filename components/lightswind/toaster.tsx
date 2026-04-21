@@ -15,9 +15,20 @@ export function Toaster() {
 
   return (
     <ToastProvider>
-      <div className="fixed bottom-4 right-4 z-[999999] flex flex-col gap-2 w-auto max-w-sm">
+      <div className="fixed bottom-4 right-4 z-999999 flex flex-col gap-2 w-auto max-w-sm">
         {toasts.map((toast) => {
-          const { id, title, description, action, type, variant, duration, ...props } = toast;
+          const {
+            id,
+            title,
+            description,
+            action,
+            type,
+            variant,
+            duration,
+            open,
+            onOpenChange,
+            ...props
+          } = toast;
           // Map toast type to variant if variant is not provided
           const toastVariant: "default" | "destructive" | "success" | "warning" | "info" = variant || (
             type === "success" ? "success" :
@@ -33,6 +44,8 @@ export function Toaster() {
               {...props} 
               variant={toastVariant}
               duration={duration}
+              open={open}
+              onOpenChange={onOpenChange}
             >
               <div className="grid gap-1">
                 {title && <ToastTitle>{title}</ToastTitle>}

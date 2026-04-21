@@ -31,6 +31,7 @@ type RegistrationAssignModalProps = {
   isWaiting: boolean;
   suggestedClasses: SuggestedClassBucket | null;
   hasSecondaryTrack: boolean;
+  showEntryTypeSelector?: boolean;
   selectedTrack: RegistrationTrackType;
   setSelectedTrack: (value: RegistrationTrackType) => void;
   selectedEntryType: EntryType;
@@ -40,13 +41,18 @@ type RegistrationAssignModalProps = {
   activeSuggestedClasses: any[];
   activeAlternativeClasses: any[];
   formatSchedulePattern: (value?: string | null) => string;
-  handleAssignClass: (sessionSelectionPattern?: string, entryType?: EntryType) => void;
+  handleAssignClass: (
+    sessionSelectionPattern?: string,
+    entryType?: EntryType,
+    firstStudyDate?: string,
+  ) => void;
   handleAssignSuggestedClasses: (payload: {
     primaryClassId: string;
     primarySessionSelectionPattern?: string;
     secondaryClassId?: string;
     secondarySessionSelectionPattern?: string;
     entryType?: EntryType;
+    firstStudyDate?: string;
   }) => void;
   isAssigning: boolean;
   manualClasses: any[];
@@ -59,7 +65,10 @@ type RegistrationAssignModalProps = {
   setManualPrimarySessionPattern: (value: string) => void;
   manualSecondarySessionPattern: string;
   setManualSecondarySessionPattern: (value: string) => void;
-  handleAssignManualClasses: (entryType?: EntryType) => void;
+  handleAssignManualClasses: (
+    entryType?: EntryType,
+    firstStudyDate?: string,
+  ) => void;
 };
 
 export default function RegistrationAssignModal({
@@ -76,6 +85,7 @@ export default function RegistrationAssignModal({
   isWaiting,
   suggestedClasses,
   hasSecondaryTrack,
+  showEntryTypeSelector = true,
   selectedTrack,
   setSelectedTrack,
   selectedEntryType,
@@ -143,6 +153,7 @@ export default function RegistrationAssignModal({
             isWaiting={isWaiting}
             suggestedClasses={suggestedClasses}
             hasSecondaryTrack={hasSecondaryTrack}
+            showEntryTypeSelector={showEntryTypeSelector}
             selectedTrack={selectedTrack}
             setSelectedTrack={setSelectedTrack}
             selectedEntryType={selectedEntryType}

@@ -52,13 +52,27 @@ export interface ToastProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: "default" | "destructive" | "success" | "warning" | "info";
   duration?: number;
   onClose?: () => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 const Toast = React.forwardRef<HTMLDivElement, ToastProps>(
-  ({ className, variant = "default", duration = 5000, onClose, ...props }, ref) => {
+  ({
+    className,
+    variant = "default",
+    duration = 5000,
+    onClose,
+    open = true,
+    onOpenChange,
+    ...props
+  }, ref) => {
     const [progress, setProgress] = React.useState(0);
-    const [isOpen, setIsOpen] = React.useState(true);
+    const [isOpen, setIsOpen] = React.useState(open);
     const intervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
+
+    React.useEffect(() => {
+      setIsOpen(open);
+    }, [open]);
 
     React.useEffect(() => {
       if (!isOpen) return;
@@ -81,6 +95,7 @@ const Toast = React.forwardRef<HTMLDivElement, ToastProps>(
           clearInterval(intervalRef.current!);
           setTimeout(() => {
             setIsOpen(false);
+            onOpenChange?.(false);
             onClose?.();
           }, 100);
         }
@@ -89,7 +104,7 @@ const Toast = React.forwardRef<HTMLDivElement, ToastProps>(
       return () => {
         if (intervalRef.current) clearInterval(intervalRef.current);
       };
-    }, [isOpen, duration, onClose]);
+    }, [isOpen, duration, onClose, onOpenChange]);
 
     if (!isOpen) return null;
 
@@ -129,6 +144,7 @@ const Toast = React.forwardRef<HTMLDivElement, ToastProps>(
         {/* Close Button */}
         <ToastClose onClick={() => {
           setIsOpen(false);
+          onOpenChange?.(false);
           onClose?.();
         }} />
       </div>
