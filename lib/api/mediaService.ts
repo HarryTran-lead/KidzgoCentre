@@ -1,6 +1,7 @@
-import { FILE_ENDPOINTS, MEDIA_ENDPOINTS } from "@/constants/apiURL";
-import { del, get, post, put, request } from "@/lib/axios";
+import { MEDIA_ENDPOINTS } from "@/constants/apiURL";
+import { del, get, post, put } from "@/lib/axios";
 import { buildQueryString, type QueryParams } from "@/lib/api/queryString";
+import { uploadFile } from "@/lib/api/fileService";
 import type {
   CreateMediaRequest,
   FileUploadResponse,
@@ -49,22 +50,11 @@ export async function uploadMediaFile(
   file: File,
   options?: { folder?: string; resourceType?: string }
 ): Promise<any> {
-  const formData = new FormData();
-  formData.append("file", file);
-
-  const query = buildQueryString({
-    folder: options?.folder,
-    resourceType: options?.resourceType,
-  });
-
-  return request<FileUploadResponse>({
-    method: "POST",
-    url: `${FILE_ENDPOINTS.UPLOAD}${query}`,
-    data: formData,
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
-  });
+  return uploadFile(
+    file,
+    options?.folder ?? "uploads",
+    options?.resourceType ?? "auto",
+  ) as Promise<FileUploadResponse>;
 }
 
 export async function deleteStorageFile(url: string): Promise<any> {

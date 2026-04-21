@@ -1,6 +1,6 @@
-import { ADMIN_ENDPOINTS, FILE_ENDPOINTS } from "@/constants/apiURL";
+import { ADMIN_ENDPOINTS } from "@/constants/apiURL";
 import { get, post, put } from "@/lib/axios";
-import { getAccessToken } from "@/lib/store/authToken";
+import { uploadFile, isUploadSuccess } from "@/lib/api/fileService";
 
 type ApiLikeResponse = {
   success?: boolean;
@@ -673,12 +673,6 @@ export async function uploadLessonPlanFile(
   file: File,
   options?: { isVideo?: boolean }
 ): Promise<LessonPlanFileUploadResponse> {
-  const token = getAccessToken();
-
-  if (!token) {
-    throw new Error("Chua dang nhap.");
-  }
-
   const folder =
     kind === "template"
       ? "lesson-plan/template"
@@ -686,30 +680,17 @@ export async function uploadLessonPlanFile(
         ? "lesson-plan/materials"
         : "lesson-plan/media";
   const resourceType = kind === "media" && booleanOr(options?.isVideo, false) ? "video" : "auto";
-  const endpoint = `${FILE_ENDPOINTS.UPLOAD}?folder=${encodeURIComponent(folder)}&resourceType=${encodeURIComponent(resourceType)}`;
+  const uploadResponse = await uploadFile(file, folder, resourceType);
 
-  const formData = new FormData();
-  formData.append("file", file);
-
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-    body: formData,
-  });
-
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(stringOr(data?.message, data?.error, data?.detail, data?.title, "Tai file len that bai."));
+  if (!isUploadSuccess(uploadResponse)) {
+    throw new Error(stringOr(uploadResponse?.error, uploadResponse?.detail, uploadResponse?.title, "Tai file len that bai."));
   }
 
   return {
-    url: stringOr(data?.url),
-    fileName: stringOr(data?.fileName),
-    size: numberOr(data?.size),
-    folder: stringOr(data?.folder),
-    resourceType: stringOr(data?.resourceType) || undefined,
+    url: stringOr(uploadResponse?.url),
+    fileName: stringOr(uploadResponse?.fileName),
+    size: numberOr(uploadResponse?.size),
+    folder: stringOr(uploadResponse?.folder),
+    resourceType,
   };
 }

@@ -9,11 +9,11 @@
 import { FILE_ENDPOINTS } from "@/constants/apiURL";
 import { getAccessToken } from "@/lib/store/authToken";
 
-const DIRECT_UPLOAD_MAX_MB = Number(process.env.NEXT_PUBLIC_DIRECT_UPLOAD_MAX_MB ?? "4.5");
-const DIRECT_UPLOAD_MAX_BYTES = Math.max(1, DIRECT_UPLOAD_MAX_MB) * 1024 * 1024;
+const DIRECT_UPLOAD_MIN_MB = Number(process.env.NEXT_PUBLIC_DIRECT_UPLOAD_MIN_MB ?? "0");
+const DIRECT_UPLOAD_MIN_BYTES = Math.max(0, DIRECT_UPLOAD_MIN_MB) * 1024 * 1024;
 
 function isBlobUploadEnabled(): boolean {
-  return process.env.NEXT_PUBLIC_ENABLE_VERCEL_BLOB === "true";
+  return process.env.NEXT_PUBLIC_ENABLE_VERCEL_BLOB !== "false";
 }
 
 function buildBlobPath(fileName: string, folder: string): string {
@@ -124,7 +124,7 @@ export async function uploadFile(
   folder = "uploads",
   resourceType = "auto"
 ): Promise<UploadFileResponse> {
-  const shouldUseBlob = isBlobUploadEnabled() && file.size > DIRECT_UPLOAD_MAX_BYTES;
+  const shouldUseBlob = isBlobUploadEnabled() && file.size >= DIRECT_UPLOAD_MIN_BYTES;
 
   if (shouldUseBlob) {
     try {
