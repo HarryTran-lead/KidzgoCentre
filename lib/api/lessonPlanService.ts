@@ -1,6 +1,7 @@
 import { ADMIN_ENDPOINTS } from "@/constants/apiURL";
 import { get, post, put } from "@/lib/axios";
 import { uploadFile, isUploadSuccess } from "@/lib/api/fileService";
+import { getAccessToken } from "@/lib/store/authToken";
 
 type ApiLikeResponse = {
   success?: boolean;

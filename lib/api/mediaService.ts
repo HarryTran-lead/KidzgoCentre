@@ -1,4 +1,4 @@
-import { MEDIA_ENDPOINTS } from "@/constants/apiURL";
+import { FILE_ENDPOINTS, MEDIA_ENDPOINTS } from "@/constants/apiURL";
 import { del, get, post, put } from "@/lib/axios";
 import { buildQueryString, type QueryParams } from "@/lib/api/queryString";
 import { uploadFile } from "@/lib/api/fileService";
