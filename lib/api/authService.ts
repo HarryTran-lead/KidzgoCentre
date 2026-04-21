@@ -7,8 +7,8 @@
  */
 
 import { AUTH_ENDPOINTS } from '@/constants/apiURL';
-import { FILE_ENDPOINTS } from '@/constants/apiURL';
 import { get, post, put } from '@/lib/axios';
+import { uploadFile } from '@/lib/api/fileService';
 import type {
   LoginRequest,
   LoginApiResponse,
@@ -196,11 +196,5 @@ export async function logout(): Promise<LogoutApiResponse> {
  * Upload user avatar
  */
 export async function uploadAvatar(file: File): Promise<any> {
-  const formData = new FormData();
-  formData.append('file', file);
-  return post<any>(FILE_ENDPOINTS.UPLOAD, formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  });
+  return uploadFile(file, 'avatars', 'image');
 }
