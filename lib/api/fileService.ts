@@ -16,6 +16,10 @@ function isBlobUploadEnabled(): boolean {
   return process.env.NEXT_PUBLIC_ENABLE_VERCEL_BLOB !== "false";
 }
 
+function shouldFallbackToBackendWhenBlobFails(): boolean {
+  return process.env.NEXT_PUBLIC_BLOB_FALLBACK_TO_BACKEND === "true";
+}
+
 function buildBlobPath(fileName: string, folder: string): string {
   const normalizedFolder = folder
     .trim()
@@ -23,10 +27,17 @@ function buildBlobPath(fileName: string, folder: string): string {
     .replace(/[^a-zA-Z0-9/_-]/g, "-")
     .replace(/-+/g, "-");
 
-  const safeName = fileName
-    .trim()
+  const trimmedName = fileName.trim();
+  const extMatch = trimmedName.match(/\.([a-zA-Z0-9]{1,10})$/);
+  const ext = extMatch ? `.${extMatch[1].toLowerCase()}` : "";
+  const baseName = ext ? trimmedName.slice(0, -ext.length) : trimmedName;
+  const safeBase = baseName
     .replace(/[^a-zA-Z0-9._-]/g, "-")
-    .replace(/-+/g, "-");
+    .replace(/-+/g, "-")
+    .replace(/^[-_.]+|[-_.]+$/g, "")
+    .slice(0, 120);
+
+  const safeName = `${safeBase || "file"}${ext}`;
 
   return normalizedFolder ? `${normalizedFolder}/${safeName}` : safeName;
 }
@@ -76,6 +87,7 @@ async function uploadFileViaBlob(
     handleUploadUrl: FILE_ENDPOINTS.BLOB_UPLOAD,
     clientPayload,
     multipart: file.size > 20 * 1024 * 1024,
+    contentType: file.type || undefined,
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   });
 
@@ -130,7 +142,19 @@ export async function uploadFile(
     try {
       return await uploadFileViaBlob(file, folder, resourceType);
     } catch (error) {
-      console.error("Blob direct upload failed, fallback to backend upload:", error);
+      console.error("Blob direct upload failed:", error);
+
+      if (!shouldFallbackToBackendWhenBlobFails()) {
+        return {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Upload qua Vercel Blob thất bại.",
+          status: 400,
+        };
+      }
+
+      console.warn("Fallback to backend upload is enabled.");
     }
   }
 
