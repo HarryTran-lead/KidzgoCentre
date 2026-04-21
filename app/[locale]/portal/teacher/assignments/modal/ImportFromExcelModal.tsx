@@ -97,10 +97,19 @@ export function ImportFromExcelModal({ isOpen, onClose, onImport }: ImportFromEx
         else if (correctAnswer === "C" || correctAnswer === "c") correctIndex = 2;
         else if (correctAnswer === "D" || correctAnswer === "d") correctIndex = 3;
 
+        const levelInput = row["Level"] || row["Độ khó"] || "Medium";
+        let level = "Medium";
+        if (levelInput.toLowerCase().includes("easy") || levelInput.toLowerCase().includes("dễ")) {
+          level = "Easy";
+        } else if (levelInput.toLowerCase().includes("hard") || levelInput.toLowerCase().includes("khó")) {
+          level = "Hard";
+        }
+
         return {
           id: `temp-${index}`,
           question: row["Question"] || row["Câu hỏi"] || "",
           program: row["Program"] || row["Chương trình"] || "",
+          level: level,
           options,
           correctIndex,
           explanation: row["Explanation"] || row["Giải thích"] || "",
@@ -128,6 +137,7 @@ export function ImportFromExcelModal({ isOpen, onClose, onImport }: ImportFromEx
       {
         "Question": "What is the capital of Vietnam?",
         "Program": "Cambridge Flyers",
+        "Level": "Easy",
         "Option A": "Hanoi",
         "Option B": "Ho Chi Minh City",
         "Option C": "Da Nang",
@@ -139,6 +149,7 @@ export function ImportFromExcelModal({ isOpen, onClose, onImport }: ImportFromEx
       {
         "Question": "Which of the following is a renewable energy source?",
         "Program": "Cambridge Flyers",
+        "Level": "Medium",
         "Option A": "Coal",
         "Option B": "Natural Gas",
         "Option C": "Solar Power",
@@ -166,6 +177,7 @@ export function ImportFromExcelModal({ isOpen, onClose, onImport }: ImportFromEx
       id: crypto.randomUUID(),
       question: q.question,
       program: q.program || undefined,
+      level: q.level || "Medium",
       options: q.options.map((opt: string) => ({
         id: crypto.randomUUID(),
         text: opt,
@@ -323,11 +335,20 @@ export function ImportFromExcelModal({ isOpen, onClose, onImport }: ImportFromEx
                       </div>
                   <div className="flex-1">
                         <p className="font-medium text-gray-900">{q.question || "Không có câu hỏi"}</p>
-                        {q.program && (
-                          <p className="text-xs text-blue-600 font-semibold mt-1">
-                            Chương trình: {q.program}
-                          </p>
-                        )}
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          {q.program && (
+                            <p className="text-xs text-blue-600 font-semibold">
+                              Chương trình: {q.program}
+                            </p>
+                          )}
+                          <div className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                            q.level === "Easy" ? "bg-emerald-100 text-emerald-700" :
+                            q.level === "Hard" ? "bg-red-100 text-red-700" :
+                            "bg-amber-100 text-amber-700"
+                          }`}>
+                            {q.level || "Medium"}
+                          </div>
+                        </div>
                         {q.options.length > 0 && (
                           <div className="grid grid-cols-2 gap-2 mt-2">
                             {q.options.map((opt: string, optIdx: number) => (

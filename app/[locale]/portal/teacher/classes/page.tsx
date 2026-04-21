@@ -327,9 +327,9 @@ function ScheduleDisplay({ schedule, classId, locale, router }: { schedule: stri
       </div>
 
       {/* View Schedule Link */}
-      {classId && locale && router && (
+      {locale && router && (
         <button
-          onClick={() => router.push(`/${locale}/portal/teacher/classes/${classId}`)}
+          onClick={() => router.push(`/${locale}/portal/teacher/schedule`)}
           className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold text-blue-700 bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 hover:from-blue-100 hover:to-cyan-100 hover:border-blue-300 transition-all cursor-pointer group"
         >
           <span>Xem lịch</span>

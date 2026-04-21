@@ -33,7 +33,7 @@ const DEBOUNCE_DELAY = 300;
 // Helper functions
 const getTypeLabel = (type: string): string => {
   const map: Record<string, string> = {
-    File: "Nộp file",
+    FILE: "Nộp file",
     Quiz: "Trắc nghiệm",
     Essay: "Bài viết",
     PROJECT: "Dự án",
@@ -41,6 +41,8 @@ const getTypeLabel = (type: string): string => {
     FILE_UPLOAD: "Nộp file",
     ESSAY: "Bài viết",
     MULTIPLECHOICE: "Trắc nghiệm",
+    MULTIPLE_CHOICE: "Trắc nghiệm",
+    Text: "Trả lời bằng văn bản",
   };
   return map[type] || "Bài tập";
 };
@@ -52,6 +54,8 @@ const getTypeIcon = (type: string) => {
     case "FILE_UPLOAD":
       return <Upload size={24} />;
     case "QUIZ":
+    case "MULTIPLE_CHOICE":
+    case "MULTIPLECHOICE":
       return <CheckCircle size={24} />;
     case "ESSAY":
       return <FileText size={24} />;
@@ -59,6 +63,9 @@ const getTypeIcon = (type: string) => {
       return <BookOpen size={24} />;
     case "PRESENTATION":
       return <Award size={24} />;
+    case "TRUE_FALSE":
+    case "FILL_IN_BLANK":
+      return <HelpCircle size={24} />;
     default:
       return <FileText size={24} />;
   }

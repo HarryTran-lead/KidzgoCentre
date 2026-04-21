@@ -111,7 +111,9 @@ function isValueDefined<T>(value: T | null | undefined): value is T {
   return value !== undefined && value !== null;
 }
 
-function pickFirstDefined<T>(...values: Array<T | null | undefined>): T | undefined {
+function pickFirstDefined<T>(
+  ...values: Array<T | null | undefined>
+): T | undefined {
   for (const value of values) {
     if (isValueDefined(value)) {
       return value;
@@ -130,7 +132,7 @@ function normalizeComparable(value?: string | number | null) {
 
 function isUuidLike(value?: string | number | null) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    String(value ?? "").trim()
+    String(value ?? "").trim(),
   );
 }
 
@@ -161,7 +163,7 @@ function isMatchingOption(
   optionText: string,
   index: number,
   correctAnswer?: string | number | null,
-  correctOptionId?: string | number | null
+  correctOptionId?: string | number | null,
 ) {
   const normalizedOptionId = normalizeComparable(optionId);
   const normalizedOptionText = normalizeComparable(optionText);
@@ -169,7 +171,10 @@ function isMatchingOption(
   const normalizedCorrectOptionId = normalizeComparable(correctOptionId);
   const optionLabel = normalizeComparable(optionLabelFromIndex(index));
 
-  if (normalizedCorrectOptionId && normalizedOptionId === normalizedCorrectOptionId) {
+  if (
+    normalizedCorrectOptionId &&
+    normalizedOptionId === normalizedCorrectOptionId
+  ) {
     return true;
   }
 
@@ -190,7 +195,7 @@ function isMatchingOption(
 function normalizeQuestionOptions(
   rawOptions: unknown,
   correctAnswer?: string,
-  correctOptionId?: string
+  correctOptionId?: string,
 ): MCQuestionOption[] {
   if (!Array.isArray(rawOptions)) {
     return [];
@@ -198,7 +203,8 @@ function normalizeQuestionOptions(
 
   return rawOptions.map((option: any, index) => {
     const optionId = String(
-      pickFirstDefined(option?.optionId, option?.id, index) ?? `option-${index}`
+      pickFirstDefined(option?.optionId, option?.id, index) ??
+        `option-${index}`,
     );
     const optionText =
       typeof option === "string"
@@ -209,8 +215,8 @@ function normalizeQuestionOptions(
               option?.optionText,
               option?.content,
               option?.label,
-              ""
-            ) ?? ""
+              "",
+            ) ?? "",
           );
 
     return {
@@ -220,24 +226,34 @@ function normalizeQuestionOptions(
       optionText,
       isCorrect:
         option?.isCorrect === true ||
-        isMatchingOption(optionId, optionText, index, correctAnswer, correctOptionId),
+        isMatchingOption(
+          optionId,
+          optionText,
+          index,
+          correctAnswer,
+          correctOptionId,
+        ),
     };
   });
 }
 
 function normalizeQuestion(rawQuestion: any, index: number): MCQuestion {
   const questionId = String(
-    pickFirstDefined(rawQuestion?.questionId, rawQuestion?.id, `question-${index}`)
+    pickFirstDefined(
+      rawQuestion?.questionId,
+      rawQuestion?.id,
+      `question-${index}`,
+    ),
   );
   const correctAnswer = pickFirstDefined(
     rawQuestion?.correctAnswer,
     rawQuestion?.correctOptionText,
     rawQuestion?.answer,
-    rawQuestion?.correctAnswerIndex
+    rawQuestion?.correctAnswerIndex,
   );
   const correctOptionId = pickFirstDefined(
     rawQuestion?.correctOptionId,
-    rawQuestion?.correctAnswerId
+    rawQuestion?.correctAnswerId,
   );
   const rawOptions = Array.isArray(rawQuestion?.options)
     ? rawQuestion.options
@@ -247,12 +263,17 @@ function normalizeQuestion(rawQuestion: any, index: number): MCQuestion {
         ? rawQuestion.optionTexts
         : [];
 
-  const options = normalizeQuestionOptions(rawOptions, correctAnswer, correctOptionId);
+  const options = normalizeQuestionOptions(
+    rawOptions,
+    correctAnswer,
+    correctOptionId,
+  );
 
   return {
     id: questionId,
     questionId,
-    questionText: rawQuestion?.questionText || rawQuestion?.text || rawQuestion?.content,
+    questionText:
+      rawQuestion?.questionText || rawQuestion?.text || rawQuestion?.content,
     questionType: rawQuestion?.questionType,
     points: rawQuestion?.points ?? rawQuestion?.maxPoints,
     options,
@@ -262,10 +283,7 @@ function normalizeQuestion(rawQuestion: any, index: number): MCQuestion {
 }
 
 function extractMultipleChoiceQuestions(source: any): MCQuestion[] {
-  const payload =
-    source?.data?.data ??
-    source?.data ??
-    source;
+  const payload = source?.data?.data ?? source?.data ?? source;
 
   const candidates = [
     payload?.questions,
@@ -285,40 +303,51 @@ function extractMultipleChoiceQuestions(source: any): MCQuestion[] {
     return [];
   }
 
-  return rawQuestions.map((question, index) => normalizeQuestion(question, index));
+  return rawQuestions.map((question, index) =>
+    normalizeQuestion(question, index),
+  );
 }
 
-function parseTextAnswerAsMC(textAnswer?: string | null): MultipleChoiceAnswerItem[] {
+function parseTextAnswerAsMC(
+  textAnswer?: string | null,
+): MultipleChoiceAnswerItem[] {
   if (!textAnswer) return [];
   try {
     const parsed = JSON.parse(textAnswer);
     if (!Array.isArray(parsed)) return [];
     return parsed.map((item: any) => ({
-      questionId: pickFirstDefined(item?.QuestionId, item?.questionId)?.toString(),
+      questionId: pickFirstDefined(
+        item?.QuestionId,
+        item?.questionId,
+      )?.toString(),
       questionText: pickFirstDefined(item?.QuestionText, item?.questionText),
       selectedOptionId: pickFirstDefined(
         item?.SelectedOptionId,
-        item?.selectedOptionId
+        item?.selectedOptionId,
       )?.toString(),
       selectedOptionText: pickFirstDefined(
         item?.SelectedOptionText,
-        item?.selectedOptionText
+        item?.selectedOptionText,
       ),
       selectedAnswer: item?.selectedAnswer,
       correctOptionId: pickFirstDefined(
         item?.CorrectOptionId,
-        item?.correctOptionId
+        item?.correctOptionId,
       )?.toString(),
       correctOptionText: pickFirstDefined(
         item?.CorrectOptionText,
-        item?.correctOptionText
+        item?.correctOptionText,
       ),
       isCorrect: item?.isCorrect,
       points: item?.points ?? item?.maxPoints,
       maxPoints: item?.maxPoints ?? item?.points,
       earnedPoints: item?.earnedPoints,
       explanation: item?.explanation,
-      options: normalizeQuestionOptions(item?.options, item?.correctOptionText, item?.correctOptionId),
+      options: normalizeQuestionOptions(
+        item?.options,
+        item?.correctOptionText,
+        item?.correctOptionId,
+      ),
     }));
   } catch {
     return [];
@@ -331,25 +360,30 @@ function extractDetailPayload(source: any) {
 
 function mergeSubmissionDetail(
   prev: SubmissionDetail | null | undefined,
-  next: SubmissionDetail | null | undefined
+  next: SubmissionDetail | null | undefined,
 ) {
   if (!next) return prev ?? null;
   if (!prev) return next;
 
   const merged: SubmissionDetail = { ...prev };
 
-  (Object.entries(next) as [keyof SubmissionDetail, SubmissionDetail[keyof SubmissionDetail]][]).forEach(
-    ([key, value]) => {
-      if (value !== undefined) {
-        (merged as SubmissionDetail)[key] = value;
-      }
+  (
+    Object.entries(next) as [
+      keyof SubmissionDetail,
+      SubmissionDetail[keyof SubmissionDetail],
+    ][]
+  ).forEach(([key, value]) => {
+    if (value !== undefined) {
+      (merged as SubmissionDetail)[key] = value;
     }
-  );
+  });
 
   return merged;
 }
 
-function extractMultipleChoiceAnswers(detail?: SubmissionDetail | null): MultipleChoiceAnswerItem[] {
+function extractMultipleChoiceAnswers(
+  detail?: SubmissionDetail | null,
+): MultipleChoiceAnswerItem[] {
   if (!detail) return [];
 
   // 1. Ưu tiên các field array có grading info (isCorrect, earnedPoints)
@@ -372,27 +406,30 @@ function extractMultipleChoiceAnswers(detail?: SubmissionDetail | null): Multipl
   }
 
   return raw.map((item: any) => ({
-    questionId: pickFirstDefined(item?.questionId, item?.QuestionId)?.toString(),
+    questionId: pickFirstDefined(
+      item?.questionId,
+      item?.QuestionId,
+    )?.toString(),
     questionText: pickFirstDefined(item?.questionText, item?.QuestionText),
     selectedOptionId: pickFirstDefined(
       item?.selectedOptionId,
-      item?.SelectedOptionId
+      item?.SelectedOptionId,
     )?.toString(),
     selectedOptionText: pickFirstDefined(
       item?.selectedOptionText,
       item?.SelectedOptionText,
       item?.studentAnswer,
-      item?.selectedAnswer
+      item?.selectedAnswer,
     ),
     selectedAnswer: item?.selectedAnswer || item?.studentAnswer,
     correctOptionId: pickFirstDefined(
       item?.correctOptionId,
-      item?.CorrectOptionId
+      item?.CorrectOptionId,
     )?.toString(),
     correctOptionText: pickFirstDefined(
       item?.correctOptionText,
       item?.CorrectOptionText,
-      item?.correctAnswer
+      item?.correctAnswer,
     ),
     isCorrect: item?.isCorrect,
     points: item?.points ?? item?.maxPoints,
@@ -402,7 +439,7 @@ function extractMultipleChoiceAnswers(detail?: SubmissionDetail | null): Multipl
     options: normalizeQuestionOptions(
       item?.options,
       item?.correctOptionText || item?.correctAnswer,
-      item?.correctOptionId
+      item?.correctOptionId,
     ),
   }));
 }
@@ -426,7 +463,10 @@ function formatDateTime(input?: string | null) {
   }
 }
 
-function normalizeLinks(attachmentUrls?: string | string[] | null, linkUrl?: string | null) {
+function normalizeLinks(
+  attachmentUrls?: string | string[] | null,
+  linkUrl?: string | null,
+) {
   const links: string[] = [];
 
   const pushIfValid = (value?: string | null) => {
@@ -481,9 +521,7 @@ function toArrayOfStrings(value: unknown): string[] {
     return [];
   }
 
-  return value
-    .map((item) => String(item ?? "").trim())
-    .filter(Boolean);
+  return value.map((item) => String(item ?? "").trim()).filter(Boolean);
 }
 
 function parseAiFeedbackValue(value: unknown): ParsedAiFeedback | null {
@@ -513,7 +551,13 @@ function parseAiFeedbackValue(value: unknown): ParsedAiFeedback | null {
   const suggestions = toArrayOfStrings(resolved?.suggestions);
   const warnings = toArrayOfStrings(payload?.warnings ?? resolved?.warnings);
 
-  if (!summary && strengths.length === 0 && issues.length === 0 && suggestions.length === 0 && warnings.length === 0) {
+  if (
+    !summary &&
+    strengths.length === 0 &&
+    issues.length === 0 &&
+    suggestions.length === 0 &&
+    warnings.length === 0
+  ) {
     return null;
   }
 
@@ -537,16 +581,24 @@ function formatAiFeedbackText(value?: string | null) {
     sections.push(parsed.summary);
   }
   if (parsed.strengths.length > 0) {
-    sections.push(`Điểm mạnh:\n${parsed.strengths.map((item) => `- ${item}`).join("\n")}`);
+    sections.push(
+      `Điểm mạnh:\n${parsed.strengths.map((item) => `- ${item}`).join("\n")}`,
+    );
   }
   if (parsed.issues.length > 0) {
-    sections.push(`Cần cải thiện:\n${parsed.issues.map((item) => `- ${item}`).join("\n")}`);
+    sections.push(
+      `Cần cải thiện:\n${parsed.issues.map((item) => `- ${item}`).join("\n")}`,
+    );
   }
   if (parsed.suggestions.length > 0) {
-    sections.push(`Gợi ý:\n${parsed.suggestions.map((item) => `- ${item}`).join("\n")}`);
+    sections.push(
+      `Gợi ý:\n${parsed.suggestions.map((item) => `- ${item}`).join("\n")}`,
+    );
   }
   if (parsed.warnings.length > 0) {
-    sections.push(`Lưu ý:\n${parsed.warnings.map((item) => `- ${item}`).join("\n")}`);
+    sections.push(
+      `Lưu ý:\n${parsed.warnings.map((item) => `- ${item}`).join("\n")}`,
+    );
   }
 
   return sections.join("\n\n").trim();
@@ -561,19 +613,19 @@ function buildQuickGradeFeedback(result: HomeworkQuickGradeResult): string {
 
   if (result.strengths.length > 0) {
     sections.push(
-      `Diem manh:\n${result.strengths.map((item) => `- ${item}`).join("\n")}`
+      `Diem manh:\n${result.strengths.map((item) => `- ${item}`).join("\n")}`,
     );
   }
 
   if (result.issues.length > 0) {
     sections.push(
-      `Can cai thien:\n${result.issues.map((item) => `- ${item}`).join("\n")}`
+      `Can cai thien:\n${result.issues.map((item) => `- ${item}`).join("\n")}`,
     );
   }
 
   if (result.suggestions.length > 0) {
     sections.push(
-      `Goi y:\n${result.suggestions.map((item) => `- ${item}`).join("\n")}`
+      `Goi y:\n${result.suggestions.map((item) => `- ${item}`).join("\n")}`,
     );
   }
 
@@ -591,22 +643,32 @@ function formatReadableAiFeedbackText(value?: string | null) {
     sections.push(parsed.summary);
   }
   if (parsed.strengths.length > 0) {
-    sections.push(`Điểm mạnh:\n${parsed.strengths.map((item) => `- ${item}`).join("\n")}`);
+    sections.push(
+      `Điểm mạnh:\n${parsed.strengths.map((item) => `- ${item}`).join("\n")}`,
+    );
   }
   if (parsed.issues.length > 0) {
-    sections.push(`Cần cải thiện:\n${parsed.issues.map((item) => `- ${item}`).join("\n")}`);
+    sections.push(
+      `Cần cải thiện:\n${parsed.issues.map((item) => `- ${item}`).join("\n")}`,
+    );
   }
   if (parsed.suggestions.length > 0) {
-    sections.push(`Gợi ý:\n${parsed.suggestions.map((item) => `- ${item}`).join("\n")}`);
+    sections.push(
+      `Gợi ý:\n${parsed.suggestions.map((item) => `- ${item}`).join("\n")}`,
+    );
   }
   if (parsed.warnings.length > 0) {
-    sections.push(`Lưu ý:\n${parsed.warnings.map((item) => `- ${item}`).join("\n")}`);
+    sections.push(
+      `Lưu ý:\n${parsed.warnings.map((item) => `- ${item}`).join("\n")}`,
+    );
   }
 
   return sections.join("\n\n").trim();
 }
 
-function buildReadableQuickGradeFeedback(result: HomeworkQuickGradeResult): string {
+function buildReadableQuickGradeFeedback(
+  result: HomeworkQuickGradeResult,
+): string {
   const sections: string[] = [];
 
   if (result.summary) {
@@ -615,25 +677,25 @@ function buildReadableQuickGradeFeedback(result: HomeworkQuickGradeResult): stri
 
   if (result.strengths.length > 0) {
     sections.push(
-      `Điểm mạnh:\n${result.strengths.map((item) => `- ${item}`).join("\n")}`
+      `Điểm mạnh:\n${result.strengths.map((item) => `- ${item}`).join("\n")}`,
     );
   }
 
   if (result.issues.length > 0) {
     sections.push(
-      `Cần cải thiện:\n${result.issues.map((item) => `- ${item}`).join("\n")}`
+      `Cần cải thiện:\n${result.issues.map((item) => `- ${item}`).join("\n")}`,
     );
   }
 
   if (result.suggestions.length > 0) {
     sections.push(
-      `Gợi ý:\n${result.suggestions.map((item) => `- ${item}`).join("\n")}`
+      `Gợi ý:\n${result.suggestions.map((item) => `- ${item}`).join("\n")}`,
     );
   }
 
   if (result.warnings.length > 0) {
     sections.push(
-      `Lưu ý:\n${result.warnings.map((item) => `- ${item}`).join("\n")}`
+      `Lưu ý:\n${result.warnings.map((item) => `- ${item}`).join("\n")}`,
     );
   }
 
@@ -653,7 +715,9 @@ export default function TeacherSubmissionDetailPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Assignment questions for multiple choice
-  const [assignmentQuestions, setAssignmentQuestions] = useState<MCQuestion[]>([]);
+  const [assignmentQuestions, setAssignmentQuestions] = useState<MCQuestion[]>(
+    [],
+  );
 
   // Grading state
   const [editingScore, setEditingScore] = useState("");
@@ -676,7 +740,9 @@ export default function TeacherSubmissionDetailPage() {
       setError(null);
 
       try {
-        const response = await get<any>(`/api/homework/submissions/${homeworkStudentId}`);
+        const response = await get<any>(
+          `/api/homework/submissions/${homeworkStudentId}`,
+        );
         const body = response?.data || response;
         const detail: SubmissionDetail | null = body?.data || body || null;
 
@@ -693,15 +759,18 @@ export default function TeacherSubmissionDetailPage() {
             detail.homeworkAssignmentId ||
             assignmentId ||
             detail.id ||
-            ""
+            "",
         );
 
         if (detailQuestions.length === 0) {
           try {
-            const studentRes = await get<any>(`/api/students/homework/${homeworkStudentId}`);
+            const studentRes = await get<any>(
+              `/api/students/homework/${homeworkStudentId}`,
+            );
             const studentBody = studentRes?.data || studentRes;
             const studentDetail = extractDetailPayload(studentBody);
-            const studentQuestions = extractMultipleChoiceQuestions(studentDetail);
+            const studentQuestions =
+              extractMultipleChoiceQuestions(studentDetail);
 
             if (studentQuestions.length > 0) {
               setAssignmentQuestions(studentQuestions);
@@ -713,23 +782,26 @@ export default function TeacherSubmissionDetailPage() {
                   ? {
                       ...prev,
                       questions:
-                        Array.isArray(studentDetail.questions) && studentDetail.questions.length > 0
+                        Array.isArray(studentDetail.questions) &&
+                        studentDetail.questions.length > 0
                           ? studentDetail.questions
                           : prev.questions,
                       review: studentDetail.review || prev.review,
                       answerResults:
-                        Array.isArray(studentDetail.answerResults) && studentDetail.answerResults.length > 0
+                        Array.isArray(studentDetail.answerResults) &&
+                        studentDetail.answerResults.length > 0
                           ? studentDetail.answerResults
                           : Array.isArray(studentDetail.review?.answerResults)
                             ? studentDetail.review.answerResults
                             : prev.answerResults,
                       multipleChoiceAnswers:
-                        Array.isArray(studentDetail.multipleChoiceAnswers) && studentDetail.multipleChoiceAnswers.length > 0
+                        Array.isArray(studentDetail.multipleChoiceAnswers) &&
+                        studentDetail.multipleChoiceAnswers.length > 0
                           ? studentDetail.multipleChoiceAnswers
                           : prev.multipleChoiceAnswers,
                       textAnswer: prev.textAnswer || studentDetail.textAnswer,
                     }
-                  : prev
+                  : prev,
               );
             }
           } catch {
@@ -739,7 +811,9 @@ export default function TeacherSubmissionDetailPage() {
 
         if (detailQuestions.length === 0 && resolvedAssignmentId) {
           try {
-            const assignmentRes = await get<any>(`/api/homework/${resolvedAssignmentId}`);
+            const assignmentRes = await get<any>(
+              `/api/homework/${resolvedAssignmentId}`,
+            );
             const assignmentBody = assignmentRes?.data || assignmentRes;
             const assignmentDetail = extractDetailPayload(assignmentBody);
             const questions = extractMultipleChoiceQuestions(assignmentDetail);
@@ -751,7 +825,11 @@ export default function TeacherSubmissionDetailPage() {
           }
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Không tải được chi tiết bài nộp");
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Không tải được chi tiết bài nộp",
+        );
       } finally {
         setLoading(false);
       }
@@ -760,8 +838,14 @@ export default function TeacherSubmissionDetailPage() {
     fetchDetail();
   }, [homeworkStudentId]);
 
-  const links = useMemo(() => normalizeLinks(data?.attachmentUrls, data?.linkUrl), [data]);
-  const multipleChoiceAnswers = useMemo(() => extractMultipleChoiceAnswers(data), [data]);
+  const links = useMemo(
+    () => normalizeLinks(data?.attachmentUrls, data?.linkUrl),
+    [data],
+  );
+  const multipleChoiceAnswers = useMemo(
+    () => extractMultipleChoiceAnswers(data),
+    [data],
+  );
   const showCorrectAnswer = data?.review?.showCorrectAnswer ?? true;
   const showExplanation = data?.review?.showExplanation ?? true;
   const matchesChoiceOption = useCallback(
@@ -769,7 +853,7 @@ export default function TeacherSubmissionDetailPage() {
       option: MCQuestionOption | undefined,
       optionIndex: number,
       answerValue?: string | null,
-      answerOptionId?: string | null
+      answerOptionId?: string | null,
     ) => {
       if (!option) {
         return false;
@@ -780,10 +864,10 @@ export default function TeacherSubmissionDetailPage() {
         String(pickFirstDefined(option.optionText, option.text, "") ?? ""),
         optionIndex,
         answerValue,
-        answerOptionId ?? undefined
+        answerOptionId ?? undefined,
       );
     },
-    []
+    [],
   );
 
   // Merge assignment questions with student answers
@@ -791,7 +875,9 @@ export default function TeacherSubmissionDetailPage() {
     if (assignmentQuestions.length === 0) {
       return multipleChoiceAnswers.map((answer) => ({
         ...answer,
-        questionText: answer.questionId ? `Câu hỏi (${answer.questionId.slice(0, 8)}...)` : "Câu hỏi",
+        questionText: answer.questionId
+          ? `Câu hỏi (${answer.questionId.slice(0, 8)}...)`
+          : "Câu hỏi",
         options: [] as MCQuestionOption[],
         selectedOptionText: answer.selectedOptionId || "Chưa chọn",
         correctOptionText: answer.correctOptionId || "",
@@ -802,18 +888,24 @@ export default function TeacherSubmissionDetailPage() {
       const questionId = question.questionId || question.id || "";
       const answer =
         multipleChoiceAnswers.find(
-          (a) => (a.questionId || "").toLowerCase() === questionId.toLowerCase()
+          (a) =>
+            (a.questionId || "").toLowerCase() === questionId.toLowerCase(),
         ) ?? multipleChoiceAnswers[questionIndex];
 
-      const allOptions = [...(question.options || []), ...(question.optionsText || [])];
+      const allOptions = [
+        ...(question.options || []),
+        ...(question.optionsText || []),
+      ];
       const selectedOption =
         allOptions.find((option, optionIndex) =>
           matchesChoiceOption(
             option,
             optionIndex,
-            answer?.selectedOptionId ?? answer?.selectedOptionText ?? answer?.selectedAnswer,
-            answer?.selectedOptionId ?? undefined
-          )
+            answer?.selectedOptionId ??
+              answer?.selectedOptionText ??
+              answer?.selectedAnswer,
+            answer?.selectedOptionId ?? undefined,
+          ),
         ) ?? null;
       const correctOption =
         allOptions.find((o) => o.isCorrect === true) ||
@@ -822,18 +914,27 @@ export default function TeacherSubmissionDetailPage() {
             option,
             optionIndex,
             answer?.correctOptionText ?? answer?.correctOptionId,
-            answer?.correctOptionId ?? undefined
-          )
+            answer?.correctOptionId ?? undefined,
+          ),
         ) ||
         null;
 
       return {
         ...(answer || {}),
         questionId,
-        questionText: question.questionText || `Câu hỏi (${questionId.slice(0, 8)}...)`,
+        questionText:
+          question.questionText || `Câu hỏi (${questionId.slice(0, 8)}...)`,
         options: allOptions,
-        selectedOptionText: selectedOption?.text || selectedOption?.optionText || answer?.selectedOptionId || "Chưa chọn",
-        correctOptionText: correctOption?.text || correctOption?.optionText || answer?.correctOptionId || "",
+        selectedOptionText:
+          selectedOption?.text ||
+          selectedOption?.optionText ||
+          answer?.selectedOptionId ||
+          "Chưa chọn",
+        correctOptionText:
+          correctOption?.text ||
+          correctOption?.optionText ||
+          answer?.correctOptionId ||
+          "",
         isCorrect: answer?.isCorrect,
         points: question.points || answer?.points,
         earnedPoints: answer?.earnedPoints,
@@ -847,7 +948,9 @@ export default function TeacherSubmissionDetailPage() {
         ...answer,
         questionText:
           answer.questionText ||
-          (answer.questionId ? `CÃ¢u há»i (${answer.questionId.slice(0, 8)}...)` : "CÃ¢u há»i"),
+          (answer.questionId
+            ? `CÃ¢u há»i (${answer.questionId.slice(0, 8)}...)`
+            : "CÃ¢u há»i"),
         options: answer.options || ([] as MCQuestionOption[]),
         selectedOptionText:
           answer.selectedOptionText || answer.selectedOptionId || "ChÆ°a chá»n",
@@ -860,7 +963,8 @@ export default function TeacherSubmissionDetailPage() {
       const questionId = question.questionId || question.id || "";
       const answer =
         multipleChoiceAnswers.find(
-          (item) => (item.questionId || "").toLowerCase() === questionId.toLowerCase()
+          (item) =>
+            (item.questionId || "").toLowerCase() === questionId.toLowerCase(),
         ) ?? multipleChoiceAnswers[questionIndex];
       const normalizedOptions =
         question.options && question.options.length > 0
@@ -873,9 +977,11 @@ export default function TeacherSubmissionDetailPage() {
           matchesChoiceOption(
             option,
             optionIndex,
-            answer?.selectedOptionId ?? answer?.selectedOptionText ?? answer?.selectedAnswer,
-            answer?.selectedOptionId ?? undefined
-          )
+            answer?.selectedOptionId ??
+              answer?.selectedOptionText ??
+              answer?.selectedAnswer,
+            answer?.selectedOptionId ?? undefined,
+          ),
         ) ?? null;
       const correctOption =
         normalizedOptions.find((option) => option.isCorrect === true) ||
@@ -884,8 +990,8 @@ export default function TeacherSubmissionDetailPage() {
             option,
             optionIndex,
             answer?.correctOptionText ?? answer?.correctOptionId,
-            answer?.correctOptionId ?? undefined
-          )
+            answer?.correctOptionId ?? undefined,
+          ),
         ) ||
         null;
 
@@ -920,20 +1026,26 @@ export default function TeacherSubmissionDetailPage() {
 
   const multipleChoiceSummary = useMemo(() => {
     const total = quizQuestions.length;
-    const correct = quizQuestions.filter((item) => item.isCorrect === true).length;
+    const correct = quizQuestions.filter(
+      (item) => item.isCorrect === true,
+    ).length;
     const wrong = quizQuestions.filter(
       (item) =>
         item.isCorrect === false &&
-        Boolean(item.selectedOptionId || item.selectedOptionText || item.selectedAnswer)
+        Boolean(
+          item.selectedOptionId ||
+          item.selectedOptionText ||
+          item.selectedAnswer,
+        ),
     ).length;
     const skipped = total - correct - wrong;
     const earnedPoints = quizQuestions.reduce(
       (sum, item) => sum + Number(item.earnedPoints ?? 0),
-      0
+      0,
     );
     const totalPoints = quizQuestions.reduce(
       (sum, item) => sum + Number(item.maxPoints ?? item.points ?? 0),
-      0
+      0,
     );
 
     return {
@@ -950,33 +1062,43 @@ export default function TeacherSubmissionDetailPage() {
     () =>
       quizQuestions.map((item) => ({
         ...item,
-        questionText: hasReadableQuestionText(item.questionText) ? item.questionText : "",
+        questionText: hasReadableQuestionText(item.questionText)
+          ? item.questionText
+          : "",
         selectedOptionText: hasReadableOptionText(item.selectedOptionText)
           ? item.selectedOptionText
           : hasReadableOptionText(item.selectedAnswer)
             ? item.selectedAnswer
             : "",
-        correctOptionText: hasReadableOptionText(item.correctOptionText) ? item.correctOptionText : "",
+        correctOptionText: hasReadableOptionText(item.correctOptionText)
+          ? item.correctOptionText
+          : "",
       })),
-    [quizQuestions]
+    [quizQuestions],
   );
 
   const teacherQuizSummary = useMemo(() => {
     const total = teacherQuizQuestions.length;
-    const correct = teacherQuizQuestions.filter((item) => item.isCorrect === true).length;
+    const correct = teacherQuizQuestions.filter(
+      (item) => item.isCorrect === true,
+    ).length;
     const wrong = teacherQuizQuestions.filter(
       (item) =>
         item.isCorrect === false &&
-        Boolean(item.selectedOptionId || item.selectedOptionText || item.selectedAnswer)
+        Boolean(
+          item.selectedOptionId ||
+          item.selectedOptionText ||
+          item.selectedAnswer,
+        ),
     ).length;
     const skipped = total - correct - wrong;
     const earnedPoints = teacherQuizQuestions.reduce(
       (sum, item) => sum + Number(item.earnedPoints ?? 0),
-      0
+      0,
     );
     const totalPoints = teacherQuizQuestions.reduce(
       (sum, item) => sum + Number(item.maxPoints ?? item.points ?? 0),
-      0
+      0,
     );
 
     return {
@@ -1005,28 +1127,40 @@ export default function TeacherSubmissionDetailPage() {
             !hasReadableOptionText(item.correctOptionText))
         );
       }),
-    [teacherQuizQuestions, showCorrectAnswer]
+    [teacherQuizQuestions, showCorrectAnswer],
   );
 
   const isMultipleChoiceSubmission = useMemo(() => {
     const submissionType = String(data?.submissionType || "").toLowerCase();
-    return submissionType.includes("multiple") || submissionType.includes("quiz") || multipleChoiceAnswers.length > 0;
+    return (
+      submissionType.includes("multiple") ||
+      submissionType.includes("quiz") ||
+      multipleChoiceAnswers.length > 0
+    );
   }, [data?.submissionType, multipleChoiceAnswers.length]);
 
   const hasTextAnswer = !!(data?.textAnswer && String(data.textAnswer).trim());
   const normalizedStatus = String(data?.status || "").toLowerCase();
   const canMarkLate = normalizedStatus === "assigned";
-  const canMarkMissing = normalizedStatus === "assigned" || normalizedStatus === "late";
-  const parsedAiFeedback = useMemo(() => parseAiFeedbackValue(data?.aiFeedback), [data?.aiFeedback]);
+  const canMarkMissing =
+    normalizedStatus === "assigned" || normalizedStatus === "late";
+  const parsedAiFeedback = useMemo(
+    () => parseAiFeedbackValue(data?.aiFeedback),
+    [data?.aiFeedback],
+  );
   const formattedAiFeedback = useMemo(
     () => formatReadableAiFeedbackText(data?.aiFeedback),
-    [data?.aiFeedback]
+    [data?.aiFeedback],
   );
 
   // Fill editing fields when data loads
   useEffect(() => {
     if (data) {
-      setEditingScore(data.score !== null && data.score !== undefined ? String(data.score) : "");
+      setEditingScore(
+        data.score !== null && data.score !== undefined
+          ? String(data.score)
+          : "",
+      );
       setEditingFeedback(data.teacherFeedback || formattedAiFeedback || "");
     }
   }, [data, formattedAiFeedback]);
@@ -1038,8 +1172,14 @@ export default function TeacherSubmissionDetailPage() {
     const isOverdueSubmission = data?.isOverdue === true;
     const overdueFeedback = "Quá hạn nộp bài";
 
-    const finalScore = isOverdueSubmission ? 0 : (editingScore !== "" ? parseFloat(editingScore) : null);
-    const finalFeedback = isOverdueSubmission ? overdueFeedback : editingFeedback;
+    const finalScore = isOverdueSubmission
+      ? 0
+      : editingScore !== ""
+        ? parseFloat(editingScore)
+        : null;
+    const finalFeedback = isOverdueSubmission
+      ? overdueFeedback
+      : editingFeedback;
 
     // For multiple choice, send calculated quiz score so BE doesn't reset to 0
     const payload = isMultipleChoiceSubmission
@@ -1054,14 +1194,25 @@ export default function TeacherSubmissionDetailPage() {
           teacherFeedback: finalFeedback,
         };
 
-    if (!isMultipleChoiceSubmission && editingScore !== "" && (isNaN(finalScore as number) || (finalScore as number) < 0)) {
-      toast({ title: "Lỗi", description: "Điểm không hợp lệ", type: "destructive" });
+    if (
+      !isMultipleChoiceSubmission &&
+      editingScore !== "" &&
+      (isNaN(finalScore as number) || (finalScore as number) < 0)
+    ) {
+      toast({
+        title: "Lỗi",
+        description: "Điểm không hợp lệ",
+        type: "destructive",
+      });
       return;
     }
 
     setIsGrading(true);
     try {
-      const response = await post<any>(`/api/homework/submissions/${homeworkStudentId}/grade`, payload);
+      const response = await post<any>(
+        `/api/homework/submissions/${homeworkStudentId}/grade`,
+        payload,
+      );
       const body = response?.data || response;
       const updated: SubmissionDetail | null = body?.data || body || null;
 
@@ -1077,15 +1228,15 @@ export default function TeacherSubmissionDetailPage() {
           questions: prev?.questions ?? merged.questions,
           review: prev?.review ?? merged.review,
           answerResults: prev?.answerResults ?? merged.answerResults,
-          multipleChoiceAnswers: prev?.multipleChoiceAnswers ?? merged.multipleChoiceAnswers,
+          multipleChoiceAnswers:
+            prev?.multipleChoiceAnswers ?? merged.multipleChoiceAnswers,
           textAnswer: prev?.textAnswer ?? merged.textAnswer,
           status: updated?.status ?? merged.status ?? "Graded",
-          score:
-            isMultipleChoiceSubmission
-              ? teacherQuizSummary.earnedPoints
-              : updated?.score !== undefined
-                ? updated.score
-                : (finalScore as number | null),
+          score: isMultipleChoiceSubmission
+            ? teacherQuizSummary.earnedPoints
+            : updated?.score !== undefined
+              ? updated.score
+              : (finalScore as number | null),
           teacherFeedback:
             updated?.teacherFeedback !== undefined
               ? updated.teacherFeedback
@@ -1095,133 +1246,168 @@ export default function TeacherSubmissionDetailPage() {
       });
 
       setShowGradingForm(false);
-      toast({ title: "Thành công", description: "Lưu điểm thành công!", type: "success" });
+      toast({
+        title: "Thành công",
+        description: "Lưu điểm thành công!",
+        type: "success",
+      });
     } catch (err) {
       console.error("Error saving grade:", err);
-      toast({ title: "Lỗi", description: "Không thể lưu điểm. Vui lòng thử lại.", type: "destructive" });
+      toast({
+        title: "Lỗi",
+        description: "Không thể lưu điểm. Vui lòng thử lại.",
+        type: "destructive",
+      });
     } finally {
       setIsGrading(false);
     }
-  }, [homeworkStudentId, editingScore, editingFeedback, isMultipleChoiceSubmission, data, teacherQuizSummary]);
+  }, [
+    homeworkStudentId,
+    editingScore,
+    editingFeedback,
+    isMultipleChoiceSubmission,
+    data,
+    teacherQuizSummary,
+  ]);
 
   const handleGenerateAIFeedback = useCallback(async () => {
     if (!homeworkStudentId) return;
     setAiLoading(true);
     try {
-      const response = await post<any>(`/api/homework/submissions/${homeworkStudentId}/ai-feedback`, {});
+      const response = await post<any>(
+        `/api/homework/submissions/${homeworkStudentId}/ai-feedback`,
+        {},
+      );
       const body = response?.data || response;
       const aiText: string = body?.aiFeedback || body?.data?.aiFeedback || "";
       const formattedText = formatReadableAiFeedbackText(aiText);
       if (formattedText) {
-        setEditingFeedback((prev) => (prev ? `${prev}\n\n${formattedText}` : formattedText));
+        setEditingFeedback((prev) =>
+          prev ? `${prev}\n\n${formattedText}` : formattedText,
+        );
       } else {
-        toast({ title: "Thông báo", description: "Không tạo được phản hồi AI. Vui lòng thử lại.", type: "warning" });
+        toast({
+          title: "Thông báo",
+          description: "Không tạo được phản hồi AI. Vui lòng thử lại.",
+          type: "warning",
+        });
       }
     } catch (err) {
       console.error("Error generating AI feedback:", err);
-      toast({ title: "Lỗi", description: "Không tạo được phản hồi AI. Vui lòng thử lại.", type: "destructive" });
+      toast({
+        title: "Lỗi",
+        description: "Không tạo được phản hồi AI. Vui lòng thử lại.",
+        type: "destructive",
+      });
     } finally {
       setAiLoading(false);
     }
   }, [homeworkStudentId]);
 
-  const handleApplyQuickGrade = useCallback((result: HomeworkQuickGradeResult) => {
-    if (!result.aiUsed) {
-      return;
-    }
+  const handleApplyQuickGrade = useCallback(
+    (result: HomeworkQuickGradeResult) => {
+      if (!result.aiUsed) {
+        return;
+      }
 
-    const generatedFeedback = buildReadableQuickGradeFeedback(result);
-
-    setData((prev) =>
-      prev
-        ? {
-            ...prev,
-            status: result.status ?? prev.status ?? "Graded",
-            score:
-              result.score !== null && result.score !== undefined
-                ? result.score
-                : prev.score,
-            gradedAt: result.gradedAt ?? prev.gradedAt ?? nowISOVN(),
-            aiFeedback: generatedFeedback || result.summary || prev.aiFeedback,
-          }
-        : prev
-    );
-
-    if (result.score !== null && result.score !== undefined) {
-      setEditingScore(String(result.score));
-    }
-    if (generatedFeedback) {
-      setEditingFeedback(generatedFeedback);
-    }
-    setShowGradingForm(true);
-
-    setTimeout(() => {
-      gradingPanelRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    }, 100);
-  }, []);
-
-  const handleMarkStatus = useCallback(async (status: "Late" | "Missing") => {
-    if (!homeworkStudentId) return;
-
-    setIsMarkingStatus(true);
-    try {
-      const response = await put<any>(
-        `/api/homework/submissions/${homeworkStudentId}/mark-status`,
-        {
-          homeworkStudentId,
-          status,
-        }
-      );
-      const body = response?.data || response;
-      const updated = body?.data || body;
-      const nextStatus = String(updated?.status || status);
+      const generatedFeedback = buildReadableQuickGradeFeedback(result);
 
       setData((prev) =>
         prev
           ? {
               ...prev,
-              status: nextStatus,
+              status: result.status ?? prev.status ?? "Graded",
               score:
-                nextStatus.toLowerCase() === "missing"
-                  ? 0
+                result.score !== null && result.score !== undefined
+                  ? result.score
                   : prev.score,
-              gradedAt:
-                nextStatus.toLowerCase() === "missing"
-                  ? prev.gradedAt || nowISOVN()
-                  : prev.gradedAt,
-              teacherFeedback:
-                nextStatus.toLowerCase() === "missing"
-                  ? prev.teacherFeedback || "Quá hạn nộp bài"
-                  : prev.teacherFeedback,
-              isLate: nextStatus.toLowerCase() === "late" ? true : prev.isLate,
-              isOverdue:
-                nextStatus.toLowerCase() === "missing" ? true : prev.isOverdue,
+              gradedAt: result.gradedAt ?? prev.gradedAt ?? nowISOVN(),
+              aiFeedback:
+                generatedFeedback || result.summary || prev.aiFeedback,
             }
-          : prev
+          : prev,
       );
 
-      toast({
-        title: "Thành công",
-        description:
-          status === "Late"
-            ? "Đã đánh dấu bài nộp trễ."
-            : "Đã đánh dấu bài thiếu.",
-        type: "success",
-      });
-    } catch (err) {
-      console.error("Error marking status:", err);
-      toast({
-        title: "Lỗi",
-        description: "Không thể cập nhật trạng thái bài nộp.",
-        type: "destructive",
-      });
-    } finally {
-      setIsMarkingStatus(false);
-    }
-  }, [homeworkStudentId]);
+      if (result.score !== null && result.score !== undefined) {
+        setEditingScore(String(result.score));
+      }
+      if (generatedFeedback) {
+        setEditingFeedback(generatedFeedback);
+      }
+      setShowGradingForm(true);
+
+      setTimeout(() => {
+        gradingPanelRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 100);
+    },
+    [],
+  );
+
+  const handleMarkStatus = useCallback(
+    async (status: "Late" | "Missing") => {
+      if (!homeworkStudentId) return;
+
+      setIsMarkingStatus(true);
+      try {
+        const response = await put<any>(
+          `/api/homework/submissions/${homeworkStudentId}/mark-status`,
+          {
+            homeworkStudentId,
+            status,
+          },
+        );
+        const body = response?.data || response;
+        const updated = body?.data || body;
+        const nextStatus = String(updated?.status || status);
+
+        setData((prev) =>
+          prev
+            ? {
+                ...prev,
+                status: nextStatus,
+                score: nextStatus.toLowerCase() === "missing" ? 0 : prev.score,
+                gradedAt:
+                  nextStatus.toLowerCase() === "missing"
+                    ? prev.gradedAt || nowISOVN()
+                    : prev.gradedAt,
+                teacherFeedback:
+                  nextStatus.toLowerCase() === "missing"
+                    ? prev.teacherFeedback || "Quá hạn nộp bài"
+                    : prev.teacherFeedback,
+                isLate:
+                  nextStatus.toLowerCase() === "late" ? true : prev.isLate,
+                isOverdue:
+                  nextStatus.toLowerCase() === "missing"
+                    ? true
+                    : prev.isOverdue,
+              }
+            : prev,
+        );
+
+        toast({
+          title: "Thành công",
+          description:
+            status === "Late"
+              ? "Đã đánh dấu bài nộp trễ."
+              : "Đã đánh dấu bài thiếu.",
+          type: "success",
+        });
+      } catch (err) {
+        console.error("Error marking status:", err);
+        toast({
+          title: "Lỗi",
+          description: "Không thể cập nhật trạng thái bài nộp.",
+          type: "destructive",
+        });
+      } finally {
+        setIsMarkingStatus(false);
+      }
+    },
+    [homeworkStudentId],
+  );
 
   if (loading) {
     return (
@@ -1230,8 +1416,12 @@ export default function TeacherSubmissionDetailPage() {
           <div className="p-4 rounded-full bg-red-100 inline-flex mb-4">
             <Loader2 size={48} className="animate-spin text-red-600" />
           </div>
-          <p className="text-gray-600 font-medium">Đang tải chi tiết bài nộp...</p>
-          <p className="text-sm text-gray-400 mt-2">Vui lòng đợi trong giây lát</p>
+          <p className="text-gray-600 font-medium">
+            Đang tải chi tiết bài nộp...
+          </p>
+          <p className="text-sm text-gray-400 mt-2">
+            Vui lòng đợi trong giây lát
+          </p>
         </div>
       </div>
     );
@@ -1244,10 +1434,18 @@ export default function TeacherSubmissionDetailPage() {
           <div className="mx-auto mb-4 h-20 w-20 rounded-full bg-gradient-to-br from-red-100 to-red-200 flex items-center justify-center">
             <AlertCircle size={40} className="text-red-600" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Không thể tải dữ liệu</h2>
-          <p className="text-gray-600 mb-6 leading-relaxed">{error || "Bài nộp không tồn tại hoặc đã bị xóa"}</p>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Không thể tải dữ liệu
+          </h2>
+          <p className="text-gray-600 mb-6 leading-relaxed">
+            {error || "Bài nộp không tồn tại hoặc đã bị xóa"}
+          </p>
           <button
-            onClick={() => router.push(`/${locale}/portal/teacher/assignments/${assignmentId}`)}
+            onClick={() =>
+              router.push(
+                `/${locale}/portal/teacher/assignments/${assignmentId}`,
+              )
+            }
             className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-6 py-3 text-sm font-semibold text-white hover:shadow-lg transition-all duration-200 cursor-pointer"
           >
             <ArrowLeft size={16} /> Quay lại danh sách
@@ -1262,14 +1460,22 @@ export default function TeacherSubmissionDetailPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => router.push(`/${locale}/portal/teacher/assignments/${assignmentId}`)}
+            onClick={() =>
+              router.push(
+                `/${locale}/portal/teacher/assignments/${assignmentId}`,
+              )
+            }
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white/80 backdrop-blur-sm px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 cursor-pointer"
           >
             <ArrowLeft size={16} /> Quay lại
           </button>
           <div>
-            <h1 className="text-3xl font-extrabold text-gray-900">Chi tiết bài nộp</h1>
-            <p className="text-sm text-gray-500 mt-1">Xem chi tiết và chấm điểm bài làm</p>
+            <h1 className="text-3xl font-extrabold text-gray-900">
+              Chi tiết bài nộp
+            </h1>
+            <p className="text-sm text-gray-500 mt-1">
+              Xem chi tiết và chấm điểm bài làm
+            </p>
           </div>
         </div>
       </div>
@@ -1280,8 +1486,9 @@ export default function TeacherSubmissionDetailPage() {
             <BookOpen size={28} />
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="text-2xl font-extrabold text-gray-900 truncate">{data.assignmentTitle || "-"}</h2>
-            <p className="text-sm text-gray-500 mt-2">ID: <span className="font-mono text-gray-600">{data.id.slice(0, 8)}...</span></p>
+            <h2 className="text-2xl font-extrabold text-gray-900 truncate">
+              {data.assignmentTitle || "-"}
+            </h2>
           </div>
         </div>
 
@@ -1291,10 +1498,16 @@ export default function TeacherSubmissionDetailPage() {
               <div className="p-2 rounded-lg bg-blue-100">
                 <School size={16} className="text-blue-600" />
               </div>
-              <span className="text-xs font-semibold text-gray-600">LỚP HỌC</span>
+              <span className="text-xs font-semibold text-gray-600">
+                Lớp học
+              </span>
             </div>
-            <div className="font-bold text-gray-900 text-lg">{data.classTitle || "-"}</div>
-            <div className="text-xs text-gray-500 mt-1">Mã: {data.classCode || "-"}</div>
+            <div className="font-bold text-gray-900 text-lg">
+              {data.classTitle || "-"}
+            </div>
+            <div className="text-xs text-gray-500 mt-1">
+              Mã: {data.classCode || "-"}
+            </div>
           </div>
 
           <div className="rounded-xl border border-gray-200/50 bg-gradient-to-br from-amber-50/50 to-orange-50/50 p-5 hover:border-amber-300/50 transition-all duration-200">
@@ -1302,11 +1515,17 @@ export default function TeacherSubmissionDetailPage() {
               <div className="p-2 rounded-lg bg-amber-100">
                 <Calendar size={16} className="text-amber-600" />
               </div>
-              <span className="text-xs font-semibold text-gray-600">HẠN NỘP</span>
+              <span className="text-xs font-semibold text-gray-600">
+                Hạn nộp
+              </span>
             </div>
-            <div className="font-bold text-gray-900 text-lg">{formatDateTime(data.dueAt)}</div>
-            <div className={`text-xs mt-1 font-medium ${data.isOverdue ? 'text-red-600' : 'text-emerald-600'}`}>
-              {data.isOverdue ? '⚠️ Quá hạn' : '✓ Còn hạn'}
+            <div className="font-bold text-gray-900 text-lg">
+              {formatDateTime(data.dueAt)}
+            </div>
+            <div
+              className={`text-xs mt-1 font-medium ${data.isOverdue ? "text-red-600" : "text-emerald-600"}`}
+            >
+              {data.isOverdue ? "⚠️ Quá hạn" : "✓ Còn hạn"}
             </div>
           </div>
 
@@ -1315,11 +1534,17 @@ export default function TeacherSubmissionDetailPage() {
               <div className="p-2 rounded-lg bg-violet-100">
                 <Clock size={16} className="text-violet-600" />
               </div>
-              <span className="text-xs font-semibold text-gray-600">NGÀY NỘP</span>
+              <span className="text-xs font-semibold text-gray-600">
+                Ngày nộp
+              </span>
             </div>
-            <div className="font-bold text-gray-900 text-lg">{formatDateTime(data.submittedAt)}</div>
-            <div className={`text-xs mt-1 font-medium ${data.isLate ? 'text-amber-600' : 'text-emerald-600'}`}>
-              {data.isLate ? '🕐 Nộp trễ' : '✓ Đúng hạn'}
+            <div className="font-bold text-gray-900 text-lg">
+              {formatDateTime(data.submittedAt)}
+            </div>
+            <div
+              className={`text-xs mt-1 font-medium ${data.isLate ? "text-amber-600" : "text-emerald-600"}`}
+            >
+              {data.isLate ? "🕐 Nộp trễ" : "✓ Đúng hạn"}
             </div>
           </div>
 
@@ -1328,14 +1553,23 @@ export default function TeacherSubmissionDetailPage() {
               <div className="p-2 rounded-lg bg-emerald-100">
                 <FileText size={16} className="text-emerald-600" />
               </div>
-              <span className="text-xs font-semibold text-gray-600">ĐIỂM</span>
+              <span className="text-xs font-semibold text-gray-600">Điểm</span>
             </div>
             <div className="font-bold text-emerald-700 text-2xl">
               {isMultipleChoiceSubmission && teacherQuizSummary.totalPoints > 0
                 ? teacherQuizSummary.earnedPoints
-                : data.score !== null && data.score !== undefined ? data.score : (data.isOverdue ? 0 : "—")}
+                : data.score !== null && data.score !== undefined
+                  ? data.score
+                  : data.isOverdue
+                    ? 0
+                    : "—"}
             </div>
-            <div className="text-xs text-gray-500 mt-1">Tối đa: {isMultipleChoiceSubmission && teacherQuizSummary.totalPoints > 0 ? teacherQuizSummary.totalPoints : (data.maxScore ?? "—")}</div>
+            <div className="text-xs text-gray-500 mt-1">
+              Tối đa:{" "}
+              {isMultipleChoiceSubmission && teacherQuizSummary.totalPoints > 0
+                ? teacherQuizSummary.totalPoints
+                : (data.maxScore ?? "—")}
+            </div>
           </div>
         </div>
       </div>
@@ -1346,7 +1580,9 @@ export default function TeacherSubmissionDetailPage() {
             <div className="p-2.5 rounded-lg bg-red-100">
               <BookOpen size={20} className="text-red-600" />
             </div>
-            <h3 className="text-xl font-bold text-gray-900">Nội dung bài làm</h3>
+            <h3 className="text-xl font-bold text-gray-900">
+              Nội dung bài làm
+            </h3>
           </div>
 
           {isMultipleChoiceSubmission ? (
@@ -1359,30 +1595,40 @@ export default function TeacherSubmissionDetailPage() {
                 <div className="space-y-3">
                   {teacherQuizMissingDetail && (
                     <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                      Backend chua tra day du noi dung cau hoi va dap an cho teacher. Trang nay dang an cac UUID fallback de tranh hien sai du lieu.
+                      Backend chua tra day du noi dung cau hoi va dap an cho
+                      teacher. Trang nay dang an cac UUID fallback de tranh hien
+                      sai du lieu.
                     </div>
                   )}
                   <div className="grid gap-3 md:grid-cols-4">
                     <div className="rounded-xl border border-emerald-200/50 bg-gradient-to-br from-emerald-50 to-teal-50 p-4 hover:border-emerald-300 transition-all duration-200">
-                      <div className="text-xs font-semibold text-emerald-700 uppercase tracking-wider mb-2">Câu đúng</div>
+                      <div className="text-xs font-semibold text-emerald-700 mb-2">
+                        Câu đúng
+                      </div>
                       <div className="text-3xl font-extrabold text-emerald-800">
                         {teacherQuizSummary.correct}
                       </div>
                     </div>
                     <div className="rounded-xl border border-red-200/50 bg-gradient-to-br from-red-50 to-rose-50 p-4 hover:border-red-300 transition-all duration-200">
-                      <div className="text-xs font-semibold text-red-700 uppercase tracking-wider mb-2">Câu sai</div>
+                      <div className="text-xs font-semibold text-red-700 mb-2">
+                        Câu sai
+                      </div>
                       <div className="text-3xl font-extrabold text-red-800">
                         {teacherQuizSummary.wrong}
                       </div>
                     </div>
                     <div className="rounded-xl border border-slate-200/50 bg-gradient-to-br from-slate-50 to-gray-50 p-4 hover:border-slate-300 transition-all duration-200">
-                      <div className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">Chưa trả lời</div>
+                      <div className="text-xs font-semibold text-slate-700 mb-2">
+                        Chưa trả lời
+                      </div>
                       <div className="text-3xl font-extrabold text-slate-800">
                         {teacherQuizSummary.skipped}
                       </div>
                     </div>
                     <div className="rounded-xl border border-blue-200/50 bg-gradient-to-br from-blue-50 to-cyan-50 p-4 hover:border-blue-300 transition-all duration-200">
-                      <div className="text-xs font-semibold text-blue-700 uppercase tracking-wider mb-2">Điểm</div>
+                      <div className="text-xs font-semibold text-blue-700 mb-2">
+                        Điểm
+                      </div>
                       <div className="text-3xl font-extrabold text-blue-800">
                         {teacherQuizSummary.earnedPoints}
                         {teacherQuizSummary.totalPoints > 0
@@ -1397,7 +1643,8 @@ export default function TeacherSubmissionDetailPage() {
                       Boolean(item.selectedOptionId) ||
                       Boolean(
                         item.selectedOptionText &&
-                          String(item.selectedOptionText).trim().toLowerCase() !== "chua chon"
+                        String(item.selectedOptionText).trim().toLowerCase() !==
+                          "chua chon",
                       ) ||
                       Boolean(item.selectedAnswer);
                     const isCorrect = item.isCorrect;
@@ -1406,24 +1653,35 @@ export default function TeacherSubmissionDetailPage() {
                         ? "border-emerald-400 bg-emerald-50/50"
                         : "border-red-400 bg-red-50/50"
                       : "border-gray-200 bg-gray-50/50";
-                    const readableQuestionText = hasReadableQuestionText(item.questionText)
+                    const readableQuestionText = hasReadableQuestionText(
+                      item.questionText,
+                    )
                       ? String(item.questionText).trim()
                       : "";
                     const questionLabel = readableQuestionText
                       ? `Cau ${index + 1}: ${readableQuestionText}`
                       : `Cau ${index + 1}`;
-                    const selectedOptionLabel = hasReadableOptionText(item.selectedOptionText)
+                    const selectedOptionLabel = hasReadableOptionText(
+                      item.selectedOptionText,
+                    )
                       ? item.selectedOptionText
                       : hasSelected
                         ? "Backend chua tra chi tiet lua chon"
                         : "Chua tra loi";
-                    const shouldShowCorrectAnswer = showCorrectAnswer && Boolean(item.correctOptionText || item.correctOptionId);
-                    const correctOptionLabel = hasReadableOptionText(item.correctOptionText)
+                    const shouldShowCorrectAnswer =
+                      showCorrectAnswer &&
+                      Boolean(item.correctOptionText || item.correctOptionId);
+                    const correctOptionLabel = hasReadableOptionText(
+                      item.correctOptionText,
+                    )
                       ? item.correctOptionText
                       : "Backend chua tra chi tiet dap an";
 
                     return (
-                      <div key={index} className={`rounded-xl border-2 p-4 ${selectedColor}`}>
+                      <div
+                        key={index}
+                        className={`rounded-xl border-2 p-4 ${selectedColor}`}
+                      >
                         <div className="text-sm font-semibold text-gray-900 mb-3">
                           {questionLabel}
                         </div>
@@ -1431,39 +1689,59 @@ export default function TeacherSubmissionDetailPage() {
                         {item.options.length > 0 ? (
                           <div className="space-y-2">
                             {item.options.map((option, optIdx) => {
-                              const optionId = String(option.optionId || option.id || "");
-                              const rawOptionText = String(option.text || option.optionText || "");
-                              const optionLabel = hasReadableOptionText(rawOptionText)
+                              const optionId = String(
+                                option.optionId || option.id || "",
+                              );
+                              const rawOptionText = String(
+                                option.text || option.optionText || "",
+                              );
+                              const optionLabel = hasReadableOptionText(
+                                rawOptionText,
+                              )
                                 ? rawOptionText
                                 : `Lua chon ${optionLabelFromIndex(optIdx)}`;
                               const isSelected =
-                                normalizeComparable(item.selectedOptionId) === normalizeComparable(optionId) ||
-                                (
-                                  !item.selectedOptionId &&
-                                  hasReadableOptionText(item.selectedOptionText) &&
-                                  normalizeComparable(item.selectedOptionText) === normalizeComparable(rawOptionText)
-                                );
+                                normalizeComparable(item.selectedOptionId) ===
+                                  normalizeComparable(optionId) ||
+                                (!item.selectedOptionId &&
+                                  hasReadableOptionText(
+                                    item.selectedOptionText,
+                                  ) &&
+                                  normalizeComparable(
+                                    item.selectedOptionText,
+                                  ) === normalizeComparable(rawOptionText));
                               const isCorrectOpt = option.isCorrect === true;
                               const isCorrectAnswer = isMatchingOption(
                                 optionId,
                                 rawOptionText,
                                 optIdx,
                                 item.correctOptionText,
-                                item.correctOptionId
+                                item.correctOptionId,
                               );
 
-                              const isSelectedAndCorrectFromAnswer = isSelected && item.isCorrect === true;
+                              const isSelectedAndCorrectFromAnswer =
+                                isSelected && item.isCorrect === true;
 
                               let optStyle = "border-gray-200";
                               let bgStyle = "";
                               if (isCorrectOpt || isCorrectAnswer) {
                                 optStyle = "border-emerald-500 bg-emerald-100";
                               }
-                              if (isSelected && !isCorrectOpt && !isSelectedAndCorrectFromAnswer) {
+                              if (
+                                isSelected &&
+                                !isCorrectOpt &&
+                                !isSelectedAndCorrectFromAnswer
+                              ) {
                                 optStyle = "border-red-500 bg-red-100";
                               }
-                              if (isSelected && (isCorrectOpt || isCorrectAnswer || isSelectedAndCorrectFromAnswer)) {
-                                optStyle = "border-emerald-500 bg-emerald-100 font-semibold";
+                              if (
+                                isSelected &&
+                                (isCorrectOpt ||
+                                  isCorrectAnswer ||
+                                  isSelectedAndCorrectFromAnswer)
+                              ) {
+                                optStyle =
+                                  "border-emerald-500 bg-emerald-100 font-semibold";
                               }
 
                               return (
@@ -1471,13 +1749,25 @@ export default function TeacherSubmissionDetailPage() {
                                   key={optIdx}
                                   className={`rounded-lg border px-3 py-2 text-sm flex items-center gap-2 ${optStyle} ${bgStyle}`}
                                 >
-                                  <span className={isCorrectOpt || isCorrectAnswer ? "text-emerald-700" : "text-gray-700"}>
+                                  <span
+                                    className={
+                                      isCorrectOpt || isCorrectAnswer
+                                        ? "text-emerald-700"
+                                        : "text-gray-700"
+                                    }
+                                  >
                                     {optionLabel}
                                   </span>
-                                  {isCorrectOpt || isCorrectAnswer || isSelectedAndCorrectFromAnswer ? (
-                                    <span className="ml-auto text-xs text-emerald-600 font-medium">Đáp án đúng</span>
+                                  {isCorrectOpt ||
+                                  isCorrectAnswer ||
+                                  isSelectedAndCorrectFromAnswer ? (
+                                    <span className="ml-auto text-xs text-emerald-600 font-medium">
+                                      Đáp án đúng
+                                    </span>
                                   ) : isSelected ? (
-                                    <span className="ml-auto text-xs text-red-600 font-medium">Đã chọn (sai)</span>
+                                    <span className="ml-auto text-xs text-red-600 font-medium">
+                                      Đã chọn (sai)
+                                    </span>
                                   ) : null}
                                 </div>
                               );
@@ -1486,23 +1776,37 @@ export default function TeacherSubmissionDetailPage() {
                         ) : (
                           <div className="space-y-1 text-sm">
                             <div>
-                              <span className="text-gray-500">Đáp án đã chọn: </span>
-                              <span className={hasSelected ? "font-medium text-gray-800" : "italic text-gray-400"}>
+                              <span className="text-gray-500">
+                                Đáp án đã chọn:{" "}
+                              </span>
+                              <span
+                                className={
+                                  hasSelected
+                                    ? "font-medium text-gray-800"
+                                    : "italic text-gray-400"
+                                }
+                              >
                                 {selectedOptionLabel}
                               </span>
                             </div>
                             {shouldShowCorrectAnswer && (
                               <div>
-                                <span className="text-gray-500">Đáp án đúng: </span>
-                                <span className="font-medium text-emerald-600">{correctOptionLabel}</span>
+                                <span className="text-gray-500">
+                                  Đáp án đúng:{" "}
+                                </span>
+                                <span className="font-medium text-emerald-600">
+                                  {correctOptionLabel}
+                                </span>
                               </div>
                             )}
-                            {(item.earnedPoints !== undefined || item.points !== undefined) && (
+                            {(item.earnedPoints !== undefined ||
+                              item.points !== undefined) && (
                               <div>
                                 <span className="text-gray-500">Điểm: </span>
                                 <span className="font-medium text-gray-800">
                                   {item.earnedPoints ?? 0}
-                                  {item.maxPoints !== undefined || item.points !== undefined
+                                  {item.maxPoints !== undefined ||
+                                  item.points !== undefined
                                     ? ` / ${item.maxPoints ?? item.points}`
                                     : ""}
                                 </span>
@@ -1540,9 +1844,15 @@ export default function TeacherSubmissionDetailPage() {
               {links.length > 0 ? (
                 <div className="space-y-2">
                   {links.map((link, idx) => (
-                    <div key={`${link}-${idx}`} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50/30 px-4 py-3 hover:border-blue-300 transition-all duration-200">
+                    <div
+                      key={`${link}-${idx}`}
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50/30 px-4 py-3 hover:border-blue-300 transition-all duration-200"
+                    >
                       <div className="min-w-0 flex items-center gap-3 text-sm text-gray-700">
-                        <LinkIcon size={16} className="text-blue-600 shrink-0" />
+                        <LinkIcon
+                          size={16}
+                          className="text-blue-600 shrink-0"
+                        />
                         <span className="truncate font-medium">{link}</span>
                       </div>
                       <a
@@ -1575,7 +1885,9 @@ export default function TeacherSubmissionDetailPage() {
               <div className="p-2.5 rounded-lg bg-amber-100">
                 <Sparkles size={20} className="text-amber-600" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900">Chấm điểm nhanh với AI</h3>
+              <h3 className="text-lg font-bold text-gray-900">
+                Chấm điểm nhanh với AI
+              </h3>
             </div>
             <AiQuickGradeCard
               homeworkStudentId={homeworkStudentId}
@@ -1598,7 +1910,11 @@ export default function TeacherSubmissionDetailPage() {
                     disabled={isMarkingStatus}
                     className="inline-flex items-center gap-2 rounded-xl border border-amber-300 bg-gradient-to-br from-amber-50 to-yellow-50 px-4 py-2.5 text-sm font-semibold text-amber-800 hover:border-amber-400 hover:shadow-md transition-all duration-200 disabled:opacity-50 cursor-pointer"
                   >
-                    {isMarkingStatus ? <Loader2 size={14} className="animate-spin" /> : <Clock size={14} />}
+                    {isMarkingStatus ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <Clock size={14} />
+                    )}
                     Đánh dấu trễ
                   </button>
                 )}
@@ -1608,26 +1924,44 @@ export default function TeacherSubmissionDetailPage() {
                     disabled={isMarkingStatus}
                     className="inline-flex items-center gap-2 rounded-xl border border-rose-300 bg-gradient-to-br from-rose-50 to-red-50 px-4 py-2.5 text-sm font-semibold text-rose-800 hover:border-rose-400 hover:shadow-md transition-all duration-200 disabled:opacity-50 cursor-pointer"
                   >
-                    {isMarkingStatus ? <Loader2 size={14} className="animate-spin" /> : <AlertCircle size={14} />}
+                    {isMarkingStatus ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <AlertCircle size={14} />
+                    )}
                     Đánh dấu thiếu
                   </button>
                 )}
-              <button
-                onClick={() => {
-                  if (data?.isOverdue) {
-                    setEditingScore("0");
-                    setEditingFeedback("Quá hạn nộp bài");
-                  } else {
-                    setEditingScore((prev) => prev || (data?.score !== null && data?.score !== undefined ? String(data.score) : ""));
-                    setEditingFeedback((prev) => prev || data?.teacherFeedback || formattedAiFeedback || "");
-                  }
-                  setShowGradingForm(true);
-                }}
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer"
-              >
-                <Edit3 size={14} /> 
-                {isMultipleChoiceSubmission ? "Nhận xét" : "Chấm điểm & Nhận xét"}
-              </button>
+                <button
+                  onClick={() => {
+                    if (data?.isOverdue) {
+                      setEditingScore("0");
+                      setEditingFeedback("Quá hạn nộp bài");
+                    } else {
+                      setEditingScore(
+                        (prev) =>
+                          prev ||
+                          (data?.score !== null && data?.score !== undefined
+                            ? String(data.score)
+                            : ""),
+                      );
+                      setEditingFeedback(
+                        (prev) =>
+                          prev ||
+                          data?.teacherFeedback ||
+                          formattedAiFeedback ||
+                          "",
+                      );
+                    }
+                    setShowGradingForm(true);
+                  }}
+                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer"
+                >
+                  <Edit3 size={14} />
+                  {isMultipleChoiceSubmission
+                    ? "Nhận xét"
+                    : "Chấm điểm & Nhận xét"}
+                </button>
               </div>
             )}
           </div>
@@ -1640,12 +1974,18 @@ export default function TeacherSubmissionDetailPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="rounded-xl border border-gray-200 p-4">
                       <div className="text-gray-500 mb-1">Trạng thái</div>
-                      <div className="font-medium text-gray-900">{normalizeStatusLabel(data.status)}</div>
+                      <div className="font-medium text-gray-900">
+                        {normalizeStatusLabel(data.status)}
+                      </div>
                     </div>
                     <div className="rounded-xl border border-gray-200 p-4">
                       <div className="text-gray-500 mb-1">Điểm</div>
                       <div className="font-bold text-emerald-600 text-xl">
-                        {data.score !== null && data.score !== undefined ? `${data.score} / ${data.maxScore ?? 10}` : (data.isOverdue ? `0 / ${data.maxScore ?? 10}` : "Chưa chấm")}
+                        {data.score !== null && data.score !== undefined
+                          ? `${data.score} / ${data.maxScore ?? 10}`
+                          : data.isOverdue
+                            ? `0 / ${data.maxScore ?? 10}`
+                            : "Chưa chấm"}
                       </div>
                       {data.gradedAt && (
                         <div className="text-xs text-gray-500 mt-1">
@@ -1656,7 +1996,9 @@ export default function TeacherSubmissionDetailPage() {
                   </div>
 
                   <div>
-                    <div className="text-gray-500 mb-2 font-medium">Mô tả bài tập</div>
+                    <div className="text-gray-500 mb-2 font-medium">
+                      Mô tả bài tập
+                    </div>
                     <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 whitespace-pre-wrap text-sm text-gray-700 max-h-64 overflow-y-auto break-words">
                       {data.assignmentDescription || "Không có mô tả."}
                     </div>
@@ -1665,14 +2007,22 @@ export default function TeacherSubmissionDetailPage() {
               )}
 
               <div>
-                <div className="text-gray-500 mb-2 font-medium">Nhận xét của giáo viên</div>
+                <div className="text-gray-500 mb-2 font-medium">
+                  Nhận xét của giáo viên
+                </div>
                 <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 whitespace-pre-wrap text-sm text-gray-700 max-h-64 overflow-y-auto break-words">
-                  {data.isOverdue ? "Quá hạn nộp bài" : (data.teacherFeedback || <span className="italic text-gray-400">Chưa có nhận xét</span>)}
+                  {data.isOverdue
+                    ? "Quá hạn nộp bài"
+                    : data.teacherFeedback || (
+                        <span className="italic text-gray-400">
+                          Chưa có nhận xét
+                        </span>
+                      )}
                 </div>
               </div>
 
               <div>
-                <div className="text-gray-500 mb-2 font-bold flex items-center gap-2 text-sm uppercase tracking-wider">
+                <div className="text-gray-500 mb-2 font-bold flex items-center gap-2 text-sm">
                   <Sparkles size={16} className="text-amber-600" />
                   Phản hồi từ AI
                 </div>
@@ -1691,7 +2041,10 @@ export default function TeacherSubmissionDetailPage() {
                           </div>
                           <ul className="space-y-1 ml-6">
                             {parsedAiFeedback.strengths.map((item, index) => (
-                              <li key={`ai-strength-${index}`} className="leading-relaxed list-disc text-amber-800">
+                              <li
+                                key={`ai-strength-${index}`}
+                                className="leading-relaxed list-disc text-amber-800"
+                              >
                                 {item}
                               </li>
                             ))}
@@ -1705,7 +2058,10 @@ export default function TeacherSubmissionDetailPage() {
                           </div>
                           <ul className="space-y-1 ml-6">
                             {parsedAiFeedback.issues.map((item, index) => (
-                              <li key={`ai-issue-${index}`} className="leading-relaxed list-disc text-amber-800">
+                              <li
+                                key={`ai-issue-${index}`}
+                                className="leading-relaxed list-disc text-amber-800"
+                              >
                                 {item}
                               </li>
                             ))}
@@ -1719,7 +2075,10 @@ export default function TeacherSubmissionDetailPage() {
                           </div>
                           <ul className="space-y-1 ml-6">
                             {parsedAiFeedback.suggestions.map((item, index) => (
-                              <li key={`ai-suggestion-${index}`} className="leading-relaxed list-disc text-amber-800">
+                              <li
+                                key={`ai-suggestion-${index}`}
+                                className="leading-relaxed list-disc text-amber-800"
+                              >
                                 {item}
                               </li>
                             ))}
@@ -1733,7 +2092,10 @@ export default function TeacherSubmissionDetailPage() {
                           </div>
                           <ul className="space-y-1 ml-6">
                             {parsedAiFeedback.warnings.map((item, index) => (
-                              <li key={`ai-warning-${index}`} className="leading-relaxed list-disc text-amber-800">
+                              <li
+                                key={`ai-warning-${index}`}
+                                className="leading-relaxed list-disc text-amber-800"
+                              >
                                 {item}
                               </li>
                             ))}
@@ -1742,9 +2104,13 @@ export default function TeacherSubmissionDetailPage() {
                       ) : null}
                     </div>
                   ) : formattedAiFeedback ? (
-                    <div className="whitespace-pre-wrap leading-relaxed">{formattedAiFeedback}</div>
+                    <div className="whitespace-pre-wrap leading-relaxed">
+                      {formattedAiFeedback}
+                    </div>
                   ) : (
-                    <span className="italic text-amber-500">Chưa có phản hồi AI</span>
+                    <span className="italic text-amber-500">
+                      Chưa có phản hồi AI
+                    </span>
                   )}
                 </div>
               </div>
@@ -1801,7 +2167,7 @@ export default function TeacherSubmissionDetailPage() {
               )}
 
               <div>
-                <label className="block text-sm font-bold text-gray-900 mb-3 uppercase tracking-wider">
+                <label className="block text-sm font-bold text-gray-900 mb-3">
                   Nhận xét của giáo viên
                 </label>
                 <textarea
@@ -1822,8 +2188,14 @@ export default function TeacherSubmissionDetailPage() {
                   onClick={() => {
                     setShowGradingForm(false);
                     if (data) {
-                      setEditingScore(data.score !== null && data.score !== undefined ? String(data.score) : "");
-                      setEditingFeedback(data.teacherFeedback || formattedAiFeedback || "");
+                      setEditingScore(
+                        data.score !== null && data.score !== undefined
+                          ? String(data.score)
+                          : "",
+                      );
+                      setEditingFeedback(
+                        data.teacherFeedback || formattedAiFeedback || "",
+                      );
                     }
                   }}
                   className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-6 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 cursor-pointer"
