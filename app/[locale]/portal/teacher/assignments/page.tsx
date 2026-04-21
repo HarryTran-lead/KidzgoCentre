@@ -49,6 +49,7 @@ import {
 } from "lucide-react";
 
 import { fetchHomework, mapSubmissionToUi, createHomework, fetchClasses, fetchSessions, deleteHomework, updateHomework, createMultipleChoiceHomework } from "@/lib/api/homeworkService";
+import { get } from "@/lib/axios";
 import { uploadFile, isUploadSuccess } from "@/lib/api/fileService";
 import { getActiveProgramsForDropdown, getAllProgramsForDropdown } from "@/lib/api/programService";
 import { dateOnlyVN } from "@/lib/datetime";
@@ -1922,18 +1923,32 @@ export default function TeacherAssignmentsPage() {
     setIsLoading(true);
     setCurrentPage(page);
     try {
-      const result = await fetchHomework({
-        pageNumber: page,
-        pageSize: itemsPerPage,
-        classId: selectedClass !== "ALL" ? selectedClass : undefined,
-        fromDate: undefined,
-        toDate: undefined,
-      });
+      const result = await get<any>(`/api/homework/my-created?pageNumber=${page}&pageSize=${itemsPerPage}${
+        selectedClass !== "ALL" ? `&classId=${selectedClass}` : ""
+      }`);
 
-      if (result.ok && result.data) {
-        const mappedSubmissions = result.data.data.map((item: HomeworkSubmission) => mapSubmissionToUi(item));
+      console.log("API Response:", result);
+
+      if (result?.data) {
+        // Parse response structure: result.data.homeworkAssignments.items
+        const homeworkData = result.data?.homeworkAssignments;
+        const items = homeworkData?.items || [];
+        
+        console.log("Mapped items:", items);
+        const mappedSubmissions = (Array.isArray(items) ? items : []).map((item: any) => mapSubmissionToUi(item));
+        
+        console.log("Mapped submissions:", mappedSubmissions);
         setSubmissions(mappedSubmissions);
-        setMeta(result.data.meta || { totalItems: 0, totalPages: 0, pageNumber: 1, pageSize: 10 });
+        
+        // Get totalStudents from homeworkAssignments or first item
+        const totalStudents = homeworkData?.totalStudents || 0;
+        
+        setMeta({
+          totalItems: totalStudents,
+          totalPages: Math.ceil(totalStudents / itemsPerPage),
+          pageNumber: page,
+          pageSize: itemsPerPage
+        });
       } else {
         console.error("Failed to fetch homework");
         setSubmissions([]);
@@ -2002,7 +2017,7 @@ export default function TeacherAssignmentsPage() {
   useEffect(() => {
     loadHomework(1);
     setIsPageLoaded(true);
-  }, []);
+  }, [loadHomework]);
 
   useEffect(() => {
     loadHomework(1);

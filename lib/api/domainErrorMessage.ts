@@ -130,6 +130,9 @@ const CODE_TO_VIETNAMESE_MESSAGE: Record<string, string> = {
   "Registration.FirstStudyDateInPast": "Ngày vào học đầu tiên không được ở quá khứ.",
   "Registration.FirstStudyDateInvalid": "Ngày vào học đầu tiên không hợp lệ với lịch lớp.",
   "Registration.FirstStudyDateOutsideClassRange": "Ngày vào học đầu tiên nằm ngoài thời gian hoạt động của lớp.",
+
+  // Session Report
+  "SessionReport.SessionNotEnded": "Chỉ có thể tạo, chỉnh sửa, gửi duyệt, duyệt hoặc xuất bản báo cáo sau khi buổi học đã kết thúc.",
 };
 
 function normalizeCode(value?: string): string {
@@ -327,6 +330,10 @@ function translateBackendMessageToVietnamese(message?: string): string | undefin
       test: /request\s+failed\s+with\s+status\s+code\s+409/i,
       vi: "Yêu cầu bị từ chối do dữ liệu đang xung đột. Vui lòng kiểm tra lại thông tin và thử lại.",
     },
+    {
+      test: /session\s+report\s+can\s+only\s+be\s+created,\s*edited,\s*submitted,\s*approved,\s*or\s*published\s+after\s+the\s+session\s+has\s+ended/i,
+      vi: "Chỉ có thể tạo, chỉnh sửa, gửi duyệt, duyệt hoặc xuất bản báo cáo sau khi buổi học đã kết thúc.",
+    },
   ];
 
   for (const matcher of messageMatchers) {
@@ -389,6 +396,7 @@ export function extractDomainErrorCode(error: unknown): string | undefined {
       code.startsWith("Lead.") ||
       code.startsWith("Registration.") ||
       code.startsWith("Enrollment.") ||
+        code.startsWith("SessionReport.") ||
       code.startsWith("LeaveRequest.") ||
       code.startsWith("PauseEnrollmentRequest.") ||
       exactCodes.has(code),

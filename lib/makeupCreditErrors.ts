@@ -43,26 +43,26 @@ export function resolveMakeupCreditActionError(
   const code = extractMakeupCreditErrorCode(error);
 
   if (code === "MakeupCredit.MustStayInCurrentMakeupProgram") {
-    return "Buoi hoc bu moi phai nam trong cung chuong trinh hoc bu voi lich hien tai.";
+    return "The new make-up session must stay in the same make-up program as the current schedule.";
   }
 
   if (
     code === "MakeupCredit.TargetSessionFull" ||
     code === "MakeupCredit.SessionFull"
   ) {
-    return "Buoi hoc bu ban chon da het slot. Vui long chon buoi khac.";
+    return "The selected make-up session is full. Please choose another session.";
   }
 
   if (code === "MakeupCredit.NotAvailable") {
     return mode === "change"
-      ? "Credit nay hien khong con du dieu kien de doi lich. Vui long tai lai danh sach va thu lai."
-      : "Makeup credit nay hien khong con kha dung de xep lich.";
+      ? "This make-up credit is no longer eligible for rescheduling. Please refresh and try again."
+      : "This make-up credit is no longer available for scheduling.";
   }
 
   return extractMakeupCreditErrorMessage(
     error,
     mode === "change"
-      ? "Khong the thay doi lich hoc bu."
-      : "Khong the tao lich hoc bu."
+      ? "Unable to reschedule this make-up session."
+      : "Unable to create this make-up session."
   );
 }

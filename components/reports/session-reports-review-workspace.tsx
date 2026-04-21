@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { nowISOVN } from "@/lib/datetime";
+import { getDomainErrorMessage } from "@/lib/api/domainErrorMessage";
 
 type SessionReportStatus = "DRAFT" | "REVIEW" | "APPROVED" | "REJECTED" | "PUBLISHED" | string;
 
@@ -159,7 +160,9 @@ async function apiFetch<T = unknown>(url: string, init?: RequestInit): Promise<T
   }
 
   if (!response.ok) {
-    throw new Error(payload?.message || "Không thể xử lý session report.");
+    throw new Error(
+      getDomainErrorMessage({ response: { status: response.status, data: payload } }, "Không thể xử lý session report.")
+    );
   }
 
   return (payload?.data ?? payload) as T;

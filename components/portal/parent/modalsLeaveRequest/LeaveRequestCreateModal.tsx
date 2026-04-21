@@ -38,7 +38,7 @@ type Props = {
 };
 
 type FormErrors = Partial<
-  Record<"studentProfileId" | "classId" | "sessionDate" | "endDate" | "reason", string>
+  Record<"studentProfileId" | "classId" | "sessionDate" | "reason", string>
 >;
 
 const initialFormState: LeaveRequestPayload = {
@@ -570,14 +570,6 @@ export default function LeaveRequestCreateModal({
   }, [open, formState.classId, formState.studentProfileId, selectedStudent]);
 
   useEffect(() => {
-    if (!open) return;
-    if (!formState.sessionDate) return;
-    if (formState.endDate) return;
-
-    setFormState((prev) => ({ ...prev, endDate: prev.sessionDate }));
-  }, [formState.endDate, formState.sessionDate, open]);
-
-  useEffect(() => {
     if (!open || !formState.classId || !formState.studentProfileId) {
       setClassSessions([]);
       setSessionsError(null);
@@ -653,12 +645,6 @@ export default function LeaveRequestCreateModal({
     return !!formState.studentProfileId && !!formState.classId && !!formState.sessionDate && !!String(formState.reason ?? "").trim();
   }, [formState.classId, formState.reason, formState.sessionDate, formState.studentProfileId]);
 
-  const isSingleSessionLeave = useMemo(() => {
-    if (formState.sessionId) return true;
-    if (!formState.sessionDate) return false;
-    return selectedDateSessions.length > 0;
-  }, [formState.sessionDate, formState.sessionId, selectedDateSessions.length]);
-
   const scrollToFeedback = () => {
     requestAnimationFrame(() => {
       feedbackRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -676,17 +662,10 @@ export default function LeaveRequestCreateModal({
   const submitLeaveRequest = async () => {
     const nextErrors: FormErrors = {};
     const trimmedReason = String(formState.reason ?? "").trim();
-    const normalizedEndDate = isSingleSessionLeave
-      ? formState.sessionDate
-      : String(formState.endDate ?? formState.sessionDate ?? "").trim() || formState.sessionDate;
-
     if (!formState.studentProfileId) nextErrors.studentProfileId = "Vui lòng chọn học viên áp dụng.";
     if (!formState.classId) nextErrors.classId = "Vui lòng chọn lớp học.";
     if (!formState.sessionDate) nextErrors.sessionDate = "Vui lòng chọn ngày nghỉ bắt đầu.";
     if (!trimmedReason) nextErrors.reason = "Vui lòng nhập lý do xin nghỉ.";
-    if (formState.sessionDate && normalizedEndDate && normalizedEndDate < formState.sessionDate) {
-      nextErrors.endDate = "Ngày nghỉ kết thúc phải lớn hơn hoặc bằng ngày bắt đầu.";
-    }
 
     if (Object.keys(nextErrors).length > 0) {
       showFormError("Vui lòng kiểm tra lại các trường bắt buộc trước khi gửi đơn.", nextErrors);
@@ -701,7 +680,7 @@ export default function LeaveRequestCreateModal({
       const payload: LeaveRequestPayload = {
         ...formState,
         sessionId: formState.sessionId?.trim() ? formState.sessionId.trim() : null,
-        endDate: normalizedEndDate,
+        endDate: formState.sessionDate,
         reason: trimmedReason,
       };
 
@@ -859,7 +838,6 @@ export default function LeaveRequestCreateModal({
                             studentProfileId: undefined,
                             classId: undefined,
                             sessionDate: undefined,
-                            endDate: undefined,
                           }));
                           setActionError(null);
                           setClasses([]);
@@ -919,7 +897,6 @@ export default function LeaveRequestCreateModal({
                         ...prev,
                         classId: undefined,
                         sessionDate: undefined,
-                        endDate: undefined,
                       }));
                       setActionError(null);
                     }}
@@ -1029,7 +1006,6 @@ export default function LeaveRequestCreateModal({
                                 setFormErrors((prev) => ({
                                   ...prev,
                                   sessionDate: undefined,
-                                  endDate: undefined,
                                 }));
                                 setActionError(null);
                               }}
@@ -1119,11 +1095,11 @@ export default function LeaveRequestCreateModal({
               </div>
 
               {/* Ngày nghỉ */}
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="space-y-2">
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
                     <CalendarDays size={16} className="text-red-600" />
-                    Ngày nghỉ (từ) <span className="text-red-600">*</span>
+                    Ngày nghỉ <span className="text-red-600">*</span>
                   </div>
                   <input
                     type="date"
@@ -1135,12 +1111,11 @@ export default function LeaveRequestCreateModal({
                         ...prev,
                         sessionDate: nextDate,
                         sessionId: null,
-                        endDate: prev.sessionId || !prev.endDate ? nextDate : prev.endDate,
+                        endDate: nextDate,
                       }));
                       setFormErrors((prev) => ({
                         ...prev,
                         sessionDate: undefined,
-                        endDate: undefined,
                       }));
                       setActionError(null);
                     }}
@@ -1151,46 +1126,10 @@ export default function LeaveRequestCreateModal({
                     </p>
                   )}
                 </div>
-
-                {isSingleSessionLeave ? (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
-                      <CalendarDays size={16} className="text-red-600" />
-                      Ngày nghỉ (đến)
-                    </div>
-                    <div className="flex h-11 items-center rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm text-gray-700">
-                      {formState.sessionDate ? formatDateVN(formState.sessionDate) : "-"}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      Đơn nghỉ theo buổi được tự động khóa cùng ngày với ngày nghỉ bắt đầu.
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
-                      <CalendarDays size={16} className="text-red-600" />
-                      Ngày nghỉ (đến)
-                    </div>
-                    <input
-                      type="date"
-                      className={getFieldClass(formErrors.endDate != null, "h-11 px-4")}
-                      value={formState.endDate ?? ""}
-                      onChange={(event) => {
-                        setFormState((prev) => ({ ...prev, endDate: event.target.value }));
-                        setFormErrors((prev) => ({ ...prev, endDate: undefined }));
-                        setActionError(null);
-                      }}
-                    />
-                    <div className="text-xs text-gray-500">
-                      Nếu nghỉ một ngày, hệ thống sẽ tự hiểu là nghỉ trong ngày bắt đầu.
-                    </div>
-                    {formErrors.endDate && (
-                      <p className="text-sm text-red-600 flex items-center gap-1">
-                        <AlertCircle size={14} /> {formErrors.endDate}
-                      </p>
-                    )}
-                  </div>
-                )}
+                <div className="text-xs text-gray-500">
+                  Mỗi đơn nghỉ hiện áp dụng cho một ngày duy nhất.
+                  {formState.sessionDate ? ` Ngày áp dụng: ${formatDateVN(formState.sessionDate)}.` : ""}
+                </div>
               </div>
 
               {/* Lý do */}

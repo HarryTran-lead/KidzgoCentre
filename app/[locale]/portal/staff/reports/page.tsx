@@ -1,7 +1,10 @@
-﻿"use client";
+﻿import { redirect } from "next/navigation";
 
-import ManagementFeedbackWorkspace from "@/components/reports/management-feedback-workspace";
+type Props = {
+  params: Promise<{ locale: string }>;
+};
 
-export default function StaffReportsPage() {
-  return <ManagementFeedbackWorkspace />;
+export default async function StaffReportsPage({ params }: Props) {
+  const { locale } = await params;
+  redirect(`/${locale}/portal/staff-management/feedback`);
 }
