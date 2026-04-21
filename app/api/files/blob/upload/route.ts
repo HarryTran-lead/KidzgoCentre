@@ -21,6 +21,15 @@ const ALLOWED_CONTENT_TYPES = [
   "text/plain",
 ] as const;
 
+function getBlobReadWriteToken(): string {
+  const token =
+    process.env.BLOB_READ_WRITE_TOKEN ??
+    process.env.VERCEL_BLOB_READ_WRITE_TOKEN ??
+    "";
+
+  return token.trim();
+}
+
 function getBearerToken(req: Request): string | null {
   const authHeader = req.headers.get("authorization")?.trim() ?? "";
   if (!authHeader.toLowerCase().startsWith("bearer ")) return null;
@@ -51,6 +60,17 @@ async function verifyAccessToken(token: string): Promise<boolean> {
 }
 
 export async function POST(request: Request): Promise<NextResponse> {
+  const blobToken = getBlobReadWriteToken();
+  if (!blobToken) {
+    return NextResponse.json(
+      {
+        error:
+          "Thiếu biến môi trường BLOB_READ_WRITE_TOKEN trên deployment Vercel.",
+      },
+      { status: 500 },
+    );
+  }
+
   const token = getBearerToken(request);
   if (!token) {
     return NextResponse.json({ error: "Chưa đăng nhập" }, { status: 401 });
@@ -65,6 +85,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   try {
     const jsonResponse = await handleUpload({
+      token: blobToken,
       body,
       request,
       onBeforeGenerateToken: async (pathname, clientPayload) => {
