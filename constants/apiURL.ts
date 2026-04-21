@@ -703,6 +703,7 @@ export const BACKEND_INCIDENT_REPORT_ENDPOINTS = {
 export const FILE_ENDPOINTS = {
   UPLOAD: '/api/files/upload',
   BLOB_UPLOAD: '/api/files/blob/upload',
+  BLOB_VIEW: '/api/files/blob/view',
   AVATAR: '/api/files/avatar',
   DELETE: '/api/files',
   TRANSFORM: '/api/files/transform',
