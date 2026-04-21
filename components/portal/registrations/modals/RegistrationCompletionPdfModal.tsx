@@ -514,6 +514,63 @@ export default function RegistrationCompletionPdfModal({
                 title="Phiếu hoàn thành đăng ký"
                 className="h-full w-full"
               />
+            ) : pdfData?.preview ? (
+              <div className="h-full overflow-y-auto p-6">
+                <div className="mx-auto w-full max-w-3xl rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+                  <div className="mb-5 flex items-center justify-between gap-3">
+                    <h4 className="text-lg font-semibold text-gray-900">Bản xem trước thông tin phiếu</h4>
+                    <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
+                      Chưa có file PDF
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
+                      <div className="text-[11px] uppercase tracking-wide text-gray-500">Học viên</div>
+                      <div className="mt-1 text-sm font-semibold text-gray-900">{String(pdfData.preview.studentName || "-")}</div>
+                    </div>
+                    <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
+                      <div className="text-[11px] uppercase tracking-wide text-gray-500">Tổng thanh toán</div>
+                      <div className="mt-1 text-sm font-semibold text-gray-900">
+                        {formatCurrency(Number(pdfData.preview.totalPayment || 0), "VND")}
+                      </div>
+                    </div>
+                    <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
+                      <div className="text-[11px] uppercase tracking-wide text-gray-500">Chương trình</div>
+                      <div className="mt-1 text-sm font-semibold text-gray-900">{String(pdfData.preview.programName || "-")}</div>
+                    </div>
+                    <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
+                      <div className="text-[11px] uppercase tracking-wide text-gray-500">Lớp</div>
+                      <div className="mt-1 text-sm font-semibold text-gray-900">
+                        {String(pdfData.preview.classCode || pdfData.preview.classTitle || "-")}
+                      </div>
+                    </div>
+                  </div>
+
+                  {pdfData.preview.paymentQrUrl ? (
+                    <div className="mt-5 rounded-xl border border-gray-100 bg-gray-50 p-4">
+                      <div className="mb-2 text-sm font-semibold text-gray-900">Mã QR thanh toán</div>
+                      <img
+                        src={buildFileUrl(pdfData.preview.paymentQrUrl) || pdfData.preview.paymentQrUrl}
+                        alt="QR thanh toán"
+                        className="h-44 w-44 rounded-lg border border-gray-200 bg-white object-contain"
+                      />
+                    </div>
+                  ) : null}
+
+                  <div className="mt-5 flex items-center justify-end">
+                    <button
+                      type="button"
+                      onClick={handleGeneratePdf}
+                      disabled={isGenerating}
+                      className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50 cursor-pointer"
+                    >
+                      {isGenerating ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                      Xác nhận tạo PDF
+                    </button>
+                  </div>
+                </div>
+              </div>
             ) : (
               <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-gray-500">
                 <div className="rounded-2xl bg-gray-200/60 p-4">

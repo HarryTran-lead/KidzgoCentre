@@ -388,9 +388,9 @@ function mapToRegistration(item: any): Registration {
             : typeof firstStudySessionRaw?.dayCode === "string"
               ? firstStudySessionRaw.dayCode
               : null,
-        studyDayName:
-          typeof firstStudySessionRaw?.studyDayName === "string"
-            ? firstStudySessionRaw.studyDayName
+        studyDate:
+          typeof firstStudySessionRaw?.studyDate === "string"
+            ? firstStudySessionRaw.studyDate
             : typeof firstStudySessionRaw?.dayName === "string"
               ? firstStudySessionRaw.dayName
               : typeof firstStudySessionRaw?.dayDisplayName === "string"

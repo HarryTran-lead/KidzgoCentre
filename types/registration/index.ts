@@ -33,7 +33,7 @@ export interface RegistrationFirstStudySession {
   startsAt?: string | null;
   endsAt?: string | null;
   studyDayCode?: string | null;
-  studyDayName?: string | null;
+  studyDate?: string | null;
 }
 
 export interface RegistrationRequest {

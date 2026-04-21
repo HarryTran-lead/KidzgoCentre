@@ -9,20 +9,14 @@ import {
   User,
   CalendarClock,
   MapPin,
-  Mail,
-  Phone,
   Search,
   Download,
   Share2,
-  MoreVertical,
   CheckCircle,
   FileText,
-  MessageSquare,
-  Eye,
   ChevronLeft,
   ChevronRight,
   Star,
-  Plus,
   Clock,
   Calendar,
   Building2,
@@ -718,14 +712,6 @@ export default function ClassDetailPage() {
                 <option value="inactive">Không hoạt động</option>
               </select>
 
-              {/* Add Student */}
-              <button
-                onClick={() => router.push(`/${locale}/portal/admin/students?classId=${classId}`)}
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer whitespace-nowrap"
-              >
-                <Plus size={16} />
-                Thêm học viên
-              </button>
             </div>
           </div>
         </div>
@@ -744,11 +730,9 @@ export default function ClassDetailPage() {
                   />
                 </th>
                 <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700 whitespace-nowrap">Học viên</th>
-                <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700 whitespace-nowrap">Liên hệ</th>
                 <th className="py-3 px-6 text-center text-sm font-semibold text-gray-700 whitespace-nowrap">Chuyên cần</th>
                 <th className="py-3 px-6 text-center text-sm font-semibold text-gray-700 whitespace-nowrap">Thành tích</th>
                 <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700 whitespace-nowrap">Hoạt động</th>
-                <th className="py-3 px-6 text-center text-sm font-semibold text-gray-700 whitespace-nowrap">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -771,19 +755,6 @@ export default function ClassDetailPage() {
                         <StudentAvatar name={student.name} status={student.status} />
                         <div>
                           <div className="text-sm font-medium text-gray-900">{student.name}</div>
-                          <div className="text-xs text-gray-500">ID: {student.id.slice(0, 8)}...</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-4 px-6">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-sm text-gray-700">
-                          <Mail size={14} className="text-gray-400 flex-shrink-0" />
-                          <span className="truncate max-w-[150px]">{student.email || "Chưa có"}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-gray-700">
-                          <Phone size={14} className="text-gray-400 flex-shrink-0" />
-                          <span className="truncate max-w-[150px]">{student.phone || "Chưa có"}</span>
                         </div>
                       </div>
                     </td>
@@ -808,24 +779,11 @@ export default function ClassDetailPage() {
                         <span className="text-sm text-gray-700">{student.lastActive || "Chưa có"}</span>
                       </div>
                     </td>
-                    <td className="py-4 px-6">
-                      <div className="flex items-center justify-center gap-1">
-                        <button className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600 cursor-pointer" title="Nhắn tin">
-                          <MessageSquare size={14} />
-                        </button>
-                        <button className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-red-600 cursor-pointer" title="Xem chi tiết">
-                          <Eye size={14} />
-                        </button>
-                        <button className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-800 cursor-pointer" title="Tùy chọn">
-                          <MoreVertical size={14} />
-                        </button>
-                      </div>
-                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center">
+                  <td colSpan={5} className="py-12 text-center">
                     <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center">
                       <Search size={24} className="text-gray-400" />
                     </div>
@@ -857,13 +815,6 @@ export default function ClassDetailPage() {
             </div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">Chưa có học viên</h3>
             <p className="text-gray-600 mb-4">Lớp học này chưa có học viên đăng ký</p>
-            <button
-              onClick={() => router.push(`/${locale}/portal/admin/students?classId=${classId}`)}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-5 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer"
-            >
-              <Plus size={16} />
-              Thêm học viên
-            </button>
           </div>
         )}
       </div>

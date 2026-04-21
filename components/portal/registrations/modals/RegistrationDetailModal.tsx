@@ -380,14 +380,9 @@ export default function RegistrationDetailModal({
                     firstStudySession
                       ? [
                           toDateTime(
-                            firstStudySession.sessionDate ||
+                            firstStudySession.studyDate ||
                               null,
                           ),
-                          normalizeVietnameseScheduleText(
-                            firstStudySession.studyDayName,
-                          ) ||
-                            toStudyDayCodeLabel(firstStudySession.studyDayCode) ||
-                            "",
                         ]
                           .filter((part) => part && part !== "-")
                           .join(" • ") || "-"
@@ -435,7 +430,7 @@ export default function RegistrationDetailModal({
                             <div className="flex items-start gap-1">
                               <Users size={12} className="text-gray-400 mt-0.5 flex-shrink-0" />
                               <span>
-                                Lớp: <span className="font-semibold">{schedule.className || "Chưa xếp lớp"}</span>
+                                Tên Lớp: <span className="font-semibold">{schedule.className || "Chưa xếp lớp"}</span>
                               </span>
                             </div>
                             <div className="flex items-start gap-1">
