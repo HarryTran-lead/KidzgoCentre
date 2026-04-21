@@ -8,7 +8,16 @@ const MAX_UPLOAD_BYTES = Number(process.env.BLOB_MAX_UPLOAD_BYTES ?? "209715200"
 const ALLOWED_CONTENT_TYPES = [
   "image/*",
   "video/*",
+  "video/mp4",
+  "video/quicktime",
+  "video/x-msvideo",
+  "video/x-matroska",
   "audio/*",
+  "audio/mpeg",
+  "audio/mp3",
+  "audio/wav",
+  "audio/x-wav",
+  "audio/mp4",
   "application/pdf",
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -18,6 +27,7 @@ const ALLOWED_CONTENT_TYPES = [
   "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   "application/zip",
   "application/x-zip-compressed",
+  "application/octet-stream",
   "text/plain",
 ] as const;
 
@@ -38,8 +48,14 @@ function getBearerToken(req: Request): string | null {
 }
 
 function safePathname(pathname: string): string {
-  const normalized = pathname.trim().replace(/^\/+/, "");
-  return normalized.replace(/\.\./g, "");
+  const normalized = pathname
+    .trim()
+    .replace(/^\/+/, "")
+    .replace(/\.\./g, "")
+    .replace(/[^a-zA-Z0-9/._-]/g, "-")
+    .replace(/-+/g, "-");
+
+  return normalized.slice(0, 220);
 }
 
 async function verifyAccessToken(token: string): Promise<boolean> {
