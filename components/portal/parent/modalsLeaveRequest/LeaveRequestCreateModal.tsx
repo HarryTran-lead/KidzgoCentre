@@ -24,6 +24,7 @@ import {
 } from "@/lib/api/parentScheduleService";
 import { useToast } from "@/hooks/use-toast";
 import { getDomainErrorMessage } from "@/lib/api/domainErrorMessage";
+import { parseApiDateKeepWallClock } from "@/lib/datetime";
 
 import type { LeaveRequestPayload, LeaveRequestRecord } from "@/types/leaveRequest";
 import type { StudentClass } from "@/types/student/class";
@@ -277,8 +278,7 @@ function formatTimeRange(session: ParentTimetableSession) {
   const raw = session.plannedDatetime ?? session.actualDatetime;
   if (!raw) return "";
 
-  // Always convert to local time via Date to handle UTC offsets correctly
-  const start = new Date(raw);
+  const start = parseApiDateKeepWallClock(raw);
   if (Number.isNaN(start.getTime())) return "";
 
   const startHour = String(start.getHours()).padStart(2, "0");
@@ -467,7 +467,7 @@ export default function LeaveRequestCreateModal({
     classSessions.forEach((session) => {
       const raw = session.plannedDatetime ?? session.actualDatetime;
       if (!raw) return;
-      const date = new Date(raw);
+      const date = parseApiDateKeepWallClock(raw);
       if (Number.isNaN(date.getTime())) return;
       const key = formatDateKey(date);
       const current = map.get(key) ?? [];
@@ -605,8 +605,10 @@ export default function LeaveRequestCreateModal({
 
         setClassSessions(
           filtered.sort((left, right) => {
-            const leftTime = new Date(left.plannedDatetime ?? left.actualDatetime ?? "").getTime() || 0;
-            const rightTime = new Date(right.plannedDatetime ?? right.actualDatetime ?? "").getTime() || 0;
+            const leftTime =
+              parseApiDateKeepWallClock(left.plannedDatetime ?? left.actualDatetime ?? "").getTime() || 0;
+            const rightTime =
+              parseApiDateKeepWallClock(right.plannedDatetime ?? right.actualDatetime ?? "").getTime() || 0;
             return leftTime - rightTime;
           }),
         );
