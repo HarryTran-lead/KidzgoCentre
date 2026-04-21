@@ -1820,8 +1820,8 @@ export default function AccountsPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">{tProfiles.filters.all} ({profiles.length})</SelectItem>
-                      <SelectItem value="Parent">{tProfiles.filters.parents} ({profiles.filter(p => p.profileType === "Parent").length})</SelectItem>
-                      <SelectItem value="Student">{tProfiles.filters.students} ({profiles.filter(p => p.profileType === "Student").length})</SelectItem>
+                      <SelectItem value="Phụ huynh">{tProfiles.filters.parents} ({profiles.filter(p => p.profileType === "Parent").length})</SelectItem>
+                      <SelectItem value="Học sinh">{tProfiles.filters.students} ({profiles.filter(p => p.profileType === "Student").length})</SelectItem>
                     </SelectContent>
                   </Select>
 
@@ -1832,7 +1832,7 @@ export default function AccountsPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="newest">Mới nhất trước</SelectItem>
-                      <SelectItem value="emailGrouped">Nhóm theo email (kiểu cũ)</SelectItem>
+                      <SelectItem value="emailGrouped">Nhóm theo email</SelectItem>
                     </SelectContent>
                   </Select>
 

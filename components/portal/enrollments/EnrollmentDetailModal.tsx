@@ -321,13 +321,19 @@ export default function EnrollmentDetailModal({
                           <h4 className="text-sm font-semibold text-gray-900">
                             {item.classTitle || item.classCode || "N/A"}
                           </h4>
-                          {getStatusBadge(item.status)}
+                          {/* {getStatusBadge(item.status)} */}
                         </div>
                         <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-gray-500">
                           <div className="flex items-center gap-1.5">
                             <Calendar size={12} className="text-gray-400" />
                             <span>Ghi danh: {formatDate(item.enrollDate)}</span>
                           </div>
+                           {item.classTitle && (
+                            <div className="flex items-center gap-1.5">
+                              <Tag size={12} className="text-gray-400" />
+                              <span>Tên lớp: {item.classTitle}</span>
+                            </div>
+                          )}
                           {item.classCode && (
                             <div className="flex items-center gap-1.5">
                               <Tag size={12} className="text-gray-400" />

@@ -154,7 +154,13 @@ export async function getStudentEnrollmentHistory(
   studentProfileId: string
 ): Promise<ApiResponse<EnrollmentHistoryItem[]>> {
   const response = await get<any>(ENROLLMENT_ENDPOINTS.STUDENT_HISTORY(studentProfileId));
-  const items = response.data?.items || response.data || [];
+  const rawData = response?.data || response || {};
+  const responseData = rawData?.data || rawData;
+  const items =
+    responseData?.enrollments?.items ||
+    responseData?.items ||
+    (Array.isArray(responseData) ? responseData : []);
+
   return {
     isSuccess: response.isSuccess || response.success || false,
     message: response.message,

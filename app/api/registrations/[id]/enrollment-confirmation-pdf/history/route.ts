@@ -10,17 +10,7 @@ export async function GET(req: Request, { params }: Params) {
 
   return proxyPassthrough({
     req,
-    endpoint: BACKEND_REGISTRATION_ENDPOINTS.ENROLLMENT_CONFIRMATION_PDF(id),
-    includeQuery: true,
-  });
-}
-
-export async function POST(req: Request, { params }: Params) {
-  const { id } = await params;
-
-  return proxyPassthrough({
-    req,
-    endpoint: BACKEND_REGISTRATION_ENDPOINTS.ENROLLMENT_CONFIRMATION_PDF(id),
+    endpoint: BACKEND_REGISTRATION_ENDPOINTS.ENROLLMENT_CONFIRMATION_PDF_HISTORY(id),
     includeQuery: true,
   });
 }

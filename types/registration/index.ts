@@ -184,6 +184,54 @@ export interface EnrollmentPaymentSetting {
   updatedBy?: string | null;
 }
 
+export type EnrollmentPdfTrackResolved = "primary" | "secondary";
+export type EnrollmentPdfFormTypeResolved = "newStudent" | "continuingStudent";
+
+export interface EnrollmentPdfPreviewActiveFile {
+  pdfUrl: string;
+  generatedAt: string;
+  generatedByName: string;
+}
+
+export interface EnrollmentPdfPreviewPayload {
+  studentName: string;
+  totalPayment: number;
+  paymentQrUrl: string;
+  [key: string]: any;
+}
+
+export interface EnrollmentPdfPreviewResponse {
+  registrationId: string;
+  trackResolved: EnrollmentPdfTrackResolved;
+  formTypeResolved: EnrollmentPdfFormTypeResolved;
+  warnings: string[];
+  activePdf?: EnrollmentPdfPreviewActiveFile;
+  preview: EnrollmentPdfPreviewPayload;
+}
+
+export interface PdfHistoryItem {
+  pdfRecordId: string;
+  pdfUrl: string;
+  generatedAt: string;
+  generatedByName: string;
+  isActive: boolean;
+  classCode: string;
+}
+
+export interface RegistrationImportActiveRequest {
+  studentProfileId: string;
+  branchId: string;
+  programId: string;
+  tuitionPlanId: string;
+  usedSessions: number;
+  remainingSessions: number;
+  expectedStartDate?: string | null;
+  preferredSchedule?: string | null;
+  note?: string | null;
+  secondaryProgramId?: string | null;
+  secondaryProgramSkillFocus?: string | null;
+}
+
 export type UpsertPaymentSettingRequest = Omit<
   EnrollmentPaymentSetting,
   "id" | "isFallbackToGlobal" | "qrPreviewUrl" | "createdAt" | "updatedAt" | "updatedBy"
