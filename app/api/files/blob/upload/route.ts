@@ -133,7 +133,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         }
 
         const blobAccess =
-          (process.env.NEXT_PUBLIC_BLOB_ACCESS_LEVEL ?? "public") as "public" | "private";
+          (process.env.NEXT_PUBLIC_BLOB_ACCESS_LEVEL ?? "private") as "public" | "private";
 
         return {
           tokenPayload: JSON.stringify({

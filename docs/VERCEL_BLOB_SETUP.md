@@ -21,12 +21,14 @@ Thêm các biến sau:
 BLOB_READ_WRITE_TOKEN=vercel_blob_rw_xxx
 NEXT_PUBLIC_ENABLE_VERCEL_BLOB=true
 NEXT_PUBLIC_DIRECT_UPLOAD_MIN_MB=0
+NEXT_PUBLIC_BLOB_ACCESS_LEVEL=private
 BLOB_MAX_UPLOAD_BYTES=209715200
 ```
 
 Giải thích:
 - NEXT_PUBLIC_ENABLE_VERCEL_BLOB=true: bật direct upload bằng Blob.
 - NEXT_PUBLIC_DIRECT_UPLOAD_MIN_MB=0: file có dung lượng từ ngưỡng này trở lên sẽ đi Blob direct upload. Đặt 0 để dùng Blob cho tất cả file.
+- NEXT_PUBLIC_BLOB_ACCESS_LEVEL=private: đồng bộ với private blob store, tránh lỗi 400 khi upload trên Vercel.
 - BLOB_MAX_UPLOAD_BYTES: kích thước tối đa được cấp token upload.
 
 ## 4) Luồng đã được tích hợp trong codebase

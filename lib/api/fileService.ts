@@ -89,7 +89,7 @@ async function uploadFileViaBlob(
   // NOTE: Use access: "public" if the Vercel Blob store is configured to allow public blobs.
   // If the store is "private-only", change this to "private" and serve files via a proxy route.
   // Store access level can be changed in: Vercel Dashboard → Storage → [Store] → Settings.
-  const blobAccess = (process.env.NEXT_PUBLIC_BLOB_ACCESS_LEVEL ?? "public") as "public" | "private";
+  const blobAccess = (process.env.NEXT_PUBLIC_BLOB_ACCESS_LEVEL ?? "private") as "public" | "private";
 
   const blob = await upload(buildBlobPath(file.name, folder), file, {
     access: blobAccess,
