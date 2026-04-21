@@ -748,7 +748,7 @@ export default function TeacherSessionReportsWorkspace() {
                     value={draftInput}
                     onChange={(e) => setDraftInput(e.target.value)}
                     rows={10}
-                    disabled={isPublished}
+                    disabled={isPublished ?? undefined}
                     className="w-full rounded-xl border border-red-200 p-3 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-300 transition-all resize-none disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
                     placeholder="Nhập nội dung báo cáo chi tiết về buổi học..."
                   />
