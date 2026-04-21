@@ -1270,7 +1270,6 @@ export default function StaffRegistrationOverview({
                         >
                           <Eye size={12} />
                         </button>
-
                         <button
                           type="button"
                           onClick={() => openCompletionPdf(row)}
@@ -1279,7 +1278,6 @@ export default function StaffRegistrationOverview({
                         >
                           <FileText size={12} />
                         </button>
-
                         {(!row.classId || row.status === "WaitingForClass" || row.status === "New") && (
                           <button
                             type="button"

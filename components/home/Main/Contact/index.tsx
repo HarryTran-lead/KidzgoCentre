@@ -197,10 +197,10 @@ export default function Contact() {
                       Có mặt 8AM - 8PM
                     </p>
                     <a
-                      href="tel:+84999888777"
+                      href="tel:+0867405801"
                       className="text-lg font-bold text-gray-900 hover:text-emerald-600 transition-colors flex items-center gap-2 group-hover:gap-3"
                     >
-                      +84 999 888 777
+                      +0867405801
                       <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all" />
                     </a>
                   </div>
@@ -230,10 +230,10 @@ export default function Contact() {
                       Phản hồi trong vòng vài giờ
                     </p>
                     <a
-                      href="mailto:support@kidzgo.edu.vn"
+                      href="mailto:Tearexenglish@gmail.com"
                       className="text-base font-semibold text-gray-900 hover:text-green-600 transition-colors flex items-center gap-2 group-hover:gap-3"
                     >
-                      support@kidzgo.edu.vn
+                      Tearexenglish@gmail.com
                       <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all" />
                     </a>
                   </div>
@@ -263,8 +263,8 @@ export default function Contact() {
                       Văn phòng chính
                     </p>
                     <p className="text-gray-700 font-medium">
-                      123 Đường Nguyễn Huệ, <br />
-                      Quận 1, TP. Hồ Chí Minh
+                     S3.02 Vinhomes Grand Park, <br />
+                      Quận 9, TP. Hồ Chí Minh
                     </p>
                   </div>
                 </div>

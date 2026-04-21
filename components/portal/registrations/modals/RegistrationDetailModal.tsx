@@ -381,7 +381,6 @@ export default function RegistrationDetailModal({
                       ? [
                           toDateTime(
                             firstStudySession.sessionDate ||
-                              firstStudySession.startsAt ||
                               null,
                           ),
                           normalizeVietnameseScheduleText(
@@ -396,22 +395,6 @@ export default function RegistrationDetailModal({
                   }
                 />
               </div>
-
-              {firstStudySession ? (
-                <div className="rounded-xl border border-emerald-200 bg-white p-3">
-                  <div className="text-sm font-semibold text-gray-900">
-                    {toTrackLabel(firstStudySession.track)}
-                  </div>
-                  <div className="mt-2 space-y-1 text-xs text-gray-700">
-                    <div>
-                      Lớp: <span className="font-semibold">{firstStudySession.className || "Chưa xác định"}</span>
-                    </div>
-                    <div>
-                      Ca học: <span className="font-semibold">{toDateTimeOrRaw(firstStudySession.startsAt || null)}</span>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
 
               {!!item.actualStudySchedules?.length && (
                 <div className="mt-3 space-y-2">
