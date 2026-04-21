@@ -340,7 +340,7 @@ export default function AccountChooser({ locale }: Props) {
       <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 py-12">
         {/* Title */}
         <h1 className="text-3xl font-bold text-white mb-16 text-center">
-          Select user
+          Vui lòng chọn hồ sơ
         </h1>
 
         {/* Avatar Container */}

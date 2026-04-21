@@ -1413,19 +1413,6 @@ export default function RegistrationFlowModal({
     }
   };
 
-  const handleOpenEnrollmentConfirmationPdf = () => {
-    if (!registrationId) {
-      toast({
-        title: "Thiếu dữ liệu",
-        description: "Vui lòng chọn hoặc tạo đăng ký trước khi xem phiếu hoàn thành.",
-        variant: "warning",
-      });
-      return;
-    }
-
-    setIsCompletionPdfOpen(true);
-  };
-
   useEffect(() => {
     if (!registrationId || !preferredSchedule.trim()) return;
     if (assignViewMode !== "none") return;
@@ -1567,7 +1554,6 @@ export default function RegistrationFlowModal({
                         isLoadingManualClasses={isLoadingManualClasses}
                         branchId={branchId}
                         handleMoveToWaitingList={handleMoveToWaitingList}
-                        handleOpenEnrollmentConfirmationPdf={handleOpenEnrollmentConfirmationPdf}
                         isWaiting={isWaiting}
                         suggestedClasses={suggestedClasses}
                         hasSecondaryTrack={hasSecondaryTrack}
@@ -1624,7 +1610,6 @@ export default function RegistrationFlowModal({
                     isLoadingManualClasses={isLoadingManualClasses}
                     branchId={branchId}
                     handleMoveToWaitingList={handleMoveToWaitingList}
-                    handleOpenEnrollmentConfirmationPdf={handleOpenEnrollmentConfirmationPdf}
                     isWaiting={isWaiting}
                     suggestedClasses={suggestedClasses}
                     hasSecondaryTrack={hasSecondaryTrack}

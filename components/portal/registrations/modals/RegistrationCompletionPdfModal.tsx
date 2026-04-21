@@ -3,10 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
+  AlertTriangle,
   BookOpen,
+  CheckCircle2,
   Calendar,
   Download,
   GraduationCap,
+  History,
   Loader2,
   Printer,
   School,
@@ -17,10 +20,12 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
-  exportRegistrationEnrollmentConfirmationPdf,
+  generateRegistrationEnrollmentConfirmationPdf,
   getRegistrationEnrollmentConfirmationPdf,
+  getRegistrationEnrollmentConfirmationPdfHistory,
   type EnrollmentConfirmationPdfResponse,
 } from "@/lib/api/registrationService";
+import type { PdfHistoryItem } from "@/types/registration";
 import { buildFileUrl } from "@/constants/apiURL";
 
 type RegistrationCompletionPdfModalProps = {
@@ -62,7 +67,7 @@ function InfoRow({
       </div>
       <div className="min-w-0 flex-1">
         <div className="text-xs text-gray-500">{label}</div>
-        <div className="text-sm font-medium text-gray-900 break-words">{value}</div>
+        <div className="text-sm font-medium text-gray-900 wrap-break-word">{value}</div>
       </div>
     </div>
   );
@@ -77,9 +82,33 @@ export default function RegistrationCompletionPdfModal({
   const { toast } = useToast();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [pdfData, setPdfData] = useState<EnrollmentConfirmationPdfResponse | null>(null);
+  const [historyItems, setHistoryItems] = useState<PdfHistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [selectedPdfUrl, setSelectedPdfUrl] = useState("");
+
+  const loadPreview = async (id: string) => {
+    const data = await getRegistrationEnrollmentConfirmationPdf(id);
+    setPdfData(data);
+    setSelectedPdfUrl(data.activePdf?.pdfUrl || "");
+    return data;
+  };
+
+  const loadHistory = async (id: string) => {
+    try {
+      setIsLoadingHistory(true);
+      const items = await getRegistrationEnrollmentConfirmationPdfHistory(id);
+      setHistoryItems(items);
+      return items;
+    } catch {
+      setHistoryItems([]);
+      return [] as PdfHistoryItem[];
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
 
   useEffect(() => {
     if (!isOpen || !registrationId) return;
@@ -90,13 +119,18 @@ export default function RegistrationCompletionPdfModal({
       try {
         setIsLoading(true);
         setHasError(false);
-        const data = await getRegistrationEnrollmentConfirmationPdf(registrationId);
+        const [preview] = await Promise.all([
+          loadPreview(registrationId),
+          loadHistory(registrationId),
+        ]);
 
         if (disposed) return;
-        setPdfData(data);
+        setPdfData(preview);
       } catch (error: any) {
         if (disposed) return;
         setPdfData(null);
+        setHistoryItems([]);
+        setSelectedPdfUrl("");
         setHasError(true);
         toast({
           title: "Lỗi",
@@ -120,30 +154,76 @@ export default function RegistrationCompletionPdfModal({
   if (!isOpen) return null;
   if (typeof window === "undefined") return null;
 
-  const pdfPreviewUrl = pdfData?.pdfUrl ? buildFileUrl(pdfData.pdfUrl) : "";
+  const activePdfUrl = pdfData?.activePdf?.pdfUrl || "";
+  const effectivePdfUrl = selectedPdfUrl || activePdfUrl;
+  const pdfPreviewUrl = effectivePdfUrl ? buildFileUrl(effectivePdfUrl) : "";
 
-  const handleExport = async () => {
-    if (!registrationId || isExporting) return;
+  const handleGeneratePdf = async () => {
+    if (!registrationId || isGenerating) return;
 
     try {
-      setIsExporting(true);
-      const exportedFileName = await exportRegistrationEnrollmentConfirmationPdf(
-        registrationId,
-      );
+      setIsGenerating(true);
+      await generateRegistrationEnrollmentConfirmationPdf(registrationId);
+      await Promise.all([loadPreview(registrationId), loadHistory(registrationId)]);
       toast({
         title: "Thành công",
-        description: `Đã xuất file PDF: ${exportedFileName}`,
+        description: "Đã tạo bản PDF mới và cập nhật lịch sử.",
         variant: "success",
       });
     } catch (error: any) {
       toast({
         title: "Lỗi",
-        description: error?.message || "Không thể xuất phiếu hoàn thành đăng ký.",
+        description: error?.message || "Không thể tạo file PDF mới.",
         variant: "destructive",
       });
     } finally {
-      setIsExporting(false);
+      setIsGenerating(false);
     }
+  };
+
+  const downloadPdfByUrl = async (rawUrl: string) => {
+    const normalized = String(rawUrl || "").trim();
+    if (!normalized) return;
+
+    try {
+      const downloadUrl = buildFileUrl(normalized);
+      const fileName =
+        normalized.split("/").pop() || `phieu-dang-ky-${pdfData?.preview?.studentName || registrationId}.pdf`;
+      const response = await fetch(downloadUrl);
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = fileName;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(objectUrl);
+
+      toast({
+        title: "Thành công",
+        description: `Đã tải file PDF: ${fileName}`,
+        variant: "success",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Lỗi",
+        description: error?.message || "Không thể tải file PDF.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDownloadCurrentPdf = async () => {
+    if (!activePdfUrl) {
+      toast({
+        title: "Không có dữ liệu",
+        description: "Chưa có bản PDF hiện tại để tải.",
+        variant: "warning",
+      });
+      return;
+    }
+    await downloadPdfByUrl(activePdfUrl);
   };
 
   const handlePrint = () => {
@@ -171,14 +251,14 @@ export default function RegistrationCompletionPdfModal({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Left sidebar - Registration info */}
-        <div className="hidden md:flex w-[340px] flex-col border-r border-gray-200 bg-gray-50">
+        <div className="hidden md:flex w-85 flex-col border-r border-gray-200 bg-gray-50">
           {/* Header */}
           <div className="bg-linear-to-r from-red-600 to-red-700 px-5 py-4">
             <h3 className="text-base font-semibold text-white">
               Phiếu hoàn thành đăng ký
             </h3>
             <p className="mt-0.5 text-xs text-white/80">
-              Học viên: {pdfData?.studentName || studentName || "-"}
+              Học viên: {pdfData?.preview?.studentName || studentName || "-"}
             </p>
           </div>
 
@@ -193,68 +273,127 @@ export default function RegistrationCompletionPdfModal({
                 <InfoRow
                   icon={User}
                   label="Học viên"
-                  value={pdfData.studentName || "-"}
+                  value={pdfData.preview?.studentName || "-"}
                 />
                 <InfoRow
                   icon={BookOpen}
                   label="Chương trình"
-                  value={pdfData.programName || "-"}
+                  value={String(pdfData.preview?.programName || "-")}
                 />
                 <InfoRow
                   icon={School}
                   label="Lớp"
-                  value={
-                    pdfData.classTitle
-                      ? `${pdfData.classTitle} (${pdfData.classCode})`
-                      : pdfData.classCode || "-"
-                  }
+                  value={String(pdfData.preview?.classCode || pdfData.preview?.classTitle || "-")}
                 />
                 <InfoRow
                   icon={GraduationCap}
                   label="Gói học"
-                  value={pdfData.tuitionPlanName || "-"}
+                  value={String(pdfData.preview?.tuitionPlanName || "-")}
                 />
                 <InfoRow
                   icon={Wallet}
-                  label="Học phí"
-                  value={formatCurrency(pdfData.tuitionAmount, pdfData.currency)}
+                  label="Tổng thanh toán"
+                  value={formatCurrency(Number(pdfData.preview?.totalPayment || 0), "VND")}
                 />
                 <InfoRow
                   icon={Calendar}
-                  label="Ngày ghi danh"
-                  value={formatDate(pdfData.enrollDate)}
+                  label="Form đã resolve"
+                  value={
+                    pdfData.formTypeResolved === "continuingStudent"
+                      ? "Học viên đang học (continuing)"
+                      : "Học viên mới (new)"
+                  }
                 />
-                {pdfData.firstStudyDate && (
+
+                {pdfData.formTypeResolved === "continuingStudent" && (
                   <InfoRow
                     icon={Calendar}
-                    label="Ngày bắt đầu học"
-                    value={formatDate(pdfData.firstStudyDate)}
+                    label="Đối soát"
+                    value={
+                      String(
+                        pdfData.preview?.reconciliationSummary ||
+                          pdfData.preview?.reconciliationText ||
+                          "Có dữ liệu đối soát cho học viên đang học.",
+                      )
+                    }
                   />
+                )}
+
+                {Array.isArray(pdfData.warnings) && pdfData.warnings.length > 0 && (
+                  <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                    <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-amber-800">
+                      <AlertTriangle size={13} /> Cảnh báo dữ liệu
+                    </div>
+                    <div className="space-y-1 text-xs text-amber-700">
+                      {pdfData.warnings.map((warning, index) => (
+                        <div key={`pdf-warning-${index}`}>• {warning}</div>
+                      ))}
+                    </div>
+                  </div>
                 )}
 
                 <div className="mt-4 rounded-xl border border-gray-200 bg-white p-3 space-y-1.5">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-gray-500">Loại phiếu</span>
                     <span className="font-medium text-gray-700">
-                      {pdfData.formType === "continue"
+                      {pdfData.formTypeResolved === "continuingStudent"
                         ? "Phiếu đối soát và thu học phí"
-                        : pdfData.formType === "new"
-                          ? "Phiếu thu học phí"
-                          : pdfData.formType || "-"}
+                        : "Phiếu thu học phí"}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-gray-500">Track</span>
                     <span className="font-medium text-gray-700 capitalize">
-                      {pdfData.track || "-"}
+                      {pdfData.trackResolved || "-"}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-gray-500">Ngày tạo PDF</span>
+                    <span className="text-gray-500">Ngày tạo bản active</span>
                     <span className="font-medium text-gray-700">
-                      {formatDate(pdfData.pdfGeneratedAt)}
+                      {formatDate(pdfData.activePdf?.generatedAt)}
                     </span>
                   </div>
+                </div>
+
+                <div className="mt-4 rounded-xl border border-gray-200 bg-white p-3">
+                  <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-gray-700">
+                    <History size={13} /> Lịch sử PDF
+                  </div>
+                  {isLoadingHistory ? (
+                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                      <Loader2 size={12} className="animate-spin" /> Đang tải lịch sử...
+                    </div>
+                  ) : historyItems.length === 0 ? (
+                    <div className="text-xs text-gray-500">Chưa có lịch sử PDF.</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {historyItems.map((item) => {
+                        const isCurrent = item.isActive;
+                        return (
+                          <button
+                            key={item.pdfRecordId}
+                            type="button"
+                            onClick={() => setSelectedPdfUrl(item.pdfUrl)}
+                            className="w-full rounded-lg border border-gray-200 px-2.5 py-2 text-left text-xs hover:bg-gray-50 cursor-pointer"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-semibold text-gray-800">
+                                {item.classCode || "PDF"}
+                              </span>
+                              {isCurrent && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-700">
+                                  <CheckCircle2 size={10} /> Active
+                                </span>
+                              )}
+                            </div>
+                            <div className="mt-0.5 text-gray-500">
+                              {formatDate(item.generatedAt)} • {item.generatedByName || "-"}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </>
             ) : hasError ? (
@@ -269,24 +408,32 @@ export default function RegistrationCompletionPdfModal({
           <div className="border-t border-gray-200 bg-white px-5 py-3 flex items-center gap-2">
             <button
               type="button"
+              onClick={handleDownloadCurrentPdf}
+              disabled={isLoading || !activePdfUrl}
+              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 transition-colors cursor-pointer"
+            >
+              <Download size={14} /> Tải bản hiện tại
+            </button>
+            <button
+              type="button"
+              onClick={handleGeneratePdf}
+              disabled={isGenerating || isLoading}
+              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 transition-colors cursor-pointer"
+            >
+              {isGenerating ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <Download size={14} />
+              )}
+              Tạo bản mới
+            </button>
+            <button
+              type="button"
               onClick={handlePrint}
               disabled={isLoading || !pdfPreviewUrl}
               className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 transition-colors cursor-pointer"
             >
               <Printer size={14} /> In
-            </button>
-            <button
-              type="button"
-              onClick={handleExport}
-              disabled={isExporting || isLoading}
-              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 transition-colors cursor-pointer"
-            >
-              {isExporting ? (
-                <Loader2 size={14} className="animate-spin" />
-              ) : (
-                <Download size={14} />
-              )}
-              Xuất file
             </button>
           </div>
         </div>
@@ -298,10 +445,18 @@ export default function RegistrationCompletionPdfModal({
             <div>
               <h3 className="text-sm font-semibold">Phiếu hoàn thành đăng ký</h3>
               <p className="text-xs text-white/80">
-                {pdfData?.studentName || studentName || "-"}
+                {pdfData?.preview?.studentName || studentName || "-"}
               </p>
             </div>
             <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={handleDownloadCurrentPdf}
+                disabled={isLoading || !activePdfUrl}
+                className="inline-flex items-center gap-1 rounded-lg border border-white/25 bg-white/10 px-2.5 py-1.5 text-xs font-semibold hover:bg-white/20 disabled:opacity-50 cursor-pointer"
+              >
+                <Download size={12} /> Tải
+              </button>
               <button
                 type="button"
                 onClick={handlePrint}
@@ -312,16 +467,16 @@ export default function RegistrationCompletionPdfModal({
               </button>
               <button
                 type="button"
-                onClick={handleExport}
-                disabled={isExporting || isLoading}
+                onClick={handleGeneratePdf}
+                disabled={isGenerating || isLoading}
                 className="inline-flex items-center gap-1 rounded-lg border border-white/25 bg-white/10 px-2.5 py-1.5 text-xs font-semibold hover:bg-white/20 disabled:opacity-50 cursor-pointer"
               >
-                {isExporting ? (
+                {isGenerating ? (
                   <Loader2 size={12} className="animate-spin" />
                 ) : (
                   <Download size={12} />
                 )}
-                Xuất
+                Tạo
               </button>
               <button
                 type="button"

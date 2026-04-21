@@ -129,6 +129,61 @@ function toEntryTypeLabel(entryType: EntryType): string {
   return "Vào học ngay";
 }
 
+const DAY_FULL_NAMES: Record<number, string> = {
+  0: "Chủ nhật",
+  1: "Thứ 2",
+  2: "Thứ 3",
+  3: "Thứ 4",
+  4: "Thứ 5",
+  5: "Thứ 6",
+  6: "Thứ 7",
+};
+
+const DAY_VALUE_TO_JS: Record<string, number> = {
+  "2": 1,
+  "3": 2,
+  "4": 3,
+  "5": 4,
+  "6": 5,
+  "7": 6,
+  CN: 0,
+};
+
+function generateUpcomingSessionDates(
+  schedulePattern?: string | null,
+  maxOptions = 12,
+): Array<{ value: string; label: string }> {
+  const meta = parseClassScheduleMeta(schedulePattern);
+  if (!meta.availableDays.length) return [];
+
+  const jsDays = meta.availableDays
+    .map((d) => DAY_VALUE_TO_JS[d])
+    .filter((d) => d !== undefined) as number[];
+
+  if (!jsDays.length) return [];
+
+  const result: Array<{ value: string; label: string }> = [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  for (let i = 0; i < 84 && result.length < maxOptions; i++) {
+    const day = new Date(today);
+    day.setDate(today.getDate() + i);
+
+    if (jsDays.includes(day.getDay())) {
+      const yyyy = day.getFullYear();
+      const mm = String(day.getMonth() + 1).padStart(2, "0");
+      const dd = String(day.getDate()).padStart(2, "0");
+      const value = `${yyyy}-${mm}-${dd}`;
+      const timeLabel = meta.defaultTime ? ` • ${meta.defaultTime}` : "";
+      const label = `${DAY_FULL_NAMES[day.getDay()]}, ${dd}/${mm}/${yyyy}${timeLabel}`;
+      result.push({ value, label });
+    }
+  }
+
+  return result;
+}
+
 interface SuggestAssignStepProps {
   mode?: "full" | "suggested-only" | "manual-wait-only";
   registrationId: string;
@@ -140,7 +195,6 @@ interface SuggestAssignStepProps {
   isLoadingManualClasses: boolean;
   branchId?: string;
   handleMoveToWaitingList: () => void;
-  handleOpenEnrollmentConfirmationPdf?: () => void;
   isWaiting: boolean;
   suggestedClasses: SuggestedClassBucket | null;
   hasSecondaryTrack: boolean;
@@ -205,7 +259,6 @@ export default function SuggestAssignStep({
   isLoadingManualClasses,
   branchId,
   handleMoveToWaitingList,
-  handleOpenEnrollmentConfirmationPdf,
   isWaiting,
   suggestedClasses,
   hasSecondaryTrack,
@@ -338,6 +391,28 @@ export default function SuggestAssignStep({
     [selectedSecondarySuggestedClass],
   );
 
+  const activeClassSchedulePattern = useMemo(() => {
+    if (isSuggestedMode) {
+      if (hasSecondaryTrack) return selectedPrimarySuggestedClass?.schedulePattern ?? null;
+      return selectedSuggestedClass?.schedulePattern ?? null;
+    }
+    if (isManualMode) return classMap.get(manualPrimaryClassId)?.schedulePattern ?? null;
+    return null;
+  }, [
+    isSuggestedMode,
+    isManualMode,
+    hasSecondaryTrack,
+    selectedPrimarySuggestedClass,
+    selectedSuggestedClass,
+    classMap,
+    manualPrimaryClassId,
+  ]);
+
+  const firstStudyDateOptions = useMemo(
+    () => generateUpcomingSessionDates(activeClassSchedulePattern),
+    [activeClassSchedulePattern],
+  );
+
   const normalizeText = (value?: string | null) =>
     String(value || "")
       .trim()
@@ -402,6 +477,11 @@ export default function SuggestAssignStep({
     ]);
     return merged.size;
   }, [manualPrimaryDays, manualSecondaryDays]);
+
+  // Reset firstStudyDate when the active class changes so stale dates don't persist
+  useEffect(() => {
+    setFirstStudyDate("");
+  }, [activeClassSchedulePattern]);
 
   useEffect(() => {
     if (assignViewMode !== "manual") return;
@@ -826,15 +906,6 @@ export default function SuggestAssignStep({
             </button>
           )}
 
-          {handleOpenEnrollmentConfirmationPdf && Boolean(registrationId) && (
-            <button
-            type="button"
-            onClick={handleOpenEnrollmentConfirmationPdf}
-            className="w-full rounded-xl border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 cursor-pointer hover:bg-red-50"
-          >
-            Xem/In phiếu hoàn thành đăng ký
-            </button>
-          )}
         </div>
 
         <div className="rounded-xl border border-red-100 bg-white/80 p-3">
@@ -866,12 +937,30 @@ export default function SuggestAssignStep({
                 <label className="text-xs font-semibold text-gray-700">
                   Ngày học đầu tiên (tùy chọn)
                 </label>
-                <input
-                  type="date"
-                  value={firstStudyDate}
-                  onChange={(e) => setFirstStudyDate(e.target.value)}
-                  className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
-                />
+                {firstStudyDateOptions.length > 0 ? (
+                  <Select
+                    value={firstStudyDate}
+                    onValueChange={(value) => setFirstStudyDate(value === "__none__" ? "" : value)}
+                  >
+                    <SelectTrigger className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100">
+                      <SelectValue placeholder="Không chọn (để trống)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Không chọn (để trống)</SelectItem>
+                      {firstStudyDateOptions.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Select disabled>
+                    <SelectTrigger className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-400 cursor-not-allowed">
+                      <SelectValue placeholder="Chọn lớp để xem lịch buổi học" />
+                    </SelectTrigger>
+                  </Select>
+                )}
               </div>
               <p className="mt-1 text-[11px] text-gray-500">
                 Nếu để trống, hệ thống sẽ sử dụng lịch mặc định khi xếp lớp. Nếu muốn chuyển trạng thái chờ lớp, dùng nút "Đưa vào danh sách chờ".
