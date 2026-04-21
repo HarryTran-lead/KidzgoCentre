@@ -71,17 +71,21 @@ export async function POST(request: Request): Promise<NextResponse> {
     );
   }
 
-  const token = getBearerToken(request);
-  if (!token) {
-    return NextResponse.json({ error: "Chưa đăng nhập" }, { status: 401 });
-  }
-
-  const isAuthorized = await verifyAccessToken(token);
-  if (!isAuthorized) {
-    return NextResponse.json({ error: "Không có quyền upload" }, { status: 403 });
-  }
-
   const body = (await request.json()) as HandleUploadBody;
+
+  // Require user auth only when generating a client token from browser requests.
+  // Vercel's upload-completed callback does not carry user bearer token.
+  if (body?.type === "blob.generate-client-token") {
+    const token = getBearerToken(request);
+    if (!token) {
+      return NextResponse.json({ error: "Chưa đăng nhập" }, { status: 401 });
+    }
+
+    const isAuthorized = await verifyAccessToken(token);
+    if (!isAuthorized) {
+      return NextResponse.json({ error: "Không có quyền upload" }, { status: 403 });
+    }
+  }
 
   try {
     const jsonResponse = await handleUpload({
