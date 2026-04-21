@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { X, Award, FileText, Paperclip, Upload, Loader2, AlertCircle } from "lucide-react";
-import { ADMIN_ENDPOINTS, buildFileUrl } from "@/constants/apiURL";
+import { ADMIN_ENDPOINTS, buildFileUrl, FILE_ENDPOINTS } from "@/constants/apiURL";
 import { getAccessToken } from "@/lib/store/authToken";
 import { uploadFile, isUploadSuccess } from "@/lib/api/fileService";
 import { useToast } from "@/hooks/use-toast";
@@ -64,9 +64,25 @@ function resolveAttachmentUrl(value?: string) {
     return raw;
   }
 
+  if (raw.startsWith(FILE_ENDPOINTS.BLOB_VIEW)) {
+    return raw;
+  }
+
   if (/^https?:\/\//i.test(raw)) {
     try {
       const parsed = new URL(raw);
+      const host = parsed.hostname.toLowerCase();
+
+      // Private Vercel Blob files are not directly accessible from the browser.
+      // Route them through our API so image/video preview works in UI.
+      if (host.endsWith(".private.blob.vercel-storage.com")) {
+        return `${FILE_ENDPOINTS.BLOB_VIEW}?pathname=${encodeURIComponent(parsed.pathname)}`;
+      }
+
+      if (host.endsWith(".blob.vercel-storage.com")) {
+        return raw;
+      }
+
       const normalizedPath = `${parsed.pathname}${parsed.search || ""}${parsed.hash || ""}`;
       if (normalizedPath.startsWith("/api/files/serve")) {
         return normalizedPath;
@@ -786,18 +802,8 @@ export default function ResultFormModal({
                             </a>
                           ) : null}
 
-                          <a
-                            href={previewUrl || url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block truncate text-sm font-semibold text-red-700 hover:underline"
-                            title={fileName}
-                          >
+                          <p className="block truncate text-sm font-semibold text-red-700" title={fileName}>
                             {fileName}
-                          </a>
-
-                          <p className="truncate text-xs text-gray-500" title={url}>
-                            {url}
                           </p>
                         </div>
                         <button

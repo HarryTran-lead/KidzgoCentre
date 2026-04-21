@@ -3,7 +3,7 @@
 import { X, Calendar, MapPin, User, FileText, Award, BookOpen, Paperclip, Clock, Phone, Mail, Building } from "lucide-react";
 import type { PlacementTest } from "@/types/placement-test";
 import { formatDateTime } from "@/lib/utils";
-import { buildFileUrl } from "@/constants/apiURL";
+import { buildFileUrl, FILE_ENDPOINTS } from "@/constants/apiURL";
 
 const DETAIL_TIME_SHIFT_HOURS = -7;
 
@@ -24,10 +24,24 @@ function resolveAttachmentUrl(value?: string) {
     return raw;
   }
 
+  if (raw.startsWith(FILE_ENDPOINTS.BLOB_VIEW)) {
+    return raw;
+  }
+
   // Always prefer FE proxy path to avoid exposing backend host directly.
   if (/^https?:\/\//i.test(raw)) {
     try {
       const parsed = new URL(raw);
+      const host = parsed.hostname.toLowerCase();
+
+      if (host.endsWith(".private.blob.vercel-storage.com")) {
+        return `${FILE_ENDPOINTS.BLOB_VIEW}?pathname=${encodeURIComponent(parsed.pathname)}`;
+      }
+
+      if (host.endsWith(".blob.vercel-storage.com")) {
+        return raw;
+      }
+
       const normalizedPath = `${parsed.pathname}${parsed.search || ""}${parsed.hash || ""}`;
       if (normalizedPath.startsWith("/api/files/serve")) {
         return normalizedPath;

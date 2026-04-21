@@ -41,6 +41,18 @@ function getBearerToken(req: Request): string | null {
   return token || null;
 }
 
+function getTokenFromClientPayload(raw: unknown): string | null {
+  if (typeof raw !== "string" || !raw.trim()) return null;
+
+  try {
+    const parsed = JSON.parse(raw) as { authToken?: string };
+    const token = String(parsed?.authToken ?? "").trim();
+    return token || null;
+  } catch {
+    return null;
+  }
+}
+
 function safePathname(pathname: string): string {
   const normalized = pathname
     .trim()
@@ -86,7 +98,10 @@ export async function POST(request: Request): Promise<NextResponse> {
   // Require user auth only when generating a client token from browser requests.
   // Vercel's upload-completed callback does not carry user bearer token.
   if (body?.type === "blob.generate-client-token") {
-    const token = getBearerToken(request);
+    const tokenFromPayload = getTokenFromClientPayload(
+      (body as any)?.payload?.clientPayload,
+    );
+    const token = tokenFromPayload ?? getBearerToken(request);
     if (!token) {
       return NextResponse.json({ error: "Chưa đăng nhập" }, { status: 401 });
     }
@@ -117,6 +132,9 @@ export async function POST(request: Request): Promise<NextResponse> {
           throw new Error("Đường dẫn file không hợp lệ");
         }
 
+        const blobAccess =
+          (process.env.NEXT_PUBLIC_BLOB_ACCESS_LEVEL ?? "public") as "public" | "private";
+
         return {
           tokenPayload: JSON.stringify({
             folder: metadata.folder ?? "uploads",
@@ -126,6 +144,7 @@ export async function POST(request: Request): Promise<NextResponse> {
           maximumSizeInBytes: MAX_UPLOAD_BYTES,
           allowedContentTypes: ALLOWED_CONTENT_TYPES as unknown as string[],
           addRandomSuffix: true,
+          access: blobAccess,
         };
       },
       onUploadCompleted: async ({ blob, tokenPayload }) => {
