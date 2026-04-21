@@ -22,6 +22,7 @@ import {
   GraduationCap
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { getDomainErrorMessage } from "@/lib/api/domainErrorMessage";
 
 type SessionReportStatus = "DRAFT" | "REVIEW" | "APPROVED" | "REJECTED" | "PUBLISHED" | string;
 
@@ -91,7 +92,9 @@ async function apiFetch<T = unknown>(url: string, init?: RequestInit): Promise<T
   }
 
   if (!response.ok) {
-    throw new Error(extractErrorMessage(payload, "Không thể xử lý session report."));
+    throw new Error(
+      getDomainErrorMessage({ response: { status: response.status, data: payload } }, "Không thể xử lý session report.")
+    );
   }
 
   return (payload?.data ?? payload) as T;
@@ -103,23 +106,6 @@ function pick(raw: Record<string, unknown>, ...keys: string[]) {
     if (value !== undefined && value !== null) return String(value);
   }
   return undefined;
-}
-
-function extractErrorMessage(payload: any, fallback: string) {
-  const title = typeof payload?.title === "string" ? payload.title.trim() : "";
-  const detail = typeof payload?.detail === "string" ? payload.detail.trim() : "";
-  if (title === "SessionReport.InvalidStatus" && detail) {
-    return "Không thể gửi duyệt session report đã ở trạng thái Published.";
-  }
-
-  const message =
-    payload?.message ||
-    payload?.detail ||
-    payload?.error?.message ||
-    payload?.error ||
-    payload?.title ||
-    (Array.isArray(payload?.errors) ? payload.errors.join(", ") : undefined);
-  return typeof message === "string" && message.trim() ? message : fallback;
 }
 
 function normalizeReport(raw: Record<string, unknown>): SessionReport | null {

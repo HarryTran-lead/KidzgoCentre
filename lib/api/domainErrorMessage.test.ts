@@ -77,4 +77,20 @@ describe("domainErrorMessage", () => {
 
     expect(getDomainErrorMessage(error)).toBe("Custom backend message");
   });
+
+  it("maps SessionReport.SessionNotEnded code to Vietnamese", () => {
+    const error = {
+      response: {
+        data: {
+          title: "SessionReport.SessionNotEnded",
+          detail:
+            "Session report can only be created, edited, submitted, approved, or published after the session has ended at '2026-04-22 16:00:00' UTC.",
+        },
+      },
+    };
+
+    expect(getDomainErrorMessage(error)).toBe(
+      "Chỉ có thể tạo, chỉnh sửa, gửi duyệt, duyệt hoặc xuất bản báo cáo sau khi buổi học đã kết thúc."
+    );
+  });
 });
