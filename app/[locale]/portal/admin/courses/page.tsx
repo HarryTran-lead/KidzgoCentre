@@ -100,7 +100,7 @@ function StatusBadge({ value }: { value: string }) {
   );
 }
 
-type SortField = "id" | "name" | "duration" | "fee" | "status" | "branch";
+type SortField = "id" | "name" | "status" | "branch";
 type SortDirection = "asc" | "desc" | null;
 const PAGE_SIZE = 10;
 
@@ -594,8 +594,6 @@ export default function Page() {
           switch (sortField) {
             case "id": return c.id;
             case "name": return c.name;
-            case "duration": return c.duration;
-            case "fee": return c.fee;
             case "status": return c.status;
             case "branch": return c.branch ?? "";
           }
@@ -1097,8 +1095,6 @@ export default function Page() {
               <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-gray-200">
                 <tr>
                   <SortableHeader field="name" currentField={sortField} direction={sortDirection} onSort={handleSort}>{t.table.courseName}</SortableHeader>
-                  <SortableHeader field="duration" currentField={sortField} direction={sortDirection} onSort={handleSort}>{t.table.duration}</SortableHeader>
-                  <SortableHeader field="fee" currentField={sortField} direction={sortDirection} onSort={handleSort}>{t.table.fee}</SortableHeader>
                   <SortableHeader field="branch" currentField={sortField} direction={sortDirection} onSort={handleSort}>{t.table.branch}</SortableHeader>
                   <SortableHeader field="status" currentField={sortField} direction={sortDirection} onSort={handleSort} align="center">{t.table.status}</SortableHeader>
                   <th className="py-3 px-6 text-right text-xs font-medium tracking-wide text-gray-700 whitespace-nowrap">{t.table.actions}</th>
@@ -1126,15 +1122,6 @@ export default function Page() {
                         </div>
                         <div className="text-xs text-gray-500 truncate">{c.desc}</div>
                       </td>
-
-                      <td className="py-3 px-6 whitespace-nowrap">
-                        <div className="inline-flex items-center gap-2 text-gray-900 text-sm">
-                          <Clock size={16} className="text-gray-400" />
-                          <span className="truncate">{c.duration}</span>
-                        </div>
-                      </td>
-
-                      <td className="py-3 px-6 text-gray-900 text-sm whitespace-nowrap">{c.fee}</td>
 
                       <td className="py-3 px-6 whitespace-nowrap">
                         <div className="inline-flex items-center gap-2 text-gray-900 text-sm">
@@ -1181,7 +1168,7 @@ export default function Page() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center">
+                    <td colSpan={5} className="py-12 text-center">
                       <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center">
                         <Search size={24} className="text-gray-400" />
                       </div>
@@ -1431,7 +1418,7 @@ export default function Page() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     <div className="space-y-2">
                       <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                         <Clock size={16} className="text-red-600" />
@@ -1439,33 +1426,6 @@ export default function Page() {
                       </label>
                       <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
                         {selectedCourseDetail.totalSessions ? `${selectedCourseDetail.totalSessions} ${t.table.count}` : t.details.noInfo}
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                        <DollarSign size={16} className="text-red-600" />
-                        {t.details.tuitionLabel}
-                      </label>
-                      <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
-                        {selectedCourseDetail.defaultTuitionAmount
-                          ? `${selectedCourseDetail.defaultTuitionAmount.toLocaleString("vi-VN")} VND`
-                          : t.details.noInfo}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Grid: Giá mỗi buổi, Chi nhánh, Loại chương trình, Trạng thái */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                        <DollarSign size={16} className="text-red-600" />
-                        {t.details.unitPriceLabel}
-                      </label>
-                      <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
-                        {selectedCourseDetail.unitPriceSession
-                          ? `${selectedCourseDetail.unitPriceSession.toLocaleString("vi-VN")} VND`
-                          : t.details.noInfo}
                       </div>
                     </div>
 

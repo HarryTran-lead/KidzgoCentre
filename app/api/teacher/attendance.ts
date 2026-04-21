@@ -6,7 +6,7 @@
 
 import { getAccessToken } from "@/lib/store/authToken";
 import { TEACHER_ENDPOINTS } from "@/constants/apiURL";
-import { toISOStartOfDayVN, toISOEndOfDayVN, dateOnlyVN } from "@/lib/datetime";
+import { toISOStartOfDayVN, toISOEndOfDayVN, dateOnlyVN, parseApiDateKeepWallClock } from "@/lib/datetime";
 import type {
   AttendanceApiResponse,
   AttendanceItemApi,
@@ -163,7 +163,7 @@ function formatDateISO(date: Date): string {
  */
 function parseISODateTime(isoString: string | undefined): Date | null {
   if (!isoString) return null;
-  const d = new Date(isoString);
+  const d = parseApiDateKeepWallClock(isoString);
   return Number.isNaN(d.getTime()) ? null : d;
 }
 

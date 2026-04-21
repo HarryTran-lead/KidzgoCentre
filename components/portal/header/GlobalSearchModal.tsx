@@ -82,15 +82,6 @@ const ADMIN_NAV: NavItemDef[] = [
     descEn: "System account management",
   },
   {
-    labelVi: "Học viên",
-    labelEn: "Students",
-    keywords: ["học viên", "hoc vien", "student", "sinh vien"],
-    path: "/students",
-    icon: <GraduationCap className="w-4 h-4" />,
-    descVi: "Quản lý hồ sơ học viên",
-    descEn: "Student profile management",
-  },
-  {
     labelVi: "Lớp học",
     labelEn: "Classes",
     keywords: ["lớp học", "lop hoc", "class", "lop"],

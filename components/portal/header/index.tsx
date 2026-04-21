@@ -129,7 +129,6 @@ function useHeaderI18n(locale: Locale) {
         const pathMap: Record<string, { vi: string; en: string }> = {
           "/blogs": { vi: "Quản lý bản tin", en: "Blog Management" },
           "/accounts": { vi: "Quản lý tài khoản", en: "Account Management" },
-          "/students": { vi: "Quản lý học viên", en: "Student Management" },
           "/branches": { vi: "Quản lý chi nhánh", en: "Branch Management" },
           "/courses": { vi: "Quản lý khóa học", en: "Course Management" },
           "/classes": { vi: "Quản lý lớp học", en: "Class Management" },

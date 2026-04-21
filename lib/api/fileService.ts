@@ -9,6 +9,84 @@
 import { FILE_ENDPOINTS } from "@/constants/apiURL";
 import { getAccessToken } from "@/lib/store/authToken";
 
+const DIRECT_UPLOAD_MAX_MB = Number(process.env.NEXT_PUBLIC_DIRECT_UPLOAD_MAX_MB ?? "4.5");
+const DIRECT_UPLOAD_MAX_BYTES = Math.max(1, DIRECT_UPLOAD_MAX_MB) * 1024 * 1024;
+
+function isBlobUploadEnabled(): boolean {
+  return process.env.NEXT_PUBLIC_ENABLE_VERCEL_BLOB === "true";
+}
+
+function buildBlobPath(fileName: string, folder: string): string {
+  const normalizedFolder = folder
+    .trim()
+    .replace(/^\/+|\/+$/g, "")
+    .replace(/[^a-zA-Z0-9/_-]/g, "-")
+    .replace(/-+/g, "-");
+
+  const safeName = fileName
+    .trim()
+    .replace(/[^a-zA-Z0-9._-]/g, "-")
+    .replace(/-+/g, "-");
+
+  return normalizedFolder ? `${normalizedFolder}/${safeName}` : safeName;
+}
+
+async function uploadFileViaBackend(
+  file: File,
+  folder: string,
+  resourceType: string,
+): Promise<UploadFileResponse> {
+  const token = getAccessToken();
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const params = new URLSearchParams({ folder, resourceType });
+  const url = `${FILE_ENDPOINTS.UPLOAD}?${params.toString()}`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    return data as UploadFileError;
+  }
+
+  return data as UploadFileSuccess;
+}
+
+async function uploadFileViaBlob(
+  file: File,
+  folder: string,
+  resourceType: string,
+): Promise<UploadFileSuccess> {
+  if (typeof window === "undefined") {
+    throw new Error("Direct upload chỉ hỗ trợ trên trình duyệt.");
+  }
+
+  const { upload } = await import("@vercel/blob/client");
+  const token = getAccessToken();
+  const clientPayload = JSON.stringify({ folder, resourceType });
+
+  const blob = await upload(buildBlobPath(file.name, folder), file, {
+    access: "public",
+    handleUploadUrl: FILE_ENDPOINTS.BLOB_UPLOAD,
+    clientPayload,
+    multipart: file.size > 20 * 1024 * 1024,
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
+
+  return {
+    url: blob.url,
+    fileName: file.name,
+    size: file.size,
+    folder,
+  };
+}
+
 // Backend returns this directly on success (HTTP 200)
 export interface UploadFileSuccess {
   url: string;
@@ -46,26 +124,17 @@ export async function uploadFile(
   folder = "uploads",
   resourceType = "auto"
 ): Promise<UploadFileResponse> {
-  const token = getAccessToken();
-  const formData = new FormData();
-  formData.append("file", file);
+  const shouldUseBlob = isBlobUploadEnabled() && file.size > DIRECT_UPLOAD_MAX_BYTES;
 
-  const params = new URLSearchParams({ folder, resourceType });
-  const url = `${FILE_ENDPOINTS.UPLOAD}?${params.toString()}`;
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-    body: formData,
-  });
-
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    return data as UploadFileError;
+  if (shouldUseBlob) {
+    try {
+      return await uploadFileViaBlob(file, folder, resourceType);
+    } catch (error) {
+      console.error("Blob direct upload failed, fallback to backend upload:", error);
+    }
   }
 
-  return data as UploadFileSuccess;
+  return uploadFileViaBackend(file, folder, resourceType);
 }
 
 /**

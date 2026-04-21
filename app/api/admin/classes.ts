@@ -457,6 +457,32 @@ export interface Student {
   status: "active" | "inactive";
 }
 
+async function fetchProfileContactById(
+  profileId: string,
+  token: string,
+): Promise<{ email: string; phone: string } | null> {
+  if (!profileId) return null;
+
+  try {
+    const response = await fetch(`/api/profiles/${profileId}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) return null;
+
+    const payload: any = await response.json();
+    const data = payload?.data || payload || {};
+    const email = String(data?.email || data?.contactEmail || "").trim();
+    const phone = String(data?.phoneNumber || data?.phone || data?.contactPhone || "").trim();
+
+    return { email, phone };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Fetch students (enrollments) for a class
  */
@@ -489,8 +515,6 @@ export async function fetchAdminClassStudents(
       Authorization: `Bearer ${token}`,
     },
   });
-  console.log({res});
-  
 
   if (!res.ok) {
     const text = await res.text();
@@ -535,7 +559,34 @@ export async function fetchAdminClassStudents(
     };
   });
 
-  return students;
+  const missingContactIds = students
+    .filter((student) => (!student.email || !student.phone) && student.id)
+    .map((student) => student.id);
+
+  if (missingContactIds.length === 0) {
+    return students;
+  }
+
+  const profileContactMap = new Map<string, { email: string; phone: string }>();
+  await Promise.all(
+    missingContactIds.map(async (profileId) => {
+      const contact = await fetchProfileContactById(profileId, token);
+      if (contact) {
+        profileContactMap.set(profileId, contact);
+      }
+    }),
+  );
+
+  return students.map((student) => {
+    const profileContact = profileContactMap.get(student.id);
+    if (!profileContact) return student;
+
+    return {
+      ...student,
+      email: student.email || profileContact.email,
+      phone: student.phone || profileContact.phone,
+    };
+  });
 }
 
 /**
