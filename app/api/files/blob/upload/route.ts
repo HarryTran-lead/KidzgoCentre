@@ -6,28 +6,22 @@ export const runtime = "nodejs";
 
 const MAX_UPLOAD_BYTES = Number(process.env.BLOB_MAX_UPLOAD_BYTES ?? "209715200"); // 200MB default
 const ALLOWED_CONTENT_TYPES = [
-  "image/*",
-  "video/*",
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
   "video/mp4",
   "video/quicktime",
   "video/x-msvideo",
-  "video/x-matroska",
-  "audio/*",
   "audio/mpeg",
-  "audio/mp3",
   "audio/wav",
-  "audio/x-wav",
   "audio/mp4",
   "application/pdf",
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "application/vnd.ms-excel",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "application/vnd.ms-powerpoint",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   "application/zip",
-  "application/x-zip-compressed",
-  "application/octet-stream",
   "text/plain",
 ] as const;
 
@@ -130,7 +124,7 @@ export async function POST(request: Request): Promise<NextResponse> {
             pathname: normalizedPathname,
           }),
           maximumSizeInBytes: MAX_UPLOAD_BYTES,
-          allowedContentTypes: [...ALLOWED_CONTENT_TYPES],
+          allowedContentTypes: ALLOWED_CONTENT_TYPES as unknown as string[],
           addRandomSuffix: true,
         };
       },
