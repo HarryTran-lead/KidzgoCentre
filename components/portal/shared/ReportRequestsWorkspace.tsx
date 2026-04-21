@@ -14,6 +14,7 @@ import {
   completeReportRequest,
   cancelReportRequest,
 } from "@/lib/api/reportRequestService";
+import { TEACHER_ENDPOINTS } from "@/constants/apiURL";
 import { get } from "@/lib/axios";
 import type {
   ReportRequestDto,
@@ -80,6 +81,22 @@ function formatDateTime(iso?: string | null) {
   try {
     return new Date(iso).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
   } catch { return iso; }
+}
+
+function formatSessionDateTimeMinus7(iso?: string | null) {
+  if (!iso) return "";
+  try {
+    const shifted = new Date(new Date(iso).getTime() - 7 * 60 * 60 * 1000);
+    return shifted.toLocaleString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return String(iso);
+  }
 }
 
 const PAGE_SIZE = 10;
@@ -183,29 +200,40 @@ function CreateRequestModal({
 
     setLoadingSessions(true);
     setSelectedSession(null);
+    const today = new Date();
+    const fromDate = new Date(today.getFullYear() - 1, today.getMonth(), 1);
+    const toDate = new Date(today.getFullYear() + 1, today.getMonth() + 1, 0);
     const query = new URLSearchParams({
-      classId: selectedClass.id,
-      pageSize: "200",
+      from: fromDate.toISOString(),
+      to: toDate.toISOString(),
+      pageSize: "500",
       pageNumber: "1",
     });
-    if (selectedStudent?.profileId) {
-      query.set("studentProfileId", selectedStudent.profileId);
-    }
 
-    get<Record<string, unknown>>(`/api/sessions?${query.toString()}`)
+    get<Record<string, unknown>>(`${TEACHER_ENDPOINTS.TIMETABLE}?${query.toString()}`)
       .then(async (res) => {
         const raw = res as Record<string, unknown>;
         const data = raw?.data as Record<string, unknown>;
-        const items = ((data?.sessions as Record<string, unknown>)?.items ?? data?.items) as Record<string, unknown>[] ?? [];
+        const nestedSessions = (data?.sessions as Record<string, unknown>)?.items;
+        const items = (Array.isArray(nestedSessions)
+          ? nestedSessions
+          : Array.isArray(data?.sessions)
+            ? data?.sessions
+            : Array.isArray(data?.items)
+              ? data?.items
+              : Array.isArray(data)
+                ? data
+                : []) as Record<string, unknown>[];
 
         const mappedSessions = items
+          .filter((s) => String((s.classId as string) ?? "") === selectedClass.id)
           .map((s) => ({
             id: (s.id as string) ?? "",
             plannedDatetime: (s.plannedDatetime as string) ?? (s.actualDatetime as string) ?? "",
             label: "",
           }))
           .filter((s) => s.id)
-          .sort((a, b) => a.plannedDatetime.localeCompare(b.plannedDatetime));
+          .sort((a, b) => new Date(a.plannedDatetime).getTime() - new Date(b.plannedDatetime).getTime());
 
         let filteredSessions = mappedSessions;
 
@@ -244,7 +272,7 @@ function CreateRequestModal({
           filteredSessions.map((s, i) => ({
             ...s,
             label: s.plannedDatetime
-              ? `Buổi ${i + 1} – ${new Date(s.plannedDatetime).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}`
+              ? `Buổi ${i + 1} – ${formatSessionDateTimeMinus7(s.plannedDatetime)}`
               : `Buổi ${i + 1}`,
           }))
         );
