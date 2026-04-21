@@ -10,6 +10,7 @@ import {
   updateSessionColor,
   updateClassColor,
   updateAdminSession,
+  updateAdminSessionsByClass,
 } from "@/app/api/admin/sessions";
 import { fetchAdminUsersByIds, fetchAdminClasses } from "@/app/api/admin/classes";
 import type { CreateSessionRequest, ParticipationType, Session } from "@/types/admin/sessions";
@@ -984,6 +985,251 @@ function CreateScheduleModal({
   );
 }
 
+function BulkUpdateByClassModal({
+  isOpen,
+  onClose,
+  classId,
+  className,
+  onSuccess,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  classId: string;
+  className: string;
+  onSuccess: (message: string) => void;
+}) {
+  const statusOptions = [
+    { value: "Scheduled", label: "Đã lên lịch" },
+    { value: "InProgress", label: "Đang diễn ra" },
+    { value: "Completed", label: "Đã hoàn thành" },
+    { value: "Cancelled", label: "Đã hủy" },
+  ] as const;
+  const [roomOptions, setRoomOptions] = useState<SelectOption[]>([]);
+  const [teacherOptions, setTeacherOptions] = useState<SelectOption[]>([]);
+  const [plannedRoomId, setPlannedRoomId] = useState("");
+  const [plannedTeacherId, setPlannedTeacherId] = useState("");
+  const [plannedAssistantId, setPlannedAssistantId] = useState("");
+  const [filterByStatus, setFilterByStatus] = useState<string[]>([]);
+  const [fromDate, setFromDate] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setError(null);
+    const today = new Date();
+    const mm = String(today.getMonth() + 1).padStart(2, "0");
+    const dd = String(today.getDate()).padStart(2, "0");
+    setFromDate(`${today.getFullYear()}-${mm}-${dd}`);
+    setPlannedRoomId("");
+    setPlannedTeacherId("");
+    setPlannedAssistantId("");
+    setFilterByStatus([]);
+
+    const token = getAccessToken();
+    if (!token) return;
+
+    const authHeaders = { Authorization: `Bearer ${token}` };
+    Promise.all([
+      fetch(`/api/classrooms?pageNumber=1&pageSize=200`, { headers: authHeaders })
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null),
+      fetch(`/api/admin/users?pageNumber=1&pageSize=200&role=Teacher`, { headers: authHeaders })
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null),
+    ]).then(([roomsJson, teachersJson]) => {
+      const roomsItems: any[] =
+        roomsJson?.data?.classrooms?.items ?? roomsJson?.data?.items ?? roomsJson?.data ?? (Array.isArray(roomsJson) ? roomsJson : []);
+      const teachersItems: any[] =
+        teachersJson?.data?.items ?? teachersJson?.data?.users ?? teachersJson?.data ?? (Array.isArray(teachersJson) ? teachersJson : []);
+
+      setRoomOptions(
+        roomsItems
+          .map((r) => ({ id: String(r?.id ?? ""), label: String(r?.name ?? "Phòng") }))
+          .filter((r) => r.id)
+      );
+      setTeacherOptions(
+        teachersItems
+          .map((u) => ({ id: String(u?.id ?? ""), label: String(u?.name ?? u?.fullName ?? u?.email ?? "Teacher") }))
+          .filter((t) => t.id)
+      );
+    });
+  }, [isOpen]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+        if (!isSubmitting) onClose();
+      }
+    };
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.body.style.overflow = "hidden";
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.body.style.overflow = "unset";
+    };
+  }, [isOpen, isSubmitting, onClose]);
+
+  const handleSubmit = async () => {
+    if (!classId) return;
+    if (!plannedRoomId && !plannedTeacherId && !plannedAssistantId) {
+      setError("Vui lòng chọn ít nhất 1 trường cần cập nhật.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      const result = await updateAdminSessionsByClass({
+        classId,
+        fromDate: fromDate ? `${fromDate}T00:00:00+07:00` : undefined,
+        filterByStatus: filterByStatus.length > 0 ? filterByStatus : undefined,
+        plannedRoomId: plannedRoomId || undefined,
+        plannedTeacherId: plannedTeacherId || undefined,
+        plannedAssistantId: plannedAssistantId || undefined,
+      });
+
+      const updatedCount = Number(result?.data?.updatedSessionsCount ?? 0);
+      onSuccess(`Đã cập nhật ${updatedCount} buổi học cho lớp ${className}.`);
+      onClose();
+    } catch (err: any) {
+      setError(err?.message ?? "Không thể cập nhật hàng loạt session.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div ref={modalRef} className="w-full max-w-lg bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
+        <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 p-5 flex items-center justify-between">
+          <div>
+            <div className="text-lg font-bold text-white">Cập nhật hàng loạt theo lớp</div>
+            <div className="text-sm text-emerald-100 mt-1">{className}</div>
+          </div>
+          <button onClick={onClose} disabled={isSubmitting} className="p-1.5 rounded-full hover:bg-white/20 cursor-pointer disabled:opacity-60">
+            <X size={20} className="text-white" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {error && <div className="rounded-lg bg-red-50 border border-red-200 p-2 text-sm text-red-700">{error}</div>}
+
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-800">Áp dụng từ ngày</label>
+            <input
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-800">Lọc theo trạng thái (tùy chọn)</label>
+            <div>
+              <button
+                type="button"
+                onClick={() => setFilterByStatus(["Scheduled"])}
+                className="px-3 py-1.5 rounded-full text-xs font-semibold border bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100 transition-colors"
+              >
+                Chỉ Scheduled
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {statusOptions.map((status) => {
+                const active = filterByStatus.includes(status.value);
+                return (
+                  <button
+                    key={status.value}
+                    type="button"
+                    onClick={() => {
+                      setFilterByStatus((prev) =>
+                        prev.includes(status.value)
+                          ? prev.filter((s) => s !== status.value)
+                          : [...prev, status.value]
+                      );
+                    }}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                      active
+                        ? "bg-emerald-600 text-white border-emerald-600"
+                        : "bg-white text-gray-700 border-gray-300 hover:bg-emerald-50"
+                    }`}
+                  >
+                    {status.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-800">Phòng học mới (tùy chọn)</label>
+            <select
+              value={plannedRoomId}
+              onChange={(e) => setPlannedRoomId(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900"
+            >
+              <option value="">Giữ nguyên</option>
+              {roomOptions.map((r) => (
+                <option key={r.id} value={r.id}>{r.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-800">Giáo viên chính mới (tùy chọn)</label>
+            <select
+              value={plannedTeacherId}
+              onChange={(e) => setPlannedTeacherId(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900"
+            >
+              <option value="">Giữ nguyên</option>
+              {teacherOptions.map((t) => (
+                <option key={t.id} value={t.id}>{t.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-800">Giáo viên phụ mới (tùy chọn)</label>
+            <select
+              value={plannedAssistantId}
+              onChange={(e) => setPlannedAssistantId(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900"
+            >
+              <option value="">Giữ nguyên</option>
+              {teacherOptions
+                .filter((t) => t.id !== plannedTeacherId)
+                .map((t) => (
+                  <option key={t.id} value={t.id}>{t.label}</option>
+                ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="border-t border-gray-200 p-4 flex justify-end gap-3">
+          <button onClick={onClose} disabled={isSubmitting} className="px-5 py-2 rounded-xl border border-gray-300 text-gray-600 font-medium hover:bg-gray-50 cursor-pointer disabled:opacity-60">
+            Hủy
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+            className="px-5 py-2 rounded-xl bg-emerald-600 text-white font-medium hover:bg-emerald-700 transition-colors cursor-pointer disabled:opacity-60"
+          >
+            {isSubmitting ? "Đang cập nhật..." : "Cập nhật hàng loạt"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* =================== CHANGE ROOM MODAL =================== */
 function ChangeRoomModal({
   isOpen,
@@ -1579,6 +1825,8 @@ export default function Page() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState<Period | null>(null);
+  const [isBulkUpdateModalOpen, setIsBulkUpdateModalOpen] = useState(false);
+  const [refreshTick, setRefreshTick] = useState(0);
   const [isPageLoaded, setIsPageLoaded] = useState(false);
 
   // Color change confirmation
@@ -1796,7 +2044,7 @@ export default function Page() {
     };
 
     loadInitialSchedule();
-  }, [selectedBranchId, isLoaded, weekCursor, classFilter]);
+  }, [selectedBranchId, isLoaded, weekCursor, classFilter, refreshTick]);
 
   const stats = useMemo(() => {
     const total = slots.length;
@@ -1984,6 +2232,14 @@ export default function Page() {
 
           {/* Class filter */}
           <div className="ml-auto">
+            <button
+              onClick={() => setIsBulkUpdateModalOpen(true)}
+              disabled={classFilter === "ALL"}
+              className="mr-2 px-3 py-2 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 text-sm font-semibold hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              title={classFilter === "ALL" ? "Chọn 1 lớp để cập nhật hàng loạt" : "Cập nhật hàng loạt theo lớp"}
+            >
+              Bulk đổi GV/Phòng
+            </button>
             <select
               value={classFilter}
               onChange={(e) => setClassFilter(e.target.value)}
@@ -2073,6 +2329,20 @@ export default function Page() {
         onClose={() => setChangeScheduleSlot(null)}
         slot={changeScheduleSlot}
         onConfirm={handleChangeSchedule}
+      />
+
+      <BulkUpdateByClassModal
+        isOpen={isBulkUpdateModalOpen && classFilter !== "ALL"}
+        onClose={() => setIsBulkUpdateModalOpen(false)}
+        classId={classFilter === "ALL" ? "" : classFilter}
+        className={classOptions.find((c) => c.id === classFilter)?.name ?? "Lớp học"}
+        onSuccess={(message) => {
+          toast.success({
+            title: "Cập nhật hàng loạt thành công",
+            description: message,
+          });
+          setRefreshTick((v) => v + 1);
+        }}
       />
     </>
   );

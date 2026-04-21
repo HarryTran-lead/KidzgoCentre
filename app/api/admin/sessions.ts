@@ -5,7 +5,12 @@
 
 import { getAccessToken } from "@/lib/store/authToken";
 import { ADMIN_ENDPOINTS } from "@/constants/apiURL";
-import type { CreateSessionRequest, Session } from "@/types/admin/sessions";
+import type {
+  CreateSessionRequest,
+  Session,
+  UpdateSessionsByClassRequest,
+  UpdateSessionsByClassResult,
+} from "@/types/admin/sessions";
 
 /**
  * Generate sessions from class schedule pattern
@@ -285,6 +290,29 @@ export async function fetchAdminSessions(
   return items.map(mapApiSession).filter((s: Session) => s.id);
 }
 
+async function fetchRawSessionForUpdate(sessionId: string, token: string): Promise<any> {
+  const res = await fetch(`${ADMIN_ENDPOINTS.SESSIONS}/${sessionId}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const text = await res.text();
+  let json: any = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    json = null;
+  }
+
+  if (!res.ok) {
+    const msg = json?.message || json?.error || json?.title || "Không thể tải session hiện tại.";
+    throw new Error(msg);
+  }
+
+  return json?.data ?? json;
+}
+
 /**
  * Update session fields (room, teacher, assistant, datetime, etc.)
  * via PUT /api/sessions/{id}
@@ -297,7 +325,6 @@ export async function updateAdminSession(
     plannedAssistantId?: string;
     plannedDatetime?: string;
     durationMinutes?: number;
-    classId?: string;
     participationType?: string;
   }
 ): Promise<{ isSuccess: boolean; data?: any; message?: string }> {
@@ -306,7 +333,74 @@ export async function updateAdminSession(
     throw new Error("Bạn chưa đăng nhập.");
   }
 
+  const currentSession = await fetchRawSessionForUpdate(sessionId, token);
+
+  const mergedPayload = {
+    plannedDatetime: payload.plannedDatetime ?? currentSession?.plannedDatetime,
+    durationMinutes:
+      typeof payload.durationMinutes === "number"
+        ? payload.durationMinutes
+        : currentSession?.durationMinutes,
+    plannedRoomId:
+      payload.plannedRoomId !== undefined
+        ? payload.plannedRoomId
+        : (currentSession?.plannedRoomId ?? null),
+    plannedTeacherId:
+      payload.plannedTeacherId !== undefined
+        ? payload.plannedTeacherId
+        : (currentSession?.plannedTeacherId ?? null),
+    plannedAssistantId:
+      payload.plannedAssistantId !== undefined
+        ? payload.plannedAssistantId
+        : (currentSession?.plannedAssistantId ?? null),
+    participationType:
+      payload.participationType
+      ?? currentSession?.participationType
+      ?? "Main",
+  };
+
+  if (!mergedPayload.plannedDatetime) {
+    throw new Error("Không thể cập nhật session vì thiếu plannedDatetime.");
+  }
+
+  if (!mergedPayload.durationMinutes || mergedPayload.durationMinutes <= 0) {
+    throw new Error("Không thể cập nhật session vì thiếu durationMinutes hợp lệ.");
+  }
+
   const res = await fetch(`${ADMIN_ENDPOINTS.SESSIONS}/${sessionId}`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(mergedPayload),
+  });
+
+  const text = await res.text();
+  let json: any = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    json = null;
+  }
+
+  if (!res.ok) {
+    const msg = json?.message || json?.error || json?.title || "Không thể cập nhật session.";
+    throw new Error(msg);
+  }
+
+  return { isSuccess: json?.isSuccess ?? true, data: json?.data ?? json, message: json?.message };
+}
+
+export async function updateAdminSessionsByClass(
+  payload: UpdateSessionsByClassRequest
+): Promise<{ isSuccess: boolean; data?: UpdateSessionsByClassResult; message?: string }> {
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error("Bạn chưa đăng nhập.");
+  }
+
+  const res = await fetch(ADMIN_ENDPOINTS.SESSIONS_BY_CLASS, {
     method: "PUT",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -324,7 +418,7 @@ export async function updateAdminSession(
   }
 
   if (!res.ok) {
-    const msg = json?.message || json?.error || json?.title || "Không thể cập nhật session.";
+    const msg = json?.message || json?.error || json?.title || "Không thể cập nhật hàng loạt session.";
     throw new Error(msg);
   }
 

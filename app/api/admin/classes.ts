@@ -8,6 +8,48 @@ import { ADMIN_ENDPOINTS, USER_ENDPOINTS } from "@/constants/apiURL";
 import type { ClassRow, CreateClassRequest, Class, ClassDetail, Track } from "@/types/admin/classes";
 import { fetchAdminProgramDetail } from "./programs";
 
+type ApiProblemDetails = {
+  type?: string;
+  title?: string;
+  status?: number;
+  detail?: string;
+  errors?: Array<{ code?: string; description?: string; type?: number }>;
+  message?: string;
+  error?: string;
+};
+
+function throwApiProblemError(
+  fallbackMessage: string,
+  rawText: string,
+  problem: ApiProblemDetails | null,
+) {
+  const detail = problem?.detail || problem?.message || problem?.error;
+  const title = problem?.title;
+
+  let msg = fallbackMessage;
+  if (detail) {
+    msg = detail;
+  } else if (title) {
+    msg = title;
+  } else if (typeof rawText === "string" && rawText.trim()) {
+    msg = rawText;
+  }
+
+  if (problem?.title === "Class.ProgramNotFound" || detail?.includes("Program not found")) {
+    msg = "Chương trình không tồn tại, đã bị xóa hoặc không hoạt động. Vui lòng chọn chương trình khác.";
+  }
+
+  const error = new Error(msg) as Error & {
+    title?: string;
+    detail?: string;
+    raw?: ApiProblemDetails | null;
+  };
+  error.title = problem?.title;
+  error.detail = problem?.detail;
+  error.raw = problem;
+  throw error;
+}
+
 /**
  * Parse RRULE to human-readable schedule string
  */
@@ -249,23 +291,7 @@ export async function createAdminClass(
   }
 
   if (!res.ok) {
-    const detail = json?.detail || json?.message || json?.error;
-    const title = json?.title;
-    
-    let msg = "Không thể tạo lớp học từ máy chủ.";
-    if (detail) {
-      msg = detail;
-    } else if (title) {
-      msg = title;
-    } else if (typeof text === "string" && text.trim()) {
-      msg = text;
-    }
-    
-    if (json?.title === "Class.ProgramNotFound" || detail?.includes("Program not found")) {
-      msg = "Chương trình không tồn tại, đã bị xóa hoặc không hoạt động. Vui lòng chọn chương trình khác.";
-    }
-    
-    throw new Error(msg);
+    throwApiProblemError("Không thể tạo lớp học từ máy chủ.", text, json);
   }
 
   const data = json?.data ?? json?.class ?? json;
@@ -273,6 +299,7 @@ export async function createAdminClass(
     id: String(data?.id ?? data?.code ?? ""),
     code: data?.code ?? payload.code ?? null,
     title: data?.title ?? payload.title ?? null,
+    description: data?.description ?? payload.description ?? null,
     programId: data?.programId ?? payload.programId ?? null,
     branchId: data?.branchId ?? payload.branchId ?? null,
     mainTeacherId: data?.mainTeacherId ?? payload.mainTeacherId ?? null,
@@ -318,19 +345,7 @@ export async function updateAdminClass(
   }
 
   if (!res.ok) {
-    const detail = json?.detail || json?.message || json?.error;
-    const title = json?.title;
-
-    let msg = "Không thể cập nhật lớp học từ máy chủ.";
-    if (detail) {
-      msg = detail;
-    } else if (title) {
-      msg = title;
-    } else if (typeof text === "string" && text.trim()) {
-      msg = text;
-    }
-
-    throw new Error(msg);
+    throwApiProblemError("Không thể cập nhật lớp học từ máy chủ.", text, json);
   }
 
   const data = json?.data ?? json?.class ?? json;
@@ -338,6 +353,7 @@ export async function updateAdminClass(
     id: String(data?.id ?? classId),
     code: data?.code ?? payload.code ?? null,
     title: data?.title ?? payload.title ?? null,
+    description: data?.description ?? payload.description ?? null,
     programId: data?.programId ?? payload.programId ?? null,
     branchId: data?.branchId ?? payload.branchId ?? null,
     mainTeacherId: data?.mainTeacherId ?? payload.mainTeacherId ?? null,
@@ -719,6 +735,42 @@ export async function addAdminClassScheduleSegment(
     }
 
     throw new Error(msg);
+  }
+
+  return json?.data ?? json;
+}
+
+export async function assignAdminClassTeacher(
+  classId: string,
+  payload: {
+    mainTeacherId?: string | null;
+    assistantTeacherId?: string | null;
+  }
+): Promise<any> {
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại để phân công giáo viên.");
+  }
+
+  const res = await fetch(ADMIN_ENDPOINTS.CLASSES_ASSIGN_TEACHER(classId), {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const text = await res.text();
+  let json: any = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    json = null;
+  }
+
+  if (!res.ok) {
+    throwApiProblemError("Không thể phân công giáo viên mặc định cho lớp.", text, json);
   }
 
   return json?.data ?? json;

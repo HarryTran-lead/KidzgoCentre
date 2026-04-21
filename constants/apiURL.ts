@@ -178,6 +178,7 @@ export const BACKEND_SESSION_ENDPOINTS = {
   UPDATE: (id: string) => `/sessions/${id}`,
   DELETE: (id: string) => `/sessions/${id}`,
   GENERATE_FROM_PATTERN: '/sessions/generate-from-pattern',
+  UPDATE_BY_CLASS: '/sessions/by-class',
 } as const;
 
 export const BACKEND_CLASS_ENDPOINTS = {
@@ -371,6 +372,7 @@ export const ADMIN_ENDPOINTS = {
   CLASSES_STATUS: (id: string) => `/api/classes/${id}/status`,
   CLASSES_COLOR: (id: string) => `/api/classes/${id}/color`,
   CLASSES_SCHEDULE_SEGMENTS: (id: string) => `/api/classes/${id}/schedule-segments`,
+  CLASSES_ASSIGN_TEACHER: (id: string) => `/api/classes/${id}/assign-teacher`,
   PROGRAMS: '/api/programs',
   PROGRAMS_ACTIVE: '/api/programs/active',
   PROGRAMS_MONTHLY_LEAVE_LIMIT: (id: string) => `/api/programs/${id}/monthly-leave-limit`,
@@ -383,6 +385,7 @@ export const ADMIN_ENDPOINTS = {
   CLASSROOMS_TOGGLE_STATUS: (id: string) => `/api/classrooms/${id}/toggle-status`,
   SESSIONS: '/api/sessions',
   SESSIONS_GENERATE_FROM_PATTERN: '/api/sessions/generate-from-pattern',
+  SESSIONS_BY_CLASS: '/api/sessions/by-class',
   LESSON_PLAN_TEMPLATES: '/api/lesson-plan-templates',
   LESSON_PLAN_TEMPLATES_BY_ID: (id: string) => `/api/lesson-plan-templates/${id}`,
   LESSON_PLAN_TEMPLATES_IMPORT: '/api/lesson-plan-templates/import',
@@ -556,6 +559,7 @@ export const BACKEND_ADMIN_ENDPOINTS = {
   CLASSES_BY_ID: (id: string) => `/classes/${id}`,
   CLASSES_STATUS: (id: string) => `/classes/${id}/status`,
   CLASSES_SCHEDULE_SEGMENTS: (id: string) => `/classes/${id}/schedule-segments`,
+  CLASSES_ASSIGN_TEACHER: (id: string) => `/classes/${id}/assign-teacher`,
   PROGRAMS: '/programs',
   PROGRAMS_ACTIVE: '/programs/active',
   REGISTRATIONS: '/registrations',
@@ -570,6 +574,7 @@ export const BACKEND_ADMIN_ENDPOINTS = {
   CLASSROOMS_BY_ID: (id: string) => `/classrooms/${id}`,
   CLASSROOMS_TOGGLE_STATUS: (id: string) => `/classrooms/${id}/toggle-status`,
   SESSIONS: '/sessions',
+  SESSIONS_BY_CLASS: '/sessions/by-class',
 } as const;
 
 // Blog Endpoints (Client-side → Next.js API Routes)

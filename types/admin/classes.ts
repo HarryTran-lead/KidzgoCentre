@@ -17,6 +17,7 @@ export interface CreateClassRequest {
   programId: string;
   code: string;
   title: string;
+  description?: string;
   mainTeacherId?: string;
   assistantTeacherId?: string;
   roomId?: string;
@@ -31,6 +32,7 @@ export interface Class {
   id: string;
   code?: string | null;
   title?: string | null;
+  description?: string | null;
   programId?: string | null;
   branchId?: string | null;
   mainTeacherId?: string | null;

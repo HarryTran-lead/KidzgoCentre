@@ -47,3 +47,20 @@ export interface GetSessionsParams {
   pageSize?: number;
 }
 
+export interface UpdateSessionsByClassRequest {
+  classId: string;
+  sessionIds?: string[];
+  filterByStatus?: string[];
+  fromDate?: string;
+  plannedRoomId?: string;
+  plannedTeacherId?: string;
+  plannedAssistantId?: string;
+}
+
+export interface UpdateSessionsByClassResult {
+  updatedSessionsCount: number;
+  updatedSessionIds: string[];
+  skippedSessionIds: string[];
+  errors: string[];
+}
+

@@ -1216,6 +1216,36 @@ function buildClassSubmissionError(
   const normalized = normalizeComparableText(`${err?.title || ""} ${err?.detail || ""} ${rawMessage}`);
   const fieldErrors: ClassFieldErrors = {};
 
+  const rawErrors = err?.raw?.errors;
+  if (Array.isArray(rawErrors) && rawErrors.length > 0) {
+    for (const item of rawErrors) {
+      const msg = normalizeComparableText(item?.description || "");
+      if (!msg) continue;
+
+      if (msg.includes("class code") || msg.includes("mã lớp") || msg.includes("code")) {
+        fieldErrors.code = item?.description || rawMessage;
+      } else if (msg.includes("class title") || msg.includes("tên lớp") || msg.includes("title")) {
+        fieldErrors.name = item?.description || rawMessage;
+      } else if (msg.includes("branch id") || msg.includes("branch")) {
+        fieldErrors.branchId = item?.description || rawMessage;
+      } else if (msg.includes("program id") || msg.includes("program")) {
+        fieldErrors.programId = item?.description || rawMessage;
+      } else if (msg.includes("start date") || msg.includes("ngày bắt đầu")) {
+        fieldErrors.startDate = item?.description || rawMessage;
+      } else if (msg.includes("end date") || msg.includes("ngày kết thúc")) {
+        fieldErrors.endDate = item?.description || rawMessage;
+      } else if (msg.includes("capacity") || msg.includes("sĩ số")) {
+        fieldErrors.capacity = item?.description || rawMessage;
+      } else if (msg.includes("schedule") || msg.includes("rrule")) {
+        fieldErrors.schedule = item?.description || rawMessage;
+      }
+    }
+
+    if (Object.keys(fieldErrors).length > 0) {
+      return new ClassFormSubmitError(rawMessage, fieldErrors);
+    }
+  }
+
   if (normalized.includes("codeexists") || normalized.includes("mã lớp") || normalized.includes("class code")) {
     fieldErrors.code = `mã lớp ${data.code.trim()} đã tồn tại`;
     return new ClassFormSubmitError(fieldErrors.code, fieldErrors);
@@ -2826,6 +2856,10 @@ export default function Page() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isFutureStretchModalOpen, setIsFutureStretchModalOpen] = useState(false);
   const [futureStretchClass, setFutureStretchClass] = useState<ClassRow | null>(null);
+  const [isGenerateSessionsModalOpen, setIsGenerateSessionsModalOpen] = useState(false);
+  const [generateTargetClass, setGenerateTargetClass] = useState<ClassRow | null>(null);
+  const [generateOnlyFutureSessions, setGenerateOnlyFutureSessions] = useState(true);
+  const [isGeneratingSessions, setIsGeneratingSessions] = useState(false);
   const [isAddStudentModalOpen, setIsAddStudentModalOpen] = useState(false);
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [selectedClassCapacity, setSelectedClassCapacity] = useState<number>(0);
@@ -2957,6 +2991,39 @@ export default function Page() {
   const goPage = (nextPage: number) => {
     setPage(Math.min(totalPages, Math.max(1, nextPage)));
   };
+
+  const handleConfirmGenerateSessions = async (
+    classId: string,
+    className: string,
+    onlyFutureSessions: boolean,
+  ) => {
+    try {
+      setIsGeneratingSessions(true);
+      const result = await generateSessionsFromPattern({
+        classId,
+        onlyFutureSessions,
+      });
+
+      const createdCount = Number(result?.data?.createdSessionsCount ?? 0);
+      toast.success({
+        title: "Generate sessions thành công",
+        description: `Lớp ${className}: đã tạo ${createdCount} buổi học.`,
+      });
+
+      const refreshedClasses = await reloadClassesByCurrentBranch();
+      setClasses(refreshedClasses);
+      setIsGenerateSessionsModalOpen(false);
+      setGenerateTargetClass(null);
+    } catch (sessionErr: any) {
+      toast.destructive({
+        title: "Generate sessions thất bại",
+        description: sessionErr?.message || "Không thể sinh sessions từ schedule pattern.",
+      });
+    } finally {
+      setIsGeneratingSessions(false);
+    }
+  };
+
   const handleCreateClass = async (data: ClassFormData) => {
     try {
       console.log("Creating class with data:", {
@@ -2975,6 +3042,7 @@ export default function Page() {
         programId: data.programId.trim(),
         code: data.code,
         title: data.name,
+        description: data.description || undefined,
         mainTeacherId: data.mainTeacherId,
         assistantTeacherId: data.assistantTeacherId || undefined,
         roomId: data.roomId || undefined,
@@ -2988,27 +3056,25 @@ export default function Page() {
       console.log("Creating class with payload:", payload);
 
       const created = await createAdminClass(payload);
-
-      if (created?.id) {
-        try {
-          console.log("Generating sessions for class:", created.id);
-          await generateSessionsFromPattern({
-            classId: created.id,
-            roomId: data.roomId || undefined,
-            onlyFutureSessions: true,
-          });
-          console.log("Sessions generated successfully");
-        } catch (sessionErr: any) {
-          console.error("Failed to generate sessions:", sessionErr);
-        }
-      }
+      const createdClassId = String(created?.id ?? "").trim();
 
       const updatedClasses = await reloadClassesByCurrentBranch();
       setClasses(updatedClasses);
 
       toast.success({
         title: "T\u1ea1o l\u1edbp h\u1ecdc th\u00e0nh c\u00f4ng",
-        description: `L\u1edbp ${data.name} \u0111\u00e3 \u0111\u01b0\u1ee3c t\u1ea1o v\u1edbi ${data.totalSessions} bu\u1ed5i h\u1ecdc.`,
+        description: `L\u1edbp ${data.name} \u0111\u00e3 \u0111\u01b0\u1ee3c t\u1ea1o. B\u1ea1n c\u00f3 th\u1ec3 generate sessions ngay ho\u1eb7c \u0111\u1ec3 sau.`,
+        action: createdClassId ? (
+          <button
+            type="button"
+            className="ml-3 inline-flex items-center rounded-md border border-red-300 bg-white px-3 py-1 text-xs font-semibold text-red-700 hover:bg-red-50"
+            onClick={() => {
+              void handleConfirmGenerateSessions(createdClassId, data.name, true);
+            }}
+          >
+            Generate sessions
+          </button>
+        ) : undefined,
       });
     } catch (err: any) {
       console.error("Failed to create class:", err);
@@ -3088,6 +3154,7 @@ export default function Page() {
         programId: data.programId.trim(),
         code: data.code,
         title: data.name,
+        description: data.description || undefined,
         mainTeacherId: data.mainTeacherId,
         assistantTeacherId: data.assistantTeacherId || undefined,
         roomId: data.roomId || undefined,
@@ -3162,6 +3229,12 @@ export default function Page() {
   const handleOpenFutureStretch = (row: ClassRow) => {
     setFutureStretchClass(row);
     setIsFutureStretchModalOpen(true);
+  };
+
+  const handleOpenGenerateSessions = (row: ClassRow) => {
+    setGenerateTargetClass(row);
+    setGenerateOnlyFutureSessions(true);
+    setIsGenerateSessionsModalOpen(true);
   };
 
   const handleAddStudent = async (classId: string) => {
@@ -3437,6 +3510,19 @@ export default function Page() {
                           >
                             <CalendarClock size={14} />
                           </button>
+                          <button
+                            onClick={() => handleOpenGenerateSessions(c)}
+                            className={clsx(
+                              "p-1.5 rounded-lg transition-colors",
+                              c.status === "Đã kết thúc"
+                                ? "cursor-not-allowed text-gray-300"
+                                : "cursor-pointer hover:bg-emerald-50 text-gray-400 hover:text-emerald-600"
+                            )}
+                            title={c.status === "Đã kết thúc" ? "Lớp đã kết thúc, không thể generate sessions" : "Generate sessions"}
+                            disabled={c.status === "Đã kết thúc"}
+                          >
+                            <CalendarDays size={14} />
+                          </button>
                           <button 
                             onClick={() => handleToggleStatus(c)}
                             className={clsx(
@@ -3558,6 +3644,81 @@ export default function Page() {
           )}
         </div>
       </div>
+
+      {isGenerateSessionsModalOpen && generateTargetClass && (
+        <div className="fixed inset-0 z-[95] bg-black/45 backdrop-blur-sm p-4 flex items-center justify-center">
+          <div className="w-full max-w-md rounded-2xl border border-emerald-200 bg-white shadow-2xl overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-200 bg-gradient-to-r from-emerald-500/10 to-emerald-700/10 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Generate sessions</h3>
+                <p className="text-sm text-gray-600 mt-1">{generateTargetClass.name} ({generateTargetClass.code || generateTargetClass.id})</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isGeneratingSessions) {
+                    setIsGenerateSessionsModalOpen(false);
+                    setGenerateTargetClass(null);
+                  }
+                }}
+                className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                aria-label="Đóng"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="px-5 py-4 space-y-4">
+              <p className="text-sm text-gray-700">
+                Chọn phạm vi tạo buổi học từ schedule pattern của lớp.
+              </p>
+
+              <label className="flex items-start gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={generateOnlyFutureSessions}
+                  onChange={(e) => setGenerateOnlyFutureSessions(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 mt-0.5"
+                />
+                <span>
+                  Chỉ tạo sessions tương lai (onlyFutureSessions = true).
+                </span>
+              </label>
+            </div>
+
+            <div className="px-5 py-4 border-t border-gray-200 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isGeneratingSessions) {
+                    setIsGenerateSessionsModalOpen(false);
+                    setGenerateTargetClass(null);
+                  }
+                }}
+                disabled={isGeneratingSessions}
+                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                disabled={isGeneratingSessions}
+                onClick={() => {
+                  void handleConfirmGenerateSessions(
+                    generateTargetClass.id,
+                    generateTargetClass.name,
+                    generateOnlyFutureSessions,
+                  );
+                }}
+                className="px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-600 to-emerald-700 text-white hover:shadow-lg disabled:opacity-60 inline-flex items-center gap-2"
+              >
+                {isGeneratingSessions ? <Loader2 size={16} className="animate-spin" /> : <CalendarDays size={16} />}
+                {isGeneratingSessions ? "Đang tạo..." : "Generate"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <FutureStretchModal
         isOpen={isFutureStretchModalOpen}
