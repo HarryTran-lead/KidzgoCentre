@@ -22,7 +22,7 @@ import {
   addAdminClassScheduleSegment
 } from "@/app/api/admin/classes";
 import { fetchAdminRooms } from "@/app/api/admin/rooms";
-import { generateSessionsFromPattern } from "@/app/api/admin/sessions";
+import { generateSessionsFromPattern, updateClassColor } from "@/app/api/admin/sessions";
 import { fetchClassFormSelectData, fetchTeacherOptionsByBranch, fetchProgramOptionsByBranch } from "@/app/api/admin/classFormData";
 import type { ClassRow, CreateClassRequest } from "@/types/admin/classes";
 import type { SelectOption } from "@/types/admin/classFormData";
@@ -54,6 +54,11 @@ function StatusBadge({ value }: { value: ClassRow["status"] }) {
 type SortField = "id" | "name" | "program" | "teacher" | "branch" | "capacity" | "schedule" | "status";
 type SortDirection = "asc" | "desc" | null;
 const PAGE_SIZE = 10;
+const DEFAULT_GENERATE_COLOR = "#FEE2E2";
+const GENERATE_COLOR_PRESETS = [
+  "#FEE2E2", "#DBEAFE", "#EDE9FE", "#FEF3C7", "#D1FAE5", "#FCE7F3",
+  "#C7D2FE", "#E0F2FE", "#DDD6FE", "#FDE68A", "#A7F3D0", "#FBCFE8",
+] as const;
 
 type ScheduleDisplayProps = {
   schedule: string;
@@ -2859,6 +2864,7 @@ export default function Page() {
   const [isGenerateSessionsModalOpen, setIsGenerateSessionsModalOpen] = useState(false);
   const [generateTargetClass, setGenerateTargetClass] = useState<ClassRow | null>(null);
   const [generateOnlyFutureSessions, setGenerateOnlyFutureSessions] = useState(true);
+  const [generateSessionColor, setGenerateSessionColor] = useState(DEFAULT_GENERATE_COLOR);
   const [isGeneratingSessions, setIsGeneratingSessions] = useState(false);
   const [isAddStudentModalOpen, setIsAddStudentModalOpen] = useState(false);
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
@@ -2992,13 +2998,34 @@ export default function Page() {
     setPage(Math.min(totalPages, Math.max(1, nextPage)));
   };
 
+  const canGenerateSessionsForStatus = (status?: ClassRow["status"] | string | null) => {
+    return status === "Sắp khai giảng" || status === "Đang học";
+  };
+
   const handleConfirmGenerateSessions = async (
     classId: string,
     className: string,
     onlyFutureSessions: boolean,
+    color: string,
   ) => {
+    const targetClass = classes.find((c) => c.id === classId);
+    if (!canGenerateSessionsForStatus(targetClass?.status)) {
+      toast.destructive({
+        title: "Không thể tạo buổi học",
+        description: "Chỉ lớp ở trạng thái Sắp khai giảng hoặc Đang học mới được tạo buổi học.",
+      });
+      return;
+    }
+
     try {
       setIsGeneratingSessions(true);
+      const trimmed = color.trim();
+      const effectiveColor = /^#[0-9A-Fa-f]{6}$/.test(trimmed)
+        ? trimmed
+        : DEFAULT_GENERATE_COLOR;
+
+      await updateClassColor(classId, effectiveColor);
+
       const result = await generateSessionsFromPattern({
         classId,
         onlyFutureSessions,
@@ -3006,7 +3033,7 @@ export default function Page() {
 
       const createdCount = Number(result?.data?.createdSessionsCount ?? 0);
       toast.success({
-        title: "Generate sessions thành công",
+        title: "Tạo buổi học thành công",
         description: `Lớp ${className}: đã tạo ${createdCount} buổi học.`,
       });
 
@@ -3016,8 +3043,8 @@ export default function Page() {
       setGenerateTargetClass(null);
     } catch (sessionErr: any) {
       toast.destructive({
-        title: "Generate sessions thất bại",
-        description: sessionErr?.message || "Không thể sinh sessions từ schedule pattern.",
+        title: "Tạo buổi học thất bại",
+        description: sessionErr?.message || "Không thể tạo buổi học từ lịch học của lớp.",
       });
     } finally {
       setIsGeneratingSessions(false);
@@ -3061,20 +3088,28 @@ export default function Page() {
       const updatedClasses = await reloadClassesByCurrentBranch();
       setClasses(updatedClasses);
 
+      if (createdClassId) {
+        const createdClassRow =
+          updatedClasses.find((c) => c.id === createdClassId) ?? {
+            id: createdClassId,
+            code: data.code,
+            name: data.name,
+            sub: "",
+            teacher: "Chưa phân công",
+            branch: "",
+            current: 0,
+            capacity: data.capacity,
+            schedule: "Chưa có lịch",
+            status: "Sắp khai giảng" as const,
+          };
+        setGenerateTargetClass(createdClassRow);
+        setGenerateOnlyFutureSessions(true);
+        setIsGenerateSessionsModalOpen(true);
+      }
+
       toast.success({
         title: "T\u1ea1o l\u1edbp h\u1ecdc th\u00e0nh c\u00f4ng",
-        description: `L\u1edbp ${data.name} \u0111\u00e3 \u0111\u01b0\u1ee3c t\u1ea1o. B\u1ea1n c\u00f3 th\u1ec3 generate sessions ngay ho\u1eb7c \u0111\u1ec3 sau.`,
-        action: createdClassId ? (
-          <button
-            type="button"
-            className="ml-3 inline-flex items-center rounded-md border border-red-300 bg-white px-3 py-1 text-xs font-semibold text-red-700 hover:bg-red-50"
-            onClick={() => {
-              void handleConfirmGenerateSessions(createdClassId, data.name, true);
-            }}
-          >
-            Generate sessions
-          </button>
-        ) : undefined,
+        description: `L\u1edbp ${data.name} \u0111\u00e3 \u0111\u01b0\u1ee3c t\u1ea1o. Modal t\u1ea1o bu\u1ed5i h\u1ecdc \u0111\u00e3 \u0111\u01b0\u1ee3c m\u1edf ngay.`,
       });
     } catch (err: any) {
       console.error("Failed to create class:", err);
@@ -3147,6 +3182,12 @@ export default function Page() {
     if (!editingClassId) return;
 
     try {
+      const classBeforeUpdate = classes.find((c) => c.id === editingClassId);
+      const hadNoScheduleBeforeUpdate =
+        (classBeforeUpdate?.schedule ?? "") === "Chưa có lịch" ||
+        !(editingInitialData?.schedule ?? "").trim();
+      const currentClassStatus = classBeforeUpdate?.status;
+
       const schedulePattern = convertScheduleToRRULE(data.schedule, data.startDate);
 
       const payload: CreateClassRequest = {
@@ -3167,6 +3208,30 @@ export default function Page() {
       console.log("Updating class with payload:", payload);
 
       await updateAdminClass(editingClassId, payload);
+
+      if (hadNoScheduleBeforeUpdate && canGenerateSessionsForStatus(currentClassStatus)) {
+        try {
+          const result = await generateSessionsFromPattern({
+            classId: editingClassId,
+            onlyFutureSessions: true,
+          });
+          const createdCount = Number(result?.data?.createdSessionsCount ?? 0);
+          toast.success({
+            title: "Đã tự động tạo buổi học",
+            description: `Lớp ${data.name}: đã tạo ${createdCount} buổi học mới.`,
+          });
+        } catch (sessionErr: any) {
+          toast.destructive({
+            title: "Lớp đã cập nhật nhưng tạo buổi học thất bại",
+            description: sessionErr?.message || "Vui lòng bấm Tạo buổi học thủ công trong danh sách lớp.",
+          });
+        }
+      } else if (hadNoScheduleBeforeUpdate) {
+        toast.destructive({
+          title: "Lớp đã cập nhật nhưng chưa generate sessions",
+          description: "Lớp cần ở trạng thái Sắp khai giảng hoặc Đang học để tạo sessions.",
+        });
+      }
 
       const updatedClasses = await reloadClassesByCurrentBranch();
       setClasses(updatedClasses);
@@ -3232,8 +3297,17 @@ export default function Page() {
   };
 
   const handleOpenGenerateSessions = (row: ClassRow) => {
+    if (!canGenerateSessionsForStatus(row.status)) {
+      toast.destructive({
+        title: "Không thể tạo buổi học",
+        description: "Chỉ lớp ở trạng thái Sắp khai giảng hoặc Đang học mới được tạo buổi học.",
+      });
+      return;
+    }
+
     setGenerateTargetClass(row);
     setGenerateOnlyFutureSessions(true);
+    setGenerateSessionColor(DEFAULT_GENERATE_COLOR);
     setIsGenerateSessionsModalOpen(true);
   };
 
@@ -3514,12 +3588,12 @@ export default function Page() {
                             onClick={() => handleOpenGenerateSessions(c)}
                             className={clsx(
                               "p-1.5 rounded-lg transition-colors",
-                              c.status === "Đã kết thúc"
+                              !canGenerateSessionsForStatus(c.status)
                                 ? "cursor-not-allowed text-gray-300"
                                 : "cursor-pointer hover:bg-emerald-50 text-gray-400 hover:text-emerald-600"
                             )}
-                            title={c.status === "Đã kết thúc" ? "Lớp đã kết thúc, không thể generate sessions" : "Generate sessions"}
-                            disabled={c.status === "Đã kết thúc"}
+                            title={!canGenerateSessionsForStatus(c.status) ? "Chỉ lớp Sắp khai giảng/Đang học mới tạo được buổi học" : "Tạo buổi học"}
+                            disabled={!canGenerateSessionsForStatus(c.status)}
                           >
                             <CalendarDays size={14} />
                           </button>
@@ -3579,7 +3653,7 @@ export default function Page() {
                     onClick={() => goPage(currentPage - 1)}
                     disabled={currentPage === 1}
                     className="p-2 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                    aria-label="Previous page"
+                    aria-label="Trang trước"
                   >
                     <ChevronLeft size={18} />
                   </button>
@@ -3634,7 +3708,7 @@ export default function Page() {
                     onClick={() => goPage(currentPage + 1)}
                     disabled={currentPage === totalPages}
                     className="p-2 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                    aria-label="Next page"
+                    aria-label="Trang sau"
                   >
                     <ChevronRight size={18} />
                   </button>
@@ -3650,7 +3724,7 @@ export default function Page() {
           <div className="w-full max-w-md rounded-2xl border border-emerald-200 bg-white shadow-2xl overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-200 bg-gradient-to-r from-emerald-500/10 to-emerald-700/10 flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-bold text-gray-900">Generate sessions</h3>
+                <h3 className="text-lg font-bold text-gray-900">Tạo buổi học</h3>
                 <p className="text-sm text-gray-600 mt-1">{generateTargetClass.name} ({generateTargetClass.code || generateTargetClass.id})</p>
               </div>
               <button
@@ -3681,9 +3755,46 @@ export default function Page() {
                   className="h-4 w-4 rounded border-gray-300 mt-0.5"
                 />
                 <span>
-                  Chỉ tạo sessions tương lai (onlyFutureSessions = true).
+                  Chỉ tạo buổi học tương lai.
                 </span>
               </label>
+
+              <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">Màu buổi học trên lịch</label>
+                <div className="flex flex-wrap gap-2">
+                  {GENERATE_COLOR_PRESETS.map((color) => {
+                    const active = generateSessionColor.toLowerCase() === color.toLowerCase();
+                    return (
+                      <button
+                        key={color}
+                        type="button"
+                        onClick={() => setGenerateSessionColor(color)}
+                        className={clsx(
+                          "h-7 w-7 rounded-md border transition-all",
+                          active ? "ring-2 ring-red-400 border-red-300" : "border-gray-300 hover:border-red-300"
+                        )}
+                        style={{ backgroundColor: color }}
+                        aria-label={`Chọn màu ${color}`}
+                      />
+                    );
+                  })}
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={generateSessionColor}
+                    onChange={(e) => setGenerateSessionColor(e.target.value)}
+                    className="h-8 w-11 rounded border border-gray-300 cursor-pointer"
+                  />
+                  <input
+                    type="text"
+                    value={generateSessionColor}
+                    onChange={(e) => setGenerateSessionColor(e.target.value)}
+                    className="h-8 flex-1 rounded-md border border-gray-300 px-2 text-xs font-mono text-gray-700"
+                    placeholder="#FEE2E2"
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="px-5 py-4 border-t border-gray-200 flex items-center justify-end gap-2">
@@ -3708,12 +3819,13 @@ export default function Page() {
                     generateTargetClass.id,
                     generateTargetClass.name,
                     generateOnlyFutureSessions,
+                    generateSessionColor,
                   );
                 }}
                 className="px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-600 to-emerald-700 text-white hover:shadow-lg disabled:opacity-60 inline-flex items-center gap-2"
               >
                 {isGeneratingSessions ? <Loader2 size={16} className="animate-spin" /> : <CalendarDays size={16} />}
-                {isGeneratingSessions ? "Đang tạo..." : "Generate"}
+                {isGeneratingSessions ? "Đang tạo..." : "Tạo buổi học"}
               </button>
             </div>
           </div>
