@@ -926,9 +926,7 @@ export default function HomeworkDetailPage() {
                           <div className="font-medium text-gray-900">
                             {submission.studentName || "Chưa có tên"}
                           </div>
-                          <div className="text-xs text-gray-500">
-                            {submission.studentProfileId?.slice(0, 8) || "-"}
-                          </div>
+                          
                         </div>
                       </div>
                     </td>

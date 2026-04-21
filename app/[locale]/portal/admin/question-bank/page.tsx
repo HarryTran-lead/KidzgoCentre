@@ -93,7 +93,7 @@ interface QuestionFormData {
 
 const initialFormData: QuestionFormData = {
   programId: "", questionText: "", questionType: "MultipleChoice", level: "Medium",
-  options: ["", "", "", ""], correctAnswer: "", points: "1", explanation: "",
+  options: ["", ""], correctAnswer: "", points: "1", explanation: "",
 };
 
 interface QuestionModalProps {
@@ -507,7 +507,7 @@ export default function Page() {
         questionText: detail.questionText ?? row.content,
         questionType: detail.questionType ?? row.type,
         level: detail.level ?? row.difficulty,
-        options: Array.isArray(detail.options) && detail.options.length > 0 ? detail.options : ["", "", "", ""],
+        options: Array.isArray(detail.options) && detail.options.length > 0 ? detail.options : ["", ""],
         correctAnswer: typeof detail.correctAnswer === "string" ? detail.correctAnswer : String(detail.correctAnswer ?? ""),
         points: String(detail.points ?? 1),
         explanation: detail.explanation ?? "",
@@ -759,7 +759,6 @@ ${rows}
                     <SortableHeader field="type" currentField={sortField} direction={sortDirection} onSort={handleSort} align="center">Loại</SortableHeader>
                     <SortableHeader field="difficulty" currentField={sortField} direction={sortDirection} onSort={handleSort} align="center">Độ khó</SortableHeader>
                     <SortableHeader field="course" currentField={sortField} direction={sortDirection} onSort={handleSort}>Khóa học</SortableHeader>
-                    <SortableHeader field="usageCount" currentField={sortField} direction={sortDirection} onSort={handleSort} align="center">Sử dụng</SortableHeader>
                     <SortableHeader field="status" currentField={sortField} direction={sortDirection} onSort={handleSort} align="center">Trạng thái</SortableHeader>
                     <th className="py-3 px-6 text-right text-xs font-medium tracking-wide text-gray-700">Thao tác</th>
                   </tr>
@@ -771,7 +770,6 @@ ${rows}
                       <td className="py-3 px-6 text-center"><QuestionTypeBadge type={c.type} /></td>
                       <td className="py-3 px-6 text-center"><DifficultyBadge level={c.difficulty} /></td>
                       <td className="py-3 px-6"><div className="flex items-center gap-2 text-sm"><BookOpen size={14} className="text-gray-400" /><span className="truncate">{courseNameMap[c.programId] || c.course || "—"}</span></div></td>
-                      <td className="py-3 px-6 text-center"><span className="flex items-center justify-center gap-1 text-sm"><BarChart3 size={14} className="text-gray-400" />{c.usageCount}</span></td>
                       <td className="py-3 px-6 text-center"><StatusBadge value={c.status} /></td>
                       <td className="py-3 px-6"><div className="flex items-center justify-end gap-1">
                         <button onClick={() => handleViewDetail(c)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 cursor-pointer" title="Xem chi tiết"><Eye size={14} /></button>
@@ -874,8 +872,8 @@ ${rows}
       )}
 
       {showImportModal && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="relative w-full max-w-2xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => { setShowImportModal(false); setImportFile(null); setImportProgramId(""); }}>
+          <div className="relative w-full max-w-2xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -938,17 +936,9 @@ ${rows}
 
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-gray-700">Tải mẫu</label>
-                <div className="grid grid-cols-3 gap-2">
-                  <button onClick={() => handleDownloadTemplate("csv")} className="px-3 py-2.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 text-sm font-semibold cursor-pointer flex items-center justify-center gap-1.5">
-                    <Download size={16} />CSV
-                  </button>
-                  <button onClick={() => handleDownloadTemplate("excel")} className="px-3 py-2.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 text-sm font-semibold cursor-pointer flex items-center justify-center gap-1.5">
-                    <Download size={16} />Excel
-                  </button>
-                  <button onClick={() => handleDownloadTemplate("word")} className="px-3 py-2.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 text-sm font-semibold cursor-pointer flex items-center justify-center gap-1.5">
-                    <Download size={16} />Word
-                  </button>
-                </div>
+                <button onClick={() => handleDownloadTemplate("csv")} className="w-full px-3 py-2.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 text-sm font-semibold cursor-pointer flex items-center justify-center gap-1.5">
+                  <Download size={16} />Tải mẫu CSV
+                </button>
               </div>
             </div>
             <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-6">
