@@ -1240,6 +1240,15 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
     [isTeacher],
   );
 
+  const openReportInTeacherTools = useCallback(
+    (report: MonthlyReport) => {
+      setSelectedClassId(report.classId || null);
+      setSelectedStudentId(report.studentProfileId || null);
+      setActiveTab("teacher-tools");
+    },
+    [],
+  );
+
   const openReportFromComment = (reportId: string) => {
     openReportDetail(reportId);
   };
@@ -1530,60 +1539,8 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
           ? "Bắt đầu soạn: chọn lớp, học sinh, xem dữ liệu buổi học rồi tạo nháp AI để hoàn thiện báo cáo."
           : "Hàng chờ xử lý: điều phối theo lớp, theo dõi tiến độ và chạy duyệt hoặc công bố hàng loạt.";
 
-  const summaryCards = [
-    {
-      key: "total",
-      label: "Tổng báo cáo",
-      value: stats.total,
-      color: "from-red-500 to-red-600",
-    },
-    {
-      key: "drafts",
-      label: "Bản nháp",
-      value: stats.drafts,
-      color: "from-amber-500 to-amber-600",
-    },
-    {
-      key: "submitted",
-      label: "Đã nộp",
-      value: stats.submitted,
-      color: "from-red-500 to-red-600",
-    },
-    {
-      key: "approved",
-      label: "Đã duyệt",
-      value: stats.approved,
-      color: "from-emerald-500 to-emerald-600",
-    },
-  ];
-
   return (
     <div className="space-y-6 bg-gray-50 rounded-3xl">
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {summaryCards.map((card) => (
-          <div
-            key={card.key}
-            className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm hover:shadow-md transition-all"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                  {card.label}
-                </p>
-                <p className="mt-1 text-2xl font-bold text-gray-900">{card.value}</p>
-              </div>
-              <div className={`w-10 h-10 rounded-lg bg-gradient-to-r ${card.color} flex items-center justify-center shadow-md`}>
-                {card.key === "total" && <FileBarChart size={18} className="text-white" />}
-                {card.key === "drafts" && <FileText size={18} className="text-white" />}
-                {card.key === "submitted" && <Clock size={18} className="text-white" />}
-                {card.key === "approved" && <CheckCircle2 size={18} className="text-white" />}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
       {/* Period Settings */}
       <div className="rounded-xl border border-red-100 bg-gradient-to-br from-white to-red-50 p-5  transition-all duration-500 hover:shadow-xl hover:shadow-red-200/40">
         <div className="flex items-center gap-2 mb-4">
@@ -1619,7 +1576,6 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
               max={12}
               value={month}
               onChange={(e) => setMonth(Number(e.target.value))}
-              disabled={isTeacher}
             />
           </div>
           <div>
@@ -1629,7 +1585,6 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
               type="number"
               value={year}
               onChange={(e) => setYear(Number(e.target.value))}
-              disabled={isTeacher}
             />
           </div>
           {canManage && (
@@ -1676,7 +1631,84 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
         )}
       </div>
 
+      {/* Progress Section for Teacher - Always Show */}
+      {isTeacher && (
+        <div className="mt-6 rounded-xl bg-gradient-to-br from-white to-red-50 transition-all duration-500 hover:shadow-xl hover:shadow-red-200/40 border border-red-100 p-5">
+          <div className="mb-5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 blur-lg opacity-30"></div>
+                  <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-md">
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-gray-900">Tiến độ báo cáo tháng</h3>
+                  <p className="text-xs text-gray-500">Tổng quan tình hình các lớp giảng dạy</p>
+                </div>
+              </div>
+              <div className="rounded-lg bg-gradient-to-r from-amber-100 to-orange-100 px-3 py-1.5 shadow-inner">
+                <span className="text-xs font-semibold text-gray-700">
+                  Đã nộp: <span className="text-emerald-600">{Math.round(
+                    teacherClassProgress.length > 0 
+                      ? ((teacherClassProgress.reduce((sum, c) => sum + c.submitted + c.approved, 0) / teacherClassProgress.reduce((sum, c) => sum + c.total, 0)) * 100)
+                      : 0
+                  )}%</span>
+                </span>
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 max-h-[400px] overflow-auto pr-1">
+              {teacherClassProgress.map((item) => {
+                const submittedCount = item.submitted + item.approved;
+                const percentage = item.total > 0 ? (submittedCount / item.total) * 100 : 0;
+                return (
+                  <div
+                    key={item.id}
+                    onClick={() => {
+                      setSelectedClassId(item.id);
+                      setSelectedStudentId(null);
+                      setActiveTab("reports");
+                    }}
+                    className="group relative overflow-hidden rounded-xl bg-white border border-gray-100 p-3 transition-all duration-300 hover:shadow-lg hover:border-amber-200 hover:-translate-y-0.5 cursor-pointer"
+                  >
+                    <div className="relative">
+                      <div className="mb-2 flex items-start justify-between">
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-gray-800 truncate text-sm">{item.name}</h4>
+                          <div className="mt-1 flex items-center gap-2">
+                            <div className="flex-1 h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+                              <div
+                                className="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-500 transition-all duration-1000 ease-out"
+                                style={{ width: `${percentage}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm font-bold text-gray-800">{Math.round(percentage)}%</div>
+                          <div className="text-[9px] text-gray-400">{item.total} báo cáo</div>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-1 text-[10px]">
+                        <div className="rounded bg-amber-50 p-1 text-center text-amber-700 font-medium">{item.draft} Nháp</div>
+                        <div className="rounded bg-red-50 p-1 text-center text-red-700 font-medium">{item.submitted} Nộp</div>
+                        <div className="rounded bg-emerald-50 p-1 text-center text-emerald-700 font-medium">{item.approved} Duyệt</div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Tabs */}
+
       <div className="mt-2">
         <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-3">
           {workspaceTabs.map((tab) => {
@@ -1757,7 +1789,6 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
           teacherClassProgress={teacherClassProgress}
           teacherReports={reports}
           setActiveTab={setActiveTab}
-          clearScopeFilter={clearScopeFilter}
         />
       )}
 
@@ -1826,6 +1857,7 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
           formatDateTime={formatDateTime}
           fetchData={fetchData}
           apiFetch={apiFetch}
+                    openReportInTeacherTools={openReportInTeacherTools}
           renderStatusBadge={(status) => <StatusBadge status={status} />}
         />
       )}

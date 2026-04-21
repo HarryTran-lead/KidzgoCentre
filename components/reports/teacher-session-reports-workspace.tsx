@@ -142,7 +142,7 @@ function normalizeReport(raw: Record<string, unknown>): SessionReport | null {
     studentProfileId: pick(raw, "studentProfileId", "StudentProfileId"),
     studentName: pick(raw, "studentName", "StudentName", "displayName"),
     classId: pick(raw, "classId", "ClassId"),
-    className: pick(raw, "className", "ClassName"),
+    className: pick(raw, "className", "ClassName", "classTitle", "ClassTitle", "classCode", "ClassCode"),
     teacherUserId: pick(raw, "teacherUserId", "TeacherUserId"),
     teacherName: pick(raw, "teacherName", "TeacherName"),
     reportDate: pick(raw, "reportDate", "ReportDate"),
@@ -407,7 +407,8 @@ export default function TeacherSessionReportsWorkspace() {
     }
   };
 
-  const canSubmit = activeReport
+  const isPublished = activeReport && normalizeStatus(activeReport.status) === "PUBLISHED";
+  const canSubmit = activeReport && !isPublished
     ? normalizeStatus(activeReport.status) === "DRAFT" || normalizeStatus(activeReport.status) === "REJECTED"
     : false;
 
@@ -621,7 +622,8 @@ export default function TeacherSessionReportsWorkspace() {
                           e.stopPropagation();
                           void openEditor(report);
                         }}
-                        className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm bg-gradient-to-r from-red-600 to-red-700 text-white hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer"
+                        disabled={normalizeStatus(report.status) === "PUBLISHED"}
+                        className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm bg-gradient-to-r from-red-600 to-red-700 text-white hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none"
                       >
                         <Edit3 size={14} />
                         Chỉnh sửa
@@ -746,55 +748,64 @@ export default function TeacherSessionReportsWorkspace() {
                     value={draftInput}
                     onChange={(e) => setDraftInput(e.target.value)}
                     rows={10}
-                    className="w-full rounded-xl border border-red-200 p-3 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-300 transition-all resize-none"
+                    disabled={isPublished}
+                    className="w-full rounded-xl border border-red-200 p-3 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-300 transition-all resize-none disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
                     placeholder="Nhập nội dung báo cáo chi tiết về buổi học..."
                   />
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex gap-3 pt-2">
-                  <button
-                    onClick={handleSave}
-                    disabled={saveLoading || submitLoading}
-                    className="flex-1 px-4 py-2.5 rounded-xl border border-red-200 text-red-700 font-semibold hover:bg-red-50 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    {saveLoading ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-red-600 border-t-transparent"></div>
-                        Đang lưu...
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle2 size={16} />
-                        Lưu nháp
-                      </>
-                    )}
-                  </button>
-                  <button
-                    onClick={handleSubmitReview}
-                    disabled={!canSubmit || saveLoading || submitLoading}
-                    className={cn(
-                      "flex-1 px-4 py-2.5 rounded-xl font-semibold transition-all cursor-pointer flex items-center justify-center gap-2",
-                      canSubmit && !saveLoading && !submitLoading
-                        ? "bg-gradient-to-r from-red-600 to-red-700 text-white hover:shadow-lg hover:shadow-red-500/25"
-                        : "bg-gray-200 text-gray-500 cursor-not-allowed"
-                    )}
-                  >
-                    {submitLoading ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                        Đang gửi...
-                      </>
-                    ) : (
-                      <>
-                        <Send size={16} />
-                        Gửi duyệt
-                      </>
-                    )}
-                  </button>
-                </div>
+                {isPublished && (
+                  <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                    <p className="text-sm text-slate-700 text-center font-medium">🔒 Báo cáo đã xuất bản và không thể chỉnh sửa</p>
+                  </div>
+                )}
+                
+                {!isPublished && (
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      onClick={handleSave}
+                      disabled={saveLoading || submitLoading}
+                      className="flex-1 px-4 py-2.5 rounded-xl border border-red-200 text-red-700 font-semibold hover:bg-red-50 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {saveLoading ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-red-600 border-t-transparent"></div>
+                          Đang lưu...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 size={16} />
+                          Lưu nháp
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={handleSubmitReview}
+                      disabled={!canSubmit || saveLoading || submitLoading}
+                      className={cn(
+                        "flex-1 px-4 py-2.5 rounded-xl font-semibold transition-all cursor-pointer flex items-center justify-center gap-2",
+                        canSubmit && !saveLoading && !submitLoading
+                          ? "bg-gradient-to-r from-red-600 to-red-700 text-white hover:shadow-lg hover:shadow-red-500/25"
+                          : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                      )}
+                    >
+                      {submitLoading ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                          Đang gửi...
+                        </>
+                      ) : (
+                        <>
+                          <Send size={16} />
+                          Gửi duyệt
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
 
-                {!canSubmit && activeReport && (
+                {!canSubmit && activeReport && !isPublished && (
                   <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded-lg text-center">
                     Chỉ có thể gửi duyệt khi báo cáo ở trạng thái "Nháp" hoặc "Từ chối"
                   </p>

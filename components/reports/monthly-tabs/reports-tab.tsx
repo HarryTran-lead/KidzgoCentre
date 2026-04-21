@@ -83,6 +83,7 @@ type Props = {
   fetchData: () => void;
   apiFetch: <T = unknown>(url: string, init?: RequestInit) => Promise<T>;
   renderStatusBadge: (status: string) => ReactNode;
+  openReportInTeacherTools: (report: ReportItem) => void;
 };
 
 export default function ReportsTab({
@@ -133,6 +134,7 @@ export default function ReportsTab({
   fetchData,
   apiFetch,
   renderStatusBadge,
+  openReportInTeacherTools,
 }: Props) {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [submitFlowLoading, setSubmitFlowLoading] = useState(false);
@@ -410,7 +412,13 @@ export default function ReportsTab({
                   <tr
                     key={report.id}
                     className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200 cursor-pointer"
-                    onClick={() => setActiveReportId(report.id)}
+                    onClick={() => {
+                      if (isTeacher) {
+                        openReportInTeacherTools(report);
+                      } else {
+                        setActiveReportId(report.id);
+                      }
+                    }}
                   >
                     {canManage && (
                       <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
