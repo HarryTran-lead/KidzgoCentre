@@ -8,18 +8,13 @@ import {
   Users,
   CalendarClock,
   MapPin,
-  Mail,
-  Phone,
   Search,
   Download,
   Share2,
-  MoreVertical,
   CheckCircle,
   Award,
   TrendingUp,
   FileText,
-  MessageSquare,
-  Eye,
   ChevronLeft,
   ChevronRight,
   Star,
@@ -498,11 +493,9 @@ export default function ClassDetailPage() {
             <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-gray-200">
               <tr>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Học viên</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Liên hệ</th>
                 <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">Đã vắng</th>
                 <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">Thành tích</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Hoạt động</th>
-                <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -517,19 +510,6 @@ export default function ClassDetailPage() {
                         <StudentAvatar name={student.name} />
                         <div>
                           <div className="text-sm text-gray-900 font-medium">{student.name}</div>
-                          <div className="text-xs text-gray-500">ID: {student.id}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-3">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-sm text-gray-900">
-                          <Mail size={14} className="text-gray-400" />
-                          <span className="truncate">{student.email}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-gray-900">
-                          <Phone size={14} className="text-gray-400" />
-                          <span className="truncate">{student.phone}</span>
                         </div>
                       </div>
                     </td>
@@ -551,33 +531,11 @@ export default function ClassDetailPage() {
                         <span className="text-sm text-gray-700">{student.lastActive}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-3">
-                      <div className="flex items-center justify-end text-gray-700 gap-1 transition-opacity duration-200">
-                        <button 
-                          className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600 cursor-pointer" 
-                          title="Nhắn tin"
-                        >
-                          <MessageSquare size={14} />
-                        </button>
-                        <button 
-                          className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-800 cursor-pointer"
-                          title="Xem chi tiết"
-                        >
-                          <Eye size={14} />
-                        </button>
-                        <button 
-                          className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-800 cursor-pointer"
-                          title="Thêm"
-                        >
-                          <MoreVertical size={14} />
-                        </button>
-                      </div>
-                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center">
+                  <td colSpan={4} className="py-12 text-center">
                     <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center">
                       <Search size={24} className="text-gray-400" />
                     </div>
