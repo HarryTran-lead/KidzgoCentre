@@ -39,9 +39,27 @@ export const buildFileUrl = (value?: string | null): string => {
   if (/^(?:data|blob):/i.test(url)) return url;
 
   if (/^(?:https?:)?\/\//i.test(url)) {
-    // If it's already HTTPS (or protocol-relative), safe to use directly
+    try {
+      const parsed = new URL(url.startsWith("//") ? `https:${url}` : url);
+      const host = parsed.hostname.toLowerCase();
+
+      // Private Vercel Blob URLs require proxying through our view route.
+      if (host.endsWith(".private.blob.vercel-storage.com")) {
+        return `${FILE_ENDPOINTS.BLOB_VIEW}?pathname=${encodeURIComponent(parsed.pathname)}`;
+      }
+
+      // Public blob URLs can be accessed directly.
+      if (host.endsWith(".blob.vercel-storage.com")) {
+        return url;
+      }
+    } catch {
+      // Fall through to origin-stripping fallback below.
+    }
+
+    // If it's already HTTPS (or protocol-relative), safe to use directly.
     if (/^https:\/\//i.test(url) || url.startsWith("//")) return url;
-    // HTTP absolute URL → rewrite to proxy path to keep HTTPS
+
+    // HTTP absolute URL → rewrite to proxy path to keep HTTPS.
     const withoutOrigin = url.replace(/^https?:\/\/[^/]+/i, "");
     const normalizedSegment = withoutOrigin.startsWith("/") ? withoutOrigin : `/${withoutOrigin}`;
     return `/api/files/serve${normalizedSegment}`;
