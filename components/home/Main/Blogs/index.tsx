@@ -8,7 +8,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { pickLocaleFromPath, DEFAULT_LOCALE, localizePath } from "@/lib/i18n";
-import { EndPoint } from "@/lib/routes";
 import type { Blog } from "@/types/admin/blog";
 import { getPublishedBlogs } from "@/lib/api/blogService";
 import { buildFileUrl } from "@/constants/apiURL";
@@ -293,11 +292,10 @@ export default function Blogs() {
                 >
                   <div className="relative h-48 sm:h-56 overflow-hidden bg-linear-to-br from-pink-100 to-rose-100">
                     {blog.featuredImageUrl ? (
-                      <Image
+                      <img
                         src={buildFileUrl(blog.featuredImageUrl)}
                         alt={blog.title}
-                        fill
-                        className="object-cover group-hover:scale-110 transition-transform duration-500"
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
                         onError={(e) => {
                           // Fallback to placeholder on error
                           const target = e.target as HTMLImageElement;
@@ -309,7 +307,7 @@ export default function Blogs() {
                     <div className="absolute inset-0 flex items-center justify-center">
                       <BookOpen className="w-16 h-16 text-pink-300" />
                     </div>
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+                    <div className="absolute inset-0 bg-linear-to-t from-black/60 via-black/20 to-transparent" />
                     
                     {/* Tag */}
                     <div className="absolute top-4 left-4">
