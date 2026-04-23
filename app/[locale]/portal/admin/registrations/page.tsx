@@ -5,7 +5,6 @@ import {
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
-  Building2,
   Calendar,
   ChevronLeft,
   ChevronRight,
@@ -16,13 +15,13 @@ import {
   RefreshCw,
   Search,
   UserPlus,
-  X,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
 import { useToast } from "@/hooks/use-toast";
 import { useBranchFilter } from "@/hooks/useBranchFilter";
 import { getRegistrationById, getRegistrations } from "@/lib/api/registrationService";
 import RegistrationCompletionPdfModal from "@/components/portal/registrations/modals/RegistrationCompletionPdfModal";
+import RegistrationDetailModal from "@/components/portal/registrations/modals/RegistrationDetailModal";
 import type { Registration, RegistrationStatus } from "@/types/registration";
 
 function cn(...a: Array<string | false | null | undefined>) {
@@ -489,93 +488,15 @@ export default function AdminRegistrationsPage() {
       </div>
     </div>
 
-    {isDetailOpen && (
-      <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/40 p-4">
-        <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl overflow-hidden">
-          <div className="bg-linear-to-r from-red-600 to-red-700 px-6 py-4 flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-white">Chi tiết đăng ký lớp</h3>
-            <button
-              onClick={() => {
-                setIsDetailOpen(false);
-                setSelectedDetail(null);
-              }}
-              className="text-white/90 hover:text-white cursor-pointer"
-            >
-              <X size={18} />
-            </button>
-          </div>
-
-          {detailLoading ? (
-            <div className="py-10 text-center text-gray-600 inline-flex items-center justify-center gap-2 w-full">
-              <Loader2 size={18} className="animate-spin" /> Đang tải chi tiết...
-            </div>
-          ) : selectedDetail ? (
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <div className="text-xs text-gray-500">Học viên</div>
-                <div className="text-sm font-semibold text-gray-900">{selectedDetail.studentName}</div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-500">Trạng thái</div>
-                <div className="mt-1"><StatusBadge value={selectedDetail.status} /></div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-500">Chi nhánh</div>
-                <div className="text-sm text-gray-900 inline-flex items-center gap-1.5">
-                  <Building2 size={14} className="text-gray-400" /> {selectedDetail.branchName || "-"}
-                </div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-500">Chương trình</div>
-                <div className="text-sm text-gray-900">
-                  {selectedDetail.secondaryProgramName
-                    ? `${selectedDetail.programName || "-"} • ${selectedDetail.secondaryProgramName}`
-                    : selectedDetail.programName || "-"}
-                </div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-500">Gói học</div>
-                <div className="text-sm text-gray-900">{selectedDetail.tuitionPlanName || "-"}</div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-500">Lớp</div>
-                <div className="text-sm text-gray-900">
-                  {selectedDetail.secondaryClassName
-                    ? `${selectedDetail.className || "Chưa xếp lớp"} • ${selectedDetail.secondaryClassName}`
-                    : selectedDetail.className || "Chưa xếp lớp"}
-                </div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-500">Chú trọng kĩ năng</div>
-                <div className="text-sm text-gray-900">
-                  {selectedDetail.secondaryProgramSkillFocus || selectedDetail.secondaryEntryType || "Không có"}
-                </div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-500">Ngày dự kiến</div>
-                <div className="text-sm text-gray-900">{toDateOrFallback(selectedDetail.expectedStartDate)}</div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-500">Ngày đăng ký</div>
-                <div className="text-sm text-gray-900">{toDateOrFallback(selectedDetail.registrationDate)}</div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-500">Buổi học đã dùng / còn lại</div>
-                <div className="text-sm text-gray-900">{selectedDetail.usedSessions} / {selectedDetail.remainingSessions}</div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-500">Lịch mong muốn</div>
-                <div className="text-sm text-gray-900">{selectedDetail.preferredSchedule || "-"}</div>
-              </div>
-              <div className="md:col-span-2">
-                <div className="text-xs text-gray-500">Ghi chú</div>
-                <div className="text-sm text-gray-900 whitespace-pre-wrap">{selectedDetail.note || "-"}</div>
-              </div>
-            </div>
-          ) : null}
-        </div>
-      </div>
-    )}
+    <RegistrationDetailModal
+      isOpen={isDetailOpen}
+      item={selectedDetail}
+      isLoading={detailLoading}
+      onClose={() => {
+        setIsDetailOpen(false);
+        setSelectedDetail(null);
+      }}
+    />
 
     <RegistrationCompletionPdfModal
       isOpen={isCompletionPdfOpen}

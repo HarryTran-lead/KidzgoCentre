@@ -9,7 +9,6 @@ export const adminPages = {
         profiles: "Profiles",
       },
       buttons: {
-        resetPassword: "Đặt lại mật khẩu",
         createAccount: "Tạo tài khoản mới",
         createParent: "Tạo tài khoản Parent",
         createStudent: "Tạo profile Student",
@@ -83,7 +82,6 @@ export const adminPages = {
       actions: {
         viewDetails: "Xem chi tiết",
         edit: "Chỉnh sửa",
-        resetPassword: "Đặt lại mật khẩu",
         delete: "Xóa",
         activate: "Kích hoạt",
         deactivate: "Vô hiệu hóa",
@@ -105,9 +103,9 @@ export const adminPages = {
       stats: {
         totalProfiles: "Tổng Profiles",
         systemWide: "Toàn hệ thống",
-        parents: "Parents",
+        parents: "Phụ huynh",
         hasAccount: "Có tài khoản đăng nhập",
-        students: "Students",
+        students: "Học sinh",
         linkedWithParent: "Link với Parent",
         active: "Profiles Active",
         activeSubtitle: "Đang hoạt động",
@@ -116,8 +114,8 @@ export const adminPages = {
       },
       filters: {
         all: "Tất cả",
-        parents: "Parents",
-        students: "Students",
+        parents: "Phụ huynh",
+        students: "Học sinh",
         allApprovals: "Tất cả duyệt",
         pending: "Chờ duyệt",
         approved: "Đã duyệt",
