@@ -132,7 +132,7 @@ function QuestionModal({ isOpen, onClose, onSubmit, mode = "create", initialData
 
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof QuestionFormData, string>> = {};
-    if (!formData.programId) newErrors.programId = "Khóa học là bắt buộc";
+    if (!formData.programId) newErrors.programId = "Chương trình học là bắt buộc";
     if (!formData.questionText.trim()) newErrors.questionText = "Nội dung câu hỏi là bắt buộc";
     if (isMultipleChoice) {
       if (formData.options.filter(o => o.trim()).length < 2) newErrors.options = "Cần ít nhất 2 đáp án";
@@ -203,13 +203,13 @@ function QuestionModal({ isOpen, onClose, onSubmit, mode = "create", initialData
         <div className="p-5 max-h-[70vh] overflow-y-auto">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700"><BookOpen size={16} className="text-red-600" />Khóa học *</label>
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700"><BookOpen size={16} className="text-red-600" />Chương trình học *</label>
               {loadingCourses ? (
-                <div className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 flex items-center gap-2 text-gray-500"><Loader2 size={16} className="animate-spin" />Đang tải khóa học...</div>
+                <div className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 flex items-center gap-2 text-gray-500"><Loader2 size={16} className="animate-spin" />Đang tải chương trình học...</div>
               ) : (
                 <Select value={formData.programId} onValueChange={(value) => handleChange("programId", value)}>
                   <SelectTrigger className={cn("w-full rounded-xl", errors.programId && "border-red-500")}>
-                    <SelectValue placeholder="Chọn khóa học" />
+                    <SelectValue placeholder="Chọn chương trình học" />
                   </SelectTrigger>
                   <SelectContent>
                     {courseOptions.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
@@ -562,7 +562,7 @@ export default function Page() {
   };
 
   const handleImport = async () => {
-    if (!importProgramId) { toast({ title: "Lỗi", description: "Vui lòng chọn khóa học.", type: "destructive" }); return; }
+    if (!importProgramId) { toast({ title: "Lỗi", description: "Vui lòng chọn chương trình học.", type: "destructive" }); return; }
     if (!importFile) { toast({ title: "Lỗi", description: "Vui lòng chọn file.", type: "destructive" }); return; }
     try {
       setIsImporting(true);
@@ -758,7 +758,7 @@ ${rows}
                     <SortableHeader field="content" currentField={sortField} direction={sortDirection} onSort={handleSort}>Nội dung</SortableHeader>
                     <SortableHeader field="type" currentField={sortField} direction={sortDirection} onSort={handleSort} align="center">Loại</SortableHeader>
                     <SortableHeader field="difficulty" currentField={sortField} direction={sortDirection} onSort={handleSort} align="center">Độ khó</SortableHeader>
-                    <SortableHeader field="course" currentField={sortField} direction={sortDirection} onSort={handleSort}>Khóa học</SortableHeader>
+                    <SortableHeader field="course" currentField={sortField} direction={sortDirection} onSort={handleSort}>Chương trình học</SortableHeader>
                     <SortableHeader field="status" currentField={sortField} direction={sortDirection} onSort={handleSort} align="center">Trạng thái</SortableHeader>
                     <th className="py-3 px-6 text-right text-xs font-medium tracking-wide text-gray-700">Thao tác</th>
                   </tr>
@@ -838,7 +838,7 @@ ${rows}
                     <div className="space-y-1"><label className="text-xs font-semibold text-gray-500">Điểm</label><div className="px-3 py-1 rounded-full border border-gray-200 bg-white text-sm">{selectedQuestionDetail.points ?? 10}</div></div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2"><label className="flex items-center gap-2 text-sm font-semibold text-gray-700"><BookOpen size={16} className="text-red-600" />Khóa học</label><div className="px-4 py-3 rounded-xl border border-gray-200 bg-white">{selectedQuestionDetail.course || selectedQuestionDetail.programName || "—"}</div></div>
+                    <div className="space-y-2"><label className="flex items-center gap-2 text-sm font-semibold text-gray-700"><BookOpen size={16} className="text-red-600" />Chương trình học</label><div className="px-4 py-3 rounded-xl border border-gray-200 bg-white">{selectedQuestionDetail.course || selectedQuestionDetail.programName || "—"}</div></div>
                     <div className="space-y-2"><label className="flex items-center gap-2 text-sm font-semibold text-gray-700"><Clock size={16} className="text-red-600" />Ngày tạo</label><div className="px-4 py-3 rounded-xl border border-gray-200 bg-white">{selectedQuestionDetail.createdAt || "—"}</div></div>
                   </div>
                   {Array.isArray(selectedQuestionDetail.options) && selectedQuestionDetail.options.length > 0 && (
@@ -888,13 +888,13 @@ ${rows}
             </div>
             <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
               <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700"><BookOpen size={16} className="text-red-600" />Khóa học *</label>
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700"><BookOpen size={16} className="text-red-600" />Chương trình học *</label>
                 {loadingCourses ? (
                   <div className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-gray-50 flex items-center gap-2 text-gray-500 text-sm"><Loader2 size={16} className="animate-spin" />Đang tải...</div>
                 ) : (
                   <Select value={importProgramId} onValueChange={setImportProgramId}>
                     <SelectTrigger className="w-full rounded-lg">
-                      <SelectValue placeholder="Chọn khóa học" />
+                      <SelectValue placeholder="Chọn chương trình học" />
                     </SelectTrigger>
                     <SelectContent>
                       {courseOptions.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}

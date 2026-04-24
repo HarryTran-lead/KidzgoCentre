@@ -8,6 +8,7 @@
 import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { buildApiUrl } from '@/constants/apiURL';
 import { getAccessToken, setAccessToken, clearAccessToken, clearRefreshToken } from '@/lib/store/authToken';
+import { mapApiErrorToMessage } from '@/lib/api/errorMapper';
 
 // Create axios instance with default config
 const axiosInstance = axios.create({
@@ -124,6 +125,14 @@ axiosInstance.interceptors.response.use(
     if (error.response?.status === 500) {
       console.error('[API] Server error occurred');
     }
+
+    // Normalize backend validation/business errors into user-friendly messages.
+    const mappedMessage = mapApiErrorToMessage(
+      error.response?.data,
+      error.response?.status,
+      error.message
+    );
+    (error as AxiosError).message = mappedMessage;
 
     return Promise.reject(error);
   }

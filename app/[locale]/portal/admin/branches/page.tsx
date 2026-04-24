@@ -404,11 +404,11 @@ export default function BranchesPage() {
           variant: "destructive",
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deactivating branch:', error);
       toast({
         title: "Lỗi",
-        description: "Có lỗi xảy ra khi vô hiệu hóa chi nhánh",
+        description: error?.message || "Có lỗi xảy ra khi vô hiệu hóa chi nhánh",
         variant: "destructive",
       });
     } finally {
@@ -447,11 +447,11 @@ export default function BranchesPage() {
           variant: "destructive",
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error activating branch:', error);
       toast({
         title: "Lỗi",
-        description: "Có lỗi xảy ra khi kích hoạt chi nhánh",
+        description: error?.message || "Có lỗi xảy ra khi kích hoạt chi nhánh",
         variant: "destructive",
       });
     } finally {
@@ -901,11 +901,11 @@ export default function BranchesPage() {
           setSelectedBranch(null);
         }}
         onConfirm={handleDeactivateBranch}
-        title="Xác nhận xóa chi nhánh"
-        message={`Bạn có chắc chắn muốn xóa chi nhánh "${selectedBranch?.name}"? Hành động này không thể hoàn tác.`}
-        confirmText="Xóa"
+        title="Xác nhận vô hiệu hóa chi nhánh"
+        message={`Bạn có chắc chắn muốn vô hiệu hóa chi nhánh "${selectedBranch?.name}"? Chi nhánh sẽ tạm ngưng hoạt động cho tới khi được kích hoạt lại.`}
+        confirmText="Vô hiệu hóa"
         cancelText="Hủy"
-        variant="danger"
+        variant="warning"
         isLoading={isSubmitting}
       />
 

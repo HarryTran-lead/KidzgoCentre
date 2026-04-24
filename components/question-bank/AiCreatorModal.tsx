@@ -250,7 +250,7 @@ export default function AiCreatorModal({
     const nextErrors: Record<string, string> = {};
 
     if (!form.programId) {
-      nextErrors.programId = "Vui lòng chọn khóa học.";
+      nextErrors.programId = "Vui lòng chọn chương trình học.";
     }
 
     if (!form.topic.trim() && !sourceFile) {
@@ -294,7 +294,7 @@ export default function AiCreatorModal({
       toast({
         title: "Biểu mẫu chưa hợp lệ",
         description:
-          "Vui lòng kiểm tra lại chủ đề, khóa học và số lượng câu hỏi.",
+          "Vui lòng kiểm tra lại chủ đề, chương trình học và số lượng câu hỏi.",
         type: "destructive",
       });
       return;
@@ -414,8 +414,8 @@ export default function AiCreatorModal({
     ? "Tạo bản nháp câu hỏi để dùng ngay cho bài tập trắc nghiệm."
     : "Tạo bản nháp câu hỏi cho ngân hàng câu hỏi và lưu ngay trên hệ thống.";
   const emptyStateDescription = isAssignmentMode
-    ? "Chọn khóa học, nhập chủ đề rồi bấm tạo bản nháp. Sau đó bạn có thể xem lại nội dung và dùng ngay cho bài tập này."
-    : "Chọn khóa học, nhập chủ đề rồi bấm tạo bản nháp. Sau đó bạn có thể xem lại nội dung và lưu ngay vào ngân hàng câu hỏi.";
+    ? "Chọn chương trình học, nhập chủ đề rồi bấm tạo bản nháp. Sau đó bạn có thể xem lại nội dung và dùng ngay cho bài tập này."
+    : "Chọn chương trình học, nhập chủ đề rồi bấm tạo bản nháp. Sau đó bạn có thể xem lại nội dung và lưu ngay vào ngân hàng câu hỏi.";
   const footerDescription = isAssignmentMode
     ? "Công cụ này tạo bản nháp để thêm nhanh vào bài trắc nghiệm hiện tại."
     : "Công cụ này chỉ tạo bản nháp. Nút bên phải sẽ lưu toàn bộ vào ngân hàng câu hỏi hiện tại.";
@@ -458,11 +458,11 @@ export default function AiCreatorModal({
             <div className="space-y-3">
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-700">
-                  Khóa học
+                  Chương trình học
                 </label>
                 <Select value={form.programId} onValueChange={(value) => handleChange("programId", value)}>
                   <SelectTrigger className="w-full rounded-lg h-9">
-                    <SelectValue placeholder={loadingCourses ? "Đang tải..." : "Chọn khóa học"} />
+                    <SelectValue placeholder={loadingCourses ? "Đang tải..." : "Chọn chương trình học"} />
                   </SelectTrigger>
                   <SelectContent>
                     {courseOptions.map((course) => (

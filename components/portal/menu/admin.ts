@@ -34,7 +34,8 @@ export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
   ];
   const leads: RawItem[] = [[t.groups.leads.manageLeads, Inbox, "/leads"]];
   const learning: RawItem[] = [
-    [t.groups.learning.courses.list, GraduationCap, "/courses"],
+    [t.groups.learning.coursesSystem.list, GraduationCap, "/courses/system"],
+    [t.groups.learning.coursesBranch.list, GraduationCap, "/courses/branch"],
     [t.groups.learning.tuitionPlans.list, GraduationCap, "/tuition-plans"],
     [t.groups.learning.registrations.list, UserCheck, "/registrations"],
     [t.groups.learning.classes.list, BookOpen, "/classes"],
@@ -43,7 +44,6 @@ export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     [t.groups.ops.rooms, Building2, "/rooms"],
     [t.groups.ops.schedule, CalendarRange, "/schedule"],
     [t.groups.ops.pauseEnrollments, CalendarClock, "/pause-enrollments"],
-    [t.groups.ops.extracurricular, CalendarClock, "/extracurricular"],
     [t.groups.ops.documents, FileText, "/documents"],
     [t.groups.ops.teachingMaterials, Folder, "/materials"],
     [t.groups.ops.media, Image, "/media"],

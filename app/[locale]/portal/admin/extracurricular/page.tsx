@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
 import {
   Tent,
   Users,
@@ -167,13 +168,22 @@ function ProgramCard({ program }: { program: Program }) {
 }
 
 export default function ExtracurricularPage() {
+  const router = useRouter();
+  const params = useParams<{ locale: string }>();
   const [filter, setFilter] = useState<ProgramType | "ALL">("ALL");
   const [search, setSearch] = useState("");
   const [isPageLoaded, setIsPageLoaded] = useState(false);
 
   useEffect(() => {
+    const locale = typeof params?.locale === "string" ? params.locale : "vi";
+    router.replace(`/${locale}/portal/admin/courses`);
+  }, [params, router]);
+
+  useEffect(() => {
     setIsPageLoaded(true);
   }, []);
+
+  return null;
 
   const list = useMemo(() => {
     let result = PROGRAMS;

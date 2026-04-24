@@ -5,6 +5,7 @@
 
 import { getAccessToken } from "@/lib/store/authToken";
 import { ADMIN_ENDPOINTS } from "@/constants/apiURL";
+import { mapApiErrorToMessage } from "@/lib/api/errorMapper";
 import type { Room, Status, CreateRoomRequest, CreateRoomResponse } from "@/types/admin/rooms";
 
 function mapApiRoom(item: any, index: number): Room {
@@ -277,11 +278,12 @@ export async function toggleRoomStatus(roomId: string): Promise<{ isSuccess: boo
   }
 
   if (!res.ok) {
-    const msg =
-      json?.message ||
-      json?.error ||
-      (typeof text === "string" && text.trim() ? text : null) ||
-      "Không thể thay đổi trạng thái phòng học từ máy chủ.";
+    const msg = mapApiErrorToMessage(
+      json,
+      res.status,
+      "Không thể thay đổi trạng thái phòng học từ máy chủ.",
+      text
+    );
     throw new Error(msg);
   }
 

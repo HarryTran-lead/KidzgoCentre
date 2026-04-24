@@ -5,11 +5,13 @@
 
 import { getAccessToken } from "@/lib/store/authToken";
 import { ADMIN_ENDPOINTS } from "@/constants/apiURL";
+import { mapApiErrorToMessage } from "@/lib/api/errorMapper";
 import type {
   CourseRow,
   CreateProgramRequest,
   Program,
   ProgramDetail,
+  AssignBranchResponse,
   UpdateProgramMonthlyLeaveLimitResponse,
 } from "@/types/admin/programs";
 
@@ -92,6 +94,7 @@ function extractApiErrorMessage(json: any, text: string, fallback: string): stri
   const firstError = Array.isArray(json?.errors) ? json.errors[0] : null;
   const code =
     firstError?.code ??
+    json?.title ??
     json?.code ??
     json?.errorCode ??
     json?.error?.code ??
@@ -107,6 +110,14 @@ function extractApiErrorMessage(json: any, text: string, fallback: string): stri
 
   if (code === "Program.NotFound") {
     return message || "Không tìm thấy chương trình học cần cấu hình.";
+  }
+
+  if (code === "Program.AlreadyAssignedToBranch") {
+    return "Chương trình này đã được gán cho chi nhánh đã chọn.";
+  }
+
+  if (code === "Program.BranchNotFound") {
+    return "Không tìm thấy chi nhánh hoặc chi nhánh đang ngưng hoạt động.";
   }
 
   if (code === "ProgramLeavePolicy.InvalidMaxLeavesPerMonth") {
@@ -169,7 +180,8 @@ function mapApiProgramToRow(item: any): CourseRow {
   const active = normalizeIsActive(item?.isActive ?? item?.status ?? item?.active);
   if (active === true) status = "Đang hoạt động";
 
-  const branch = item?.branchName ?? item?.branch?.name ?? item?.branch ?? "";
+  const assignedBranchCount =
+    typeof item?.assignedBranchCount === "number" ? item.assignedBranchCount : 0;
 
   return {
     id,
@@ -180,7 +192,7 @@ function mapApiProgramToRow(item: any): CourseRow {
     classes,
     students,
     status,
-    branch,
+    assignedBranchCount,
     isMakeup: normalizeBooleanFlag(item?.isMakeup),
     isSupplementary: normalizeBooleanFlag(item?.isSupplementary),
   };
@@ -189,7 +201,7 @@ function mapApiProgramToRow(item: any): CourseRow {
 export async function fetchAdminPrograms(options?: { branchId?: string }): Promise<CourseRow[]> {
   const token = getAccessToken();
   if (!token) {
-    throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập để xem danh sách khóa học.");
+    throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập để xem danh sách chương trình học.");
   }
 
   const params = new URLSearchParams({
@@ -211,7 +223,7 @@ export async function fetchAdminPrograms(options?: { branchId?: string }): Promi
   if (!res.ok) {
     const text = await res.text();
     console.error("Fetch admin programs error:", res.status, text);
-    throw new Error("Không thể tải danh sách khóa học từ máy chủ.");
+    throw new Error("Không thể tải danh sách chương trình học từ máy chủ.");
   }
 
   const json: any = await res.json();
@@ -235,7 +247,7 @@ export async function createAdminProgram(
 ): Promise<Program> {
   const token = getAccessToken();
   if (!token) {
-    throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại để tạo khóa học.");
+    throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại để tạo chương trình học.");
   }
 
   console.log("Creating program with payload:", payload);
@@ -270,7 +282,7 @@ export async function createAdminProgram(
       json?.error ||
       json?.detail ||
       (typeof text === "string" && text.trim() ? text : null) ||
-      "Không thể tạo khóa học từ máy chủ.";
+      "Không thể tạo chương trình học từ máy chủ.";
     throw new Error(msg);
   }
 
@@ -297,7 +309,7 @@ export async function createAdminProgram(
         ? data.unitPriceSession
         : null,
     description: data?.description ?? null,
-    branchId: data?.branchId ?? payload.branchId ?? null,
+    branchId: data?.branchId ?? null,
     isActive: normalizeIsActive(data?.isActive ?? data?.status) ?? true,
     defaultMakeupClassId:
       (typeof data?.defaultMakeupClassId === "string" && data.defaultMakeupClassId.trim()) ||
@@ -314,7 +326,7 @@ export async function createAdminProgram(
 export async function fetchAdminProgramDetail(programId: string): Promise<ProgramDetail> {
   const token = getAccessToken();
   if (!token) {
-    throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại để xem chi tiết khóa học.");
+    throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại để xem chi tiết chương trình học.");
   }
 
   const res = await fetch(`${ADMIN_ENDPOINTS.PROGRAMS}/${programId}`, {
@@ -325,7 +337,7 @@ export async function fetchAdminProgramDetail(programId: string): Promise<Progra
 
   if (!res.ok) {
     const text = await res.text();
-    let errorMessage = "Không thể tải chi tiết khóa học từ máy chủ.";
+    let errorMessage = "Không thể tải chi tiết chương trình học từ máy chủ.";
     try {
       const errorJson = JSON.parse(text);
       errorMessage = errorJson?.detail || errorJson?.message || errorMessage;
@@ -369,7 +381,7 @@ export async function updateAdminProgram(
 ): Promise<Program> {
   const token = getAccessToken();
   if (!token) {
-    throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại để cập nhật khóa học.");
+    throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại để cập nhật chương trình học.");
   }
 
   const res = await fetch(`${ADMIN_ENDPOINTS.PROGRAMS}/${programId}`, {
@@ -394,7 +406,7 @@ export async function updateAdminProgram(
       json?.message ||
       json?.error ||
       (typeof text === "string" && text.trim() ? text : null) ||
-      "Không thể cập nhật khóa học từ máy chủ.";
+      "Không thể cập nhật chương trình học từ máy chủ.";
     throw new Error(msg);
   }
 
@@ -419,7 +431,7 @@ export async function updateAdminProgram(
         ? data.unitPriceSession
         : null,
     description: data?.description ?? null,
-    branchId: data?.branchId ?? payload.branchId ?? null,
+    branchId: data?.branchId ?? null,
     isActive: normalizeIsActive(data?.isActive ?? data?.status),
     defaultMakeupClassId:
       (typeof data?.defaultMakeupClassId === "string" && data.defaultMakeupClassId.trim()) ||
@@ -436,7 +448,7 @@ export async function updateAdminProgram(
 export async function toggleProgramStatus(programId: string): Promise<{ isSuccess: boolean; data: { id: string; isActive: boolean } }> {
   const token = getAccessToken();
   if (!token) {
-    throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại để thay đổi trạng thái khóa học.");
+    throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại để thay đổi trạng thái chương trình học.");
   }
 
   const res = await fetch(`${ADMIN_ENDPOINTS.PROGRAMS}/${programId}/toggle-status`, {
@@ -455,11 +467,12 @@ export async function toggleProgramStatus(programId: string): Promise<{ isSucces
   }
 
   if (!res.ok) {
-    const msg =
-      json?.message ||
-      json?.error ||
-      (typeof text === "string" && text.trim() ? text : null) ||
-      "Không thể thay đổi trạng thái khóa học từ máy chủ.";
+    const msg = mapApiErrorToMessage(
+      json,
+      res.status,
+      "Không thể thay đổi trạng thái chương trình học từ máy chủ.",
+      text
+    );
     throw new Error(msg);
   }
 
@@ -512,5 +525,52 @@ export async function updateAdminProgramMonthlyLeaveLimit(
     programId: String(data?.programId ?? data?.id ?? programId),
     maxLeavesPerMonth: resolvedLimit ?? maxLeavesPerMonth,
     raw: data,
+  };
+}
+
+export async function assignBranchToProgram(
+  programId: string,
+  branchId: string
+): Promise<AssignBranchResponse> {
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại để gán chi nhánh.");
+  }
+
+  const res = await fetch(ADMIN_ENDPOINTS.PROGRAMS_ASSIGN_BRANCH(programId, branchId), {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const text = await res.text();
+  let json: any = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    json = null;
+  }
+
+  if (!res.ok) {
+    const msg = extractApiErrorMessage(
+      json,
+      text,
+      "Không thể gán chi nhánh vào chương trình."
+    );
+    throw new Error(msg);
+  }
+
+  const data = json?.data ?? json;
+  return {
+    id: String(data?.id ?? ""),
+    programId: String(data?.programId ?? programId),
+    programName: data?.programName ?? null,
+    branchId: String(data?.branchId ?? branchId),
+    branchName: data?.branchName ?? null,
+    isActive: normalizeIsActive(data?.isActive) ?? true,
+    defaultMakeupClassId:
+      (typeof data?.defaultMakeupClassId === "string" && data.defaultMakeupClassId.trim()) ||
+      null,
   };
 }

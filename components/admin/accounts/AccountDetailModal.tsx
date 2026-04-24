@@ -257,12 +257,12 @@ export default function AccountDetailModal({ isOpen, onClose, account }: Account
                       {account.isOnline ? <CheckCircle size={12} /> : <AlertCircle size={12} />}
                       {account.isOnline ? "Đang online" : "Đang offline"}
                     </span>
-                    <span className="text-xs text-gray-500">isOnline: {account.isOnline ? "true" : "false"}</span>
+                      <span className="text-xs text-gray-500">Kết nối thời gian thực: {account.isOnline ? "Có" : "Không"}</span>
                   </div>
                   <div className="mt-2 space-y-1 text-xs text-gray-600">
-                    <p>lastLoginAt: {account.lastLoginAt ? formatDate(account.lastLoginAt) : "Chưa đăng nhập"}</p>
-                    <p>lastSeenAt: {account.lastSeenAt ? formatDate(account.lastSeenAt) : "Chưa cập nhật"}</p>
-                    <p>offlineDurationSeconds: {formatOfflineDuration(account.offlineDurationSeconds)}</p>
+                      <p>Lần đăng nhập gần nhất: {account.lastLoginAt ? formatDate(account.lastLoginAt) : "Chưa đăng nhập"}</p>
+                      <p>Lần hoạt động gần nhất: {account.lastSeenAt ? formatDate(account.lastSeenAt) : "Chưa cập nhật"}</p>
+                      <p>Thời gian ngoại tuyến: {formatOfflineDuration(account.offlineDurationSeconds)}</p>
                   </div>
                 </div>
               </div>

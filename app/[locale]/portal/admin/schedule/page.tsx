@@ -2069,7 +2069,7 @@ export default function AdminSchedulePage() {
           </div>
           <p className="text-sm text-gray-700">
             • Các buổi bù sẽ được tổng hợp và gửi báo cáo cuối tháng cho bộ phận tài chính<br />
-            • Nhấn vào biểu tượng <Palette size={12} className="inline ml-1" /> để đổi màu phân biệt các khóa học<br />
+            • Nhấn vào biểu tượng <Palette size={12} className="inline ml-1" /> để đổi màu phân biệt các chương trình học<br />
             • Lịch học có thể xuất file Excel/PDF bằng nút "Xuất lịch"
           </p>
         </div> */}

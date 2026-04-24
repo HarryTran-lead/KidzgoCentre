@@ -7,13 +7,12 @@ export type CourseRow = {
   classes: string;
   students: string;
   status: string;
-  branch?: string;
+  assignedBranchCount?: number;
   isMakeup?: boolean | null;
   isSupplementary?: boolean | null;
 };
 
 export interface CreateProgramRequest {
-  branchId: string;
   name: string;
   code: string;
   isMakeup: boolean;
@@ -46,10 +45,29 @@ export interface ProgramDetail extends Program {
     id?: string | null;
     name?: string | null;
   } | null;
+  branchAssignments?: BranchAssignment[] | null;
+  assignedBranchCount?: number | null;
   maxLeavesPerMonth?: number | null;
   monthlyLeaveLimit?: number | null;
   leavePolicy?: ProgramLeavePolicy | null;
   programLeavePolicy?: ProgramLeavePolicy | null;
+}
+
+export interface BranchAssignment {
+  branchId: string;
+  branchName?: string | null;
+  isActive?: boolean | null;
+  defaultMakeupClassId?: string | null;
+}
+
+export interface AssignBranchResponse {
+  id: string;
+  programId: string;
+  programName?: string | null;
+  branchId: string;
+  branchName?: string | null;
+  isActive?: boolean | null;
+  defaultMakeupClassId?: string | null;
 }
 
 export interface UpdateProgramMonthlyLeaveLimitRequest {

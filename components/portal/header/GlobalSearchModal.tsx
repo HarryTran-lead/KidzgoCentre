@@ -91,13 +91,13 @@ const ADMIN_NAV: NavItemDef[] = [
     descEn: "Class management",
   },
   {
-    labelVi: "Khóa học / Chương trình",
-    labelEn: "Courses / Programs",
+    labelVi: "Chương trình học",
+    labelEn: "Programs",
     keywords: ["khóa học", "khoa hoc", "course", "chuong trinh", "chương trình", "program"],
     path: "/courses",
     icon: <BookOpen className="w-4 h-4" />,
-    descVi: "Quản lý khóa học và chương trình",
-    descEn: "Course & program management",
+    descVi: "Quản lý chương trình học",
+    descEn: "Program management",
   },
   {
     labelVi: "Tuyển sinh / Leads",

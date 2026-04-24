@@ -11,7 +11,9 @@ export const menuAdmin = {
       },
       learning: {
         title: "Học tập",
-        courses: { list: "Danh sách khóa học" },
+        courses: { list: "Danh sách chương trình học" },
+        coursesSystem: { list: "Chương trình toàn hệ thống" },
+        coursesBranch: { list: "Chương trình theo chi nhánh" },
         tuitionPlans: { list: "Danh sách gói học" },
         registrations: { list: "Danh sách đăng ký lớp" },
         classes: { list: "Danh sách lớp học" },
@@ -64,7 +66,9 @@ export const menuAdmin = {
       },
       learning: {
         title: "Learning",
-        courses: { list: "Courses" },
+        courses: { list: "Programs" },
+        coursesSystem: { list: "System Programs" },
+        coursesBranch: { list: "Branch Programs" },
         tuitionPlans: { list: "Tuition Plans" },
         registrations: { list: "Registrations" },
         classes: { list: "Classes" },

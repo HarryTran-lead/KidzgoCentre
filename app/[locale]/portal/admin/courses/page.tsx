@@ -7,7 +7,6 @@ import {
   BookOpen,
   GraduationCap,
   Users,
-  DollarSign,
   Eye,
   Pencil,
   Clock,
@@ -21,7 +20,9 @@ import {
   FileText,
   Building2,
   Power,
-  PowerOff
+  PowerOff,
+  GitBranch,
+  CheckCircle2,
 } from "lucide-react";
 import {
   fetchAdminPrograms,
@@ -32,6 +33,7 @@ import {
   normalizeIsActive,
   updateAdminProgramMonthlyLeaveLimit,
   extractProgramMonthlyLeaveLimit,
+  assignBranchToProgram,
 } from "@/app/api/admin/programs";
 import type { CourseRow, CreateProgramRequest, ProgramDetail } from "@/types/admin/programs";
 import { getAllBranches } from "@/lib/api/branchService";
@@ -154,7 +156,6 @@ interface CourseFormData {
   status: string;
   isMakeup: boolean;
   isSupplementary: boolean;
-  branchId: string;
   maxLeavesPerMonth?: number | null;
 }
 
@@ -164,15 +165,12 @@ const initialFormData: CourseFormData = {
   status: "Đang hoạt động",
   isMakeup: false,
   isSupplementary: false,
-  branchId: "",
   maxLeavesPerMonth: null,
 };
 
 function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initialData, t }: CreateCourseModalProps) {
   const [formData, setFormData] = useState<CourseFormData>(initialFormData);
   const [errors, setErrors] = useState<Partial<Record<keyof CourseFormData, string>>>({});
-  const [branchOptions, setBranchOptions] = useState<Array<{ id: string; name: string }>>([]);
-  const [loadingBranches, setLoadingBranches] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -204,33 +202,13 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
         setFormData(initialFormData);
       }
       setErrors({});
-      loadBranches();
     }
   }, [isOpen, mode, initialData]);
-
-  const loadBranches = async () => {
-    try {
-      setLoadingBranches(true);
-      const res = await getAllBranches({ page: 1, limit: 100 });
-      const items = res?.data?.branches ?? res?.data ?? [];
-      setBranchOptions(
-        items.map((b: any) => ({
-          id: String(b?.id ?? ""),
-          name: String(b?.name ?? b?.code ?? "Chi nhánh"),
-        })).filter((b: { id: string }) => b.id)
-      );
-    } catch (err) {
-      console.error("Failed to load branches:", err);
-    } finally {
-      setLoadingBranches(false);
-    }
-  };
 
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof CourseFormData, string>> = {};
 
     if (!formData.name.trim()) newErrors.name = t.validation.nameRequired;
-    if (!formData.branchId) newErrors.branchId = t.validation.selectBranch;
     if (formData.isMakeup && formData.isSupplementary) {
       newErrors.isSupplementary = t.validation.cannotBothTypes;
     }
@@ -301,43 +279,15 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
 
         {/* Modal Body */}
         <div className="p-6 max-h-[75vh] overflow-y-auto">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Row 0: Chi nhánh */}
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                <Building2 size={16} className="text-red-600" />
-                {t.modal.branchRequired}
-              </label>
-              <div className="relative">
-                <Select 
-                  value={formData.branchId} 
-                  onValueChange={(val) => handleChange("branchId", val)}
-                  disabled={loadingBranches}
-                >
-                  <SelectTrigger className={cn(
-                    "w-full rounded-xl border bg-white text-sm text-gray-900 transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200",
-                    errors.branchId ? "border-red-500" : "border-gray-200",
-                    loadingBranches ? "opacity-50 cursor-not-allowed" : ""
-                  )}>
-                    <SelectValue placeholder={t.modal.selectBranchPlaceholder} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {branchOptions.map((b) => (
-                      <SelectItem key={b.id} value={b.id}>
-                        {b.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.branchId && (
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                    <AlertCircle size={18} className="text-red-500" />
-                  </div>
-                )}
-              </div>
-              {errors.branchId && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.branchId}</p>}
+          {mode === "create" && (
+            <div className="mb-5 flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
+              <Building2 size={16} className="mt-0.5 shrink-0 text-blue-600" />
+              <p className="text-sm text-blue-800">
+                Chương trình là tài nguyên <strong>dùng chung toàn hệ thống</strong>. Sau khi tạo, dùng nút <strong>Gán chi nhánh</strong> để liên kết với các chi nhánh cần thiết.
+              </p>
             </div>
-
+          )}
+          <form onSubmit={handleSubmit} className="space-y-6">
             {/* Row 1: Tên khóa */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
@@ -491,8 +441,349 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
   );
 }
 
+/* ------------------------------ ASSIGN BRANCH MODAL ------------------------------ */
+interface AssignBranchModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (branchId: string) => Promise<boolean>;
+  programName: string;
+  t: ReturnType<typeof usePageI18n>["messages"]["adminPages"]["courses"];
+}
+
+function AssignBranchModal({ isOpen, onClose, onSubmit, programName, t }: AssignBranchModalProps) {
+  const [selectedBranchId, setSelectedBranchId] = useState("");
+  const [branchOptions, setBranchOptions] = useState<Array<{ id: string; name: string }>>([]);
+  const [loadingBranches, setLoadingBranches] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (submitting) return;
+      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.body.style.overflow = "hidden";
+      setSelectedBranchId("");
+      setError(null);
+      loadBranches();
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.body.style.overflow = "unset";
+    };
+  }, [isOpen, onClose, submitting]);
+
+  const loadBranches = async () => {
+    try {
+      setLoadingBranches(true);
+      const res = await getAllBranches({ page: 1, limit: 100 });
+      const items = res?.data?.branches ?? res?.data ?? [];
+      setBranchOptions(
+        items
+          .map((b: any) => ({ id: String(b?.id ?? ""), name: String(b?.name ?? b?.code ?? "Chi nhánh") }))
+          .filter((b: { id: string }) => b.id)
+      );
+    } catch {
+      setBranchOptions([]);
+    } finally {
+      setLoadingBranches(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!selectedBranchId) {
+      setError(t.validation.selectBranchForAssign);
+      return;
+    }
+    setSubmitting(true);
+    const ok = await onSubmit(selectedBranchId);
+    setSubmitting(false);
+    if (ok) onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div
+        ref={modalRef}
+        className="relative w-full max-w-md bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden"
+      >
+        {/* Header */}
+        <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
+                <GitBranch size={22} className="text-white" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">{t.modal.assignBranchTitle}</h2>
+                <p className="text-xs text-blue-100 mt-0.5 truncate max-w-[220px]">{programName}</p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              disabled={submitting}
+              className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer disabled:opacity-60"
+            >
+              <X size={22} className="text-white" />
+            </button>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="p-6 space-y-5">
+          <div className="flex items-start gap-3 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+            <Building2 size={15} className="mt-0.5 shrink-0 text-blue-600" />
+            <p className="text-sm text-blue-800">{t.modal.assignBranchSubtitle}</p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+              <Building2 size={15} className="text-blue-600" />
+              {t.modal.assignBranchLabel}
+            </label>
+            <Select
+              value={selectedBranchId}
+              onValueChange={(val) => { setSelectedBranchId(val); setError(null); }}
+              disabled={loadingBranches}
+            >
+              <SelectTrigger className={cn(
+                "w-full rounded-xl border bg-white text-sm text-gray-900 transition-all hover:border-blue-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-200",
+                error ? "border-red-500" : "border-gray-200",
+                loadingBranches ? "opacity-50 cursor-not-allowed" : ""
+              )}>
+                <SelectValue placeholder={t.modal.selectBranchPlaceholder} />
+              </SelectTrigger>
+              <SelectContent>
+                {branchOptions.map((b) => (
+                  <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {error && (
+              <p className="text-sm text-red-600 flex items-center gap-1">
+                <AlertCircle size={13} /> {error}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="border-t border-gray-200 bg-gray-50 px-6 py-4 flex items-center justify-end gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={submitting}
+            className="px-5 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-100 transition-colors cursor-pointer disabled:opacity-60"
+          >
+            {t.buttons.cancel}
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={submitting || !selectedBranchId}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold hover:shadow-lg hover:shadow-blue-500/25 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {submitting ? (
+              <><div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />{t.messages.saving}</>
+            ) : (
+              <><CheckCircle2 size={16} />{t.buttons.assignBranch}</>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface AddExistingProgramModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (programId: string) => Promise<boolean>;
+  currentBranchId: string;
+}
+
+function AddExistingProgramModal({ isOpen, onClose, onSubmit, currentBranchId }: AddExistingProgramModalProps) {
+  const [allPrograms, setAllPrograms] = useState<CourseRow[]>([]);
+  const [branchPrograms, setBranchPrograms] = useState<CourseRow[]>([]);
+  const [selectedProgramId, setSelectedProgramId] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (submitting) return;
+      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.body.style.overflow = "hidden";
+      setSelectedProgramId("");
+      setError(null);
+      loadPrograms();
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.body.style.overflow = "unset";
+    };
+  }, [isOpen, onClose, submitting]);
+
+  const loadPrograms = async () => {
+    try {
+      setLoading(true);
+      const [systemPrograms, currentBranchPrograms] = await Promise.all([
+        fetchAdminPrograms(),
+        fetchAdminPrograms({ branchId: currentBranchId }),
+      ]);
+      setAllPrograms(systemPrograms);
+      setBranchPrograms(currentBranchPrograms);
+    } catch {
+      setAllPrograms([]);
+      setBranchPrograms([]);
+      setError("Không thể tải danh sách chương trình.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const unassignedPrograms = useMemo(() => {
+    const assignedIds = new Set(branchPrograms.map((p) => p.id));
+    return allPrograms.filter((p) => !assignedIds.has(p.id));
+  }, [allPrograms, branchPrograms]);
+
+  const handleSubmit = async () => {
+    if (!selectedProgramId) {
+      setError("Vui lòng chọn chương trình cần thêm.");
+      return;
+    }
+    setSubmitting(true);
+    const ok = await onSubmit(selectedProgramId);
+    setSubmitting(false);
+    if (ok) onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div
+        ref={modalRef}
+        className="relative w-full max-w-lg bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden"
+      >
+        <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
+                <Plus size={20} className="text-white" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">Thêm chương trình có sẵn</h2>
+                <p className="text-xs text-emerald-100 mt-0.5">Chỉ hiển thị chương trình chưa có ở chi nhánh hiện tại</p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              disabled={submitting}
+              className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer disabled:opacity-60"
+            >
+              <X size={20} className="text-white" />
+            </button>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div className="flex items-start gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            <CheckCircle2 size={14} className="mt-0.5 shrink-0" />
+            Chọn một chương trình sẵn có để gán vào chi nhánh đang chọn.
+          </div>
+
+          {loading ? (
+            <div className="py-8 text-center text-sm text-gray-500">Đang tải dữ liệu...</div>
+          ) : (
+            <>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-gray-700">Chương trình</label>
+                <Select
+                  value={selectedProgramId}
+                  onValueChange={(val) => {
+                    setSelectedProgramId(val);
+                    setError(null);
+                  }}
+                >
+                  <SelectTrigger className={cn(
+                    "w-full rounded-xl border bg-white text-sm text-gray-900",
+                    error ? "border-red-500" : "border-gray-200"
+                  )}>
+                    <SelectValue placeholder="Chọn chương trình có sẵn" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {unassignedPrograms.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {unassignedPrograms.length === 0 && (
+                <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-4 text-sm text-gray-500">
+                  Chi nhánh này đã có tất cả chương trình hiện có trong hệ thống.
+                </div>
+              )}
+            </>
+          )}
+
+          {error && (
+            <p className="text-sm text-red-600 flex items-center gap-1">
+              <AlertCircle size={13} /> {error}
+            </p>
+          )}
+        </div>
+
+        <div className="border-t border-gray-200 bg-gray-50 px-6 py-4 flex items-center justify-end gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={submitting}
+            className="px-5 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-100 transition-colors cursor-pointer disabled:opacity-60"
+          >
+            Hủy
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={submitting || !selectedProgramId || loading}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold hover:shadow-lg transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {submitting ? "Đang thêm..." : "Thêm vào chi nhánh"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ------------------------------ page ------------------------------- */
-export default function Page() {
+interface ProgramsManagementPageProps {
+  forcedViewMode?: "system" | "branch";
+  hideViewModeSwitch?: boolean;
+}
+
+export function ProgramsManagementPage({
+  forcedViewMode,
+  hideViewModeSwitch = false,
+}: ProgramsManagementPageProps) {
   const { toast } = useToast();
   const { selectedBranchId, isLoaded, getBranchQueryParam } = useBranchFilter();
   const { messages } = usePageI18n();
@@ -519,6 +810,18 @@ export default function Page() {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [leaveLimitDraft, setLeaveLimitDraft] = useState("");
   const [isSavingLeaveLimit, setIsSavingLeaveLimit] = useState(false);
+  const [showAssignBranchModal, setShowAssignBranchModal] = useState(false);
+  const [assignBranchTargetId, setAssignBranchTargetId] = useState<string | null>(null);
+  const [assignBranchTargetName, setAssignBranchTargetName] = useState<string>("");
+  const [showAddExistingModal, setShowAddExistingModal] = useState(false);
+  const [viewMode, setViewMode] = useState<"system" | "branch">(forcedViewMode ?? "system");
+  const activeViewMode = forcedViewMode ?? viewMode;
+
+  useEffect(() => {
+    if (forcedViewMode) {
+      setViewMode(forcedViewMode);
+    }
+  }, [forcedViewMode]);
 
   const closeDetailModal = () => {
     setShowDetailModal(false);
@@ -531,9 +834,10 @@ export default function Page() {
     setIsPageLoaded(true);
   }, []);
 
-  // Fetch programs with branch filter
+  const currentBranchId = getBranchQueryParam();
+
+  // Fetch programs with view mode
   useEffect(() => {
-    // Wait for localStorage to be loaded
     if (!isLoaded) return;
 
     async function fetchPrograms() {
@@ -541,15 +845,21 @@ export default function Page() {
         setLoading(true);
         setError(null);
 
-        const branchId = getBranchQueryParam();
-        console.log("📚 Fetching programs for branch:", branchId || "All branches");
+        const branchId = activeViewMode === "branch" ? currentBranchId : undefined;
+        if (activeViewMode === "branch" && !branchId) {
+          setCourses([]);
+          setError("Hãy chọn chi nhánh ở bộ lọc trên cùng để xem danh sách chương trình của chi nhánh.");
+          return;
+        }
+
+        console.log("📚 Fetching programs for view:", activeViewMode, branchId || "all");
 
         const mapped = await fetchAdminPrograms({ branchId });
         setCourses(mapped);
         console.log("✅ Loaded", mapped.length, "programs");
       } catch (err) {
         console.error("Unexpected error when fetching admin programs:", err);
-        setError((err as Error)?.message || "Đã xảy ra lỗi khi tải danh sách khóa học.");
+        setError((err as Error)?.message || "Đã xảy ra lỗi khi tải danh sách chương trình học.");
         setCourses([]);
       } finally {
         setLoading(false);
@@ -557,22 +867,18 @@ export default function Page() {
     }
 
     fetchPrograms();
-
-    // Reset page về 1 khi branch thay đổi
     setPage(1);
-  }, [selectedBranchId, isLoaded]); // Chỉ depend vào selectedBranchId và isLoaded
+  }, [selectedBranchId, isLoaded, activeViewMode, currentBranchId]);
 
   const stats = useMemo(() => {
     const total = courses.length;
     const active = courses.filter(c => c.status === "Đang hoạt động").length;
     const students = 0;
-    const revenue = "0";
 
     return {
       total,
       active,
       students,
-      revenue,
     };
   }, [courses]);
 
@@ -581,7 +887,7 @@ export default function Page() {
     let filtered = !kw
       ? courses
       : courses.filter((c) =>
-        [c.id, c.name, c.desc, c.fee, c.branch].some((x) => x?.toLowerCase().includes(kw))
+        [c.id, c.name, c.desc, c.fee].some((x) => x?.toLowerCase().includes(kw))
       );
 
     if (statusFilter !== "ALL") {
@@ -595,7 +901,7 @@ export default function Page() {
             case "id": return c.id;
             case "name": return c.name;
             case "status": return c.status;
-            case "branch": return c.branch ?? "";
+            case "branch": return String(c.assignedBranchCount ?? 0);
           }
         };
         const av = getVal(a);
@@ -636,15 +942,6 @@ export default function Page() {
 
   const handleCreateCourse = async (data: CourseFormData): Promise<boolean> => {
     try {
-      if (!data.branchId) {
-        toast({
-          title: t.validation.missingInfo,
-          description: t.validation.selectBranch,
-          type: "warning",
-        });
-        return false;
-      }
-
       if (data.isMakeup && data.isSupplementary) {
         toast({
           title: t.messages.error,
@@ -656,7 +953,6 @@ export default function Page() {
 
       const code = data.code?.trim() || buildProgramCode(data.name);
       const payload: CreateProgramRequest = {
-        branchId: data.branchId,
         name: data.name,
         code,
         isMakeup: data.isMakeup,
@@ -678,7 +974,7 @@ export default function Page() {
       }
 
       try {
-        const branchId = getBranchQueryParam();
+        const branchId = activeViewMode === "branch" ? currentBranchId : undefined;
         const mapped = await fetchAdminPrograms({ branchId });
         setCourses(mapped);
       } catch (refreshError) {
@@ -711,15 +1007,6 @@ export default function Page() {
     if (!editingProgramId) return false;
 
     try {
-      if (!data.branchId) {
-        toast({
-          title: t.validation.missingInfo,
-          description: t.validation.selectBranch,
-          type: "warning",
-        });
-        return false;
-      }
-
       if (data.isMakeup && data.isSupplementary) {
         toast({
           title: t.messages.error,
@@ -731,7 +1018,6 @@ export default function Page() {
 
       const code = data.code?.trim() || buildProgramCode(data.name);
       const payload: CreateProgramRequest = {
-        branchId: data.branchId,
         name: data.name,
         code,
         isMakeup: data.isMakeup,
@@ -762,7 +1048,7 @@ export default function Page() {
       }
 
       try {
-        const branchId = getBranchQueryParam();
+        const branchId = activeViewMode === "branch" ? currentBranchId : undefined;
         const mapped = await fetchAdminPrograms({ branchId });
         setCourses(mapped);
       } catch (refreshError) {
@@ -791,8 +1077,61 @@ export default function Page() {
     }
   };
 
-  const handleToggleStatus = (row: CourseRow) => {
-    setSelectedCourse(row);
+  const handleAssignBranch = async (branchId: string): Promise<boolean> => {
+    if (!assignBranchTargetId) return false;
+    try {
+      await assignBranchToProgram(assignBranchTargetId, branchId);
+      const mapped = await fetchAdminPrograms({
+        branchId: activeViewMode === "branch" ? currentBranchId : undefined,
+      });
+      setCourses(mapped);
+      toast({
+        title: t.messages.assignBranchSuccess,
+        description: `Đã gán chi nhánh vào chương trình "${assignBranchTargetName}" thành công!`,
+        type: "success",
+      });
+      return true;
+    } catch (err: any) {
+      toast({
+        title: t.messages.error,
+        description: err?.message || t.messages.assignBranchFailed,
+        type: "destructive",
+      });
+      return false;
+    }
+  };
+
+  const handleAddExistingToCurrentBranch = async (programId: string): Promise<boolean> => {
+    if (!currentBranchId) {
+      toast({
+        title: t.messages.error,
+        description: "Vui lòng chọn chi nhánh hiện tại trước khi thêm chương trình.",
+        type: "warning",
+      });
+      return false;
+    }
+
+    try {
+      await assignBranchToProgram(programId, currentBranchId);
+      const mapped = await fetchAdminPrograms({ branchId: currentBranchId });
+      setCourses(mapped);
+      toast({
+        title: "Đã thêm thành công",
+        description: "Chương trình đã được thêm vào chi nhánh hiện tại.",
+        type: "success",
+      });
+      return true;
+    } catch (err: any) {
+      toast({
+        title: t.messages.error,
+        description: err?.message || "Không thể thêm chương trình vào chi nhánh hiện tại.",
+        type: "destructive",
+      });
+      return false;
+    }
+  };
+
+  const handleToggleStatus = (row: CourseRow) => {    setSelectedCourse(row);
     setShowToggleStatusModal(true);
   };
 
@@ -811,7 +1150,6 @@ export default function Page() {
         code: String(detail.code ?? ""),
         name: String(detail.name ?? row.name),
         status: nextStatus,
-        branchId: String(detail.branchId ?? detail.branch?.id ?? ""),
         isMakeup: typeof detail.isMakeup === "boolean" ? detail.isMakeup : !!row.isMakeup,
         isSupplementary:
           typeof detail.isSupplementary === "boolean"
@@ -940,7 +1278,7 @@ export default function Page() {
 
       toast({
         title: t.messages.success,
-        description: `Đã ${actionText} khóa học "${selectedCourse.name}" thành công!`,
+        description: `Đã ${actionText} chương trình học "${selectedCourse.name}" thành công!`,
         type: "success",
       });
 
@@ -974,17 +1312,58 @@ export default function Page() {
               <p className="text-sm text-gray-600">{t.header.subtitle}</p>
             </div>
           </div>
-          <button
-            onClick={() => setIsCreateModalOpen(true)}
-            type="button"
-            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:shadow-lg text-white font-semibold cursor-pointer transition-all hover:scale-105 active:scale-95"
-          >
-            <Plus size={18} /> {t.buttons.create}
-          </button>
+          <div className="flex items-center gap-2">
+            {activeViewMode === "branch" ? (
+              <button
+                onClick={() => setShowAddExistingModal(true)}
+                type="button"
+                className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:shadow-lg text-white font-semibold cursor-pointer transition-all hover:scale-105 active:scale-95"
+              >
+                <Plus size={18} /> Thêm chương trình có sẵn
+              </button>
+            ) : (
+              <button
+                onClick={() => setIsCreateModalOpen(true)}
+                type="button"
+                className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:shadow-lg text-white font-semibold cursor-pointer transition-all hover:scale-105 active:scale-95"
+              >
+                <Plus size={18} /> {t.buttons.create}
+              </button>
+            )}
+          </div>
         </div>
 
+        {!hideViewModeSwitch && (
+          <div className="rounded-2xl border border-gray-200 bg-white p-2 inline-flex gap-2 w-fit">
+            <button
+              type="button"
+              onClick={() => setViewMode("system")}
+              className={cn(
+                "px-4 py-2 rounded-xl text-sm font-semibold transition-colors",
+                activeViewMode === "system"
+                  ? "bg-red-600 text-white"
+                  : "text-gray-600 hover:bg-gray-100"
+              )}
+            >
+              Tất cả chương trình
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("branch")}
+              className={cn(
+                "px-4 py-2 rounded-xl text-sm font-semibold transition-colors",
+                activeViewMode === "branch"
+                  ? "bg-emerald-600 text-white"
+                  : "text-gray-600 hover:bg-gray-100"
+              )}
+            >
+              Chương trình của chi nhánh hiện tại
+            </button>
+          </div>
+        )}
+
         {/* Stats cards */}
-        <div className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <div className="rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-md transition">
             <div className="flex items-center gap-3">
               <span className="w-10 h-10 rounded-xl bg-red-100 grid place-items-center">
@@ -1020,22 +1399,10 @@ export default function Page() {
               </div>
             </div>
           </div>
-
-          <div className="rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-md transition">
-            <div className="flex items-center gap-3">
-              <span className="w-10 h-10 rounded-xl bg-black/10 grid place-items-center">
-                <DollarSign className="text-gray-800" size={18} />
-              </span>
-              <div>
-                <div className="text-sm text-gray-600">{t.stats.monthlyRevenue}</div>
-                <div className="text-2xl font-extrabold text-gray-900">{stats.revenue}</div>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Branch Filter Indicator */}
-        {selectedBranchId && (
+        {selectedBranchId && activeViewMode === "branch" && (
           <div className={`flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-red-50 to-red-100 border border-red-200 rounded-xl transition-all duration-700 delay-150 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
             <Building2 size={16} className="text-red-600" />
             <span className="text-sm text-red-700 font-medium">
@@ -1124,9 +1491,10 @@ export default function Page() {
                       </td>
 
                       <td className="py-3 px-6 whitespace-nowrap">
-                        <div className="inline-flex items-center gap-2 text-gray-900 text-sm">
-                          <Building2 size={16} className="text-gray-400" />
-                          <span className="truncate">{c.branch || t.details.noBranch}</span>
+                        <div className="inline-flex items-center gap-1.5">
+                          <Building2 size={14} className="text-gray-400" />
+                          <span className="text-sm font-semibold text-gray-900">{c.assignedBranchCount ?? 0}</span>
+                          <span className="text-xs text-gray-500">chi nhánh</span>
                         </div>
                       </td>
 
@@ -1150,6 +1518,19 @@ export default function Page() {
                           >
                             <Pencil size={14} />
                           </button>
+                          {activeViewMode === "system" && (
+                            <button
+                              onClick={() => {
+                                setAssignBranchTargetId(c.id);
+                                setAssignBranchTargetName(c.name);
+                                setShowAssignBranchModal(true);
+                              }}
+                              className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors text-gray-400 hover:text-blue-600 cursor-pointer"
+                              title={t.buttons.assignBranch}
+                            >
+                              <GitBranch size={14} />
+                            </button>
+                          )}
                           <button
                             onClick={() => handleToggleStatus(c)}
                             className={cn(
@@ -1303,6 +1684,28 @@ export default function Page() {
         isLoading={isTogglingStatus}
       />
 
+      {/* Assign Branch Modal */}
+      <AssignBranchModal
+        isOpen={showAssignBranchModal}
+        onClose={() => {
+          setShowAssignBranchModal(false);
+          setAssignBranchTargetId(null);
+          setAssignBranchTargetName("");
+        }}
+        onSubmit={handleAssignBranch}
+        programName={assignBranchTargetName}
+        t={t}
+      />
+
+      {currentBranchId && (
+        <AddExistingProgramModal
+          isOpen={showAddExistingModal}
+          onClose={() => setShowAddExistingModal(false)}
+          onSubmit={handleAddExistingToCurrentBranch}
+          currentBranchId={currentBranchId}
+        />
+      )}
+
       {/* Detail Modal */}
       {showDetailModal && (
         <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -1418,7 +1821,7 @@ export default function Page() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="space-y-2">
                       <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                         <Clock size={16} className="text-red-600" />
@@ -1426,16 +1829,6 @@ export default function Page() {
                       </label>
                       <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
                         {selectedCourseDetail.totalSessions ? `${selectedCourseDetail.totalSessions} ${t.table.count}` : t.details.noInfo}
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                        <Building2 size={16} className="text-red-600" />
-                        {t.details.branchLabel}
-                      </label>
-                      <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
-                        {selectedCourseDetail.branchName || selectedCourseDetail.branch?.name || t.details.noBranch}
                       </div>
                     </div>
 
@@ -1458,6 +1851,60 @@ export default function Page() {
                         <StatusBadge value={normalizeIsActive(selectedCourseDetail?.isActive ?? selectedCourseDetail?.status) === true ? t.status.active : t.status.paused} />
                       </div>
                     </div>
+                  </div>
+
+                  {/* Branch assignments list */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                        <Building2 size={16} className="text-red-600" />
+                        {t.details.branchAssignmentsLabel}
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          closeDetailModal();
+                          setAssignBranchTargetId(selectedCourseDetail.id);
+                          setAssignBranchTargetName(selectedCourseDetail.name ?? "");
+                          setShowAssignBranchModal(true);
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 text-xs font-semibold hover:bg-blue-100 transition-colors cursor-pointer border border-blue-200"
+                      >
+                        <GitBranch size={13} />
+                        {t.buttons.assignBranch}
+                      </button>
+                    </div>
+                    {Array.isArray(selectedCourseDetail.branchAssignments) && selectedCourseDetail.branchAssignments.length > 0 ? (
+                      <div className="rounded-xl border border-gray-200 overflow-hidden">
+                        {selectedCourseDetail.branchAssignments.map((ba, idx) => (
+                          <div
+                            key={ba.branchId ?? idx}
+                            className={cn(
+                              "flex items-center justify-between px-4 py-3 text-sm",
+                              idx !== 0 ? "border-t border-gray-100" : ""
+                            )}
+                          >
+                            <div className="flex items-center gap-2 text-gray-800">
+                              <Building2 size={14} className="text-gray-400" />
+                              <span className="font-medium">{ba.branchName ?? ba.branchId}</span>
+                            </div>
+                            <span className={cn(
+                              "text-xs px-2 py-0.5 rounded-full font-semibold",
+                              ba.isActive
+                                ? "bg-green-100 text-green-700 border border-green-200"
+                                : "bg-gray-100 text-gray-500 border border-gray-200"
+                            )}>
+                              {ba.isActive ? t.status.active : t.status.paused}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-4 text-sm text-gray-500">
+                        <Building2 size={14} className="text-gray-400" />
+                        {t.details.noBranchAssignments}
+                      </div>
+                    )}
                   </div>
 
                   {selectedCourseDetail.defaultMakeupClassId ? (
@@ -1496,4 +1943,8 @@ export default function Page() {
       )}
     </>
   );
+}
+
+export default function Page() {
+  return <ProgramsManagementPage forcedViewMode="system" hideViewModeSwitch />;
 }

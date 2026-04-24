@@ -76,7 +76,7 @@ export default function TuitionPlanDetailModal({
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                     <BookOpen size={16} className="text-red-600" />
-                    Khóa học
+                    Chương trình học
                   </label>
                   <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">{detail.programName || "Chưa có"}</div>
                 </div>
