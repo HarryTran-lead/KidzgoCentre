@@ -441,6 +441,37 @@ function activitiesToContentJson(activities: TeachingActivityDraft[], homework: 
   return JSON.stringify(result);
 }
 
+function hasActivityContent(activity: TeachingActivityDraft): boolean {
+  return Object.values(activity).some((v) => v.trim());
+}
+
+function mergeTeacherActivities(
+  referenceActivities: TeachingActivityDraft[],
+  actualActivities: TeachingActivityDraft[],
+): TeachingActivityDraft[] {
+  if (!referenceActivities.length && !actualActivities.length) {
+    return [createEmptyTeachingActivity()];
+  }
+
+  if (!referenceActivities.length) {
+    return actualActivities.length ? actualActivities : [createEmptyTeachingActivity()];
+  }
+
+  return referenceActivities.map((reference, index) => {
+    const actual = actualActivities[index];
+    if (!actual) return reference;
+
+    return {
+      ...reference,
+      // Keep admin structure (time/book/skills), only overlay teacher-editable columns.
+      classwork: actual.classwork || reference.classwork,
+      requiredMaterials: actual.requiredMaterials || reference.requiredMaterials,
+      homeworkRequiredMaterials: actual.homeworkRequiredMaterials || reference.homeworkRequiredMaterials,
+      extra: actual.extra || reference.extra,
+    };
+  });
+}
+
 export default function TeacherAttendancePage() {
   const router = useRouter();
   const params = useParams();
@@ -1282,8 +1313,37 @@ export default function TeacherAttendancePage() {
       // Initialize activity drafts from existing data
       const initDraftsFromContent = (content: string | null | undefined): TeachingActivityDraft[] => {
         const parsed = parseTeachingJson(content);
-        if (parsed && Array.isArray(parsed.activities) && parsed.activities.length) {
-          return teachingActivityDraftsFromUnknown(parsed.activities);
+        if (parsed) {
+          const candidates = [
+            parsed.activities,
+            parsed.activityRows,
+            parsed.rows,
+            parsed.items,
+            parsed.content,
+          ];
+
+          for (const candidate of candidates) {
+            if (Array.isArray(candidate) && candidate.length) {
+              return teachingActivityDraftsFromUnknown(candidate);
+            }
+          }
+
+          // Fallback for single-row object schemas.
+          if (
+            typeof parsed === "object" &&
+            (parsed.time || parsed.book || parsed.skills || parsed.classwork || parsed.requiredMaterials)
+          ) {
+            return teachingActivityDraftsFromUnknown([parsed]);
+          }
+        }
+        return [createEmptyTeachingActivity()];
+      };
+
+      const firstValidDrafts = (...draftSets: TeachingActivityDraft[][]): TeachingActivityDraft[] => {
+        for (const drafts of draftSets) {
+          if (drafts.some(hasActivityContent)) {
+            return drafts;
+          }
         }
         return [createEmptyTeachingActivity()];
       };
@@ -1291,7 +1351,13 @@ export default function TeacherAttendancePage() {
       const initHomeworkFromContent = (content: string | null | undefined): string => {
         const parsed = parseTeachingJson(content);
         if (parsed) {
-          const hw = parsed.homeworkNotes ?? parsed.homeworkLabel ?? "";
+          const hw =
+            parsed.homeworkMaterials ??
+            parsed.homeworkRequiredMaterials ??
+            parsed.actualHomework ??
+            parsed.homeworkNotes ??
+            parsed.homeworkLabel ??
+            "";
           if (Array.isArray(hw)) return hw.join("\n");
           return typeof hw === "string" ? hw : "";
         }
@@ -1301,7 +1367,7 @@ export default function TeacherAttendancePage() {
       const initNotesFromContent = (content: string | null | undefined): string => {
         const parsed = parseTeachingJson(content);
         if (parsed) {
-          const n = parsed.teacherNotes ?? parsed.notes ?? "";
+          const n = parsed.teacherNotes ?? parsed.notes ?? parsed.extra ?? "";
           if (Array.isArray(n)) return n.join("\n");
           return typeof n === "string" ? n : "";
         }
@@ -1318,18 +1384,28 @@ export default function TeacherAttendancePage() {
           setTeachingActualHomework(planResp.data.actualHomework || matchedSession.actualHomework || "");
           setTeachingTeacherNotes(planResp.data.teacherNotes || matchedSession.teacherNotes || "");
 
-          // Init activity drafts: prefer actual content, then planned content, then template
-          if (ac) {
-            setTeachingActivityDrafts(initDraftsFromContent(ac));
-            setTeachingActualHomework((prev) => prev || initHomeworkFromContent(ac));
-            setTeachingTeacherNotes((prev) => prev || initNotesFromContent(ac));
-          } else if (matchedSession.plannedContent) {
-            setTeachingActivityDrafts(initDraftsFromContent(matchedSession.plannedContent));
-            setTeachingActualHomework((prev) => prev || initHomeworkFromContent(matchedSession.plannedContent));
-          } else if (matchedSession.templateSyllabusContent) {
-            setTeachingActivityDrafts(initDraftsFromContent(matchedSession.templateSyllabusContent));
-            setTeachingActualHomework((prev) => prev || initHomeworkFromContent(matchedSession.templateSyllabusContent));
-          }
+          const actualDrafts = initDraftsFromContent(ac);
+          const plannedDrafts = initDraftsFromContent(matchedSession.plannedContent);
+          const templateDrafts = initDraftsFromContent(matchedSession.templateSyllabusContent);
+          const referenceDrafts = firstValidDrafts(plannedDrafts, templateDrafts);
+
+          setTeachingActivityDrafts(mergeTeacherActivities(referenceDrafts, actualDrafts));
+
+          // Fallback text fields: actual -> planned -> template
+          setTeachingActualHomework(
+            (prev) =>
+              prev ||
+              initHomeworkFromContent(ac) ||
+              initHomeworkFromContent(matchedSession.plannedContent) ||
+              initHomeworkFromContent(matchedSession.templateSyllabusContent),
+          );
+          setTeachingTeacherNotes(
+            (prev) =>
+              prev ||
+              initNotesFromContent(ac) ||
+              initNotesFromContent(matchedSession.plannedContent) ||
+              initNotesFromContent(matchedSession.templateSyllabusContent),
+          );
         }
       } else {
         // Create lesson plan automatically
@@ -1344,14 +1420,20 @@ export default function TeacherAttendancePage() {
         });
         if (createResp.isSuccess && createResp.data) {
           setTeachingReportPlan(createResp.data);
-          // Pre-fill from planned content or template
-          if (matchedSession.plannedContent) {
-            setTeachingActivityDrafts(initDraftsFromContent(matchedSession.plannedContent));
-            setTeachingActualHomework(initHomeworkFromContent(matchedSession.plannedContent));
-          } else if (matchedSession.templateSyllabusContent) {
-            setTeachingActivityDrafts(initDraftsFromContent(matchedSession.templateSyllabusContent));
-            setTeachingActualHomework(initHomeworkFromContent(matchedSession.templateSyllabusContent));
-          }
+
+          // Pre-fill from admin reference content (planned first, then template).
+          const plannedDrafts = initDraftsFromContent(matchedSession.plannedContent);
+          const templateDrafts = initDraftsFromContent(matchedSession.templateSyllabusContent);
+          const referenceDrafts = firstValidDrafts(plannedDrafts, templateDrafts);
+          setTeachingActivityDrafts(referenceDrafts);
+          setTeachingActualHomework(
+            initHomeworkFromContent(matchedSession.plannedContent) ||
+            initHomeworkFromContent(matchedSession.templateSyllabusContent),
+          );
+          setTeachingTeacherNotes(
+            initNotesFromContent(matchedSession.plannedContent) ||
+            initNotesFromContent(matchedSession.templateSyllabusContent),
+          );
         } else {
           setTeachingReportError(
             "Không thể tạo lesson plan cho buổi này. " + (createResp.message || "")

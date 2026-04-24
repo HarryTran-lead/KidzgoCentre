@@ -399,23 +399,30 @@ function normalizeLessonPlan(item: any): LessonPlan {
 }
 
 function normalizeSyllabusSession(item: any): ClassLessonPlanSyllabusSession {
+  const template = item?.template ?? item?.lessonPlanTemplate ?? item?.linkedTemplate;
+
   return {
-    sessionId: stringOr(item?.sessionId),
-    sessionIndex: numberOr(numberFromUnknown(item?.sessionIndex)),
-    sessionDate: dateOr(item?.sessionDate) || null,
-    plannedTeacherId: normalizeNullableString(item?.plannedTeacherId),
-    plannedTeacherName: normalizeNullableString(item?.plannedTeacherName),
-    actualTeacherId: normalizeNullableString(item?.actualTeacherId),
-    actualTeacherName: normalizeNullableString(item?.actualTeacherName),
-    lessonPlanId: normalizeNullableString(item?.lessonPlanId),
-    templateId: normalizeNullableString(item?.templateId),
-    templateTitle: normalizeNullableString(item?.templateTitle),
-    templateSyllabusContent: normalizeNullableString(item?.templateSyllabusContent),
-    plannedContent: normalizeNullableString(item?.plannedContent),
-    actualContent: normalizeNullableString(item?.actualContent),
-    actualHomework: normalizeNullableString(item?.actualHomework),
-    teacherNotes: normalizeNullableString(item?.teacherNotes),
-    canEdit: booleanOr(item?.canEdit, false),
+    sessionId: stringOr(item?.sessionId, item?.id, item?.SessionId),
+    sessionIndex: numberOr(numberFromUnknown(item?.sessionIndex, item?.SessionIndex, item?.index, item?.order)),
+    sessionDate: dateOr(item?.sessionDate, item?.SessionDate, item?.plannedDatetime, item?.plannedDateTime, item?.actualDatetime) || null,
+    plannedTeacherId: normalizeNullableString(item?.plannedTeacherId, item?.PlannedTeacherId),
+    plannedTeacherName: normalizeNullableString(item?.plannedTeacherName, item?.PlannedTeacherName),
+    actualTeacherId: normalizeNullableString(item?.actualTeacherId, item?.ActualTeacherId),
+    actualTeacherName: normalizeNullableString(item?.actualTeacherName, item?.ActualTeacherName),
+    lessonPlanId: normalizeNullableString(item?.lessonPlanId, item?.LessonPlanId, item?.lessonPlan?.id),
+    templateId: normalizeNullableString(item?.templateId, item?.TemplateId, template?.id),
+    templateTitle: normalizeNullableString(item?.templateTitle, item?.TemplateTitle, template?.title, template?.name),
+    templateSyllabusContent: normalizeNullableString(
+      item?.templateSyllabusContent,
+      item?.TemplateSyllabusContent,
+      item?.syllabusContent,
+      template?.syllabusContent
+    ),
+    plannedContent: normalizeNullableString(item?.plannedContent, item?.PlannedContent, item?.planContent),
+    actualContent: normalizeNullableString(item?.actualContent, item?.ActualContent, item?.realContent),
+    actualHomework: normalizeNullableString(item?.actualHomework, item?.ActualHomework, item?.homework),
+    teacherNotes: normalizeNullableString(item?.teacherNotes, item?.TeacherNotes, item?.notes),
+    canEdit: booleanOr(item?.canEdit ?? item?.CanEdit, false),
   };
 }
 
@@ -454,6 +461,34 @@ function extractErrorInfo(error: any) {
     detail,
     raw: error?.response?.data ?? error,
   };
+}
+
+function formatImportErrors(value: unknown) {
+  if (!Array.isArray(value) || value.length === 0) return "";
+
+  const normalized = value
+    .map((item) => {
+      if (!item) return "";
+      if (typeof item === "string") return item;
+      if (typeof item === "object") {
+        const row = (item as { row?: number }).row;
+        const detail = stringOr(
+          (item as { detail?: string }).detail,
+          (item as { message?: string }).message,
+          (item as { error?: string }).error
+        );
+        if (!detail) return "";
+        if (typeof row === "number" && Number.isFinite(row)) {
+          return `Row ${row}: ${detail}`;
+        }
+        return detail;
+      }
+      return "";
+    })
+    .filter(Boolean);
+
+  if (!normalized.length) return "";
+  return normalized.slice(0, 5).join(" | ");
 }
 
 function successResponse<T>(data: T, response: ApiLikeResponse): ServiceResponse<T> {
@@ -590,10 +625,11 @@ export async function importLessonPlanTemplates(
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
+      const importErrors = formatImportErrors(data?.errors ?? data?.data?.errors);
       return {
         isSuccess: false,
         data: null,
-        message: stringOr(data?.detail, data?.error, data?.message, data?.title, "Import file that bai."),
+        message: stringOr(importErrors, data?.detail, data?.error, data?.message, data?.title, "Import file that bai."),
         status: typeof data?.status === "number" ? data.status : response.status,
         title: stringOr(data?.title) || undefined,
         detail: stringOr(data?.detail) || undefined,

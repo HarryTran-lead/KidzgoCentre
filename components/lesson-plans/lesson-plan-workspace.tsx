@@ -209,6 +209,26 @@ function toErrorMessage(error: unknown, fallback: string) {
   return fallback;
 }
 
+function getFileExtension(fileName: string) {
+  const index = fileName.lastIndexOf(".");
+  if (index < 0) return "";
+  return fileName.slice(index + 1).toLowerCase();
+}
+
+function isSupportedSyllabusFile(fileName: string) {
+  const extension = getFileExtension(fileName);
+  return extension === "xlsx" || extension === "xls" || extension === "csv";
+}
+
+const TEACHER_EDITABLE_FIELDS = {
+  classwork: "Classwork",
+  requiredMaterials: "Required materials",
+  homeworkRequiredMaterials: "Homework required materials",
+  extra: "Extra / Note",
+  homeworkMaterials: "Homework required materials (block)",
+  homeworkNotes: "Homework extra / note (block)",
+} as const;
+
 function getSuggestedNextSessionIndex(
   templates: LessonPlanTemplate[],
   programId: string,
@@ -987,8 +1007,8 @@ onClick={() => setShowImportModal(true)}
               <div className="text-sm font-semibold text-gray-900">Flow backend mới</div>
               <div className="mt-1 text-sm text-gray-600">
                 {activeTab === "templates" && templatesAvailable
-                  ? "Admin/Staff import syllabus vào lesson_plan_templates, quản lý theo Program + SessionIndex và chỉnh sửa từng session template khi cần."
-                  : "Teacher và các role được phép xem syllabus theo lớp, tạo lesson plan ngay trên session chưa có bản ghi, rồi cập nhật actual/homework/teacher notes bằng PUT."}
+                  ? "Admin/Staff setup trước: tạo thủ công hoặc import Excel vào lesson_plan_templates theo Program + SessionIndex, sau đó áp dụng đồng bộ cho các buổi học của lớp."
+                  : "Teacher chỉ điền phần sau buổi học theo cột được phép: Classwork, Required materials, Homework required materials, Extra/Note. Các cột còn lại do Admin setup."}
               </div>
             </div>
             <div className="flex flex-wrap gap-2 text-xs font-medium">
@@ -996,10 +1016,11 @@ onClick={() => setShowImportModal(true)}
                 <>
                   <span className="rounded-full border border-red-200 bg-white px-3 py-1.5 text-gray-700">Import xlsx/xls/csv</span>
                   <span className="rounded-full border border-red-200 bg-white px-3 py-1.5 text-gray-700">Template theo program</span>
+                  <span className="rounded-full border border-red-200 bg-white px-3 py-1.5 text-gray-700">Manual builder theo session</span>
                 </>
               ) : null}
               <span className="rounded-full border border-red-200 bg-white px-3 py-1.5 text-gray-700">Syllabus theo lớp</span>
-              <span className="rounded-full border border-red-200 bg-white px-3 py-1.5 text-gray-700">Create/Edit theo session</span>
+              <span className="rounded-full border border-red-200 bg-white px-3 py-1.5 text-gray-700">Teacher edit đúng cột cho phép</span>
             </div>
           </div>
         </div>
@@ -1885,6 +1906,20 @@ if (current.length === 1 && isActivityDraftEmpty(current[0])) return [nextActivi
     if (!title.trim()) { setError("Vui lòng nhập tiêu đề."); return; }
     if (sessionIndex <= 0) { setError("Session index phải lớn hơn 0."); return; }
 
+    const duplicated = existingTemplates.find(
+      (item) =>
+        item.programId === programId &&
+        item.sessionIndex === sessionIndex &&
+        item.id !== initialValue?.id
+    );
+
+    if (duplicated) {
+      setError(
+        `Program này đã có template ở session ${sessionIndex} (${duplicated.title}). Vui lòng đổi session index hoặc cập nhật template hiện có.`
+      );
+      return;
+    }
+
     const metadataPayload = stringifyPrettyJson(generatedMetadataObject);
     const contentPayload = stringifyPrettyJson(generatedContentObject);
 
@@ -2303,6 +2338,16 @@ function ImportTemplateModal({
       return;
     }
 
+    if (!isSupportedSyllabusFile(file.name)) {
+      setError("Định dạng file không hợp lệ. Chỉ hỗ trợ .xlsx, .xls hoặc .csv.");
+      return;
+    }
+
+    if (getFileExtension(file.name) === "csv" && !programId) {
+      setError("Import CSV bắt buộc chọn Program để map đúng template.");
+      return;
+    }
+
     setSubmitting(true);
 
     try {
@@ -2322,12 +2367,21 @@ function ImportTemplateModal({
   return (
     <ModalFrame
       title="Import syllabus template"
-      subtitle="Dùng POST /api/lesson-plan-templates/import với multipart/form-data và overwriteExisting."
+      subtitle="Admin import file mẫu để setup trước giáo án cho toàn bộ buổi học; teacher chỉ điền phần nội dung sau buổi dạy."
       icon={Upload}
       onClose={onClose}
       widthClass="max-w-3xl"
     >
       <form onSubmit={handleSubmit} className="space-y-5 p-6">
+        <div className="rounded-2xl border border-blue-200 bg-blue-50/50 p-4 text-sm text-blue-900">
+          <div className="font-semibold">Checklist trước khi import</div>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-blue-800">
+            <li>File hợp lệ: .xlsx / .xls / .csv</li>
+            <li>Nếu là CSV, bắt buộc chọn Program</li>
+            <li>Bật overwrite khi muốn cập nhật lại session đã tồn tại</li>
+          </ul>
+        </div>
+
         <Field label="File syllabus">
           <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-red-200 bg-red-50/60 px-4 py-4 text-sm text-gray-700 hover:bg-red-50">
             <Upload size={16} className="text-red-600" />
@@ -2399,6 +2453,7 @@ type StarterActivity = Record<string, unknown> & {
   classwork?: string;
   requiredMaterials?: string;
   homeworkRequiredMaterials?: string;
+  extra?: string;
 };
 
 type StarterSheet = Record<string, unknown> & {
@@ -2465,7 +2520,7 @@ const isTeacher = scope === "teacher";
     return parseStarterActivities(refContent);
   }, [isTeacher, refContent, initialValue?.actualContent, session.actualContent]);
 
-  const [editableActivities, setEditableActivities] = useState<Array<{ classwork: string; requiredMaterials: string; homeworkRequiredMaterials: string }>>(() => {
+  const [editableActivities, setEditableActivities] = useState<Array<{ classwork: string; requiredMaterials: string; homeworkRequiredMaterials: string; extra: string }>>(() => {
     if (!starterData) return [];
     // If teacher previously saved structured actual content, use that
     const existingActual = initialValue?.actualContent || session.actualContent;
@@ -2475,12 +2530,27 @@ const isTeacher = scope === "teacher";
       classwork: typeof a.classwork === "string" ? a.classwork : "",
       requiredMaterials: typeof a.requiredMaterials === "string" ? a.requiredMaterials : "",
       homeworkRequiredMaterials: typeof a.homeworkRequiredMaterials === "string" ? a.homeworkRequiredMaterials : "",
+      extra: typeof a.extra === "string" ? a.extra : "",
     }));
+  });
+
+  const [editableHomeworkMaterialsText, setEditableHomeworkMaterialsText] = useState(() => {
+    if (!starterData) return "";
+    return linesToTextarea(starterData.homeworkMaterials);
+  });
+
+  const [editableHomeworkNotesText, setEditableHomeworkNotesText] = useState(() => {
+    if (!starterData) return "";
+    return linesToTextarea(starterData.homeworkNotes);
   });
 
   const hasStructuredStarter = isTeacher && starterData !== null;
 
-  const updateEditableActivity = (index: number, field: "classwork" | "requiredMaterials" | "homeworkRequiredMaterials", value: string) => {
+  const updateEditableActivity = (
+    index: number,
+    field: "classwork" | "requiredMaterials" | "homeworkRequiredMaterials" | "extra",
+    value: string
+  ) => {
     setEditableActivities((prev) => prev.map((item, i) => (i === index ? { ...item, [field]: value } : item)));
   };
 
@@ -2491,8 +2561,19 @@ const isTeacher = scope === "teacher";
       classwork: editableActivities[i]?.classwork ?? a.classwork ?? "",
       requiredMaterials: editableActivities[i]?.requiredMaterials ?? a.requiredMaterials ?? "",
       homeworkRequiredMaterials: editableActivities[i]?.homeworkRequiredMaterials ?? a.homeworkRequiredMaterials ?? "",
+      extra: editableActivities[i]?.extra ?? a.extra ?? "",
     }));
-    return JSON.stringify({ ...starterData, activities: newActivities }, null, 2);
+
+    return JSON.stringify(
+      {
+        ...starterData,
+        activities: newActivities,
+        homeworkMaterials: textareaToLines(editableHomeworkMaterialsText),
+        homeworkNotes: textareaToLines(editableHomeworkNotesText),
+      },
+      null,
+      2
+    );
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -2514,8 +2595,12 @@ const isTeacher = scope === "teacher";
         templateId: isTeacher ? session.templateId || null : templateId || null,
         plannedContent: isTeacher ? undefined : plannedContent.trim() || null,
         actualContent: finalActualContent || null,
-        actualHomework: actualHomework.trim() || null,
-        teacherNotes: teacherNotes.trim() || null,
+        actualHomework: hasStructuredStarter
+          ? editableHomeworkMaterialsText.trim() || null
+          : actualHomework.trim() || null,
+        teacherNotes: hasStructuredStarter
+          ? editableHomeworkNotesText.trim() || null
+          : teacherNotes.trim() || null,
       });
     } catch (submitError: unknown) {
       setError(toErrorMessage(submitError, "Không thể lưu lesson plan."));
@@ -2527,7 +2612,7 @@ const isTeacher = scope === "teacher";
   return (
     <ModalFrame
       title={isTeacher ? (isEdit ? "Cập nhật giáo án" : "Điền giáo án buổi dạy") : (isEdit ? "Cập nhật lesson plan" : "Tạo lesson plan")}
-      subtitle={isTeacher ? "Xem nội dung giáo án chuẩn (chỉ đọc) và điền nội dung dạy thực tế, bài tập, ghi chú." : "Session đã được khóa sẵn theo read model syllabus. Có thể để plannedContent trống để backend tự copy từ template."}
+      subtitle={isTeacher ? "Teacher chỉ được chỉnh đúng các cột được phép sau buổi học; các cột setup trước bởi Admin là chỉ đọc." : "Session đã được khóa sẵn theo read model syllabus. Có thể để plannedContent trống để backend tự copy từ template."}
       icon={isTeacher ? ClipboardPen : FilePlus2}
       onClose={onClose}
       widthClass={hasStructuredStarter ? "max-w-6xl" : "max-w-4xl"}
@@ -2550,7 +2635,9 @@ const isTeacher = scope === "teacher";
                 <div className="rounded-2xl border border-blue-200 bg-blue-50/50 p-4">
                   <div className="flex items-center gap-2">
                     <BookOpenCheck size={15} className="text-blue-600" />
-                    <span className="text-sm font-semibold text-blue-700">Giáo án chuẩn — chỉ sửa được Classwork, Required Materials, Homework Materials</span>
+                    <span className="text-sm font-semibold text-blue-700">
+                      Giáo án chuẩn: chỉ sửa được {TEACHER_EDITABLE_FIELDS.classwork}, {TEACHER_EDITABLE_FIELDS.requiredMaterials}, {TEACHER_EDITABLE_FIELDS.homeworkRequiredMaterials}, {TEACHER_EDITABLE_FIELDS.extra}
+                    </span>
                   </div>
                 </div>
 
@@ -2634,7 +2721,13 @@ const isTeacher = scope === "teacher";
                               />
                             </td>
                             <td className="border border-gray-300 bg-gray-50 px-3 py-2 text-gray-700">
-                              <SheetCellValue value={activity.extra} />
+                              <textarea
+                                value={editableActivities[index]?.extra ?? ""}
+                                onChange={(e) => updateEditableActivity(index, "extra", e.target.value)}
+                                rows={3}
+                                className="w-full rounded-lg border border-emerald-200 bg-emerald-50/50 px-2 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                                placeholder="Nhập extra / note..."
+                              />
                             </td>
                           </tr>
                         ))}
@@ -2642,10 +2735,10 @@ const isTeacher = scope === "teacher";
                     </table>
                   </div>
 
-                  {/* Homework block (read-only) */}
+                  {/* Homework block (teacher editable) */}
                   {(starterData!.homeworkLabel || linesFromUnknown(starterData!.homeworkMaterials).length || linesFromUnknown(starterData!.homeworkNotes).length) ? (
                     <div className="border-t border-gray-300 bg-amber-50/40 p-4">
-                      <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Homework block (chỉ đọc)</div>
+                      <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Homework block (teacher được chỉnh Required materials + Extra/Note)</div>
                       <div className="grid gap-3 lg:grid-cols-3">
                         <div className="rounded-xl border border-gray-300 bg-white p-3">
                           <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">Label</div>
@@ -2653,11 +2746,23 @@ const isTeacher = scope === "teacher";
                         </div>
                         <div className="rounded-xl border border-gray-300 bg-white p-3">
                           <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">Required materials</div>
-                          <SheetCellValue value={starterData!.homeworkMaterials} />
+                          <textarea
+                            value={editableHomeworkMaterialsText}
+                            onChange={(e) => setEditableHomeworkMaterialsText(e.target.value)}
+                            rows={4}
+                            className="w-full rounded-lg border border-emerald-200 bg-emerald-50/50 px-2 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                            placeholder="Nhập homework required materials..."
+                          />
                         </div>
                         <div className="rounded-xl border border-gray-300 bg-white p-3">
-                          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">Notes</div>
-                          <SheetCellValue value={starterData!.homeworkNotes} />
+                          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">Extra / Note</div>
+                          <textarea
+                            value={editableHomeworkNotesText}
+                            onChange={(e) => setEditableHomeworkNotesText(e.target.value)}
+                            rows={4}
+                            className="w-full rounded-lg border border-emerald-200 bg-emerald-50/50 px-2 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                            placeholder="Nhập extra / note cho homework..."
+                          />
                         </div>
                       </div>
                     </div>
