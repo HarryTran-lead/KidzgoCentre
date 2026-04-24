@@ -71,7 +71,7 @@ export default function Courses() {
       }}
     >
       {/* Overlay để đảm bảo nội dung dễ đọc */}
-      <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] pointer-events-none z-0"></div>
+      <div className="absolute inset-0 bg-gradient-to-b from-white via-white to-purple-300 pointer-events-none z-0"></div>
       {/* Background decorative elements - Clouds and stars */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <motion.div
@@ -121,7 +121,7 @@ export default function Courses() {
             viewport={{ once: true }}
             transition={{ duration: 0.7, delay: 0.1 }}
           >
-            <span className="bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-red-500 via-red-600 to-rose-600 bg-clip-text text-transparent">
               Lớp Học Siêu Vui
             </span>
             <span className="block text-gray-800 mt-2">Dành Cho Bé Yêu</span>
@@ -133,24 +133,16 @@ export default function Courses() {
           {courseCards.map((course, index) => (
             <motion.div
               key={index}
-              className={`rounded-3xl shadow-xl overflow-hidden border-2 hover:shadow-2xl transition-shadow ${
-                course.color === "pink" 
-                  ? "bg-gradient-to-br from-rose-50 to-pink-50 border-rose-200" 
-                  : course.color === "blue"
-                  ? "bg-gradient-to-br from-sky-50 to-blue-50 border-sky-200"
-                  : course.color === "purple"
-                  ? "bg-gradient-to-br from-violet-50 to-purple-50 border-violet-200"
-                  : "bg-gradient-to-br from-emerald-50 to-green-50 border-emerald-200"
-              }`}
+              className="rounded-3xl shadow-xl overflow-hidden border-2 hover:shadow-2xl transition-shadow bg-gradient-to-br from-red-50 to-rose-50 border-red-200"
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: index * 0.15 }}
               whileHover={{ scale: 1.02 }}
             >
-                {/* Card Header with colored background */}
-                <div className={`${course.headerColor} px-6 py-4`}>
-                  <h3 className="text-2xl font-black text-gray-900">{course.title}</h3>
+                {/* Card Header with red gradient */}
+                <div className="bg-gradient-to-r from-red-400 to-red-500 px-6 py-4">
+                  <h3 className="text-2xl font-black text-white">{course.title}</h3>
                 </div>
 
                 {/* Card Content */}
@@ -160,16 +152,16 @@ export default function Courses() {
                     <div className="flex-1 space-y-4">
                       {/* Pill buttons */}
                       <div className="flex flex-wrap gap-2">
-                        <span className={`${course.pillColor} px-4 py-2 rounded-full text-sm font-semibold`}>
+                        <span className="bg-red-100 text-red-700 px-4 py-2 rounded-full text-sm font-semibold">
                           {course.ageGroup}
                         </span>
-                        <span className={`${course.pillColor} px-4 py-2 rounded-full text-sm font-semibold`}>
+                        <span className="bg-red-100 text-red-700 px-4 py-2 rounded-full text-sm font-semibold">
                           {course.method}
                         </span>
-                        <span className={`${course.pillColor} px-4 py-2 rounded-full text-sm font-semibold`}>
+                        <span className="bg-red-100 text-red-700 px-4 py-2 rounded-full text-sm font-semibold">
                           {course.classSize}
                         </span>
-                        <span className={`${course.pillColor} px-4 py-2 rounded-full text-sm font-semibold`}>
+                        <span className="bg-red-100 text-red-700 px-4 py-2 rounded-full text-sm font-semibold">
                           {course.sessions}
                         </span>
                       </div>
@@ -189,15 +181,7 @@ export default function Courses() {
 
                     {/* Right side - Illustration */}
                     <div className="flex-shrink-0 lg:w-80 lg:h-80 relative">
-                      <div className={`relative w-full h-64 lg:h-full rounded-2xl overflow-hidden ${
-                        course.color === "pink" 
-                          ? "bg-gradient-to-br from-rose-100 via-pink-50 to-rose-50" 
-                          : course.color === "blue"
-                          ? "bg-gradient-to-br from-sky-100 via-blue-50 to-cyan-50"
-                          : course.color === "purple"
-                          ? "bg-gradient-to-br from-violet-100 via-purple-50 to-fuchsia-50"
-                          : "bg-gradient-to-br from-emerald-100 via-green-50 to-teal-50"
-                      }`}>
+                      <div className="relative w-full h-64 lg:h-full rounded-2xl overflow-hidden bg-gradient-to-br from-red-100 via-rose-50 to-red-50">
                         {/* Main illustration - Kids stickers */}
                         <div className="absolute inset-0 flex items-center justify-center">
                           <motion.div
