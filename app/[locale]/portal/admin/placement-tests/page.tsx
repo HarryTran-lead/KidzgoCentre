@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ClipboardCheck, Loader2, AlertCircle, RefreshCw, UserCheck } from "lucide-react";
 import { getAllPlacementTests } from "@/lib/api/placementTestService";
 import { getAllLeads } from "@/lib/api/leadService";
@@ -24,6 +24,7 @@ function toTime(value?: string) {
 export default function AdminPlacementTestsPage() {
   const { toast } = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { selectedBranchId, isLoaded: isBranchLoaded } = useBranchFilter();
   
   // Data state
@@ -121,6 +122,18 @@ export default function AdminPlacementTestsPage() {
       fetchAllTests();
     }
   }, [isBranchLoaded]);
+
+  // Auto-open detail modal when placementTestId is in URL query params
+  useEffect(() => {
+    if (allTests.length === 0) return;
+    const placementTestId = searchParams.get("placementTestId");
+    if (!placementTestId) return;
+    const match = allTests.find(t => t.id === placementTestId);
+    if (match) {
+      setSelectedTest(match);
+      setIsDetailModalOpen(true);
+    }
+  }, [allTests, searchParams]);
 
   // Fetch lead IDs for branch filtering (PT references leadId -> lead has branchPreference)
   useEffect(() => {

@@ -957,3 +957,30 @@ export const BACKEND_QUESTION_BANK_ENDPOINTS = {
   TOGGLE_STATUS: (id: string) => `/question-bank/${id}/toggle-status`,
   IMPORT: '/question-bank/import',
 } as const;
+
+// FAQ Endpoints (Client-side → Next.js API Routes)
+export const FAQ_ENDPOINTS = {
+  // Public endpoints
+  PUBLIC_CATEGORIES: '/api/faqs/categories',
+  PUBLIC_ITEMS: '/api/faqs',
+
+  // Admin endpoints
+  ADMIN_CATEGORIES: '/api/faqs/admin/categories',
+  ADMIN_ITEMS: '/api/faqs/admin/items',
+  CATEGORIES_CREATE: '/api/faqs/categories',
+  CATEGORY_BY_ID: (id: string) => `/api/faqs/categories/${id}`,
+  ITEM_CREATE: '/api/faqs',
+  ITEM_BY_ID: (id: string) => `/api/faqs/${id}`,
+} as const;
+
+// Backend FAQ Endpoints (Next.js API Routes → Backend API)
+export const BACKEND_FAQ_ENDPOINTS = {
+  PUBLIC_CATEGORIES: '/faqs/categories',
+  PUBLIC_ITEMS: '/faqs',
+  ADMIN_CATEGORIES: '/faqs/admin/categories',
+  ADMIN_ITEMS: '/faqs/admin/items',
+  CATEGORIES_CREATE: '/faqs/categories',
+  CATEGORY_BY_ID: (id: string) => `/faqs/categories/${id}`,
+  ITEM_CREATE: '/faqs',
+  ITEM_BY_ID: (id: string) => `/faqs/${id}`,
+} as const;

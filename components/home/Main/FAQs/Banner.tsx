@@ -3,37 +3,40 @@
 import { motion } from "framer-motion";
 import Image from "next/image";
 import { MessageCircleQuestion } from "lucide-react";
-import { categories, faqsByLocale } from "./data";
 import { DEFAULT_LOCALE, pickLocaleFromPath } from "@/lib/i18n";
 import { getMessagesFromPath } from "@/lib/dict";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
+import { getPublicFaqCategories, getPublicFaqItems } from "@/lib/api/faqService";
 
 export default function BannerFAQ() {
   const pathname = usePathname() || "/";
-  const locale = pickLocaleFromPath(pathname) ?? DEFAULT_LOCALE;
-  const faqs = faqsByLocale(locale);
   const msg = getMessagesFromPath(pathname).faqs;
   const [scale, setScale] = useState(1);
   const [opacity, setOpacity] = useState(1);
 
+  const [totalQuestions, setTotalQuestions] = useState<number | null>(null);
+  const [totalTopics, setTotalTopics] = useState<number | null>(null);
+
+  useEffect(() => {
+    // Fetch real counts
+    Promise.all([getPublicFaqCategories(), getPublicFaqItems({ pageSize: 1, pageNumber: 1 })])
+      .then(([catRes, itemRes]) => {
+        if (catRes?.isSuccess) setTotalTopics(catRes.data?.categories?.length ?? 0);
+        if (itemRes?.isSuccess) setTotalQuestions(itemRes.data?.faqs?.totalCount ?? 0);
+      })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     const handleScroll = () => {
       const scrollY = window.scrollY;
-      // Scale down và fade out chậm hơn khi scroll từ 0 đến 400px
       const effectStart = 0;
       const effectEnd = 400;
       const progress = Math.min(1, (scrollY - effectStart) / (effectEnd - effectStart));
-      
-      // Scale từ 1 đến 0.8 (chậm hơn)
-      const newScale = Math.max(0.8, 1 - progress * 0.2);
-      // Opacity từ 1 đến 0.3 (mờ dần)
-      const newOpacity = Math.max(0.3, 1 - progress * 0.7);
-      
-      setScale(newScale);
-      setOpacity(newOpacity);
+      setScale(Math.max(0.8, 1 - progress * 0.2));
+      setOpacity(Math.max(0.3, 1 - progress * 0.7));
     };
-
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
@@ -82,7 +85,7 @@ export default function BannerFAQ() {
             <div className="grid grid-cols-3 gap-3 pt-2">
               <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 sm:p-4 border border-white/20">
                 <div className="text-2xl sm:text-3xl font-bold text-white mb-1">
-                  {faqs.length}+
+                  {totalQuestions !== null ? `${totalQuestions}+` : "—"}
                 </div>
                 <div className="text-xs sm:text-sm text-white font-medium">
                   {msg.stats.questions}
@@ -90,7 +93,7 @@ export default function BannerFAQ() {
               </div>
               <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 sm:p-4 border border-white/20">
                 <div className="text-2xl sm:text-3xl font-bold text-white mb-1">
-                  {categories.length - 1}
+                  {totalTopics !== null ? totalTopics : "—"}
                 </div>
                 <div className="text-xs sm:text-sm text-white font-medium">
                   {msg.stats.topics}

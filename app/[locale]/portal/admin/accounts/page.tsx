@@ -214,6 +214,10 @@ const STATUS_INFO_STATIC = {
     cls: "bg-gradient-to-r from-red-50 to-red-100 text-red-700 border border-red-200",
     icon: <XCircle size={12} />
   },
+  deleted: {
+    cls: "bg-gradient-to-r from-gray-100 to-gray-200 text-gray-500 border border-gray-300 line-through",
+    icon: null
+  },
 } as const;
 
 function StatCard({
@@ -285,13 +289,18 @@ function RoleBadge({ role, roleLabel }: { role: Role; roleLabel: string }) {
   );
 }
 
-function StatusBadge({ isActive, statusLabel }: { isActive: boolean; statusLabel: string }) {
-  const statusInfo = isActive ? STATUS_INFO_STATIC.active : STATUS_INFO_STATIC.inactive;
+function StatusBadge({ isActive, isDeleted, statusLabel }: { isActive: boolean; isDeleted?: boolean; statusLabel: string }) {
+  const statusInfo = isDeleted
+    ? STATUS_INFO_STATIC.deleted
+    : isActive
+    ? STATUS_INFO_STATIC.active
+    : STATUS_INFO_STATIC.inactive;
   const { cls, icon } = statusInfo;
+  const label = isDeleted ? "Đã xóa" : statusLabel;
   return (
     <div className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${cls}`}>
       {icon}
-      <span>{statusLabel}</span>
+      <span>{label}</span>
     </div>
   );
 }
@@ -730,13 +739,20 @@ export default function AccountsPage() {
     try {
       const response = await deleteUser(selectedAccount.id);
       if (response.success || response.isSuccess) {
+        // Optimistically mark as deleted in local state immediately
+        setAccounts(prev => prev.map(acc =>
+          acc.id === selectedAccount.id
+            ? { ...acc, isActive: false, isDeleted: true }
+            : acc
+        ));
         toast({
           title: t.messages.success,
           description: t.messages.deleteAccountSuccess,
           variant: "success",
         });
-        await refreshAccountsTable();
         setDeleteModalOpen(false);
+        // Refresh in background to sync with server
+        refreshAccountsTable().catch(() => {});
       } else {
         toast({
           title: t.messages.error,
@@ -751,7 +767,6 @@ export default function AccountsPage() {
         description: 'Đã xảy ra lỗi khi xóa tài khoản',
         variant: "destructive",
       });
-      throw error;
     }
   };
 
@@ -1337,9 +1352,6 @@ export default function AccountsPage() {
         </div>
         {activeTab === "accounts" ? (
           <div className="flex flex-wrap gap-2">
-            <button className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-red-50 transition-colors cursor-pointer">
-              <Key size={16} /> {t.buttons.resetPassword}
-            </button>
             <button 
               onClick={handleOpenCreateModal}
               className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer"
@@ -1572,7 +1584,7 @@ export default function AccountsPage() {
                       <ActivityCell account={acc} />
                     </td>
                     <td className="py-4 px-6">
-                      <StatusBadge isActive={acc.isActive} statusLabel={acc.isActive ? t.status.active : t.status.inactive} />
+                      <StatusBadge isActive={acc.isActive} isDeleted={acc.isDeleted} statusLabel={acc.isActive ? t.status.active : t.status.inactive} />
                     </td>
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-1 transition-opacity duration-200">
@@ -1584,51 +1596,55 @@ export default function AccountsPage() {
                         >
                           <Eye size={14} />
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEditModal(acc)}
-                          className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors text-gray-400 hover:text-blue-600 cursor-pointer"
-                          title="Chỉnh sửa"
-                        >
-                          <Edit size={14} />
-                        </button>
-                        {!acc.isActive ? (
-                          <button
-                            type="button"
-                            onClick={() => handleOpenActivateModal(acc)}
-                            className="p-1.5 rounded-lg hover:bg-emerald-50 transition-colors text-gray-400 hover:text-emerald-600 cursor-pointer"
-                            title="Kích hoạt tài khoản"
-                          >
-                            <RefreshCw size={14} />
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => handleOpenDeleteModal(acc)}
-                            className="p-1.5 rounded-lg hover:bg-amber-50 transition-colors text-gray-400 hover:text-amber-600 cursor-pointer"
-                            title="Khóa tài khoản"
-                          >
-                            <XCircle size={14} />
-                          </button>
-                        )}
-                        {acc.isActive ? (
-                          <button
-                            type="button"
-                            onClick={() => handleOpenToggleStatusModal(acc)}
-                            className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
-                            title="Tạm khóa"
-                          >
-                            <Lock size={14} />
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => handleOpenToggleStatusModal(acc)}
-                            className="p-1.5 rounded-lg hover:bg-emerald-50 transition-colors text-gray-400 hover:text-emerald-600 cursor-pointer"
-                            title="Kích hoạt"
-                          >
-                            <CheckCircle size={14} />
-                          </button>
+                        {!acc.isDeleted && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditModal(acc)}
+                              className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors text-gray-400 hover:text-blue-600 cursor-pointer"
+                              title="Chỉnh sửa"
+                            >
+                              <Edit size={14} />
+                            </button>
+                            {!acc.isActive ? (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenActivateModal(acc)}
+                                className="p-1.5 rounded-lg hover:bg-emerald-50 transition-colors text-gray-400 hover:text-emerald-600 cursor-pointer"
+                                title="Kích hoạt tài khoản"
+                              >
+                                <RefreshCw size={14} />
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenDeleteModal(acc)}
+                                className="p-1.5 rounded-lg hover:bg-amber-50 transition-colors text-gray-400 hover:text-amber-600 cursor-pointer"
+                                title="Khóa tài khoản"
+                              >
+                                <XCircle size={14} />
+                              </button>
+                            )}
+                            {acc.isActive ? (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenToggleStatusModal(acc)}
+                                className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
+                                title="Tạm khóa"
+                              >
+                                <Lock size={14} />
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenToggleStatusModal(acc)}
+                                className="p-1.5 rounded-lg hover:bg-emerald-50 transition-colors text-gray-400 hover:text-emerald-600 cursor-pointer"
+                                title="Kích hoạt"
+                              >
+                                <CheckCircle size={14} />
+                              </button>
+                            )}
+                          </>
                         )}
                       </div>
                     </td>
@@ -1820,8 +1836,8 @@ export default function AccountsPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">{tProfiles.filters.all} ({profiles.length})</SelectItem>
-                      <SelectItem value="Phụ huynh">{tProfiles.filters.parents} ({profiles.filter(p => p.profileType === "Parent").length})</SelectItem>
-                      <SelectItem value="Học sinh">{tProfiles.filters.students} ({profiles.filter(p => p.profileType === "Student").length})</SelectItem>
+                      <SelectItem value="Parent">{tProfiles.filters.parents} ({profiles.filter(p => p.profileType === "Parent").length})</SelectItem>
+                      <SelectItem value="Student">{tProfiles.filters.students} ({profiles.filter(p => p.profileType === "Student").length})</SelectItem>
                     </SelectContent>
                   </Select>
 
@@ -1923,7 +1939,7 @@ export default function AccountsPage() {
                               : "bg-linear-to-r from-blue-50 to-cyan-50 text-blue-700 border border-blue-200"
                           }`}>
                             {profile.profileType === "Parent" ? <Shield size={12} /> : <UserCircle size={12} />}
-                            {profile.profileType}
+                            {profile.profileType === "Parent" ? "Phụ huynh" : "Học sinh"}
                           </span>
                         </td>
                         <td className="px-6 py-4">

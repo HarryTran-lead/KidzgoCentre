@@ -9,7 +9,6 @@ export const adminPages = {
         profiles: "Hồ sơ",
       },
       buttons: {
-        resetPassword: "Đặt lại mật khẩu",
         createAccount: "Tạo tài khoản mới",
         createParent: "Tạo tài khoản phụ huynh",
         createStudent: "Tạo hồ sơ học viên",
@@ -83,7 +82,6 @@ export const adminPages = {
       actions: {
         viewDetails: "Xem chi tiết",
         edit: "Chỉnh sửa",
-        resetPassword: "Đặt lại mật khẩu",
         delete: "Xóa",
         activate: "Kích hoạt",
         deactivate: "Vô hiệu hóa",

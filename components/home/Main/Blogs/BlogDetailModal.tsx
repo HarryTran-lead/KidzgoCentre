@@ -2,7 +2,6 @@
 
 import { X, Calendar, User, Tag, Clock } from "lucide-react";
 import type { Blog } from "@/types/admin/blog";
-import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { buildFileUrl } from "@/constants/apiURL";
 
@@ -56,11 +55,10 @@ export default function BlogDetailModal({
               {/* Header with Featured Image */}
               <div className="relative h-64 sm:h-80 overflow-hidden bg-linear-to-br from-pink-100 to-rose-100">
                 {blog.featuredImageUrl ? (
-                  <Image
+                  <img
                     src={buildFileUrl(blog.featuredImageUrl)}
                     alt={blog.title}
-                    fill
-                    className="object-cover"
+                    className="h-full w-full object-cover"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
                       target.style.display = "none";

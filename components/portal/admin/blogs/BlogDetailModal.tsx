@@ -2,7 +2,6 @@
 
 import { X, Calendar, User, Tag, Eye } from "lucide-react";
 import type { Blog } from "@/types/admin/blog";
-import Image from "next/image";
 import { buildFileUrl } from "@/constants/apiURL";
 
 interface BlogDetailModalProps {
@@ -57,11 +56,10 @@ export default function BlogDetailModal({
           {/* Featured Image */}
           {blog.featuredImageUrl && (
             <div className="relative w-full h-64 rounded-xl overflow-hidden border border-gray-200">
-              <Image
+              <img
                 src={buildFileUrl(blog.featuredImageUrl)}
                 alt={blog.title}
-                fill
-                className="object-cover"
+                className="h-full w-full object-cover"
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;
                   target.style.display = "none";

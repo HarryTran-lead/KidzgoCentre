@@ -174,6 +174,11 @@ export default function RegistrationDetailModal({
       .filter(Boolean);
     const hasLocalePrefix = segments.length >= 2 && segments[1] === "portal";
     const localePrefix = hasLocalePrefix ? `/${segments[0]}` : "";
+    const isAdmin = String(pathname || "").includes("/portal/admin/");
+
+    if (isAdmin) {
+      return `${localePrefix}/portal/admin/placement-tests?placementTestId=${encodeURIComponent(placementTestId)}`;
+    }
 
     return `${localePrefix}/portal/staff-management/leads?tab=placement_tests&placementTestId=${encodeURIComponent(
       placementTestId,
