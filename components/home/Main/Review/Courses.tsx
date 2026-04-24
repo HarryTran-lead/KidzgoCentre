@@ -35,7 +35,7 @@ export default function Courses() {
       {/* Animated gradient background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <motion.div 
-          className="absolute top-20 left-10 w-80 h-80 bg-linear-to-br from-pink-300 to-rose-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20"
+          className="absolute top-20 left-10 w-80 h-80 bg-linear-to-br from-red-300 to-red-400 rounded-full mix-blend-multiply filter blur-3xl opacity-20"
           animate={{
             scale: [1, 1.2, 1],
             x: [0, 30, 0],
@@ -48,7 +48,7 @@ export default function Courses() {
           }}
         />
         <motion.div 
-          className="absolute bottom-32 right-10 w-96 h-96 bg-gradient-to-tr from-blue-300 to-cyan-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20"
+          className="absolute bottom-32 right-10 w-96 h-96 bg-gradient-to-tr from-red-400 to-rose-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20"
           animate={{
             scale: [1, 1.1, 1],
             x: [0, -20, 0],
@@ -63,7 +63,7 @@ export default function Courses() {
         />
         {/* New floating orb */}
         <motion.div 
-          className="absolute top-1/2 left-1/3 w-64 h-64 bg-linear-to-r from-purple-300 to-pink-300 rounded-full mix-blend-multiply filter blur-3xl opacity-15"
+          className="absolute top-1/2 left-1/3 w-64 h-64 bg-linear-to-r from-red-400 to-red-300 rounded-full mix-blend-multiply filter blur-3xl opacity-15"
           animate={{
             scale: [1, 1.3, 1],
             borderRadius: ["50%", "40%", "50%"],
@@ -82,7 +82,7 @@ export default function Courses() {
         {[...Array(15)].map((_, i) => (
           <motion.div
             key={i}
-            className="absolute w-1 h-1 bg-linear-to-r from-pink-400/30 to-rose-400/30 rounded-full"
+            className="absolute w-1 h-1 bg-linear-to-r from-red-400/30 to-red-500/30 rounded-full"
             style={{
               left: `${(i * 7) % 100}%`,
               top: `${(i * 10) % 100}%`,
@@ -120,7 +120,7 @@ export default function Courses() {
           >
             Khóa Học{" "}
             <span className="relative inline-block">
-              <span className="bg-linear-to-r from-amber-400 via-pink-500 to-rose-500 bg-clip-text text-transparent">
+              <span className="bg-linear-to-r from-red-600 via-red-500 to-rose-600 bg-clip-text text-transparent">
                 Nổi Bật
               </span>
 
@@ -182,7 +182,7 @@ export default function Courses() {
                   
                   {/* Glow effect behind sticker */}
                   <div className={`absolute inset-0 -z-10 bg-linear-to-r ${
-                    isEven ? "from-amber-400/30 via-pink-400/30 to-rose-400/30" : "from-blue-400/30 via-purple-400/30 to-pink-400/30"
+                    isEven ? "from-red-400/30 via-red-500/30 to-rose-400/30" : "from-red-400/30 via-red-500/30 to-red-400/30"
                   } blur-3xl rounded-full scale-110`} />
                 </motion.div>
 
@@ -197,9 +197,9 @@ export default function Courses() {
                   <motion.div
                     className={`relative rounded-3xl bg-white/90 backdrop-blur-sm border p-8 lg:p-10 h-full flex flex-col justify-center group ${
                       c.highlight
-                        ? "border-rose-200 shadow-2xl shadow-rose-500/10"
+                        ? "border-red-200 shadow-2xl shadow-red-500/10"
                         : "border-slate-200 shadow-xl shadow-slate-500/5"
-                    } hover:shadow-2xl hover:shadow-pink-500/20 transition-all duration-500 overflow-hidden`}
+                    } hover:shadow-2xl hover:shadow-red-500/20 transition-all duration-500 overflow-hidden`}
                     whileHover={{ 
                       y: -8,
                       scale: 1.02,
@@ -211,8 +211,8 @@ export default function Courses() {
                     <div className="absolute inset-0 bg-linear-to-br from-white via-white to-white/80 z-0" />
                     <div className={`absolute inset-0 bg-linear-to-br ${
                       c.highlight 
-                        ? "from-pink-500/5 via-rose-500/5 to-amber-500/5" 
-                        : "from-blue-500/5 via-purple-500/5 to-pink-500/5"
+                        ? "from-red-500/5 via-red-500/5 to-rose-500/5" 
+                        : "from-red-500/5 via-red-500/5 to-rose-500/5"
                     } opacity-0 group-hover:opacity-100 transition-opacity duration-700 z-0`} />
                     
                     {/* Animated border gradient */}
@@ -221,8 +221,8 @@ export default function Courses() {
                       initial={{ background: "linear-gradient(90deg, transparent, transparent)" }}
                       whileHover={{ 
                         background: c.highlight 
-                          ? "linear-gradient(90deg, #fbbf24, #ec4899, #f43f5e)" 
-                          : "linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899)"
+                          ? "linear-gradient(90deg, #dc2626, #b91c1c, #7f1d1d)" 
+                          : "linear-gradient(90deg, #dc2626, #b91c1c, #991b1b)"
                       }}
                       transition={{ duration: 0.5 }}
                     >
@@ -232,7 +232,7 @@ export default function Courses() {
                     {/* Floating elements */}
                     <motion.div 
                       className={`absolute -top-6 -right-6 w-24 h-24 rounded-full ${
-                        c.highlight ? "bg-rose-500/10" : "bg-blue-500/10"
+                        c.highlight ? "bg-red-500/10" : "bg-red-500/10"
                       } z-0`}
                       animate={{
                         y: [0, -10, 0],
@@ -256,13 +256,13 @@ export default function Courses() {
                       >
                         <span className={`px-4 py-1.5 rounded-full text-sm font-semibold ${
                           c.highlight
-                            ? "bg-linear-to-r from-rose-100 to-pink-100 text-rose-700"
-                            : "bg-linear-to-r from-blue-100 to-purple-100 text-blue-700"
+                            ? "bg-linear-to-r from-red-100 to-rose-100 text-red-700"
+                            : "bg-linear-to-r from-red-100 to-rose-100 text-red-700"
                         }`}>
                           {c.level}
                         </span>
                         {c.highlight && (
-                          <span className="px-3 py-1.5 rounded-full bg-linear-to-r from-amber-100 to-yellow-100 text-amber-700 text-sm font-semibold">
+                          <span className="px-3 py-1.5 rounded-full bg-linear-to-r from-red-100 to-rose-100 text-red-700 text-sm font-semibold">
                             <TrendingUp size={12} className="inline mr-1" /> Bán chạy
                           </span>
                         )}
@@ -278,8 +278,8 @@ export default function Courses() {
                         whileHover={{ 
                           scale: 1.02,
                           backgroundImage: c.highlight 
-                            ? "linear-gradient(90deg, #f59e0b, #ec4899, #f43f5e)" 
-                            : "linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899)",
+                            ? "linear-gradient(90deg, #dc2626, #b91c1c, #7f1d1d)" 
+                            : "linear-gradient(90deg, #dc2626, #b91c1c, #991b1b)",
                         }}
                       >
                         <span className="bg-linear-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent group-hover:text-transparent group-hover:bg-clip-text transition-all duration-500">
@@ -297,7 +297,7 @@ export default function Courses() {
                       >
                         <div className="flex items-center gap-3 text-slate-600">
                           <div className={`p-2 rounded-lg ${
-                            c.highlight ? "bg-rose-100 text-rose-600" : "bg-blue-100 text-blue-600"
+                            c.highlight ? "bg-red-100 text-red-600" : "bg-red-100 text-red-600"
                           }`}>
                             <Clock size={18} />
                           </div>
@@ -308,7 +308,7 @@ export default function Courses() {
                         </div>
                         <div className="flex items-center gap-3 text-slate-600">
                           <div className={`p-2 rounded-lg ${
-                            c.highlight ? "bg-amber-100 text-amber-600" : "bg-purple-100 text-purple-600"
+                            c.highlight ? "bg-red-100 text-red-600" : "bg-red-100 text-red-600"
                           }`}>
                             <Users size={18} />
                           </div>
@@ -330,8 +330,8 @@ export default function Courses() {
                           href="#contact"
                           className={`inline-flex items-center gap-3 px-8 py-4 rounded-xl text-white font-semibold transition-all duration-300 shadow-lg group/btn ${
                             c.highlight
-                              ? "bg-linear-to-r from-amber-400 via-pink-500 to-rose-500 hover:shadow-2xl hover:shadow-rose-500/30"
-                              : "bg-linear-to-r from-blue-500 via-purple-500 to-pink-500 hover:shadow-2xl hover:shadow-purple-500/30"
+                              ? "bg-linear-to-r from-red-600 via-red-600 to-red-700 hover:shadow-2xl hover:shadow-red-600/30"
+                              : "bg-linear-to-r from-red-600 via-red-600 to-red-700 hover:shadow-2xl hover:shadow-red-600/30"
                           }`}
                           whileHover={{ 
                             scale: 1.05,
@@ -361,7 +361,7 @@ export default function Courses() {
                     {/* Corner accent */}
                     <motion.div 
                       className={`absolute -bottom-6 -left-6 w-32 h-32 rounded-full ${
-                        c.highlight ? "bg-linear-to-br from-amber-400/20 to-rose-400/20" : "bg-linear-to-br from-blue-400/20 to-purple-400/20"
+                        c.highlight ? "bg-linear-to-br from-red-400/20 to-red-500/20" : "bg-linear-to-br from-red-400/20 to-red-500/20"
                       } z-0`}
                       animate={{
                         rotate: [0, 90, 180, 270, 360],

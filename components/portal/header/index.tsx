@@ -138,7 +138,6 @@ function useHeaderI18n(locale: Locale) {
           "/leads": { vi: "Quản lý tuyển sinh", en: "Lead Management" },
           "/reports": { vi: "Báo cáo & Thống kê", en: "Reports & Analytics" },
           "/settings": { vi: "Cài đặt & Chính sách", en: "Settings & Policies" },
-          "/extracurricular": { vi: "Hoạt động ngoại khóa", en: "Extracurricular Activities" },
         };
 
         // Strip locale prefix

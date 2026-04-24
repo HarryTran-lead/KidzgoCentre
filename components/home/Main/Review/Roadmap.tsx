@@ -5,13 +5,14 @@ import { ACCENT_TEXT } from "@/lib/theme/theme";
 import { 
   Volume2, 
   MessageCircle, 
-  Trophy, 
   Calendar, 
   BarChart3, 
   Users,
   Sparkles,
-  Star
+  Star,
+  Trophy
 } from "lucide-react";
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 
 export default function Roadmap() {
@@ -28,54 +29,54 @@ export default function Roadmap() {
       title: "Bậc Thầy Phát Âm",
       desc: "Chuẩn hoá âm – nhịp – trọng âm theo kiểu vui & dễ nhớ.",
       icon: Volume2,
-      color: "from-pink-500 to-rose-500",
-      bgColor: "bg-pink-50",
-      borderColor: "border-pink-200",
+      color: "from-red-500 to-rose-500",
+      bgColor: "bg-red-50",
+      borderColor: "border-red-200",
       step: 1
     },
     {
       title: "Tăng Cường Giao Tiếp",
       desc: "Giao tiếp phản xạ, trò chơi tình huống – tự tin nói.",
       icon: MessageCircle,
-      color: "from-blue-500 to-cyan-500",
-      bgColor: "bg-blue-50",
-      borderColor: "border-blue-200",
+      color: "from-red-600 to-red-700",
+      bgColor: "bg-red-50",
+      borderColor: "border-red-200",
       step: 2
     },
     {
       title: "Khởi Đầu Thi Cử",
       desc: "Nền tảng Cambridge/Pre-TOEIC – làm bài không sợ.",
       icon: Trophy,
-      color: "from-amber-500 to-orange-500",
-      bgColor: "bg-amber-50",
-      borderColor: "border-amber-200",
+      color: "from-red-700 to-rose-600",
+      bgColor: "bg-red-50",
+      borderColor: "border-red-200",
       step: 3
     },
     {
       title: "Kế Hoạch & Thói Quen",
       desc: "Thói quen 20–30' /ngày; ba mẹ theo dõi tiến độ.",
       icon: Calendar,
-      color: "from-emerald-500 to-green-500",
-      bgColor: "bg-emerald-50",
-      borderColor: "border-emerald-200",
+      color: "from-red-500 to-rose-600",
+      bgColor: "bg-red-50",
+      borderColor: "border-red-200",
       step: 4
     },
     {
       title: "Báo Cáo & Hướng Dẫn",
       desc: "Bảng tiến bộ hàng tháng & 1:1 coaching khi cần.",
       icon: BarChart3,
-      color: "from-purple-500 to-violet-500",
-      bgColor: "bg-purple-50",
-      borderColor: "border-purple-200",
+      color: "from-red-600 to-rose-700",
+      bgColor: "bg-red-50",
+      borderColor: "border-red-200",
       step: 5
     },
     {
       title: "Dự Án & Câu Lạc Bộ",
       desc: "CLB, field trip – dùng tiếng Anh ngoài lớp.",
       icon: Users,
-      color: "from-indigo-500 to-blue-500",
-      bgColor: "bg-indigo-50",
-      borderColor: "border-indigo-200",
+      color: "from-red-700 to-red-600",
+      bgColor: "bg-red-50",
+      borderColor: "border-red-200",
       step: 6
     },
   ];
@@ -199,7 +200,7 @@ export default function Roadmap() {
     <section 
       id="roadmap" 
       ref={sectionRef}
-      className="py-20 scroll-mt-24 pb-0 overflow-hidden bg-linear-to-b from-white via-rose-50 to-pink-50 relative  z-30"
+      className="py-20 scroll-mt-24 pb-0 overflow-hidden bg-linear-to-b from-white via-red-50 to-rose-50 relative  z-30"
       style={{
         borderTopLeftRadius: '3rem',
         borderTopRightRadius: '3rem',
@@ -208,8 +209,8 @@ export default function Roadmap() {
     >
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden" style={{ borderRadius: 'inherit' }}>
-        <div className="absolute top-1/4 left-10 w-72 h-72 bg-pink-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse"></div>
-        <div className="absolute bottom-1/4 right-10 w-72 h-72 bg-blue-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse delay-1000"></div>
+        <div className="absolute top-1/4 left-10 w-72 h-72 bg-red-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse"></div>
+        <div className="absolute bottom-1/4 right-10 w-72 h-72 bg-rose-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse delay-1000"></div>
       </div>
 
       <div className="mx-auto max-w-6xl px-4 sm:px-6 relative z-10">
@@ -221,7 +222,7 @@ export default function Roadmap() {
               : 'opacity-0 translate-y-10'
           }`}>
             Lộ trình học{" "}
-            <span className={`${ACCENT_TEXT} relative inline-block`}>
+            <span className="bg-linear-to-r from-red-600 to-red-700 bg-clip-text text-transparent relative inline-block">
               6 bước
               <Star className="absolute -top-2 -right-4 w-4 h-4 text-yellow-500 animate-spin" />
             </span>
@@ -239,13 +240,13 @@ export default function Roadmap() {
         {/* Roadmap Timeline Container */}
         <div ref={containerRef} className="relative min-h-[900px] lg:min-h-[1100px]">
           {/* Timeline Line - Desktop với animation progress */}
-          <div className="hidden lg:block absolute left-1/2 top-0 bottom-0 w-3 bg-linear-to-b from-pink-300 via-blue-300 to-emerald-300 transform -translate-x-1/2 overflow-hidden rounded-full">
+          <div className="hidden lg:block absolute left-1/2 top-0 bottom-0 w-3 bg-linear-to-b from-red-300 via-red-400 to-rose-300 transform -translate-x-1/2 overflow-hidden rounded-full">
             {/* Static gradient line */}
-            <div className="absolute inset-0 bg-linear-to-b from-pink-300 via-blue-300 to-emerald-300 rounded-full"></div>
+            <div className="absolute inset-0 bg-linear-to-b from-red-300 via-red-400 to-rose-300 rounded-full"></div>
             
             {/* Animated progress fill */}
             <div 
-              className="absolute top-0 left-0 w-full bg-linear-to-b from-pink-500 via-blue-500 to-emerald-500 transition-all duration-500 rounded-full"
+              className="absolute top-0 left-0 w-full bg-linear-to-b from-red-500 via-red-600 to-rose-500 transition-all duration-500 rounded-full"
               style={{ height: `${timelineProgress}%` }}
             ></div>
             
@@ -259,9 +260,9 @@ export default function Roadmap() {
             style={{ top: `${timelineProgress}%` }}
           >
             <div className="relative">
-              <div className="w-12 h-12 rounded-full border-4 border-white bg-linear-to-r from-emerald-400 to-green-500 shadow-xl flex items-center justify-center animate-pulse">
-                <Trophy className="w-6 h-6 text-white" />
-                <div className="absolute -inset-3 rounded-full bg-emerald-500/20 animate-ping"></div>
+              <div className="w-12 h-12 rounded-full border-4 border-white bg-linear-to-r from-red-500 to-rose-600 shadow-xl flex items-center justify-center animate-pulse">
+                <Image src="/image/ngoisao.png" alt="star" width={24} height={24} />
+                <div className="absolute -inset-3 rounded-full bg-red-500/20 animate-ping"></div>
               </div>
             </div>
           </div>
@@ -269,12 +270,12 @@ export default function Roadmap() {
           {/* Mobile Progress Bar với animation */}
           <div className="lg:hidden mb-8">
             <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium text-pink-600">Bắt đầu</span>
-              <span className="text-sm font-medium text-emerald-600">Hoàn thành</span>
+              <span className="text-sm font-medium text-red-600">Bắt đầu</span>
+              <span className="text-sm font-medium text-rose-600">Hoàn thành</span>
             </div>
-            <div className="h-2 bg-linear-to-r from-pink-200 via-blue-200 to-emerald-200 rounded-full overflow-hidden">
+            <div className="h-2 bg-linear-to-r from-red-200 via-red-300 to-rose-200 rounded-full overflow-hidden">
               <div 
-                className="h-full bg-linear-to-r from-pink-500 via-blue-500 to-emerald-500 rounded-full transition-all duration-500"
+                className="h-full bg-linear-to-r from-red-500 via-red-600 to-rose-500 rounded-full transition-all duration-500"
                 style={{ width: `${timelineProgress}%` }}
               ></div>
             </div>
@@ -390,7 +391,7 @@ export default function Roadmap() {
                     <div className="mt-6 flex items-center justify-between">
                       <div className="flex gap-1">
                         {[...Array(3)].map((_, idx) => (
-                          <div
+                          <div    
                             key={idx}
                             className={`w-3 h-3 rounded-full transition-all duration-300 ${
                               idx === 0 

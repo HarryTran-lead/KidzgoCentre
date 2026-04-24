@@ -378,8 +378,6 @@ export default function ApplicationPage() {
     <div className="flex flex-col h-[calc(100vh-120px)]">
       {/* Header Section */}
       <div className={`shrink-0 px-6 pt-6 pb-4 transition-all duration-700 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"}`}>
-        
-
         {/* Contact Info Bar */}
         <div className="flex items-center justify-center gap-4 flex-wrap mb-6">
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-purple-500/10 border border-purple-500/30 backdrop-blur-sm">

@@ -905,11 +905,6 @@ export const FINANCE_ENDPOINTS = {
   REPORTS: "/api/finance/reports",
 } as const;
 
-export const EXTRACURRICULAR_PROGRAM_ENDPOINTS = {
-  BASE: "/api/extracurricular-programs",
-  BY_ID: (id: string) => `/api/extracurricular-programs/${id}`,
-} as const;
-
 export const STAFF_PORTAL_ENDPOINTS = {
   DASHBOARD: "/api/staff/dashboard",
   ANNOUNCEMENTS: "/api/staff/announcements",

@@ -43,7 +43,6 @@ export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     [t.groups.ops.rooms, Building2, "/rooms"],
     [t.groups.ops.schedule, CalendarRange, "/schedule"],
     [t.groups.ops.pauseEnrollments, CalendarClock, "/pause-enrollments"],
-    [t.groups.ops.extracurricular, CalendarClock, "/extracurricular"],
     [t.groups.ops.documents, FileText, "/documents"],
     [t.groups.ops.teachingMaterials, Folder, "/materials"],
     [t.groups.ops.media, Image, "/media"],
