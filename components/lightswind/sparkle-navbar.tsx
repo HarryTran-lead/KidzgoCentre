@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useRef, useLayoutEffect } from "react";
+import React, { useState, useRef, useLayoutEffect, useEffect } from "react";
 import { gsap } from "gsap";
 
 // Define the props for the reusable component.
@@ -15,6 +15,14 @@ interface SparkleNavbarProps {
    * @example '#1E90FF' (a shade of blue)
    */
   color?: string;
+  /**
+   * Externally controlled active index
+   */
+  activeIndex?: number;
+  /**
+   * Callback when item is clicked
+   */
+  onItemClick?: (index: number) => void;
 }
 
 /**
@@ -27,6 +35,8 @@ interface SparkleNavbarProps {
 const SparkleNavbar: React.FC<SparkleNavbarProps> = ({
   items,
   color = "#00fffc",
+  activeIndex: externalActiveIndex,
+  onItemClick,
 }) => {
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -34,6 +44,9 @@ const SparkleNavbar: React.FC<SparkleNavbarProps> = ({
   const navRef = useRef<HTMLDivElement>(null);
   const activeElementRef = useRef<HTMLDivElement>(null);
   const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  // Use external activeIndex if provided
+  const currentActiveIndex = externalActiveIndex !== undefined ? externalActiveIndex : activeIndex;
 
   // Function to create the SVG content for the active element.
   const createSVG = (element: HTMLDivElement) => {
@@ -82,27 +95,41 @@ const SparkleNavbar: React.FC<SparkleNavbarProps> = ({
   // useLayoutEffect runs synchronously after all DOM mutations, ensuring the
   // initial position of the active element is correct before the first paint.
   useLayoutEffect(() => {
-    const activeButton = buttonRefs.current[activeIndex];
+    const activeButton = buttonRefs.current[currentActiveIndex];
     if (navRef.current && activeElementRef.current && activeButton) {
       gsap.set(activeElementRef.current, {
         x: getOffsetLeft(activeButton),
-      });
-      gsap.to(activeElementRef.current, {
         "--active-element-show": "1",
-        duration: 0.2,
+        "--active-element-width": "36px",
       });
     }
   }, []);
 
+  // Update indicator when external activeIndex changes
+  useEffect(() => {
+    const activeButton = buttonRefs.current[currentActiveIndex];
+    if (navRef.current && activeElementRef.current && activeButton) {
+      // Smoothly animate to the new button position
+      gsap.to(activeElementRef.current, {
+        x: getOffsetLeft(activeButton),
+        "--active-element-show": "1",
+        duration: 0.4,
+        ease: "power2.inOut"
+      });
+    }
+  }, [externalActiveIndex]);
+
   // Handler for button clicks, which triggers the animation.
   const handleClick = (index: number) => {
+    onItemClick?.(index);
+    
     const navElement = navRef.current;
     const activeElement = activeElementRef.current;
-    const oldButton = buttonRefs.current[activeIndex];
+    const oldButton = buttonRefs.current[currentActiveIndex];
     const newButton = buttonRefs.current[index];
 
     if (
-      index === activeIndex ||
+      index === currentActiveIndex ||
       !navElement ||
       !activeElement ||
       !oldButton ||
@@ -112,7 +139,7 @@ const SparkleNavbar: React.FC<SparkleNavbarProps> = ({
     }
 
     const x = getOffsetLeft(newButton);
-    const direction = index > activeIndex ? "after" : "before";
+    const direction = index > currentActiveIndex ? "after" : "before";
     const spacing = Math.abs(x - getOffsetLeft(oldButton));
 
     navElement.classList.add(direction);
@@ -204,6 +231,11 @@ const SparkleNavbar: React.FC<SparkleNavbarProps> = ({
           transition: color 0.25s;
         }
 
+        .navigation-menu ul li.active button {
+          color: ${color};
+          font-weight: 600;
+        }
+
         .navigation-menu ul li:not(.active):hover button {
           text-shadow: 0 0 10px ${color}, 0 0 20px ${color};
         }
@@ -280,7 +312,7 @@ const SparkleNavbar: React.FC<SparkleNavbarProps> = ({
       <nav className="navigation-menu" ref={navRef}>
         <ul>
           {items.map((item, index) => (
-            <li key={item} className={index === activeIndex ? "active" : ""}>
+            <li key={item} className={index === currentActiveIndex ? "active" : ""}>
               <button
                 ref={(el) => {
                   buttonRefs.current[index] = el;

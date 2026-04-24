@@ -15,6 +15,8 @@ import { Menu, X, LogIn, ChevronRight, Sparkles } from "lucide-react";
 import { motion, useMotionValue, animate } from "framer-motion";
 import { LOGO } from "@/lib/theme/theme";
 import LanguageToggle from "@/components/ui/button/LanguageToggle";
+import PageTransitionLoader from "@/components/ui/PageTransitionLoader";
+import SparkleNavbarWithNavigation from "@/components/home/Header/SparkleNavbarWithNavigation";
 import {
   pickLocaleFromPath,
   type Locale,
@@ -69,6 +71,7 @@ function smoothTo(id: string) {
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const navRef = useRef<HTMLElement | null>(null);
   const lastScrollY = useRef(0);
   const navVariants = useMemo(
@@ -165,66 +168,10 @@ export default function Navbar() {
     return idx === -1 ? 0 : idx;
   }, [NAV_ITEMS, activeKey]);
 
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const itemRefs = useRef<(HTMLAnchorElement | null)[]>([]);
-  const setItemRef = useCallback(
-    (index: number) => (el: HTMLAnchorElement | null) => {
-      itemRefs.current[index] = el;
-    },
-    []
-  );
-
-  const x = useMotionValue(0);
-  const w = useMotionValue(0);
-  const [indReady, setIndReady] = useState(false);
-  const didMount = useRef(false);
-
-  function measureRect(el: HTMLElement | null) {
-    const wrap = containerRef.current;
-    if (!el || !wrap) return { tx: 0, tw: 0 };
-    const a = el.getBoundingClientRect();
-    const b = wrap.getBoundingClientRect();
-    return {
-      tx: Math.round(a.left - b.left),
-      tw: Math.round(a.width),
-    };
-  }
-
-  function moveIndicatorToIndex(index: number, instant = false) {
-    const rect = measureRect(itemRefs.current[index]);
-    if (instant) {
-      x.set(rect.tx);
-      w.set(rect.tw);
-      return;
-    }
-    const spring = {
-      type: "spring" as const,
-      stiffness: 280,
-      damping: 25,
-      mass: 0.8,
-    };
-    animate(x, [rect.tx], spring);
-    animate(w, [rect.tw], spring);
-  }
-
-  useLayoutEffect(() => {
-    requestAnimationFrame(() => {
-      moveIndicatorToIndex(Math.max(0, activeIndex), true);
-      setIndReady(true);
-      didMount.current = true;
-    });
-  }, []);
-
+  // Close loading when pathname changes
   useEffect(() => {
-    if (!didMount.current) return;
-    moveIndicatorToIndex(Math.max(0, activeIndex));
-  }, [activeIndex]);
-
-  useEffect(() => {
-    const onResize = () => moveIndicatorToIndex(Math.max(0, activeIndex), true);
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, [activeIndex]);
+    setIsLoading(false);
+  }, [pathname]);
 
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
@@ -258,6 +205,8 @@ export default function Navbar() {
 
   return (
     <>
+      <PageTransitionLoader isLoading={isLoading} />
+      
       {/* Main Navbar */}
       <motion.nav
         ref={navRef}
@@ -306,112 +255,13 @@ export default function Navbar() {
 
             {/* Desktop Navigation */}
             <div className="hidden lg:flex absolute left-1/2 transform -translate-x-1/2">
-              <div className="flex items-center">
-                <div
-                  ref={containerRef}
-                  className="relative inline-flex items-center gap-0.5 px-1.5 pb-2.5 pt-2"
-                >
-                  {indReady && (
-                    <motion.div
-                      className="absolute top-2 left-0 h-[calc(100%-16px)] bg-gradient-to-r from-red-400/20 to-red-500/20 rounded-xl border border-red-100/50 shadow-sm"
-                      initial={false}
-                      style={{
-                        x,
-                        width: w,
-                      }}
-                      transition={{
-                        type: "spring",
-                        stiffness: 280,
-                        damping: 25,
-                        mass: 0.8,
-                      }}
-                    />
-                  )}
-                  
-                  {NAV_ITEMS.map((item, i) => {
-                    const isActive = i === activeIndex;
-
-                    if (item.kind === "section") {
-                      const sectionHref = homePath + "#" + item.id;
-                      return (
-                        <motion.a
-                          key={item.id}
-                          href={sectionHref}
-                          onClick={(e) => {
-                            if (isHomePage) {
-                              e.preventDefault();
-                              smoothTo(item.id);
-                            }
-                          }}
-                          ref={setItemRef(i)}
-                          className={`
-                            relative z-10 px-4 py-2.5 mx-1 text-sm font-medium rounded-xl
-                            transition-all duration-300 ease-out
-                            group/nav-item whitespace-nowrap
-                            ${isActive 
-                              ? "text-red-600 font-semibold"
-                              : "text-gray-800 hover:text-red-600"
-                            }
-                          `}
-                          whileHover={{ 
-                            scale: 1.03
-                          }}
-                          whileTap={{ scale: 0.95 }}
-                        >
-                          <span className="relative inline-block whitespace-nowrap">
-                            {item.label}
-                            <span
-                              className={`
-                                absolute left-0 right-0 -bottom-1 h-0.5 rounded-full
-                                bg-gradient-to-r from-red-600 to-red-700
-                                transform origin-left transition-all duration-300 ease-out
-                                ${isActive 
-                                  ? "scale-x-100 opacity-100" 
-                                  : "scale-x-0 opacity-0 group-hover/nav-item:scale-x-100 group-hover/nav-item:opacity-100"
-                                }
-                              `}
-                            />
-                          </span>
-                        </motion.a>
-                      );
-                    }
-
-                    return (
-                      <motion.a
-                        key={item.id}
-                        href={item.href}
-                        ref={setItemRef(i)}
-                        className={`
-                          relative z-10 px-4 py-2.5 mx-0.5 text-sm font-medium rounded-xl
-                          transition-all duration-300 ease-out
-                          group/nav-item whitespace-nowrap
-                          ${isActive 
-                            ? "text-red-600 font-semibold"
-                            : "text-gray-800 hover:text-red-600"
-                          }
-                        `}
-                        whileHover={{ scale: 1.03 }}
-                        whileTap={{ scale: 0.95 }}
-                      >
-                        <span className="relative inline-block whitespace-nowrap">
-                          {item.label}
-                          <span
-                            className={`
-                              absolute left-0 right-0 -bottom-1 h-0.5 rounded-full
-                              bg-gradient-to-r from-red-600 to-red-700
-                              transform origin-left transition-all duration-300 ease-out
-                              ${isActive 
-                                ? "scale-x-100 opacity-100" 
-                                : "scale-x-0 opacity-0 group-hover/nav-item:scale-x-100 group-hover/nav-item:opacity-100"
-                              }
-                            `}
-                          />
-                        </span>
-                      </motion.a>
-                    );
-                  })}
-                </div>
-              </div>
+              <SparkleNavbarWithNavigation 
+                items={NAV_ITEMS} 
+                isHomePage={isHomePage}
+                activeIndex={activeIndex}
+                onSmoothScroll={smoothTo}
+                onLoadingChange={setIsLoading}
+              />
             </div>
 
             {/* Right Side Actions */}
