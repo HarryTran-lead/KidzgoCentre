@@ -63,7 +63,7 @@ export default function Teacher() {
       }}
     >
       {/* Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-b from-white via-white/60 to-red-600/40 pointer-events-none z-0"></div>
+      <div className="absolute inset-0 bg-gradient-to-b from-white via-white to-red-600 pointer-events-none z-0"></div>
 
       {/* Team Carousel từ Lightswind */}
       <div className="relative z-10">
