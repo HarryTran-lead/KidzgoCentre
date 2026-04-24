@@ -384,7 +384,7 @@ export default function RegistrationDetailModal({
                   value={
                     firstStudySession
                       ? [
-                          toDateTime(
+                          toDate(
                             firstStudySession.studyDate ||
                               null,
                           ),

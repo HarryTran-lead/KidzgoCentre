@@ -28,11 +28,10 @@ export interface RegistrationStudySchedule {
 export interface RegistrationFirstStudySession {
   track?: RegistrationTrackType | null;
   classId?: string | null;
+  classEnrollmentId?: string | null;
   className?: string | null;
-  sessionDate?: string | null;
-  startsAt?: string | null;
-  endsAt?: string | null;
-  studyDayCode?: string | null;
+  sessionId?: string | null;
+  plannedDatetime?: string | null;
   studyDate?: string | null;
 }
 
