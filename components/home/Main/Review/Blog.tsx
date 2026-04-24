@@ -58,18 +58,18 @@ export default function Blog() {
   const getTagColor = (tag: string) => {
     const tagLower = tag.toLowerCase();
     if (tagLower === "tips" || tagLower === "kỹ năng") {
-      return { bg: "bg-pink-400", text: "text-white" };
+      return { bg: "bg-red-500", text: "text-white" };
     }
     if (tagLower === "news" || tagLower === "tin tức") {
-      return { bg: "bg-blue-400", text: "text-white" };
+      return { bg: "bg-red-600", text: "text-white" };
     }
     if (tagLower === "guide" || tagLower === "hướng dẫn") {
-      return { bg: "bg-green-400", text: "text-white" };
+      return { bg: "bg-rose-500", text: "text-white" };
     }
     if (tagLower === "activity" || tagLower === "hoạt động") {
-      return { bg: "bg-yellow-400", text: "text-white" };
+      return { bg: "bg-red-700", text: "text-white" };
     }
-    return { bg: "bg-purple-400", text: "text-white" };
+    return { bg: "bg-red-600", text: "text-white" };
   };
 
   return (
@@ -88,7 +88,7 @@ export default function Blog() {
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {/* Cute shapes */}
         <motion.div
-          className="absolute top-10 left-10 w-32 h-32 rounded-full bg-gradient-to-r from-pink-200/30 to-orange-200/30"
+          className="absolute top-10 left-10 w-32 h-32 rounded-full bg-gradient-to-r from-red-200/30 to-red-300/30"
           animate={{
             scale: [1, 1.2, 1],
             rotate: [0, 180, 360],
@@ -101,7 +101,7 @@ export default function Blog() {
         />
         
         <motion.div
-          className="absolute bottom-20 right-20 w-40 h-40 rounded-full bg-gradient-to-r from-blue-200/20 to-green-200/20"
+          className="absolute bottom-20 right-20 w-40 h-40 rounded-full bg-gradient-to-r from-red-200/20 to-rose-200/20"
           animate={{
             scale: [1, 1.3, 1],
             x: [0, 30, 0],
@@ -128,7 +128,7 @@ export default function Blog() {
             variants={fadeInUp}
           >
             <span className="block text-gray-800">Bản tin</span>
-            <span className="bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-red-600 via-red-500 to-rose-600 bg-clip-text text-transparent">
               Của Bé Yêu
             </span>
           </motion.h2>
@@ -165,7 +165,7 @@ export default function Blog() {
                 {/* Card container với hình dạng dễ thương */}
                 <div className="relative rounded-3xl bg-gradient-to-b from-white to-white/90 overflow-hidden h-full border-4 border-white shadow-xl hover:shadow-2xl transition-all duration-500 group-hover:border-pink-300">
                   {/* Cute top decoration */}
-                  <div className="absolute top-0 left-0 right-0 h-3 bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400 rounded-t-3xl" />
+                  <div className="absolute top-0 left-0 right-0 h-3 bg-gradient-to-r from-red-600 via-red-500 to-rose-600 rounded-t-3xl" />
                   
                   {/* Image container với khung dễ thương */}
                   <div className="relative h-48 overflow-hidden m-4 mt-6 rounded-2xl border-4 border-white shadow-lg">
@@ -203,10 +203,10 @@ export default function Blog() {
                   <div className="p-6">
                     {/* Title với hiệu ứng gradient */}
                     <motion.h3 
-                      className="text-xl font-black mb-3 leading-tight group-hover:text-pink-600 transition-colors duration-300 min-h-[56px]"
+                      className="text-xl font-black mb-3 leading-tight group-hover:text-red-600 transition-colors duration-300 min-h-[56px]"
                       whileHover={{ scale: 1.02 }}
                     >
-                      <span className="bg-gradient-to-r from-gray-900 to-gray-700 group-hover:from-pink-600 group-hover:to-purple-600 bg-clip-text text-transparent transition-all duration-300">
+                      <span className="bg-gradient-to-r from-gray-900 to-gray-700 group-hover:from-red-600 group-hover:to-rose-600 bg-clip-text text-transparent transition-all duration-300">
                         {post.title}
                       </span>
                     </motion.h3>
@@ -219,7 +219,7 @@ export default function Blog() {
                     </div>
 
                     {/* Stats */}
-                    <div className="flex items-center justify-between mb-6 bg-gradient-to-r from-pink-50 to-blue-50 p-3 rounded-xl border border-gray-100">
+                    <div className="flex items-center justify-between mb-6 bg-gradient-to-r from-red-50 to-rose-50 p-3 rounded-xl border border-gray-100">
                       {[
                         { count: Math.floor(Math.random() * 1000) + 500, label: "xem" },
                         { count: Math.floor(Math.random() * 200) + 50, label: "thích" },
@@ -243,8 +243,8 @@ export default function Blog() {
                         href="#"
                         className="group/btn relative inline-flex items-center justify-center gap-3 w-full py-3.5 rounded-xl text-white font-bold shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden"
                         style={{
-                          background: `linear-gradient(135deg, ${['#ff6b9d', '#6b8cff', '#6bffb8', '#ffc46b'][index % 4]}, ${
-                            ['#ff8ebb', '#8ba3ff', '#8bffd1', '#ffd48b'][index % 4]
+                          background: `linear-gradient(135deg, ${['#dc2626', '#b91c1c', '#991b1b', '#7f1d1d'][index % 4]}, ${
+                            ['#ef4444', '#f87171', '#fca5a5', '#fecaca'][index % 4]
                           })`
                         }}
                         whileHover={{ scale: 1.05, rotate: [0, -1, 1, 0] }}
@@ -280,7 +280,7 @@ export default function Blog() {
 
                   {/* Cute corner decorations */}
                   <motion.div
-                    className="absolute -top-3 -left-3 w-12 h-12 rounded-full bg-gradient-to-r from-pink-400/20 to-purple-400/20"
+                    className="absolute -top-3 -left-3 w-12 h-12 rounded-full bg-gradient-to-r from-red-400/20 to-red-500/20"
                     animate={{
                       rotate: 360,
                       scale: [1, 1.1, 1]
@@ -293,7 +293,7 @@ export default function Blog() {
                   />
                   
                   <motion.div
-                    className="absolute -bottom-3 -right-3 w-10 h-10 rounded-full bg-gradient-to-r from-blue-400/20 to-green-400/20"
+                    className="absolute -bottom-3 -right-3 w-10 h-10 rounded-full bg-gradient-to-r from-red-400/20 to-rose-400/20"
                     animate={{
                       rotate: -360,
                       scale: [1, 1.2, 1]
@@ -321,7 +321,7 @@ export default function Blog() {
         >
           <motion.a
             href="#"
-            className="group relative inline-flex items-center gap-4 px-10 py-5 bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 text-white font-bold rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden text-lg"
+            className="group relative inline-flex items-center gap-4 px-10 py-5 bg-gradient-to-r from-red-600 via-red-500 to-rose-600 text-white font-bold rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden text-lg"
             whileHover={{ scale: 1.05, rotate: [0, -1, 1, 0] }}
             whileTap={{ scale: 0.95 }}
           >

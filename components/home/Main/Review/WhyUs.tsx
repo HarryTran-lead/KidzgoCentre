@@ -72,11 +72,11 @@ export default function WhyUs() {
   };
 
   return (
-    <section id="why" className=" pt-0 scroll-mt-24 overflow-hidden bg-white relative z-30">
+    <section id="why" className="pt-0 scroll-mt-24 overflow-hidden bg-gradient-to-b from-white via-red-50 to-rose-50 relative z-30">
       {/* Animated gradient background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <motion.div 
-          className="absolute top-20 left-10 w-80 h-80 bg-linear-to-br from-pink-300 to-rose-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20"
+          className="absolute top-20 left-10 w-80 h-80 bg-gradient-to-br from-red-400 to-red-500 rounded-full mix-blend-multiply filter blur-3xl opacity-25"
           animate={{
             scale: [1, 1.2, 1],
             x: [0, 30, 0],
@@ -89,7 +89,7 @@ export default function WhyUs() {
           }}
         />
         <motion.div 
-          className="absolute bottom-32 right-10 w-96 h-96 bg-gradient-to-tr from-blue-300 to-cyan-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20"
+          className="absolute bottom-32 right-10 w-96 h-96 bg-gradient-to-tr from-red-500 to-rose-400 rounded-full mix-blend-multiply filter blur-3xl opacity-25"
           animate={{
             scale: [1, 1.1, 1],
             x: [0, -20, 0],
@@ -104,7 +104,7 @@ export default function WhyUs() {
         />
         {/* Floating orb */}
         <motion.div 
-          className="absolute top-1/2 left-1/3 w-64 h-64 bg-linear-to-r from-purple-300 to-pink-300 rounded-full mix-blend-multiply filter blur-3xl opacity-15"
+          className="absolute top-1/2 left-1/3 w-64 h-64 bg-gradient-to-r from-red-500 to-red-400 rounded-full mix-blend-multiply filter blur-3xl opacity-20"
           animate={{
             scale: [1, 1.3, 1],
             borderRadius: ["50%", "40%", "50%"],
@@ -123,7 +123,7 @@ export default function WhyUs() {
         {[...Array(15)].map((_, i) => (
           <motion.div
             key={i}
-            className="absolute w-1 h-1 bg-linear-to-r from-pink-400/30 to-rose-400/30 rounded-full"
+            className="absolute w-1 h-1 bg-gradient-to-r from-red-500/40 to-red-600/40 rounded-full"
             style={{
               left: `${(i * 7) % 100}%`,
               top: `${(i * 10) % 100}%`,
@@ -144,12 +144,12 @@ export default function WhyUs() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Header với animation */}
         <div ref={titleRef} className="text-center mb-16 pt-8">
-          <h2 className={`text-4xl md:text-6xl p-8 font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent transition-all duration-1000 ${
+          <h2 className={`text-4xl md:text-5xl font-black p-8 bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent transition-all duration-1000 ${
             isTitleVisible 
               ? 'opacity-100 translate-y-0' 
               : 'opacity-0 translate-y-10'
           }`}>
-            Khác biệt tạo <span className={ACCENT_TEXT}>hiệu quả</span>
+            Khác biệt tạo <span className="bg-gradient-to-r from-red-600 to-rose-600 bg-clip-text text-transparent">hiệu quả</span>
           </h2>
           <p className={`mt-4 text-lg text-gray-600 max-w-2xl mx-auto transition-all duration-1000 delay-300 ${
             isTitleVisible 
@@ -188,14 +188,14 @@ export default function WhyUs() {
                 {/* Main card */}
                 <div className={`
                   relative h-full rounded-3xl bg-white
-                  border-2 border-pink-200
-                  shadow-lg shadow-gray-200/50
+                  border-2 border-red-300
+                  shadow-lg shadow-red-200/50
                   overflow-hidden
-                  group-hover:shadow-xl group-hover:shadow-pink-200/50
+                  group-hover:shadow-2xl group-hover:shadow-red-300/50
                   transition-all duration-500
                 `}>
                   {/* Sticker image section */}
-                  <div className="relative w-full h-48 bg-linear-to-br from-pink-50 to-rose-50 overflow-hidden">
+                  <div className="relative w-full h-48 bg-gradient-to-br from-red-100 to-rose-100 overflow-hidden">
                     <div className="absolute inset-0 flex items-center justify-center p-4">
                       <motion.div 
                         className="relative w-full h-full flex items-center justify-center"
@@ -244,7 +244,7 @@ export default function WhyUs() {
                     
                     {/* Number badge */}
                     <motion.div 
-                      className="absolute top-4 right-4 w-10 h-10 bg-white rounded-full border-2 border-pink-200 shadow-md grid place-items-center"
+                      className="absolute top-4 right-4 w-10 h-10 bg-gradient-to-r from-red-500 to-red-600 rounded-full border-2 border-white shadow-lg grid place-items-center"
                       initial={{ scale: 0, opacity: 0 }}
                       animate={isVisible ? {
                         scale: 1,
@@ -265,7 +265,7 @@ export default function WhyUs() {
                         transition: { duration: 0.5 }
                       }}
                     >
-                      <span className="text-sm font-bold text-gray-800">
+                      <span className="text-sm font-bold text-white">
                         {index + 1}
                       </span>
                     </motion.div>
@@ -285,7 +285,7 @@ export default function WhyUs() {
                   </div>
                   
                   {/* Hover effect overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-pink-50/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+                  <div className="absolute inset-0 bg-gradient-to-t from-red-50/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
                 </div>
               </div>
             );

@@ -766,7 +766,7 @@ const formatGradedDate = (dateString?: string): string => {
           )}
 
           {/* Submission History */}
-          {assignment.submission && !isMultipleChoiceAssignment && (
+          {assignment.submission && (
             <div className="rounded-2xl border border-purple-500/30 bg-gradient-to-b from-slate-900/95 to-slate-950/95 backdrop-blur-xl p-6 shadow-xl shadow-purple-900/20">
               <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                 <FileCheck size={20} className="text-purple-400" />
