@@ -571,7 +571,7 @@ export default function FeesPage() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Tìm kiếm học viên, khóa học..."
+              placeholder="Tìm kiếm học viên, chương trình học..."
               className="h-10 w-72 rounded-xl border border-pink-200 bg-white pl-10 pr-4 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200"
             />
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -587,7 +587,7 @@ export default function FeesPage() {
             <SortHeader label="Học viên" sortKey="student" />
           </div>
           <div className="col-span-2">
-            <SortHeader label="Khóa học" sortKey="course" />
+            <SortHeader label="Chương trình học" sortKey="course" />
           </div>
           <div className="col-span-2">
             <SortHeader label="Học phí" sortKey="total" />

@@ -150,7 +150,7 @@ export default function TuitionPlanModal({
     const next: Partial<Record<keyof TuitionPlanFormData, string>> = {};
 
     if (!formData.branchId) next.branchId = "Chi nhánh là bắt buộc";
-    if (!formData.programId) next.programId = "Khóa học là bắt buộc";
+    if (!formData.programId) next.programId = "Chương trình học là bắt buộc";
     if (!formData.name.trim()) next.name = "Tên gói học là bắt buộc";
     if (!formData.totalSessions || Number(formData.totalSessions) <= 0) next.totalSessions = "Số buổi học phải lớn hơn 0";
     if (!formData.tuitionAmount || Number(formData.tuitionAmount.replace(/[^\d]/g, "")) <= 0) next.tuitionAmount = "Học phí phải lớn hơn 0";
@@ -219,7 +219,7 @@ export default function TuitionPlanModal({
               <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                 <BookOpen size={16} className="text-red-600" />
-                Khóa học *
+                Chương trình học *
               </label>
               <select
                 value={formData.programId}
@@ -231,7 +231,7 @@ export default function TuitionPlanModal({
                   loadingPrograms || !formData.branchId ? "opacity-50 cursor-not-allowed" : ""
                 )}
               >
-                <option value="">Chọn khóa học</option>
+                <option value="">Chọn chương trình học</option>
                 {programs.map((p) => (
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}

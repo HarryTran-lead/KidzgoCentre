@@ -130,7 +130,9 @@ function useHeaderI18n(locale: Locale) {
           "/blogs": { vi: "Quản lý bản tin", en: "Blog Management" },
           "/accounts": { vi: "Quản lý tài khoản", en: "Account Management" },
           "/branches": { vi: "Quản lý chi nhánh", en: "Branch Management" },
-          "/courses": { vi: "Quản lý khóa học", en: "Course Management" },
+          "/courses/system": { vi: "Chương trình toàn hệ thống", en: "System Programs" },
+          "/courses/branch": { vi: "Chương trình theo chi nhánh", en: "Branch Programs" },
+          "/courses": { vi: "Quản lý chương trình học", en: "Program Management" },
           "/classes": { vi: "Quản lý lớp học", en: "Class Management" },
           "/rooms": { vi: "Quản lý phòng học", en: "Room Management" },
           "/schedule": { vi: "Lịch học & Điểm danh", en: "Schedule & Attendance" },
@@ -138,7 +140,6 @@ function useHeaderI18n(locale: Locale) {
           "/leads": { vi: "Quản lý tuyển sinh", en: "Lead Management" },
           "/reports": { vi: "Báo cáo & Thống kê", en: "Reports & Analytics" },
           "/settings": { vi: "Cài đặt & Chính sách", en: "Settings & Policies" },
-          "/extracurricular": { vi: "Hoạt động ngoại khóa", en: "Extracurricular Activities" },
         };
 
         // Strip locale prefix

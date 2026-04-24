@@ -1273,7 +1273,7 @@ export default function AccountsPage() {
       if (response.success || response.isSuccess) {
         toast({
           title: "Thành công",
-          description: `${newStatus ? 'Kích hoạt' : 'Vô hiệu hóa'} tài khoản thành công`,
+          description: `${newStatus ? 'Kích hoạt' : 'Tạm khóa'} tài khoản thành công`,
           variant: "success",
         });
         setToggleStatusModalOpen(false);
@@ -2350,13 +2350,13 @@ export default function AccountsPage() {
         isOpen={toggleStatusModalOpen}
         onClose={() => setToggleStatusModalOpen(false)}
         onConfirm={handleToggleStatus}
-        title={selectedAccount?.isActive ? "Xác nhận khóa tài khoản" : "Xác nhận mở khóa tài khoản"}
+        title={selectedAccount?.isActive ? "Xác nhận tạm khóa tài khoản" : "Xác nhận mở khóa tài khoản"}
         message={
           selectedAccount?.isActive
             ? `Bạn có chắc chắn muốn tạm khóa tài khoản "${selectedAccount?.name || selectedAccount?.username}"? Người dùng sẽ không thể đăng nhập cho đến khi được mở khóa.`
             : `Bạn có chắc chắn muốn mở khóa tài khoản "${selectedAccount?.name || selectedAccount?.username}"? Người dùng sẽ có thể đăng nhập trở lại.`
         }
-        confirmText={selectedAccount?.isActive ? "Khóa tài khoản" : "Mở khóa"}
+        confirmText={selectedAccount?.isActive ? "Tạm khóa" : "Mở khóa"}
         cancelText="Hủy"
         variant={selectedAccount?.isActive ? "danger" : "success"}
       />

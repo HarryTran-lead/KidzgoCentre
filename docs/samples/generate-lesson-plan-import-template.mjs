@@ -1,0 +1,52 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import XLSX from "xlsx";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const headers = [
+  "Period",
+  "Date",
+  "Teacher",
+  "Time",
+  "Book",
+  "Skills",
+  "Classwork",
+  "Required Materials",
+  "Homework Required Materials",
+  "Extra / Note",
+];
+
+const sessionRows = [
+  [1, "2026-04-15", "Vietnamese Teacher", "10 mins", "Warm Up and Check homework", "Grammar / Listening / Speaking / Reading", "Warm up\nHomework correction", "Worksheet Starters P.29-30", "Practice Razkid 3 videos/day", "Parents support pronunciation corrections"],
+  [1, "2026-04-15", "Vietnamese Teacher", "30 mins", "Get ready for Starters", "Grammar / Listening / Speaking / Reading", "P.38-39", "Workbook pages 38-39", "Alphabet reading paragraph recording", "Review difficult words at home"],
+  [1, "2026-04-15", "Vietnamese Teacher", "15 mins", "Handbook for Reading", "Phonics / Reading", "Long vowel chart 5", "Handbook pages 20-21", "Handbook review unfinished pages", "Send reading video to group"],
+  [1, "2026-04-15", "Vietnamese Teacher", "15 mins", "Fun with Pets", "Reading", "Long vowel story", "Fun with Pets pages 10-11", "Read story and answer 3 questions", "Focus on speaking clarity"],
+  [1, "2026-04-15", "Vietnamese Teacher", "15 mins", "Heneimann", "Listening / Speaking", "07 G1 Ant Can t", "Youtube clip review", "Repeat listening at home", "Practice sentence stress"],
+  [2, "2026-04-17", "Vietnamese Teacher", "10 mins", "Warm Up and Check homework", "Grammar / Listening / Speaking / Reading", "Warm up\nHomework correction", "Worksheet Starters P.31-32", "Practice Razkid 3 videos/day", "Parents support pronunciation corrections"],
+  [2, "2026-04-17", "Vietnamese Teacher", "30 mins", "Get ready for Starters", "Grammar / Listening / Speaking / Reading", "P.40-41", "Workbook pages 40-41", "Alphabet reading paragraph recording", "Review difficult words at home"],
+  [2, "2026-04-17", "Vietnamese Teacher", "15 mins", "Handbook for Reading", "Phonics / Reading", "Long vowel chart 6", "Handbook pages 22-23", "Handbook review unfinished pages", "Send reading video to group"],
+  [2, "2026-04-17", "Vietnamese Teacher", "15 mins", "Fun with Pets", "Reading", "Long vowel story 2", "Fun with Pets pages 12-13", "Read story and answer 3 questions", "Focus on speaking clarity"],
+  [2, "2026-04-17", "Vietnamese Teacher", "15 mins", "Heneimann", "Listening / Speaking", "08 G1 Ant Can t", "Youtube clip review", "Repeat listening at home", "Practice sentence stress"],
+];
+
+const workbook = XLSX.utils.book_new();
+
+const sheetAoa = [headers, ...sessionRows];
+const sheetA = XLSX.utils.aoa_to_sheet(sheetAoa);
+XLSX.utils.book_append_sheet(workbook, sheetA, "Program_Starters");
+
+const sheetBRows = sessionRows.map((row) => {
+  const next = [...row];
+  next[2] = "Native Teacher";
+  next[4] = `${row[4]} (Flyers)`;
+  return next;
+});
+const sheetB = XLSX.utils.aoa_to_sheet([headers, ...sheetBRows]);
+XLSX.utils.book_append_sheet(workbook, sheetB, "Program_Flyers");
+
+const outputFile = path.join(__dirname, "lesson-plan-import-template.xlsx");
+XLSX.writeFile(workbook, outputFile);
+
+console.log(`Generated: ${outputFile}`);

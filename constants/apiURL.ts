@@ -394,6 +394,8 @@ export const ADMIN_ENDPOINTS = {
   PROGRAMS: '/api/programs',
   PROGRAMS_ACTIVE: '/api/programs/active',
   PROGRAMS_MONTHLY_LEAVE_LIMIT: (id: string) => `/api/programs/${id}/monthly-leave-limit`,
+  PROGRAMS_ASSIGN_BRANCH: (id: string, branchId: string) => `/api/programs/${id}/branches/${branchId}`,
+  PROGRAMS_TOGGLE_STATUS: (id: string) => `/api/programs/${id}/toggle-status`,
   REGISTRATIONS: '/api/registrations',
   TUITION_PLANS: '/api/tuition-plans',
   TUITION_PLANS_ACTIVE: '/api/tuition-plans/active',

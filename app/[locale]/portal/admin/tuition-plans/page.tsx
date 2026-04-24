@@ -381,7 +381,7 @@ export default function TuitionPlansPage() {
             </div>
             <div>
               <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">Quản lý gói học</h1>
-              <p className="text-sm text-gray-600">Danh sách gói học và cấu hình học phí theo khóa học</p>
+              <p className="text-sm text-gray-600">Danh sách gói học và cấu hình học phí theo chương trình học</p>
             </div>
           </div>
           <button
@@ -477,7 +477,7 @@ export default function TuitionPlansPage() {
               <thead className="bg-linear-to-r from-red-500/5 to-red-700/5 border-b border-gray-200">
                 <tr>
                   <SortableHeader field="name" currentField={sortField} direction={sortDirection} onSort={handleSort}>Tên gói học</SortableHeader>
-                  <SortableHeader field="programName" currentField={sortField} direction={sortDirection} onSort={handleSort}>Khóa học</SortableHeader>
+                  <SortableHeader field="programName" currentField={sortField} direction={sortDirection} onSort={handleSort}>Chương trình học</SortableHeader>
                   <SortableHeader field="totalSessions" currentField={sortField} direction={sortDirection} onSort={handleSort}>Số buổi</SortableHeader>
                   <SortableHeader field="tuitionAmount" currentField={sortField} direction={sortDirection} onSort={handleSort}>Học phí</SortableHeader>
                   <SortableHeader field="branchName" currentField={sortField} direction={sortDirection} onSort={handleSort}>Chi nhánh</SortableHeader>

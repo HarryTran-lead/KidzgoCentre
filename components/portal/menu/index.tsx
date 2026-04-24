@@ -26,9 +26,27 @@ export function buildMenu(
     root = `/${locale}/${cleaned}`.replace(/\/+$/, "");
   }
 
+  const filterHiddenAdminEntries = (items: MenuItem[]): MenuItem[] =>
+    items
+      .map((item) => {
+        if ("items" in item) {
+          return {
+            ...item,
+            items: item.items.filter((sub) => !sub.href.includes("/extracurricular")),
+          };
+        }
+        return item;
+      })
+      .filter((item) => {
+        if ("items" in item) {
+          return item.items.length > 0;
+        }
+        return !item.href.includes("/extracurricular");
+      });
+
   switch (role) {
     case "Admin":
-      return adminMenu(root, locale);
+      return filterHiddenAdminEntries(adminMenu(root, locale));
     case "Staff_Accountant":
       return staffAccountingMenu(root, locale);
     case "Staff_Manager":

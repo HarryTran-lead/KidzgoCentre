@@ -624,7 +624,7 @@ export default function ClassDetailPage() {
               <div className="p-4 bg-gradient-to-r from-gray-50 to-white rounded-xl border border-gray-100 hover:border-gray-200 hover:shadow-md transition-all duration-200">
                 <h3 className="font-semibold text-gray-800 mb-2 flex items-center gap-2">
                   <FileText size={16} className="text-red-500" />
-                  Mô tả khóa học
+                  Mô tả chương trình học
                 </h3>
                 <p className="text-sm text-gray-600 leading-relaxed">{classData.description}</p>
               </div>
@@ -637,7 +637,7 @@ export default function ClassDetailPage() {
       <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         <StatCard
           icon={Target}
-          label="Tiến độ khóa học"
+          label="Tiến độ chương trình học"
           value={`${classData.progress}%`}
           progress={classData.progress}
           color="red"
