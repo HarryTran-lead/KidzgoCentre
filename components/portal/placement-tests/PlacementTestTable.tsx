@@ -24,15 +24,12 @@ import { useState } from "react";
 import type { PlacementTest } from "@/types/placement-test";
 import { formatDateTime } from "@/lib/utils";
 
-const TABLE_TIME_SHIFT_HOURS = -7;
-
 function formatTableScheduledAt(value?: string) {
   if (!value) return "N/A";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "N/A";
 
-  const shifted = new Date(date.getTime() + TABLE_TIME_SHIFT_HOURS * 60 * 60 * 1000);
-  return formatDateTime(shifted.toISOString());
+  return formatDateTime(date.toISOString());
 }
 
 type StatusType = "Scheduled" | "Completed" | "Cancelled" | "NoShow";

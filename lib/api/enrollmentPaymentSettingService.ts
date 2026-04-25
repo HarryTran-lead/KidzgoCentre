@@ -19,6 +19,8 @@ const DEFAULT_SETTING: EnrollmentPaymentSetting = {
   vietQrTemplate: "compact2",
   logoUrl: null,
   qrPreviewUrl: null,
+  newStudentPolicyLines: [],
+  reservationPolicyLines: [],
   isActive: true,
 };
 
@@ -32,6 +34,13 @@ function toRequiredString(value: unknown, fallback: string): string {
   if (typeof value !== "string") return fallback;
   const trimmed = value.trim();
   return trimmed || fallback;
+}
+
+function toStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => (typeof item === "string" ? item.trim() : ""))
+    .filter(Boolean);
 }
 
 function unwrapPayload(raw: unknown): AnyRecord {
@@ -79,6 +88,8 @@ function normalizeSetting(raw: unknown): EnrollmentPaymentSetting {
     ),
     logoUrl: toNullableString(candidate.logoUrl),
     qrPreviewUrl: toNullableString(candidate.qrPreviewUrl),
+    newStudentPolicyLines: toStringArray(candidate.newStudentPolicyLines),
+    reservationPolicyLines: toStringArray(candidate.reservationPolicyLines),
     isActive:
       typeof candidate.isActive === "boolean"
         ? candidate.isActive

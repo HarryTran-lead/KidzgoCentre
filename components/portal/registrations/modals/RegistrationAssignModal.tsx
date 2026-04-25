@@ -8,6 +8,7 @@ import type {
   Registration,
   RegistrationTrackType,
   SuggestedClassBucket,
+  WeeklyPatternEntry,
 } from "@/types/registration";
 
 type ManualClassOption = {
@@ -15,6 +16,8 @@ type ManualClassOption = {
   label: string;
   remainingSlots: number | null;
   disabled: boolean;
+  programId?: string;
+  programName?: string;
 };
 
 type RegistrationAssignModalProps = {
@@ -45,12 +48,17 @@ type RegistrationAssignModalProps = {
     sessionSelectionPattern?: string,
     entryType?: EntryType,
     firstStudyDate?: string,
+    weeklyPattern?: WeeklyPatternEntry[] | null,
   ) => void;
   handleAssignSuggestedClasses: (payload: {
     primaryClassId: string;
     primarySessionSelectionPattern?: string;
+    primaryWeeklyPattern?: WeeklyPatternEntry[] | null;
+    primaryFirstStudyDate?: string;
     secondaryClassId?: string;
     secondarySessionSelectionPattern?: string;
+    secondaryWeeklyPattern?: WeeklyPatternEntry[] | null;
+    secondaryFirstStudyDate?: string;
     entryType?: EntryType;
     firstStudyDate?: string;
   }) => void;
@@ -61,6 +69,10 @@ type RegistrationAssignModalProps = {
   setManualPrimaryClassId: (value: string) => void;
   manualSecondaryClassId: string;
   setManualSecondaryClassId: (value: string) => void;
+  manualPrimaryProgramId?: string;
+  manualPrimaryProgramName?: string;
+  manualSecondaryProgramId?: string;
+  manualSecondaryProgramName?: string;
   manualPrimarySessionPattern: string;
   setManualPrimarySessionPattern: (value: string) => void;
   manualSecondarySessionPattern: string;
@@ -68,6 +80,10 @@ type RegistrationAssignModalProps = {
   handleAssignManualClasses: (
     entryType?: EntryType,
     firstStudyDate?: string,
+    primaryWeeklyPattern?: WeeklyPatternEntry[] | null,
+    secondaryWeeklyPattern?: WeeklyPatternEntry[] | null,
+    primaryFirstStudyDate?: string,
+    secondaryFirstStudyDate?: string,
   ) => void;
 };
 
@@ -104,6 +120,10 @@ export default function RegistrationAssignModal({
   setManualPrimaryClassId,
   manualSecondaryClassId,
   setManualSecondaryClassId,
+  manualPrimaryProgramId,
+  manualPrimaryProgramName,
+  manualSecondaryProgramId,
+  manualSecondaryProgramName,
   manualPrimarySessionPattern,
   setManualPrimarySessionPattern,
   manualSecondarySessionPattern,
@@ -126,7 +146,7 @@ export default function RegistrationAssignModal({
           <div>
             <h3 className="text-lg font-semibold">Gợi ý và xếp lớp</h3>
             <p className="text-xs text-white/90">
-              Học viên: {selectedRegistration?.studentName || "-"} • Đăng ký: {selectedRegistration?.id || "-"}
+              Học viên: {selectedRegistration?.studentName || "-"}
             </p>
           </div>
           <button
@@ -172,6 +192,10 @@ export default function RegistrationAssignModal({
             setManualPrimaryClassId={setManualPrimaryClassId}
             manualSecondaryClassId={manualSecondaryClassId}
             setManualSecondaryClassId={setManualSecondaryClassId}
+            manualPrimaryProgramId={manualPrimaryProgramId}
+            manualPrimaryProgramName={manualPrimaryProgramName}
+            manualSecondaryProgramId={manualSecondaryProgramId}
+            manualSecondaryProgramName={manualSecondaryProgramName}
             preferredSchedule={selectedRegistration?.preferredSchedule}
             manualPrimarySessionPattern={manualPrimarySessionPattern}
             setManualPrimarySessionPattern={setManualPrimarySessionPattern}
