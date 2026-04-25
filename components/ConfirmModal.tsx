@@ -1,3 +1,6 @@
+"use client";
+
+import { createPortal } from "react-dom";
 import { AlertTriangle, CheckCircle, Info, Trash2, X } from "lucide-react";
 
 export type ConfirmModalVariant = "danger" | "warning" | "info" | "success";
@@ -57,6 +60,7 @@ export default function ConfirmModal({
   isLoading = false,
 }: ConfirmModalProps) {
   if (!isOpen) return null;
+  if (typeof window === "undefined") return null;
 
   const style = variantStyles[variant];
   const Icon = style.icon;
@@ -73,9 +77,9 @@ export default function ConfirmModal({
     }
   };
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm animate-in fade-in"
+      className="fixed inset-0 z-10000 flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm animate-in fade-in"
       onClick={handleCancel}
     >
       <div
@@ -85,7 +89,7 @@ export default function ConfirmModal({
         aria-modal="true"
         aria-labelledby="confirm-modal-title"
       >
-        <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-red-600 via-red-500 to-red-700" />
+        <div className="absolute inset-x-0 top-0 h-1.5 bg-linear-to-r from-red-600 via-red-500 to-red-700" />
 
         <div className="absolute right-4 top-4 z-10">
           <button
@@ -115,7 +119,7 @@ export default function ConfirmModal({
             <button
               onClick={handleCancel}
               disabled={isLoading}
-              className="min-w-[120px] cursor-pointer rounded-xl border border-red-200 bg-white px-6 py-2.5 text-sm font-semibold text-gray-700 transition-all hover:border-red-300 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+              className="min-w-30 cursor-pointer rounded-xl border border-red-200 bg-white px-6 py-2.5 text-sm font-semibold text-gray-700 transition-all hover:border-red-300 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {cancelText}
             </button>
@@ -123,7 +127,7 @@ export default function ConfirmModal({
             <button
               onClick={handleConfirm}
               disabled={isLoading}
-              className={`flex min-w-[120px] cursor-pointer items-center justify-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold transition-all hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 ${style.confirmButton}`}
+              className={`flex min-w-30 cursor-pointer items-center justify-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold transition-all hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 ${style.confirmButton}`}
             >
               {isLoading ? (
                 <>
@@ -140,6 +144,7 @@ export default function ConfirmModal({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

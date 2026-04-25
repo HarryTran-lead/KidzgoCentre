@@ -378,7 +378,7 @@ export default function AdminRegistrationsPage() {
                 <SortableHeader field="createdAt" currentField={sortField} direction={sortDirection} onSort={handleSort}>
                   Tạo lúc
                 </SortableHeader>
-                <th className="py-3 px-6 text-right text-xs font-medium tracking-wide text-gray-700 whitespace-nowrap">Thao tác</th>
+                <th className="text-right text-xs font-medium tracking-wide text-gray-700 whitespace-nowrap">Thao tác</th>
               </tr>
             </thead>
 
@@ -443,7 +443,7 @@ export default function AdminRegistrationsPage() {
                             setIsCompletionPdfOpen(true);
                           }}
                           className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-700 cursor-pointer"
-                          title="Xem/In phiếu hoàn thành đăng ký"
+                          title="Xem/In phiếu đăng ký"
                         >
                           <FileText size={14} />
                         </button>

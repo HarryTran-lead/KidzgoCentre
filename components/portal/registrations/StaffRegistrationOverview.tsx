@@ -16,7 +16,9 @@ import {
   Search,
   Sparkles,
   Users,
+  XCircle,
 } from "lucide-react";
+import ConfirmModal from "@/components/ConfirmModal";
 import LeadPagination from "@/components/portal/leads/LeadPagination";
 import RegistrationAssignModal from "@/components/portal/registrations/modals/RegistrationAssignModal";
 import RegistrationCompletionPdfModal from "@/components/portal/registrations/modals/RegistrationCompletionPdfModal";
@@ -26,6 +28,7 @@ import RegistrationUpgradeModal from "@/components/portal/registrations/modals/R
 import { useToast } from "@/hooks/use-toast";
 import {
   assignClassToRegistration,
+  cancelRegistration,
   extractRegistrationIdFromAction,
   getRegistrationById,
   getRegistrations,
@@ -46,6 +49,7 @@ import type {
   RegistrationStatus,
   RegistrationTrackType,
   SuggestedClassBucket,
+  WeeklyPatternEntry,
 } from "@/types/registration";
 import RegistrationFilters from "./RegistrationFilters";
 
@@ -136,6 +140,86 @@ function formatSchedulePattern(value?: string | null) {
   return pieces.length > 0 ? pieces.join(" • ") : raw;
 }
 
+function normalizeClassDay(value?: unknown): string {
+  const raw = String(value || "").trim().toUpperCase();
+  const map: Record<string, string> = {
+    MO: "T2",
+    MON: "T2",
+    TU: "T3",
+    TUE: "T3",
+    WE: "T4",
+    WED: "T4",
+    TH: "T5",
+    THU: "T5",
+    FR: "T6",
+    FRI: "T6",
+    SA: "T7",
+    SAT: "T7",
+    SU: "CN",
+    SUN: "CN",
+    "2": "T2",
+    "3": "T3",
+    "4": "T4",
+    "5": "T5",
+    "6": "T6",
+    "7": "T7",
+    CN: "CN",
+  };
+  return map[raw] || raw;
+}
+
+function normalizeClassTime(value?: unknown): string {
+  const raw = String(value || "").trim();
+  const matched = raw.match(/^(\d{1,2}):(\d{1,2})/);
+  if (!matched) return "";
+  const hour = Number(matched[1]);
+  const minute = Number(matched[2]);
+  if (
+    Number.isNaN(hour) ||
+    Number.isNaN(minute) ||
+    hour < 0 ||
+    hour > 23 ||
+    minute < 0 ||
+    minute > 59
+  ) {
+    return "";
+  }
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+function formatScheduleFromWeeklySlots(slots: unknown): string {
+  const list = Array.isArray(slots) ? slots : [];
+  if (list.length === 0) return "";
+
+  const chunks = list
+    .map((slot: any) => {
+      const day = normalizeClassDay(slot?.dayOfWeek ?? slot?.dayCode);
+      const time = normalizeClassTime(slot?.startTime);
+      if (!day || !time) return "";
+      return `${day} ${time}`;
+    })
+    .filter(Boolean);
+
+  return chunks.join(", ");
+}
+
+function getClassScheduleLabel(cls: any): string {
+  const patternLabel = formatSchedulePattern(
+    cls?.schedulePattern || cls?.classSchedulePattern || cls?.effectiveSchedulePattern,
+  );
+  if (patternLabel && patternLabel !== "-") return patternLabel;
+
+  const textLabel = String(
+    cls?.scheduleText || cls?.schedule || cls?.description || "",
+  ).trim();
+  if (textLabel) return textLabel;
+
+  const slotLabel = formatScheduleFromWeeklySlots(cls?.weeklyScheduleSlots);
+  if (slotLabel) return slotLabel;
+
+  return "-";
+}
+
 function pickClassItems(payload: any): any[] {
   if (Array.isArray(payload?.data?.items)) return payload.data.items;
   if (Array.isArray(payload?.data?.page?.items)) return payload.data.page.items;
@@ -169,6 +253,11 @@ function normalizeText(value?: string | null) {
     .trim()
     .replace(/\s+/g, " ")
     .toLowerCase();
+}
+
+function canOpenEnrollmentPdf(row: Registration) {
+  const eligibleStatuses: RegistrationStatus[] = ["Studying", "Paused", "Completed"];
+  return Boolean(row?.id && row?.classId && eligibleStatuses.includes(row.status));
 }
 
 export default function StaffRegistrationOverview({
@@ -210,7 +299,7 @@ export default function StaffRegistrationOverview({
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [suggestedClasses, setSuggestedClasses] = useState<SuggestedClassBucket | null>(null);
   const [selectedTrack, setSelectedTrack] = useState<RegistrationTrackType>("primary");
-  const [assignEntryType, setAssignEntryType] = useState<EntryType>("Immediate");
+  const [assignEntryType, setAssignEntryType] = useState<EntryType>("immediate");
   const [selectedClassId, setSelectedClassId] = useState("");
   const [manualClasses, setManualClasses] = useState<any[]>([]);
   const [manualPrimaryClassId, setManualPrimaryClassId] = useState("");
@@ -229,6 +318,9 @@ export default function StaffRegistrationOverview({
   const [transferClasses, setTransferClasses] = useState<any[]>([]);
   const [isLoadingTransferClasses, setIsLoadingTransferClasses] = useState(false);
   const [isTransferring, setIsTransferring] = useState(false);
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+  const [cancelTargetRegistration, setCancelTargetRegistration] = useState<Registration | null>(null);
+  const [isCancellingRegistration, setIsCancellingRegistration] = useState(false);
 
   const filteredUpgradeTuitionPlans = useMemo(() => {
     const targetProgramId = selectedActionRegistration?.programId || "";
@@ -263,12 +355,18 @@ export default function StaffRegistrationOverview({
       manualClasses.map((cls) => {
         const classId = String(cls?.id || "");
         const remainingSlots = getClassRemainingSlots(cls);
-        const scheduleLabel = formatSchedulePattern(cls?.schedulePattern);
+        const scheduleLabel = getClassScheduleLabel(cls);
         const className = getClassDisplayName(cls);
+        const programId = String(cls?.programId || cls?.program?.id || "");
+        const programName = String(
+          cls?.programName || cls?.program?.name || "",
+        );
         const safeRemaining =
           typeof remainingSlots === "number" ? Math.max(0, remainingSlots) : null;
         return {
           id: classId,
+          programId,
+          programName,
           remainingSlots: safeRemaining,
           disabled: safeRemaining !== null && safeRemaining <= 0,
           label: `${className} • Còn chỗ: ${safeRemaining ?? "-"} • Lịch: ${scheduleLabel}`,
@@ -288,7 +386,7 @@ export default function StaffRegistrationOverview({
           return {
             id,
             name: getClassDisplayName(cls),
-            schedule: formatSchedulePattern(cls?.schedulePattern),
+            schedule: getClassScheduleLabel(cls),
             remainingSlots: safeRemaining,
             programId: String(cls?.programId || cls?.program?.id || ""),
             programName: String(cls?.programName || cls?.program?.name || ""),
@@ -690,7 +788,7 @@ export default function StaffRegistrationOverview({
     setAssignViewMode("none");
     setSuggestedClasses(null);
     setSelectedTrack("primary");
-    setAssignEntryType("Immediate");
+    setAssignEntryType("immediate");
     setSelectedClassId("");
     setManualClasses([]);
     setManualPrimaryClassId("");
@@ -799,8 +897,9 @@ export default function StaffRegistrationOverview({
 
   const handleAssignClass = async (
     sessionSelectionPattern?: string,
-    entryType: EntryType = "Immediate",
+    entryType: EntryType = "immediate",
     firstStudyDate?: string,
+    _weeklyPattern?: WeeklyPatternEntry[] | null,
   ) => {
     if (!selectedActionRegistration?.id || !selectedClassId) return;
 
@@ -847,8 +946,12 @@ export default function StaffRegistrationOverview({
   const handleAssignSuggestedClasses = async (payload: {
     primaryClassId: string;
     primarySessionSelectionPattern?: string;
+    primaryWeeklyPattern?: WeeklyPatternEntry[] | null;
+    primaryFirstStudyDate?: string;
     secondaryClassId?: string;
     secondarySessionSelectionPattern?: string;
+    secondaryWeeklyPattern?: WeeklyPatternEntry[] | null;
+    secondaryFirstStudyDate?: string;
     entryType?: EntryType;
     firstStudyDate?: string;
   }) => {
@@ -856,15 +959,19 @@ export default function StaffRegistrationOverview({
 
     try {
       setIsAssigning(true);
-      const selectedEntryType = payload.entryType || "Immediate";
+      const selectedEntryType = payload.entryType || "immediate";
       const normalizedFirstStudyDate = payload.firstStudyDate?.trim() || undefined;
+      const normalizedPrimaryFirstStudyDate =
+        payload.primaryFirstStudyDate?.trim() || normalizedFirstStudyDate;
+      const normalizedSecondaryFirstStudyDate =
+        payload.secondaryFirstStudyDate?.trim() || normalizedFirstStudyDate;
       let targetRegistrationId = selectedActionRegistration.id;
 
       const primaryResponse = await assignClassToRegistration(targetRegistrationId, {
         classId: payload.primaryClassId,
         entryType: selectedEntryType,
         track: "primary",
-        firstStudyDate: normalizedFirstStudyDate,
+        firstStudyDate: normalizedPrimaryFirstStudyDate,
         sessionSelectionPattern:
           payload.primarySessionSelectionPattern || undefined,
       });
@@ -876,7 +983,7 @@ export default function StaffRegistrationOverview({
           classId: payload.secondaryClassId,
           entryType: selectedEntryType,
           track: "secondary",
-          firstStudyDate: normalizedFirstStudyDate,
+          firstStudyDate: normalizedSecondaryFirstStudyDate,
           sessionSelectionPattern:
             payload.secondarySessionSelectionPattern || undefined,
         });
@@ -913,15 +1020,19 @@ export default function StaffRegistrationOverview({
   };
 
   const handleAssignManualClasses = async (
-    entryType: EntryType = "Immediate",
+    entryType: EntryType = "immediate",
     firstStudyDate?: string,
+    _primaryWeeklyPattern?: WeeklyPatternEntry[] | null,
+    _secondaryWeeklyPattern?: WeeklyPatternEntry[] | null,
+    primaryFirstStudyDate?: string,
+    secondaryFirstStudyDate?: string,
   ) => {
     if (!selectedActionRegistration?.id || !manualPrimaryClassId) return;
 
     if (hasSecondaryTrack && !manualSecondaryClassId) {
       toast({
         title: "Thiếu dữ liệu",
-        description: "Vui lòng chọn lớp cho chương trình secondary.",
+        description: "Vui lòng chọn lớp cho chương trình song song.",
         variant: "destructive",
       });
       return;
@@ -930,7 +1041,7 @@ export default function StaffRegistrationOverview({
     if (hasSecondaryTrack && manualPrimaryClassId === manualSecondaryClassId) {
       toast({
         title: "Không hợp lệ",
-        description: "Lớp Primary và Secondary phải khác nhau.",
+        description: "Lớp cho chương trình chính và chương trình song song phải khác nhau.",
         variant: "destructive",
       });
       return;
@@ -939,7 +1050,7 @@ export default function StaffRegistrationOverview({
     if (!manualPrimarySessionPattern) {
       toast({
         title: "Thiếu lịch học",
-        description: "Vui lòng chọn ngày/giờ học cho lớp Primary.",
+        description: "Vui lòng chọn ngày/giờ học cho lớp chương trình chính.",
         variant: "destructive",
       });
       return;
@@ -948,7 +1059,7 @@ export default function StaffRegistrationOverview({
     if (hasSecondaryTrack && !manualSecondarySessionPattern) {
       toast({
         title: "Thiếu lịch học",
-        description: "Vui lòng chọn ngày/giờ học cho lớp Secondary.",
+        description: "Vui lòng chọn ngày/giờ học cho lớp chương trình song song.",
         variant: "destructive",
       });
       return;
@@ -957,13 +1068,17 @@ export default function StaffRegistrationOverview({
     try {
       setIsAssigning(true);
       const normalizedFirstStudyDate = firstStudyDate?.trim() || undefined;
+      const normalizedPrimaryFirstStudyDate =
+        primaryFirstStudyDate?.trim() || normalizedFirstStudyDate;
+      const normalizedSecondaryFirstStudyDate =
+        secondaryFirstStudyDate?.trim() || normalizedFirstStudyDate;
       let targetRegistrationId = selectedActionRegistration.id;
 
       const primaryResponse = await assignClassToRegistration(targetRegistrationId, {
         classId: manualPrimaryClassId,
         entryType,
         track: "primary",
-        firstStudyDate: normalizedFirstStudyDate,
+        firstStudyDate: normalizedPrimaryFirstStudyDate,
         sessionSelectionPattern: manualPrimarySessionPattern,
       });
 
@@ -974,7 +1089,7 @@ export default function StaffRegistrationOverview({
           classId: manualSecondaryClassId,
           entryType,
           track: "secondary",
-          firstStudyDate: normalizedFirstStudyDate,
+          firstStudyDate: normalizedSecondaryFirstStudyDate,
           sessionSelectionPattern: manualSecondarySessionPattern,
         });
         targetRegistrationId = extractRegistrationIdFromAction(secondaryResponse) || targetRegistrationId;
@@ -1013,7 +1128,7 @@ export default function StaffRegistrationOverview({
     try {
       setIsWaiting(true);
       await assignClassToRegistration(selectedActionRegistration.id, {
-        entryType: "Wait",
+        entryType: "wait",
         track: selectedTrack,
       });
       toast({
@@ -1115,6 +1230,38 @@ export default function StaffRegistrationOverview({
       });
     } finally {
       setIsTransferring(false);
+    }
+  };
+
+  const handleCancelRegistration = async (row: Registration) => {
+    if (!row?.id) return;
+
+    setCancelTargetRegistration(row);
+    setCancelConfirmOpen(true);
+  };
+
+  const confirmCancelRegistration = async () => {
+    if (!cancelTargetRegistration?.id) return;
+
+    try {
+      setIsCancellingRegistration(true);
+      await cancelRegistration(cancelTargetRegistration.id);
+      toast({
+        title: "Thành công",
+        description: "Đã hủy đăng ký thành công.",
+        variant: "success",
+      });
+      setCancelConfirmOpen(false);
+      setCancelTargetRegistration(null);
+      await refreshRegistrationData();
+    } catch (error: any) {
+      toast({
+        title: getErrorTitle(error),
+        description: getErrorMessage(error, "Không thể hủy đăng ký."),
+        variant: "destructive",
+      });
+    } finally {
+      setIsCancellingRegistration(false);
     }
   };
 
@@ -1273,8 +1420,10 @@ export default function StaffRegistrationOverview({
                         <button
                           type="button"
                           onClick={() => openCompletionPdf(row)}
-                          title="Xem/In phiếu hoàn thành đăng ký"
+                          title="Xem/In phiếu đăng ký"
                           className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
+                          hidden={!canOpenEnrollmentPdf(row)}
+                          aria-hidden={!canOpenEnrollmentPdf(row)}
                         >
                           <FileText size={12} />
                         </button>
@@ -1308,6 +1457,17 @@ export default function StaffRegistrationOverview({
                             className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
                           >
                             <ArrowRightLeft size={12} />
+                          </button>
+                        )}
+
+                        {row.status !== "Cancelled" && row.status !== "Completed" && (
+                          <button
+                            type="button"
+                            onClick={() => handleCancelRegistration(row)}
+                            title="Hủy đăng ký"
+                            className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
+                          >
+                            <XCircle size={12} />
                           </button>
                         )}
                       </div>
@@ -1404,6 +1564,10 @@ export default function StaffRegistrationOverview({
         setManualPrimarySessionPattern={setManualPrimarySessionPattern}
         manualSecondarySessionPattern={manualSecondarySessionPattern}
         setManualSecondarySessionPattern={setManualSecondarySessionPattern}
+        manualPrimaryProgramId={selectedActionRegistration?.programId || ""}
+        manualPrimaryProgramName={selectedActionRegistration?.programName || ""}
+        manualSecondaryProgramId={selectedActionRegistration?.secondaryProgramId || ""}
+        manualSecondaryProgramName={selectedActionRegistration?.secondaryProgramName || ""}
         handleAssignManualClasses={handleAssignManualClasses}
       />
 
@@ -1423,6 +1587,22 @@ export default function StaffRegistrationOverview({
         isLoadingTransferClasses={isLoadingTransferClasses}
         isTransferring={isTransferring}
         onConfirmTransfer={handleTransferClass}
+      />
+
+      <ConfirmModal
+        isOpen={cancelConfirmOpen}
+        onClose={() => {
+          if (isCancellingRegistration) return;
+          setCancelConfirmOpen(false);
+          setCancelTargetRegistration(null);
+        }}
+        onConfirm={confirmCancelRegistration}
+        title="Xác nhận hủy đăng ký"
+        message={`Bạn có chắc chắn muốn hủy đăng ký của học viên ${cancelTargetRegistration?.studentName || "này"}? Hành động này không thể hoàn tác.`}
+        confirmText="Hủy đăng ký"
+        cancelText="Đóng"
+        variant="danger"
+        isLoading={isCancellingRegistration}
       />
     </div>
   );

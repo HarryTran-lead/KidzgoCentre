@@ -1,4 +1,11 @@
 import { Rocket } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/lightswind/select";
 import type { TuitionPlan } from "@/types/admin/tuition_plan";
 
 interface UpgradeRegistrationStepProps {
@@ -65,19 +72,25 @@ export default function UpgradeRegistrationStep({
         <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto] md:items-end">
           <div className="space-y-1">
             <label className="text-sm font-medium text-gray-700">Gói học mới</label>
-            <select
-              value={upgradeTuitionPlanId}
-              onChange={(e) => setUpgradeTuitionPlanId(e.target.value)}
-              className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+            <Select
+              value={upgradeTuitionPlanId || "__none__"}
+              onValueChange={(value) =>
+                setUpgradeTuitionPlanId(value === "__none__" ? "" : value)
+              }
             >
-              <option value="">Chọn gói để gia hạn</option>
-              {filteredTuitionPlans.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} ({p.totalSessions} buổi)
-                  {p.id === tuitionPlanId ? " • Gói hiện tại" : ""}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100">
+                <SelectValue placeholder="Chọn gói để gia hạn" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Chọn gói để gia hạn</SelectItem>
+                {filteredTuitionPlans.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name} ({p.totalSessions} buổi)
+                    {p.id === tuitionPlanId ? " • Gói hiện tại" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <p className="text-xs text-gray-500">
               Hiển thị các gói active của đúng chương trình học hiện tại (bao gồm cả gói hiện tại).
             </p>

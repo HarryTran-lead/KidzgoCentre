@@ -282,6 +282,23 @@ function translatePlacementTestValidationMessage(message: string): string {
     return "Vui lòng chọn thời gian test.";
   }
 
+  if (
+    normalized.includes("scheduledat") &&
+    (normalized.includes("same") ||
+      normalized.includes("unchanged") ||
+      normalized.includes("must be different") ||
+      normalized.includes("no changes"))
+  ) {
+    return "Thời gian mới phải khác thời gian hiện tại.";
+  }
+
+  if (
+    normalized.includes("scheduled") &&
+    normalized.includes("past")
+  ) {
+    return "Thời gian test không được ở quá khứ. Vui lòng chọn thời gian hiện tại hoặc tương lai.";
+  }
+
   if (normalized.includes("invigilator") && normalized.includes("required")) {
     return "Vui lòng chọn người giám sát.";
   }
@@ -307,6 +324,32 @@ function translatePlacementTestMessage(message?: string): string {
 
   if (normalized.includes("validation.general")) {
     return "Dữ liệu không hợp lệ. Vui lòng kiểm tra lại thông tin đã nhập.";
+  }
+
+  if (
+    normalized.includes("scheduledat") &&
+    (normalized.includes("same") ||
+      normalized.includes("unchanged") ||
+      normalized.includes("must be different") ||
+      normalized.includes("no changes"))
+  ) {
+    return "Thời gian mới phải khác thời gian hiện tại.";
+  }
+
+  if (normalized.includes("scheduled") && normalized.includes("past")) {
+    return "Thời gian test không được ở quá khứ. Vui lòng chọn thời gian hiện tại hoặc tương lai.";
+  }
+
+  if (normalized.includes("khong the cap nhat placement test")) {
+    return "Không thể cập nhật bài kiểm tra xếp lớp.";
+  }
+
+  if (normalized.includes("khong the tao placement test")) {
+    return "Không thể tạo bài kiểm tra xếp lớp.";
+  }
+
+  if (normalized.includes("khong the tao placement test retake")) {
+    return "Không thể tạo bài kiểm tra xếp lớp lại.";
   }
 
   return message;

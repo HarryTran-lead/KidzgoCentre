@@ -5,15 +5,12 @@ import type { PlacementTest } from "@/types/placement-test";
 import { formatDateTime } from "@/lib/utils";
 import { buildFileUrl, FILE_ENDPOINTS } from "@/constants/apiURL";
 
-const DETAIL_TIME_SHIFT_HOURS = -7;
-
 function formatDetailScheduledAt(value?: string) {
   if (!value) return "N/A";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "N/A";
 
-  const shifted = new Date(date.getTime() + DETAIL_TIME_SHIFT_HOURS * 60 * 60 * 1000);
-  return formatDateTime(shifted.toISOString());
+  return formatDateTime(date.toISOString());
 }
 
 function resolveAttachmentUrl(value?: string) {
