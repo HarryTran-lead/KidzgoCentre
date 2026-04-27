@@ -195,6 +195,33 @@ function parseJsonContent(value?: string | null) {
   }
 }
 
+function hasDisplayablePayload(value?: string | null) {
+  const text = value?.trim();
+  if (!text) return false;
+
+  const parsed = parseJsonContent(text);
+  if (!parsed) return true;
+  if (Array.isArray(parsed)) return parsed.length > 0;
+  if (typeof parsed === "object") return Object.keys(parsed as Record<string, unknown>).length > 0;
+  return true;
+}
+
+function isTrivialPlannedContent(value?: string | null) {
+  const text = value?.trim();
+  if (!text) return true;
+
+  const parsed = parseJsonContent(text);
+  if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") return false;
+
+  const objectValue = parsed as Record<string, unknown>;
+  const keys = Object.keys(objectValue);
+  const allowedKeys = new Set(["sessionIndex", "activities"]);
+  const hasOnlySkeletonKeys = keys.every((key) => allowedKeys.has(key));
+  const hasEmptyActivities = Array.isArray(objectValue.activities) && objectValue.activities.length === 0;
+
+  return hasOnlySkeletonKeys && hasEmptyActivities;
+}
+
 function asObject(value: unknown): Record<string, unknown> | null {
   if (value && typeof value === "object" && !Array.isArray(value)) {
     return value as Record<string, unknown>;
@@ -239,6 +266,29 @@ function getSuggestedNextSessionIndex(
     .map((t) => t.sessionIndex!);
   if (indices.length === 0) return 1;
   return Math.max(...indices) + 1;
+}
+
+function pickSharedProgramTemplate(
+  templates: LessonPlanTemplate[],
+  programId?: string | null
+): LessonPlanTemplate | undefined {
+  if (!programId) return undefined;
+
+  const inProgram = templates.filter((item) => item.programId === programId);
+  if (!inProgram.length) return undefined;
+
+  const active = inProgram.filter((item) => getTemplateStatus(item) === "active");
+  const source = active.length ? active : inProgram;
+
+  return [...source].sort((a, b) => {
+    const aAnchor = a.sessionIndex === 1 ? 0 : 1;
+    const bAnchor = b.sessionIndex === 1 ? 0 : 1;
+    if (aAnchor !== bAnchor) return aAnchor - bAnchor;
+
+    const aTime = new Date(a.updatedAt || a.createdAt || 0).getTime();
+    const bTime = new Date(b.updatedAt || b.createdAt || 0).getTime();
+    return bTime - aTime;
+  })[0];
 }
 
 function pickStringValue(
@@ -360,10 +410,68 @@ function stringifyPrettyJson(value: unknown): string {
   return JSON.stringify(value, null, 2);
 }
 
+function prettifyJsonText(value?: string | null): string {
+  const text = value?.trim();
+  if (!text) return "";
+  const parsed = parseJsonContent(text);
+  return parsed ? JSON.stringify(parsed, null, 2) : text;
+}
+
 function linesFromUnknown(value: unknown): string[] {
   if (Array.isArray(value)) return value.filter((v) => typeof v === "string" && v.trim()).map(String);
   if (typeof value === "string" && value.trim()) return value.split("\n").filter(Boolean);
   return [];
+}
+
+const URL_IN_TEXT_REGEX = /(https?:\/\/[^\s<>"']+)/gi;
+
+function stripTrailingPunctuation(value: string): { clean: string; trailing: string } {
+  const clean = value.replace(/[),.;!?]+$/g, "");
+  return {
+    clean,
+    trailing: value.slice(clean.length),
+  };
+}
+
+function renderLinkifiedText(text: string) {
+  const source = text || "";
+  const nodes: React.ReactNode[] = [];
+  let cursor = 0;
+  URL_IN_TEXT_REGEX.lastIndex = 0;
+
+  for (const match of source.matchAll(URL_IN_TEXT_REGEX)) {
+    const rawUrl = match[0];
+    const index = match.index ?? 0;
+    const { clean, trailing } = stripTrailingPunctuation(rawUrl);
+
+    if (index > cursor) {
+      nodes.push(source.slice(cursor, index));
+    }
+
+    nodes.push(
+      <a
+        key={`url-${index}-${clean}`}
+        href={clean}
+        target="_blank"
+        rel="noreferrer"
+        className="my-1 block w-fit max-w-full rounded-md bg-blue-50 px-2 py-1 font-medium text-blue-700 underline underline-offset-2 break-all hover:bg-blue-100 hover:text-blue-900"
+      >
+        {clean}
+      </a>
+    );
+
+    if (trailing) {
+      nodes.push(trailing);
+    }
+
+    cursor = index + rawUrl.length;
+  }
+
+  if (cursor < source.length) {
+    nodes.push(source.slice(cursor));
+  }
+
+  return nodes.length ? nodes : [source];
 }
 
 function getSessionDisplay(session: Pick<ClassLessonPlanSyllabusSession, "sessionIndex" | "sessionDate">) {
@@ -472,6 +580,11 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
   const templateMap = useMemo(() => {
     return new Map(templates.map((item) => [item.id, item]));
   }, [templates]);
+
+  const sharedProgramTemplate = useMemo(
+    () => pickSharedProgramTemplate(templates, classSyllabus?.programId),
+    [classSyllabus?.programId, templates]
+  );
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -697,7 +810,12 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
         return false;
       }
 
-      if (planStatusFilter === "withTemplate" && !item.templateId) {
+      if (
+        planStatusFilter === "withTemplate" &&
+        !item.templateId &&
+        !item.templateSyllabusContent &&
+        !sharedProgramTemplate?.id
+      ) {
         return false;
       }
 
@@ -726,7 +844,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(keyword));
     });
-  }, [classSyllabus, planStatusFilter, searchQuery]);
+  }, [classSyllabus, planStatusFilter, searchQuery, sharedProgramTemplate?.id]);
 
   const stats = useMemo(() => {
 return activeTab === "templates" && templatesAvailable
@@ -912,7 +1030,7 @@ const uploaded = await uploadLessonPlanFile("template", file);
     const response =
       planModal?.mode === "edit"
         ? await updateLessonPlan(planModal.plan.id, {
-            templateId: isTeacher ? (planModal.plan.templateId ?? null) : (payload.templateId ?? null),
+            templateId: isTeacher ? (payload.templateId ?? planModal.plan.templateId ?? null) : (payload.templateId ?? null),
 plannedContent: isTeacher ? (planModal.plan.plannedContent ?? null) : (payload.plannedContent ?? null),
             actualContent: payload.actualContent ?? null,
             actualHomework: payload.actualHomework ?? null,
@@ -921,7 +1039,7 @@ plannedContent: isTeacher ? (planModal.plan.plannedContent ?? null) : (payload.p
         : await createLessonPlan({
             classId: classSyllabus.classId,
             sessionId: payload.session.sessionId,
-            templateId: isTeacher ? (payload.session.templateId ?? null) : (payload.templateId ?? null),
+            templateId: isTeacher ? (payload.templateId ?? payload.session.templateId ?? null) : (payload.templateId ?? null),
             plannedContent: isTeacher ? null : (payload.plannedContent ?? null),
             actualContent: payload.actualContent ?? null,
             actualHomework: payload.actualHomework ?? null,
@@ -1001,29 +1119,6 @@ onClick={() => setShowImportModal(true)}
           </div>
         </div>
 
-        <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-white to-red-50 p-4">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <div className="text-sm font-semibold text-gray-900">Flow backend mới</div>
-              <div className="mt-1 text-sm text-gray-600">
-                {activeTab === "templates" && templatesAvailable
-                  ? "Admin/Staff setup trước: tạo thủ công hoặc import Excel vào lesson_plan_templates theo Program + SessionIndex, sau đó áp dụng đồng bộ cho các buổi học của lớp."
-                  : "Teacher chỉ điền phần sau buổi học theo cột được phép: Classwork, Required materials, Homework required materials, Extra/Note. Các cột còn lại do Admin setup."}
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2 text-xs font-medium">
-              {templatesAvailable ? (
-                <>
-                  <span className="rounded-full border border-red-200 bg-white px-3 py-1.5 text-gray-700">Import xlsx/xls/csv</span>
-                  <span className="rounded-full border border-red-200 bg-white px-3 py-1.5 text-gray-700">Template theo program</span>
-                  <span className="rounded-full border border-red-200 bg-white px-3 py-1.5 text-gray-700">Manual builder theo session</span>
-                </>
-              ) : null}
-              <span className="rounded-full border border-red-200 bg-white px-3 py-1.5 text-gray-700">Syllabus theo lớp</span>
-              <span className="rounded-full border border-red-200 bg-white px-3 py-1.5 text-gray-700">Teacher edit đúng cột cho phép</span>
-            </div>
-          </div>
-        </div>
       </div>
 
       {templatesAvailable ? (
@@ -1074,6 +1169,7 @@ onClick={() => setShowImportModal(true)}
             syllabus={classSyllabus}
             items={filteredSessions}
             templateMap={templateMap}
+            sharedTemplate={sharedProgramTemplate}
             onCreate={(session) => setPlanModal({ mode: "create", session })}
             onEdit={openPlanEditor}
             onOpenPlanDetail={(lessonPlanId) => openPlanDetail(lessonPlanId)}
@@ -1108,6 +1204,7 @@ onClick={() => setShowImportModal(true)}
           session={planModal.session}
 initialValue={planModal.mode === "edit" ? planModal.plan : null}
           templateOptions={templateOptions}
+          sharedTemplate={sharedProgramTemplate}
           onClose={() => setPlanModal(null)}
           onSubmit={handlePlanSubmit}
         />
@@ -1282,7 +1379,7 @@ function TemplateTable({
                   <div>{item.programName || item.programId}</div>
                   <div className="mt-1 text-xs text-gray-500">{item.createdByName || "Không rõ người tạo"}</div>
                 </td>
-                <td className="px-6 py-4 text-sm text-gray-700">Buổi {item.sessionIndex || "-"}</td>
+                <td className="px-6 py-4 text-sm text-gray-700">{item.sessionIndex === 1 ? "Template chung (neo Buổi 1)" : `Buổi ${item.sessionIndex || "-"}`}</td>
                 <td className="px-6 py-4 text-sm text-gray-700">
                   <div>{item.sourceFileName || "Tạo thủ công"}</div>
                   {item.attachment ? (
@@ -1330,6 +1427,7 @@ function SyllabusView({
   syllabus,
   items,
   templateMap,
+  sharedTemplate,
   onCreate,
   onEdit,
   onOpenPlanDetail,
@@ -1339,6 +1437,7 @@ function SyllabusView({
   syllabus: ClassLessonPlanSyllabus | null;
   items: ClassLessonPlanSyllabusSession[];
   templateMap: Map<string, LessonPlanTemplate>;
+  sharedTemplate?: LessonPlanTemplate;
   onCreate: (session: ClassLessonPlanSyllabusSession) => void;
   onEdit: (session: ClassLessonPlanSyllabusSession) => void;
   onOpenPlanDetail: (lessonPlanId: string) => void;
@@ -1419,6 +1518,8 @@ function SyllabusView({
       <div className="grid gap-5">
         {items.map((session) => {
           const linkedTemplate = session.templateId ? templateMap.get(session.templateId) : undefined;
+          const resolvedTemplate = linkedTemplate || (session.templateId ? undefined : sharedTemplate);
+          const hasTemplate = Boolean(session.templateId || session.templateSyllabusContent || resolvedTemplate?.syllabusContent);
           const hasReport = Boolean(session.actualContent);
           const isEditable = session.canEdit;
           const hasPlan = Boolean(session.lessonPlanId);
@@ -1464,10 +1565,10 @@ Buổi {session.sessionIndex}
                         Có lesson plan
                       </span>
                     )}
-                    {session.templateId && (
+                    {hasTemplate && (
                       <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2.5 py-1 text-xs font-medium text-purple-700">
                         <FolderOpen size={11} />
-                        Có template
+                        {session.templateId ? "Có template" : "Template chung"}
                       </span>
                     )}
                     {hasReport && (
@@ -1486,10 +1587,10 @@ Buổi {session.sessionIndex}
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  {session.templateId && onOpenTemplateDetail && (
+                  {resolvedTemplate?.id && onOpenTemplateDetail && (
                     <button
                       type="button"
-                      onClick={() => onOpenTemplateDetail(session.templateId!)}
+                      onClick={() => onOpenTemplateDetail(resolvedTemplate.id)}
                       className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 transition-all hover:border-purple-200 hover:bg-purple-50 hover:text-purple-700"
                     >
                       <FolderOpen size="16" />
@@ -1567,16 +1668,22 @@ className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-w
               {/* Content Grid */}
               <div className="p-6">
                 <div className="grid gap-5 lg:grid-cols-2">
-                  {(session.templateTitle || linkedTemplate?.title || session.templateSyllabusContent || linkedTemplate?.syllabusContent) && (
+                  {(session.templateTitle || resolvedTemplate?.title || session.templateSyllabusContent || resolvedTemplate?.syllabusContent) && (
                     <ContentCard
                       title="Syllabus chuẩn"
-                      subtitle={session.templateTitle || linkedTemplate?.title || "Nội dung template"}
+                      subtitle={
+                        session.templateTitle ||
+                        (session.templateId
+                          ? resolvedTemplate?.title
+                          : `${resolvedTemplate?.title || "Template chung"} • áp dụng toàn bộ buổi`) ||
+                        "Nội dung template"
+                      }
                       icon={<FolderOpen size="16" />}
                       gradient="from-purple-50 to-white"
                       borderColor="purple"
                     >
                       <StructuredContent 
-                        value={session.templateSyllabusContent || linkedTemplate?.syllabusContent} 
+                        value={session.templateSyllabusContent || resolvedTemplate?.syllabusContent} 
                         placeholder="Chưa có nội dung template." 
                       />
                     </ContentCard>
@@ -1758,12 +1865,7 @@ function TemplateFormModal({
   const [programId, setProgramId] = useState(initialProgramId);
   const [level, setLevel] = useState(initialValue?.level || "");
   const [title, setTitle] = useState(initialValue?.title || "");
-  const [sessionIndex, setSessionIndex] = useState(
-    initialValue?.sessionIndex ||
-      getSuggestedNextSessionIndex(existingTemplates, initialProgramId, initialValue?.id) ||
-      1
-  );
-  const [sessionIndexTouched, setSessionIndexTouched] = useState(Boolean(initialValue));
+  const [sessionIndex, setSessionIndex] = useState(initialValue?.sessionIndex || 1);
 
   // Metadata fields
   const [dayLabel, setDayLabel] = useState(pickStringValue(metadataSeed, ["day", "days", "scheduleDays"]));
@@ -1792,16 +1894,6 @@ const [homeworkNotesText, setHomeworkNotesText] = useState(linesToTextarea(conte
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const suggestedNextSessionIndex = useMemo(
-    () => getSuggestedNextSessionIndex(existingTemplates, programId, initialValue?.id),
-    [existingTemplates, initialValue?.id, programId]
-  );
-
-  useEffect(() => {
-    if (isEdit || sessionIndexTouched) return;
-    setSessionIndex(suggestedNextSessionIndex);
-  }, [isEdit, sessionIndexTouched, suggestedNextSessionIndex]);
 
   const generatedMetadataObject = useMemo(() => {
     return removeEmptyDeep({
@@ -1875,11 +1967,7 @@ if (current.length === 1 && isActivityDraftEmpty(current[0])) return [nextActivi
     setProgramId(initialProgramId);
     setLevel(initialValue?.level || "");
     setTitle(initialValue?.title || "");
-    setSessionIndex(
-      initialValue?.sessionIndex ||
-        getSuggestedNextSessionIndex(existingTemplates, initialProgramId, initialValue?.id) ||
-        1
-    );
+    setSessionIndex(initialValue?.sessionIndex || 1);
     setDayLabel(pickStringValue(metadataSeed, ["day", "days", "scheduleDays"]));
     setDurationLabel(pickStringValue(metadataSeed, ["duration"]));
     setGeneralInformation(pickStringValue(metadataSeed, ["generalInformation", "generalInfo", "description"]));
@@ -1904,18 +1992,19 @@ if (current.length === 1 && isActivityDraftEmpty(current[0])) return [nextActivi
     if (!programId.trim()) { setError("Vui lòng chọn program."); return; }
     if (!level.trim()) { setError("Vui lòng nhập level."); return; }
     if (!title.trim()) { setError("Vui lòng nhập tiêu đề."); return; }
-    if (sessionIndex <= 0) { setError("Session index phải lớn hơn 0."); return; }
+    const effectiveSessionIndex = isEdit ? sessionIndex : 1;
+    if (effectiveSessionIndex <= 0) { setError("Session index phải lớn hơn 0."); return; }
 
     const duplicated = existingTemplates.find(
       (item) =>
         item.programId === programId &&
-        item.sessionIndex === sessionIndex &&
+        item.sessionIndex === effectiveSessionIndex &&
         item.id !== initialValue?.id
     );
 
     if (duplicated) {
       setError(
-        `Program này đã có template ở session ${sessionIndex} (${duplicated.title}). Vui lòng đổi session index hoặc cập nhật template hiện có.`
+        `Program này đã có template dùng chung ở Buổi ${effectiveSessionIndex} (${duplicated.title}). Vui lòng cập nhật template hiện có.`
       );
       return;
     }
@@ -1930,7 +2019,7 @@ if (current.length === 1 && isActivityDraftEmpty(current[0])) return [nextActivi
           programId,
           level: level.trim(),
           title: title.trim(),
-          sessionIndex,
+          sessionIndex: effectiveSessionIndex,
           syllabusMetadata: metadataPayload || null,
           syllabusContent: contentPayload || null,
           sourceFileName: sourceFileName.trim() || null,
@@ -1988,29 +2077,10 @@ if (current.length === 1 && isActivityDraftEmpty(current[0])) return [nextActivi
             />
           </Field>
 
-          <Field label="Session index">
-            <input
-              type="number"
-              min={1}
-              value={sessionIndex}
-              onChange={(event) => {
-                setSessionIndexTouched(true);
-                setSessionIndex(Number(event.target.value) || 1);
-              }}
-              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-            />
-            {!isEdit && programId ? (
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-gray-500">
-                <span>Gợi ý tiếp theo: {suggestedNextSessionIndex}</span>
-                <button
-                  type="button"
-                  onClick={() => { setSessionIndexTouched(true); setSessionIndex(suggestedNextSessionIndex); }}
-                  className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-amber-700 hover:bg-amber-100 cursor-pointer"
-                >
-                  Dùng gợi ý
-                </button>
-</div>
-            ) : null}
+          <Field label="Phạm vi áp dụng">
+            <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+              Template này dùng chung cho toàn bộ buổi của chương trình và được neo tại Buổi 1.
+            </div>
           </Field>
         </div>
 
@@ -2366,26 +2436,26 @@ function ImportTemplateModal({
 
   return (
     <ModalFrame
-      title="Import syllabus template"
-      subtitle="Admin import file mẫu để setup trước giáo án cho toàn bộ buổi học; teacher chỉ điền phần nội dung sau buổi dạy."
+      title="Import mẫu giáo án (Syllabus)"
+      subtitle="Dùng file mẫu để tạo sẵn khung giáo án cho nhiều buổi học. Giáo viên sẽ cập nhật nội dung chi tiết sau khi dạy."
       icon={Upload}
       onClose={onClose}
       widthClass="max-w-3xl"
     >
       <form onSubmit={handleSubmit} className="space-y-5 p-6">
         <div className="rounded-2xl border border-blue-200 bg-blue-50/50 p-4 text-sm text-blue-900">
-          <div className="font-semibold">Checklist trước khi import</div>
+          <div className="font-semibold">Trước khi import, vui lòng kiểm tra</div>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-blue-800">
-            <li>File hợp lệ: .xlsx / .xls / .csv</li>
-            <li>Nếu là CSV, bắt buộc chọn Program</li>
-            <li>Bật overwrite khi muốn cập nhật lại session đã tồn tại</li>
+            <li>Định dạng hợp lệ: .xlsx, .xls hoặc .csv</li>
+            <li>Nếu import file .csv: bắt buộc chọn Program</li>
+            <li>Bật "Cập nhật dữ liệu đã có" nếu muốn ghi đè session đã tồn tại</li>
           </ul>
         </div>
 
-        <Field label="File syllabus">
+        <Field label="File giáo án">
           <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-red-200 bg-red-50/60 px-4 py-4 text-sm text-gray-700 hover:bg-red-50">
             <Upload size={16} className="text-red-600" />
-            <span>{file ? file.name : "Chọn file xlsx/xls/csv để import"}</span>
+            <span>{file ? file.name : "Chọn file .xlsx/.xls/.csv để bắt đầu import"}</span>
             <input
               type="file"
               accept=".xlsx,.xls,.csv"
@@ -2396,13 +2466,13 @@ function ImportTemplateModal({
         </Field>
 
         <div className="grid gap-4 md:grid-cols-2">
-          <Field label="Program (bắt buộc khi import csv)">
+          <Field label="Program (bắt buộc khi import .csv)">
             <select
               value={programId}
               onChange={(event) => setProgramId(event.target.value)}
 className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
             >
-              <option value="">Để backend tự map</option>
+              <option value="">Không chọn (backend tự map nếu có thể)</option>
               {programOptions.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.label}
@@ -2411,27 +2481,27 @@ className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm t
             </select>
           </Field>
 
-          <Field label="Level">
+          <Field label="Level (không bắt buộc)">
             <input
               value={level}
               onChange={(event) => setLevel(event.target.value)}
               className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-              placeholder="Ví dụ: Flyers"
+              placeholder="Ví dụ: Flyers, Movers..."
             />
           </Field>
         </div>
 
-        <Field label="Overwrite existing">
+        <Field label="Cập nhật dữ liệu đã có?">
           <div className="grid grid-cols-2 gap-3">
             <ToggleButton
               active={overwriteExisting}
               onClick={() => setOverwriteExisting(true)}
-              label="true - cập nhật lại"
+              label="Có - ghi đè và cập nhật lại"
             />
             <ToggleButton
               active={!overwriteExisting}
               onClick={() => setOverwriteExisting(false)}
-              label="false - bỏ qua"
+              label="Không - giữ nguyên dữ liệu cũ"
             />
           </div>
         </Field>
@@ -2441,7 +2511,7 @@ className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm t
         <ModalActions
           onClose={onClose}
           submitting={submitting}
-          submitLabel="Import file"
+          submitLabel="Bắt đầu import"
           showReset={false}
         />
       </form>
@@ -2450,6 +2520,9 @@ className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm t
 }
 
 type StarterActivity = Record<string, unknown> & {
+  time?: string;
+  book?: string;
+  skills?: string;
   classwork?: string;
   requiredMaterials?: string;
   homeworkRequiredMaterials?: string;
@@ -2458,6 +2531,16 @@ type StarterActivity = Record<string, unknown> & {
 
 type StarterSheet = Record<string, unknown> & {
   activities: StarterActivity[];
+};
+
+type PlannerActivityDraft = {
+  time: string;
+  book: string;
+  skills: string;
+  classwork: string;
+  requiredMaterials: string;
+  homeworkRequiredMaterials: string;
+  extra: string;
 };
 
 function parseStarterActivities(refContent: string | null | undefined): StarterSheet | null {
@@ -2473,12 +2556,37 @@ function parseStarterActivities(refContent: string | null | undefined): StarterS
   return { ...obj, activities };
 }
 
+function toPlannerActivityDraft(activity: StarterActivity): PlannerActivityDraft {
+  return {
+    time: typeof activity.time === "string" ? activity.time : "",
+    book: typeof activity.book === "string" ? activity.book : "",
+    skills: typeof activity.skills === "string" ? activity.skills : "",
+    classwork: typeof activity.classwork === "string" ? activity.classwork : "",
+    requiredMaterials: typeof activity.requiredMaterials === "string" ? activity.requiredMaterials : "",
+    homeworkRequiredMaterials: typeof activity.homeworkRequiredMaterials === "string" ? activity.homeworkRequiredMaterials : "",
+    extra: typeof activity.extra === "string" ? activity.extra : "",
+  };
+}
+
+function createEmptyPlannerActivity(): PlannerActivityDraft {
+  return {
+    time: "",
+    book: "",
+    skills: "",
+    classwork: "",
+    requiredMaterials: "",
+    homeworkRequiredMaterials: "",
+    extra: "",
+  };
+}
+
 function PlanFormModal({
   scope,
   classSyllabus,
   session,
   initialValue,
   templateOptions,
+  sharedTemplate,
   onClose,
   onSubmit,
 }: {
@@ -2487,6 +2595,7 @@ function PlanFormModal({
   session: ClassLessonPlanSyllabusSession;
   initialValue: LessonPlan | null;
   templateOptions: LessonPlanTemplate[];
+  sharedTemplate?: LessonPlanTemplate;
   onClose: () => void;
   onSubmit: (payload: {
     session: ClassLessonPlanSyllabusSession;
@@ -2497,18 +2606,36 @@ function PlanFormModal({
     teacherNotes?: string | null;
   }) => Promise<void>;
 }) {
-  const [templateId, setTemplateId] = useState(initialValue?.templateId || session.templateId || "");
-  const [plannedContent, setPlannedContent] = useState(initialValue?.plannedContent || session.plannedContent || session.templateSyllabusContent || "");
+  const isEdit = Boolean(initialValue);
+  const isTeacher = scope === "teacher";
+
+  const resolvedTemplateId = initialValue?.templateId || session.templateId || sharedTemplate?.id || "";
+  const initialPlannedContent = (() => {
+    if (initialValue?.plannedContent) return prettifyJsonText(initialValue.plannedContent);
+    if (session.plannedContent) return prettifyJsonText(session.plannedContent);
+    if (isTeacher) return prettifyJsonText(session.templateSyllabusContent || sharedTemplate?.syllabusContent || "");
+    return "";
+  })();
+  const [templateId, setTemplateId] = useState(resolvedTemplateId);
+  const [plannedContent, setPlannedContent] = useState(initialPlannedContent);
+  const [showPlannedJsonEditor, setShowPlannedJsonEditor] = useState(() => !isTrivialPlannedContent(initialPlannedContent));
   const [actualContent, setActualContent] = useState(initialValue?.actualContent || session.actualContent || "");
   const [actualHomework, setActualHomework] = useState(initialValue?.actualHomework || session.actualHomework || "");
   const [teacherNotes, setTeacherNotes] = useState(initialValue?.teacherNotes || session.teacherNotes || "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const isEdit = Boolean(initialValue);
-const isTeacher = scope === "teacher";
+  const selectedTemplate = useMemo(
+    () => templateOptions.find((item) => item.id === templateId),
+    [templateId, templateOptions]
+  );
+  const templateRefContent =
+    session.templateSyllabusContent ||
+    selectedTemplate?.syllabusContent ||
+    sharedTemplate?.syllabusContent ||
+    "";
 
-  const refContent = session.templateSyllabusContent || session.plannedContent || initialValue?.plannedContent;
+  const refContent = templateRefContent || session.plannedContent || initialValue?.plannedContent;
 
   // Parse starter activities for structured editing (teacher only)
   const starterData = useMemo(() => {
@@ -2520,6 +2647,45 @@ const isTeacher = scope === "teacher";
     return parseStarterActivities(refContent);
   }, [isTeacher, refContent, initialValue?.actualContent, session.actualContent]);
 
+  const plannerStarter = useMemo(() => {
+    if (isTeacher) return null;
+    return parseStarterActivities(initialValue?.plannedContent || session.plannedContent || templateRefContent);
+  }, [initialValue?.plannedContent, isTeacher, session.plannedContent, templateRefContent]);
+
+  const [plannerTitle, setPlannerTitle] = useState(() =>
+    pickStringValue(plannerStarter, ["title"]) || pickStringValue(starterData, ["title"])
+  );
+  const [plannerTeacherName, setPlannerTeacherName] = useState(() =>
+    pickStringValue(plannerStarter, ["teacherName"])
+  );
+  const [plannerHomeworkLabel, setPlannerHomeworkLabel] = useState(() =>
+    pickStringValue(plannerStarter, ["homeworkLabel"]) || "HOMEWORK"
+  );
+  const [plannerActivities, setPlannerActivities] = useState<PlannerActivityDraft[]>(() => {
+    if (!plannerStarter) return [createEmptyPlannerActivity()];
+    return plannerStarter.activities.map(toPlannerActivityDraft);
+  });
+  const [plannerHomeworkMaterialsText, setPlannerHomeworkMaterialsText] = useState(() =>
+    plannerStarter ? linesToTextarea(plannerStarter.homeworkMaterials) : ""
+  );
+  const [plannerHomeworkNotesText, setPlannerHomeworkNotesText] = useState(() =>
+    plannerStarter ? linesToTextarea(plannerStarter.homeworkNotes) : ""
+  );
+
+  useEffect(() => {
+    if (isTeacher) return;
+    setPlannerTitle(pickStringValue(plannerStarter, ["title"]));
+    setPlannerTeacherName(pickStringValue(plannerStarter, ["teacherName"]));
+    setPlannerHomeworkLabel(pickStringValue(plannerStarter, ["homeworkLabel"]) || "HOMEWORK");
+    setPlannerActivities(
+      plannerStarter?.activities.length
+        ? plannerStarter.activities.map(toPlannerActivityDraft)
+        : [createEmptyPlannerActivity()]
+    );
+    setPlannerHomeworkMaterialsText(plannerStarter ? linesToTextarea(plannerStarter.homeworkMaterials) : "");
+    setPlannerHomeworkNotesText(plannerStarter ? linesToTextarea(plannerStarter.homeworkNotes) : "");
+  }, [isTeacher, plannerStarter, templateId]);
+
   const [editableActivities, setEditableActivities] = useState<Array<{ classwork: string; requiredMaterials: string; homeworkRequiredMaterials: string; extra: string }>>(() => {
     if (!starterData) return [];
     // If teacher previously saved structured actual content, use that
@@ -2527,6 +2693,9 @@ const isTeacher = scope === "teacher";
     const existingParsed = parseStarterActivities(existingActual);
     const source = existingParsed?.activities || starterData.activities;
     return source.map((a) => ({
+      time: typeof a.time === "string" ? a.time : "",
+      book: typeof a.book === "string" ? a.book : "",
+      skills: typeof a.skills === "string" ? a.skills : "",
       classwork: typeof a.classwork === "string" ? a.classwork : "",
       requiredMaterials: typeof a.requiredMaterials === "string" ? a.requiredMaterials : "",
       homeworkRequiredMaterials: typeof a.homeworkRequiredMaterials === "string" ? a.homeworkRequiredMaterials : "",
@@ -2545,24 +2714,54 @@ const isTeacher = scope === "teacher";
   });
 
   const hasStructuredStarter = isTeacher && starterData !== null;
+  const hasStructuredPlanner = !isTeacher && plannerStarter !== null;
 
   const updateEditableActivity = (
     index: number,
-    field: "classwork" | "requiredMaterials" | "homeworkRequiredMaterials" | "extra",
+    field: "time" | "book" | "skills" | "classwork" | "requiredMaterials" | "homeworkRequiredMaterials" | "extra",
     value: string
   ) => {
     setEditableActivities((prev) => prev.map((item, i) => (i === index ? { ...item, [field]: value } : item)));
   };
 
+  const addTeacherActivity = () => {
+    setEditableActivities((prev) => [
+      ...prev,
+      {
+        time: "",
+        book: "",
+        skills: "",
+        classwork: "",
+        requiredMaterials: "",
+        homeworkRequiredMaterials: "",
+        extra: "",
+      },
+    ]);
+  };
+
+  const removeTeacherActivity = (index: number) => {
+    setEditableActivities((prev) => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== index)));
+  };
+
   const buildStructuredActualContent = (): string => {
     if (!starterData) return actualContent;
-    const newActivities = starterData.activities.map((a, i) => ({
-      ...a,
-      classwork: editableActivities[i]?.classwork ?? a.classwork ?? "",
-      requiredMaterials: editableActivities[i]?.requiredMaterials ?? a.requiredMaterials ?? "",
-      homeworkRequiredMaterials: editableActivities[i]?.homeworkRequiredMaterials ?? a.homeworkRequiredMaterials ?? "",
-      extra: editableActivities[i]?.extra ?? a.extra ?? "",
-    }));
+    const newActivities = editableActivities
+      .map((activity, i) => {
+        const base = starterData.activities[i] || {};
+        return removeEmptyDeep({
+          ...base,
+          time: activity.time?.trim() || (typeof base.time === "string" ? base.time : ""),
+          book: activity.book?.trim() || (typeof base.book === "string" ? base.book : ""),
+          skills: activity.skills?.trim() || (typeof base.skills === "string" ? base.skills : ""),
+          classwork: activity.classwork?.trim() || (typeof base.classwork === "string" ? base.classwork : ""),
+          requiredMaterials: activity.requiredMaterials?.trim() || (typeof base.requiredMaterials === "string" ? base.requiredMaterials : ""),
+          homeworkRequiredMaterials:
+            activity.homeworkRequiredMaterials?.trim() ||
+            (typeof base.homeworkRequiredMaterials === "string" ? base.homeworkRequiredMaterials : ""),
+          extra: activity.extra?.trim() || (typeof base.extra === "string" ? base.extra : ""),
+        });
+      })
+      .filter((item) => Object.keys(item).length > 0);
 
     return JSON.stringify(
       {
@@ -2576,11 +2775,68 @@ const isTeacher = scope === "teacher";
     );
   };
 
+  const updatePlannerActivity = (
+    index: number,
+    key: keyof PlannerActivityDraft,
+    value: string
+  ) => {
+    setPlannerActivities((current) => current.map((item, i) => (i === index ? { ...item, [key]: value } : item)));
+  };
+
+  const addPlannerActivity = () => {
+    setPlannerActivities((current) => [...current, createEmptyPlannerActivity()]);
+  };
+
+  const removePlannerActivity = (index: number) => {
+    setPlannerActivities((current) =>
+      current.length <= 1 ? [createEmptyPlannerActivity()] : current.filter((_, i) => i !== index)
+    );
+  };
+
+  const buildStructuredPlannedContent = (): string | null => {
+    if (!plannerStarter) {
+      return plannedContent.trim() || null;
+    }
+
+    const cleanedActivities = plannerActivities
+      .map((item) =>
+        removeEmptyDeep({
+          time: item.time.trim(),
+          book: item.book.trim(),
+          skills: item.skills.trim(),
+          classwork: item.classwork.trim(),
+          requiredMaterials: item.requiredMaterials.trim(),
+          homeworkRequiredMaterials: item.homeworkRequiredMaterials.trim(),
+          extra: item.extra.trim(),
+        })
+      )
+      .filter((item) => Object.keys(item).length > 0);
+
+    const payload = removeEmptyDeep({
+      ...plannerStarter,
+      title: plannerTitle.trim() || pickStringValue(plannerStarter, ["title"]),
+      teacherName: plannerTeacherName.trim(),
+      homeworkLabel: plannerHomeworkLabel.trim(),
+      homeworkMaterials: textareaToLines(plannerHomeworkMaterialsText),
+      homeworkNotes: textareaToLines(plannerHomeworkNotesText),
+      activities: cleanedActivities,
+    });
+
+    return stringifyPrettyJson(payload) || null;
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
 
     const finalActualContent = hasStructuredStarter ? buildStructuredActualContent() : actualContent.trim();
+    const finalPlannedContent = isTeacher
+      ? undefined
+      : hasStructuredPlanner
+        ? buildStructuredPlannedContent()
+        : isTrivialPlannedContent(plannedContent)
+          ? null
+          : plannedContent.trim() || null;
 
     if (isTeacher && !finalActualContent) {
       setError("Vui lòng nhập nội dung dạy thực tế.");
@@ -2592,8 +2848,8 @@ const isTeacher = scope === "teacher";
     try {
       await onSubmit({
         session,
-        templateId: isTeacher ? session.templateId || null : templateId || null,
-        plannedContent: isTeacher ? undefined : plannedContent.trim() || null,
+        templateId: templateId || null,
+        plannedContent: finalPlannedContent,
         actualContent: finalActualContent || null,
         actualHomework: hasStructuredStarter
           ? editableHomeworkMaterialsText.trim() || null
@@ -2612,10 +2868,10 @@ const isTeacher = scope === "teacher";
   return (
     <ModalFrame
       title={isTeacher ? (isEdit ? "Cập nhật giáo án" : "Điền giáo án buổi dạy") : (isEdit ? "Cập nhật lesson plan" : "Tạo lesson plan")}
-      subtitle={isTeacher ? "Teacher chỉ được chỉnh đúng các cột được phép sau buổi học; các cột setup trước bởi Admin là chỉ đọc." : "Session đã được khóa sẵn theo read model syllabus. Có thể để plannedContent trống để backend tự copy từ template."}
+      subtitle={isTeacher ? "Teacher chỉ được chỉnh đúng các cột được phép sau buổi học; các cột setup trước bởi Admin là chỉ đọc." : "Buổi học đã có dữ liệu cố định từ syllabus. Bạn chỉ cần chọn template và điền nội dung thực tế nếu cần."}
       icon={isTeacher ? ClipboardPen : FilePlus2}
       onClose={onClose}
-      widthClass={hasStructuredStarter ? "max-w-6xl" : "max-w-4xl"}
+      widthClass={hasStructuredStarter || hasStructuredPlanner ? "max-w-6xl" : "max-w-4xl"}
     >
       <form onSubmit={handleSubmit} className="space-y-5 p-6">
         <div className="grid gap-4 md:grid-cols-2">
@@ -2633,11 +2889,21 @@ const isTeacher = scope === "teacher";
               /* ── Structured activity editor: show full content, only classwork/requiredMaterials/homeworkRequiredMaterials editable ── */
               <div className="space-y-4">
                 <div className="rounded-2xl border border-blue-200 bg-blue-50/50 p-4">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
                     <BookOpenCheck size={15} className="text-blue-600" />
                     <span className="text-sm font-semibold text-blue-700">
                       Giáo án chuẩn: chỉ sửa được {TEACHER_EDITABLE_FIELDS.classwork}, {TEACHER_EDITABLE_FIELDS.requiredMaterials}, {TEACHER_EDITABLE_FIELDS.homeworkRequiredMaterials}, {TEACHER_EDITABLE_FIELDS.extra}
                     </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={addTeacherActivity}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100"
+                    >
+                      <Plus size={12} />
+                      Thêm dòng activity
+                    </button>
                   </div>
                 </div>
 
@@ -2682,16 +2948,31 @@ const isTeacher = scope === "teacher";
                         </tr>
                       </thead>
                       <tbody>
-                        {starterData!.activities.map((activity, index) => (
+                        {editableActivities.map((activity, index) => (
                           <tr key={index} className="align-top">
-                            <td className="border border-gray-300 bg-gray-50 px-3 py-2 text-gray-700">
-                              <SheetCellValue value={activity.time} />
+                            <td className="border border-gray-300 px-2 py-1.5">
+                              <input
+                                value={activity.time ?? ""}
+                                onChange={(e) => updateEditableActivity(index, "time", e.target.value)}
+                                className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                                placeholder="Time"
+                              />
                             </td>
-                            <td className="border border-gray-300 bg-gray-50 px-3 py-2 text-gray-700">
-                              <SheetCellValue value={activity.book} />
+                            <td className="border border-gray-300 px-2 py-1.5">
+                              <input
+                                value={activity.book ?? ""}
+                                onChange={(e) => updateEditableActivity(index, "book", e.target.value)}
+                                className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                                placeholder="Book"
+                              />
                             </td>
-                            <td className="border border-gray-300 bg-gray-50 px-3 py-2 text-gray-700">
-                              <SheetCellValue value={activity.skills} />
+                            <td className="border border-gray-300 px-2 py-1.5">
+                              <input
+                                value={activity.skills ?? ""}
+                                onChange={(e) => updateEditableActivity(index, "skills", e.target.value)}
+                                className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                                placeholder="Skills"
+                              />
                             </td>
                             <td className="border border-gray-300 px-2 py-1.5">
                               <textarea
@@ -2720,7 +3001,7 @@ const isTeacher = scope === "teacher";
                                 placeholder="Nhập homework materials..."
                               />
                             </td>
-                            <td className="border border-gray-300 bg-gray-50 px-3 py-2 text-gray-700">
+                            <td className="border border-gray-300 bg-gray-50 px-2 py-1.5 text-center">
                               <textarea
                                 value={editableActivities[index]?.extra ?? ""}
                                 onChange={(e) => updateEditableActivity(index, "extra", e.target.value)}
@@ -2728,6 +3009,14 @@ const isTeacher = scope === "teacher";
                                 className="w-full rounded-lg border border-emerald-200 bg-emerald-50/50 px-2 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-300"
                                 placeholder="Nhập extra / note..."
                               />
+                              <button
+                                type="button"
+                                onClick={() => removeTeacherActivity(index)}
+                                disabled={editableActivities.length <= 1}
+                                className="mt-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                Xóa dòng
+                              </button>
                             </td>
                           </tr>
                         ))}
@@ -2866,45 +3155,225 @@ const isTeacher = scope === "teacher";
           </>
         ) : (
           <>
-            <Field label="Template (tùy chọn)">
+            <Field label="Template áp dụng cho buổi này (khuyến nghị chọn)">
               <select
                 value={templateId}
                 onChange={(event) => setTemplateId(event.target.value)}
                 className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
               >
-                <option value="">Để backend tự resolve theo Program + SessionIndex</option>
+                <option value="">Không chọn: hệ thống tự tìm theo Program + Buổi học</option>
                 {templateOptions.map((item) => (
                   <option key={item.id} value={item.id}>
-                    {item.title} • Level {item.level} • Buổi {item.sessionIndex}
+                    {item.title} • Level {item.level} • {item.sessionIndex === 1 ? "Template chung" : `Buổi ${item.sessionIndex}`}
                   </option>
                 ))}
               </select>
             </Field>
 
-            <Field label="plannedContent">
-              <p className="mb-2 text-xs text-gray-500">
-                Giáo án dự kiến. Nếu để trống, backend tự copy từ template chuẩn khi tạo mới.
-              </p>
-              <textarea
-                value={plannedContent}
-                onChange={(event) => setPlannedContent(event.target.value)}
-                rows={8}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 font-mono text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-                placeholder='{"sessionIndex":1,"activities":[]}'
-              />
-</Field>
+            {hasStructuredPlanner ? (
+              <div className="space-y-4 rounded-2xl border border-blue-200 bg-blue-50/40 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="text-sm font-semibold text-blue-700">Sửa trực tiếp trên bảng syllabus</div>
+                  <button
+                    type="button"
+                    onClick={addPlannerActivity}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100"
+                  >
+                    <Plus size={12} />
+                    Thêm dòng activity
+                  </button>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-3">
+                  <Field label="Tiêu đề">
+                    <input
+                      value={plannerTitle}
+                      onChange={(event) => setPlannerTitle(event.target.value)}
+                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      placeholder="Tiêu đề syllabus"
+                    />
+                  </Field>
+                  <Field label="Giáo viên">
+                    <input
+                      value={plannerTeacherName}
+                      onChange={(event) => setPlannerTeacherName(event.target.value)}
+                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      placeholder="Teacher"
+                    />
+                  </Field>
+                  <Field label="Homework label">
+                    <input
+                      value={plannerHomeworkLabel}
+                      onChange={(event) => setPlannerHomeworkLabel(event.target.value)}
+                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      placeholder="HOMEWORK"
+                    />
+                  </Field>
+                </div>
+
+                <div className="overflow-hidden rounded-2xl border border-gray-300 bg-white shadow-sm">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-[1180px] border-collapse text-sm">
+                      <thead>
+                        <tr className="text-gray-700">
+                          <th className="border border-gray-300 bg-amber-100 px-3 py-2 text-left font-semibold">Time</th>
+                          <th className="border border-gray-300 bg-amber-100 px-3 py-2 text-left font-semibold">Book</th>
+                          <th className="border border-gray-300 bg-amber-100 px-3 py-2 text-left font-semibold">Skills</th>
+                          <th className="border border-gray-300 bg-amber-100 px-3 py-2 text-left font-semibold">Classwork</th>
+                          <th className="border border-gray-300 bg-amber-100 px-3 py-2 text-left font-semibold">Required materials</th>
+                          <th className="border border-gray-300 bg-blue-100 px-3 py-2 text-left font-semibold">Homework materials</th>
+                          <th className="border border-gray-300 bg-blue-100 px-3 py-2 text-left font-semibold">Extra / Note</th>
+                          <th className="border border-gray-300 bg-gray-100 px-3 py-2 text-center font-semibold">Xóa</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {plannerActivities.map((activity, index) => (
+                          <tr key={`planner-${index}`} className="align-top">
+                            <td className="border border-gray-300 px-2 py-1.5">
+                              <input
+                                value={activity.time}
+                                onChange={(event) => updatePlannerActivity(index, "time", event.target.value)}
+                                className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                placeholder="10 mins"
+                              />
+                            </td>
+                            <td className="border border-gray-300 px-2 py-1.5">
+                              <input
+                                value={activity.book}
+                                onChange={(event) => updatePlannerActivity(index, "book", event.target.value)}
+                                className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                placeholder="Warm Up"
+                              />
+                            </td>
+                            <td className="border border-gray-300 px-2 py-1.5">
+                              <input
+                                value={activity.skills}
+                                onChange={(event) => updatePlannerActivity(index, "skills", event.target.value)}
+                                className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                placeholder="Speaking / Reading"
+                              />
+                            </td>
+                            <td className="border border-gray-300 px-2 py-1.5">
+                              <textarea
+                                value={activity.classwork}
+                                onChange={(event) => updatePlannerActivity(index, "classwork", event.target.value)}
+                                rows={2}
+                                className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                placeholder="Classwork"
+                              />
+                            </td>
+                            <td className="border border-gray-300 px-2 py-1.5">
+                              <textarea
+                                value={activity.requiredMaterials}
+                                onChange={(event) => updatePlannerActivity(index, "requiredMaterials", event.target.value)}
+                                rows={2}
+                                className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                placeholder="Required materials"
+                              />
+                            </td>
+                            <td className="border border-gray-300 px-2 py-1.5">
+                              <textarea
+                                value={activity.homeworkRequiredMaterials}
+                                onChange={(event) => updatePlannerActivity(index, "homeworkRequiredMaterials", event.target.value)}
+                                rows={2}
+                                className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                placeholder="Homework materials"
+                              />
+                            </td>
+                            <td className="border border-gray-300 px-2 py-1.5">
+                              <textarea
+                                value={activity.extra}
+                                onChange={(event) => updatePlannerActivity(index, "extra", event.target.value)}
+                                rows={2}
+                                className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                placeholder="Extra / Note"
+                              />
+                            </td>
+                            <td className="border border-gray-300 px-2 py-1.5 text-center">
+                              <button
+                                type="button"
+                                onClick={() => removePlannerActivity(index)}
+                                className="rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100"
+                              >
+                                Xóa
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-2">
+                  <Field label="Homework materials (block)">
+                    <textarea
+                      value={plannerHomeworkMaterialsText}
+                      onChange={(event) => setPlannerHomeworkMaterialsText(event.target.value)}
+                      rows={3}
+                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    />
+                  </Field>
+                  <Field label="Homework notes (block)">
+                    <textarea
+                      value={plannerHomeworkNotesText}
+                      onChange={(event) => setPlannerHomeworkNotesText(event.target.value)}
+                      rows={3}
+                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    />
+                  </Field>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2 rounded-2xl border border-gray-200 bg-gray-50/70 p-4">
+                <div className="text-sm font-semibold text-gray-800">Tùy chọn nâng cao (JSON)</div>
+                <p className="text-xs text-gray-500">
+                  Phần này chỉ dùng khi bạn muốn ghi đè cấu trúc kế hoạch riêng cho buổi này. Nếu không chắc, hãy để hệ thống tự lấy từ template.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowPlannedJsonEditor((current) => !current)}
+                  className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-100"
+                >
+                  {showPlannedJsonEditor ? "Ẩn chỉnh sửa JSON" : "Hiện chỉnh sửa JSON"}
+                </button>
+
+                {showPlannedJsonEditor ? (
+                  <>
+                    <textarea
+                      value={plannedContent}
+                      onChange={(event) => setPlannedContent(event.target.value)}
+                      rows={8}
+                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 font-mono text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+                      placeholder='{"sessionIndex":1,"activities":[...]}'
+                    />
+                    {plannedContent ? (
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => setPlannedContent("")}
+                          className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                        >
+                          Xóa nội dung JSON
+                        </button>
+                      </div>
+                    ) : null}
+                  </>
+                ) : null}
+              </div>
+            )}
 
             <div className="grid gap-4 md:grid-cols-2">
-              <Field label="actualContent">
+              <Field label="Nội dung dạy thực tế (không bắt buộc)">
                 <textarea
                   value={actualContent}
                   onChange={(event) => setActualContent(event.target.value)}
                   rows={5}
                   className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-                  placeholder="Nội dung dạy thực tế"
+                  placeholder="Ví dụ: Dạy Unit 4, luyện speaking theo cặp, chữa bài workbook..."
                 />
               </Field>
-              <Field label="actualHomework">
+              <Field label="Bài tập về nhà (không bắt buộc)">
                 <textarea
                   value={actualHomework}
                   onChange={(event) => setActualHomework(event.target.value)}
@@ -2915,13 +3384,13 @@ const isTeacher = scope === "teacher";
               </Field>
             </div>
 
-            <Field label="teacherNotes">
+            <Field label="Ghi chú nội bộ">
               <textarea
                 value={teacherNotes}
                 onChange={(event) => setTeacherNotes(event.target.value)}
                 rows={4}
                 className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-                placeholder="Ghi chú giáo viên"
+                placeholder="Ví dụ: Lớp thiếu 2 bạn, cần gửi bổ sung tài liệu qua nhóm..."
               />
             </Field>
           </>
@@ -2956,6 +3425,12 @@ function DetailModal({
     state.type === "template"
       ? "Dữ liệu lấy từ GET /api/lesson-plan-templates/{id}."
       : "Dữ liệu lấy từ GET /api/lesson-plans/{id}.";
+  const hasTemplateMetadata = state.type === "template" && state.item
+    ? hasDisplayablePayload(state.item.syllabusMetadata)
+    : false;
+  const hasTemplateContent = state.type === "template" && state.item
+    ? hasDisplayablePayload(state.item.syllabusContent)
+    : false;
 
   if (state.loading) {
     return (
@@ -2991,9 +3466,28 @@ function DetailModal({
             </div>
 
             <ContentPanel title="Tiêu đề" value={state.item.title} accent="text-red-700" />
-            <ContentPanel title="syllabusMetadata" value={state.item.syllabusMetadata} accent="text-blue-700" />
-            <ContentPanel title="syllabusContent" value={state.item.syllabusContent} accent="text-emerald-700" />
-            <ContentPanel title="sourceFileName" value={state.item.sourceFileName} accent="text-amber-700" />
+            {hasTemplateMetadata ? (
+              <ContentPanel
+                title="Thông tin chung của syllabus"
+                subtitle="Áp dụng cho toàn bộ buổi học: Day, Duration, General information, Teaching materials, Note"
+                value={state.item.syllabusMetadata}
+                accent="text-blue-700"
+              />
+            ) : null}
+            {hasTemplateContent ? (
+              <ContentPanel
+                title="Nội dung buổi học mẫu"
+                subtitle="Khung nội dung cho buổi này: activities, homework, teacher block"
+                value={state.item.syllabusContent}
+                accent="text-emerald-700"
+              />
+            ) : null}
+            {!hasTemplateMetadata && !hasTemplateContent ? (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                Template này chưa có dữ liệu syllabus chi tiết.
+              </div>
+            ) : null}
+            <ContentPanel title="File nguồn import" value={state.item.sourceFileName} accent="text-amber-700" />
 
             <div className="rounded-2xl border border-gray-200 bg-white p-5">
               <div className="mb-3 flex items-center justify-between gap-3">
@@ -3351,7 +3845,7 @@ function SpreadsheetList({ value, empty = "-" }: { value: unknown; empty?: strin
     <div className="space-y-1">
       {items.map((item, index) => (
         <div key={`${item}-${index}`} className="whitespace-pre-wrap text-sm text-gray-700">
-          {item}
+          {renderLinkifiedText(item)}
         </div>
       ))}
     </div>
@@ -3376,7 +3870,7 @@ function SheetCellValue({ value, empty = "-" }: { value: unknown; empty?: string
     return <div className="text-sm text-gray-400">{empty}</div>;
   }
 
-  return <div className="whitespace-pre-wrap text-sm text-gray-700">{text}</div>;
+  return <div className="whitespace-pre-wrap text-sm text-gray-700">{renderLinkifiedText(text)}</div>;
 }
 
 function isMetadataSheetObject(objectValue: Record<string, unknown>) {
@@ -3386,11 +3880,15 @@ function isMetadataSheetObject(objectValue: Record<string, unknown>) {
 }
 
 function isSessionSheetObject(objectValue: Record<string, unknown>) {
+  const hasSessionCoreField = ["sessionIndex", "title", "dateLabel", "teacherName", "homeworkLabel", "homeworkMaterials", "homeworkNotes"].some(
+    (key) => objectValue[key] !== undefined && objectValue[key] !== null && String(objectValue[key]).trim() !== ""
+  );
+  const hasNonEmptyActivities =
+    Array.isArray(objectValue.activities) &&
+    objectValue.activities.some((item) => asObject(item) !== null && Object.keys(asObject(item) || {}).length > 0);
+
   return (
-    Array.isArray(objectValue.activities) ||
-    ["sessionIndex", "title", "dateLabel", "teacherName", "homeworkLabel", "homeworkMaterials", "homeworkNotes"].some(
-      (key) => objectValue[key] !== undefined && objectValue[key] !== null
-    )
+    hasSessionCoreField || hasNonEmptyActivities
   );
 }
 
@@ -3467,7 +3965,7 @@ function SessionSheetView({ objectValue }: { objectValue: Record<string, unknown
     ? objectValue.activities.filter((item): item is Record<string, unknown> => asObject(item) !== null)
     : [];
   const notes = Array.isArray(objectValue.notes) ? objectValue.notes : [];
-const extraEntries = Object.entries(objectValue).filter(
+  const extraEntries = Object.entries(objectValue).filter(
     ([key]) =>
       ![
         "sessionIndex",
@@ -3481,6 +3979,7 @@ const extraEntries = Object.entries(objectValue).filter(
         "activities",
       ].includes(key)
   );
+  const rowSpan = Math.max(activities.length, 1);
 
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-300 bg-white shadow-sm">
@@ -3491,35 +3990,61 @@ const extraEntries = Object.entries(objectValue).filter(
       <div className="overflow-x-auto">
         <table className="min-w-[980px] border-collapse text-sm">
           <thead>
-            <tr className="bg-red-50 text-gray-700">
-              <th className="border border-gray-300 px-3 py-2 text-left font-semibold">Period</th>
-              <th className="border border-gray-300 px-3 py-2 text-left font-semibold">Date</th>
-              <th className="border border-gray-300 px-3 py-2 text-left font-semibold">Teacher</th>
-              <th className="border border-gray-300 px-3 py-2 text-left font-semibold">Time</th>
-              <th className="border border-gray-300 px-3 py-2 text-left font-semibold">Book</th>
-              <th className="border border-gray-300 px-3 py-2 text-left font-semibold">Skills</th>
-              <th className="border border-gray-300 px-3 py-2 text-left font-semibold">Classwork</th>
-              <th className="border border-gray-300 px-3 py-2 text-left font-semibold">Required materials</th>
-              <th className="border border-gray-300 px-3 py-2 text-left font-semibold">Homework materials</th>
-              <th className="border border-gray-300 px-3 py-2 text-left font-semibold">Extra</th>
+            <tr className="text-gray-700">
+              <th rowSpan={2} className="border border-gray-300 bg-amber-100 px-3 py-2 text-left font-semibold">Period</th>
+              <th rowSpan={2} className="border border-gray-300 bg-amber-100 px-3 py-2 text-left font-semibold">Date</th>
+              <th rowSpan={2} className="border border-gray-300 bg-amber-100 px-3 py-2 text-left font-semibold">Teacher</th>
+              <th rowSpan={2} className="border border-gray-300 bg-amber-100 px-3 py-2 text-left font-semibold">Time</th>
+              <th rowSpan={2} className="border border-gray-300 bg-amber-100 px-3 py-2 text-left font-semibold">Book</th>
+              <th rowSpan={2} className="border border-gray-300 bg-amber-100 px-3 py-2 text-left font-semibold">Skills</th>
+              <th colSpan={2} className="border border-gray-300 bg-amber-100 px-3 py-2 text-center font-semibold">Content</th>
+              <th colSpan={2} className="border border-gray-300 bg-blue-100 px-3 py-2 text-center font-semibold">Homework</th>
+            </tr>
+            <tr className="text-gray-700">
+              <th className="border border-gray-300 bg-amber-100 px-3 py-2 text-left font-semibold">Classwork</th>
+              <th className="border border-gray-300 bg-amber-100 px-3 py-2 text-left font-semibold">Required materials</th>
+              <th className="border border-gray-300 bg-blue-100 px-3 py-2 text-left font-semibold">Required materials</th>
+              <th className="border border-gray-300 bg-blue-100 px-3 py-2 text-left font-semibold">Extra / Note</th>
             </tr>
           </thead>
           <tbody>
             {activities.length ? (
-              activities.map((activity: Record<string, unknown>, index: number) => (
-                <tr key={`activity-${index}`} className="align-top">
-                  <td className="border border-gray-300 px-3 py-2">{index === 0 ? <SheetCellValue value={objectValue.sessionIndex} /> : null}</td>
-                  <td className="border border-gray-300 px-3 py-2">{index === 0 ? <SheetCellValue value={objectValue.dateLabel} /> : null}</td>
-                  <td className="border border-gray-300 px-3 py-2">{index === 0 ? <SheetCellValue value={objectValue.teacherName} /> : null}</td>
-                  <td className="border border-gray-300 px-3 py-2"><SheetCellValue value={activity.time} /></td>
-                  <td className="border border-gray-300 px-3 py-2"><SheetCellValue value={activity.book} /></td>
-                  <td className="border border-gray-300 px-3 py-2"><SheetCellValue value={activity.skills} /></td>
-                  <td className="border border-gray-300 px-3 py-2"><SheetCellValue value={activity.classwork} /></td>
-<td className="border border-gray-300 px-3 py-2"><SheetCellValue value={activity.requiredMaterials} /></td>
-                  <td className="border border-gray-300 px-3 py-2"><SheetCellValue value={activity.homeworkRequiredMaterials} /></td>
-                  <td className="border border-gray-300 px-3 py-2"><SheetCellValue value={activity.extra} /></td>
+              activities.map((activity: Record<string, unknown>, index: number) => {
+                const classworkText = String(activity.classwork ?? "").toUpperCase();
+                const isBreaktime = classworkText.includes("BREAKTIME") || classworkText.includes("BREAK TIME");
+
+                return (
+                <tr
+                  key={`activity-${index}`}
+                  className={cn("align-top", isBreaktime ? "bg-gray-100 font-semibold text-gray-800" : "bg-white")}
+                >
+                  {index === 0 ? (
+                    <td rowSpan={rowSpan} className="border border-gray-300 bg-gray-50 px-3 py-2 align-middle text-center">
+                      <SheetCellValue value={objectValue.sessionIndex} />
+                    </td>
+                  ) : null}
+                  {index === 0 ? (
+                    <td rowSpan={rowSpan} className="border border-gray-300 bg-gray-50 px-3 py-2 align-middle text-center">
+                      <SheetCellValue value={objectValue.dateLabel} />
+                    </td>
+                  ) : null}
+                  {index === 0 ? (
+                    <td rowSpan={rowSpan} className="border border-gray-300 bg-gray-50 px-3 py-2 align-middle">
+                      <SheetCellValue value={objectValue.teacherName} />
+                    </td>
+                  ) : null}
+                  <td className="h-12 border border-gray-300 px-3 py-2 align-middle"><SheetCellValue value={activity.time} /></td>
+                  <td className="h-12 border border-gray-300 px-3 py-2 align-middle"><SheetCellValue value={activity.book} /></td>
+                  <td className="h-12 border border-gray-300 px-3 py-2 align-middle"><SheetCellValue value={activity.skills} /></td>
+                  <td className={cn("h-12 border border-gray-300 bg-amber-50/40 px-3 py-2 align-middle", isBreaktime ? "text-center" : "") }>
+                    <SheetCellValue value={activity.classwork} />
+                  </td>
+                  <td className="h-12 border border-gray-300 bg-amber-50/40 px-3 py-2 align-middle"><SheetCellValue value={activity.requiredMaterials} /></td>
+                  <td className="h-12 border border-gray-300 bg-blue-50/40 px-3 py-2 align-middle"><SheetCellValue value={activity.homeworkRequiredMaterials} /></td>
+                  <td className="h-12 border border-gray-300 bg-blue-50/40 px-3 py-2 align-middle"><SheetCellValue value={activity.extra} /></td>
                 </tr>
-              ))
+              );
+              })
             ) : (
               <tr>
                 <td className="border border-gray-300 px-3 py-4 text-center text-sm text-gray-400" colSpan={10}>
@@ -3588,7 +4113,7 @@ function StructuredContent({
   const parsed = parseJsonContent(value);
 
   if (!parsed) {
-    return <div className="whitespace-pre-wrap text-sm leading-6 text-gray-700">{value}</div>;
+    return <div className="whitespace-pre-wrap text-sm leading-6 text-gray-700">{renderLinkifiedText(value)}</div>;
   }
 
   if (Array.isArray(parsed)) {
@@ -3600,12 +4125,12 @@ function StructuredContent({
   }
 
   const objectValue = parsed as Record<string, unknown>;
-  if (isSessionSheetObject(objectValue)) {
-    return <SessionSheetView objectValue={objectValue} />;
-  }
-
   if (isMetadataSheetObject(objectValue)) {
     return <MetadataSheetView objectValue={objectValue} />;
+  }
+
+  if (isSessionSheetObject(objectValue)) {
+    return <SessionSheetView objectValue={objectValue} />;
   }
 
   const activities = Array.isArray(objectValue.activities)
@@ -3637,7 +4162,7 @@ function StructuredContent({
       );
     }
 
-    return <div className="mt-1 whitespace-pre-wrap text-sm text-gray-700">{String(entry ?? "-")}</div>;
+    return <div className="mt-1 whitespace-pre-wrap text-sm text-gray-700">{renderLinkifiedText(String(entry ?? "-"))}</div>;
   };
 
   return (

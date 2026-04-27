@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import {
   Bell,
   Calendar,
@@ -8,14 +9,18 @@ import {
   Info,
   MessageSquare,
   Receipt,
+  RotateCcw,
   School,
   Trash2,
 } from "lucide-react";
 import type { Role } from "@/lib/role";
 import { ROLE_LABEL } from "@/lib/role";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useToast } from "@/hooks/use-toast";
 import type { NotificationKind } from "@/types/notification";
 import FcmPermissionCard from "@/components/notifications/FcmPermissionCard";
+import ConfirmModal from "@/components/ConfirmModal";
+import { trackNotificationTelemetry } from "@/lib/telemetry/notificationTelemetry";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
 
 type UiNotification = {
@@ -31,22 +36,22 @@ type UiNotification = {
   link?: string;
 };
 
-function kindLabel(kind: NotificationKind) {
+function kindLabel(kind: NotificationKind, isEn: boolean) {
   switch (kind) {
     case "payment":
-      return "Tài chính";
+      return isEn ? "Finance" : "Tài chính";
     case "report":
-      return "Báo cáo";
+      return isEn ? "Report" : "Báo cáo";
     case "schedule":
-      return "Lịch học";
+      return isEn ? "Schedule" : "Lịch học";
     case "homework":
-      return "Bài tập";
+      return isEn ? "Homework" : "Bài tập";
     case "feedback":
-      return "Góp ý";
+      return isEn ? "Feedback" : "Góp ý";
     case "event":
-      return "Sự kiện";
+      return isEn ? "Event" : "Sự kiện";
     default:
-      return "Hệ thống";
+      return isEn ? "System" : "Hệ thống";
   }
 }
 
@@ -78,11 +83,17 @@ function formatTime(value: string) {
 
 function NotificationCard({
   item,
+  isEn,
+  tr,
   onRead,
+  onRetry,
   onRemove,
 }: {
   item: UiNotification;
+  isEn: boolean;
+  tr: (vi: string, en: string) => string;
   onRead: () => void;
+  onRetry: () => void;
   onRemove: () => void;
 }) {
   const Icon = kindIcon(item.kind);
@@ -103,11 +114,11 @@ function NotificationCard({
             <h3 className="font-semibold text-gray-900">{item.title}</h3>
             {!item.read && (
               <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700">
-                Mới
+                {tr("Mới", "New")}
               </span>
             )}
             <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-600">
-              {kindLabel(item.kind)}
+              {kindLabel(item.kind, isEn)}
             </span>
           </div>
 
@@ -115,7 +126,7 @@ function NotificationCard({
 
           <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-500">
             <span>{formatTime(item.createdAt)}</span>
-            <span>Từ: {item.senderName}</span>
+            <span>{tr("Từ", "From")}: {item.senderName}</span>
           </div>
         </div>
 
@@ -125,13 +136,21 @@ function NotificationCard({
               onClick={onRead}
               className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 transition hover:bg-emerald-100 cursor-pointer"
             >
-              Đã đọc
+              {tr("Đã đọc", "Mark read")}
             </button>
           )}
           <button
+            onClick={onRetry}
+            className="rounded-lg border border-blue-200 bg-blue-50 p-1.5 text-blue-600 transition hover:bg-blue-100 cursor-pointer"
+            aria-label={tr("Thử gửi lại thông báo", "Retry notification")}
+            title={tr("Thử gửi lại", "Retry")}
+          >
+            <RotateCcw className="h-4 w-4" />
+          </button>
+          <button
             onClick={onRemove}
             className="rounded-lg border border-gray-200 p-1.5 text-gray-500 transition hover:bg-gray-100 cursor-pointer"
-            aria-label="Xóa thông báo"
+            aria-label={tr("Xóa thông báo", "Delete notification")}
           >
             <Trash2 className="h-4 w-4" />
           </button>
@@ -142,13 +161,142 @@ function NotificationCard({
 }
 
 export default function NotificationInboxPage({ role }: { role: Role }) {
-  const { notifications, unreadCount, markAsRead, markAllAsRead, removeOne } =
+  const pathname = usePathname();
+  const isEn = pathname?.split("/")[1] === "en";
+  const tr = (vi: string, en: string) => (isEn ? en : vi);
+
+  const { notifications, unreadCount, markAsRead, markAllAsRead, removeOne, retryOne } =
     useNotifications(role);
+  const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "unread">("all");
   const [kindFilter, setKindFilter] = useState<"all" | NotificationKind>("all");
   const [isPageLoaded, setIsPageLoaded] = useState(false);
+  const [pendingDeleteItem, setPendingDeleteItem] = useState<UiNotification | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const resolveErrorMessage = (error: unknown, fallback: string) =>
+    error instanceof Error && error.message ? error.message : fallback;
+
+  const handleMarkAsRead = async (item: UiNotification) => {
+    try {
+      await markAsRead(item.id);
+      toast.success({
+        title: tr("Đã cập nhật trạng thái thông báo", "Notification status updated"),
+        description: tr(
+          `Tiêu đề: ${item.title}. Người gửi: ${item.senderName}. Thời gian: ${formatTime(item.createdAt)}.`,
+          `Title: ${item.title}. Sender: ${item.senderName}. Time: ${formatTime(item.createdAt)}.`
+        ),
+      });
+      trackNotificationTelemetry("notification_mark_read", {
+        role,
+        notificationId: item.id,
+        notificationTitle: item.title,
+      });
+    } catch (error) {
+      toast.destructive({
+        title: tr("Không thể đánh dấu đã đọc", "Cannot mark as read"),
+        description: resolveErrorMessage(error, `Thông báo: ${item.title}. Vui lòng thử lại.`),
+      });
+    }
+  };
+
+  const handleRemove = async (item: UiNotification) => {
+    setPendingDeleteItem(item);
+  };
+
+  const handleRetry = async (item: UiNotification) => {
+    try {
+      await retryOne(item.id);
+      toast.success({
+        title: tr("Đã gửi lại thông báo", "Retry requested"),
+        description: tr(
+          `Tiêu đề: ${item.title}. Người gửi: ${item.senderName}. Hệ thống đã nhận yêu cầu retry.`,
+          `Retry has been requested for ${item.title} from ${item.senderName}.`
+        ),
+      });
+      trackNotificationTelemetry("notification_retry", {
+        role,
+        notificationId: item.id,
+        notificationTitle: item.title,
+      });
+    } catch (error) {
+      toast.destructive({
+        title: tr("Không thể gửi lại thông báo", "Cannot retry notification"),
+        description: resolveErrorMessage(error, `Không thể retry cho thông báo: ${item.title}.`),
+      });
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDeleteItem) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      await removeOne(pendingDeleteItem.id);
+      toast.success({
+        title: tr("Đã xóa thông báo", "Notification deleted"),
+        description: tr(
+          `Đã xóa: ${pendingDeleteItem.title}. Người gửi: ${pendingDeleteItem.senderName}.`,
+          `Deleted: ${pendingDeleteItem.title}. Sender: ${pendingDeleteItem.senderName}.`
+        ),
+      });
+      trackNotificationTelemetry("notification_delete", {
+        role,
+        notificationId: pendingDeleteItem.id,
+        notificationTitle: pendingDeleteItem.title,
+      });
+      setPendingDeleteItem(null);
+    } catch (error) {
+      toast.destructive({
+        title: tr("Không thể xóa thông báo", "Cannot delete notification"),
+        description: resolveErrorMessage(
+          error,
+          `Thông báo: ${pendingDeleteItem.title}. Vui lòng thử lại.`
+        ),
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    const unreadItems = notifications.filter((item) => !item.read);
+
+    if (!unreadItems.length) {
+      toast.info({
+        title: tr("Không có thông báo chưa đọc", "No unread notifications"),
+        description: tr(
+          "Tất cả thông báo hiện đã ở trạng thái đã đọc.",
+          "All notifications are already marked as read."
+        ),
+      });
+      return;
+    }
+
+    try {
+      await markAllAsRead();
+      toast.success({
+        title: tr("Đã đánh dấu tất cả là đã đọc", "All notifications marked as read"),
+        description: tr(
+          `Đã cập nhật ${unreadItems.length} thông báo cho ${ROLE_LABEL[role].toLowerCase()}.`,
+          `Updated ${unreadItems.length} notifications for ${ROLE_LABEL[role].toLowerCase()}.`
+        ),
+      });
+      trackNotificationTelemetry("notification_mark_all_read", {
+        role,
+        unreadCountBeforeAction: unreadItems.length,
+      });
+    } catch (error) {
+      toast.destructive({
+        title: tr("Không thể cập nhật tất cả thông báo", "Cannot update all notifications"),
+        description: resolveErrorMessage(error, "Vui lòng thử lại sau ít phút."),
+      });
+    }
+  };
 
   // Debounce search
   useEffect(() => {
@@ -169,7 +317,7 @@ export default function NotificationInboxPage({ role }: { role: Role }) {
         item.title.toLowerCase().includes(searchLower) ||
         item.message.toLowerCase().includes(searchLower) ||
         item.senderName.toLowerCase().includes(searchLower) ||
-        kindLabel(item.kind).toLowerCase().includes(searchLower)
+        kindLabel(item.kind, isEn).toLowerCase().includes(searchLower)
       );
     }
 
@@ -184,7 +332,7 @@ export default function NotificationInboxPage({ role }: { role: Role }) {
     }
 
     return result;
-  }, [notifications, debouncedSearch, filter, kindFilter]);
+  }, [notifications, debouncedSearch, filter, kindFilter, isEn]);
 
   // Set page loaded state on mount
   useEffect(() => {
@@ -203,16 +351,18 @@ export default function NotificationInboxPage({ role }: { role: Role }) {
           </div>
           <div>
             <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">Trung tâm thông báo</h1>
-            <p className="text-sm text-gray-600">Quản lý tất cả thông báo của {ROLE_LABEL[role].toLowerCase()}</p>
+            <p className="text-sm text-gray-600">
+              {tr("Quản lý tất cả thông báo của", "Manage all notifications for")} {ROLE_LABEL[role].toLowerCase()}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <button
-            onClick={markAllAsRead}
+            onClick={() => void handleMarkAllAsRead()}
             className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold cursor-pointer transition-all hover:scale-105 active:scale-95 text-sm"
           >
             <CheckCheck size={18} />
-            Đánh dấu tất cả
+            {tr("Đánh dấu tất cả", "Mark all")}
           </button>
         </div>
       </div>
@@ -223,7 +373,7 @@ export default function NotificationInboxPage({ role }: { role: Role }) {
           <div className="flex items-center gap-3">
             <span className="w-10 h-10 rounded-xl grid place-items-center bg-red-100"><Bell size={18} className="text-red-600" /></span>
             <div>
-              <div className="text-sm text-gray-600">Tổng thông báo</div>
+              <div className="text-sm text-gray-600">{tr("Tổng thông báo", "Total notifications")}</div>
               <div className="text-2xl font-extrabold text-gray-900">{notifications.length}</div>
             </div>
           </div>
@@ -232,7 +382,7 @@ export default function NotificationInboxPage({ role }: { role: Role }) {
           <div className="flex items-center gap-3">
             <span className="w-10 h-10 rounded-xl grid place-items-center bg-rose-100"><Bell size={18} className="text-rose-600" /></span>
             <div>
-              <div className="text-sm text-rose-600">Chưa đọc</div>
+              <div className="text-sm text-rose-600">{tr("Chưa đọc", "Unread")}</div>
               <div className="text-2xl font-extrabold text-rose-700">{unreadCount}</div>
             </div>
           </div>
@@ -249,7 +399,7 @@ export default function NotificationInboxPage({ role }: { role: Role }) {
             </svg>
             <input
               type="text"
-              placeholder="Tìm kiếm theo tiêu đề, nội dung, tác giả..."
+              placeholder={tr("Tìm kiếm theo tiêu đề, nội dung, tác giả...", "Search by title, content, sender...")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2 rounded-xl border border-red-200 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
@@ -263,8 +413,8 @@ export default function NotificationInboxPage({ role }: { role: Role }) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Tất cả ({notifications.length})</SelectItem>
-                <SelectItem value="unread">Chưa đọc ({unreadCount})</SelectItem>
+                <SelectItem value="all">{tr("Tất cả", "All")} ({notifications.length})</SelectItem>
+                <SelectItem value="unread">{tr("Chưa đọc", "Unread")} ({unreadCount})</SelectItem>
               </SelectContent>
             </Select>
             <Select value={kindFilter} onValueChange={(value) => setKindFilter(value as "all" | NotificationKind)}>
@@ -272,14 +422,14 @@ export default function NotificationInboxPage({ role }: { role: Role }) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Tất cả loại</SelectItem>
-                <SelectItem value="system">Hệ thống</SelectItem>
-                <SelectItem value="schedule">Lịch học</SelectItem>
-                <SelectItem value="report">Báo cáo</SelectItem>
-                <SelectItem value="payment">Tài chính</SelectItem>
-                <SelectItem value="homework">Bài tập</SelectItem>
-                <SelectItem value="feedback">Góp ý</SelectItem>
-                <SelectItem value="event">Sự kiện</SelectItem>
+                <SelectItem value="all">{tr("Tất cả loại", "All types")}</SelectItem>
+                <SelectItem value="system">{kindLabel("system", isEn)}</SelectItem>
+                <SelectItem value="schedule">{kindLabel("schedule", isEn)}</SelectItem>
+                <SelectItem value="report">{kindLabel("report", isEn)}</SelectItem>
+                <SelectItem value="payment">{kindLabel("payment", isEn)}</SelectItem>
+                <SelectItem value="homework">{kindLabel("homework", isEn)}</SelectItem>
+                <SelectItem value="feedback">{kindLabel("feedback", isEn)}</SelectItem>
+                <SelectItem value="event">{kindLabel("event", isEn)}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -290,8 +440,8 @@ export default function NotificationInboxPage({ role }: { role: Role }) {
       <div className={`rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden transition-all duration-700 delay-300 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Danh sách thông báo</h2>
-            <span className="text-sm text-gray-600 font-medium">{filtered.length} thông báo</span>
+            <h2 className="text-lg font-semibold text-gray-900">{tr("Danh sách thông báo", "Notification list")}</h2>
+            <span className="text-sm text-gray-600 font-medium">{filtered.length} {tr("thông báo", "notifications")}</span>
           </div>
         </div>
         <div className="space-y-3 p-5">
@@ -300,21 +450,45 @@ export default function NotificationInboxPage({ role }: { role: Role }) {
               <NotificationCard
                 key={item.id}
                 item={item}
-                onRead={() => markAsRead(item.id)}
-                onRemove={() => removeOne(item.id)}
+                isEn={isEn}
+                tr={tr}
+                onRead={() => void handleMarkAsRead(item)}
+                onRetry={() => void handleRetry(item)}
+                onRemove={() => void handleRemove(item)}
               />
             ))
           ) : (
             <div className="rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-14 text-center">
               <Bell className="mx-auto h-10 w-10 text-gray-300" />
-              <h2 className="mt-4 text-lg font-semibold text-gray-800">Không có thông báo phù hợp</h2>
+              <h2 className="mt-4 text-lg font-semibold text-gray-800">{tr("Không có thông báo phù hợp", "No matching notifications")}</h2>
               <p className="mt-2 text-sm text-gray-500">
-                Thay đổi bộ lọc hoặc chờ thông báo mới
+                {tr("Thay đổi bộ lọc hoặc chờ thông báo mới", "Change filters or wait for new notifications")}
               </p>
             </div>
           )}
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={Boolean(pendingDeleteItem)}
+        onClose={() => setPendingDeleteItem(null)}
+        onConfirm={() => {
+          void confirmDelete();
+        }}
+        title={tr("Xác nhận xóa thông báo", "Confirm notification deletion")}
+        message={
+          pendingDeleteItem
+            ? tr(
+                `Bạn có chắc muốn xóa thông báo \"${pendingDeleteItem.title}\" từ ${pendingDeleteItem.senderName} không? Hành động này không thể hoàn tác.`,
+                `Do you want to delete notification \"${pendingDeleteItem.title}\" from ${pendingDeleteItem.senderName}? This action cannot be undone.`
+              )
+            : ""
+        }
+        confirmText={tr("Xóa thông báo", "Delete notification")}
+        cancelText={tr("Giữ lại", "Keep")}
+        variant="danger"
+        isLoading={isDeleting}
+      />
     </div>
   );
 }

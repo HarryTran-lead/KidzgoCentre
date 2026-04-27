@@ -15,16 +15,14 @@ Giả định của tài liệu này:
 ### 1.1 Notifications broadcast history
 
 - Trạng thái hiện tại:
-- `app/api/notifications/broadcast/history/route.ts` đang đọc local file
-- `app/api/notifications/broadcast/route.ts` đang append campaign vào `.data/notifications.json`
+- Cập nhật 2026-04-27: đã proxy sang backend thật cho `broadcast/history`.
+- Cập nhật 2026-04-27: đã bỏ logic append campaign local trong `broadcast/route.ts`.
 - FE task:
-- đổi `broadcast/history` sang proxy BE thật
-- bỏ logic local campaign store trong `broadcast/route.ts`
-- `hooks/useNotifications.ts` giữ nguyên flow, chỉ đổi nguồn data sang backend
+- Đã hoàn thành các task migration local -> backend cho notification history.
+- `hooks/useNotifications.ts` vẫn giữ flow cũ và đang đọc nguồn backend.
 - File cần sửa:
 - `app/api/notifications/broadcast/history/route.ts`
 - `app/api/notifications/broadcast/route.ts`
-- `app/api/_lib/notification-store.ts`
 - `lib/api/notificationService.ts`
 - `hooks/useNotifications.ts`
 

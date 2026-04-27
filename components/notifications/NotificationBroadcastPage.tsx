@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import {
   Bell,
   BellRing,
@@ -30,6 +31,7 @@ import {
   Shield,
   Users,
   UserPlus,
+  RotateCcw,
 } from "lucide-react";
 import { useNotifications } from "@/hooks/useNotifications";
 import type {
@@ -38,11 +40,14 @@ import type {
   NotificationKind,
 } from "@/types/notification";
 import FcmPermissionCard from "@/components/notifications/FcmPermissionCard";
+import ConfirmModal from "@/components/ConfirmModal";
 import {
   createNotificationTemplate,
   deleteNotificationTemplate,
   fetchNotificationTemplates,
 } from "@/lib/api/notificationService";
+import { useToast } from "@/hooks/use-toast";
+import { trackNotificationTelemetry } from "@/lib/telemetry/notificationTelemetry";
 import { CreditCard, MessageSquare, Mail, MessageCircle } from "lucide-react";
 
 const AUDIENCE_OPTIONS: { value: NotificationAudience; label: string; hint: string; color: string }[] = [
@@ -172,6 +177,10 @@ function StatCard({
 }
 
 export default function NotificationBroadcastPage() {
+  const pathname = usePathname();
+  const isEn = pathname?.split("/")[1] === "en";
+  const tr = (vi: string, en: string) => (isEn ? en : vi);
+
   const {
     notifications,
     unreadCount,
@@ -180,7 +189,9 @@ export default function NotificationBroadcastPage() {
     markAsRead,
     markAllAsRead,
     removeOne,
+    retryOne,
   } = useNotifications("Staff_Manager");
+  const { toast } = useToast();
   const formRef = useRef<HTMLDivElement>(null);
   const [isPageLoaded, setIsPageLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState<StaffTab>("compose");
@@ -201,14 +212,31 @@ export default function NotificationBroadcastPage() {
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [messageFilter, setMessageFilter] = useState<"all" | "unread">("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [pendingDeleteNotification, setPendingDeleteNotification] = useState<{
+    id: string;
+    title: string;
+    senderName: string;
+  } | null>(null);
+  const [pendingDeleteTemplate, setPendingDeleteTemplate] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [isConfirmDeleting, setIsConfirmDeleting] = useState(false);
 
   useEffect(() => {
     setIsPageLoaded(true);
     void (async () => {
-      const items = await fetchNotificationTemplates();
-      setTemplates(Array.isArray(items) ? items : []);
+      try {
+        const items = await fetchNotificationTemplates();
+        setTemplates(Array.isArray(items) ? items : []);
+      } catch (error) {
+        toast.destructive({
+          title: tr("Không thể tải template thông báo", "Cannot load notification templates"),
+          description: error instanceof Error ? error.message : tr("Vui lòng thử lại sau.", "Please try again later."),
+        });
+      }
     })();
-  }, []);
+  }, [toast, tr]);
 
   const stats = useMemo(() => {
     const sentToday = campaigns.filter(
@@ -245,8 +273,246 @@ export default function NotificationBroadcastPage() {
   const recentCampaigns = useMemo(() => campaigns.slice(0, 6), [campaigns]);
 
   const refreshTemplates = async () => {
-    const items = await fetchNotificationTemplates();
-    setTemplates(Array.isArray(items) ? items : []);
+    try {
+      const items = await fetchNotificationTemplates();
+      setTemplates(Array.isArray(items) ? items : []);
+    } catch (error) {
+      toast.destructive({
+        title: tr("Không thể làm mới template", "Cannot refresh templates"),
+        description: error instanceof Error ? error.message : tr("Vui lòng thử lại sau.", "Please try again later."),
+      });
+    }
+  };
+
+  const resolveErrorMessage = (error: unknown, fallback: string) =>
+    error instanceof Error && error.message ? error.message : fallback;
+
+  const handleGoCompose = () => {
+    setActiveTab("compose");
+    setSubmitError("");
+    setSubmitSuccess(tr("Đã chuyển đến biểu mẫu tạo broadcast mới.", "Moved to broadcast compose form."));
+    requestAnimationFrame(() => {
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
+
+  const escapeCsv = (value: string | number) => {
+    const text = String(value ?? "");
+    const escaped = text.replace(/"/g, '""');
+    return `"${escaped}"`;
+  };
+
+  const handleExportReport = () => {
+    if (!campaigns.length) {
+      toast.warning({
+        title: tr("Chưa có dữ liệu để xuất", "No data to export"),
+        description: tr(
+          "Danh sách broadcast đang trống. Hãy gửi ít nhất một campaign trước khi xuất báo cáo.",
+          "Broadcast history is empty. Send at least one campaign before exporting."
+        ),
+      });
+      return;
+    }
+
+    const header = [
+      "STT",
+      "TieuDe",
+      "NoiDung",
+      "DoiTuong",
+      "Kenh",
+      "Loai",
+      "NguoiGui",
+      "VaiTroNguoiGui",
+      "SoLuongDaTao",
+      "ThoiGianTao",
+    ];
+
+    const rows = campaigns.map((campaign, index) => [
+      index + 1,
+      campaign.title,
+      campaign.message,
+      campaign.audience,
+      campaign.channel,
+      campaign.kind,
+      campaign.senderName,
+      campaign.senderRole,
+      campaign.deliveredCount,
+      campaign.createdAt,
+    ]);
+
+    const csv = [header, ...rows]
+      .map((row) => row.map((cell) => escapeCsv(cell)).join(","))
+      .join("\n");
+
+    const blob = new Blob([`\ufeff${csv}`], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    const fileDate = new Date().toISOString().slice(0, 10);
+    anchor.href = url;
+    anchor.download = `bao-cao-broadcast-${fileDate}.csv`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
+
+    toast.success({
+      title: tr("Đã xuất báo cáo broadcast", "Broadcast report exported"),
+      description: tr(
+        `Tệp gồm ${campaigns.length} chiến dịch và ${notifications.length} thông báo inbox hiện có.`,
+        `Export includes ${campaigns.length} campaigns and ${notifications.length} inbox notifications.`
+      ),
+    });
+    trackNotificationTelemetry("notification_broadcast_export", {
+      campaignCount: campaigns.length,
+      inboxNotificationCount: notifications.length,
+    });
+  };
+
+  const handleMarkAllReadInList = async () => {
+    const unreadItems = notifications.filter((item) => !item.read);
+    if (!unreadItems.length) {
+      toast.info({
+        title: tr("Inbox đã được xử lý", "Inbox already processed"),
+        description: tr("Hiện không còn thông báo chưa đọc.", "No unread notifications remaining."),
+      });
+      return;
+    }
+
+    try {
+      await markAllAsRead();
+      toast.success({
+        title: tr("Đã đánh dấu tất cả là đã đọc", "All notifications marked as read"),
+        description: tr(
+          `Đã cập nhật ${unreadItems.length} thông báo trong inbox quản lý.`,
+          `Updated ${unreadItems.length} notifications in management inbox.`
+        ),
+      });
+    } catch (error) {
+      toast.destructive({
+        title: tr("Không thể cập nhật toàn bộ thông báo", "Cannot update all notifications"),
+        description: resolveErrorMessage(error, tr("Vui lòng thử lại sau.", "Please try again later.")),
+      });
+    }
+  };
+
+  const handleMarkReadInList = async (id: string, title: string) => {
+    try {
+      await markAsRead(id);
+      toast.success({
+        title: tr("Đã đánh dấu đã đọc", "Marked as read"),
+        description: tr(`Thông báo: ${title}`, `Notification: ${title}`),
+      });
+      trackNotificationTelemetry("notification_mark_read", {
+        role: "Staff_Manager",
+        notificationId: id,
+        notificationTitle: title,
+      });
+    } catch (error) {
+      toast.destructive({
+        title: tr("Không thể đánh dấu đã đọc", "Cannot mark as read"),
+        description: resolveErrorMessage(error, tr(`Thông báo: ${title}`, `Notification: ${title}`)),
+      });
+    }
+  };
+
+  const handleRetryInList = async (id: string, title: string) => {
+    try {
+      await retryOne(id);
+      toast.success({
+        title: tr("Đã gửi lại thông báo", "Retry requested"),
+        description: tr(
+          `Thông báo: ${title}. Hệ thống đã nhận yêu cầu retry.`,
+          `Retry has been requested for notification: ${title}.`
+        ),
+      });
+      trackNotificationTelemetry("notification_retry", {
+        role: "Staff_Manager",
+        notificationId: id,
+        notificationTitle: title,
+      });
+    } catch (error) {
+      toast.destructive({
+        title: tr("Không thể gửi lại thông báo", "Cannot retry notification"),
+        description: resolveErrorMessage(
+          error,
+          tr(`Không thể retry cho thông báo: ${title}.`, `Cannot retry notification: ${title}.`)
+        ),
+      });
+    }
+  };
+
+  const handleRemoveInList = (id: string, title: string) => {
+    const senderName = notifications.find((item) => item.id === id)?.senderName ?? tr("Hệ thống", "System");
+    setPendingDeleteNotification({ id, title, senderName });
+  };
+
+  const confirmDeleteNotification = async () => {
+    if (!pendingDeleteNotification) {
+      return;
+    }
+
+    setIsConfirmDeleting(true);
+    try {
+      await removeOne(pendingDeleteNotification.id);
+      toast.success({
+        title: tr("Đã xóa thông báo", "Notification deleted"),
+        description: tr(
+          `Đã xóa thông báo: ${pendingDeleteNotification.title}`,
+          `Deleted notification: ${pendingDeleteNotification.title}`
+        ),
+      });
+      trackNotificationTelemetry("notification_delete", {
+        role: "Staff_Manager",
+        notificationId: pendingDeleteNotification.id,
+        notificationTitle: pendingDeleteNotification.title,
+      });
+      setPendingDeleteNotification(null);
+    } catch (error) {
+      toast.destructive({
+        title: tr("Không thể xóa thông báo", "Cannot delete notification"),
+        description: resolveErrorMessage(error, `Thông báo: ${pendingDeleteNotification.title}`),
+      });
+    } finally {
+      setIsConfirmDeleting(false);
+    }
+  };
+
+  const askDeleteTemplate = (template: TemplateItem) => {
+    setPendingDeleteTemplate({
+      id: template.id,
+      name: template.code ?? template.title ?? template.id,
+    });
+  };
+
+  const confirmDeleteTemplate = async () => {
+    if (!pendingDeleteTemplate) {
+      return;
+    }
+
+    setIsConfirmDeleting(true);
+    try {
+      await deleteNotificationTemplate(pendingDeleteTemplate.id);
+      if (pendingDeleteTemplate.id === activeTemplateId) {
+        setActiveTemplateId(null);
+      }
+      await refreshTemplates();
+      toast.success({
+        title: tr("Đã xóa template", "Template deleted"),
+        description: pendingDeleteTemplate.name,
+      });
+      trackNotificationTelemetry("notification_template_delete", {
+        templateId: pendingDeleteTemplate.id,
+        templateName: pendingDeleteTemplate.name,
+      });
+      setPendingDeleteTemplate(null);
+    } catch (error) {
+      toast.destructive({
+        title: tr("Không thể xóa template", "Cannot delete template"),
+        description: resolveErrorMessage(error, tr("Vui lòng thử lại sau.", "Please try again later.")),
+      });
+    } finally {
+      setIsConfirmDeleting(false);
+    }
   };
 
   const applyTemplate = (template: TemplateItem) => {
@@ -263,13 +529,25 @@ export default function NotificationBroadcastPage() {
     }
     setSubmitSuccess("Đã nạp template vào form broadcast.");
     setSubmitError("");
+    toast.success({
+      title: tr("Đã áp dụng template", "Template applied"),
+      description: tr(
+        `Template: ${template.code ?? "Không mã"}. Kênh: ${template.channel ?? "In-app"}.`,
+        `Template: ${template.code ?? "No code"}. Channel: ${template.channel ?? "In-app"}.`
+      ),
+    });
+    trackNotificationTelemetry("notification_template_apply", {
+      templateId: template.id,
+      templateCode: template.code ?? null,
+      channel: template.channel ?? "InApp",
+    });
     setActiveTab("compose");
     formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   const handleSubmit = async () => {
     if (!title.trim() || !message.trim()) {
-      setSubmitError("Cần nhập tiêu đề và nội dung trước khi gửi.");
+      setSubmitError(tr("Cần nhập tiêu đề và nội dung trước khi gửi.", "Title and content are required before sending."));
       return;
     }
     setSubmitError("");
@@ -292,10 +570,28 @@ export default function NotificationBroadcastPage() {
       setChannel("InApp");
       setKind("system");
       setActiveTemplateId(null);
-      setSubmitSuccess("Đã gửi broadcast thành công.");
+      setSubmitSuccess(tr("Đã gửi broadcast thành công.", "Broadcast sent successfully."));
+      toast.success({
+        title: tr("Gửi broadcast thành công", "Broadcast sent successfully"),
+        description: tr(
+          `Tiêu đề: ${title.trim()}. Đối tượng: ${selectedAudience.label}. Kênh: ${selectedChannel.label}.`,
+          `Title: ${title.trim()}. Audience: ${selectedAudience.label}. Channel: ${selectedChannel.label}.`
+        ),
+      });
+      trackNotificationTelemetry("notification_broadcast_send", {
+        title: title.trim(),
+        audience,
+        channel,
+        kind,
+      });
       setActiveTab("list");
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Broadcast failed.");
+      const message = resolveErrorMessage(error, tr("Không thể gửi broadcast. Vui lòng thử lại.", "Cannot send broadcast. Please try again."));
+      setSubmitError(message);
+      toast.destructive({
+        title: tr("Gửi broadcast thất bại", "Broadcast failed"),
+        description: message,
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -303,7 +599,7 @@ export default function NotificationBroadcastPage() {
 
   const handleCreateTemplate = async () => {
     if (!templateCode.trim() || !templateTitle.trim() || !templateContent.trim()) {
-      setTemplateError("Code, tiêu đề và nội dung template là bắt buộc.");
+      setTemplateError(tr("Code, tiêu đề và nội dung template là bắt buộc.", "Code, title, and content are required for template."));
       return;
     }
     setTemplateError("");
@@ -321,9 +617,25 @@ export default function NotificationBroadcastPage() {
       setTemplateTitle("");
       setTemplateContent("");
       await refreshTemplates();
-      setSubmitSuccess("Đã lưu template mới.");
+      setSubmitSuccess(tr("Đã lưu template mới.", "Template saved."));
+      toast.success({
+        title: tr("Đã lưu template thành công", "Template saved successfully"),
+        description: tr(
+          `Mã: ${templateCode.trim()}. Kênh: ${selectedChannel.label}.`,
+          `Code: ${templateCode.trim()}. Channel: ${selectedChannel.label}.`
+        ),
+      });
+      trackNotificationTelemetry("notification_template_create", {
+        templateCode: templateCode.trim(),
+        channel,
+      });
     } catch (error) {
-      setTemplateError(error instanceof Error ? error.message : "Không thể lưu template.");
+      const message = resolveErrorMessage(error, tr("Không thể lưu template.", "Cannot save template."));
+      setTemplateError(message);
+      toast.destructive({
+        title: tr("Lưu template thất bại", "Save template failed"),
+        description: message,
+      });
     } finally {
       setIsSavingTemplate(false);
     }
@@ -382,19 +694,28 @@ export default function NotificationBroadcastPage() {
           </div>
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-              Bảng điều phối thông báo
+              {tr("Bảng điều phối thông báo", "Notification Command Center")}
             </h1>
             <p className="text-sm text-gray-600 mt-1">
-              Quản lý tập trung tất cả thông báo nội bộ, tạo broadcast và xây dựng thư viện template
+              {tr(
+                "Quản lý tập trung tất cả thông báo nội bộ, tạo broadcast và xây dựng thư viện template",
+                "Manage internal notifications, send broadcasts, and maintain template library"
+              )}
             </p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-red-50 transition-colors cursor-pointer">
-            <Download size={16} /> Xuất báo cáo
+          <button
+            onClick={handleExportReport}
+            className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-red-50 transition-colors cursor-pointer"
+          >
+            <Download size={16} /> {tr("Xuất báo cáo", "Export report")}
           </button>
-          <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer">
-            <UserPlus size={16} /> Tạo thông báo mới
+          <button
+            onClick={handleGoCompose}
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer"
+          >
+            <UserPlus size={16} /> {tr("Tạo thông báo mới", "Create new notification")}
           </button>
         </div>
       </div>
@@ -454,7 +775,7 @@ export default function NotificationBroadcastPage() {
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900">Danh sách thông báo</h2>
-                  <p className="text-sm text-gray-600 mt-1">Theo dõi và xử lý inbox nội bộ</p>
+                  <p className="text-sm text-gray-600 mt-1">{tr("Theo dõi và xử lý inbox nội bộ", "Monitor and process internal inbox")}</p>
                 </div>
 
                 {/* Search */}
@@ -462,7 +783,7 @@ export default function NotificationBroadcastPage() {
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                   <input
                     type="text"
-                    placeholder="Tìm kiếm thông báo..."
+                    placeholder={tr("Tìm kiếm thông báo...", "Search notifications...")}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="h-10 w-64 rounded-xl border border-red-200 bg-white pl-10 pr-4 text-sm outline-none transition-all focus:border-red-300 focus:ring-2 focus:ring-red-100"
@@ -480,7 +801,7 @@ export default function NotificationBroadcastPage() {
                       : "border border-red-200 bg-white text-gray-700 hover:bg-red-50"
                     }`}
                 >
-                  Tất cả{" "}
+                  {tr("Tất cả", "All")}{" "}
                   <span className={`ml-1 rounded-full px-1.5 py-0.5 text-xs ${messageFilter === "all" ? "bg-white/20" : "bg-gray-100"
                     }`}>
                     {notifications.length}
@@ -493,18 +814,18 @@ export default function NotificationBroadcastPage() {
                       : "border border-red-200 bg-white text-gray-700 hover:bg-red-50"
                     }`}
                 >
-                  Chưa đọc{" "}
+                  {tr("Chưa đọc", "Unread")}{" "}
                   <span className={`ml-1 rounded-full px-1.5 py-0.5 text-xs ${messageFilter === "unread" ? "bg-white/20" : "bg-gray-100"
                     }`}>
                     {unreadCount}
                   </span>
                 </button>
                 <button
-                  onClick={() => void markAllAsRead()}
+                  onClick={() => void handleMarkAllReadInList()}
                   className="rounded-xl bg-gradient-to-r from-gray-800 to-gray-900 px-4 py-2 text-sm font-medium text-white shadow-md transition-all hover:shadow-lg flex items-center gap-2 cursor-pointer"
                 >
                   <CheckCheck className="h-4 w-4" />
-                  Đánh dấu tất cả
+                  {tr("Đánh dấu tất cả", "Mark all")}
                 </button>
               </div>
 
@@ -552,14 +873,22 @@ export default function NotificationBroadcastPage() {
                           <div className="flex shrink-0 items-center gap-2">
                             {!item.read ? (
                               <button
-                                onClick={() => void markAsRead(item.id)}
+                                onClick={() => void handleMarkReadInList(item.id, item.title)}
                                 className="rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-3 py-2 text-sm font-medium text-white shadow-sm transition-all hover:shadow-md cursor-pointer"
                               >
-                                Đã đọc
+                                {tr("Đã đọc", "Mark read")}
                               </button>
                             ) : null}
                             <button
-                              onClick={() => void removeOne(item.id)}
+                              onClick={() => void handleRetryInList(item.id, item.title)}
+                              className="rounded-xl border border-blue-200 bg-blue-50 p-2 text-blue-600 transition-all hover:border-blue-300 hover:bg-blue-100 cursor-pointer"
+                              aria-label="Thử gửi lại thông báo"
+                              title="Thử gửi lại"
+                            >
+                              <RotateCcw className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => void handleRemoveInList(item.id, item.title)}
                               className="rounded-xl border border-red-200 bg-white p-2 text-gray-400 transition-all hover:border-red-300 hover:bg-red-50 hover:text-red-600 cursor-pointer"
                               aria-label="Xóa thông báo"
                             >
@@ -573,7 +902,7 @@ export default function NotificationBroadcastPage() {
                 ) : (
                   <div className="rounded-xl border-2 border-dashed border-red-200 bg-red-50/30 px-6 py-16 text-center">
                     <Inbox className="mx-auto h-12 w-12 text-red-300" />
-                    <p className="mt-4 text-sm text-gray-500">Không có thông báo nào</p>
+                    <p className="mt-4 text-sm text-gray-500">{tr("Không có thông báo nào", "No notifications")}</p>
                   </div>
                 )}
               </div>
@@ -1109,13 +1438,7 @@ export default function NotificationBroadcastPage() {
                               <CornerUpLeft className="h-4 w-4" />
                             </button>
                             <button
-                              onClick={async () => {
-                                await deleteNotificationTemplate(template.id);
-                                if (template.id === activeTemplateId) {
-                                  setActiveTemplateId(null);
-                                }
-                                await refreshTemplates();
-                              }}
+                              onClick={() => askDeleteTemplate(template)}
                               className="rounded-lg border border-red-200 bg-white p-2 text-gray-400 transition-all hover:border-red-300 hover:bg-red-50 hover:text-red-600 cursor-pointer"
                               title="Xóa template"
                             >
@@ -1138,6 +1461,48 @@ export default function NotificationBroadcastPage() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={Boolean(pendingDeleteNotification)}
+        onClose={() => setPendingDeleteNotification(null)}
+        onConfirm={() => {
+          void confirmDeleteNotification();
+        }}
+        title={tr("Xác nhận xóa thông báo", "Confirm notification deletion")}
+        message={
+          pendingDeleteNotification
+            ? tr(
+                `Bạn có chắc muốn xóa thông báo \"${pendingDeleteNotification.title}\" từ ${pendingDeleteNotification.senderName} không? Hành động này không thể hoàn tác.`,
+                `Do you want to delete notification \"${pendingDeleteNotification.title}\" from ${pendingDeleteNotification.senderName}? This action cannot be undone.`
+              )
+            : ""
+        }
+        confirmText={tr("Xóa", "Delete")}
+        cancelText={tr("Giữ lại", "Keep")}
+        variant="danger"
+        isLoading={isConfirmDeleting}
+      />
+
+      <ConfirmModal
+        isOpen={Boolean(pendingDeleteTemplate)}
+        onClose={() => setPendingDeleteTemplate(null)}
+        onConfirm={() => {
+          void confirmDeleteTemplate();
+        }}
+        title={tr("Xác nhận xóa template", "Confirm template deletion")}
+        message={
+          pendingDeleteTemplate
+            ? tr(
+                `Bạn có chắc muốn xóa template \"${pendingDeleteTemplate.name}\" không? Sau khi xóa sẽ không thể khôi phục.`,
+                `Do you want to delete template \"${pendingDeleteTemplate.name}\"? This action cannot be undone.`
+              )
+            : ""
+        }
+        confirmText={tr("Xóa", "Delete")}
+        cancelText={tr("Giữ lại", "Keep")}
+        variant="warning"
+        isLoading={isConfirmDeleting}
+      />
     </div>
   );
 }

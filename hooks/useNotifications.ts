@@ -9,6 +9,7 @@ import {
   fetchBroadcastHistory,
   fetchNotifications,
   markNotificationRead,
+  retryNotification,
   subscribeNotificationsChanged,
 } from "@/lib/api/notificationService";
 import type {
@@ -109,6 +110,9 @@ export function useNotifications(role: Role) {
     },
     removeOne: async (id: string) => {
       await deleteNotification(id);
+    },
+    retryOne: async (id: string) => {
+      await retryNotification(id);
     },
     createCampaign: (input: {
       title: string;

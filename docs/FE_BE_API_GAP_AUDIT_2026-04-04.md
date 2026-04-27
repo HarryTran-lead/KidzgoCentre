@@ -15,7 +15,7 @@ Checklist thực thi FE: `docs/FE_API_INTEGRATION_CHECKLIST_2026-04-04.md`
 
 ## 2. Kết luận nhanh
 
-- P0 quan trọng nhất hiện tại: lịch sử broadcast notification chưa lấy từ backend, FE đang lưu local trong `.data/notifications.json`.
+- Cập nhật 2026-04-27: lịch sử broadcast notification đã lấy từ backend qua proxy `app/api/notifications/broadcast/history/route.ts`.
 - P1 quan trọng tiếp theo: class/program/room/session/homework contract còn thiếu field hoặc response chưa ổn định nên FE phải tự gán mặc định như `0`, `Đang cập nhật`, `Chưa có`, hoặc tự generate `id`.
 - P2: còn khá nhiều page dashboard/profile/finance/report/media/test đang là static demo. Một phần có thể reuse API sẵn có, phần còn lại cần endpoint mới hoặc summary endpoint cho từng role.
 
@@ -23,10 +23,11 @@ Checklist thực thi FE: `docs/FE_API_INTEGRATION_CHECKLIST_2026-04-04.md`
 
 ### 3.1 Broadcast notification history đang local-only
 
+Ghi chú 2026-04-27: mục này đã hoàn thành, giữ lại để tham chiếu lịch sử.
+
 - FE files:
 - `app/api/notifications/broadcast/route.ts`
 - `app/api/notifications/broadcast/history/route.ts`
-- `app/api/_lib/notification-store.ts`
 - `hooks/useNotifications.ts`
 - Hiện trạng:
 - FE gọi BE để gửi broadcast.

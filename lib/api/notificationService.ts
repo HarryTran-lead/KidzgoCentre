@@ -75,6 +75,34 @@ type BroadcastHistoryItem = {
 
 const EVENT_NAME = "kidzgo:notifications-updated";
 
+async function readApiError(response: Response, fallback: string) {
+  const rawText = await response.text();
+
+  if (!rawText) {
+    return fallback;
+  }
+
+  try {
+    const parsed = JSON.parse(rawText) as {
+      message?: string;
+      error?: string;
+      errors?: string[];
+      data?: { message?: string };
+    };
+
+    return (
+      parsed?.message ||
+      parsed?.error ||
+      parsed?.data?.message ||
+      (Array.isArray(parsed?.errors) ? parsed.errors.join("; ") : "") ||
+      rawText ||
+      fallback
+    );
+  } catch {
+    return rawText || fallback;
+  }
+}
+
 function getAuthHeaders(extra?: HeadersInit) {
   const token = getAccessToken();
   return {
@@ -108,6 +136,11 @@ export async function fetchNotifications(role: Role, unreadOnly = false) {
     cache: "no-store",
     headers: getAuthHeaders(),
   });
+  if (!response.ok) {
+    throw new Error(
+      await readApiError(response, `Không thể tải danh sách thông báo cho vai trò ${role}.`)
+    );
+  }
   const json = (await response.json()) as NotificationListResponse;
   const items = json?.data?.notifications?.items ?? json?.data?.items ?? [];
 
@@ -143,6 +176,11 @@ export async function fetchBroadcastHistory(senderRole?: Role) {
       headers: getAuthHeaders(),
     },
   );
+  if (!response.ok) {
+    throw new Error(
+      await readApiError(response, "Không thể tải lịch sử broadcast từ hệ thống.")
+    );
+  }
   const json = await response.json();
   const items = Array.isArray(json?.data)
     ? (json.data as BroadcastHistoryItem[])
@@ -169,6 +207,11 @@ export async function fetchNotificationTemplates() {
     cache: "no-store",
     headers: getAuthHeaders(),
   });
+  if (!response.ok) {
+    throw new Error(
+      await readApiError(response, "Không thể tải danh sách template thông báo.")
+    );
+  }
   const json = await response.json();
 
   if (Array.isArray(json?.data)) {
@@ -204,34 +247,71 @@ export async function createNotificationTemplate(payload: {
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(errorText || "Create template failed.");
+    throw new Error(
+      await readApiError(response, "Không thể tạo template thông báo.")
+    );
   }
 
   emitNotificationsChanged();
 }
 
 export async function deleteNotificationTemplate(id: string) {
-  await fetch(`/api/notifications/templates/${id}`, {
+  const response = await fetch(`/api/notifications/templates/${id}`, {
     method: "DELETE",
     headers: getAuthHeaders(),
   });
+
+  if (!response.ok) {
+    throw new Error(
+      await readApiError(response, `Không thể xóa template thông báo (${id}).`)
+    );
+  }
+
   emitNotificationsChanged();
 }
 
 export async function markNotificationRead(id: string) {
-  await fetch(`/api/notifications/${id}/read`, {
+  const response = await fetch(`/api/notifications/${id}/read`, {
     method: "PATCH",
     headers: getAuthHeaders(),
   });
+
+  if (!response.ok) {
+    throw new Error(
+      await readApiError(response, `Không thể đánh dấu đã đọc cho thông báo (${id}).`)
+    );
+  }
+
   emitNotificationsChanged();
 }
 
 export async function deleteNotification(id: string) {
-  await fetch(`/api/notifications/${id}`, {
+  const response = await fetch(`/api/notifications/${id}`, {
     method: "DELETE",
     headers: getAuthHeaders(),
   });
+
+  if (!response.ok) {
+    throw new Error(
+      await readApiError(response, `Không thể xóa thông báo (${id}).`)
+    );
+  }
+
+  emitNotificationsChanged();
+}
+
+export async function retryNotification(id: string) {
+  const response = await fetch(`/api/notifications/${id}/retry`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      await readApiError(response, `Không thể thử gửi lại thông báo (${id}).`)
+    );
+  }
+
   emitNotificationsChanged();
 }
 
@@ -279,19 +359,26 @@ export async function broadcastNotification(input: {
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(errorText || `Broadcast failed for role ${role}`);
+    throw new Error(
+      await readApiError(response, `Không thể gửi broadcast cho nhóm ${input.audience}.`)
+    );
   }
 
   emitNotificationsChanged();
 }
 
 export async function registerDeviceToken(payload: Record<string, unknown>) {
-  await fetch(NOTIFICATION_ENDPOINTS.DEVICE_TOKEN, {
+  const response = await fetch(NOTIFICATION_ENDPOINTS.DEVICE_TOKEN, {
     method: "POST",
     headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(payload),
   });
+
+  if (!response.ok) {
+    throw new Error(
+      await readApiError(response, "Không thể đăng ký thiết bị nhận thông báo push.")
+    );
+  }
 }
 
 export async function ingestForegroundNotification(payload: {
@@ -304,7 +391,7 @@ export async function ingestForegroundNotification(payload: {
   senderName: string;
   link?: string;
 }) {
-  await fetch("/api/notifications/broadcast", {
+  const response = await fetch("/api/notifications/broadcast", {
     method: "POST",
     headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({
@@ -322,6 +409,13 @@ export async function ingestForegroundNotification(payload: {
       skipHistory: true,
     }),
   });
+
+  if (!response.ok) {
+    throw new Error(
+      await readApiError(response, "Không thể đồng bộ thông báo realtime vào inbox.")
+    );
+  }
+
   emitNotificationsChanged();
 }
 
