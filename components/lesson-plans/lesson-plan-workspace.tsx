@@ -2686,7 +2686,7 @@ function PlanFormModal({
     setPlannerHomeworkNotesText(plannerStarter ? linesToTextarea(plannerStarter.homeworkNotes) : "");
   }, [isTeacher, plannerStarter, templateId]);
 
-  const [editableActivities, setEditableActivities] = useState<Array<{ classwork: string; requiredMaterials: string; homeworkRequiredMaterials: string; extra: string }>>(() => {
+  const [editableActivities, setEditableActivities] = useState<TemplateActivityDraft[]>(() => {
     if (!starterData) return [];
     // If teacher previously saved structured actual content, use that
     const existingActual = initialValue?.actualContent || session.actualContent;
