@@ -25,6 +25,7 @@ import type {
   EntryType,
   RegistrationTrackType,
   SuggestedClassBucket,
+  WeeklyPatternEntry,
 } from "@/types/registration";
 import type { Program } from "@/types/admin/programs";
 import CreateRegistrationStep from "@/components/portal/placement-tests/registration-flow/CreateRegistrationStep";
@@ -131,6 +132,54 @@ function formatSchedulePattern(value?: string | null) {
   }
 
   return pieces.join(" • ");
+}
+
+function formatScheduleFromWeeklySlots(slots?: unknown) {
+  if (!Array.isArray(slots) || slots.length === 0) return "-";
+
+  const dayMap: Record<string, string> = {
+    MO: "T2",
+    MON: "T2",
+    TU: "T3",
+    TUE: "T3",
+    WE: "T4",
+    WED: "T4",
+    TH: "T5",
+    THU: "T5",
+    FR: "T6",
+    FRI: "T6",
+    SA: "T7",
+    SAT: "T7",
+    SU: "CN",
+    SUN: "CN",
+    "2": "T2",
+    "3": "T3",
+    "4": "T4",
+    "5": "T5",
+    "6": "T6",
+    "7": "T7",
+    CN: "CN",
+  };
+
+  const normalizeTime = (value: unknown) => {
+    const raw = String(value || "").trim();
+    const matched = raw.match(/^(\d{1,2}):(\d{1,2})/);
+    if (!matched) return "";
+    return `${String(Number(matched[1])).padStart(2, "0")}:${String(Number(matched[2])).padStart(2, "0")}`;
+  };
+
+  return slots
+    .map((slot: any) => {
+      const dayRaw = String(slot?.dayOfWeek ?? slot?.dayCode ?? "")
+        .trim()
+        .toUpperCase();
+      const dayLabel = dayMap[dayRaw] || dayRaw;
+      const timeLabel = normalizeTime(slot?.startTime ?? slot?.startAt);
+      if (!dayLabel || !timeLabel) return "";
+      return `${dayLabel} ${timeLabel}`;
+    })
+    .filter(Boolean)
+    .join(" • ") || "-";
 }
 
 export default function RegistrationFlowModal({
@@ -272,7 +321,7 @@ export default function RegistrationFlowModal({
   const [assignViewMode, setAssignViewMode] = useState<AssignViewMode>("none");
   const [selectedTrack, setSelectedTrack] =
     useState<RegistrationTrackType>("primary");
-  const [assignEntryType, setAssignEntryType] = useState<EntryType>("Immediate");
+  const [assignEntryType, setAssignEntryType] = useState<EntryType>("immediate");
   const [selectedClassId, setSelectedClassId] = useState("");
   const [manualPrimaryClassId, setManualPrimaryClassId] = useState("");
   const [manualSecondaryClassId, setManualSecondaryClassId] = useState("");
@@ -368,7 +417,15 @@ export default function RegistrationFlowModal({
       manualClasses.map((cls) => {
         const classId = String(cls?.id || "");
         const remainingSlots = getClassRemainingSlots(cls);
-        const scheduleLabel = formatSchedulePattern(cls?.schedulePattern);
+        const scheduleLabel =
+          formatSchedulePattern(
+            cls?.schedulePattern || cls?.classSchedulePattern || cls?.effectiveSchedulePattern,
+          ) !== "-"
+            ? formatSchedulePattern(
+                cls?.schedulePattern || cls?.classSchedulePattern || cls?.effectiveSchedulePattern,
+              )
+            : String(cls?.scheduleText || cls?.description || "").trim() ||
+              formatScheduleFromWeeklySlots(cls?.weeklyScheduleSlots);
         const className = getClassDisplayName(cls);
         const safeRemaining =
           typeof remainingSlots === "number" ? Math.max(0, remainingSlots) : null;
@@ -801,7 +858,7 @@ export default function RegistrationFlowModal({
         setManualClasses([]);
         setAssignViewMode("none");
         setSelectedTrack("primary");
-        setAssignEntryType("Immediate");
+        setAssignEntryType("immediate");
         setSelectedClassId("");
         setManualPrimaryClassId("");
         setManualSecondaryClassId("");
@@ -1073,8 +1130,9 @@ export default function RegistrationFlowModal({
 
   const handleAssignClass = async (
     sessionSelectionPattern?: string,
-    entryType: EntryType = "Immediate",
+    entryType: EntryType = "immediate",
     firstStudyDate?: string,
+    weeklyPattern?: WeeklyPatternEntry[] | null,
   ) => {
     if (!registrationId || !selectedClassId) return;
 
@@ -1086,6 +1144,12 @@ export default function RegistrationFlowModal({
         track: selectedTrack,
         firstStudyDate: firstStudyDate?.trim() || undefined,
         sessionSelectionPattern: sessionSelectionPattern || undefined,
+        weeklyPattern:
+          weeklyPattern !== undefined
+            ? weeklyPattern
+            : sessionSelectionPattern
+              ? undefined
+              : null,
       });
 
       const nextRegistrationId = extractRegistrationIdFromAction(response) || registrationId;
@@ -1113,8 +1177,12 @@ export default function RegistrationFlowModal({
   const handleAssignSuggestedClasses = async (payload: {
     primaryClassId: string;
     primarySessionSelectionPattern?: string;
+    primaryWeeklyPattern?: WeeklyPatternEntry[] | null;
+    primaryFirstStudyDate?: string;
     secondaryClassId?: string;
     secondarySessionSelectionPattern?: string;
+    secondaryWeeklyPattern?: WeeklyPatternEntry[] | null;
+    secondaryFirstStudyDate?: string;
     entryType?: EntryType;
     firstStudyDate?: string;
   }) => {
@@ -1122,17 +1190,27 @@ export default function RegistrationFlowModal({
 
     try {
       setIsAssigning(true);
-      const selectedEntryType = payload.entryType || "Immediate";
+      const selectedEntryType = payload.entryType || "immediate";
       const normalizedFirstStudyDate = payload.firstStudyDate?.trim() || undefined;
+      const normalizedPrimaryFirstStudyDate =
+        payload.primaryFirstStudyDate?.trim() || normalizedFirstStudyDate;
+      const normalizedSecondaryFirstStudyDate =
+        payload.secondaryFirstStudyDate?.trim() || normalizedFirstStudyDate;
       let targetRegistrationId = registrationId;
 
       const primaryResponse = await assignClassToRegistration(targetRegistrationId, {
         classId: payload.primaryClassId,
         entryType: selectedEntryType,
         track: "primary",
-        firstStudyDate: normalizedFirstStudyDate,
+        firstStudyDate: normalizedPrimaryFirstStudyDate,
         sessionSelectionPattern:
           payload.primarySessionSelectionPattern || undefined,
+        weeklyPattern:
+          payload.primaryWeeklyPattern !== undefined
+            ? payload.primaryWeeklyPattern
+            : payload.primarySessionSelectionPattern
+              ? undefined
+              : null,
       });
 
       targetRegistrationId = extractRegistrationIdFromAction(primaryResponse) || targetRegistrationId;
@@ -1142,9 +1220,15 @@ export default function RegistrationFlowModal({
           classId: payload.secondaryClassId,
           entryType: selectedEntryType,
           track: "secondary",
-          firstStudyDate: normalizedFirstStudyDate,
+          firstStudyDate: normalizedSecondaryFirstStudyDate,
           sessionSelectionPattern:
             payload.secondarySessionSelectionPattern || undefined,
+          weeklyPattern:
+            payload.secondaryWeeklyPattern !== undefined
+              ? payload.secondaryWeeklyPattern
+              : payload.secondarySessionSelectionPattern
+                ? undefined
+                : null,
         });
         targetRegistrationId = extractRegistrationIdFromAction(secondaryResponse) || targetRegistrationId;
       }
@@ -1294,8 +1378,12 @@ export default function RegistrationFlowModal({
   };
 
   const handleAssignManualClasses = async (
-    entryType: EntryType = "Immediate",
+    entryType: EntryType = "immediate",
     firstStudyDate?: string,
+    primaryWeeklyPattern?: WeeklyPatternEntry[] | null,
+    secondaryWeeklyPattern?: WeeklyPatternEntry[] | null,
+    primaryFirstStudyDate?: string,
+    secondaryFirstStudyDate?: string,
   ) => {
     if (!registrationId || !manualPrimaryClassId) return;
 
@@ -1320,36 +1408,27 @@ export default function RegistrationFlowModal({
       }
     }
 
-    if (!manualPrimarySessionPattern) {
-      toast({
-        title: "Thiếu lịch học",
-        description: "Vui lòng chọn ngày/giờ học cho lớp chương trình chính.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (hasSecondaryTrack && !manualSecondarySessionPattern) {
-      toast({
-        title: "Thiếu lịch học",
-        description:
-          "Vui lòng chọn ngày/giờ học cho lớp chương trình song song.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     try {
       setIsAssigning(true);
       const normalizedFirstStudyDate = firstStudyDate?.trim() || undefined;
+      const normalizedPrimaryFirstStudyDate =
+        primaryFirstStudyDate?.trim() || normalizedFirstStudyDate;
+      const normalizedSecondaryFirstStudyDate =
+        secondaryFirstStudyDate?.trim() || normalizedFirstStudyDate;
       let targetRegistrationId = registrationId;
 
       const primaryResponse = await assignClassToRegistration(targetRegistrationId, {
         classId: manualPrimaryClassId,
         entryType,
         track: "primary",
-        firstStudyDate: normalizedFirstStudyDate,
-        sessionSelectionPattern: manualPrimarySessionPattern,
+        firstStudyDate: normalizedPrimaryFirstStudyDate,
+        sessionSelectionPattern: manualPrimarySessionPattern || undefined,
+        weeklyPattern:
+          primaryWeeklyPattern !== undefined
+            ? primaryWeeklyPattern
+            : manualPrimarySessionPattern
+              ? undefined
+              : null,
       });
 
       targetRegistrationId = extractRegistrationIdFromAction(primaryResponse) || targetRegistrationId;
@@ -1359,8 +1438,14 @@ export default function RegistrationFlowModal({
           classId: manualSecondaryClassId,
           entryType,
           track: "secondary",
-          firstStudyDate: normalizedFirstStudyDate,
-          sessionSelectionPattern: manualSecondarySessionPattern,
+          firstStudyDate: normalizedSecondaryFirstStudyDate,
+          sessionSelectionPattern: manualSecondarySessionPattern || undefined,
+          weeklyPattern:
+            secondaryWeeklyPattern !== undefined
+              ? secondaryWeeklyPattern
+              : manualSecondarySessionPattern
+                ? undefined
+                : null,
         });
         targetRegistrationId = extractRegistrationIdFromAction(secondaryResponse) || targetRegistrationId;
       }
@@ -1394,7 +1479,7 @@ export default function RegistrationFlowModal({
     try {
       setIsWaiting(true);
       await assignClassToRegistration(registrationId, {
-        entryType: "Wait",
+        entryType: "wait",
         track: selectedTrack,
       });
       toast({
@@ -1450,7 +1535,7 @@ export default function RegistrationFlowModal({
                 const normalizedValue = val === "__create_new__" ? "" : val;
                 setRegistrationId(normalizedValue);
                 setAssignViewMode("none");
-                setAssignEntryType("Immediate");
+                setAssignEntryType("immediate");
                 setSuggestedClasses(null);
                 setSelectedClassId("");
                 if (normalizedValue) {

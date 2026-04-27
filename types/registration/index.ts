@@ -7,8 +7,16 @@ export type RegistrationStatus =
   | "Completed"
   | "Cancelled";
 
-export type EntryType = "Immediate" | "Wait" | "Makeup" | "Retake";
+export type CanonicalEntryType = "immediate" | "wait" | "retake";
+export type LegacyEntryType = "Immediate" | "Wait" | "Makeup" | "Retake";
+export type EntryType = CanonicalEntryType | LegacyEntryType;
 export type RegistrationTrackType = "primary" | "secondary";
+
+export interface WeeklyPatternEntry {
+  dayOfWeeks: string[];
+  startTime: string;
+  durationMinutes: number;
+}
 
 export interface RegistrationStudySchedule {
   track?: RegistrationTrackType | null;
@@ -19,6 +27,14 @@ export interface RegistrationStudySchedule {
   usesClassDefaultSchedule?: boolean | null;
   classSchedulePattern?: string | null;
   effectiveSchedulePattern?: string | null;
+  classWeeklyScheduleSlots?: Array<{
+    dayOfWeek?: string;
+    dayCode?: string;
+    startTime?: string;
+    durationMinutes?: number;
+  }>;
+  weeklyPattern?: WeeklyPatternEntry[] | null;
+  effectiveWeeklyPattern?: WeeklyPatternEntry[] | null;
   studyDayCodes?: string[];
   studyDays?: string[];
   studyDayDisplayNames?: string[];
@@ -28,11 +44,10 @@ export interface RegistrationStudySchedule {
 export interface RegistrationFirstStudySession {
   track?: RegistrationTrackType | null;
   classId?: string | null;
+  classEnrollmentId?: string | null;
   className?: string | null;
-  sessionDate?: string | null;
-  startsAt?: string | null;
-  endsAt?: string | null;
-  studyDayCode?: string | null;
+  sessionId?: string | null;
+  plannedDatetime?: string | null;
   studyDate?: string | null;
 }
 
@@ -64,6 +79,7 @@ export interface AssignClassRequest {
   track?: RegistrationTrackType;
   firstStudyDate?: string | null;
   sessionSelectionPattern?: string | null;
+  weeklyPattern?: WeeklyPatternEntry[] | null;
 }
 
 export interface Registration {
@@ -110,7 +126,16 @@ export interface SuggestedClass {
   remainingSlots: number;
   startDate: string;
   endDate: string;
-  schedulePattern: string;
+  schedulePattern?: string | null;
+  classSchedulePattern?: string | null;
+  effectiveSchedulePattern?: string | null;
+  scheduleText?: string | null;
+  weeklyScheduleSlots?: Array<{
+    dayOfWeek?: string;
+    dayCode?: string;
+    startTime?: string;
+    durationMinutes?: number;
+  }>;
   mainTeacherName: string;
   classroomName: string | null;
   isClassStarted: boolean;
@@ -178,6 +203,8 @@ export interface EnrollmentPaymentSetting {
   vietQrTemplate: string;
   logoUrl: string | null;
   qrPreviewUrl: string | null;
+  newStudentPolicyLines?: string[];
+  reservationPolicyLines?: string[];
   isActive: boolean;
   createdAt?: string | null;
   updatedAt?: string | null;
@@ -223,6 +250,7 @@ export interface RegistrationImportActiveRequest {
   branchId: string;
   programId: string;
   tuitionPlanId: string;
+  actualStartDate: string;
   usedSessions: number;
   remainingSessions: number;
   expectedStartDate?: string | null;

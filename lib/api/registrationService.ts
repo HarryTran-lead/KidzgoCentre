@@ -3,6 +3,7 @@ import { REGISTRATION_ENDPOINTS } from "@/constants/apiURL";
 import { getAccessToken } from "@/lib/store/authToken";
 import type {
   AssignClassRequest,
+  CanonicalEntryType,
   EnrollmentPdfFormTypeResolved,
   EnrollmentPdfPreviewResponse,
   PdfHistoryItem,
@@ -19,6 +20,7 @@ import type {
   SuggestedClass,
   SuggestedClassBucket,
   UpdateRegistrationRequest,
+  WeeklyPatternEntry,
 } from "@/types/registration";
 
 function ensureRegistrationActionSuccess(response: RegistrationActionResponse, fallbackMessage: string) {
@@ -104,6 +106,123 @@ function pickDetail(payload: any): any {
   return payload;
 }
 
+const VALID_DAY_CODES = new Set(["MO", "TU", "WE", "TH", "FR", "SA", "SU"]);
+
+function normalizeTrackValue(track?: string | null): RegistrationTrackType {
+  return String(track || "").trim().toLowerCase() === "secondary" ? "secondary" : "primary";
+}
+
+function normalizeEntryTypeValue(entryType?: string | null): CanonicalEntryType {
+  const normalized = String(entryType || "").trim().toLowerCase();
+  switch (normalized) {
+    case "wait":
+    case "waiting":
+      return "wait";
+    case "retake":
+    case "makeup":
+      return "retake";
+    case "immediate":
+    default:
+      return "immediate";
+  }
+}
+
+function normalizeStartTime(value?: string | null): string | null {
+  const raw = String(value || "").trim();
+  const matched = raw.match(/^(\d{1,2}):(\d{1,2})/);
+  if (!matched) return null;
+
+  const hour = Number(matched[1]);
+  const minute = Number(matched[2]);
+  if (
+    Number.isNaN(hour) ||
+    Number.isNaN(minute) ||
+    hour < 0 ||
+    hour > 23 ||
+    minute < 0 ||
+    minute > 59
+  ) {
+    return null;
+  }
+
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+function normalizeWeeklyPattern(
+  weeklyPattern?: WeeklyPatternEntry[] | null,
+): WeeklyPatternEntry[] | undefined {
+  if (!Array.isArray(weeklyPattern) || weeklyPattern.length === 0) return undefined;
+
+  const normalized = weeklyPattern
+    .map((entry) => {
+      const dayOfWeeks = Array.isArray(entry?.dayOfWeeks)
+        ? entry.dayOfWeeks
+            .map((day) => String(day || "").trim().toUpperCase())
+            .filter((day) => VALID_DAY_CODES.has(day))
+        : [];
+      const startTime = normalizeStartTime(entry?.startTime);
+      const durationRaw = Number(entry?.durationMinutes);
+      const durationMinutes =
+        Number.isFinite(durationRaw) && durationRaw > 0
+          ? Math.floor(durationRaw)
+          : 90;
+
+      if (dayOfWeeks.length === 0 || !startTime) return null;
+
+      return {
+        dayOfWeeks,
+        startTime,
+        durationMinutes,
+      } as WeeklyPatternEntry;
+    })
+    .filter((entry): entry is WeeklyPatternEntry => Boolean(entry));
+
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+function parseWeeklyPatternFromSessionSelectionPattern(
+  sessionSelectionPattern?: string | null,
+): WeeklyPatternEntry[] | undefined {
+  const raw = String(sessionSelectionPattern || "").trim();
+  if (!raw) return undefined;
+
+  const normalized = raw.replace(/^RRULE:/i, "");
+  const tokens = normalized.split(";").map((token) => token.trim());
+  const map = new Map<string, string>();
+
+  tokens.forEach((token) => {
+    const [k, v] = token.split("=");
+    if (!k || !v) return;
+    map.set(k.toUpperCase(), v);
+  });
+
+  const byDay = (map.get("BYDAY") || "")
+    .split(",")
+    .map((day) => String(day || "").trim().toUpperCase())
+    .filter((day) => VALID_DAY_CODES.has(day));
+
+  const byHour = Number(map.get("BYHOUR"));
+  const byMinute = Number(map.get("BYMINUTE") || "0");
+  if (byDay.length === 0 || Number.isNaN(byHour) || Number.isNaN(byMinute)) {
+    return undefined;
+  }
+
+  const startTime = normalizeStartTime(`${byHour}:${byMinute}`);
+  if (!startTime) return undefined;
+
+  const durationRaw = Number(map.get("DURATION") || "90");
+  const durationMinutes =
+    Number.isFinite(durationRaw) && durationRaw > 0 ? Math.floor(durationRaw) : 90;
+
+  return [
+    {
+      dayOfWeeks: byDay,
+      startTime,
+      durationMinutes,
+    },
+  ];
+}
+
 export type EnrollmentConfirmationPdfResponse = EnrollmentPdfPreviewResponse;
 
 type PdfRequestFormType = "auto" | EnrollmentPdfFormTypeResolved;
@@ -114,6 +233,13 @@ type EnrollmentPdfRequestOptions = {
   regenerate?: boolean;
 };
 
+type EnrollmentPdfHistoryOptions = {
+  track?: RegistrationTrackType;
+  formType?: PdfRequestFormType;
+  pageNumber?: number;
+  pageSize?: number;
+};
+
 function buildPdfQuery(options?: EnrollmentPdfRequestOptions) {
   const params = new URLSearchParams();
   params.set("track", options?.track || "primary");
@@ -121,6 +247,21 @@ function buildPdfQuery(options?: EnrollmentPdfRequestOptions) {
   if (typeof options?.regenerate === "boolean") {
     params.set("regenerate", String(options.regenerate));
   }
+  return params.toString();
+}
+
+function buildPdfHistoryQuery(options?: EnrollmentPdfHistoryOptions) {
+  const params = new URLSearchParams();
+
+  if (options?.track) params.set("track", options.track);
+  if (options?.formType) params.set("formType", options.formType);
+  if (typeof options?.pageNumber === "number" && options.pageNumber > 0) {
+    params.set("pageNumber", String(options.pageNumber));
+  }
+  if (typeof options?.pageSize === "number" && options.pageSize > 0) {
+    params.set("pageSize", String(options.pageSize));
+  }
+
   return params.toString();
 }
 
@@ -257,9 +398,13 @@ export async function generateRegistrationEnrollmentConfirmationPdf(
 
 export async function getRegistrationEnrollmentConfirmationPdfHistory(
   id: string,
+  options?: EnrollmentPdfHistoryOptions,
 ): Promise<PdfHistoryItem[]> {
   const accessToken = getAccessToken();
-  const url = REGISTRATION_ENDPOINTS.ENROLLMENT_CONFIRMATION_PDF_HISTORY(id);
+  const queryString = buildPdfHistoryQuery(options);
+  const url = queryString
+    ? `${REGISTRATION_ENDPOINTS.ENROLLMENT_CONFIRMATION_PDF_HISTORY(id)}?${queryString}`
+    : REGISTRATION_ENDPOINTS.ENROLLMENT_CONFIRMATION_PDF_HISTORY(id);
   const response = await fetch(url, {
     method: "GET",
     headers: {
@@ -277,11 +422,18 @@ export async function getRegistrationEnrollmentConfirmationPdfHistory(
 
   const payload = await response.json();
   const data = payload?.data || payload || {};
-  const items = Array.isArray(data?.items)
-    ? data.items
-    : Array.isArray(data)
-      ? data
-      : [];
+  const historyContainer =
+    data?.pdfs && typeof data.pdfs === "object"
+      ? data.pdfs
+      : data;
+
+  const items = Array.isArray(historyContainer?.items)
+    ? historyContainer.items
+    : Array.isArray(data?.items)
+      ? data.items
+      : Array.isArray(data)
+        ? data
+        : [];
 
   return items
     .map((item: any) => ({
@@ -354,47 +506,37 @@ function mapToRegistration(item: any): Registration {
         classId: firstStudySessionRaw?.classId
           ? String(firstStudySessionRaw.classId)
           : null,
+        classEnrollmentId: firstStudySessionRaw?.classEnrollmentId
+          ? String(firstStudySessionRaw.classEnrollmentId)
+          : firstStudySessionRaw?.enrollmentId
+            ? String(firstStudySessionRaw.enrollmentId)
+            : null,
         className:
           typeof firstStudySessionRaw?.className === "string"
             ? firstStudySessionRaw.className
             : null,
-        sessionDate:
-          typeof firstStudySessionRaw?.sessionDate === "string"
+        sessionId: firstStudySessionRaw?.sessionId
+          ? String(firstStudySessionRaw.sessionId)
+          : firstStudySessionRaw?.classSessionId
+            ? String(firstStudySessionRaw.classSessionId)
+            : null,
+        plannedDatetime:
+          typeof firstStudySessionRaw?.plannedDatetime === "string"
+            ? firstStudySessionRaw.plannedDatetime
+            : typeof firstStudySessionRaw?.plannedDateTime === "string"
+              ? firstStudySessionRaw.plannedDateTime
+              : typeof firstStudySessionRaw?.sessionDate === "string"
+                ? firstStudySessionRaw.sessionDate
+                : null,
+        studyDate:
+          typeof firstStudySessionRaw?.studyDate === "string"
+            ? firstStudySessionRaw.studyDate
+            : typeof firstStudySessionRaw?.sessionDate === "string"
             ? firstStudySessionRaw.sessionDate
             : typeof firstStudySessionRaw?.firstStudyDate === "string"
               ? firstStudySessionRaw.firstStudyDate
               : typeof firstStudySessionRaw?.date === "string"
                 ? firstStudySessionRaw.date
-                : null,
-        startsAt:
-          typeof firstStudySessionRaw?.startsAt === "string"
-            ? firstStudySessionRaw.startsAt
-            : typeof firstStudySessionRaw?.startAt === "string"
-              ? firstStudySessionRaw.startAt
-              : typeof firstStudySessionRaw?.startTime === "string"
-                ? firstStudySessionRaw.startTime
-                : null,
-        endsAt:
-          typeof firstStudySessionRaw?.endsAt === "string"
-            ? firstStudySessionRaw.endsAt
-            : typeof firstStudySessionRaw?.endAt === "string"
-              ? firstStudySessionRaw.endAt
-              : typeof firstStudySessionRaw?.endTime === "string"
-                ? firstStudySessionRaw.endTime
-                : null,
-        studyDayCode:
-          typeof firstStudySessionRaw?.studyDayCode === "string"
-            ? firstStudySessionRaw.studyDayCode
-            : typeof firstStudySessionRaw?.dayCode === "string"
-              ? firstStudySessionRaw.dayCode
-              : null,
-        studyDate:
-          typeof firstStudySessionRaw?.studyDate === "string"
-            ? firstStudySessionRaw.studyDate
-            : typeof firstStudySessionRaw?.dayName === "string"
-              ? firstStudySessionRaw.dayName
-              : typeof firstStudySessionRaw?.dayDisplayName === "string"
-                ? firstStudySessionRaw.dayDisplayName
                 : null,
       }
     : null;
@@ -420,6 +562,73 @@ function mapToRegistration(item: any): Registration {
         typeof schedule?.effectiveSchedulePattern === "string"
           ? schedule.effectiveSchedulePattern
           : null,
+      classWeeklyScheduleSlots: Array.isArray(schedule?.classWeeklyScheduleSlots)
+        ? schedule.classWeeklyScheduleSlots.map((slot: any) => ({
+            dayOfWeek:
+              typeof slot?.dayOfWeek === "string"
+                ? slot.dayOfWeek
+                : typeof slot?.dayCode === "string"
+                  ? slot.dayCode
+                  : undefined,
+            dayCode: typeof slot?.dayCode === "string" ? slot.dayCode : undefined,
+            startTime:
+              typeof slot?.startTime === "string"
+                ? slot.startTime
+                : typeof slot?.startAt === "string"
+                  ? slot.startAt
+                  : undefined,
+            durationMinutes:
+              typeof slot?.durationMinutes === "number"
+                ? slot.durationMinutes
+                : typeof slot?.duration === "number"
+                  ? slot.duration
+                  : undefined,
+          }))
+        : [],
+      weeklyPattern: Array.isArray(schedule?.weeklyPattern)
+        ? schedule.weeklyPattern
+            .map((entry: any) => {
+              const dayOfWeeks = Array.isArray(entry?.dayOfWeeks)
+                ? entry.dayOfWeeks
+                    .map((day: any) => String(day || "").trim().toUpperCase())
+                    .filter((day: string) => VALID_DAY_CODES.has(day))
+                : [];
+              const startTime = normalizeStartTime(entry?.startTime);
+              const durationMinutes = Number(entry?.durationMinutes);
+              if (!dayOfWeeks.length || !startTime) return null;
+              return {
+                dayOfWeeks,
+                startTime,
+                durationMinutes:
+                  Number.isFinite(durationMinutes) && durationMinutes > 0
+                    ? Math.floor(durationMinutes)
+                    : 90,
+              } as WeeklyPatternEntry;
+            })
+            .filter((entry: WeeklyPatternEntry | null): entry is WeeklyPatternEntry => Boolean(entry))
+        : null,
+      effectiveWeeklyPattern: Array.isArray(schedule?.effectiveWeeklyPattern)
+        ? schedule.effectiveWeeklyPattern
+            .map((entry: any) => {
+              const dayOfWeeks = Array.isArray(entry?.dayOfWeeks)
+                ? entry.dayOfWeeks
+                    .map((day: any) => String(day || "").trim().toUpperCase())
+                    .filter((day: string) => VALID_DAY_CODES.has(day))
+                : [];
+              const startTime = normalizeStartTime(entry?.startTime);
+              const durationMinutes = Number(entry?.durationMinutes);
+              if (!dayOfWeeks.length || !startTime) return null;
+              return {
+                dayOfWeeks,
+                startTime,
+                durationMinutes:
+                  Number.isFinite(durationMinutes) && durationMinutes > 0
+                    ? Math.floor(durationMinutes)
+                    : 90,
+              } as WeeklyPatternEntry;
+            })
+            .filter((entry: WeeklyPatternEntry | null): entry is WeeklyPatternEntry => Boolean(entry))
+        : null,
       studyDayCodes: Array.isArray(schedule?.studyDayCodes)
         ? schedule.studyDayCodes.map((code: any) => String(code))
         : Array.isArray(schedule?.dayCodes)
@@ -507,7 +716,33 @@ function mapSuggestedClass(item: any): SuggestedClass {
     remainingSlots,
     startDate: item?.startDate ?? "",
     endDate: item?.endDate ?? "",
-    schedulePattern: item?.schedulePattern ?? "",
+    schedulePattern: item?.schedulePattern ?? item?.classSchedulePattern ?? null,
+    classSchedulePattern: item?.classSchedulePattern ?? null,
+    effectiveSchedulePattern: item?.effectiveSchedulePattern ?? null,
+    scheduleText: item?.scheduleText ?? item?.description ?? null,
+    weeklyScheduleSlots: Array.isArray(item?.weeklyScheduleSlots)
+      ? item.weeklyScheduleSlots.map((slot: any) => ({
+          dayOfWeek:
+            typeof slot?.dayOfWeek === "string"
+              ? slot.dayOfWeek
+              : typeof slot?.dayCode === "string"
+                ? slot.dayCode
+                : undefined,
+          dayCode: typeof slot?.dayCode === "string" ? slot.dayCode : undefined,
+          startTime:
+            typeof slot?.startTime === "string"
+              ? slot.startTime
+              : typeof slot?.startAt === "string"
+                ? slot.startAt
+                : undefined,
+          durationMinutes:
+            typeof slot?.durationMinutes === "number"
+              ? slot.durationMinutes
+              : typeof slot?.duration === "number"
+                ? slot.duration
+                : undefined,
+        }))
+      : [],
     mainTeacherName: item?.mainTeacherName ?? item?.teacherName ?? "",
     classroomName: item?.classroomName ?? item?.roomName ?? null,
     isClassStarted: Boolean(item?.isClassStarted),
@@ -659,7 +894,32 @@ export async function assignClassToRegistration(
   id: string,
   payload: AssignClassRequest
 ): Promise<RegistrationActionResponse> {
-  const response = await post<RegistrationActionResponse>(REGISTRATION_ENDPOINTS.ASSIGN_CLASS(id), payload);
+  const normalizedTrack = normalizeTrackValue(payload?.track);
+  const normalizedEntryType = normalizeEntryTypeValue(payload?.entryType);
+  const hasExplicitWeeklyPatternNull =
+    payload != null &&
+    Object.prototype.hasOwnProperty.call(payload, "weeklyPattern") &&
+    payload.weeklyPattern === null;
+  const weeklyPattern =
+    normalizeWeeklyPattern(payload?.weeklyPattern) ||
+    parseWeeklyPatternFromSessionSelectionPattern(payload?.sessionSelectionPattern);
+
+  const requestBody: Record<string, unknown> = {
+    ...payload,
+    track: normalizedTrack,
+    entryType: normalizedEntryType,
+  };
+
+  if (hasExplicitWeeklyPatternNull) {
+    requestBody.weeklyPattern = null;
+  } else if (weeklyPattern && weeklyPattern.length > 0) {
+    requestBody.weeklyPattern = weeklyPattern;
+  }
+
+  const response = await post<RegistrationActionResponse>(
+    REGISTRATION_ENDPOINTS.ASSIGN_CLASS(id),
+    requestBody,
+  );
   return ensureRegistrationActionSuccess(response, "Không thể xếp lớp cho đăng ký");
 }
 
@@ -707,17 +967,38 @@ export async function transferRegistrationClass(
   options?: {
     track?: string;
     sessionSelectionPattern?: string | null;
+    weeklyPattern?: WeeklyPatternEntry[] | null;
   }
 ): Promise<RegistrationActionResponse> {
   const queryParams = new URLSearchParams({ newClassId });
+  const normalizedTrack = options?.track ? normalizeTrackValue(options.track) : undefined;
+  const normalizedSessionSelectionPattern = options?.sessionSelectionPattern?.trim() || undefined;
+  const weeklyPattern =
+    normalizeWeeklyPattern(options?.weeklyPattern) ||
+    parseWeeklyPatternFromSessionSelectionPattern(normalizedSessionSelectionPattern);
+
   if (effectiveDate) queryParams.append("effectiveDate", effectiveDate);
-  if (options?.track) queryParams.append("track", options.track);
-  if (options?.sessionSelectionPattern?.trim()) {
-    queryParams.append("sessionSelectionPattern", options.sessionSelectionPattern.trim());
+  if (normalizedTrack) queryParams.append("track", normalizedTrack);
+  if (normalizedSessionSelectionPattern) {
+    queryParams.append("sessionSelectionPattern", normalizedSessionSelectionPattern);
+  }
+
+  const requestBody: Record<string, unknown> = {
+    newClassId,
+  };
+
+  if (effectiveDate) requestBody.effectiveDate = effectiveDate;
+  if (normalizedTrack) requestBody.track = normalizedTrack;
+  if (normalizedSessionSelectionPattern) {
+    requestBody.sessionSelectionPattern = normalizedSessionSelectionPattern;
+  }
+  if (weeklyPattern && weeklyPattern.length > 0) {
+    requestBody.weeklyPattern = weeklyPattern;
   }
 
   const response = await post<RegistrationActionResponse>(
-    `${REGISTRATION_ENDPOINTS.TRANSFER_CLASS(id)}?${queryParams.toString()}`
+    `${REGISTRATION_ENDPOINTS.TRANSFER_CLASS(id)}?${queryParams.toString()}`,
+    requestBody,
   );
   return ensureRegistrationActionSuccess(response, "Không thể chuyển lớp cho đăng ký");
 }

@@ -21,11 +21,12 @@ import type { LucideIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   generateRegistrationEnrollmentConfirmationPdf,
+  getRegistrationById,
   getRegistrationEnrollmentConfirmationPdf,
   getRegistrationEnrollmentConfirmationPdfHistory,
   type EnrollmentConfirmationPdfResponse,
 } from "@/lib/api/registrationService";
-import type { PdfHistoryItem } from "@/types/registration";
+import type { PdfHistoryItem, Registration } from "@/types/registration";
 import { buildFileUrl } from "@/constants/apiURL";
 
 type RegistrationCompletionPdfModalProps = {
@@ -88,6 +89,7 @@ export default function RegistrationCompletionPdfModal({
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [selectedPdfUrl, setSelectedPdfUrl] = useState("");
+  const [registrationDetail, setRegistrationDetail] = useState<Registration | null>(null);
 
   const loadPreview = async (id: string) => {
     const data = await getRegistrationEnrollmentConfirmationPdf(id);
@@ -99,7 +101,10 @@ export default function RegistrationCompletionPdfModal({
   const loadHistory = async (id: string) => {
     try {
       setIsLoadingHistory(true);
-      const items = await getRegistrationEnrollmentConfirmationPdfHistory(id);
+      const items = await getRegistrationEnrollmentConfirmationPdfHistory(id, {
+        pageNumber: 1,
+        pageSize: 50,
+      });
       setHistoryItems(items);
       return items;
     } catch {
@@ -119,10 +124,12 @@ export default function RegistrationCompletionPdfModal({
       try {
         setIsLoading(true);
         setHasError(false);
-        const [preview] = await Promise.all([
+        const [preview, detail] = await Promise.all([
           loadPreview(registrationId),
-          loadHistory(registrationId),
+          getRegistrationById(registrationId).catch(() => null),
         ]);
+        setRegistrationDetail(detail);
+        await loadHistory(registrationId);
 
         if (disposed) return;
         setPdfData(preview);
@@ -131,10 +138,11 @@ export default function RegistrationCompletionPdfModal({
         setPdfData(null);
         setHistoryItems([]);
         setSelectedPdfUrl("");
+        setRegistrationDetail(null);
         setHasError(true);
         toast({
           title: "Lỗi",
-          description: error?.message || "Không thể tải phiếu hoàn thành đăng ký.",
+          description: error?.message || "Không thể tải phiếu đăng ký.",
           variant: "destructive",
         });
       } finally {
@@ -157,17 +165,48 @@ export default function RegistrationCompletionPdfModal({
   const activePdfUrl = pdfData?.activePdf?.pdfUrl || "";
   const effectivePdfUrl = selectedPdfUrl || activePdfUrl;
   const pdfPreviewUrl = effectivePdfUrl ? buildFileUrl(effectivePdfUrl) : "";
+  const canGeneratePdf = !isLoading && !hasError && Boolean(pdfData?.preview);
+  const classDisplay = [
+    registrationDetail?.className ||
+      String(pdfData?.preview?.classCode || pdfData?.preview?.classTitle || "").trim(),
+    registrationDetail?.secondaryClassName ||
+      String(
+        (pdfData?.preview as any)?.secondaryClassCode ||
+          (pdfData?.preview as any)?.secondaryClassTitle ||
+          "",
+      ).trim(),
+  ]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .filter((value, index, array) => array.indexOf(value) === index)
+    .join(" • ");
 
   const handleGeneratePdf = async () => {
     if (!registrationId || isGenerating) return;
 
     try {
       setIsGenerating(true);
-      await generateRegistrationEnrollmentConfirmationPdf(registrationId);
-      await Promise.all([loadPreview(registrationId), loadHistory(registrationId)]);
+      const hasSecondaryClass = Boolean(registrationDetail?.secondaryClassId);
+
+      const generated = await generateRegistrationEnrollmentConfirmationPdf(registrationId, {
+        track: "primary",
+      });
+
+      if (hasSecondaryClass) {
+        await generateRegistrationEnrollmentConfirmationPdf(registrationId, {
+          track: "secondary",
+        });
+      }
+
+      const refreshed = await getRegistrationEnrollmentConfirmationPdf(registrationId).catch(() => generated);
+      setPdfData(refreshed);
+      setSelectedPdfUrl(refreshed.activePdf?.pdfUrl || generated.activePdf?.pdfUrl || "");
+      await loadHistory(registrationId);
       toast({
         title: "Thành công",
-        description: "Đã tạo bản PDF mới và cập nhật lịch sử.",
+        description: hasSecondaryClass
+          ? "Đã tạo bản PDF cho cả chương trình chính và chương trình song song."
+          : "Đã tạo bản PDF mới và cập nhật lịch sử.",
         variant: "success",
       });
     } catch (error: any) {
@@ -255,7 +294,7 @@ export default function RegistrationCompletionPdfModal({
           {/* Header */}
           <div className="bg-linear-to-r from-red-600 to-red-700 px-5 py-4">
             <h3 className="text-base font-semibold text-white">
-              Phiếu hoàn thành đăng ký
+              Phiếu đăng ký
             </h3>
             <p className="mt-0.5 text-xs text-white/80">
               Học viên: {pdfData?.preview?.studentName || studentName || "-"}
@@ -283,7 +322,7 @@ export default function RegistrationCompletionPdfModal({
                 <InfoRow
                   icon={School}
                   label="Lớp"
-                  value={String(pdfData.preview?.classCode || pdfData.preview?.classTitle || "-")}
+                  value={classDisplay || "-"}
                 />
                 <InfoRow
                   icon={GraduationCap}
@@ -300,12 +339,12 @@ export default function RegistrationCompletionPdfModal({
                   label="Form đã resolve"
                   value={
                     pdfData.formTypeResolved === "continuingStudent"
-                      ? "Học viên đang học (continuing)"
-                      : "Học viên mới (new)"
+                      ? "Học viên đang học"
+                      : "Học viên mới"
                   }
                 />
 
-                {pdfData.formTypeResolved === "continuingStudent" && (
+                {/* {pdfData.formTypeResolved === "continuingStudent" && (
                   <InfoRow
                     icon={Calendar}
                     label="Đối soát"
@@ -317,7 +356,7 @@ export default function RegistrationCompletionPdfModal({
                       )
                     }
                   />
-                )}
+                )} */}
 
                 {Array.isArray(pdfData.warnings) && pdfData.warnings.length > 0 && (
                   <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
@@ -341,14 +380,14 @@ export default function RegistrationCompletionPdfModal({
                         : "Phiếu thu học phí"}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-xs">
+                  {/* <div className="flex items-center justify-between text-xs">
                     <span className="text-gray-500">Track</span>
                     <span className="font-medium text-gray-700 capitalize">
                       {pdfData.trackResolved || "-"}
                     </span>
-                  </div>
+                  </div> */}
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-gray-500">Ngày tạo bản active</span>
+                    <span className="text-gray-500">Ngày tạo bản</span>
                     <span className="font-medium text-gray-700">
                       {formatDate(pdfData.activePdf?.generatedAt)}
                     </span>
@@ -417,8 +456,10 @@ export default function RegistrationCompletionPdfModal({
             <button
               type="button"
               onClick={handleGeneratePdf}
-              disabled={isGenerating || isLoading}
+              disabled={!canGeneratePdf || isGenerating}
               className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 transition-colors cursor-pointer"
+              hidden={!canGeneratePdf}
+              aria-hidden={!canGeneratePdf}
             >
               {isGenerating ? (
                 <Loader2 size={14} className="animate-spin" />
@@ -443,7 +484,7 @@ export default function RegistrationCompletionPdfModal({
           {/* Mobile header (shown on small screens) */}
           <div className="flex md:hidden items-center justify-between bg-linear-to-r from-red-600 to-red-700 px-4 py-3 text-white">
             <div>
-              <h3 className="text-sm font-semibold">Phiếu hoàn thành đăng ký</h3>
+              <h3 className="text-sm font-semibold">Phiếu đăng ký</h3>
               <p className="text-xs text-white/80">
                 {pdfData?.preview?.studentName || studentName || "-"}
               </p>
@@ -468,8 +509,10 @@ export default function RegistrationCompletionPdfModal({
               <button
                 type="button"
                 onClick={handleGeneratePdf}
-                disabled={isGenerating || isLoading}
+                disabled={!canGeneratePdf || isGenerating}
                 className="inline-flex items-center gap-1 rounded-lg border border-white/25 bg-white/10 px-2.5 py-1.5 text-xs font-semibold hover:bg-white/20 disabled:opacity-50 cursor-pointer"
+                hidden={!canGeneratePdf}
+                aria-hidden={!canGeneratePdf}
               >
                 {isGenerating ? (
                   <Loader2 size={12} className="animate-spin" />
@@ -511,7 +554,7 @@ export default function RegistrationCompletionPdfModal({
               <iframe
                 ref={iframeRef}
                 src={pdfPreviewUrl}
-                title="Phiếu hoàn thành đăng ký"
+                title="Phiếu đăng ký"
                 className="h-full w-full"
               />
             ) : pdfData?.preview ? (
@@ -542,7 +585,7 @@ export default function RegistrationCompletionPdfModal({
                     <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
                       <div className="text-[11px] uppercase tracking-wide text-gray-500">Lớp</div>
                       <div className="mt-1 text-sm font-semibold text-gray-900">
-                        {String(pdfData.preview.classCode || pdfData.preview.classTitle || "-")}
+                        {classDisplay || "-"}
                       </div>
                     </div>
                   </div>
@@ -562,8 +605,10 @@ export default function RegistrationCompletionPdfModal({
                     <button
                       type="button"
                       onClick={handleGeneratePdf}
-                      disabled={isGenerating}
+                      disabled={!canGeneratePdf || isGenerating}
                       className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50 cursor-pointer"
+                      hidden={!canGeneratePdf}
+                      aria-hidden={!canGeneratePdf}
                     >
                       {isGenerating ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
                       Xác nhận tạo PDF

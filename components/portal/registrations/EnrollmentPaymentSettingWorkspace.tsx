@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
 import { Switch } from "@/components/lightswind/switch";
+import { buildFileUrl, FILE_ENDPOINTS } from "@/constants/apiURL";
 import { useBranchFilter } from "@/hooks/useBranchFilter";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useEnrollmentPaymentSetting } from "@/hooks/useEnrollmentPaymentSetting";
@@ -41,6 +42,8 @@ type FormValues = {
   bankBin: string;
   vietQrTemplate: string;
   logoUrl: string;
+  newStudentPolicyLines: string;
+  reservationPolicyLines: string;
   isActive: boolean;
 };
 
@@ -57,6 +60,8 @@ const DEFAULT_FORM_VALUES: FormValues = {
   bankBin: "",
   vietQrTemplate: "compact2",
   logoUrl: "",
+  newStudentPolicyLines: "",
+  reservationPolicyLines: "",
   isActive: true,
 };
 
@@ -79,7 +84,7 @@ function normalizePreviewUrl(value?: string | null): string {
   const raw = (value ?? "").trim();
   if (!raw) return "";
 
-  if (raw.startsWith("/api/files/serve")) {
+  if (raw.startsWith(FILE_ENDPOINTS.BLOB_VIEW) || raw.startsWith("/api/files/serve")) {
     return raw;
   }
 
@@ -87,12 +92,124 @@ function normalizePreviewUrl(value?: string | null): string {
     return raw;
   }
 
-  if (/^(?:https?:)?\/\//i.test(raw)) {
+  if (/^https?:\/\//i.test(raw)) {
+    try {
+      const parsed = new URL(raw);
+      if (typeof window !== "undefined" && parsed.origin === window.location.origin) {
+        return `${parsed.pathname}${parsed.search || ""}${parsed.hash || ""}`;
+      }
+
+      if (parsed.hostname.toLowerCase().endsWith(".private.blob.vercel-storage.com")) {
+        return `${FILE_ENDPOINTS.BLOB_VIEW}?pathname=${encodeURIComponent(parsed.pathname)}`;
+      }
+    } catch {
+      return buildFileUrl(raw);
+    }
+  }
+
+  return buildFileUrl(raw);
+}
+
+function buildAbsoluteAppUrl(path: string): string {
+  if (/^https?:\/\//i.test(path)) return path;
+  if (typeof window === "undefined") return path;
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return `${window.location.origin}${normalizedPath}`;
+}
+
+function toPersistLogoUrl(value?: string | null): string {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+
+  if (/^(?:data|blob):/i.test(raw)) {
     return raw;
   }
 
-  const normalized = raw.startsWith("/") ? raw : `/${raw}`;
-  return `/api/files/serve${normalized}`;
+  if (/^https?:\/\//i.test(raw)) {
+    try {
+      const parsed = new URL(raw);
+
+      if (parsed.hostname.toLowerCase().endsWith(".private.blob.vercel-storage.com")) {
+        return buildAbsoluteAppUrl(
+          `${FILE_ENDPOINTS.BLOB_VIEW}?pathname=${encodeURIComponent(parsed.pathname)}`,
+        );
+      }
+
+      // Do not persist localhost origin to avoid backend PDF renderer resolving to wrong host.
+      if (
+        (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1") &&
+        parsed.pathname.startsWith(FILE_ENDPOINTS.BLOB_VIEW)
+      ) {
+        return `${parsed.pathname}${parsed.search || ""}`;
+      }
+
+      return raw;
+    } catch {
+      return raw;
+    }
+  }
+
+  if (raw.startsWith(FILE_ENDPOINTS.BLOB_VIEW)) {
+    return buildAbsoluteAppUrl(raw);
+  }
+
+  return raw;
+}
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = typeof reader.result === "string" ? reader.result : "";
+      if (!result) {
+        reject(new Error("Không thể chuyển logo sang data URL."));
+        return;
+      }
+      resolve(result);
+    };
+    reader.onerror = () => reject(reader.error || new Error("Không thể đọc logo."));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function resolvePersistLogoUrl(value?: string | null): Promise<string> {
+  const persisted = toPersistLogoUrl(value);
+  if (!persisted) return "";
+
+  // Keep already-embedded images as-is.
+  if (/^data:image\//i.test(persisted)) {
+    return persisted;
+  }
+
+  // For local/proxy URLs, embed as data URL so backend PDF renderer does not depend on localhost reachability.
+  const shouldEmbedAsDataUrl =
+    /^https?:\/\/(localhost|127\.0\.0\.1)/i.test(persisted) ||
+    persisted.startsWith(FILE_ENDPOINTS.BLOB_VIEW) ||
+    persisted.startsWith("/api/files/blob/view") ||
+    persisted.startsWith("/api/files/serve");
+
+  if (!shouldEmbedAsDataUrl) {
+    return persisted;
+  }
+
+  try {
+    const previewUrl = normalizePreviewUrl(persisted);
+    const absolutePreviewUrl = buildAbsoluteAppUrl(previewUrl);
+    const response = await fetch(absolutePreviewUrl, { method: "GET" });
+    if (!response.ok) {
+      return persisted;
+    }
+
+    const blob = await response.blob();
+    const contentType = String(blob.type || "").toLowerCase();
+    if (!contentType.startsWith("image/")) {
+      return persisted;
+    }
+
+    return await blobToDataUrl(blob);
+  } catch {
+    return persisted;
+  }
 }
 
 function toFormValues(setting: EnrollmentPaymentSetting | null): FormValues {
@@ -107,8 +224,21 @@ function toFormValues(setting: EnrollmentPaymentSetting | null): FormValues {
     bankBin: setting.bankBin ?? "",
     vietQrTemplate: setting.vietQrTemplate ?? DEFAULT_FORM_VALUES.vietQrTemplate,
     logoUrl: setting.logoUrl ?? "",
+    newStudentPolicyLines: Array.isArray(setting.newStudentPolicyLines)
+      ? setting.newStudentPolicyLines.join("\n")
+      : "",
+    reservationPolicyLines: Array.isArray(setting.reservationPolicyLines)
+      ? setting.reservationPolicyLines.join("\n")
+      : "",
     isActive: typeof setting.isActive === "boolean" ? setting.isActive : true,
   };
+}
+
+function toPolicyLines(value: string): string[] {
+  return String(value || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
 }
 
 function extractBranchOptions(response: any): BranchOption[] {
@@ -375,6 +505,8 @@ export default function EnrollmentPaymentSettingWorkspace({ defaultScope }: Prop
       return;
     }
 
+    const resolvedLogoUrl = await resolvePersistLogoUrl(values.logoUrl);
+
     const payload: UpsertPaymentSettingRequest = {
       branchId: scope === "global" ? null : selectedBranchId || null,
       paymentMethod: values.paymentMethod.trim() || "BankTransfer",
@@ -384,7 +516,9 @@ export default function EnrollmentPaymentSettingWorkspace({ defaultScope }: Prop
       bankCode: toNullableTrimmed(values.bankCode),
       bankBin: toNullableTrimmed(values.bankBin),
       vietQrTemplate: values.vietQrTemplate.trim() || "compact2",
-      logoUrl: toNullableTrimmed(values.logoUrl),
+      logoUrl: toNullableTrimmed(resolvedLogoUrl),
+      newStudentPolicyLines: toPolicyLines(values.newStudentPolicyLines),
+      reservationPolicyLines: toPolicyLines(values.reservationPolicyLines),
       isActive: Boolean(values.isActive),
     };
 
@@ -429,6 +563,7 @@ export default function EnrollmentPaymentSettingWorkspace({ defaultScope }: Prop
         return;
       }
 
+      // Keep original uploaded URL for persistence; preview is normalized separately.
       setValue("logoUrl", result.url, { shouldDirty: true, shouldValidate: true });
       toast({
         title: "Upload logo thành công",
@@ -660,6 +795,32 @@ export default function EnrollmentPaymentSettingWorkspace({ defaultScope }: Prop
                   placeholder="VD: 970436"
                 />
               </div>
+
+              <div className="space-y-1.5 md:col-span-2">
+                <label className="text-sm font-semibold text-gray-700">
+                  Chính sách học viên mới (mỗi dòng 1 ý)
+                </label>
+                <textarea
+                  rows={3}
+                  {...register("newStudentPolicyLines")}
+                  disabled={!canEdit || isSaving || isLoading}
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-900 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200 disabled:cursor-not-allowed disabled:bg-gray-50"
+                  placeholder="Ví dụ: Không áp dụng hoàn phí."
+                />
+              </div>
+
+              <div className="space-y-1.5 md:col-span-2">
+                <label className="text-sm font-semibold text-gray-700">
+                  Chính sách bảo lưu (mỗi dòng 1 ý)
+                </label>
+                <textarea
+                  rows={3}
+                  {...register("reservationPolicyLines")}
+                  disabled={!canEdit || isSaving || isLoading}
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-900 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200 disabled:cursor-not-allowed disabled:bg-gray-50"
+                  placeholder="Ví dụ: Chính sách bảo lưu tối đa 01 lần."
+                />
+              </div>
             </div>
 
             <div className="flex items-start gap-3 rounded-2xl border border-gray-200 bg-white p-4">
@@ -736,13 +897,6 @@ export default function EnrollmentPaymentSettingWorkspace({ defaultScope }: Prop
                   </button>
                 ) : null}
               </div>
-
-              <input
-                value={watchedLogoUrl || ""}
-                readOnly
-                className="mt-3 w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-600"
-                placeholder="Chưa có logo được upload"
-              />
 
               <div className="mt-3 rounded-xl border border-dashed border-gray-300 bg-white p-3">
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">

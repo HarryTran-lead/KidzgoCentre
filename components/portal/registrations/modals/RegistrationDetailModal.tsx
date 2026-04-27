@@ -118,6 +118,105 @@ function normalizeVietnameseScheduleText(value?: string | null) {
     .replace(/\bngay\s*hoc\b/gi, "Ngày học");
 }
 
+const DAY_CODE_TO_VN: Record<string, string> = {
+  MO: "Thứ 2",
+  TU: "Thứ 3",
+  WE: "Thứ 4",
+  TH: "Thứ 5",
+  FR: "Thứ 6",
+  SA: "Thứ 7",
+  SU: "Chủ nhật",
+};
+
+function normalizeDayCode(value?: string | null): string {
+  const raw = String(value || "").trim().toUpperCase();
+  return DAY_CODE_TO_VN[raw] || raw;
+}
+
+function normalizeTime(value?: string | null): string {
+  const raw = String(value || "").trim();
+  const matched = raw.match(/^(\d{1,2}):(\d{1,2})/);
+  if (!matched) return "";
+  const hour = Number(matched[1]);
+  const minute = Number(matched[2]);
+  if (
+    Number.isNaN(hour) ||
+    Number.isNaN(minute) ||
+    hour < 0 ||
+    hour > 23 ||
+    minute < 0 ||
+    minute > 59
+  ) {
+    return "";
+  }
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+function addMinutes(startTime: string, durationMinutes: number): string {
+  const matched = startTime.match(/^(\d{2}):(\d{2})$/);
+  if (!matched) return "";
+  const hour = Number(matched[1]);
+  const minute = Number(matched[2]);
+  if (Number.isNaN(hour) || Number.isNaN(minute)) return "";
+
+  const total = hour * 60 + minute + Math.max(0, Number(durationMinutes) || 0);
+  const wrapped = ((total % (24 * 60)) + 24 * 60) % (24 * 60);
+  const endHour = Math.floor(wrapped / 60);
+  const endMinute = wrapped % 60;
+  return `${String(endHour).padStart(2, "0")}:${String(endMinute).padStart(2, "0")}`;
+}
+
+function getScheduleTimeRanges(schedule: any): string[] {
+  const effectiveWeeklyPattern = Array.isArray(schedule?.effectiveWeeklyPattern)
+    ? schedule.effectiveWeeklyPattern
+    : [];
+
+  const fromEffectivePattern = effectiveWeeklyPattern
+    .flatMap((entry: any) => {
+      const startTime = normalizeTime(entry?.startTime);
+      const durationMinutes = Number(entry?.durationMinutes);
+      const endTime = startTime
+        ? addMinutes(startTime, Number.isFinite(durationMinutes) ? durationMinutes : 0)
+        : "";
+
+      if (!startTime) return [];
+
+      const days = Array.isArray(entry?.dayOfWeeks)
+        ? entry.dayOfWeeks
+            .map((day: string) => normalizeDayCode(day))
+            .filter(Boolean)
+        : [];
+
+      if (days.length === 0) {
+        return [endTime ? `${startTime}-${endTime}` : startTime];
+      }
+
+      const timePart = endTime ? `${startTime}-${endTime}` : startTime;
+      return days.map((day: string) => `${day} ${timePart}`);
+    })
+    .filter(Boolean);
+
+  if (fromEffectivePattern.length > 0) return fromEffectivePattern;
+
+  const classSlots = Array.isArray(schedule?.classWeeklyScheduleSlots)
+    ? schedule.classWeeklyScheduleSlots
+    : [];
+
+  return classSlots
+    .map((slot: any) => {
+      const day = normalizeDayCode(slot?.dayOfWeek || slot?.dayCode);
+      const startTime = normalizeTime(slot?.startTime || slot?.startAt);
+      const durationMinutes = Number(slot?.durationMinutes);
+      const endTime = startTime
+        ? addMinutes(startTime, Number.isFinite(durationMinutes) ? durationMinutes : 0)
+        : "";
+
+      if (!day || !startTime) return "";
+      return `${day} ${endTime ? `${startTime}-${endTime}` : startTime}`;
+    })
+    .filter(Boolean);
+}
+
 function extractPlacementTestId(note?: string | null): string {
   const raw = String(note || "");
   const matched = raw.match(/placementtest\s*[:=]\s*([0-9a-fA-F-]{32,36})/i);
@@ -128,7 +227,7 @@ function InfoCard({ icon, label, value, iconColor = "text-red-500" }: { icon?: R
   return (
     <div className="rounded-xl bg-white p-3 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-center gap-2">
-        {icon && <div className={cn("flex-shrink-0", iconColor)}>{icon}</div>}
+        {icon && <div className={cn("shrink-0", iconColor)}>{icon}</div>}
         <div className="text-xs font-medium uppercase tracking-wide text-gray-500">
           {label}
         </div>
@@ -142,7 +241,7 @@ function Section({ title, icon, children, colorClass = "border-red-200 bg-red-50
   return (
     <div className={cn("space-y-3 rounded-xl border p-4", colorClass)}>
       <div className="flex items-center gap-2">
-        {icon && <div className="flex-shrink-0">{icon}</div>}
+        {icon && <div className="shrink-0">{icon}</div>}
         <h3 className="text-sm font-semibold text-gray-700">{title}</h3>
       </div>
       {children}
@@ -226,7 +325,7 @@ export default function RegistrationDetailModal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-10000 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
       onClick={onClose}
     >
       <div
@@ -234,7 +333,7 @@ export default function RegistrationDetailModal({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header - Gradient đỏ như các modal khác */}
-        <div className="sticky top-0 z-10 bg-gradient-to-r from-red-600 to-red-700 px-6 py-4">
+        <div className="sticky top-0 z-10 bg-linear-to-r from-red-600 to-red-700 px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
@@ -264,10 +363,10 @@ export default function RegistrationDetailModal({
         ) : item ? (
           <div className="space-y-5 p-6">
             {/* Student Info Card */}
-            <div className="rounded-xl border border-red-200 bg-gradient-to-r from-red-50/50 to-white p-5">
+            <div className="rounded-xl border border-red-200 bg-linear-to-r from-red-50/50 to-white p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-xl bg-gradient-to-r from-red-600 to-red-700 shadow-md">
+                  <div className="p-3 rounded-xl bg-linear-to-r from-red-600 to-red-700 shadow-md">
                     <User size={20} className="text-white" />
                   </div>
                   <div>
@@ -334,11 +433,13 @@ export default function RegistrationDetailModal({
                       : item.className || "Chưa xếp lớp"
                   }
                 />
-                <InfoCard
-                  icon={<BookOpen size={14} />}
-                  label="Chú trọng kĩ năng"
-                  value={item.secondaryProgramSkillFocus || item.secondaryEntryType || "Chưa có"}
-                />
+                {item.secondaryProgramId ? (
+                  <InfoCard
+                    icon={<BookOpen size={14} />}
+                    label="Chú trọng kĩ năng"
+                    value={item.secondaryProgramSkillFocus || "Chưa có"}
+                  />
+                ) : null}
                 <InfoCard
                   icon={<Calendar size={14} />}
                   label="Tổng số buổi"
@@ -384,9 +485,8 @@ export default function RegistrationDetailModal({
                   value={
                     firstStudySession
                       ? [
-                          toDateTime(
-                            firstStudySession.studyDate ||
-                              null,
+                          toDate(
+                            firstStudySession.studyDate 
                           ),
                         ]
                           .filter((part) => part && part !== "-")
@@ -404,6 +504,7 @@ export default function RegistrationDetailModal({
                   </div>
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                     {item.actualStudySchedules.map((schedule, index) => {
+                      const typedSchedule = schedule as any;
                       const studyDays =
                         normalizeVietnameseScheduleText(schedule.studyDaysSummary) ||
                         (Array.isArray(schedule.studyDayDisplayNames) &&
@@ -413,6 +514,9 @@ export default function RegistrationDetailModal({
                         (Array.isArray(schedule.studyDays) && schedule.studyDays.length > 0
                           ? normalizeVietnameseScheduleText(schedule.studyDays.join(", "))
                           : toStudyDayCodesLabel(schedule.studyDayCodes) || "-");
+                      const timeRanges = getScheduleTimeRanges(typedSchedule);
+                      const timeRangesLabel =
+                        timeRanges.length > 0 ? timeRanges.join(", ") : "Chưa có dữ liệu";
 
                       return (
                         <div
@@ -433,15 +537,21 @@ export default function RegistrationDetailModal({
                           </div>
                           <div className="mt-2 space-y-1.5 text-xs text-gray-700">
                             <div className="flex items-start gap-1">
-                              <Users size={12} className="text-gray-400 mt-0.5 flex-shrink-0" />
+                              <Users size={12} className="text-gray-400 mt-0.5 shrink-0" />
                               <span>
                                 Tên Lớp: <span className="font-semibold">{schedule.className || "Chưa xếp lớp"}</span>
                               </span>
                             </div>
                             <div className="flex items-start gap-1">
-                              <Calendar size={12} className="text-gray-400 mt-0.5 flex-shrink-0" />
+                              <Calendar size={12} className="text-gray-400 mt-0.5 shrink-0" />
                               <span>
                                 Ngày học: <span className="font-semibold">{studyDays} hàng tuần</span>
+                              </span>
+                            </div>
+                            <div className="flex items-start gap-1">
+                              <Clock size={12} className="text-gray-400 mt-0.5 shrink-0" />
+                              <span>
+                                Khung giờ: <span className="font-semibold">{timeRangesLabel}</span>
                               </span>
                             </div>
                           </div>

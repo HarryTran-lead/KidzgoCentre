@@ -3,6 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Loader2, X } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/lightswind/select";
 import type { Registration, RegistrationTrackType } from "@/types/registration";
 
 type TransferClassOption = {
@@ -72,6 +79,7 @@ export default function RegistrationTransferModal({
   const [useCustomTime, setUseCustomTime] = useState(false);
   const [startTime, setStartTime] = useState("18:00");
   const [endTime, setEndTime] = useState("20:00");
+  const [scheduleControlsEnabled, setScheduleControlsEnabled] = useState(false);
 
   const toggleDay = (dayValue: string) => {
     setSelectedDays((prev) => {
@@ -93,6 +101,7 @@ export default function RegistrationTransferModal({
   };
 
   const computedSessionPattern = useMemo(() => {
+    if (!scheduleControlsEnabled) return "";
     if (selectedDays.length === 0) return "";
 
     const dayOrder = ["2", "3", "4", "5", "6", "7", "CN"];
@@ -119,7 +128,7 @@ export default function RegistrationTransferModal({
     if (Number.isNaN(hour) || Number.isNaN(minute)) return "";
 
     return `FREQ=WEEKLY;BYDAY=${byDay};BYHOUR=${hour};BYMINUTE=${minute}`;
-  }, [selectedDays, selectedTimeSlot, useCustomTime, startTime, endTime]);
+  }, [selectedDays, selectedTimeSlot, useCustomTime, startTime, endTime, scheduleControlsEnabled]);
 
   useEffect(() => {
     setTransferSessionPattern(computedSessionPattern);
@@ -133,14 +142,23 @@ export default function RegistrationTransferModal({
     setUseCustomTime(false);
     setStartTime("18:00");
     setEndTime("20:00");
+    setScheduleControlsEnabled(false);
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setScheduleControlsEnabled(false);
+    setSelectedDays([]);
+    setSelectedTimeSlot("");
+    setUseCustomTime(false);
+  }, [transferClassId, transferTrack, isOpen]);
 
   if (!isOpen) return null;
   if (typeof window === "undefined") return null;
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 p-4"
+      className="fixed inset-0 z-10000 flex items-center justify-center bg-black/50 p-4"
       onClick={onClose}
     >
       <div
@@ -165,41 +183,51 @@ export default function RegistrationTransferModal({
             <p>
               Lớp học hiện tại: {selectedRegistration?.className || "Chưa có lớp"}
               {selectedRegistration?.secondaryClassName
-                ? ` • Secondary: ${selectedRegistration.secondaryClassName}`
+                ? ` • Chương trình song song: ${selectedRegistration.secondaryClassName}`
                 : ""}
             </p>
           </div>
 
           {selectedRegistration?.secondaryClassId && (
             <div className="space-y-1">
-              <label className="text-sm font-medium text-gray-700">Track chuyển lớp</label>
-              <select
+              <label className="text-sm font-medium text-gray-700">Chương trình cần chuyển lớp</label>
+              <Select
                 value={transferTrack}
-                onChange={(e) => setTransferTrack(e.target.value as RegistrationTrackType)}
-                className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+                onValueChange={(value) => setTransferTrack(value as RegistrationTrackType)}
               >
-                <option value="primary">Primary</option>
-                <option value="secondary">Secondary</option>
-              </select>
+                <SelectTrigger className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100">
+                  <SelectValue placeholder="Chọn chương trình cần chuyển" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="primary">Chương trình chính</SelectItem>
+                  <SelectItem value="secondary">Chương trình song song</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           )}
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <div className="space-y-1">
-              <label className="text-sm font-medium text-gray-700">Lớp mới</label>
-              <select
-                value={transferClassId}
-                onChange={(e) => setTransferClassId(e.target.value)}
+              <label className="text-sm font-medium text-gray-700">Lớp mới cùng trình độ</label>
+              <Select
+                value={transferClassId || "__none__"}
+                onValueChange={(value) =>
+                  setTransferClassId(value === "__none__" ? "" : value)
+                }
                 disabled={isLoadingTransferClasses}
-                className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 disabled:bg-gray-100"
               >
-                <option value="">Chọn lớp mới</option>
-                {transferClassOptions.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name} • Còn chỗ: {item.remainingSlots ?? "-"} • {item.schedule}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 disabled:bg-gray-100">
+                  <SelectValue placeholder="Chọn lớp mới cùng trình độ" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Chọn lớp mới cùng trình độ</SelectItem>
+                  {transferClassOptions.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.name} • Còn chỗ: {item.remainingSlots ?? "-"} • Lịch: {item.schedule || "Chưa có"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               {isLoadingTransferClasses ? (
                 <p className="inline-flex items-center gap-2 text-xs text-gray-500">
                   <Loader2 size={12} className="animate-spin" /> Đang tải danh sách lớp...
@@ -219,9 +247,35 @@ export default function RegistrationTransferModal({
           </div>
 
           <div className="rounded-2xl border border-red-100 p-4">
-            <div className="mb-3 text-lg font-semibold text-gray-800">Lịch học mong muốn</div>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <div className="text-lg font-semibold text-gray-800">Lịch học mong muốn</div>
+              <button
+                type="button"
+                onClick={() => {
+                  const next = !scheduleControlsEnabled;
+                  setScheduleControlsEnabled(next);
+                  if (!next) {
+                    setSelectedDays([]);
+                    setSelectedTimeSlot("");
+                    setUseCustomTime(false);
+                  }
+                }}
+                disabled={!transferClassId}
+                className="rounded-lg border border-red-200 bg-white px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {scheduleControlsEnabled ? "Ẩn tùy chỉnh lịch" : "Tùy chỉnh lịch học"}
+              </button>
+            </div>
+
+            {!scheduleControlsEnabled ? (
+              <div className="mb-3 rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-500">
+                Đang dùng lịch mặc định của lớp. Nếu cần chọn buổi cụ thể, nhấn "Tùy chỉnh lịch học".
+              </div>
+            ) : null}
 
             <div className="space-y-4 rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-3">
+              {!scheduleControlsEnabled ? null : (
+                <>
               <div className="space-y-1.5">
                 <p className="text-sm text-gray-700">Số buổi học mỗi tuần</p>
                 <div className="flex gap-2">
@@ -326,6 +380,8 @@ export default function RegistrationTransferModal({
                   </div>
                 )}
               </div>
+                </>
+              )}
             </div>
           </div>
 
