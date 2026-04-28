@@ -412,6 +412,9 @@ export const ADMIN_ENDPOINTS = {
   LESSON_PLANS: '/api/lesson-plans',
   LESSON_PLANS_BY_ID: (id: string) => `/api/lesson-plans/${id}`,
   LESSON_PLANS_CLASS_SYLLABUS: (classId: string) => `/api/lesson-plans/classes/${classId}/syllabus`,
+  REGISTRATION_DISCOUNT_CAMPAIGNS: '/api/registration-discount-campaigns',
+  REGISTRATION_DISCOUNT_CAMPAIGNS_BY_ID: (id: string) => `/api/registration-discount-campaigns/${id}`,
+  REGISTRATION_DISCOUNT_CAMPAIGNS_TOGGLE_STATUS: (id: string) => `/api/registration-discount-campaigns/${id}/toggle-status`,
 } as const;
 
 // Lead Endpoints (Client-side → Next.js API Routes)

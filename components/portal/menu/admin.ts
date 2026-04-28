@@ -37,6 +37,7 @@ export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     [t.groups.learning.coursesSystem.list, GraduationCap, "/courses/system"],
     [t.groups.learning.coursesBranch.list, GraduationCap, "/courses/branch"],
     [t.groups.learning.tuitionPlans.list, GraduationCap, "/tuition-plans"],
+    [t.groups.learning.discountCampaigns.list, CreditCard, "/discount-campaigns"],
     [t.groups.learning.registrations.list, UserCheck, "/registrations"],
     [t.groups.learning.classes.list, BookOpen, "/classes"],
   ];

@@ -143,6 +143,18 @@ const CODE_TO_VIETNAMESE_MESSAGE: Record<string, string> = {
   "Enrollment.CannotReactivate": "Không thể kích hoạt lại ghi danh ở trạng thái hiện tại.",
   "Registration.FirstStudyDateInPast": "Ngày vào học đầu tiên không được ở quá khứ.",
   "Registration.FirstStudyDateInvalid": "Ngày vào học đầu tiên không hợp lệ với lịch lớp.",
+
+  // Registration Discount Campaign
+  "RegistrationDiscountCampaign.NotFound": "Không tìm thấy chương trình khuyến mãi.",
+  "RegistrationDiscountCampaign.BranchNotFound": "Chi nhánh không tồn tại.",
+  "RegistrationDiscountCampaign.ProgramNotFound": "Chương trình học không tồn tại hoặc đã bị xóa.",
+  "RegistrationDiscountCampaign.TuitionPlanNotFound": "Gói học không tồn tại hoặc đã bị xóa.",
+  "RegistrationDiscountCampaign.InvalidDateRange": "Ngày kết thúc phải sau hoặc bằng ngày bắt đầu.",
+  "RegistrationDiscountCampaign.InvalidPercentageDiscountValue": "Giá trị giảm theo % không được vượt quá 100.",
+  "RegistrationDiscountCampaign.MissingApplicability": "Phải chọn ít nhất một loại đăng ký được áp dụng (lần đầu, gia hạn, hoặc nâng cấp).",
+  "RegistrationDiscountCampaign.TuitionPlanProgramMismatch": "Gói học không thuộc chương trình đã chọn.",
+  "RegistrationDiscountCampaign.TuitionPlanBranchMismatch": "Gói học không thuộc chi nhánh đã chọn.",
+  "RegistrationDiscountCampaign.FixedAmountExceedsTuitionPlanAmount": "Số tiền giảm không được vượt quá học phí của gói học.",
   "Registration.FirstStudyDateOutsideClassRange": "Ngày vào học đầu tiên nằm ngoài thời gian hoạt động của lớp.",
 
   // Session Report
