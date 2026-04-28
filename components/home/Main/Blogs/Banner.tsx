@@ -46,7 +46,7 @@ export default function BannerBlog() {
 
   return (
     <header 
-      className="relative overflow-hidden bg-linear-to-br from-pink-600 via-rose-500 to-pink-400 pb-16 sm:pb-20 pt-24 sticky top-0 z-10"
+      className="relative overflow-hidden bg-gradient-to-br from-red-600 via-red-500 to-rose-600 pb-16 sm:pb-20 pt-24 sticky top-0 z-10"
       style={{ opacity }}
     >
       {/* Background Effects */}
@@ -72,11 +72,11 @@ export default function BannerBlog() {
             <div>
               <h1 className="text-3xl sm:text-4xl md:text-[40px] font-black text-white leading-tight mb-3 drop-shadow-lg">
                 {locale === "vi" ? "Bản Tin" : "Latest News"} &{" "}
-                <span className="text-amber-300">
+                <span className="text-red-200">
                   {locale === "vi" ? "Bài Viết" : "Articles"}
                 </span>
               </h1>
-              <div className="h-1.5 w-24 bg-yellow-300 rounded-full shadow-lg" />
+              <div className="h-1.5 w-24 bg-red-300 rounded-full shadow-lg" />
             </div>
 
             {/* Subtitle */}

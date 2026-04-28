@@ -6,6 +6,7 @@ import { SURFACE_BORDER } from "@/lib/theme/theme";
 import { Clock, ArrowRight, Star, Users, TrendingUp } from "lucide-react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useRef } from "react";
+import "@/styles/animations.css";
 
 export default function Courses() {
   // Scroll-based animations
@@ -32,69 +33,30 @@ export default function Courses() {
       }}
       ref={sectionRef}
     >
-      {/* Animated gradient background */}
+      {/* Animated gradient background - Using CSS animations for better performance */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <motion.div 
-          className="absolute top-20 left-10 w-80 h-80 bg-linear-to-br from-red-300 to-red-400 rounded-full mix-blend-multiply filter blur-3xl opacity-20"
-          animate={{
-            scale: [1, 1.2, 1],
-            x: [0, 30, 0],
-            y: [0, -30, 0],
-          }}
-          transition={{
-            duration: 8,
-            repeat: Infinity,
-            ease: "easeInOut"
-          }}
+        <div 
+          className="absolute top-20 left-10 w-80 h-80 bg-gradient-to-br from-red-300 to-red-400 rounded-full mix-blend-multiply blur-3xl opacity-20 animate-pulse-scale"
         />
-        <motion.div 
-          className="absolute bottom-32 right-10 w-96 h-96 bg-gradient-to-tr from-red-400 to-rose-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20"
-          animate={{
-            scale: [1, 1.1, 1],
-            x: [0, -20, 0],
-            y: [0, 20, 0],
-          }}
-          transition={{
-            duration: 10,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 1
-          }}
+        <div 
+          className="absolute bottom-32 right-10 w-96 h-96 bg-gradient-to-tr from-red-400 to-rose-300 rounded-full mix-blend-multiply blur-3xl opacity-20 animate-pulse-scale-sm"
         />
-        {/* New floating orb */}
-        <motion.div 
-          className="absolute top-1/2 left-1/3 w-64 h-64 bg-linear-to-r from-red-400 to-red-300 rounded-full mix-blend-multiply filter blur-3xl opacity-15"
-          animate={{
-            scale: [1, 1.3, 1],
-            borderRadius: ["50%", "40%", "50%"],
-          }}
-          transition={{
-            duration: 12,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 2
-          }}
+        <div 
+          className="absolute top-1/2 left-1/3 w-64 h-64 bg-gradient-to-r from-red-400 to-red-300 rounded-full mix-blend-multiply blur-3xl opacity-15 animate-pulse-scale-md"
         />
       </div>
 
-      {/* Floating particles */}
+      {/* Floating particles - Reduced from 15 to 6 for better performance */}
       <div className="absolute inset-0 overflow-hidden">
-        {[...Array(15)].map((_, i) => (
-          <motion.div
+        {[...Array(6)].map((_, i) => (
+          <div
             key={i}
-            className="absolute w-1 h-1 bg-linear-to-r from-red-400/30 to-red-500/30 rounded-full"
+            className="absolute w-1 h-1 bg-gradient-to-r from-red-400/30 to-red-500/30 rounded-full animate-float-particle"
             style={{
-              left: `${(i * 7) % 100}%`,
-              top: `${(i * 10) % 100}%`,
-            }}
-            animate={{
-              y: [0, -20, 0],
-              opacity: [0.3, 0.8, 0.3],
-            }}
-            transition={{
-              duration: 3 + i * 0.2,
-              repeat: Infinity,
-              delay: i * 0.1,
+              left: `${(i * 16) % 100}%`,
+              top: `${(i * 18) % 100}%`,
+              animationDelay: `${i * 0.3}s`,
+              animationDuration: `${3 + i * 0.5}s`,
             }}
           />
         ))}

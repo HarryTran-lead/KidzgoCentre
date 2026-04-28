@@ -166,9 +166,9 @@ export default function Contact() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-emerald-50 via-green-50 to-emerald-100 mt-30">
+    <div className="min-h-screen bg-gradient-to-b from-red-50 via-rose-50 to-red-100 mt-30">
       {/* Nội dung chính */}
-      <div className="relative z-20 w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-10 -mt-40 bg-linear-to-b from-emerald-50 via-green-50 to-emerald-100 rounded-t-3xl shadow-2xl">
+      <div className="relative z-20 w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-10 -mt-40 bg-gradient-to-b from-red-50 via-rose-50 to-red-100 rounded-t-3xl shadow-2xl">
         <motion.div
           initial="hidden"
           animate="visible"
@@ -185,7 +185,7 @@ export default function Contact() {
             >
               <div className="p-6">
                 <div className="flex items-start gap-4">
-                  <div className="w-14 h-14 rounded-xl bg-linear-to-br from-emerald-500 to-emerald-600 text-white grid place-items-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-red-500 to-red-600 text-white grid place-items-center shadow-lg group-hover:scale-110 transition-transform duration-300">
                     <PhoneCall className="w-6 h-6" />
                   </div>
                   <div className="flex-1">
@@ -198,7 +198,7 @@ export default function Contact() {
                     </p>
                     <a
                       href="tel:+0867405801"
-                      className="text-lg font-bold text-gray-900 hover:text-emerald-600 transition-colors flex items-center gap-2 group-hover:gap-3"
+                      className="text-lg font-bold text-gray-900 hover:text-red-600 transition-colors flex items-center gap-2 group-hover:gap-3"
                     >
                       +0867405801
                       <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all" />
@@ -207,7 +207,7 @@ export default function Contact() {
                 </div>
               </div>
               {/* Lớp phủ khi hover */}
-              <div className="absolute inset-0 bg-emerald-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="absolute inset-0 bg-red-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             </motion.div>
 
             {/* Thẻ Email */}
@@ -218,7 +218,7 @@ export default function Contact() {
             >
               <div className="p-6">
                 <div className="flex items-start gap-4">
-                  <div className="w-14 h-14 rounded-xl bg-linear-to-br from-green-500 to-emerald-500 text-white grid place-items-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-red-500 to-rose-500 text-white grid place-items-center shadow-lg group-hover:scale-110 transition-transform duration-300">
                     <Mail className="w-6 h-6" />
                   </div>
                   <div className="flex-1">
@@ -231,7 +231,7 @@ export default function Contact() {
                     </p>
                     <a
                       href="mailto:Tearexenglish@gmail.com"
-                      className="text-base font-semibold text-gray-900 hover:text-green-600 transition-colors flex items-center gap-2 group-hover:gap-3"
+                      className="text-base font-semibold text-gray-900 hover:text-red-600 transition-colors flex items-center gap-2 group-hover:gap-3"
                     >
                       Tearexenglish@gmail.com
                       <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all" />
@@ -240,7 +240,7 @@ export default function Contact() {
                 </div>
               </div>
               {/* Lớp phủ khi hover */}
-              <div className="absolute inset-0 bg-green-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="absolute inset-0 bg-red-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             </motion.div>
 
             {/* Thẻ Địa chỉ */}
@@ -251,7 +251,7 @@ export default function Contact() {
             >
               <div className="p-6">
                 <div className="flex items-start gap-4">
-                  <div className="w-14 h-14 rounded-xl bg-linear-to-br from-teal-500 to-green-500 text-white grid place-items-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-red-500 to-rose-500 text-white grid place-items-center shadow-lg group-hover:scale-110 transition-transform duration-300">
                     <MapPin className="w-6 h-6" />
                   </div>
                   <div className="flex-1">
@@ -270,7 +270,7 @@ export default function Contact() {
                 </div>
               </div>
               {/* Lớp phủ khi hover */}
-              <div className="absolute inset-0 bg-teal-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="absolute inset-0 bg-red-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             </motion.div>
 
             {/* Thẻ Mạng xã hội */}
@@ -280,7 +280,7 @@ export default function Contact() {
             >
               <div className="p-6">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-lg bg-linear-to-br from-emerald-500 to-green-500 text-white grid place-items-center shadow-md">
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-red-500 to-rose-500 text-white grid place-items-center shadow-md">
                     <Users className="w-5 h-5" />
                   </div>
                   <h3 className="text-lg font-bold text-gray-900">
@@ -306,7 +306,7 @@ export default function Contact() {
                     },
                     {
                       icon: MessageCircle,
-                      color: "bg-linear-to-br from-green-500 to-emerald-500",
+                      color: "bg-gradient-to-br from-red-500 to-rose-500",
                       label: "Zalo",
                     },
                   ].map((item, idx) => (
@@ -337,9 +337,9 @@ export default function Contact() {
           <motion.div variants={cardVariants} className="lg:col-span-2">
             <div className="group relative bg-white rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300 border border-gray-100">
               {/* Header form */}
-              <div className="bg-linear-to-r from-emerald-500/10 to-green-500/10 p-6 border-b border-emerald-100">
+              <div className="bg-gradient-to-r from-red-500/10 to-rose-500/10 p-6 border-b border-red-100">
                 <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-xl bg-linear-to-br from-emerald-500 to-green-500 text-white grid place-items-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-red-500 to-rose-500 text-white grid place-items-center shadow-lg group-hover:scale-110 transition-transform duration-300">
                     <MessageSquare className="w-6 h-6" />
                   </div>
                   <div>
@@ -367,7 +367,7 @@ export default function Contact() {
                       <input
                         type="text"
                         required
-                        className="w-full px-5 py-3.5 rounded-xl border-2 border-gray-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all duration-300 bg-white hover:border-gray-300"
+                        className="w-full px-5 py-3.5 rounded-xl border-2 border-gray-200 focus:border-red-500 focus:ring-4 focus:ring-red-100 outline-none transition-all duration-300 bg-white hover:border-gray-300"
                         placeholder="Nguyễn Văn A"
                         value={form.contactName}
                         onChange={(e) =>
@@ -386,7 +386,7 @@ export default function Contact() {
                       <input
                         type="email"
                         required
-                        className="w-full px-5 py-3.5 rounded-xl border-2 border-gray-200 focus:border-green-500 focus:ring-4 focus:ring-green-100 outline-none transition-all duration-300 bg-white hover:border-gray-300"
+                        className="w-full px-5 py-3.5 rounded-xl border-2 border-gray-200 focus:border-red-500 focus:ring-4 focus:ring-red-100 outline-none transition-all duration-300 bg-white hover:border-gray-300"
                         placeholder="nguyenvana@example.com"
                         value={form.email}
                         onChange={(e) =>
@@ -407,7 +407,7 @@ export default function Contact() {
                       <input
                         type="tel"
                         required
-                        className="w-full px-5 py-3.5 rounded-xl border-2 border-gray-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all duration-300 bg-white hover:border-gray-300"
+                        className="w-full px-5 py-3.5 rounded-xl border-2 border-gray-200 focus:border-red-500 focus:ring-4 focus:ring-red-100 outline-none transition-all duration-300 bg-white hover:border-gray-300"
                         placeholder="0999888777"
                         value={form.phone}
                         onChange={(e) =>
@@ -423,7 +423,7 @@ export default function Contact() {
                         </div>
                       </label>
                       <select
-                        className="w-full px-5 py-3.5 rounded-xl border-2 border-gray-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all duration-300 bg-white hover:border-gray-300"
+                        className="w-full px-5 py-3.5 rounded-xl border-2 border-gray-200 focus:border-red-500 focus:ring-4 focus:ring-red-100 outline-none transition-all duration-300 bg-white hover:border-gray-300"
                         value={form.branchPreference}
                         onChange={(e) =>
                           setForm({ ...form, branchPreference: e.target.value })
@@ -456,7 +456,7 @@ export default function Contact() {
                       Bằng cách gửi, bạn đồng ý với{" "}
                       <a
                         href="#"
-                        className="text-emerald-600 hover:text-emerald-700 font-medium"
+                        className="text-red-600 hover:text-red-700 font-medium"
                       >
                         Chính sách Bảo mật
                       </a>{" "}
@@ -466,7 +466,7 @@ export default function Contact() {
                     <button
                       type="submit"
                       disabled={isSubmitting}
-                      className="group relative px-8 py-4 rounded-full text-white font-bold bg-linear-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105 disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-3"
+                      className="group relative px-8 py-4 rounded-full text-white font-bold bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105 disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-3"
                     >
                       <span className="relative">
                         {isSubmitting ? "Đang gửi..." : "Gửi tin nhắn"}
@@ -476,7 +476,7 @@ export default function Contact() {
                       )}
 
                       {/* Hiệu ứng nền động */}
-                      <span className="absolute inset-0 rounded-full bg-linear-to-r from-emerald-600 to-green-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10"></span>
+                      <span className="absolute inset-0 rounded-full bg-gradient-to-r from-red-600 to-rose-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10"></span>
                     </button>
                   </div>
                 </form>
@@ -488,7 +488,7 @@ export default function Contact() {
 
       {/* SVG trang trí dưới cùng */}
       <div
-        className="z-20 relative w-full overflow-hidden bg-[#d0fae4]"
+        className="z-20 relative w-full overflow-hidden bg-[#fee2e2]"
         style={{ marginTop: 0, lineHeight: 0 }}
       >
         <Image

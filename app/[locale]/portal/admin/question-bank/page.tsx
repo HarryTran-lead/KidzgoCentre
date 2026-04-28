@@ -25,6 +25,21 @@ function cn(...a: Array<string | false | null | undefined>) {
   return a.filter(Boolean).join(" ");
 }
 
+function formatDate(dateString: string | null | undefined): string {
+  if (!dateString) return "—";
+  try {
+    const date = new Date(dateString);
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    return `${day}/${month}/${year} ${hours}:${minutes}`;
+  } catch {
+    return dateString;
+  }
+}
+
 type QuestionType =
   | "MultipleChoice"
   | "TrueFalse"
@@ -44,7 +59,7 @@ function QuestionTypeBadge({ type }: { type: QuestionType }) {
     Essay: { label: "Tự luận", className: "bg-amber-100 text-amber-700 border-amber-200" },
     FillInBlank: { label: "Điền trống", className: "bg-teal-100 text-teal-700 border-teal-200" },
   };
-  const cfg = map[type];
+  const cfg = map[type] || { label: type || "Unknown", className: "bg-gray-100 text-gray-700 border-gray-200" };
   return <span className={cn("px-2.5 py-1 rounded-full text-xs font-semibold border", cfg.className)}>{cfg.label}</span>;
 }
 
@@ -54,7 +69,7 @@ function DifficultyBadge({ level }: { level: DifficultyLevel }) {
     Medium: { label: "Trung bình", className: "bg-yellow-100 text-yellow-700 border-yellow-200" },
     Hard: { label: "Khó", className: "bg-red-100 text-red-700 border-red-200" },
   };
-  const cfg = map[level];
+  const cfg = map[level] || { label: level || "Unknown", className: "bg-gray-100 text-gray-700 border-gray-200" };
   return <span className={cn("px-2.5 py-1 rounded-full text-xs font-semibold border", cfg.className)}>{cfg.label}</span>;
 }
 
@@ -63,7 +78,7 @@ function StatusBadge({ value }: { value: "Đang hoạt động" | "Tạm dừng"
     "Đang hoạt động": "bg-green-100 text-green-700 border border-green-200",
     "Tạm dừng": "bg-gray-100 text-gray-700 border border-gray-200",
   };
-  return <span className={cn("px-2.5 py-1 rounded-full text-xs font-semibold", map[value])}>{value}</span>;
+  return <span className={cn("px-2.5 py-1 rounded-full text-xs font-semibold", map[value] || "bg-gray-100 text-gray-700 border border-gray-200")}>{value}</span>;
 }
 
 function SortableHeader({ field, currentField, direction, onSort, children, align = "left" }: {
@@ -489,7 +504,16 @@ export default function Page() {
   const handleUpdateQuestion = async (data: QuestionFormData): Promise<boolean> => {
     if (!editingQuestionId) return false;
     try {
-      await updateAdminQuestion(editingQuestionId, { questionText: data.questionText, questionType: data.questionType, options: data.options.filter(o => o.trim()), correctAnswer: data.correctAnswer, points: Number(data.points) || 10, explanation: data.explanation, level: data.level });
+      await updateAdminQuestion(editingQuestionId, { 
+        programId: data.programId,
+        questionText: data.questionText, 
+        questionType: data.questionType, 
+        options: data.options.filter(o => o.trim()), 
+        correctAnswer: data.correctAnswer, 
+        points: Number(data.points) || 10, 
+        explanation: data.explanation, 
+        level: data.level 
+      });
       const { data: refreshed } = await fetchAdminQuestions({ pageNumber: 1, pageSize: 200 });
       setQuestions(refreshed);
       toast({ title: "Thành công", description: "Đã cập nhật câu hỏi!", type: "success" });
@@ -519,7 +543,10 @@ export default function Page() {
   const handleViewDetail = async (row: QuestionRow) => {
     try { setLoadingDetail(true); setShowDetailModal(true); setSelectedQuestionDetail(null);
       const detail = await fetchAdminQuestionDetail(row.id);
-      setSelectedQuestionDetail(detail);
+      setSelectedQuestionDetail({
+        ...detail,
+        programName: courseNameMap[detail.programId] || detail.programName || detail.course,
+      });
     } catch (err: any) { toast({ title: "Lỗi", description: err?.message || "Không thể tải chi tiết.", type: "destructive" }); setShowDetailModal(false); }
     finally { setLoadingDetail(false); }
   };
@@ -769,13 +796,12 @@ ${rows}
                       <td className="py-3 px-6 max-w-xs"><div className="text-sm text-gray-900 line-clamp-2">{c.content}</div></td>
                       <td className="py-3 px-6 text-center"><QuestionTypeBadge type={c.type} /></td>
                       <td className="py-3 px-6 text-center"><DifficultyBadge level={c.difficulty} /></td>
-                      <td className="py-3 px-6"><div className="flex items-center gap-2 text-sm"><BookOpen size={14} className="text-gray-400" /><span className="truncate">{courseNameMap[c.programId] || c.course || "—"}</span></div></td>
+                      <td className="py-3 px-6"><div className="flex items-center gap-2 text-sm"><span className="truncate">{courseNameMap[c.programId] || c.course || "—"}</span></div></td>
                       <td className="py-3 px-6 text-center"><StatusBadge value={c.status} /></td>
                       <td className="py-3 px-6"><div className="flex items-center justify-end gap-1">
                         <button onClick={() => handleViewDetail(c)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 cursor-pointer" title="Xem chi tiết"><Eye size={14} /></button>
                         <button onClick={() => handleOpenEditQuestion(c)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-800 cursor-pointer" title="Sửa"><Pencil size={14} /></button>
                         <button onClick={() => handleDuplicate(c)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-blue-600 cursor-pointer" title="Sao chép"><Copy size={14} /></button>
-                        <button onClick={() => { setSelectedQuestion(c); setShowToggleStatusModal(true); }} className={cn("p-1.5 rounded-lg cursor-pointer", c.status === "Đang hoạt động" ? "hover:bg-gray-100 text-gray-400 hover:text-gray-800" : "hover:bg-red-50 text-gray-400 hover:text-red-600")} title={c.status === "Đang hoạt động" ? "Tạm dừng" : "Kích hoạt"}>{c.status === "Đang hoạt động" ? <PowerOff size={14} /> : <Power size={14} />}</button>
                         <button onClick={() => { setSelectedForDelete(c); setShowDeleteModal(true); }} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 cursor-pointer" title="Xóa"><Trash2 size={14} /></button>
                       </div></td>
                     </tr>
@@ -818,8 +844,8 @@ ${rows}
         title="Xác nhận xóa câu hỏi" message="Hành động này không thể hoàn tác." confirmText="Xóa" cancelText="Hủy" variant="danger" isLoading={isDeleting} />
 
       {showDetailModal && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="relative w-full max-w-3xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => { setShowDetailModal(false); setSelectedQuestionDetail(null); }}>
+          <div className="relative w-full max-w-3xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3"><div className="p-2 rounded-xl bg-white/20"><HelpCircle size={24} className="text-white" /></div><div><h2 className="text-2xl font-bold text-white">Chi tiết câu hỏi</h2><p className="text-sm text-red-100">Thông tin chi tiết về câu hỏi</p></div></div>
@@ -839,7 +865,7 @@ ${rows}
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2"><label className="flex items-center gap-2 text-sm font-semibold text-gray-700"><BookOpen size={16} className="text-red-600" />Chương trình học</label><div className="px-4 py-3 rounded-xl border border-gray-200 bg-white">{selectedQuestionDetail.course || selectedQuestionDetail.programName || "—"}</div></div>
-                    <div className="space-y-2"><label className="flex items-center gap-2 text-sm font-semibold text-gray-700"><Clock size={16} className="text-red-600" />Ngày tạo</label><div className="px-4 py-3 rounded-xl border border-gray-200 bg-white">{selectedQuestionDetail.createdAt || "—"}</div></div>
+                    <div className="space-y-2"><label className="flex items-center gap-2 text-sm font-semibold text-gray-700"><Clock size={16} className="text-red-600" />Ngày tạo</label><div className="px-4 py-3 rounded-xl border border-gray-200 bg-white">{formatDate(selectedQuestionDetail.createdAt)}</div></div>
                   </div>
                   {Array.isArray(selectedQuestionDetail.options) && selectedQuestionDetail.options.length > 0 && (
                     <div className="space-y-2">
