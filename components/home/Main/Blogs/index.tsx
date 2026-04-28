@@ -165,7 +165,7 @@ export default function Blogs() {
   const getTagColor = (tag: string) => {
     const tagLower = tag.toLowerCase();
     if (tagLower === "tips" || tagLower === "kỹ năng" || tagLower.includes("kỹ năng")) {
-      return { bg: "bg-pink-500/10", text: "text-pink-700", border: "border-pink-500/20" };
+      return { bg: "bg-red-500/10", text: "text-red-700", border: "border-red-500/20" };
     }
     if (tagLower === "news" || tagLower === "tin tức" || tagLower.includes("tin")) {
       return { bg: "bg-blue-500/10", text: "text-blue-700", border: "border-blue-500/20" };
@@ -186,9 +186,9 @@ export default function Blogs() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-pink-50 via-rose-50 to-pink-100 mt-30">
+    <div className="min-h-screen bg-gradient-to-b from-red-50 via-rose-50 to-red-100 mt-30">
       {/* Main Content */}
-      <div className="relative z-20 w-full px-4 sm:px-6 lg:px-8 py-12 sm:py-16 -mt-40 bg-linear-to-b from-pink-50 via-rose-50 to-pink-100 rounded-t-3xl shadow-2xl">
+      <div className="relative z-20 w-full px-4 sm:px-6 lg:px-8 py-12 sm:py-16 -mt-40 bg-gradient-to-b from-red-50 via-rose-50 to-red-100 rounded-t-3xl shadow-2xl">
         {/* Search & Filter */}
         <motion.div
           initial="hidden"
@@ -204,11 +204,11 @@ export default function Blogs() {
               placeholder={locale === "vi" ? "Tìm kiếm bài viết..." : "Search articles..."}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-12 pr-12 py-3 rounded-xl border-2 border-gray-200 bg-white text-base hover:border-pink-500/50 focus:border-pink-400 outline-none transition-all duration-300 shadow-sm"
+              className="w-full pl-12 pr-12 py-3 rounded-xl border-2 border-gray-200 bg-white text-base hover:border-red-500/50 focus:border-red-400 outline-none transition-all duration-300 shadow-sm"
             />
             {searchTerm !== debouncedSearchTerm && searchTerm !== "" && (
               <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                <div className="w-4 h-4 border-2 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
+                <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
               </div>
             )}
           </div>
@@ -219,7 +219,7 @@ export default function Blogs() {
               onClick={() => setSelectedTag("all")}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
                 selectedTag === "all"
-                  ? "bg-pink-600 text-white shadow-lg"
+                  ? "bg-red-600 text-white shadow-lg"
                   : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-200"
               }`}
             >
@@ -263,7 +263,7 @@ export default function Blogs() {
         {/* Blog Grid */}
         {loading ? (
           <div className="flex items-center justify-center py-16">
-            <div className="w-12 h-12 border-4 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
+            <div className="w-12 h-12 border-4 border-red-500 border-t-transparent rounded-full animate-spin"></div>
           </div>
         ) : filteredBlogs.length > 0 ? (
           <>
@@ -290,7 +290,7 @@ export default function Blogs() {
                   onClick={() => handleBlogClick(blog)}
                   className="group relative bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 cursor-pointer"
                 >
-                  <div className="relative h-48 sm:h-56 overflow-hidden bg-linear-to-br from-pink-100 to-rose-100">
+                  <div className="relative h-48 sm:h-56 overflow-hidden bg-gradient-to-br from-red-100 to-rose-100">
                     {blog.featuredImageUrl ? (
                       <img
                         src={buildFileUrl(blog.featuredImageUrl)}
@@ -305,7 +305,7 @@ export default function Blogs() {
                     ) : null}
                     {/* Fallback background when no image */}
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <BookOpen className="w-16 h-16 text-pink-300" />
+                      <BookOpen className="w-16 h-16 text-red-300" />
                     </div>
                     <div className="absolute inset-0 bg-linear-to-t from-black/60 via-black/20 to-transparent" />
                     
@@ -318,14 +318,14 @@ export default function Blogs() {
 
                     {/* Hover overlay */}
                     <motion.div
-                      className="absolute inset-0 bg-pink-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                      className="absolute inset-0 bg-red-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                       initial={false}
                     />
                   </div>
 
                   {/* Content */}
                   <div className="p-6">
-                    <h3 className="text-xl font-bold text-gray-900 mb-3 line-clamp-2 group-hover:text-pink-600 transition-colors">
+                    <h3 className="text-xl font-bold text-gray-900 mb-3 line-clamp-2 group-hover:text-red-600 transition-colors">
                       {blog.title}
                     </h3>
                     
@@ -353,7 +353,7 @@ export default function Blogs() {
                         e.stopPropagation();
                         handleBlogClick(blog);
                       }}
-                      className="inline-flex items-center gap-2 text-pink-600 font-semibold text-sm hover:gap-3 transition-all group/readmore"
+                      className="inline-flex items-center gap-2 text-red-600 font-semibold text-sm hover:gap-3 transition-all group/readmore"
                     >
                       <span>{locale === "vi" ? "Đọc thêm" : "Read more"}</span>
                       <ArrowRight className="w-4 h-4 group-hover/readmore:translate-x-1 transition-transform" />
@@ -375,7 +375,7 @@ export default function Blogs() {
                 <button
                   onClick={goToPrevPage}
                   disabled={currentPage === 0}
-                  className="p-3 rounded-xl bg-white border-2 border-pink-200 text-pink-600 hover:bg-pink-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md"
+                  className="p-3 rounded-xl bg-white border-2 border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md"
                   aria-label={locale === "vi" ? "Trang trước" : "Previous page"}
                 >
                   <ChevronLeft className="w-5 h-5" />
@@ -388,8 +388,8 @@ export default function Blogs() {
                       onClick={() => setCurrentPage(index)}
                       className={`w-10 h-10 rounded-xl font-semibold transition-all ${
                         currentPage === index
-                          ? "bg-pink-600 text-white shadow-lg scale-110"
-                          : "bg-white border-2 border-pink-200 text-pink-600 hover:bg-pink-50 hover:border-pink-300"
+                          ? "bg-red-600 text-white shadow-lg scale-110"
+                          : "bg-white border-2 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
                       }`}
                     >
                       {index + 1}
@@ -400,7 +400,7 @@ export default function Blogs() {
                 <button
                   onClick={goToNextPage}
                   disabled={currentPage === totalPages - 1}
-                  className="p-3 rounded-xl bg-white border-2 border-pink-200 text-pink-600 hover:bg-pink-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md"
+                  className="p-3 rounded-xl bg-white border-2 border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md"
                   aria-label={locale === "vi" ? "Trang sau" : "Next page"}
                 >
                   <ChevronRight className="w-5 h-5" />
@@ -430,8 +430,8 @@ export default function Blogs() {
             variants={fadeInUp}
             className="text-center py-16"
           >
-            <div className="w-20 h-20 bg-pink-50 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Search className="w-10 h-10 text-pink-300" />
+            <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Search className="w-10 h-10 text-red-300" />
             </div>
             <h3 className="text-xl font-semibold text-gray-700 mb-2">
               {locale === "vi" ? "Không tìm thấy bài viết" : "No articles found"}
@@ -447,7 +447,7 @@ export default function Blogs() {
       </div>
 
       {/* Bottom Decoration SVG */}
-      <div className="z-20  relative w-full overflow-hidden bg-[#fce8f3]" style={{ marginTop: 0, lineHeight: 0 }}>
+      <div className="z-20  relative w-full overflow-hidden bg-[#fee2e2]" style={{ marginTop: 0, lineHeight: 0 }}>
         <Image
           src="/image/hero-deluxe-end.svg"
           alt=""

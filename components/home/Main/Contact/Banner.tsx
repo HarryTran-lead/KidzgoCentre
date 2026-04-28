@@ -32,7 +32,7 @@ export default function BannerContact() {
 
   return (
     <header 
-      className="relative overflow-hidden bg-linear-to-br from-emerald-500 via-green-400 to-emerald-400 pb-16 sm:pb-20 sticky top-0 pt-24 z-10"
+      className="relative overflow-hidden bg-gradient-to-br from-red-600 via-red-500 to-rose-600 pb-16 sm:pb-20 sticky top-0 pt-24 z-10"
       style={{ opacity }}
     >
       {/* Hiệu ứng nền */}
@@ -57,7 +57,7 @@ export default function BannerContact() {
             {/* Tiêu đề */}
             <div>
               <h1 className="text-3xl sm:text-4xl md:text-[40px] font-black text-white leading-tight mb-3 drop-shadow-lg">
-                Hãy <span className="text-emerald-200">Kết Nối</span> &{" "}
+                Hãy <span className="text-red-200">Kết Nối</span> &{" "}
                 <span className="text-amber-300">
                   Cùng Phát Triển
                 </span>

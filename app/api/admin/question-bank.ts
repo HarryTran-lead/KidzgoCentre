@@ -91,6 +91,16 @@ function normalizeBooleanFlag(value: any): boolean | null {
     return null;
 }
 
+function convertLevelToDifficulty(level: any): DifficultyLevel {
+    // API trả về: 0 = Easy, 1 = Medium, 2 = Hard
+    if (typeof level === "number") {
+        return level === 0 ? "Easy" : level === 2 ? "Hard" : "Medium";
+    }
+    // Nếu là text rồi thì return như là
+    if (level === "Easy" || level === "Medium" || level === "Hard") return level;
+    return "Medium";
+}
+
 interface FetchOptions {
     pageNumber?: number;
     pageSize?: number;
@@ -119,16 +129,8 @@ function mapRow(item: any): QuestionRow {
         : questionType === "ESSAY" || questionType === "Essay" ? "Essay"
         : questionType === "FILL_IN_BLANK" || questionType === "FillInBlank" ? "FillInBlank"
         : "MultipleChoice";
-    const levelNum =
-        typeof item?.level === "number" ? item.level
-        : item?.difficulty === "Easy" ? 0
-        : item?.difficulty === "Medium" ? 1
-        : item?.difficulty === "Hard" ? 2
-        : 1;
-    const difficulty: DifficultyLevel =
-        levelNum === 0 ? "Easy"
-        : levelNum === 2 ? "Hard"
-        : "Medium";
+    const difficulty = convertLevelToDifficulty(item?.level ?? item?.difficulty);
+    console.log(`🔧 mapRow - Raw level: ${item?.level}, raw difficulty: ${item?.difficulty}, mapped: ${difficulty}`);
     const category = item?.category ?? item?.categoryName ?? item?.subject ?? "";
     const programId = String(item?.programId ?? item?.program_id ?? "");
     const course = item?.programName ?? item?.courseName ?? item?.course ?? "";
@@ -153,6 +155,7 @@ export async function fetchAdminQuestions(options: FetchOptions = {}): Promise<{
         throw new Error(j?.message ?? j?.error ?? "Không thể tải danh sách câu hỏi.");
     }
     const json = await res.json();
+    console.log("📦 API Response:", json);
     let items: any[] = []; let total = 0;
     if (Array.isArray(json?.data?.items?.items)) {
         items = json.data.items.items;
@@ -162,7 +165,11 @@ export async function fetchAdminQuestions(options: FetchOptions = {}): Promise<{
     else if (Array.isArray(json?.data?.questions?.items)) { items = json.data.questions.items; total = json.data.questions.totalCount ?? items.length; }
     else if (Array.isArray(json?.data)) { items = json.data; total = items.length; }
     else if (Array.isArray(json)) { items = json; total = items.length; }
-    return { data: items.map(mapRow).filter((c: QuestionRow) => c.id), total };
+    console.log("📋 Items after extraction:", items);
+    console.log("🔍 First item detail:", items[0]);
+    const mapped = items.map(mapRow).filter((c: QuestionRow) => c.id);
+    console.log("✅ Mapped data:", mapped);
+    return { data: mapped, total };
 }
 
 export async function fetchAdminQuestionDetail(questionId: string): Promise<QuestionDetail> {
@@ -178,8 +185,9 @@ export async function fetchAdminQuestionDetail(questionId: string): Promise<Ques
     }
     const json = await res.json();
     const item = json?.data ?? json;
+    const mapped = mapRow(item);
     return {
-        ...mapRow(item),
+        ...mapped,
         options: item?.options ?? item?.answers ?? [],
         correctAnswer: item?.correctAnswer ?? item?.correct_answer ?? item?.correctAnswer ?? "",
         explanation: item?.explanation ?? "",
@@ -191,7 +199,7 @@ export async function fetchAdminQuestionDetail(questionId: string): Promise<Ques
         updatedBy: item?.updatedBy ?? "",
         questionText: item?.questionText ?? item?.content ?? "",
         questionType: item?.questionType ?? item?.type ?? "MultipleChoice",
-        level: item?.level ?? item?.difficulty ?? "Medium",
+        level: mapped.difficulty,
     };
 }
 
@@ -224,6 +232,7 @@ export async function createAdminQuestion(payload: {
 }
 
 export async function updateAdminQuestion(questionId: string, payload: {
+    programId?: string;
     questionText?: string;
     questionType?: QuestionType;
     options?: string[];
@@ -231,6 +240,13 @@ export async function updateAdminQuestion(questionId: string, payload: {
     points?: number;
     explanation?: string;
     level?: DifficultyLevel;
+    imageUrls?: string[];
+    videoUrls?: string[];
+    audioUrls?: string[];
+    topic?: string | null;
+    skill?: string | null;
+    grammarTags?: string[];
+    vocabularyTags?: string[];
 }): Promise<void> {
     const token = getAccessToken();
     if (!token) throw new Error("Bạn chưa đăng nhập.");

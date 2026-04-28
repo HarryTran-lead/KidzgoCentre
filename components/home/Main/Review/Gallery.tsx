@@ -1,11 +1,12 @@
 // components/sections/Gallery.tsx  (CLIENT)
 "use client";
 
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { Image as ImageIcon, ChevronLeft, ChevronRight, Star } from "lucide-react";
 import { motion, useMotionValue, useSpring } from "framer-motion";
 import { GALLERY } from "@/lib/data/data";
 import { ACCENT_TEXT } from "@/lib/theme/theme";
+import "@/styles/animations.css";
 
 const AUTO_MS = 4000;
 
@@ -16,14 +17,16 @@ export default function Gallery() {
   const titleRef = useRef<HTMLDivElement>(null);
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
+  const [showMouseGradient, setShowMouseGradient] = useState(false);
   
   const springX = useSpring(mouseX, { stiffness: 150, damping: 15 });
   const springY = useSpring(mouseY, { stiffness: 150, damping: 15 });
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    setShowMouseGradient(true);
     mouseX.set(e.clientX);
     mouseY.set(e.clientY);
-  };
+  }, [mouseX, mouseY]);
 
   useEffect(() => {
     if (images.length === 0) return;
@@ -109,70 +112,44 @@ export default function Gallery() {
       className="py-20 pb-0 scroll-mt-24  bg-[#8ED462] relative z-30 overflow-hidden"
       onMouseMove={handleMouseMove}
     >
-      {/* Animated gradient orbs */}
+      {/* Animated gradient orbs - Using CSS animations */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <motion.div
-          className="absolute top-1/4 left-1/4 w-96 h-96 bg-linear-to-r from-white/10 to-white/5 rounded-full"
-          animate={{
-            scale: [1, 1.2, 1],
-            x: [0, 30, 0],
-            y: [0, -30, 0],
-          }}
-          transition={{
-            duration: 8,
-            repeat: Infinity,
-            ease: "easeInOut"
-          }}
+        <div
+          className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-r from-white/10 to-white/5 rounded-full animate-float-up-down"
         />
-        <motion.div
-          className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-linear-to-r from-white/10 to-white/5 rounded-full"
-          animate={{
-            scale: [1, 1.1, 1],
-            x: [0, -20, 0],
-            y: [0, 20, 0],
-          }}
-          transition={{
-            duration: 10,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 1
-          }}
+        <div
+          className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-gradient-to-r from-white/10 to-white/5 rounded-full animate-float-down-up"
         />
       </div>
 
-      {/* Floating particles */}
+      {/* Floating particles - Reduced from 20 to 8 */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(20)].map((_, i) => (
-          <motion.div
+        {[...Array(8)].map((_, i) => (
+          <div
             key={i}
-            className="absolute w-2 h-2 bg-white/30 rounded-full"
+            className="absolute w-2 h-2 bg-white/30 rounded-full animate-float-particle"
             style={{
-              left: `${(i * 7) % 100}%`,
-              top: `${(i * 10) % 100}%`,
-            }}
-            animate={{
-              y: [0, -40, 0],
-              opacity: [0.2, 0.8, 0.2],
-            }}
-            transition={{
-              duration: 4 + i * 0.3,
-              repeat: Infinity,
-              delay: i * 0.2,
+              left: `${(i * 13) % 100}%`,
+              top: `${(i * 13) % 100}%`,
+              animationDelay: `${i * 0.5}s`,
+              animationDuration: `${4 + i * 0.5}s`,
             }}
           />
         ))}
       </div>
 
-      {/* Mouse follow gradient */}
-      <motion.div
-        className="absolute w-96 h-96 rounded-full bg-linear-to-r from-white/5 via-white/5 to-white/5 blur-3xl pointer-events-none"
-        style={{
-          x: springX,
-          y: springY,
-          translateX: "-50%",
-          translateY: "-50%",
-        }}
-      />
+      {/* Mouse follow gradient - Optional for better performance */}
+      {showMouseGradient && (
+        <motion.div
+          className="absolute w-96 h-96 rounded-full bg-gradient-to-r from-white/5 via-white/5 to-white/5 blur-3xl pointer-events-none"
+          style={{
+            x: springX,
+            y: springY,
+            translateX: "-50%",
+            translateY: "-50%",
+          }}
+        />
+      )}
 
       <div className="mx-auto max-w-6xl px-6 relative z-10">
         {/* Header */}

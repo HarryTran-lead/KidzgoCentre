@@ -53,7 +53,7 @@ export default function BlogDetailModal({
               className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden my-8"
             >
               {/* Header with Featured Image */}
-              <div className="relative h-64 sm:h-80 overflow-hidden bg-linear-to-br from-pink-100 to-rose-100">
+              <div className="relative h-64 sm:h-80 overflow-hidden bg-gradient-to-br from-red-100 to-rose-100">
                 {blog.featuredImageUrl ? (
                   <img
                     src={buildFileUrl(blog.featuredImageUrl)}
@@ -81,7 +81,7 @@ export default function BlogDetailModal({
                     {blog.tags && blog.tags.length > 0 && blog.tags.map((tag) => (
                       <span
                         key={tag}
-                        className="px-3 py-1 rounded-lg text-xs font-semibold bg-white/90 text-pink-600 backdrop-blur-sm"
+                        className="px-3 py-1 rounded-lg text-xs font-semibold bg-white/90 text-red-600 backdrop-blur-sm"
                       >
                         {tag}
                       </span>
@@ -111,7 +111,7 @@ export default function BlogDetailModal({
               <div className="p-6 sm:p-8 overflow-y-auto max-h-[calc(90vh-320px)] sm:max-h-[calc(90vh-384px)]">
                 {/* Summary */}
                 {blog.summary && (
-                  <div className="mb-6 p-4 bg-pink-50 border-l-4 border-pink-500 rounded-r-lg">
+                  <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-r-lg">
                     <p className="text-lg text-gray-700 leading-relaxed italic">
                       {blog.summary}
                     </p>
@@ -125,22 +125,22 @@ export default function BlogDetailModal({
                     prose-h2:text-2xl prose-h2:mt-8 prose-h2:mb-4
                     prose-h3:text-xl prose-h3:mt-6 prose-h3:mb-3
                     prose-p:text-gray-700 prose-p:leading-relaxed prose-p:mb-4
-                    prose-a:text-pink-600 prose-a:no-underline hover:prose-a:underline
+                    prose-a:text-red-600 prose-a:no-underline hover:prose-a:underline
                     prose-strong:text-gray-900 prose-strong:font-semibold
                     prose-ul:my-4 prose-ul:list-disc prose-ul:list-inside
                     prose-ol:my-4 prose-ol:list-decimal prose-ol:list-inside
                     prose-li:text-gray-700 prose-li:mb-2
-                    prose-blockquote:border-l-4 prose-blockquote:border-pink-500 
+                    prose-blockquote:border-l-4 prose-blockquote:border-red-500 
                     prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:text-gray-600
                     prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded
-                    prose-code:text-pink-600 prose-code:font-mono prose-code:text-sm"
+                    prose-code:text-red-600 prose-code:font-mono prose-code:text-sm"
                   dangerouslySetInnerHTML={{ __html: blog.content }}
                 />
 
                 {/* Author Info */}
                 <div className="mt-8 pt-6 border-t border-gray-200">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-linear-to-br from-pink-400 to-rose-400 flex items-center justify-center text-white font-bold text-lg">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-red-400 to-rose-400 flex items-center justify-center text-white font-bold text-lg">
                       {(blog.createdByName || "K")[0].toUpperCase()}
                     </div>
                     <div>
