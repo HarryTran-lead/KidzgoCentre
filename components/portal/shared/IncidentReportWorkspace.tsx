@@ -87,7 +87,7 @@ const CATEGORY_COLOR: Record<IncidentReportCategory, string> = {
   Student: "bg-pink-100 text-pink-700 border-pink-200",
   TeachingMaterial: "bg-cyan-100 text-cyan-700 border-cyan-200",
   TeachingSchedule: "bg-indigo-100 text-indigo-700 border-indigo-200",
-  Equipment: "bg-orange-100 text-orange-700 border-orange-200",
+  Equipment: "bg-red-100 text-red-700 border-red-200",
   System: "bg-red-100 text-red-700 border-red-200",
   Academic: "bg-emerald-100 text-emerald-700 border-emerald-200",
   Finance: "bg-yellow-100 text-yellow-700 border-yellow-200",
@@ -99,7 +99,7 @@ const CATEGORY_COLOR: Record<IncidentReportCategory, string> = {
 const STATUSES: IncidentReportStatus[] = ["Open", "InProgress", "Resolved", "Closed", "Rejected"];
 
 const STATUS_MAP: Record<IncidentReportStatus, { label: string; color: string; icon: typeof Clock }> = {
-  Open: { label: "Mở", color: "bg-amber-100 text-amber-700 border-amber-200", icon: AlertTriangle },
+  Open: { label: "Mở", color: "bg-red-100 text-red-700 border-red-200", icon: AlertTriangle },
   InProgress: { label: "Đang xử lý", color: "bg-blue-100 text-blue-700 border-blue-200", icon: ArrowRightCircle },
   Resolved: { label: "Đã giải quyết", color: "bg-green-100 text-green-700 border-green-200", icon: CheckCircle2 },
   Closed: { label: "Đã đóng", color: "bg-gray-100 text-gray-500 border-gray-200", icon: XCircle },
@@ -114,7 +114,7 @@ const COMMENT_TYPE_LABEL: Record<IncidentReportCommentType, string> = {
 
 const COMMENT_TYPE_COLOR: Record<IncidentReportCommentType, string> = {
   AdditionalInfo: "bg-blue-100 text-blue-700",
-  Evidence: "bg-amber-100 text-amber-700",
+  Evidence: "bg-red-100 text-red-700",
   ProcessingNote: "bg-emerald-100 text-emerald-700",
 };
 
@@ -143,7 +143,7 @@ function CategoryBadge({ category }: { category: IncidentReportCategory }) {
 function InfoRow({ icon: Icon, label, value }: { icon: typeof User; label: string; value: string }) {
   return (
     <div className="flex items-start gap-2.5">
-      <Icon size={16} className="text-amber-500 mt-0.5 shrink-0" />
+      <Icon size={16} className="text-red-600 mt-0.5 shrink-0" />
       <div>
         <div className="text-xs text-gray-500">{label}</div>
         <div className="text-sm text-gray-900 font-medium">{value}</div>
@@ -237,7 +237,7 @@ function CreateIncidentModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
       <div ref={modalRef} className="relative w-full max-w-2xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
         {/* header */}
-        <div className="bg-gradient-to-r from-amber-500 to-orange-600 p-6">
+        <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-white/20">
@@ -245,7 +245,7 @@ function CreateIncidentModal({
               </div>
               <div>
                 <h2 className="text-xl font-bold text-white">Tạo báo cáo sự cố</h2>
-                <p className="text-sm text-amber-100">Mô tả chi tiết sự cố cần xử lý</p>
+                <p className="text-sm text-red-100">Mô tả chi tiết sự cố cần xử lý</p>
               </div>
             </div>
             <button onClick={onClose} disabled={loading} className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer">
@@ -260,7 +260,7 @@ function CreateIncidentModal({
           <div className="space-y-1">
             <label className="text-sm font-semibold text-gray-700">Chi nhánh <span className="text-red-500">*</span></label>
             <Select value={branchId} onValueChange={setBranchId}>
-              <SelectTrigger className="w-full rounded-xl border border-amber-200 bg-white text-sm transition-all hover:border-amber-300 focus:border-amber-400 focus:ring-2 focus:ring-amber-200 data-[state=open]:border-amber-400 data-[state=open]:ring-2 data-[state=open]:ring-amber-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
+              <SelectTrigger className="w-full rounded-xl border border-red-200 bg-white text-sm transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 data-[state=open]:border-red-400 data-[state=open]:ring-2 data-[state=open]:ring-red-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
                 <SelectValue placeholder="— Chọn chi nhánh —" />
               </SelectTrigger>
               <SelectContent>{branches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
@@ -287,7 +287,7 @@ function CreateIncidentModal({
           <div className="space-y-1">
             <label className="text-sm font-semibold text-gray-700">Tiêu đề <span className="text-red-500">*</span></label>
             <input
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-400 transition-all"
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 transition-all"
               value={subject} onChange={e => setSubject(e.target.value)} maxLength={200}
               placeholder="Mô tả ngắn gọn sự cố"
             />
@@ -297,7 +297,7 @@ function CreateIncidentModal({
           <div className="space-y-1">
             <label className="text-sm font-semibold text-gray-700">Nội dung chi tiết <span className="text-red-500">*</span></label>
             <textarea
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-400 resize-none transition-all"
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 resize-none transition-all"
               rows={4} value={message} onChange={e => setMessage(e.target.value)} maxLength={2000}
               placeholder="Mô tả chi tiết sự cố xảy ra, bao gồm thời gian, địa điểm, tình huống..."
             />
@@ -307,7 +307,7 @@ function CreateIncidentModal({
           <div className="space-y-1">
             <label className="text-sm font-semibold text-gray-700">Link minh chứng <span className="text-gray-400 font-normal">(tùy chọn)</span></label>
             <input
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-400 transition-all"
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 transition-all"
               value={evidenceUrl} onChange={e => setEvidenceUrl(e.target.value)}
               placeholder="https://cdn.example.com/evidence/..."
             />
@@ -315,11 +315,11 @@ function CreateIncidentModal({
         </div>
 
         {/* footer */}
-        <div className="border-t border-gray-200 bg-gradient-to-r from-amber-500/5 to-orange-600/5 p-4 flex justify-end gap-3">
+        <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-4 flex justify-end gap-3">
           <button onClick={onClose} disabled={loading} className="px-5 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer">Hủy</button>
           <button
             onClick={handleSubmit} disabled={loading}
-            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-semibold hover:shadow-lg transition-all cursor-pointer disabled:opacity-70"
+            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg transition-all cursor-pointer disabled:opacity-70"
           >
             {loading ? "Đang tạo..." : "Tạo báo cáo"}
           </button>
@@ -453,7 +453,7 @@ function DetailPanel({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
       <div ref={modalRef} className="relative w-full max-w-2xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div className="bg-gradient-to-r from-amber-500 to-orange-600 p-6 shrink-0">
+        <div className="bg-gradient-to-r from-red-600 to-red-700 p-6 shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-white/20">
@@ -461,7 +461,7 @@ function DetailPanel({
               </div>
               <div>
                 <h2 className="text-xl font-bold text-white">Chi tiết sự cố</h2>
-                {detail && <p className="text-sm text-amber-100">{CATEGORY_LABEL[detail.category]}</p>}
+                {detail && <p className="text-sm text-red-100">{CATEGORY_LABEL[detail.category]}</p>}
               </div>
             </div>
             <button onClick={onClose} className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer">
@@ -471,7 +471,7 @@ function DetailPanel({
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-20"><Loader2 size={32} className="animate-spin text-amber-500" /></div>
+          <div className="flex items-center justify-center py-20"><Loader2 size={32} className="animate-spin text-red-600" /></div>
         ) : detail ? (
           <div className="p-6 overflow-y-auto space-y-5 flex-1">
             {/* Status + Category badges */}
@@ -499,8 +499,8 @@ function DetailPanel({
             </div>
 
             {/* Message */}
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-              <div className="text-xs font-semibold text-amber-700 mb-1.5">Nội dung sự cố</div>
+            <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+              <div className="text-xs font-semibold text-red-700 mb-1.5">Nội dung sự cố</div>
               <div className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{detail.message}</div>
             </div>
 
@@ -513,8 +513,8 @@ function DetailPanel({
 
             {/* Admin Actions */}
             {isAdmin && (
-              <div className="rounded-xl border border-amber-200 bg-gradient-to-br from-amber-50/50 to-orange-50/50 p-5 space-y-4">
-                <h4 className="font-bold text-sm text-amber-800 flex items-center gap-2">
+              <div className="rounded-xl border border-red-200 bg-gradient-to-br from-red-50/50 to-red-50/50 p-5 space-y-4">
+                <h4 className="font-bold text-sm text-red-800 flex items-center gap-2">
                   <ShieldAlert size={16} /> Hành động quản trị
                 </h4>
 
@@ -523,7 +523,7 @@ function DetailPanel({
                   <label className="text-xs font-semibold text-gray-600">Phân công xử lý</label>
                   <div className="flex gap-2">
                     <Select value={assignUserId} onValueChange={setAssignUserId}>
-                      <SelectTrigger className="flex-1 rounded-xl border border-amber-200 bg-white text-sm transition-all hover:border-amber-300 focus:border-amber-400 focus:ring-2 focus:ring-amber-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
+                      <SelectTrigger className="flex-1 rounded-xl border border-red-200 bg-white text-sm transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
                         <SelectValue placeholder="— Chọn người xử lý —" />
                       </SelectTrigger>
                       <SelectContent>
@@ -534,7 +534,7 @@ function DetailPanel({
                     </Select>
                     <button
                       onClick={handleAssign} disabled={!assignUserId || assignLoading}
-                      className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white text-xs font-semibold hover:shadow-lg disabled:opacity-50 flex items-center gap-1.5 transition-all cursor-pointer"
+                      className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white text-xs font-semibold hover:shadow-lg disabled:opacity-50 flex items-center gap-1.5 transition-all cursor-pointer"
                     >
                       {assignLoading ? <Loader2 size={14} className="animate-spin" /> : <UserCheck size={14} />} Gán
                     </button>
@@ -547,7 +547,7 @@ function DetailPanel({
                     <label className="text-xs font-semibold text-gray-600">Cập nhật trạng thái</label>
                     <div className="flex gap-2">
                       <Select value={newStatus} onValueChange={v => setNewStatus(v as IncidentReportStatus)}>
-                        <SelectTrigger className="flex-1 rounded-xl border border-amber-200 bg-white text-sm transition-all hover:border-amber-300 focus:border-amber-400 focus:ring-2 focus:ring-amber-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
+                        <SelectTrigger className="flex-1 rounded-xl border border-red-200 bg-white text-sm transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
                           <SelectValue placeholder="— Chọn trạng thái mới —" />
                         </SelectTrigger>
                         <SelectContent>
@@ -571,7 +571,7 @@ function DetailPanel({
             {/* Comments */}
             <div className="space-y-3">
               <h4 className="font-bold text-gray-900 flex items-center gap-2">
-                <MessageSquare size={16} className="text-amber-500" /> Bình luận ({detail.comments?.length || 0})
+                <MessageSquare size={16} className="text-red-600" /> Bình luận ({detail.comments?.length || 0})
               </h4>
               {detail.comments?.length ? (
                 <div className="space-y-3">
@@ -584,7 +584,7 @@ function DetailPanel({
                     )}>
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
-                          <span className="w-7 h-7 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
+                          <span className="w-7 h-7 rounded-full bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center">
                             <User size={14} className="text-white" />
                           </span>
                           <span className="font-semibold text-gray-800">{c.commenterUserName}</span>
@@ -629,18 +629,18 @@ function DetailPanel({
                 ))}
               </div>
               <textarea
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-400 resize-none transition-all"
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 resize-none transition-all"
                 rows={3} value={commentMsg} onChange={e => setCommentMsg(e.target.value)} maxLength={2000}
                 placeholder="Nhập nội dung bình luận..."
               />
               <input
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-400 transition-all"
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 transition-all"
                 value={commentAttachment} onChange={e => setCommentAttachment(e.target.value)}
                 placeholder="Link đính kèm (không bắt buộc)"
               />
               <button
                 onClick={handleAddComment} disabled={submittingComment || !commentMsg.trim()}
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white text-sm font-semibold hover:shadow-lg disabled:opacity-50 flex items-center gap-2 transition-all cursor-pointer"
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white text-sm font-semibold hover:shadow-lg disabled:opacity-50 flex items-center gap-2 transition-all cursor-pointer"
               >
                 {submittingComment ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />} Gửi bình luận
               </button>
@@ -680,12 +680,12 @@ function StatisticsCards({ branchId, isPageLoaded }: { branchId?: string | null;
 
   const cards = [
     { label: "Tổng", value: stats.total, icon: FileText, bg: "bg-gray-100", fg: "text-gray-600" },
-    { label: "Mở", value: stats.open, icon: AlertTriangle, bg: "bg-amber-100", fg: "text-amber-600" },
+    { label: "Mở", value: stats.open, icon: AlertTriangle, bg: "bg-red-100", fg: "text-red-600" },
     { label: "Đang xử lý", value: stats.inProgress, icon: ArrowRightCircle, bg: "bg-blue-100", fg: "text-blue-600" },
     { label: "Đã giải quyết", value: stats.resolved, icon: CheckCircle2, bg: "bg-green-100", fg: "text-green-600" },
     { label: "Đã đóng", value: stats.closed, icon: XCircle, bg: "bg-gray-100", fg: "text-gray-500" },
     { label: "Từ chối", value: stats.rejected, icon: XCircle, bg: "bg-red-100", fg: "text-red-600" },
-    { label: "Chưa gán", value: stats.unassigned, icon: UserCheck, bg: "bg-orange-100", fg: "text-orange-600" },
+    { label: "Chưa gán", value: stats.unassigned, icon: UserCheck, bg: "bg-red-100", fg: "text-red-600" },
   ];
 
   return (
@@ -767,7 +767,7 @@ export default function IncidentReportWorkspace({ isAdmin = false }: { isAdmin?:
         {/* Header */}
         <div className={cn("flex flex-col md:flex-row md:items-center md:justify-between gap-4 transition-all duration-700", isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4")}>
           <div className="flex items-center gap-3">
-            <div className="p-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 shadow-lg">
+            <div className="p-3 rounded-xl bg-gradient-to-r from-red-600 to-red-700 shadow-lg">
               <AlertTriangle className="text-white" size={24} />
             </div>
             <div>
@@ -782,7 +782,7 @@ export default function IncidentReportWorkspace({ isAdmin = false }: { isAdmin?:
           </div>
           <button
             onClick={() => setShowCreate(true)}
-            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:shadow-lg text-white font-semibold cursor-pointer transition-all hover:scale-105 active:scale-95"
+            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:shadow-lg text-white font-semibold cursor-pointer transition-all hover:scale-105 active:scale-95"
           >
             <Plus size={18} /> Tạo báo cáo
           </button>
@@ -792,7 +792,7 @@ export default function IncidentReportWorkspace({ isAdmin = false }: { isAdmin?:
         {isAdmin && <StatisticsCards branchId={selectedBranchId} isPageLoaded={isPageLoaded} />}
 
         {/* Filters */}
-        <div className={cn("rounded-2xl border border-amber-200 bg-gradient-to-br from-white to-amber-50 p-4 transition-all duration-700 delay-100", isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4")}>
+        <div className={cn("rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100", isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4")}>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
@@ -800,12 +800,12 @@ export default function IncidentReportWorkspace({ isAdmin = false }: { isAdmin?:
                 value={keyword}
                 onChange={e => { setKeyword(e.target.value); setPage(1); }}
                 placeholder="Tìm theo tiêu đề, nội dung..."
-                className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-300"
+                className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-300"
               />
             </div>
             <div className="flex flex-wrap items-center gap-4 sm:flex-nowrap">
               <Select value={statusFilter} onValueChange={v => { setStatusFilter(v as IncidentReportStatus | "ALL"); setPage(1); }}>
-                <SelectTrigger className="w-full sm:w-auto h-10 px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-700 transition-all hover:border-amber-300 focus:border-amber-400 focus:ring-2 focus:ring-amber-200 data-[state=open]:border-amber-400 data-[state=open]:ring-2 data-[state=open]:ring-amber-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
+                <SelectTrigger className="w-full sm:w-auto h-10 px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-700 transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 data-[state=open]:border-red-400 data-[state=open]:ring-2 data-[state=open]:ring-red-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -814,7 +814,7 @@ export default function IncidentReportWorkspace({ isAdmin = false }: { isAdmin?:
                 </SelectContent>
               </Select>
               <Select value={categoryFilter} onValueChange={v => { setCategoryFilter(v as IncidentReportCategory | "ALL"); setPage(1); }}>
-                <SelectTrigger className="w-full sm:w-auto h-10 px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-700 transition-all hover:border-amber-300 focus:border-amber-400 focus:ring-2 focus:ring-amber-200 data-[state=open]:border-amber-400 data-[state=open]:ring-2 data-[state=open]:ring-amber-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
+                <SelectTrigger className="w-full sm:w-auto h-10 px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-700 transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 data-[state=open]:border-red-400 data-[state=open]:ring-2 data-[state=open]:ring-red-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -828,16 +828,16 @@ export default function IncidentReportWorkspace({ isAdmin = false }: { isAdmin?:
 
         {/* Table */}
         <div className={cn("rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden transition-all duration-700 delay-300", isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4")}>
-          <div className="bg-gradient-to-r from-amber-500/10 to-orange-600/10 border-b border-gray-200 px-6 py-4">
+          <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-gray-200 px-6 py-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900">Danh sách báo cáo sự cố</h2>
               <span className="text-sm text-gray-600 font-medium">{totalCount} báo cáo</span>
             </div>
           </div>
-
+          
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gradient-to-r from-amber-500/5 to-orange-600/5 border-b border-gray-200">
+              <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-gray-200">
                 <tr>
                   <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Tiêu đề</th>
                   <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Danh mục</th>
@@ -853,23 +853,23 @@ export default function IncidentReportWorkspace({ isAdmin = false }: { isAdmin?:
                 {loading ? (
                   <tr>
                     <td colSpan={isAdmin ? 8 : 7} className="py-12 text-center">
-                      <Loader2 size={32} className="mx-auto animate-spin text-amber-500" />
+                      <Loader2 size={32} className="mx-auto animate-spin text-red-600" />
                     </td>
                   </tr>
                 ) : items.length === 0 ? (
                   <tr>
                     <td colSpan={isAdmin ? 8 : 7} className="py-12 text-center">
-                      <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-amber-100 to-orange-100 flex items-center justify-center">
-                        <AlertTriangle size={24} className="text-amber-400" />
+                      <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-100 flex items-center justify-center">
+                        <AlertTriangle size={24} className="text-red-600" />
                       </div>
                       <div className="text-gray-600 font-medium">Chưa có báo cáo sự cố nào</div>
                       <div className="text-sm text-gray-500 mt-1">Nhấn &quot;Tạo báo cáo&quot; để báo cáo sự cố mới</div>
                     </td>
                   </tr>
                 ) : items.map(item => (
-                  <tr key={item.id} onClick={() => openDetail(item.id)} className="group hover:bg-gradient-to-r hover:from-amber-50/50 hover:to-white transition-all duration-200 cursor-pointer">
+                  <tr key={item.id} onClick={() => openDetail(item.id)} className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200 cursor-pointer">
                     <td className="py-3 px-6">
-                      <div className="text-sm font-medium text-gray-900 max-w-[250px] truncate group-hover:text-amber-700 transition-colors">{item.subject}</div>
+                      <div className="text-sm font-medium text-gray-900 max-w-[250px] truncate group-hover:text-red-700 transition-colors">{item.subject}</div>
                     </td>
                     <td className="py-3 px-6"><CategoryBadge category={item.category} /></td>
                     <td className="py-3 px-6 text-center"><StatusBadge status={item.status} /></td>
@@ -879,7 +879,7 @@ export default function IncidentReportWorkspace({ isAdmin = false }: { isAdmin?:
                     <td className="py-3 px-6 text-sm text-gray-500">{formatDate(item.createdAt)}</td>
                     <td className="py-3 px-6 text-center">
                       {item.commentCount > 0 ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
                           <MessageSquare size={11} /> {item.commentCount}
                         </span>
                       ) : (
@@ -894,7 +894,7 @@ export default function IncidentReportWorkspace({ isAdmin = false }: { isAdmin?:
 
           {/* Pagination */}
           {totalCount > PAGE_SIZE && (
-            <div className="border-t border-gray-200 bg-gradient-to-r from-amber-500/5 to-orange-600/5 px-6 py-4">
+            <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
               <div className="flex items-center justify-between">
                 <div className="text-sm text-gray-600">
                   Trang <span className="font-semibold text-gray-900">{page}</span> / <span className="font-semibold text-gray-900">{totalPages}</span>
@@ -903,7 +903,7 @@ export default function IncidentReportWorkspace({ isAdmin = false }: { isAdmin?:
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                    className="p-2 rounded-lg border border-amber-200 hover:bg-amber-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                    className="p-2 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
                   >
                     <ChevronLeft size={18} />
                   </button>
@@ -917,15 +917,15 @@ export default function IncidentReportWorkspace({ isAdmin = false }: { isAdmin?:
                         className={cn(
                           "w-9 h-9 rounded-lg text-sm font-semibold transition-all cursor-pointer",
                           p === page
-                            ? "bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-md"
-                            : "border border-gray-200 text-gray-600 hover:bg-amber-50 hover:border-amber-200"
+                            ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                            : "border border-gray-200 text-gray-600 hover:bg-red-50 hover:border-red-200"
                         )}
                       >{p}</button>
                     );
                   })}
                   <button
                     onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                    className="p-2 rounded-lg border border-amber-200 hover:bg-amber-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                    className="p-2 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
                   >
                     <ChevronRight size={18} />
                   </button>

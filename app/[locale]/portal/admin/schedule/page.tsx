@@ -1970,9 +1970,7 @@ export default function AdminSchedulePage() {
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             <div className="flex gap-2">
-              <button className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-gray-100 transition-colors cursor-pointer text-gray-700">
-                <Download size={16} /> Xuất lịch
-              </button>
+              
               <button
                 onClick={() => setIsCreateModalOpen(true)}
                 className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer hover:scale-105 active:scale-95"
