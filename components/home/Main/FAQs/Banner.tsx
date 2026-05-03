@@ -43,7 +43,7 @@ export default function BannerFAQ() {
 
   return (
     <header 
-      className="relative overflow-hidden bg-linear-to-br from-blue-600 via-sky-500 to-cyan-400 pb-16 sm:pb-20 sticky top-0 z-10 "
+      className="relative overflow-hidden bg-gradient-to-br from-red-600 via-red-500 to-red-400 pb-16 sm:pb-20 sticky top-0 z-10 "
       style={{ opacity }}
     >
       {/* Backgrounds */}
@@ -69,11 +69,11 @@ export default function BannerFAQ() {
             <div>
               <h1 className="text-3xl sm:text-4xl md:text-[40px] font-black text-white leading-tight mb-3 drop-shadow-lg">
                 {msg.header.title.main}{" "}
-                <span className="text-amber-300">
+                <span className="text-orange-300">
                   {msg.header.title.accent}
                 </span>
               </h1>
-              <div className="h-1.5 w-24 bg-yellow-300 rounded-full shadow-lg" />
+              <div className="h-1.5 w-24 bg-orange-300 rounded-full shadow-lg" />
             </div>
 
             {/* Subtitle */}
@@ -100,7 +100,7 @@ export default function BannerFAQ() {
                 </div>
               </div>
               <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 sm:p-4 border border-white/20">
-                <div className="text-2xl sm:text-3xl font-bold text-yellow-300 mb-1">
+                <div className="text-2xl sm:text-3xl font-bold text-orange-300 mb-1">
                   24/7
                 </div>
                 <div className="text-xs sm:text-sm text-white font-medium">

@@ -2081,16 +2081,6 @@ export default function TeacherAssignmentsPage() {
 
   const totalPages = Math.ceil(meta.totalItems / itemsPerPage);
 
-  const stats = useMemo(() => {
-    const total = submissions.length;
-    const avgScore = Math.round(
-      submissions.filter(s => s.score).reduce((sum, s) => sum + (s.score || 0), 0) /
-      (submissions.filter(s => s.score).length || 1) * 10
-    ) / 10;
-
-    return { total, avgScore };
-  }, [submissions]);
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-6 space-y-6">
       <div
@@ -2126,7 +2116,7 @@ export default function TeacherAssignmentsPage() {
       </div>
 
       <div
-        className={`grid gap-4 md:grid-cols-2 lg:grid-cols-4 transition-all duration-700 delay-100 ${
+        className={`grid gap-4 md:grid-cols-3 transition-all duration-700 delay-100 ${
           isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
         }`}
       >
@@ -2141,24 +2131,7 @@ export default function TeacherAssignmentsPage() {
                 Tổng bài nộp
               </div>
               <div className="text-xl font-bold text-gray-900 leading-tight">
-                {stats.total}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="relative overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-br from-white to-blue-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
-          <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-blue-600"></div>
-          <div className="relative flex items-center justify-between gap-3">
-            <div className="p-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-sm flex-shrink-0">
-              <TrendingUp size={20} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-xs font-medium text-gray-600 truncate">
-                Điểm trung bình
-              </div>
-              <div className="text-xl font-bold text-gray-900 leading-tight">
-                {stats.avgScore || "N/A"}
+                {submissions.length}
               </div>
             </div>
           </div>
@@ -2377,81 +2350,6 @@ export default function TeacherAssignmentsPage() {
             </div>
           </div>
         )}
-      </div>
-
-      <div
-        className={`grid lg:grid-cols-2 gap-6 transition-all duration-700 delay-300 ${
-          isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-        }`}
-      >
-        <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-white to-amber-50 p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl">
-              <TimerReset size={24} className="text-white" />
-            </div>
-            <div>
-              <h3 className="font-bold text-gray-900">Giao bài tập mới</h3>
-              <p className="text-sm text-gray-500">Tạo và lên lịch bài tập</p>
-            </div>
-          </div>
-
-          <p className="text-sm text-gray-600 mb-4">
-            Tạo bài tập theo lớp, đặt hạn nộp và tự động nhắc nhở qua Zalo nếu học viên chưa nộp trước giờ học.
-          </p>
-
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="p-3 bg-white border border-amber-200 rounded-xl">
-                <div className="text-xs text-gray-500">Đang mở</div>
-                <div className="text-lg font-bold text-amber-600">12</div>
-                <div className="text-xs text-gray-500">bài tập</div>
-              </div>
-              <div className="p-3 bg-white border border-amber-200 rounded-xl">
-                <div className="text-xs text-gray-500">Sắp hết hạn</div>
-                <div className="text-lg font-bold text-amber-600">3</div>
-                <div className="text-xs text-gray-500">trong 24h</div>
-              </div>
-            </div>
-
-            <button className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white py-3 font-medium hover:shadow-lg transition-all cursor-pointer">
-              <Calendar size={16} />
-              Lên lịch nhắc nhở
-            </button>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-white to-emerald-50 p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl">
-              <Wand2 size={24} className="text-white" />
-            </div>
-            <div>
-              <h3 className="font-bold text-gray-900">Tạo feedback tự động</h3>
-              <p className="text-sm text-gray-500">Gợi ý từ AI</p>
-            </div>
-          </div>
-
-          <p className="text-sm text-gray-600 mb-4">
-            Dùng AI để gợi ý nhận xét chi tiết dựa trên bài làm của học viên, sau đó chỉnh sửa trước khi gửi.
-          </p>
-
-          <div className="space-y-3">
-            <div className="p-3 bg-white border border-emerald-200 rounded-xl">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-xs text-gray-500">Đề xuất từ AI</div>
-                  <div className="text-sm text-gray-700 mt-1">"Bài viết có cấu trúc tốt, cần chú ý đến ngữ pháp câu phức..."</div>
-                </div>
-                <Sparkles size={20} className="text-emerald-500" />
-              </div>
-            </div>
-
-            <button className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-3 font-medium hover:shadow-lg transition-all cursor-pointer">
-              <Zap size={16} />
-              Gợi ý từ AI
-            </button>
-          </div>
-        </div>
       </div>
 
       {isCreateModalOpen && (

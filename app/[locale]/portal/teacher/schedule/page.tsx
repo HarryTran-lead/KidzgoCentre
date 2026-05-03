@@ -870,10 +870,6 @@ export default function Page() {
                   Timeline
                 </button>
               </div>
-
-              <button className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-gray-100 transition-colors cursor-pointer text-gray-700">
-                <Download size={16} /> Xuất lịch
-              </button>
             </div>
           </div>
         </div>
