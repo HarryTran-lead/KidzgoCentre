@@ -177,6 +177,20 @@ const getAccountCounts = (items: Account[]) => ({
   inactive: items.filter(a => !a.isActive).length,
 });
 
+const STAFF_MANAGEMENT_HIDDEN_ROLES: Role[] = ["Admin", "ManagementStaff"];
+
+const filterManageableAccountsForStaffManagement = (
+  items: Account[],
+  branchId?: string
+) => {
+  return items.filter((acc) => {
+    const displayRole = mapRoleToDisplay(acc.role);
+    const inSameBranch = branchId ? acc.branchId === branchId : true;
+    const isHiddenRole = STAFF_MANAGEMENT_HIDDEN_ROLES.includes(displayRole);
+    return inSameBranch && !isHiddenRole;
+  });
+};
+
 
 const ROLE_INFO_STATIC: Record<Role, {
   cls: string;
@@ -431,6 +445,9 @@ export default function AccountsPage() {
   const isStaffManagementAccountsPage = pathname.includes("/portal/staff-management/accounts");
   const canApproveProfiles = !isStaffManagementAccountsPage;
   const staffBranchId = isStaffManagementAccountsPage ? currentUser?.branchId : undefined;
+  const visibleRoleTabs = isStaffManagementAccountsPage
+    ? (["ALL", "Teacher", "Parent"] as const)
+    : (["ALL", "Admin", "Teacher", "Parent", "ManagementStaff"] as const);
   
   // Helper function to get role label
   const getRoleLabel = (role: Role): string => {
@@ -512,6 +529,13 @@ export default function AccountsPage() {
     isApproved?: boolean;
   } | null>(null);
 
+  useEffect(() => {
+    if (!isStaffManagementAccountsPage) return;
+    if (role === "Admin" || role === "ManagementStaff") {
+      setRole("ALL");
+    }
+  }, [isStaffManagementAccountsPage, role]);
+
   const refreshAccountsTable = async () => {
     if (isStaffManagementAccountsPage && !staffBranchId) {
       setAccounts([]);
@@ -540,9 +564,12 @@ export default function AccountsPage() {
     }
 
     const transformedAccounts = transformUsersToAccounts(usersResponse.data.items);
-    setAccounts(transformedAccounts);
-    setTotalCount(transformedAccounts.length);
-    setFixedCounts(getAccountCounts(transformedAccounts));
+    const scopedAccounts = isStaffManagementAccountsPage
+      ? filterManageableAccountsForStaffManagement(transformedAccounts, staffBranchId)
+      : transformedAccounts;
+    setAccounts(scopedAccounts);
+    setTotalCount(scopedAccounts.length);
+    setFixedCounts(getAccountCounts(scopedAccounts));
   };
 
   const fetchUsersAndProfiles = async () => {
@@ -569,9 +596,12 @@ export default function AccountsPage() {
 
       if (isSuccessful && usersResponse?.data) {
         const transformedAccounts = transformUsersToAccounts(usersResponse.data.items);
-        setAccounts(transformedAccounts);
-        setTotalCount(transformedAccounts.length);
-        setFixedCounts(getAccountCounts(transformedAccounts));
+        const scopedAccounts = isStaffManagementAccountsPage
+          ? filterManageableAccountsForStaffManagement(transformedAccounts, staffBranchId)
+          : transformedAccounts;
+        setAccounts(scopedAccounts);
+        setTotalCount(scopedAccounts.length);
+        setFixedCounts(getAccountCounts(scopedAccounts));
       } else if (isStaffManagementAccountsPage && !staffBranchId) {
         setAccounts([]);
         setTotalCount(0);
@@ -1200,7 +1230,7 @@ export default function AccountsPage() {
 
     if (isStaffManagementAccountsPage) {
       if (!staffBranchId) return [];
-      result = result.filter((acc) => acc.branchId === staffBranchId);
+      result = filterManageableAccountsForStaffManagement(result, staffBranchId);
     }
 
     // Client-side filtering
@@ -1432,7 +1462,7 @@ export default function AccountsPage() {
         <div className="space-y-4">
           {/* Role Filter Tabs */}
           <div className="flex flex-wrap gap-2 pb-4 border-b border-red-200">
-            {(['ALL', 'Admin', 'Teacher', 'Parent', 'ManagementStaff'] as const).map((r) => {
+            {visibleRoleTabs.map((r) => {
               const counts: Record<typeof r, number> = {
                 'ALL': fixedCounts.total,
                 'Admin': fixedCounts.admin,
@@ -1789,12 +1819,14 @@ export default function AccountsPage() {
                 </div>
               </div>
             )}
-            <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50 p-4">
-              <div className="text-sm text-gray-600">{tProfiles.stats.locked}</div>
-              <div className="mt-1 text-2xl font-bold text-red-700">
-                {profiles.filter(p => !p.isActive).length}
+            {!isStaffManagementAccountsPage && (
+              <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50 p-4">
+                <div className="text-sm text-gray-600">{tProfiles.stats.locked}</div>
+                <div className="mt-1 text-2xl font-bold text-red-700">
+                  {profiles.filter(p => !p.isActive).length}
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Filter Bar */}

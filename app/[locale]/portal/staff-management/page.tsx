@@ -119,6 +119,142 @@ function Badge({
 
 import { getStaffManagementDashboard } from "@/lib/api/staffManagementService";
 
+type StaffDashboardApiPayload = {
+  statistics?: {
+    totalLeads?: number;
+    totalEnrollments?: number;
+    totalClasses?: number;
+    upcomingSessions?: number;
+    pendingMakeupCredits?: number;
+    pendingLeaveRequests?: number;
+    pendingReports?: number;
+    openTickets?: number;
+  };
+  recentLeads?: Array<{ createdAt?: string }>;
+  upcomingSessions?: Array<{ plannedDatetime?: string }>;
+  openTickets?: Array<{ priority?: string }>;
+};
+
+const VI_WEEKDAY_LABELS = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+
+function safeNumber(value: unknown, fallback = 0): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function monthLabelFromIso(value?: string): string {
+  if (!value) return "Khác";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Khác";
+  return `T${date.getMonth() + 1}`;
+}
+
+function dayLabelFromIso(value?: string): string {
+  if (!value) return "Khác";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Khác";
+  return VI_WEEKDAY_LABELS[date.getDay()] ?? "Khác";
+}
+
+function normalizeTicketPriority(priority?: string): string {
+  const raw = (priority || "").trim().toLowerCase();
+  if (raw === "homework") return "Tư vấn học";
+  if (raw === "schedule") return "Đổi lịch";
+  if (raw === "report") return "Báo cáo";
+  return "Khác";
+}
+
+function buildLeadGrowthData(recentLeads: StaffDashboardApiPayload["recentLeads"]) {
+  const buckets = new Map<string, number>();
+  (recentLeads ?? []).forEach((lead) => {
+    const key = monthLabelFromIso(lead?.createdAt);
+    buckets.set(key, safeNumber(buckets.get(key), 0) + 1);
+  });
+
+  if (buckets.size === 0) {
+    return ["T7", "T8", "T9", "T10", "T11", "T12"].map((month) => ({ month, leads: 0, qualified: 0 }));
+  }
+
+  return Array.from(buckets.entries()).map(([month, leads]) => ({
+    month,
+    leads,
+    qualified: 0,
+  }));
+}
+
+function buildClassOpsData(sessions: StaffDashboardApiPayload["upcomingSessions"]) {
+  const buckets = new Map<string, number>();
+  (sessions ?? []).forEach((session) => {
+    const key = dayLabelFromIso(session?.plannedDatetime);
+    buckets.set(key, safeNumber(buckets.get(key), 0) + 1);
+  });
+
+  return ["T2", "T3", "T4", "T5", "T6", "T7", "CN"].map((day) => ({
+    day,
+    sessions: safeNumber(buckets.get(day), 0),
+    conflicts: 0,
+  }));
+}
+
+function buildTicketDistribution(openTickets: StaffDashboardApiPayload["openTickets"]) {
+  const colorByName: Record<string, string> = {
+    "Tư vấn học": "#dc2626",
+    "Đổi lịch": "#404040",
+    "Báo cáo": "#171717",
+    "Khác": "#991b1b",
+  };
+
+  const counters: Record<string, number> = {
+    "Tư vấn học": 0,
+    "Đổi lịch": 0,
+    "Báo cáo": 0,
+    "Khác": 0,
+  };
+
+  (openTickets ?? []).forEach((ticket) => {
+    const bucket = normalizeTicketPriority(ticket?.priority);
+    counters[bucket] += 1;
+  });
+
+  const total = Object.values(counters).reduce((sum, value) => sum + value, 0);
+
+  return Object.entries(counters).map(([name, count]) => ({
+    name,
+    value: total > 0 ? Math.round((count / total) * 100) : 0,
+    color: colorByName[name],
+  }));
+}
+
+function normalizeDashboardPayload(raw: unknown) {
+  const payload = (raw && typeof raw === "object" ? raw : {}) as StaffDashboardApiPayload;
+  const stats = payload.statistics ?? {};
+
+  const pendingReports = safeNumber(stats.pendingReports, 0);
+  const totalClasses = safeNumber(stats.totalClasses, 0);
+  const reportRate = totalClasses > 0 ? `${Math.round(((totalClasses - pendingReports) / totalClasses) * 100)}%` : "0%";
+
+  return {
+    totalLeads: safeNumber(stats.totalLeads, 0),
+    newLeads: safeNumber(stats.totalLeads, 0),
+    qualifiedLeads: safeNumber(stats.totalEnrollments, 0),
+    weekSessions: safeNumber(stats.upcomingSessions, 0),
+    reportRate,
+    leadsTrend: `+${safeNumber(stats.totalLeads, 0)} lead`,
+    qualifiedTrend: `${safeNumber(stats.totalEnrollments, 0)} ghi danh`,
+    sessionsTrend: `${safeNumber(stats.upcomingSessions, 0)} ca sắp tới`,
+    reportsTrend: `${pendingReports} báo cáo chờ`,
+    leadGrowthData: buildLeadGrowthData(payload.recentLeads),
+    classOpsData: buildClassOpsData(payload.upcomingSessions),
+    ticketDistribution: buildTicketDistribution(payload.openTickets),
+    reportProgressData: [
+      {
+        month: `T${new Date().getMonth() + 1}`,
+        submitted: Math.max(totalClasses - pendingReports, 0),
+        pending: pendingReports,
+      },
+    ],
+  };
+}
+
 export default function Page() {
   const [isPageLoaded, setIsPageLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "leads" | "schedule" | "reports">("overview");
@@ -135,7 +271,7 @@ export default function Page() {
       .then((res: any) => {
         if (!alive) return;
         const d = res?.data?.data ?? res?.data ?? {};
-        setDashboard(d);
+        setDashboard(normalizeDashboardPayload(d));
       })
       .catch(() => {})
       .finally(() => { if (alive) setLoading(false); });

@@ -241,7 +241,7 @@ export default function EnrollmentTable({
                         </button>
                       </>
                     )}
-                    {!readOnly && (enrollment.status === "Paused" || enrollment.status === "Dropped") && (
+                    {!readOnly && enrollment.status === "Paused" && (
                       <button
                         onClick={() => onReactivate?.(enrollment)}
                         className="p-1.5 rounded-lg hover:bg-emerald-50 transition-colors text-gray-400 hover:text-emerald-600 cursor-pointer"
