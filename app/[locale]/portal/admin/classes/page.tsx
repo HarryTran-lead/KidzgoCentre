@@ -24,7 +24,7 @@ import {
 import { fetchAdminRooms } from "@/app/api/admin/rooms";
 import { generateSessionsFromPattern, updateClassColor } from "@/app/api/admin/sessions";
 import { fetchClassFormSelectData, fetchTeacherOptionsByBranch, fetchProgramOptionsByBranch } from "@/app/api/admin/classFormData";
-import type { ClassRow, CreateClassRequest } from "@/types/admin/classes";
+import type { ClassRow, CreateClassRequest, ScheduleSlot } from "@/types/admin/classes";
 import type { SelectOption } from "@/types/admin/classFormData";
 import { useBranchFilter } from "@/hooks/useBranchFilter";
 import { useToast } from "@/hooks/use-toast";
@@ -257,6 +257,108 @@ function parseRRULEToSchedule(rrule: string): string {
   }
 }
 
+/**
+ * Convert schedule string (e.g., "Thứ 2,4,6 (18:00 - 20:00)") to weeklyScheduleSlots array
+ * New API format replaces RRULE
+ */
+function convertScheduleToWeeklySlots(schedule: string): Array<{
+  dayOfWeek: "MO" | "TU" | "WE" | "TH" | "FR" | "SA" | "SU";
+  startTime: string;
+  durationMinutes: number;
+}> {
+  if (!schedule || !schedule.trim()) {
+    return [];
+  }
+
+  try {
+    // Parse schedule string format: "Thứ 2,4,6 (18:00 - 20:00)" or "CN (10:00 - 12:00)"
+    const match = schedule.match(/(.+?)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/);
+    if (!match) {
+      console.warn("Could not parse schedule:", schedule);
+      return [];
+    }
+
+    const [, dayPart, startTime, endTime] = match;
+    
+    // Map Vietnamese days to API day codes
+    const dayMap: Record<string, "MO" | "TU" | "WE" | "TH" | "FR" | "SA" | "SU"> = {
+      "2": "MO", "3": "TU", "4": "WE", "5": "TH", "6": "FR", "7": "SA", "CN": "SU",
+    };
+
+    const days: Array<"MO" | "TU" | "WE" | "TH" | "FR" | "SA" | "SU"> = [];
+    
+    // Handle "Thứ 2,4,6" or "Thứ 2,4,6 & CN" format
+    if (dayPart.includes("Thứ")) {
+      const dayNumbers = dayPart.match(/\d+/g) || [];
+      dayNumbers.forEach((d) => {
+        const mapped = dayMap[d];
+        if (mapped && !days.includes(mapped)) {
+          days.push(mapped);
+        }
+      });
+      
+      // Handle "& CN"
+      if (dayPart.includes("CN")) {
+        if (!days.includes("SU")) {
+          days.push("SU");
+        }
+      }
+    } else if (dayPart.trim() === "CN") {
+      days.push("SU");
+    }
+
+    // Parse time
+    const [startHour, startMinute] = startTime.split(":").map(Number);
+    const [endHour, endMinute] = endTime.split(":").map(Number);
+
+    // Calculate duration in minutes
+    const durationMinutes = (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
+
+    if (days.length === 0 || durationMinutes <= 0) {
+      console.warn("Invalid days or duration from schedule:", schedule);
+      return [];
+    }
+
+    // Create slots for each day
+    return days.map(dayOfWeek => ({
+      dayOfWeek,
+      startTime: `${startHour.toString().padStart(2, "0")}:${startMinute.toString().padStart(2, "0")}`,
+      durationMinutes,
+    }));
+  } catch (error) {
+    console.error("Error converting schedule to weekly slots:", error);
+    return [];
+  }
+}
+
+function formatWeeklySlotsToScheduleText(slots: ScheduleSlot[]): string {
+  if (!Array.isArray(slots) || slots.length === 0) {
+    return "";
+  }
+
+  const dayLabelMap: Record<ScheduleSlot["dayOfWeek"], string> = {
+    MO: "Thứ 2",
+    TU: "Thứ 3",
+    WE: "Thứ 4",
+    TH: "Thứ 5",
+    FR: "Thứ 6",
+    SA: "Thứ 7",
+    SU: "CN",
+  };
+  const dayOrder: ScheduleSlot["dayOfWeek"][] = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
+
+  return [...slots]
+    .sort((a, b) => dayOrder.indexOf(a.dayOfWeek) - dayOrder.indexOf(b.dayOfWeek))
+    .map((slot) => {
+      const [h, m] = slot.startTime.split(":").map(Number);
+      const endTotal = h * 60 + m + slot.durationMinutes;
+      const endHour = String(Math.floor(endTotal / 60)).padStart(2, "0");
+      const endMinute = String(endTotal % 60).padStart(2, "0");
+      return `${dayLabelMap[slot.dayOfWeek]} (${slot.startTime} - ${endHour}:${endMinute})`;
+    })
+    .join(", ");
+}
+
 function mapApiClassToRow(item: any): ClassRow {
   // Use UUID as id for API calls, code for display
   const id = String(item?.id ?? item?.classId ?? "");
@@ -336,25 +438,40 @@ function calculateTotalSessionsFromDateRange(startDate: string, endDate: string,
       "2": 1, "3": 2, "4": 3, "5": 4, "6": 5, "7": 6, "CN": 0,
     };
 
-    const match = schedule.match(/(.+?)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/);
-    if (!match) return 0;
-
-    const dayPart = match[1];
-    const daysInWeek: number[] = [];
-
-    if (dayPart.includes("Thứ")) {
-      const dayNumbers = dayPart.match(/\d+/g) || [];
-      dayNumbers.forEach((d) => {
-        if (dayMap[d] !== undefined) daysInWeek.push(dayMap[d]);
-      });
-      if (dayPart.includes("CN")) {
-        daysInWeek.push(0);
+    const dayParts: string[] = [];
+    const segmentRegex = /([^,]+?)\s*\(\d{2}:\d{2}\s*-\s*\d{2}:\d{2}\)/g;
+    let segmentMatch: RegExpExecArray | null;
+    while ((segmentMatch = segmentRegex.exec(schedule)) !== null) {
+      dayParts.push(segmentMatch[1]);
+    }
+    if (dayParts.length === 0) {
+      const fallbackMatch = schedule.match(/(.+?)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/);
+      if (fallbackMatch) {
+        dayParts.push(fallbackMatch[1]);
       }
-    } else if (dayPart === "CN") {
-      daysInWeek.push(0);
     }
 
-    if (daysInWeek.length === 0) return 0;
+    if (dayParts.length === 0) return 0;
+
+    const daysInWeek: number[] = [];
+
+    for (const dayPart of dayParts) {
+      if (dayPart.includes("Thứ")) {
+        const dayNumbers = dayPart.match(/\d+/g) || [];
+        dayNumbers.forEach((d) => {
+          if (dayMap[d] !== undefined) daysInWeek.push(dayMap[d]);
+        });
+        if (dayPart.includes("CN")) {
+          daysInWeek.push(0);
+        }
+      } else if (dayPart.includes("CN")) {
+        daysInWeek.push(0);
+      }
+    }
+
+    const uniqueDays = Array.from(new Set(daysInWeek));
+
+    if (uniqueDays.length === 0) return 0;
 
     const start = new Date(startDate);
     start.setHours(0, 0, 0, 0);
@@ -365,7 +482,7 @@ function calculateTotalSessionsFromDateRange(startDate: string, endDate: string,
     const current = new Date(start);
 
     while (current <= end) {
-      if (daysInWeek.includes(current.getDay())) {
+      if (uniqueDays.includes(current.getDay())) {
         count++;
       }
       current.setDate(current.getDate() + 1);
@@ -1095,6 +1212,7 @@ interface ClassFormData {
   roomId: string;
   capacity: number;
   schedule: string;
+  weeklyScheduleSlots: ScheduleSlot[];
   status: "Đang học" | "Sắp khai giảng" | "Đã kết thúc";
   startDate: string;
   endDate: string;
@@ -1112,6 +1230,7 @@ const initialFormData: ClassFormData = {
   roomId: "",
   capacity: 30,
   schedule: "",
+  weeklyScheduleSlots: [],
   status: "Sắp khai giảng",
   startDate: "",
   endDate: "",
@@ -1699,14 +1818,50 @@ function CreateClassModal({
   const [conflictRoomIds, setConflictRoomIds] = useState<Set<string>>(new Set());
   const [loadingOptions, setLoadingOptions] = useState(false);
   
-  // States mới cho UI chọn lịch học
+  // States cho UI chọn lịch học theo từng ngày
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
-  const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>("");
+  const [daySchedules, setDaySchedules] = useState<Record<string, { startTime: string; endTime: string }>>({});
+  const [dayScheduleMode, setDayScheduleMode] = useState<Record<string, "preset" | "custom">>({});
   const [sessionsPerWeek, setSessionsPerWeek] = useState<number>(2);
-  const [useCustomTime, setUseCustomTime] = useState<boolean>(false);
-  const [startTime, setStartTime] = useState("18:00");
-  const [endTime, setEndTime] = useState("20:00");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const dayToWeekdayCode = (dayValue: string): ScheduleSlot["dayOfWeek"] | null => {
+    const map: Record<string, ScheduleSlot["dayOfWeek"]> = {
+      "2": "MO",
+      "3": "TU",
+      "4": "WE",
+      "5": "TH",
+      "6": "FR",
+      "7": "SA",
+      CN: "SU",
+    };
+    return map[dayValue] || null;
+  };
+
+  const weekdayCodeToDay = (dayCode: ScheduleSlot["dayOfWeek"]): string => {
+    const map: Record<ScheduleSlot["dayOfWeek"], string> = {
+      MO: "2",
+      TU: "3",
+      WE: "4",
+      TH: "5",
+      FR: "6",
+      SA: "7",
+      SU: "CN",
+    };
+    return map[dayCode];
+  };
+
+  const parseTimeRange = (timeRange: string) => {
+    const [start, end] = timeRange.split("-");
+    return {
+      startTime: (start || "18:00").trim(),
+      endTime: (end || "20:00").trim(),
+    };
+  };
+
+  const formatSlotDayLabel = (dayValue: string) => {
+    return WEEK_DAYS.find((d) => d.value === dayValue)?.label || dayValue;
+  };
 
   const fetchSelectData = async () => {
     try {
@@ -1743,12 +1898,31 @@ function CreateClassModal({
   const toggleDay = (dayValue: string) => {
     setSelectedDays(prev => {
       if (prev.includes(dayValue)) {
+        setDaySchedules((current) => {
+          const next = { ...current };
+          delete next[dayValue];
+          return next;
+        });
+        setDayScheduleMode((current) => {
+          const next = { ...current };
+          delete next[dayValue];
+          return next;
+        });
         return prev.filter(d => d !== dayValue);
       } else {
         // Nếu số ngày đã chọn >= sessionsPerWeek, không cho chọn thêm
         if (prev.length >= sessionsPerWeek) {
           return prev;
         }
+        const fallback = parseTimeRange(TIME_SLOTS[4]?.value || "18:00-20:00");
+        setDaySchedules((current) => ({
+          ...current,
+          [dayValue]: current[dayValue] || fallback,
+        }));
+        setDayScheduleMode((current) => ({
+          ...current,
+          [dayValue]: current[dayValue] || "preset",
+        }));
         return [...prev, dayValue];
       }
     });
@@ -1759,7 +1933,28 @@ function CreateClassModal({
     setSessionsPerWeek(value);
     // Nếu số ngày đã chọn nhiều hơn sessionsPerWeek, cắt bớt
     if (selectedDays.length > value) {
-      setSelectedDays(prev => prev.slice(0, value));
+      setSelectedDays((prev) => {
+        const nextDays = prev.slice(0, value);
+        setDaySchedules((current) => {
+          const next: Record<string, { startTime: string; endTime: string }> = {};
+          for (const day of nextDays) {
+            if (current[day]) {
+              next[day] = current[day];
+            }
+          }
+          return next;
+        });
+        setDayScheduleMode((current) => {
+          const next: Record<string, "preset" | "custom"> = {};
+          for (const day of nextDays) {
+            if (current[day]) {
+              next[day] = current[day];
+            }
+          }
+          return next;
+        });
+        return nextDays;
+      });
     }
   };
 
@@ -1767,35 +1962,52 @@ function CreateClassModal({
   useEffect(() => {
     if (!isOpen) {
       setSelectedDays([]);
-      setSelectedTimeSlot("");
+      setDaySchedules({});
+      setDayScheduleMode({});
       setSessionsPerWeek(2);
-      setUseCustomTime(false);
-      setStartTime("18:00");
-      setEndTime("20:00");
       setRoomOptions([]);
       setAllRooms([]);
       setExistingClasses([]);
     }
   }, [isOpen]);
 
-  // Cập nhật schedule string khi các lựa chọn thay đổi
+  // Cập nhật schedule preview + weeklyScheduleSlots khi các lựa chọn thay đổi
   useEffect(() => {
     if (selectedDays.length > 0) {
-      if (!useCustomTime && selectedTimeSlot) {
-        const timeRange = TIME_SLOTS.find(t => t.value === selectedTimeSlot)?.timeRange || "";
-        const dayString = formatDaysString(selectedDays);
-        const schedule = `${dayString} (${timeRange})`;
-        handleChange("schedule", schedule);
-      } else if (useCustomTime) {
-        const timeRange = `${startTime} - ${endTime}`;
-        const dayString = formatDaysString(selectedDays);
-        const schedule = `${dayString} (${timeRange})`;
-        handleChange("schedule", schedule);
+      const dayOrder = ["2", "3", "4", "5", "6", "7", "CN"];
+      const sortedDays = [...selectedDays].sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b));
+
+      const weeklyScheduleSlots: ScheduleSlot[] = [];
+      const previewParts: string[] = [];
+
+      for (const day of sortedDays) {
+        const slot = daySchedules[day];
+        if (!slot) continue;
+
+        const weekdayCode = dayToWeekdayCode(day);
+        if (!weekdayCode) continue;
+
+        const [startHour, startMinute] = slot.startTime.split(":").map(Number);
+        const [endHour, endMinute] = slot.endTime.split(":").map(Number);
+        const durationMinutes = (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
+        if (durationMinutes <= 0) continue;
+
+        weeklyScheduleSlots.push({
+          dayOfWeek: weekdayCode,
+          startTime: slot.startTime,
+          durationMinutes,
+        });
+
+        previewParts.push(`${formatSlotDayLabel(day)} (${slot.startTime} - ${slot.endTime})`);
       }
+
+      handleChange("weeklyScheduleSlots", weeklyScheduleSlots);
+      handleChange("schedule", previewParts.join(", "));
     } else {
+      handleChange("weeklyScheduleSlots", []);
       handleChange("schedule", "");
     }
-  }, [selectedDays, selectedTimeSlot, useCustomTime, startTime, endTime]);
+  }, [selectedDays, daySchedules]);
 
   // Khi chọn chi nhánh -> load programs và giáo viên thuộc chi nhánh đó
   useEffect(() => {
@@ -1930,12 +2142,49 @@ function CreateClassModal({
     if (isOpen) {
       if (mode === "edit" && initialData) {
         setFormData(initialData);
+        if (Array.isArray(initialData.weeklyScheduleSlots) && initialData.weeklyScheduleSlots.length > 0) {
+          const dayOrder = ["2", "3", "4", "5", "6", "7", "CN"];
+          const parsedDays = initialData.weeklyScheduleSlots
+            .map((slot) => {
+              const dayValue = weekdayCodeToDay(slot.dayOfWeek);
+              const [h, m] = slot.startTime.split(":").map(Number);
+              const endTotal = h * 60 + m + slot.durationMinutes;
+              const endHour = String(Math.floor(endTotal / 60)).padStart(2, "0");
+              const endMinute = String(endTotal % 60).padStart(2, "0");
+
+              return {
+                dayValue,
+                startTime: slot.startTime,
+                endTime: `${endHour}:${endMinute}`,
+              };
+            })
+            .sort((a, b) => dayOrder.indexOf(a.dayValue) - dayOrder.indexOf(b.dayValue));
+
+          setSelectedDays(parsedDays.map((item) => item.dayValue));
+          setSessionsPerWeek(parsedDays.length);
+          setDaySchedules(
+            parsedDays.reduce<Record<string, { startTime: string; endTime: string }>>((acc, item) => {
+              acc[item.dayValue] = { startTime: item.startTime, endTime: item.endTime };
+              return acc;
+            }, {})
+          );
+          setDayScheduleMode(
+            parsedDays.reduce<Record<string, "preset" | "custom">>((acc, item) => {
+              const presetValue = `${item.startTime}-${item.endTime}`;
+              acc[item.dayValue] = TIME_SLOTS.some((timeSlot) => timeSlot.value === presetValue) ? "preset" : "custom";
+              return acc;
+            }, {})
+          );
+          setErrors({});
+          return;
+        }
+
         // Parse initial schedule để set selectedDays, time slot nếu có
         if (initialData.schedule) {
           const match = initialData.schedule.match(/(.+?)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/);
           if (match) {
             const dayPart = match[1];
-            const timeRange = `${match[2]} - ${match[3]}`;
+            const slotFromSchedule = { startTime: match[2], endTime: match[3] };
             
             // Parse days
             const days: string[] = [];
@@ -1951,29 +2200,28 @@ function CreateClassModal({
             
             setSelectedDays(days);
             setSessionsPerWeek(days.length);
-            
-            // Try to match time slot
-            const timeSlot = TIME_SLOTS.find(t => t.timeRange === timeRange);
-            if (timeSlot) {
-              setSelectedTimeSlot(timeSlot.value);
-              setUseCustomTime(false);
-            } else {
-              // Parse start and end time for custom time
-              const [start, end] = timeRange.split(' - ');
-              setStartTime(start);
-              setEndTime(end);
-              setUseCustomTime(true);
-            }
+
+            setDaySchedules(
+              days.reduce<Record<string, { startTime: string; endTime: string }>>((acc, day) => {
+                acc[day] = slotFromSchedule;
+                return acc;
+              }, {})
+            );
+            setDayScheduleMode(
+              days.reduce<Record<string, "preset" | "custom">>((acc, day) => {
+                const presetValue = `${slotFromSchedule.startTime}-${slotFromSchedule.endTime}`;
+                acc[day] = TIME_SLOTS.some((timeSlot) => timeSlot.value === presetValue) ? "preset" : "custom";
+                return acc;
+              }, {})
+            );
           }
         }
       } else {
         setFormData(initialFormData);
         setSelectedDays([]);
-        setSelectedTimeSlot("");
+        setDaySchedules({});
+        setDayScheduleMode({});
         setSessionsPerWeek(2);
-        setUseCustomTime(false);
-        setStartTime("18:00");
-        setEndTime("20:00");
         setRoomOptions([]);
         setAllRooms([]);
       }
@@ -2137,14 +2385,18 @@ function CreateClassModal({
       newErrors.schedule = "vui lòng chọn ít nhất 1 ngày học";
     } else if (selectedDays.length < sessionsPerWeek) {
       newErrors.schedule = `cần chọn đủ ${sessionsPerWeek} buổi học mỗi tuần`;
-    }
-
-    if (!useCustomTime && !selectedTimeSlot) {
-      newErrors.schedule = "vui lòng chọn khung giờ học";
-    }
-
-    if (useCustomTime && startTime >= endTime) {
-      newErrors.schedule = "khung giờ học không hợp lệ";
+    } else {
+      for (const day of selectedDays) {
+        const slot = daySchedules[day];
+        if (!slot || !slot.startTime || !slot.endTime) {
+          newErrors.schedule = `vui lòng chọn khung giờ cho ${formatSlotDayLabel(day)}`;
+          break;
+        }
+        if (slot.startTime >= slot.endTime) {
+          newErrors.schedule = `khung giờ của ${formatSlotDayLabel(day)} không hợp lệ`;
+          break;
+        }
+      }
     }
 
     const duplicatedCode = existingClassRows.some(
@@ -2217,7 +2469,29 @@ function CreateClassModal({
     setErrors({});
     setIsSubmitting(true);
     try {
-      await onSubmit(formData);
+      const submitSlots: ScheduleSlot[] = selectedDays
+        .map((day) => {
+          const slot = daySchedules[day];
+          const weekdayCode = dayToWeekdayCode(day);
+          if (!slot || !weekdayCode) return null;
+
+          const [startHour, startMinute] = slot.startTime.split(":").map(Number);
+          const [endHour, endMinute] = slot.endTime.split(":").map(Number);
+          const durationMinutes = (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
+          if (durationMinutes <= 0) return null;
+
+          return {
+            dayOfWeek: weekdayCode,
+            startTime: slot.startTime,
+            durationMinutes,
+          } as ScheduleSlot;
+        })
+        .filter((slot): slot is ScheduleSlot => slot !== null);
+
+      await onSubmit({
+        ...formData,
+        weeklyScheduleSlots: submitSlots,
+      });
       onClose();
     } catch (error) {
       if (error instanceof ClassFormSubmitError && Object.keys(error.fieldErrors).length > 0) {
@@ -2625,60 +2899,104 @@ function CreateClassModal({
                 )}
               </div>
 
-              {/* Chọn khung giờ */}
+              {/* Chọn khung giờ theo từng ngày */}
               <div className="space-y-2 mt-4">
-                <div className="flex items-center justify-between">
-                  <label className="text-sm text-gray-600">
-                    Khung giờ học <span className="text-red-500">*</span>
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setUseCustomTime(!useCustomTime)}
-                    className="text-xs text-red-600 hover:text-red-700 font-medium cursor-pointer"
-                  >
-                    {useCustomTime ? "Chọn khung giờ mẫu" : "Nhập giờ tùy chỉnh"}
-                  </button>
-                </div>
+                <label className="text-sm text-gray-600">
+                  Khung giờ theo ngày <span className="text-red-500">*</span>
+                </label>
 
-                {!useCustomTime ? (
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    {TIME_SLOTS.map((slot) => (
-                      <button
-                        key={slot.value}
-                        type="button"
-                        onClick={() => setSelectedTimeSlot(slot.value)}
-                        className={clsx(
-                          "px-3 py-2.5 rounded-xl border text-sm transition-all cursor-pointer",
-                          selectedTimeSlot === slot.value
-                            ? "bg-gradient-to-r from-red-600 to-red-700 text-white border-red-600 shadow-md"
-                            : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
-                        )}
-                      >
-                        <div className="flex flex-col items-center">
-                          <span className="font-medium">{slot.label.split(" ")[0]}</span>
-                          <span className="text-xs">{slot.timeRange}</span>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
+                {selectedDays.length === 0 ? (
+                  <p className="text-xs text-gray-500">Chọn ngày học trước để cấu hình giờ cho từng ngày.</p>
                 ) : (
-                  <div className="space-y-4">
-                    <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
-                      <TimePicker 
-                        value={startTime} 
-                        onChange={setStartTime} 
-                        label="Giờ bắt đầu"
-                      />
-                      <span className="text-gray-400 font-bold hidden md:block">→</span>
-                      <TimePicker 
-                        value={endTime} 
-                        onChange={setEndTime} 
-                        label="Giờ kết thúc"
-                      />
-                    </div>
-                    <p className="text-xs text-gray-500">
-                      Sử dụng các nút ▲▼ để điều chỉnh giờ và phút
-                    </p>
+                  <div className="space-y-3">
+                    {[...selectedDays]
+                      .sort((a, b) => ["2", "3", "4", "5", "6", "7", "CN"].indexOf(a) - ["2", "3", "4", "5", "6", "7", "CN"].indexOf(b))
+                      .map((day) => {
+                        const slot = daySchedules[day] || { startTime: "18:00", endTime: "20:00" };
+                        const presetValue = `${slot.startTime}-${slot.endTime}`;
+                        const hasPresetValue = TIME_SLOTS.some((timeSlot) => timeSlot.value === presetValue);
+                        const isCustomMode = dayScheduleMode[day] === "custom";
+                        const isPreset = !isCustomMode && hasPresetValue;
+
+                        return (
+                          <div key={day} className="rounded-xl border border-gray-200 bg-white p-3">
+                            <div className="flex flex-col lg:flex-row lg:items-center gap-3">
+                              <div className="min-w-[88px] text-sm font-semibold text-gray-700">{formatSlotDayLabel(day)}</div>
+                              <div className="flex-1">
+                                <select
+                                  value={isPreset ? presetValue : "custom"}
+                                  onChange={(e) => {
+                                    const next = e.target.value;
+                                    if (next === "custom") {
+                                      setDayScheduleMode((prev) => ({
+                                        ...prev,
+                                        [day]: "custom",
+                                      }));
+                                      return;
+                                    }
+                                    const parsed = parseTimeRange(next);
+                                    setDaySchedules((prev) => ({
+                                      ...prev,
+                                      [day]: parsed,
+                                    }));
+                                    setDayScheduleMode((prev) => ({
+                                      ...prev,
+                                      [day]: "preset",
+                                    }));
+                                  }}
+                                  className="w-full h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700"
+                                >
+                                  {TIME_SLOTS.map((timeSlot) => (
+                                    <option key={timeSlot.value} value={timeSlot.value}>
+                                      {timeSlot.label}
+                                    </option>
+                                  ))}
+                                  <option value="custom">Giờ tùy chỉnh</option>
+                                </select>
+                              </div>
+                            </div>
+
+                            {!isPreset && (
+                              <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <TimePicker
+                                  value={slot.startTime}
+                                  onChange={(value) => {
+                                    setDaySchedules((prev) => ({
+                                      ...prev,
+                                      [day]: {
+                                        ...slot,
+                                        startTime: value,
+                                      },
+                                    }));
+                                    setDayScheduleMode((prev) => ({
+                                      ...prev,
+                                      [day]: "custom",
+                                    }));
+                                  }}
+                                  label="Giờ bắt đầu"
+                                />
+                                <TimePicker
+                                  value={slot.endTime}
+                                  onChange={(value) => {
+                                    setDaySchedules((prev) => ({
+                                      ...prev,
+                                      [day]: {
+                                        ...slot,
+                                        endTime: value,
+                                      },
+                                    }));
+                                    setDayScheduleMode((prev) => ({
+                                      ...prev,
+                                      [day]: "custom",
+                                    }));
+                                  }}
+                                  label="Giờ kết thúc"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                   </div>
                 )}
               </div>
@@ -2804,11 +3122,9 @@ function CreateClassModal({
                   } else {
                     setFormData(initialFormData);
                     setSelectedDays([]);
-                    setSelectedTimeSlot("");
+                    setDaySchedules({});
+                    setDayScheduleMode({});
                     setSessionsPerWeek(2);
-                    setUseCustomTime(false);
-                    setStartTime("18:00");
-                    setEndTime("20:00");
                     setRoomOptions([]);
                     setAllRooms([]);
                     setExistingClasses([]);
@@ -3061,8 +3377,10 @@ export default function Page() {
         endDate: data.endDate,
       });
 
-      const schedulePattern = convertScheduleToRRULE(data.schedule, data.startDate);
-      console.log("Generated RRULE:", schedulePattern);
+      const weeklyScheduleSlots = data.weeklyScheduleSlots.length > 0
+        ? data.weeklyScheduleSlots
+        : convertScheduleToWeeklySlots(data.schedule);
+      console.log("Generated weeklyScheduleSlots:", weeklyScheduleSlots);
 
       const payload: CreateClassRequest = {
         branchId: data.branchId,
@@ -3076,8 +3394,8 @@ export default function Page() {
         startDate: data.startDate,
         endDate: data.endDate,
         capacity: data.capacity,
-        schedulePattern,
-        status: "Planned",
+        weeklyScheduleSlots,
+        status: "Active",
       };
 
       console.log("Creating class with payload:", payload);
@@ -3131,8 +3449,13 @@ export default function Page() {
 
       const detail: any = await fetchAdminClassDetail(row.id);
 
+      const weeklyScheduleSlots = Array.isArray(detail?.weeklyScheduleSlots)
+        ? (detail.weeklyScheduleSlots as ScheduleSlot[])
+        : [];
       const schedulePattern = (detail?.schedulePattern as string | undefined) ?? "";
-      const schedule = schedulePattern ? parseRRULEToSchedule(schedulePattern) : "";
+      const schedule = weeklyScheduleSlots.length > 0
+        ? formatWeeklySlotsToScheduleText(weeklyScheduleSlots)
+        : (schedulePattern ? parseRRULEToSchedule(schedulePattern) : "");
 
       const rawStatus: string = (detail?.status as string | undefined) ?? "";
       const normalized = rawStatus.toLowerCase();
@@ -3150,6 +3473,7 @@ export default function Page() {
         roomId: String(detail?.roomId ?? ""),
         capacity: typeof detail?.capacity === "number" ? detail.capacity : row.capacity,
         schedule,
+        weeklyScheduleSlots: weeklyScheduleSlots.length > 0 ? weeklyScheduleSlots : convertScheduleToWeeklySlots(schedule),
         status,
         startDate: (detail?.startDate as string | undefined)?.slice(0, 10) ?? "",
         endDate: (detail?.endDate as string | undefined)?.slice(0, 10) ?? "",
@@ -3188,7 +3512,9 @@ export default function Page() {
         !(editingInitialData?.schedule ?? "").trim();
       const currentClassStatus = classBeforeUpdate?.status;
 
-      const schedulePattern = convertScheduleToRRULE(data.schedule, data.startDate);
+      const weeklyScheduleSlots = data.weeklyScheduleSlots.length > 0
+        ? data.weeklyScheduleSlots
+        : convertScheduleToWeeklySlots(data.schedule);
 
       const payload: CreateClassRequest = {
         branchId: data.branchId,
@@ -3202,7 +3528,7 @@ export default function Page() {
         startDate: data.startDate,
         endDate: data.endDate,
         capacity: data.capacity,
-        schedulePattern,
+        weeklyScheduleSlots,
       };
 
       console.log("Updating class with payload:", payload);
