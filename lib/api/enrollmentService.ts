@@ -7,14 +7,39 @@ import { get, post, put, patch } from "@/lib/axios";
 import { ENROLLMENT_ENDPOINTS } from "@/constants/apiURL";
 import type {
   Enrollment,
+  EnrollmentScheduleSegment,
   CreateEnrollmentRequest,
   UpdateEnrollmentRequest,
   AssignTuitionPlanRequest,
   EnrollmentFilterParams,
   EnrollmentPaginatedResponse,
   EnrollmentHistoryItem,
+  BackfillSessionAssignmentsRequest,
+  BackfillSessionAssignmentsResult,
+  AddEnrollmentScheduleSegmentRequest,
 } from "@/types/enrollment";
 import type { ApiResponse } from "@/types/apiResponse";
+
+function toApiSuccess(response: any) {
+  if (typeof response?.isSuccess === "boolean") return response.isSuccess;
+  if (typeof response?.success === "boolean") return response.success;
+  return false;
+}
+
+function toApiMessage(response: any) {
+  return (
+    response?.message ||
+    response?.detail ||
+    response?.title ||
+    ""
+  );
+}
+
+function unwrapData(response: any) {
+  const level1 = response?.data ?? response;
+  const level2 = level1?.data ?? level1;
+  return level2;
+}
 
 /**
  * Get all enrollments with optional filters
@@ -36,15 +61,13 @@ export async function getAllEnrollments(
     `${ENROLLMENT_ENDPOINTS.GET_ALL}?${queryParams.toString()}`
   );
 
-  // Handle nested response structures from the backend
-  const rawData = response?.data || response || {};
-  const responseData = rawData?.data || rawData;
+  const responseData = unwrapData(response) || {};
   const enrollments = responseData?.enrollments?.items || responseData?.items || 
     (Array.isArray(responseData) ? responseData : []);
 
   return {
-    isSuccess: response?.isSuccess || response?.success || false,
-    message: response?.message || "",
+    isSuccess: toApiSuccess(response),
+    message: toApiMessage(response),
     data: {
       items: enrollments,
       totalCount: responseData?.totalCount || enrollments.length || 0,
@@ -60,10 +83,11 @@ export async function getAllEnrollments(
  */
 export async function getEnrollmentById(id: string): Promise<ApiResponse<Enrollment>> {
   const response = await get<any>(ENROLLMENT_ENDPOINTS.GET_BY_ID(id));
+  const responseData = unwrapData(response);
   return {
-    isSuccess: response.isSuccess || response.success || false,
-    message: response.message,
-    data: response.data || response,
+    isSuccess: toApiSuccess(response),
+    message: toApiMessage(response),
+    data: responseData,
   };
 }
 
@@ -74,10 +98,26 @@ export async function createEnrollment(
   data: CreateEnrollmentRequest
 ): Promise<ApiResponse<Enrollment>> {
   const response = await post<any>(ENROLLMENT_ENDPOINTS.CREATE, data);
+  const responseData = unwrapData(response);
   return {
-    isSuccess: response.isSuccess || response.success || false,
-    message: response.message,
-    data: response.data || response,
+    isSuccess: toApiSuccess(response),
+    message: toApiMessage(response),
+    data: responseData,
+  };
+}
+
+/**
+ * Backfill student session assignments by enrollment/class/student filters
+ */
+export async function backfillSessionAssignments(
+  data: BackfillSessionAssignmentsRequest
+): Promise<ApiResponse<BackfillSessionAssignmentsResult>> {
+  const response = await post<any>(ENROLLMENT_ENDPOINTS.BACKFILL_SESSION_ASSIGNMENTS, data);
+  const responseData = unwrapData(response);
+  return {
+    isSuccess: toApiSuccess(response),
+    message: toApiMessage(response),
+    data: responseData,
   };
 }
 
@@ -89,10 +129,27 @@ export async function updateEnrollment(
   data: UpdateEnrollmentRequest
 ): Promise<ApiResponse<Enrollment>> {
   const response = await put<any>(ENROLLMENT_ENDPOINTS.UPDATE(id), data);
+  const responseData = unwrapData(response);
   return {
-    isSuccess: response.isSuccess || response.success || false,
-    message: response.message,
-    data: response.data || response,
+    isSuccess: toApiSuccess(response),
+    message: toApiMessage(response),
+    data: responseData,
+  };
+}
+
+/**
+ * Add schedule segment for supplementary enrollment
+ */
+export async function addEnrollmentScheduleSegment(
+  id: string,
+  data: AddEnrollmentScheduleSegmentRequest
+): Promise<ApiResponse<EnrollmentScheduleSegment>> {
+  const response = await post<any>(ENROLLMENT_ENDPOINTS.SCHEDULE_SEGMENTS(id), data);
+  const responseData = unwrapData(response);
+  return {
+    isSuccess: toApiSuccess(response),
+    message: toApiMessage(response),
+    data: responseData,
   };
 }
 
@@ -101,10 +158,11 @@ export async function updateEnrollment(
  */
 export async function pauseEnrollment(id: string): Promise<ApiResponse<Enrollment>> {
   const response = await patch<any>(ENROLLMENT_ENDPOINTS.PAUSE(id));
+  const responseData = unwrapData(response);
   return {
-    isSuccess: response.isSuccess || response.success || false,
-    message: response.message,
-    data: response.data || response,
+    isSuccess: toApiSuccess(response),
+    message: toApiMessage(response),
+    data: responseData,
   };
 }
 
@@ -113,10 +171,11 @@ export async function pauseEnrollment(id: string): Promise<ApiResponse<Enrollmen
  */
 export async function dropEnrollment(id: string): Promise<ApiResponse<Enrollment>> {
   const response = await patch<any>(ENROLLMENT_ENDPOINTS.DROP(id));
+  const responseData = unwrapData(response);
   return {
-    isSuccess: response.isSuccess || response.success || false,
-    message: response.message,
-    data: response.data || response,
+    isSuccess: toApiSuccess(response),
+    message: toApiMessage(response),
+    data: responseData,
   };
 }
 
@@ -125,10 +184,11 @@ export async function dropEnrollment(id: string): Promise<ApiResponse<Enrollment
  */
 export async function reactivateEnrollment(id: string): Promise<ApiResponse<Enrollment>> {
   const response = await patch<any>(ENROLLMENT_ENDPOINTS.REACTIVATE(id));
+  const responseData = unwrapData(response);
   return {
-    isSuccess: response.isSuccess || response.success || false,
-    message: response.message,
-    data: response.data || response,
+    isSuccess: toApiSuccess(response),
+    message: toApiMessage(response),
+    data: responseData,
   };
 }
 
@@ -140,10 +200,11 @@ export async function assignTuitionPlan(
   data: AssignTuitionPlanRequest
 ): Promise<ApiResponse<Enrollment>> {
   const response = await patch<any>(ENROLLMENT_ENDPOINTS.ASSIGN_TUITION_PLAN(id), data);
+  const responseData = unwrapData(response);
   return {
-    isSuccess: response.isSuccess || response.success || false,
-    message: response.message,
-    data: response.data || response,
+    isSuccess: toApiSuccess(response),
+    message: toApiMessage(response),
+    data: responseData,
   };
 }
 
@@ -151,19 +212,31 @@ export async function assignTuitionPlan(
  * Get enrollment history for a student
  */
 export async function getStudentEnrollmentHistory(
-  studentProfileId: string
+  studentProfileId: string,
+  params?: { pageNumber?: number; pageSize?: number }
 ): Promise<ApiResponse<EnrollmentHistoryItem[]>> {
-  const response = await get<any>(ENROLLMENT_ENDPOINTS.STUDENT_HISTORY(studentProfileId));
-  const rawData = response?.data || response || {};
-  const responseData = rawData?.data || rawData;
+  const query = new URLSearchParams();
+  if (typeof params?.pageNumber === "number" && params.pageNumber > 0) {
+    query.set("pageNumber", String(params.pageNumber));
+  }
+  if (typeof params?.pageSize === "number" && params.pageSize > 0) {
+    query.set("pageSize", String(params.pageSize));
+  }
+
+  const url = query.toString()
+    ? `${ENROLLMENT_ENDPOINTS.STUDENT_HISTORY(studentProfileId)}?${query.toString()}`
+    : ENROLLMENT_ENDPOINTS.STUDENT_HISTORY(studentProfileId);
+
+  const response = await get<any>(url);
+  const responseData = unwrapData(response);
   const items =
     responseData?.enrollments?.items ||
     responseData?.items ||
     (Array.isArray(responseData) ? responseData : []);
 
   return {
-    isSuccess: response.isSuccess || response.success || false,
-    message: response.message,
+    isSuccess: toApiSuccess(response),
+    message: toApiMessage(response),
     data: Array.isArray(items) ? items : [],
   };
 }

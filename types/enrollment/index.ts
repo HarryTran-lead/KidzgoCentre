@@ -5,18 +5,51 @@
  */
 
 export type EnrollmentStatus = "Active" | "Paused" | "Dropped";
+export type EnrollmentTrack = "primary" | "secondary";
+
+export type DayOfWeekCode =
+  | "MO"
+  | "TU"
+  | "WE"
+  | "TH"
+  | "FR"
+  | "SA"
+  | "SU";
+
+export interface WeeklyPatternEntry {
+  dayOfWeeks: DayOfWeekCode[];
+  startTime: string;
+  durationMinutes: number;
+}
+
+export interface EnrollmentScheduleSegment {
+  id: string;
+  enrollmentId: string;
+  classId?: string;
+  programId?: string;
+  effectiveFrom: string;
+  effectiveTo?: string | null;
+  weeklyPattern?: WeeklyPatternEntry[] | null;
+  activeWeeklyPattern?: WeeklyPatternEntry[] | null;
+}
 
 export interface Enrollment {
   id: string;
   classId: string;
   classCode?: string;
   classTitle?: string;
+  programId?: string;
   studentProfileId: string;
   studentName?: string;
   enrollDate: string;
   status: EnrollmentStatus;
   tuitionPlanId?: string;
   tuitionPlanName?: string;
+  track?: EnrollmentTrack;
+  weeklyPattern?: WeeklyPatternEntry[];
+  scheduleSegments?: EnrollmentScheduleSegment[];
+  branchId?: string;
+  branchName?: string;
   programName?: string;
   schedulePattern?: string;
   capacity?: number;
@@ -30,17 +63,44 @@ export interface CreateEnrollmentRequest {
   studentProfileId: string;
   enrollDate: string;
   tuitionPlanId?: string;
+  track?: EnrollmentTrack;
+  weeklyPattern?: WeeklyPatternEntry[];
 }
 
 export interface UpdateEnrollmentRequest {
-  classId?: string;
-  studentProfileId?: string;
   enrollDate?: string;
   tuitionPlanId?: string;
+  track?: EnrollmentTrack;
+  weeklyPattern?: WeeklyPatternEntry[];
+  clearWeeklyPattern?: boolean;
 }
 
 export interface AssignTuitionPlanRequest {
   tuitionPlanId: string;
+}
+
+export interface AddEnrollmentScheduleSegmentRequest {
+  effectiveFrom: string;
+  effectiveTo?: string | null;
+  weeklyPattern?: WeeklyPatternEntry[];
+  clearWeeklyPattern?: boolean;
+}
+
+export interface BackfillSessionAssignmentsRequest {
+  enrollmentId?: string;
+  classId?: string;
+  studentProfileId?: string;
+  batchSize?: number;
+}
+
+export interface BackfillSessionAssignmentsResult {
+  matchedEnrollments: number;
+  processedEnrollments: number;
+  affectedClasses: number;
+  batchSize: number;
+  createdAssignments: number;
+  reactivatedAssignments: number;
+  cancelledAssignments: number;
 }
 
 export interface EnrollmentFilterParams {
@@ -59,6 +119,12 @@ export interface EnrollmentPaginatedResponse {
   pageNumber: number;
   pageSize: number;
   totalPages: number;
+}
+
+export interface EnrollmentHistoryPaginatedResponse {
+  studentProfileId?: string;
+  studentName?: string;
+  enrollments: EnrollmentPaginatedResponse;
 }
 
 export interface EnrollmentHistoryItem {

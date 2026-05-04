@@ -1354,7 +1354,7 @@ export default function StaffRegistrationOverview({
                 <SortHeader label="Lớp" keyName="className" />
                 <SortHeader label="Trạng thái" keyName="status" />
                 <SortHeader label="Ngày tạo" keyName="createdAt" />
-                <th className="px-4 py-3">Thao tác</th>
+                <th className="text-center px-4 py-3">Thao tác</th>
               </tr>
             </thead>
             <tbody>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   X,
   BookOpen,
@@ -19,7 +19,15 @@ import {
   Loader2,
 } from "lucide-react";
 import type { Enrollment, EnrollmentHistoryItem } from "@/types/enrollment";
-import { getStudentEnrollmentHistory } from "@/lib/api/enrollmentService";
+import {
+  addEnrollmentScheduleSegment,
+  assignTuitionPlan,
+  getEnrollmentById,
+  getStudentEnrollmentHistory,
+  updateEnrollment,
+} from "@/lib/api/enrollmentService";
+import { getDomainErrorMessage } from "@/lib/api/domainErrorMessage";
+import { useToast } from "@/hooks/use-toast";
 
 type StatusType = "Active" | "Paused" | "Dropped";
 
@@ -33,6 +41,7 @@ interface EnrollmentDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   enrollment: Enrollment | null;
+  onChanged?: () => void;
 }
 
 function cn(...classNames: Array<string | false | null | undefined>) {
@@ -43,7 +52,7 @@ function InfoCard({ icon, label, value, iconColor = "text-red-500" }: { icon?: R
   return (
     <div className="rounded-xl bg-white p-3 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-center gap-2">
-        {icon && <div className={cn("flex-shrink-0", iconColor)}>{icon}</div>}
+        {icon && <div className={cn("shrink-0", iconColor)}>{icon}</div>}
         <div className="text-xs font-medium uppercase tracking-wide text-gray-500">
           {label}
         </div>
@@ -57,7 +66,7 @@ function Section({ title, icon, children, colorClass = "border-red-200 bg-red-50
   return (
     <div className={cn("space-y-3 rounded-xl border p-4", colorClass)}>
       <div className="flex items-center gap-2">
-        {icon && <div className="flex-shrink-0">{icon}</div>}
+        {icon && <div className="shrink-0">{icon}</div>}
         <h3 className="text-sm font-semibold text-gray-700">{title}</h3>
       </div>
       {children}
@@ -69,17 +78,60 @@ export default function EnrollmentDetailModal({
   isOpen,
   onClose,
   enrollment,
+  onChanged,
 }: EnrollmentDetailModalProps) {
+  const { toast } = useToast();
   const [history, setHistory] = useState<EnrollmentHistoryItem[]>([]);
+  const [detailEnrollment, setDetailEnrollment] = useState<Enrollment | null>(null);
+  const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [activeTab, setActiveTab] = useState<"details" | "history">("details");
+  const [tuitionPlanIdInput, setTuitionPlanIdInput] = useState("");
+  const [updateEnrollDate, setUpdateEnrollDate] = useState("");
+  const [updateTrack, setUpdateTrack] = useState<"" | "primary" | "secondary">("");
+  const [isUpdatingEnrollment, setIsUpdatingEnrollment] = useState(false);
+  const [isAssigningTuitionPlan, setIsAssigningTuitionPlan] = useState(false);
+  const [segmentEffectiveFrom, setSegmentEffectiveFrom] = useState("");
+  const [segmentEffectiveTo, setSegmentEffectiveTo] = useState("");
+  const [segmentDayCodes, setSegmentDayCodes] = useState("");
+  const [segmentStartTime, setSegmentStartTime] = useState("");
+  const [segmentDurationMinutes, setSegmentDurationMinutes] = useState("90");
+  const [segmentClearPattern, setSegmentClearPattern] = useState(false);
+  const [isAddingSegment, setIsAddingSegment] = useState(false);
+
+  const fetchDetail = useCallback(async () => {
+    if (!isOpen || !enrollment?.id) return;
+
+    try {
+      setIsLoadingDetail(true);
+      const response = await getEnrollmentById(enrollment.id);
+      if (response.isSuccess && response.data) {
+        setDetailEnrollment(response.data);
+        setTuitionPlanIdInput(response.data.tuitionPlanId || "");
+        setUpdateEnrollDate(response.data.enrollDate || "");
+        setUpdateTrack(response.data.track || "");
+        return;
+      }
+      setDetailEnrollment(null);
+    } catch (error) {
+      console.error("Error fetching enrollment detail:", error);
+      setDetailEnrollment(null);
+    } finally {
+      setIsLoadingDetail(false);
+    }
+  }, [isOpen, enrollment?.id]);
 
   useEffect(() => {
-    if (isOpen && enrollment?.studentProfileId && activeTab === "history") {
+    fetchDetail();
+  }, [fetchDetail]);
+
+  useEffect(() => {
+    const studentProfileId = detailEnrollment?.studentProfileId || enrollment?.studentProfileId;
+    if (isOpen && studentProfileId && activeTab === "history") {
       const fetchHistory = async () => {
         setIsLoadingHistory(true);
         try {
-          const result = await getStudentEnrollmentHistory(enrollment.studentProfileId);
+          const result = await getStudentEnrollmentHistory(studentProfileId);
           setHistory(result.data || []);
         } catch (error) {
           console.error("Error fetching enrollment history:", error);
@@ -90,16 +142,27 @@ export default function EnrollmentDetailModal({
       };
       fetchHistory();
     }
-  }, [isOpen, enrollment?.studentProfileId, activeTab]);
+  }, [isOpen, enrollment?.studentProfileId, detailEnrollment?.studentProfileId, activeTab]);
 
   useEffect(() => {
     if (!isOpen) {
       setActiveTab("details");
       setHistory([]);
+      setDetailEnrollment(null);
+      setSegmentEffectiveFrom("");
+      setSegmentEffectiveTo("");
+      setSegmentDayCodes("");
+      setSegmentStartTime("");
+      setSegmentDurationMinutes("90");
+      setSegmentClearPattern(false);
+      setUpdateEnrollDate("");
+      setUpdateTrack("");
     }
   }, [isOpen]);
 
   if (!isOpen || !enrollment) return null;
+
+  const displayedEnrollment = detailEnrollment || enrollment;
 
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return "N/A";
@@ -127,11 +190,199 @@ export default function EnrollmentDetailModal({
     );
   };
 
+  const renderWeeklyPattern = (pattern?: Enrollment["weeklyPattern"]) => {
+    if (!Array.isArray(pattern) || pattern.length === 0) {
+      return "Học toàn bộ lịch lớp";
+    }
+
+    return pattern
+      .map((entry) => {
+        const days = Array.isArray(entry?.dayOfWeeks) ? entry.dayOfWeeks.join(", ") : "";
+        const startTime = String(entry?.startTime || "").trim();
+        const duration = Number(entry?.durationMinutes || 0);
+        const durationLabel = Number.isFinite(duration) && duration > 0 ? `${duration} phút` : "";
+        return [days, startTime, durationLabel].filter(Boolean).join(" • ");
+      })
+      .filter(Boolean)
+      .join(" | ");
+  };
+
+  const handleAssignTuitionPlan = async () => {
+    if (!displayedEnrollment?.id) return;
+
+    const tuitionPlanId = tuitionPlanIdInput.trim();
+    if (!tuitionPlanId) {
+      toast({
+        title: "Thiếu dữ liệu",
+        description: "Vui lòng nhập Tuition Plan ID trước khi cập nhật.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsAssigningTuitionPlan(true);
+      const response = await assignTuitionPlan(displayedEnrollment.id, { tuitionPlanId });
+
+      if (!response.isSuccess) {
+        toast({
+          title: "Lỗi",
+          description: response.message || "Không thể cập nhật gói học phí.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Thành công",
+        description: "Đã cập nhật gói học phí cho ghi danh.",
+        variant: "success",
+      });
+
+      await fetchDetail();
+      onChanged?.();
+    } catch (error) {
+      toast({
+        title: "Lỗi",
+        description: getDomainErrorMessage(error, "Không thể cập nhật gói học phí."),
+        variant: "destructive",
+      });
+    } finally {
+      setIsAssigningTuitionPlan(false);
+    }
+  };
+
+  const handleUpdateEnrollment = async () => {
+    if (!displayedEnrollment?.id) return;
+
+    if (!updateEnrollDate.trim() && !updateTrack.trim()) {
+      toast({
+        title: "Thiếu dữ liệu",
+        description: "Vui lòng nhập ít nhất một trường để cập nhật ghi danh.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsUpdatingEnrollment(true);
+      const response = await updateEnrollment(displayedEnrollment.id, {
+        enrollDate: updateEnrollDate.trim() || undefined,
+        track: (updateTrack.trim() || undefined) as "primary" | "secondary" | undefined,
+      });
+
+      if (!response.isSuccess) {
+        toast({
+          title: "Lỗi",
+          description: response.message || "Không thể cập nhật ghi danh.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Thành công",
+        description: "Đã cập nhật thông tin ghi danh.",
+        variant: "success",
+      });
+
+      await fetchDetail();
+      onChanged?.();
+    } catch (error) {
+      toast({
+        title: "Lỗi",
+        description: getDomainErrorMessage(error, "Không thể cập nhật ghi danh."),
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpdatingEnrollment(false);
+    }
+  };
+
+  const handleAddScheduleSegment = async () => {
+    if (!displayedEnrollment?.id) return;
+
+    const effectiveFrom = segmentEffectiveFrom.trim();
+    if (!effectiveFrom) {
+      toast({
+        title: "Thiếu dữ liệu",
+        description: "Vui lòng chọn ngày hiệu lực bắt đầu (effectiveFrom).",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const normalizedDays = segmentDayCodes
+      .split(",")
+      .map((value) => value.trim().toUpperCase())
+      .filter(Boolean);
+
+    const durationMinutes = Number(segmentDurationMinutes || "0");
+    const canBuildPattern =
+      !segmentClearPattern &&
+      normalizedDays.length > 0 &&
+      Boolean(segmentStartTime.trim()) &&
+      Number.isFinite(durationMinutes) &&
+      durationMinutes > 0;
+
+    try {
+      setIsAddingSegment(true);
+
+      const response = await addEnrollmentScheduleSegment(displayedEnrollment.id, {
+        effectiveFrom,
+        effectiveTo: segmentEffectiveTo.trim() || null,
+        clearWeeklyPattern: segmentClearPattern,
+        weeklyPattern: canBuildPattern
+          ? [
+              {
+                dayOfWeeks: normalizedDays as any,
+                startTime: segmentStartTime.trim(),
+                durationMinutes,
+              },
+            ]
+          : undefined,
+      });
+
+      if (!response.isSuccess) {
+        toast({
+          title: "Lỗi",
+          description: response.message || "Không thể thêm schedule segment.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Thành công",
+        description: "Đã thêm schedule segment cho ghi danh.",
+        variant: "success",
+      });
+
+      setSegmentEffectiveFrom("");
+      setSegmentEffectiveTo("");
+      setSegmentDayCodes("");
+      setSegmentStartTime("");
+      setSegmentDurationMinutes("90");
+      setSegmentClearPattern(false);
+
+      await fetchDetail();
+      onChanged?.();
+    } catch (error) {
+      toast({
+        title: "Lỗi",
+        description: getDomainErrorMessage(error, "Không thể thêm schedule segment."),
+        variant: "destructive",
+      });
+    } finally {
+      setIsAddingSegment(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
       <div className="relative max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
         {/* Modal Header - Gradient đỏ như các modal khác */}
-        <div className="sticky top-0 z-10 bg-gradient-to-r from-red-600 to-red-700 px-6 py-4">
+        <div className="sticky top-0 z-10 bg-linear-to-r from-red-600 to-red-700 px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
@@ -153,7 +404,7 @@ export default function EnrollmentDetailModal({
         </div>
 
         {/* Tabs */}
-        <div className="border-b border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6">
+        <div className="border-b border-gray-200 bg-linear-to-r from-red-500/5 to-red-700/5 px-6">
           <div className="flex gap-1">
             <button
               onClick={() => setActiveTab("details")}
@@ -191,16 +442,16 @@ export default function EnrollmentDetailModal({
           {activeTab === "details" && (
             <div className="space-y-5">
               {/* Status Card */}
-              <div className="rounded-xl border border-red-200 bg-gradient-to-r from-red-50/50 to-white p-5">
+              <div className="rounded-xl border border-red-200 bg-linear-to-r from-red-50/50 to-white p-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="p-3 rounded-xl bg-gradient-to-r from-red-600 to-red-700 shadow-md">
+                    <div className="p-3 rounded-xl bg-linear-to-r from-red-600 to-red-700 shadow-md">
                       <GraduationCap size={20} className="text-white" />
                     </div>
                     <div>
                       <div className="text-xs uppercase tracking-wide text-gray-500">Trạng thái</div>
                       <div className="text-lg font-bold text-gray-900">
-                        {getStatusBadge(enrollment.status)}
+                        {getStatusBadge(displayedEnrollment.status)}
                       </div>
                     </div>
                   </div>
@@ -217,7 +468,7 @@ export default function EnrollmentDetailModal({
                   <InfoCard
                     icon={<User size={14} />}
                     label="Họ tên học viên"
-                    value={enrollment.studentName || "N/A"}
+                    value={displayedEnrollment.studentName || "N/A"}
                   />
                   
                 </div>
@@ -233,18 +484,18 @@ export default function EnrollmentDetailModal({
                   <InfoCard
                     icon={<BookOpen size={14} />}
                     label="Tên lớp"
-                    value={enrollment.classTitle || "N/A"}
+                    value={displayedEnrollment.classTitle || "N/A"}
                   />
                   <InfoCard
                     icon={<Tag size={14} />}
                     label="Mã lớp"
-                    value={enrollment.classCode || "N/A"}
+                    value={displayedEnrollment.classCode || "N/A"}
                   />
-                  {enrollment.schedulePattern && (
+                  {displayedEnrollment.schedulePattern && (
                     <InfoCard
                       icon={<Clock size={14} />}
                       label="Lịch học"
-                      value={enrollment.schedulePattern}
+                      value={displayedEnrollment.schedulePattern}
                     />
                   )}
                   
@@ -261,29 +512,196 @@ export default function EnrollmentDetailModal({
                   <InfoCard
                     icon={<Calendar size={14} />}
                     label="Ngày ghi danh"
-                    value={formatDate(enrollment.enrollDate)}
+                    value={formatDate(displayedEnrollment.enrollDate)}
                   />
-                  {enrollment.tuitionPlanName && (
+                  {displayedEnrollment.tuitionPlanName && (
                     <InfoCard
                       icon={<Tag size={14} />}
                       label="Gói học phí"
-                      value={enrollment.tuitionPlanName}
+                      value={displayedEnrollment.tuitionPlanName}
                     />
                   )}
-                  {enrollment.createdAt && (
+                  {displayedEnrollment.createdAt && (
                     <InfoCard
                       icon={<Calendar size={14} />}
                       label="Ngày tạo"
-                      value={formatDate(enrollment.createdAt)}
+                      value={formatDate(displayedEnrollment.createdAt)}
                     />
                   )}
-                  {enrollment.updatedAt && (
+                  {displayedEnrollment.updatedAt && (
                     <InfoCard
                       icon={<Clock size={14} />}
                       label="Cập nhật lần cuối"
-                      value={formatDate(enrollment.updatedAt)}
+                      value={formatDate(displayedEnrollment.updatedAt)}
                     />
                   )}
+                  <InfoCard
+                    icon={<Clock size={14} />}
+                    label="Weekly Pattern"
+                    value={renderWeeklyPattern(displayedEnrollment.weeklyPattern)}
+                  />
+                </div>
+              </Section>
+
+              <Section
+                title="Schedule Segments"
+                icon={<Calendar size={16} className="text-indigo-600" />}
+                colorClass="border-indigo-200 bg-indigo-50/40"
+              >
+                {isLoadingDetail ? (
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <Loader2 size={14} className="animate-spin text-indigo-500" />
+                    Đang tải chi tiết segment...
+                  </div>
+                ) : !Array.isArray(displayedEnrollment.scheduleSegments) ||
+                  displayedEnrollment.scheduleSegments.length === 0 ? (
+                  <div className="text-sm text-gray-500">Chưa có segment riêng.</div>
+                ) : (
+                  <div className="space-y-2">
+                    {displayedEnrollment.scheduleSegments.map((segment) => (
+                      <div
+                        key={segment.id}
+                        className="rounded-lg border border-indigo-100 bg-white px-3 py-2 text-sm"
+                      >
+                        <div className="font-medium text-gray-800">
+                          {formatDate(segment.effectiveFrom)} - {segment.effectiveTo ? formatDate(segment.effectiveTo) : "Hiện tại"}
+                        </div>
+                        <div className="mt-1 text-gray-600">
+                          {renderWeeklyPattern(
+                            segment.activeWeeklyPattern ?? segment.weeklyPattern ?? undefined,
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Section>
+
+              <Section
+                title="Thao tác nâng cao"
+                icon={<AlertCircle size={16} className="text-red-600" />}
+                colorClass="border-red-200 bg-red-50/40"
+              >
+                <div className="space-y-4">
+                  <div className="rounded-lg border border-red-100 bg-white p-3">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      Cập nhật Enrollment
+                    </div>
+                    <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
+                      <input
+                        type="date"
+                        value={updateEnrollDate}
+                        onChange={(event) => setUpdateEnrollDate(event.target.value)}
+                        className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-red-300 focus:outline-none"
+                      />
+                      <select
+                        value={updateTrack}
+                        onChange={(event) =>
+                          setUpdateTrack(event.target.value as "" | "primary" | "secondary")
+                        }
+                        className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-red-300 focus:outline-none"
+                      >
+                        <option value="">Không đổi track</option>
+                        <option value="primary">primary</option>
+                        <option value="secondary">secondary</option>
+                      </select>
+                    </div>
+                    <div className="mt-3 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={handleUpdateEnrollment}
+                        disabled={isUpdatingEnrollment}
+                        className="inline-flex items-center justify-center rounded-lg bg-linear-to-r from-red-600 to-red-700 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {isUpdatingEnrollment ? "Đang cập nhật..." : "Cập nhật enrollment"}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-red-100 bg-white p-3">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      Gán Tuition Plan
+                    </div>
+                    <div className="mt-2 flex flex-col gap-2 md:flex-row">
+                      <input
+                        type="text"
+                        value={tuitionPlanIdInput}
+                        onChange={(event) => setTuitionPlanIdInput(event.target.value)}
+                        placeholder="Nhập Tuition Plan ID (GUID)"
+                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-red-300 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAssignTuitionPlan}
+                        disabled={isAssigningTuitionPlan || !tuitionPlanIdInput.trim()}
+                        className="inline-flex items-center justify-center rounded-lg bg-linear-to-r from-red-600 to-red-700 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {isAssigningTuitionPlan ? "Đang cập nhật..." : "Cập nhật gói học"}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-red-100 bg-white p-3">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      Thêm Schedule Segment (Supplementary)
+                    </div>
+                    <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
+                      <input
+                        type="date"
+                        value={segmentEffectiveFrom}
+                        onChange={(event) => setSegmentEffectiveFrom(event.target.value)}
+                        className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-red-300 focus:outline-none"
+                      />
+                      <input
+                        type="date"
+                        value={segmentEffectiveTo}
+                        onChange={(event) => setSegmentEffectiveTo(event.target.value)}
+                        className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-red-300 focus:outline-none"
+                      />
+                      <input
+                        type="text"
+                        value={segmentDayCodes}
+                        onChange={(event) => setSegmentDayCodes(event.target.value)}
+                        placeholder="Days: MO,WE,SA"
+                        className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-red-300 focus:outline-none"
+                      />
+                      <input
+                        type="time"
+                        value={segmentStartTime}
+                        onChange={(event) => setSegmentStartTime(event.target.value)}
+                        className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-red-300 focus:outline-none"
+                      />
+                      <input
+                        type="number"
+                        min={1}
+                        value={segmentDurationMinutes}
+                        onChange={(event) => setSegmentDurationMinutes(event.target.value)}
+                        placeholder="Duration minutes"
+                        className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-red-300 focus:outline-none"
+                      />
+                      <label className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700">
+                        <input
+                          type="checkbox"
+                          checked={segmentClearPattern}
+                          onChange={(event) => setSegmentClearPattern(event.target.checked)}
+                        />
+                        Clear weekly pattern
+                      </label>
+                    </div>
+                    <div className="mt-2 text-xs text-gray-500">
+                      Nếu bật Clear weekly pattern thì học viên sẽ quay về lịch đầy đủ của lớp.
+                    </div>
+                    <div className="mt-3 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={handleAddScheduleSegment}
+                        disabled={isAddingSegment || !segmentEffectiveFrom.trim()}
+                        className="inline-flex items-center justify-center rounded-lg bg-linear-to-r from-red-600 to-red-700 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {isAddingSegment ? "Đang thêm..." : "Thêm segment"}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </Section>
             </div>
@@ -298,7 +716,7 @@ export default function EnrollmentDetailModal({
                 </div>
               ) : history.length === 0 ? (
                 <div className="text-center py-12">
-                  <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center">
+                  <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-linear-to-r from-gray-100 to-gray-200 flex items-center justify-center">
                     <History size={24} className="text-gray-400" />
                   </div>
                   <div className="text-gray-600 font-medium">Chưa có lịch sử ghi danh</div>
@@ -311,7 +729,7 @@ export default function EnrollmentDetailModal({
                     className="group rounded-xl border border-gray-200 bg-white p-4 hover:border-red-200 hover:shadow-md transition-all duration-200"
                   >
                     <div className="flex flex-wrap items-start gap-3">
-                      <div className="flex-shrink-0">
+                      <div className="shrink-0">
                         <div className="p-2 rounded-lg bg-red-50">
                           <BookOpen size={16} className="text-red-500" />
                         </div>
@@ -351,7 +769,7 @@ export default function EnrollmentDetailModal({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
+        <div className="border-t border-gray-200 bg-linear-to-r from-red-500/5 to-red-700/5 px-6 py-4">
           <div className="flex items-center justify-end">
             <button
               onClick={onClose}

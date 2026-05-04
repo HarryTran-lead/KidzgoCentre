@@ -15,7 +15,12 @@ import {
   pauseEnrollment,
   dropEnrollment,
   reactivateEnrollment,
+  backfillSessionAssignments,
 } from "@/lib/api/enrollmentService";
+import {
+  extractDomainErrorCode,
+  getDomainErrorMessage,
+} from "@/lib/api/domainErrorMessage";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import type { Enrollment, CreateEnrollmentRequest } from "@/types/enrollment";
@@ -27,27 +32,26 @@ import {
 } from "@/components/portal/enrollments";
 import ConfirmModal from "@/components/ConfirmModal";
 
-type EnrollmentErrorPayload = {
-  title?: string;
-  detail?: string;
-  message?: string;
-};
+const getEnrollmentErrorTitle = (error: unknown) => {
+  const code = extractDomainErrorCode(error);
 
-type EnrollmentError = {
-  response?: {
-    data?: EnrollmentErrorPayload;
-  };
-  message?: string;
-};
+  if (
+    code === "Enrollment.StudentScheduleConflict" ||
+    code === "Registration.StudentScheduleConflict" ||
+    code === "StudentScheduleConflict"
+  ) {
+    return "Trùng lịch học";
+  }
 
-const getEnrollmentErrorPayload = (error: unknown): EnrollmentErrorPayload | undefined => {
-  if (!error || typeof error !== "object") return undefined;
-  return (error as EnrollmentError).response?.data;
-};
+  if (code === "Enrollment.ClassFull" || code === "ClassFull") {
+    return "Lớp đã đủ sĩ số";
+  }
 
-const getEnrollmentErrorMessage = (error: unknown, fallback: string) => {
-  const payload = getEnrollmentErrorPayload(error);
-  return payload?.detail || payload?.message || (error as EnrollmentError).message || fallback;
+  if (code === "Enrollment.AlreadyEnrolled" || code === "AlreadyEnrolled") {
+    return "Đã có ghi danh";
+  }
+
+  return "Lỗi";
 };
 
 export default function EnrollmentsPage() {
@@ -58,6 +62,7 @@ export default function EnrollmentsPage() {
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [allEnrollments, setAllEnrollments] = useState<Enrollment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isBackfilling, setIsBackfilling] = useState(false);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -163,7 +168,7 @@ export default function EnrollmentsPage() {
       console.error("Error fetching enrollments:", error);
       toast({
         title: "Lỗi",
-        description: "Không thể tải danh sách ghi danh",
+        description: getDomainErrorMessage(error, "Không thể tải danh sách ghi danh."),
         variant: "destructive",
       });
     } finally {
@@ -192,15 +197,49 @@ export default function EnrollmentsPage() {
         });
       }
     } catch (error: unknown) {
-      const payload = getEnrollmentErrorPayload(error);
-      const isScheduleConflict =
-        payload?.title === "Enrollment.StudentScheduleConflict";
-      const msg = getEnrollmentErrorMessage(error, "Khong the tao ghi danh");
       toast({
-        title: isScheduleConflict ? "Trùng lịch học" : "Lỗi",
-        description: msg,
+        title: getEnrollmentErrorTitle(error),
+        description: getDomainErrorMessage(error, "Không thể tạo ghi danh."),
         variant: "destructive",
       });
+    }
+  };
+
+  const handleBackfillAssignments = async () => {
+    try {
+      setIsBackfilling(true);
+
+      const response = await backfillSessionAssignments({
+        batchSize: 100,
+      });
+
+      if (response.isSuccess && response.data) {
+        toast({
+          title: "Thành công",
+          description: `Đã đồng bộ assignment: tạo mới ${response.data.createdAssignments}, kích hoạt lại ${response.data.reactivatedAssignments}, hủy ${response.data.cancelledAssignments}.`,
+          variant: "success",
+        });
+        fetchEnrollments();
+        fetchInitialData();
+        return;
+      }
+
+      toast({
+        title: "Lỗi",
+        description: response.message || "Không thể đồng bộ assignment của ghi danh.",
+        variant: "destructive",
+      });
+    } catch (error) {
+      toast({
+        title: getEnrollmentErrorTitle(error),
+        description: getDomainErrorMessage(
+          error,
+          "Không thể đồng bộ assignment của ghi danh.",
+        ),
+        variant: "destructive",
+      });
+    } finally {
+      setIsBackfilling(false);
     }
   };
 
@@ -265,13 +304,9 @@ export default function EnrollmentsPage() {
         });
       }
     } catch (error: unknown) {
-      const payload = getEnrollmentErrorPayload(error);
-      const isScheduleConflict =
-        payload?.title === "Enrollment.StudentScheduleConflict";
-      const msg = getEnrollmentErrorMessage(error, "Da xay ra loi");
       toast({
-        title: isScheduleConflict ? "Trùng lịch học" : "Lỗi",
-        description: msg,
+        title: getEnrollmentErrorTitle(error),
+        description: getDomainErrorMessage(error, "Không thể cập nhật trạng thái ghi danh."),
         variant: "destructive",
       });
     } finally {
@@ -340,6 +375,14 @@ export default function EnrollmentsPage() {
               Làm mới
             </button>
             <button
+              onClick={handleBackfillAssignments}
+              disabled={isBackfilling}
+              className="inline-flex items-center gap-2 rounded-xl border border-red-300 bg-white px-4 py-2.5 text-sm font-medium text-red-700 hover:bg-red-50 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <RefreshCw size={16} className={isBackfilling ? "animate-spin" : ""} />
+              {isBackfilling ? "Đang đồng bộ..." : "Đồng bộ assignment"}
+            </button>
+            <button
               onClick={() => setIsFormModalOpen(true)}
               className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:from-red-700 hover:to-red-800 hover:shadow-lg transition-all cursor-pointer"
             >
@@ -368,14 +411,14 @@ export default function EnrollmentsPage() {
             <div className="flex items-center gap-2">
               <Filter size={16} className="text-gray-500 shrink-0" />
               <Select value={selectedStatus} onValueChange={handleStatusChange}>
-                <SelectTrigger className="w-auto min-w-[140px] rounded-xl h-10">
+                <SelectTrigger className="h-10 w-auto min-w-35 rounded-xl">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Tất cả">Tất cả</SelectItem>
-                  <SelectItem value="Active">Active</SelectItem>
-                  <SelectItem value="Paused">Paused</SelectItem>
-                  <SelectItem value="Dropped">Dropped</SelectItem>
+                  <SelectItem value="Active">Đang học</SelectItem>
+                  <SelectItem value="Paused">Tạm nghỉ</SelectItem>
+                  <SelectItem value="Dropped">Đã nghỉ</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -415,6 +458,10 @@ export default function EnrollmentsPage() {
             setSelectedEnrollment(null);
           }}
           enrollment={selectedEnrollment}
+          onChanged={() => {
+            fetchEnrollments();
+            fetchInitialData();
+          }}
         />
 
         {/* Confirm Modal */}
