@@ -9,7 +9,6 @@ import {
   Users,
   Eye,
   Pencil,
-  Clock,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
@@ -59,6 +58,10 @@ function parseMonthlyLeaveLimitValue(value: string): number | null {
   }
 
   return parsedValue;
+}
+
+function isProgramWithoutMonthlyLeaveLimit(value?: { isMakeup?: boolean | null; isSupplementary?: boolean | null } | null) {
+  return Boolean(value?.isMakeup || value?.isSupplementary);
 }
 
 function buildProgramCode(name: string, fallback = "PROGRAM"): string {
@@ -153,6 +156,7 @@ interface CreateCourseModalProps {
 interface CourseFormData {
   code?: string;
   name: string;
+  description?: string;
   status: string;
   isMakeup: boolean;
   isSupplementary: boolean;
@@ -162,6 +166,7 @@ interface CourseFormData {
 const initialFormData: CourseFormData = {
   code: "",
   name: "",
+  description: "",
   status: "Đang hoạt động",
   isMakeup: false,
   isSupplementary: false,
@@ -221,9 +226,15 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
     e?.preventDefault();
     if (!validateForm()) return;
 
+    const isNoLimitProgramType = isProgramWithoutMonthlyLeaveLimit(formData);
+
     try {
       setSubmitting(true);
-      const isSuccess = await onSubmit(formData);
+      const isSuccess = await onSubmit(
+        isNoLimitProgramType
+          ? { ...formData, maxLeavesPerMonth: null }
+          : formData
+      );
       if (isSuccess !== false) {
         onClose();
       }
@@ -241,6 +252,8 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
       setErrors(prev => ({ ...prev, isSupplementary: undefined }));
     }
   };
+
+  const isNoLimitProgramType = isProgramWithoutMonthlyLeaveLimit(formData);
 
   if (!isOpen) return null;
 
@@ -384,14 +397,21 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
                 type="number"
                 min="1"
                 step="1"
-                value={formData.maxLeavesPerMonth ?? ""}
+                value={isNoLimitProgramType ? "" : (formData.maxLeavesPerMonth ?? "")}
                 onChange={(e) => {
+                  if (isNoLimitProgramType) return;
                   const v = e.target.value.trim();
                   handleChange("maxLeavesPerMonth", v === "" ? null : Math.max(1, parseInt(v, 10) || 1));
                 }}
-                placeholder={t.modal.leaveLimitPlaceholder}
+                disabled={isNoLimitProgramType}
+                placeholder={isNoLimitProgramType ? "Không giới hạn cho chương trình bù/phụ trợ" : t.modal.leaveLimitPlaceholder}
                 className="w-full rounded-xl border border-amber-200 bg-white px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-300"
               />
+              {isNoLimitProgramType && (
+                <p className="text-xs text-amber-700">
+                  Chương trình bù/phụ trợ mặc định không giới hạn ngày nghỉ theo tháng.
+                </p>
+              )}
             </div>
 
 
@@ -887,7 +907,7 @@ export function ProgramsManagementPage({
     let filtered = !kw
       ? courses
       : courses.filter((c) =>
-        [c.id, c.name, c.desc, c.fee].some((x) => x?.toLowerCase().includes(kw))
+        [c.id, c.name, c.desc].some((x) => x?.toLowerCase().includes(kw))
       );
 
     if (statusFilter !== "ALL") {
@@ -917,9 +937,11 @@ export function ProgramsManagementPage({
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const pagedRows = rows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const isSelectedProgramNoLimit = isProgramWithoutMonthlyLeaveLimit(selectedCourseDetail);
   const currentLeaveLimit = extractProgramMonthlyLeaveLimit(selectedCourseDetail);
   const leaveLimitValue = Number(leaveLimitDraft);
   const canSaveLeaveLimit =
+    !isSelectedProgramNoLimit &&
     leaveLimitDraft.trim() !== "" &&
     Number.isInteger(leaveLimitValue) &&
     leaveLimitValue > 0 &&
@@ -955,6 +977,7 @@ export function ProgramsManagementPage({
       const payload: CreateProgramRequest = {
         name: data.name,
         code,
+        description: data.description,
         isMakeup: data.isMakeup,
         isSupplementary: data.isSupplementary,
       };
@@ -963,8 +986,8 @@ export function ProgramsManagementPage({
 
       const warnings: string[] = [];
 
-      // Cấu hình giới hạn nghỉ nếu có
-      if (data.maxLeavesPerMonth && data.maxLeavesPerMonth > 0 && created?.id && !created.id.startsWith("PROG-")) {
+      // Cấu hình giới hạn nghỉ nếu có và chỉ áp dụng cho chương trình chính
+      if (!isProgramWithoutMonthlyLeaveLimit(data) && data.maxLeavesPerMonth && data.maxLeavesPerMonth > 0 && created?.id && !created.id.startsWith("PROG-")) {
         try {
           await updateAdminProgramMonthlyLeaveLimit(created.id, data.maxLeavesPerMonth);
         } catch (leaveLimitError: any) {
@@ -1020,6 +1043,7 @@ export function ProgramsManagementPage({
       const payload: CreateProgramRequest = {
         name: data.name,
         code,
+        description: data.description,
         isMakeup: data.isMakeup,
         isSupplementary: data.isSupplementary,
       };
@@ -1028,8 +1052,8 @@ export function ProgramsManagementPage({
 
       const warnings: string[] = [];
 
-      // Cập nhật giới hạn nghỉ nếu thay đổi
-      if (data.maxLeavesPerMonth && data.maxLeavesPerMonth > 0) {
+      // Cập nhật giới hạn nghỉ nếu thay đổi, chỉ áp dụng cho chương trình chính
+      if (!isProgramWithoutMonthlyLeaveLimit(data) && data.maxLeavesPerMonth && data.maxLeavesPerMonth > 0) {
         try {
           await updateAdminProgramMonthlyLeaveLimit(editingProgramId, data.maxLeavesPerMonth);
         } catch (leaveLimitError: any) {
@@ -1149,13 +1173,16 @@ export function ProgramsManagementPage({
       const nextInitialData: CourseFormData = {
         code: String(detail.code ?? ""),
         name: String(detail.name ?? row.name),
+        description: String(detail.description ?? row.desc ?? ""),
         status: nextStatus,
         isMakeup: typeof detail.isMakeup === "boolean" ? detail.isMakeup : !!row.isMakeup,
         isSupplementary:
           typeof detail.isSupplementary === "boolean"
             ? detail.isSupplementary
             : !!row.isSupplementary,
-        maxLeavesPerMonth: extractProgramMonthlyLeaveLimit(detail),
+        maxLeavesPerMonth: isProgramWithoutMonthlyLeaveLimit(detail)
+          ? null
+          : extractProgramMonthlyLeaveLimit(detail),
       };
 
       setEditingProgramId(row.id);
@@ -1181,7 +1208,11 @@ export function ProgramsManagementPage({
       const detail = await fetchAdminProgramDetail(row.id);
       setSelectedCourseDetail(detail);
       const limit = extractProgramMonthlyLeaveLimit(detail);
-      setLeaveLimitDraft(limit !== null ? String(limit) : "");
+      setLeaveLimitDraft(
+        isProgramWithoutMonthlyLeaveLimit(detail)
+          ? ""
+          : (limit !== null ? String(limit) : "")
+      );
     } catch (err: any) {
       console.error("Failed to load program detail:", err);
       toast({
@@ -1197,6 +1228,15 @@ export function ProgramsManagementPage({
 
   const handleSaveMonthlyLeaveLimit = async () => {
     if (!selectedCourseDetail?.id) return;
+
+    if (isProgramWithoutMonthlyLeaveLimit(selectedCourseDetail)) {
+      toast({
+        title: "Không áp dụng giới hạn",
+        description: "Chương trình bù/phụ trợ mặc định không giới hạn ngày nghỉ theo tháng.",
+        type: "warning",
+      });
+      return;
+    }
 
     const maxLeavesPerMonth = Number(leaveLimitDraft);
     if (!Number.isInteger(maxLeavesPerMonth) || maxLeavesPerMonth <= 0) {
@@ -1487,7 +1527,6 @@ export function ProgramsManagementPage({
                             {getProgramTypeLabel(c)}
                           </span>
                         </div>
-                        <div className="text-xs text-gray-500 truncate">{c.desc}</div>
                       </td>
 
                       <td className="py-3 px-6 whitespace-nowrap">
@@ -1784,7 +1823,9 @@ export function ProgramsManagementPage({
                           {t.modal.leaveCurrentLimit}
                         </label>
                         <div className="px-4 py-3 rounded-xl border border-amber-200 bg-white text-gray-900">
-                          {currentLeaveLimit !== null ? `${currentLeaveLimit} buổi / tháng` : t.modal.leaveCurrentLimit}
+                          {isSelectedProgramNoLimit
+                            ? "Không giới hạn"
+                            : (currentLeaveLimit !== null ? `${currentLeaveLimit} buổi / tháng` : t.modal.leaveCurrentLimit)}
                         </div>
                       </div>
 
@@ -1798,7 +1839,8 @@ export function ProgramsManagementPage({
                           step="1"
                           value={leaveLimitDraft}
                           onChange={(e) => setLeaveLimitDraft(e.target.value)}
-                          placeholder={t.modal.leaveLimitPlaceholder}
+                          placeholder={isSelectedProgramNoLimit ? "Không áp dụng cho chương trình bù/phụ trợ" : t.modal.leaveLimitPlaceholder}
+                          disabled={isSelectedProgramNoLimit}
                           className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-200"
                         />
                       </div>
@@ -1821,17 +1863,7 @@ export function ProgramsManagementPage({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                        <Clock size={16} className="text-red-600" />
-                        {t.details.sessionsLabel}
-                      </label>
-                      <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
-                        {selectedCourseDetail.totalSessions ? `${selectedCourseDetail.totalSessions} ${t.table.count}` : t.details.noInfo}
-                      </div>
-                    </div>
-
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                         <GraduationCap size={16} className="text-red-600" />

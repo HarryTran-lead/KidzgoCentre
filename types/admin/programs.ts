@@ -17,6 +17,7 @@ export interface CreateProgramRequest {
   code: string;
   isMakeup: boolean;
   isSupplementary: boolean;
+  description?: string;
 }
 
 export interface Program {
