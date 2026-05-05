@@ -200,7 +200,7 @@ export default function Roadmap() {
     <section 
       id="roadmap" 
       ref={sectionRef}
-      className="py-20 scroll-mt-24 pb-0 overflow-hidden bg-linear-to-b from-white via-red-50 to-rose-50 relative  z-30"
+      className="roadmap-page py-20 scroll-mt-24 pb-0 overflow-hidden bg-linear-to-b from-white via-red-50 to-rose-50 relative  z-30"
       style={{
         borderTopLeftRadius: '3rem',
         borderTopRightRadius: '3rem',
@@ -325,7 +325,7 @@ export default function Roadmap() {
                     className={`
                       roadmap-card mt-6 lg:mt-0 p-6 lg:p-8 rounded-3xl border-2 ${item.borderColor} 
                       bg-white/90 backdrop-blur-sm shadow-xl hover:shadow-2xl 
-                      transition-all duration-500 hover:-translate-y-2
+                      transition-all duration-500 hover:-translate-y-2 cursor-pointer
                       relative overflow-hidden
                       ${isEven ? "lg:mr-8" : "lg:ml-8"}
                       before:absolute before:inset-0 before:bg-linear-to-r ${item.color} 

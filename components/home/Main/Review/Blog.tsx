@@ -6,6 +6,7 @@ import { SURFACE_BORDER } from "@/lib/theme/theme";
 import { ArrowRight, Calendar, User, Clock, BookOpen, Sparkles, TrendingUp, Eye, Heart, MessageCircle, Star, PartyPopper, Rainbow, Music, Gamepad2 } from "lucide-react";
 import { motion, cubicBezier } from "framer-motion";
 import { useState } from "react";
+import Link from "next/link";
 
 export default function Blog() {
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
@@ -72,10 +73,20 @@ export default function Blog() {
     return { bg: "bg-red-600", text: "text-white" };
   };
 
+  const generateStats = (index: number) => {
+    // Tạo số consistent dựa vào index để tránh nhảy khi re-render
+    const seed = index * 12345;
+    return [
+      { count: Math.abs((seed * 17) % 500) + 500, label: "xem" },
+      { count: Math.abs((seed * 23) % 150) + 50, label: "thích" },
+      { count: Math.abs((seed * 31) % 40) + 10, label: "bình luận" }
+    ];
+  };
+
   return (
     <section 
       id="blog" 
-      className=" scroll-mt-24 relative z-30 overflow-hidden"
+      className="blog-page scroll-mt-24 relative z-30 overflow-hidden"
       style={{ 
         backgroundColor: '#f0f9ff',
         backgroundImage: `
@@ -124,7 +135,7 @@ export default function Blog() {
           viewport={{ once: true, amount: 0.3 }}
         >
           <motion.h2 
-            className="text-4xl md:text-5xl lg:text-6xl font-black text-center mb-6"
+            className="text-4xl md:text-5xl font-black text-center mb-6"
             variants={fadeInUp}
           >
             <span className="block text-gray-800">Bản tin</span>
@@ -144,7 +155,7 @@ export default function Blog() {
         </motion.div>
 
         {/* Blog grid - Cute design */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-12">
           {BLOGS.map((post, index) => {
             const tagColor = getTagColor(post.tag);
             
@@ -163,7 +174,7 @@ export default function Blog() {
                 transition={{ delay: index * 0.1 }}
               >
                 {/* Card container với hình dạng dễ thương */}
-                <div className="relative rounded-3xl bg-gradient-to-b from-white to-white/90 overflow-hidden h-full border-4 border-white shadow-xl hover:shadow-2xl transition-all duration-500 group-hover:border-pink-300">
+                <div className="relative rounded-3xl bg-gradient-to-b from-white to-white/90 overflow-hidden h-full border-4 border-white shadow-xl hover:shadow-2xl transition-all duration-500 group-hover:border-red-500 cursor-pointer">
                   {/* Cute top decoration */}
                   <div className="absolute top-0 left-0 right-0 h-3 bg-gradient-to-r from-red-600 via-red-500 to-rose-600 rounded-t-3xl" />
                   
@@ -203,7 +214,7 @@ export default function Blog() {
                   <div className="p-6">
                     {/* Title với hiệu ứng gradient */}
                     <motion.h3 
-                      className="text-xl font-black mb-3 leading-tight group-hover:text-red-600 transition-colors duration-300 min-h-[56px]"
+                      className="text-lg font-black mb-3 leading-tight group-hover:text-red-600 transition-colors duration-300 min-h-[56px]"
                       whileHover={{ scale: 1.02 }}
                     >
                       <span className="bg-gradient-to-r from-gray-900 to-gray-700 group-hover:from-red-600 group-hover:to-rose-600 bg-clip-text text-transparent transition-all duration-300">
@@ -213,24 +224,20 @@ export default function Blog() {
 
                     {/* Excerpt với background cute */}
                     <div className="mb-5">
-                      <p className="text-gray-700 leading-relaxed text-sm bg-gradient-to-r from-gray-50 to-white p-3 rounded-xl border border-gray-100">
+                      <p className="text-gray-700 leading-relaxed text-xs bg-gradient-to-r from-gray-50 to-white p-3 rounded-xl border border-gray-100">
                         {post.excerpt}
                       </p>
                     </div>
 
                     {/* Stats */}
                     <div className="flex items-center justify-between mb-6 bg-gradient-to-r from-red-50 to-rose-50 p-3 rounded-xl border border-gray-100">
-                      {[
-                        { count: Math.floor(Math.random() * 1000) + 500, label: "xem" },
-                        { count: Math.floor(Math.random() * 200) + 50, label: "thích" },
-                        { count: Math.floor(Math.random() * 50) + 10, label: "bình luận" }
-                      ].map((stat, statIndex) => (
+                      {generateStats(index).map((stat, statIndex) => (
                         <div
                           key={stat.label}
                           className="flex flex-col items-center gap-1"
                         >
                           <div className="flex items-center gap-1">
-                            <span className="font-bold text-gray-900 text-sm">{stat.count}</span>
+                            <span className="font-bold text-gray-900 text-xs">{stat.count}</span>
                           </div>
                           <span className="text-gray-600 text-xs">{stat.label}</span>
                         </div>
@@ -238,10 +245,9 @@ export default function Blog() {
                     </div>
 
                     {/* Read more button dễ thương */}
-                    <motion.div className="relative">
-                      <motion.a
-                        href="#"
-                        className="group/btn relative inline-flex items-center justify-center gap-3 w-full py-3.5 rounded-xl text-white font-bold shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden"
+                    <Link href="/blogs">
+                      <motion.div
+                        className="group/btn relative inline-flex items-center justify-center gap-3 w-full py-2.5 rounded-xl text-white font-bold shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden text-sm cursor-pointer"
                         style={{
                           background: `linear-gradient(135deg, ${['#dc2626', '#b91c1c', '#991b1b', '#7f1d1d'][index % 4]}, ${
                             ['#ef4444', '#f87171', '#fca5a5', '#fecaca'][index % 4]
@@ -274,8 +280,8 @@ export default function Blog() {
                           whileHover={{ x: "100%" }}
                           transition={{ duration: 0.7 }}
                         />
-                      </motion.a>
-                    </motion.div>
+                      </motion.div>
+                    </Link>
                   </div>
 
                   {/* Cute corner decorations */}
@@ -319,24 +325,25 @@ export default function Blog() {
           viewport={{ once: true }}
           transition={{ duration: 0.6, delay: 0.3 }}
         >
-          <motion.a
-            href="#"
-            className="group relative inline-flex items-center gap-4 px-10 py-5 bg-gradient-to-r from-red-600 via-red-500 to-rose-600 text-white font-bold rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden text-lg"
-            whileHover={{ scale: 1.05, rotate: [0, -1, 1, 0] }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <span className="relative z-10 flex items-center gap-3">
-              Xem tất cả câu chuyện vui của bé
-            </span>
-            
-            {/* Shimmer effect */}
+          <Link href="/blogs">
             <motion.div
-              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
-              initial={{ x: "-100%" }}
-              whileHover={{ x: "100%" }}
-              transition={{ duration: 0.7 }}
-            />
-          </motion.a>
+              className="group relative inline-flex items-center gap-4 px-6 py-2.5 bg-white border-2 border-red-600 text-red-600 font-bold rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden text-sm cursor-pointer"
+              whileHover={{ scale: 1.05, rotate: [0, -1, 1, 0] }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <span className="relative z-10 flex items-center gap-3">
+                Xem tất cả câu chuyện vui của bé
+              </span>
+              
+              {/* Shimmer effect */}
+              <motion.div
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                initial={{ x: "-100%" }}
+                whileHover={{ x: "100%" }}
+                transition={{ duration: 0.7 }}
+              />
+            </motion.div>
+          </Link>
 
         </motion.div>
       </div>

@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { TESTIMONIALS, GALLERY } from "@/lib/data/data";
-import { Star, ChevronLeft, ChevronRight, Quote, Award, Sparkles, Heart, MessageCircle, TrendingUp } from "lucide-react";
+import { ChevronLeft, ChevronRight, Quote, Award, Sparkles, Heart, MessageCircle, TrendingUp } from "lucide-react";
+import ngoisaoIcon from "@/public/image/ngoisao.png";
 import { motion, AnimatePresence, useMotionValue, useSpring } from "framer-motion";
 import { ACCENT_TEXT } from "@/lib/theme/theme";
 import "@/styles/animations.css";
@@ -95,7 +96,7 @@ export default function Testimonials() {
 
   return (
     <section
-      className="pt-20 md:pt-28 pb-32 md:pb-40 scroll-mt-24 relative overflow-hidden bg-[#8ED462] z-30 mt-[-10px]"
+      className="testimonials-page pt-20 md:pt-28 pb-32 md:pb-40 scroll-mt-24 relative overflow-hidden bg-[#8ED462] z-30 mt-[-10px]"
       onMouseMove={handleMouseMove}
     >
       {/* Animated gradient orbs - Using CSS animations */}
@@ -147,9 +148,9 @@ export default function Testimonials() {
           }`}>
             <span className="text-white drop-shadow-lg">
               Câu chuyện{" "}
-              <span className={`${ACCENT_TEXT} relative inline-block p-2`}>
+              <span className="bg-linear-to-r from-red-600 via-red-500 to-rose-600 bg-clip-text text-transparent relative inline-block p-2">
                 thành công
-                <Star className="absolute -top-2 -right-4 w-4 h-4 text-yellow-500 animate-spin" />
+                <img src={ngoisaoIcon.src} alt="star" className="absolute -top-2 -right-4 w-4 h-4 animate-spin" />
               </span>
             </span>
           </h2>
@@ -182,7 +183,7 @@ export default function Testimonials() {
               {/* Card glow effect */}
               <div className={`absolute -inset-4 bg-linear-to-r ${gradients[idx % gradients.length]} rounded-3xl opacity-20 blur-2xl -z-10`} />
 
-              <div className="relative backdrop-blur-xl bg-white/10 rounded-3xl border border-white/30 shadow-2xl p-8 md:p-10 overflow-hidden group">
+              <div className="relative backdrop-blur-xl bg-white/10 rounded-3xl border border-red-200/50 shadow-2xl p-8 md:p-10 overflow-hidden group">
                 {/* Animated background pattern */}
                 <div className="absolute inset-0 opacity-5">
                   <div className="absolute inset-0 bg-[url('/image/pattern.svg')] bg-repeat bg-[length:100px_100px]"></div>
@@ -210,7 +211,7 @@ export default function Testimonials() {
                             transition={{ duration: 0.3, delay: i * 0.1 }}
                             className="relative"
                           >
-                            <Star className="w-7 h-7 text-amber-300 fill-amber-300" />
+                            <img src={ngoisaoIcon.src} alt="star" className="w-7 h-7" />
                             <motion.div
                               className="absolute inset-0 bg-amber-300 blur-md"
                               animate={{ opacity: [0.3, 0.8, 0.3] }}
@@ -220,7 +221,7 @@ export default function Testimonials() {
                         ))}
                       </div>
                       <motion.div
-                        className="px-3 py-1.5 rounded-full bg-linear-to-r from-amber-500/20 to-orange-500/20 backdrop-blur-sm border border-amber-500/30"
+                        className="px-3 py-1.5 rounded-full bg-linear-to-r from-amber-500/20 to-orange-500/20 backdrop-blur-sm border border-amber-500/30 cursor-pointer"
                         whileHover={{ scale: 1.05 }}
                       >
                         <span className="text-sm font-semibold text-white">5.0/5.0</span>
@@ -231,6 +232,7 @@ export default function Testimonials() {
                     <div className="relative">
                       <motion.p
                         className="text-2xl md:text-3xl lg:text-4xl font-medium text-white leading-relaxed"
+                        style={{ fontFamily: "Coolvetica" }}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.2 }}
@@ -241,6 +243,7 @@ export default function Testimonials() {
                       </motion.p>
                       <motion.div
                         className="absolute -bottom-8 -right-8 text-9xl text-white/10"
+                        style={{ fontFamily: "Coolvetica" }}
                         animate={{ rotate: [0, 360] }}
                         transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
                       >
@@ -250,7 +253,7 @@ export default function Testimonials() {
 
                     {/* Student info with badges */}
                     <motion.div
-                      className="pt-8 border-t border-white/20"
+                      className="pt-8 border-t border-red-200/30 cursor-pointer"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: 0.4 }}
@@ -258,7 +261,7 @@ export default function Testimonials() {
                       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                         <div className="space-y-2">
                           <div className="flex items-center gap-3">
-                            <h3 className="text-2xl font-bold text-white">{slide.name}</h3>
+                            <h3 className="text-2xl font-bold text-white cursor-pointer">{slide.name}</h3>
                             <motion.div
                               whileHover={{ scale: 1.1 }}
                               className="w-2 h-2 rounded-full bg-emerald-400"
@@ -278,13 +281,13 @@ export default function Testimonials() {
 
                 {/* Corner accents */}
                 <motion.div
-                  className="absolute top-0 right-0 w-32 h-32 border-t-2 border-r-2 border-white/20 rounded-tr-3xl"
-                  animate={{ borderColor: ["rgba(255,255,255,0.2)", "rgba(255,255,255,0.4)", "rgba(255,255,255,0.2)"] }}
+                  className="absolute top-0 right-0 w-32 h-32 border-t-2 border-r-2 border-red-200/40 rounded-tr-3xl"
+                  animate={{ borderColor: ["rgba(248, 113, 113, 0.4)", "rgba(220, 38, 38, 0.6)", "rgba(248, 113, 113, 0.4)"] }}
                   transition={{ duration: 3, repeat: Infinity }}
                 />
                 <motion.div
-                  className="absolute bottom-0 left-0 w-32 h-32 border-b-2 border-l-2 border-white/20 rounded-bl-3xl"
-                  animate={{ borderColor: ["rgba(255,255,255,0.2)", "rgba(255,255,255,0.4)", "rgba(255,255,255,0.2)"] }}
+                  className="absolute bottom-0 left-0 w-32 h-32 border-b-2 border-l-2 border-red-200/40 rounded-bl-3xl"
+                  animate={{ borderColor: ["rgba(248, 113, 113, 0.4)", "rgba(220, 38, 38, 0.6)", "rgba(248, 113, 113, 0.4)"] }}
                   transition={{ duration: 3, repeat: Infinity, delay: 1.5 }}
                 />
               </div>
@@ -308,7 +311,7 @@ export default function Testimonials() {
                 />
 
                 {/* Avatar container */}
-                <div className="relative rounded-3xl overflow-hidden border-4 border-white/40 shadow-2xl bg-linear-to-br from-white/20 to-white/5 backdrop-blur-sm">
+                <div className="relative rounded-3xl overflow-hidden border-4 border-red-200/40 shadow-2xl bg-linear-to-br from-white/20 to-white/5 backdrop-blur-sm">
                   <AnimatePresence mode="wait">
                     <motion.div
                       key={slide.avatar}
@@ -328,7 +331,7 @@ export default function Testimonials() {
                       
                       {/* Progress indicator */}
                       <div className="absolute top-6 left-6 flex items-center gap-2">
-                        <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg grid place-items-center">
+                        <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md border border-red-200/50 shadow-lg grid place-items-center">
                           <span className="text-xl font-black text-white">{idx + 1}</span>
                         </div>
                         <div className="text-white">
@@ -344,29 +347,29 @@ export default function Testimonials() {
                 <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 flex items-center gap-4">
                   <motion.button
                     onClick={prev}
-                    className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-xl border border-white/30 shadow-2xl hover:shadow-3xl transition-all duration-300 grid place-items-center group/nav"
+                    className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-xl border border-red-200/40 shadow-2xl hover:shadow-3xl transition-all duration-300 grid place-items-center group/nav cursor-pointer"
                     whileHover={{ scale: 1.1, x: -5 }}
                     whileTap={{ scale: 0.95 }}
                   >
-                    <ChevronLeft className="w-6 h-6 text-white group-hover/nav:text-amber-300 transition-colors" />
+                    <ChevronLeft className="w-6 h-6 text-white group-hover/nav:text-red-300 transition-colors" />
                   </motion.button>
 
                   {/* Thumbnail carousel */}
-                  <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-xl">
+                  <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/10 backdrop-blur-xl border border-red-200/30 shadow-xl">
                     {slides.map((s, i) => {
                       const active = i === idx;
                       return (
                         <motion.button
                           key={s.name}
                           onClick={() => navigate(i)}
-                          className="relative"
+                          className="relative cursor-pointer"
                           whileHover={{ scale: 1.1 }}
                           whileTap={{ scale: 0.95 }}
                         >
                           <div className={`relative w-12 h-12 rounded-xl overflow-hidden border-2 transition-all duration-300 ${
                             active 
-                              ? 'border-white scale-110' 
-                              : 'border-white/30 hover:border-white/60'
+                              ? 'border-red-300 scale-110' 
+                              : 'border-red-200/30 hover:border-red-200/60'
                           }`}>
                             <img
                               src={s.avatar}
@@ -390,11 +393,11 @@ export default function Testimonials() {
 
                   <motion.button
                     onClick={next}
-                    className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-xl border border-white/30 shadow-2xl hover:shadow-3xl transition-all duration-300 grid place-items-center group/nav"
+                    className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-xl border border-red-200/40 shadow-2xl hover:shadow-3xl transition-all duration-300 grid place-items-center group/nav cursor-pointer"
                     whileHover={{ scale: 1.1, x: 5 }}
                     whileTap={{ scale: 0.95 }}
                   >
-                    <ChevronRight className="w-6 h-6 text-white group-hover/nav:text-amber-300 transition-colors" />
+                    <ChevronRight className="w-6 h-6 text-white group-hover/nav:text-red-300 transition-colors" />
                   </motion.button>
                 </div>
               </div>

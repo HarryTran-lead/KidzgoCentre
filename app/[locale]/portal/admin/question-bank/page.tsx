@@ -545,7 +545,7 @@ export default function Page() {
       const detail = await fetchAdminQuestionDetail(row.id);
       setSelectedQuestionDetail({
         ...detail,
-        programName: (detail.programId != null ? courseNameMap[detail.programId] : undefined) || detail.programName || detail.course,
+        programName: detail.programName || detail.course,
       });
     } catch (err: any) { toast({ title: "Lỗi", description: err?.message || "Không thể tải chi tiết.", type: "destructive" }); setShowDetailModal(false); }
     finally { setLoadingDetail(false); }

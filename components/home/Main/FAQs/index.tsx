@@ -154,8 +154,8 @@ const KidzGoFAQ: React.FC = () => {
   const selectedOption = dropdownOptions.find(o => o.id === selectedCategoryId) ?? dropdownOptions[0];
 
   return (
-    <div className="min-h-screen bg-red-50 mt-30">
-      <div className="relative z-20 w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-10 -mt-40 bg-red-50 rounded-t-4xl shadow-2xl">
+    <div className="faqs-page min-h-screen bg-red-50 mt-30">
+      <div id="faq-section" className="relative z-20 w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-10 -mt-40 bg-red-50 rounded-t-4xl shadow-2xl">
 
         {/* Search & Filter */}
         <div className="mb-8 sm:mb-10 flex flex-col gap-3 sm:gap-4 md:flex-row md:justify-center items-center">
