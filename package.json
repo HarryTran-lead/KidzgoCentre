@@ -10,6 +10,10 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:domain-errors": "vitest run lib/api/domainErrorMessage.test.ts",
+    "test:e2e": "playwright test",
+    "test:e2e:sweep": "playwright test tests/e2e/specs/07-full-web-sweep.spec.ts",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:report": "node tests/e2e/scripts/generate-bug-report.js",
     "prepare": "husky install"
   },
   "dependencies": {
@@ -32,6 +36,7 @@
     "framer-motion": "^12.36.0",
     "gsap": "^3.14.2",
     "input-otp": "^1.4.2",
+    "lightningcss": "^1.32.0",
     "lightswind": "^3.1.20",
     "lucide-react": "^0.552.0",
     "next": "^16.1.1",
@@ -53,6 +58,7 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4",
     "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^20.19.24",
@@ -65,5 +71,18 @@
     "tailwindcss": "^4",
     "typescript": "^5.9.3",
     "vitest": "^2.1.8"
+  },
+  "optionalDependencies": {
+    "lightningcss-linux-x64-gnu": "1.32.0",
+    "lightningcss-linux-arm64-gnu": "1.32.0",
+    "lightningcss-linux-x64-musl": "1.32.0",
+    "lightningcss-darwin-x64": "1.32.0",
+    "lightningcss-darwin-arm64": "1.32.0",
+    "@tailwindcss/oxide-linux-x64-gnu": "4.1.18",
+    "@tailwindcss/oxide-linux-arm64-gnu": "4.1.18",
+    "@tailwindcss/oxide-linux-x64-musl": "4.1.18",
+    "@tailwindcss/oxide-linux-arm64-musl": "4.1.18",
+    "@tailwindcss/oxide-darwin-x64": "4.1.18",
+    "@tailwindcss/oxide-darwin-arm64": "4.1.18"
   }
 }

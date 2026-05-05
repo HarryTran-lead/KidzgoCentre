@@ -72,7 +72,7 @@ export default function WhyUs() {
   };
 
   return (
-    <section id="why" className="pt-0 scroll-mt-24 overflow-hidden bg-gradient-to-b from-white via-red-50 to-rose-50 relative z-30">
+    <section id="why" className="whyus-page pt-0 scroll-mt-24 overflow-hidden bg-gradient-to-b from-white via-red-50 to-rose-50 relative z-30">
       {/* Animated gradient background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <motion.div 
@@ -141,17 +141,17 @@ export default function WhyUs() {
         ))}
       </div>
 
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-10">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-10 mb-20">
         {/* Header với animation */}
         <div ref={titleRef} className="text-center mb-16 pt-8">
-          <h2 className={`text-4xl md:text-5xl font-black p-8 bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent transition-all duration-1000 ${
+          <h2 className={`text-4xl md:text-5xl font-black p-8 text-black transition-all duration-1000 ${
             isTitleVisible 
               ? 'opacity-100 translate-y-0' 
               : 'opacity-0 translate-y-10'
           }`}>
-            Khác biệt tạo <span className="bg-gradient-to-r from-red-600 to-rose-600 bg-clip-text text-transparent">hiệu quả</span>
+            Khác biệt tạo <span className="text-red-600">hiệu quả</span>
           </h2>
-          <p className={`mt-4 text-lg text-gray-600 max-w-2xl mx-auto transition-all duration-1000 delay-300 ${
+          <p className={` text-lg text-gray-600 max-w-2xl mx-auto transition-all duration-1000 delay-300 ${
             isTitleVisible 
               ? 'opacity-100 translate-y-0' 
               : 'opacity-0 translate-y-10'
@@ -174,10 +174,10 @@ export default function WhyUs() {
                 key={title}
                 data-index={index}
                 className={`
-                  relative group
-                  transition-all duration-1000 transform
+                  relative group cursor-pointer
+                  transition-all duration-400 transform
                   ${isVisible 
-                    ? 'opacity-100 translate-y-0 scale-100' 
+                    ? 'opacity-100 translate-y-0 scale-100 hover:scale-105' 
                     : 'opacity-0 translate-y-12 scale-95'
                   }
                 `}
@@ -192,10 +192,10 @@ export default function WhyUs() {
                   shadow-lg shadow-red-200/50
                   overflow-hidden
                   group-hover:shadow-2xl group-hover:shadow-red-300/50
-                  transition-all duration-500
+                  transition-all duration-500 p-5
                 `}>
                   {/* Sticker image section */}
-                  <div className="relative w-full h-48 bg-gradient-to-br from-red-100 to-rose-100 overflow-hidden">
+                  <div className="relative w-full h-48 bg-gradient-to-br from-red-100 to-rose-100 overflow-hidden rounded-3xl">
                     <div className="absolute inset-0 flex items-center justify-center p-4">
                       <motion.div 
                         className="relative w-full h-full flex items-center justify-center"

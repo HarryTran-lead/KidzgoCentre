@@ -43,9 +43,9 @@ const ICON_MAP = {
 } as Record<string, React.ComponentType<{ className?: string; size?: number }>>;
 
 function resolveIcon(iconName?: string | null) {
-  if (!iconName) return <HelpCircle className="w-5 h-5 text-sky-500" />;
+  if (!iconName) return <HelpCircle className="w-5 h-5 text-red-600" />;
   const Comp = ICON_MAP[iconName];
-  return Comp ? <Comp className="w-5 h-5 text-sky-500" /> : <HelpCircle className="w-5 h-5 text-sky-500" />;
+  return Comp ? <Comp className="w-5 h-5 text-red-600" /> : <HelpCircle className="w-5 h-5 text-red-600" />;
 }
 
 // ── Loading skeleton ──────────────────────────────────────────────────────────
@@ -143,7 +143,7 @@ const KidzGoFAQ: React.FC = () => {
   // Build dropdown options: "all" + API categories
   type DropdownOption = { id: string; name: string; icon: React.ReactNode };
   const dropdownOptions: DropdownOption[] = [
-    { id: "all", name: (msg.categories as any)["all"] ?? "Tất cả chủ đề", icon: <HelpCircle className="w-4 h-4 text-sky-500" /> },
+    { id: "all", name: (msg.categories as any)["all"] ?? "Tất cả chủ đề", icon: <HelpCircle className="w-4 h-4 text-red-600" /> },
     ...apiCategories.map(c => ({
       id: c.id,
       name: c.name,
@@ -154,8 +154,8 @@ const KidzGoFAQ: React.FC = () => {
   const selectedOption = dropdownOptions.find(o => o.id === selectedCategoryId) ?? dropdownOptions[0];
 
   return (
-    <div className="min-h-screen bg-sky-50 mt-30">
-      <div className="relative z-20 w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-10 -mt-40 bg-sky-50 rounded-t-4xl shadow-2xl">
+    <div className="faqs-page min-h-screen bg-red-50 mt-30">
+      <div id="faq-section" className="relative z-20 w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-10 -mt-40 bg-red-50 rounded-t-4xl shadow-2xl">
 
         {/* Search & Filter */}
         <div className="mb-8 sm:mb-10 flex flex-col gap-3 sm:gap-4 md:flex-row md:justify-center items-center">
@@ -166,7 +166,7 @@ const KidzGoFAQ: React.FC = () => {
               placeholder={msg.labels.searchPlaceholder}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 sm:pl-12 pr-4 py-2 sm:py-2.5 rounded-lg border border-gray-200 bg-white text-sm sm:text-base hover:border-sky-500/50 focus:border-sky-400 outline-none transition-all duration-300 shadow-sm"
+              className="w-full pl-10 sm:pl-12 pr-4 py-2 sm:py-2.5 rounded-lg border border-gray-200 bg-white text-sm sm:text-base hover:border-red-500/50 focus:border-red-400 outline-none transition-all duration-300 shadow-sm"
             />
           </div>
 
@@ -174,7 +174,7 @@ const KidzGoFAQ: React.FC = () => {
           <div className="relative w-full sm:w-1/2 md:w-1/3">
             {catLoading ? (
               <div className="w-full flex items-center px-4 py-2.5 bg-white rounded-lg border border-gray-200 gap-2">
-                <Loader2 className="w-4 h-4 animate-spin text-sky-400" />
+                <Loader2 className="w-4 h-4 animate-spin text-red-600" />
                 <span className="text-sm text-gray-400">Đang tải...</span>
               </div>
             ) : (
@@ -183,7 +183,7 @@ const KidzGoFAQ: React.FC = () => {
                 onChange={(val: string) => setSelectedCategoryId(val)}
               >
                 <div className="relative">
-                  <Listbox.Button className="w-full flex items-center justify-between px-4 sm:px-5 py-2.5 bg-white rounded-lg shadow-sm hover:border-sky-500/50 border border-gray-200 transition text-sm sm:text-base">
+                  <Listbox.Button className="w-full flex items-center justify-between px-4 sm:px-5 py-2.5 bg-white rounded-lg shadow-sm hover:border-red-500/50 border border-gray-200 transition text-sm sm:text-base">
                     <span className="flex items-center gap-2">
                       {selectedOption.icon}
                       {selectedOption.name}
@@ -205,7 +205,7 @@ const KidzGoFAQ: React.FC = () => {
                           key={opt.id}
                           value={opt.id}
                           className={({ active, selected }) => {
-                            const color = selected ? "bg-blue-50 text-blue-700" : active ? "bg-gray-100 text-gray-800" : "text-gray-700";
+                            const color = selected ? "bg-red-50 text-red-700" : active ? "bg-gray-100 text-gray-800" : "text-gray-700";
                             return `px-4 sm:px-5 py-2.5 cursor-pointer flex items-center justify-between text-sm sm:text-base ${color}`;
                           }}
                         >
@@ -234,8 +234,8 @@ const KidzGoFAQ: React.FC = () => {
             Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)
           ) : faqItems.length === 0 ? (
             <div className="text-center py-12">
-              <div className="w-20 h-20 sm:w-24 sm:h-24 bg-sky-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Search className="w-10 h-10 sm:w-12 sm:h-12 text-sky-300" />
+              <div className="w-20 h-20 sm:w-24 sm:h-24 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Search className="w-10 h-10 sm:w-12 sm:h-12 text-red-300" />
               </div>
               <h3 className="text-lg sm:text-xl font-semibold text-gray-700 mb-2">{msg.labels.noResultsTitle}</h3>
               <p className="text-sm sm:text-base text-gray-500">{msg.labels.noResultsSubtitle}</p>
@@ -246,16 +246,16 @@ const KidzGoFAQ: React.FC = () => {
               const startIndex = (currentPage - 1) * PAGE_SIZE;
               return (
                 <div key={faq.id} className="relative">
-                  <div className="absolute -top-2 -left-2 z-10 w-7 h-7 sm:w-8 sm:h-8 bg-linear-to-br from-sky-400 via-sky-500 to-sky-600 text-white text-xs sm:text-sm font-bold rounded-full flex items-center justify-center shadow-md">
+                  <div className="absolute -top-2 -left-2 z-10 w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-red-600 via-red-600 to-red-700 text-white text-xs sm:text-sm font-bold rounded-full flex items-center justify-center shadow-md">
                     {String(startIndex + index + 1).padStart(2, "0")}
                   </div>
-                  <div className={`bg-white rounded-2xl shadow-sm sm:shadow-md hover:shadow-md sm:hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 border-l-4 ${isExpanded ? "border-sky-500 ring-1 ring-sky-100" : "border-transparent hover:border-sky-500/50"} relative overflow-hidden`}>
+                  <div className={`bg-white rounded-2xl shadow-sm sm:shadow-md hover:shadow-md sm:hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 border-l-4 ${isExpanded ? "border-red-500 ring-1 ring-red-100" : "border-transparent hover:border-red-500/50"} relative overflow-hidden`}>
                     <button
                       onClick={() => toggleExpanded(faq.id)}
                       className={`relative w-full text-left flex items-start justify-between group transition-all duration-300 ${isExpanded ? "px-4 pt-4 sm:px-5 sm:pt-5 md:px-6 md:pt-6" : "px-4 py-4 sm:px-5 sm:py-5 md:px-6 md:py-6"}`}
                     >
                       <div className="flex items-start gap-3 sm:gap-4 flex-1">
-                        <div className={`shrink-0 mt-0.5 sm:mt-1 p-1.5 sm:p-2 rounded-xl transition-all duration-300 ${isExpanded ? "bg-blue-50 scale-110" : "bg-gray-50 group-hover:bg-slate-100"}`}>
+                        <div className={`shrink-0 mt-0.5 sm:mt-1 p-1.5 sm:p-2 rounded-xl transition-all duration-300 ${isExpanded ? "bg-red-50 scale-110" : "bg-gray-50 group-hover:bg-slate-100"}`}>
                           {resolveIcon(faq.categoryIcon)}
                         </div>
                         <div className="flex-1">
@@ -269,20 +269,20 @@ const KidzGoFAQ: React.FC = () => {
                           )}
                         </div>
                       </div>
-                      <div className={`shrink-0 ml-3 sm:ml-4 p-1.5 sm:p-2 rounded-full transition-all duration-300 ${isExpanded ? "bg-sky-50 rotate-180" : "group-hover:bg-gray-100"}`}>
-                        <ChevronDown className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors duration-300 ${isExpanded ? "text-sky-700" : "text-gray-400 group-hover:text-sky-500"}`} />
+                      <div className={`shrink-0 ml-3 sm:ml-4 p-1.5 sm:p-2 rounded-full transition-all duration-300 ${isExpanded ? "bg-red-50 rotate-180" : "group-hover:bg-gray-100"}`}>
+                        <ChevronDown className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors duration-300 ${isExpanded ? "text-red-700" : "text-gray-400 group-hover:text-red-600"}`} />
                       </div>
                     </button>
 
                     <div className={`transition-all duration-500 ease-in-out ${isExpanded ? "max-h-96 opacity-100 overflow-visible" : "max-h-0 opacity-0 overflow-hidden"}`}>
                       <div className="px-4 sm:px-6 pb-4 sm:pb-6 relative">
                         <div className="ml-10 sm:ml-14 pt-2 sm:pt-0">
-                          <div className="h-px bg-linear-to-r from-sky-200 via-sky-100 to-transparent mb-3 sm:mb-4" />
-                          <div className="p-3 sm:p-4 rounded-xl border-l-2 border-sky-200">
+                          <div className="h-px bg-gradient-to-r from-red-200 via-red-100 to-transparent mb-3 sm:mb-4" />
+                          <div className="p-3 sm:p-4 rounded-xl border-l-2 border-red-200">
                             <p className="text-sm sm:text-base text-gray-800 leading-relaxed whitespace-pre-line">{faq.answer}</p>
                             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-5 text-xs sm:text-sm sm:items-center">
                               <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-                              <span className="text-sky-700">{msg.meta.centerHint}</span>
+                              <span className="text-red-700">{msg.meta.centerHint}</span>
                               <span className="hidden sm:inline text-gray-500 ml-auto">{msg.labels.updatedAtPrefix} {formatUpdatedAt(faq.updatedAt)}</span>
                               <span className="sm:hidden w-full text-gray-500">{msg.labels.updatedAtPrefix} {formatUpdatedAt(faq.updatedAt)}</span>
                             </div>
@@ -312,7 +312,7 @@ const KidzGoFAQ: React.FC = () => {
       </div>
 
       {/* Bottom Decoration SVG */}
-      <div className="z-20 relative w-full overflow-hidden bg-sky-50" style={{ marginTop: 0, lineHeight: 0 }}>
+      <div className="z-20 relative w-full overflow-hidden bg-red-50" style={{ marginTop: 0, lineHeight: 0 }}>
         <Image
           src="/image/hero-deluxe-end.svg"
           alt=""

@@ -307,7 +307,8 @@ export async function createAdminClass(
     startDate: data?.startDate ?? payload.startDate ?? null,
     endDate: data?.endDate ?? payload.endDate ?? null,
     capacity: typeof data?.capacity === "number" ? data.capacity : payload.capacity ?? null,
-    schedulePattern: data?.schedulePattern ?? payload.schedulePattern ?? null,
+    weeklyScheduleSlots: data?.weeklyScheduleSlots ?? payload.weeklyScheduleSlots ?? null,
+    schedulePattern: data?.schedulePattern ?? null,
     status: data?.status ?? null,
   };
 
@@ -361,7 +362,8 @@ export async function updateAdminClass(
     startDate: data?.startDate ?? payload.startDate ?? null,
     endDate: data?.endDate ?? payload.endDate ?? null,
     capacity: typeof data?.capacity === "number" ? data.capacity : payload.capacity ?? null,
-    schedulePattern: data?.schedulePattern ?? payload.schedulePattern ?? null,
+    weeklyScheduleSlots: data?.weeklyScheduleSlots ?? payload.weeklyScheduleSlots ?? null,
+    schedulePattern: data?.schedulePattern ?? null,
     status: data?.status ?? null,
   };
 

@@ -2,6 +2,16 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
 @import 'tailwindcss';
 @plugin 'lightswind/plugin';
+
+/* ==== Boleroesque-Honora Font ==== */
+@font-face {
+  font-family: 'Boleroesque-Honora';
+  src: url('/fonts/Boleroesque-Honora-by-Josh-Manh-Nguyen.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* (phần còn lại) */
 :root{
   --background:#ffffff;
@@ -13,6 +23,92 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
 }
+
+/* Apply Boleroesque-Honora to landing page only */
+.landing-page {
+  font-family: 'Boleroesque-Honora', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+
+/* Apply Boleroesque-Honora to roadmap page */
+.roadmap-page {
+  font-family: 'Boleroesque-Honora', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+
+/* Apply Boleroesque-Honora to why us page */
+.whyus-page {
+  font-family: 'Boleroesque-Honora', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+
+/* Apply Boleroesque-Honora to courses page */
+.courses-page {
+  font-family: 'Boleroesque-Honora', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+
+/* Apply Boleroesque-Honora to testimonials page */
+.testimonials-page {
+  font-family: 'Boleroesque-Honora', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+
+/* Apply Boleroesque-Honora to gallery page */
+.gallery-page {
+  font-family: 'Boleroesque-Honora', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+
+/* Apply Boleroesque-Honora to teacher page */
+.teacher-page {
+  font-family: 'Boleroesque-Honora', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+
+/* Apply Boleroesque-Honora to programs page */
+.programs-page {
+  font-family: 'Boleroesque-Honora', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+
+/* Apply Boleroesque-Honora to blog page */
+.blog-page {
+  font-family: 'Boleroesque-Honora', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+
+/* Apply Boleroesque-Honora to footer page */
+.footer-page {
+  font-family: 'Boleroesque-Honora', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+
+/* Apply Boleroesque-Honora to header page */
+.header-page {
+  font-family: 'Boleroesque-Honora', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+
+/* Apply Boleroesque-Honora to blogs page (Blogs route) */
+.blogs-page {
+  font-family: 'Boleroesque-Honora', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+
+/* Apply Boleroesque-Honora to contact page */
+.contact-page {
+  font-family: 'Boleroesque-Honora', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+
+/* Apply Boleroesque-Honora to faqs page */
+.faqs-page {
+  font-family: 'Boleroesque-Honora', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+
+/* Apply Boleroesque-Honora to blogs banner */
+.blogs-banner {
+  font-family: 'Boleroesque-Honora', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+
+/* Apply Boleroesque-Honora to contact banner */
+.contact-banner {
+  font-family: 'Boleroesque-Honora', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+
+/* Apply Boleroesque-Honora to faqs banner */
+.faqs-banner {
+  font-family: 'Boleroesque-Honora', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+
 html,body{ font-family: var(--font-sans); }
 
 .sidebar-container {

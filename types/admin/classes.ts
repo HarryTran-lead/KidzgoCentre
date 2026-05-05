@@ -1,4 +1,4 @@
-export type ClassRow = {
+﻿export type ClassRow = {
   id: string; 
   code: string; 
   name: string;
@@ -12,6 +12,12 @@ export type ClassRow = {
   status: "Đang học" | "Sắp khai giảng" | "Đã kết thúc";
 };
 
+export interface ScheduleSlot {
+  dayOfWeek: "MO" | "TU" | "WE" | "TH" | "FR" | "SA" | "SU";
+  startTime: string; // Format: "HH:mm"
+  durationMinutes: number;
+}
+
 export interface CreateClassRequest {
   branchId: string;
   programId: string;
@@ -22,10 +28,10 @@ export interface CreateClassRequest {
   assistantTeacherId?: string;
   roomId?: string;
   startDate: string; // ISO date format: "2026-03-24"
-  endDate?: string; // Backend may auto-calculate when schedule pattern and program data are available.
+  endDate: string; // Required for class creation
   capacity: number;
-  schedulePattern?: string; // RRULE format: "RRULE:FREQ=WEEKLY;BYDAY=MO,WE,FR;BYHOUR=8;BYMINUTE=30;DURATION=60"
-  status?: string; // Auto set to "Planned" when creating new class
+  weeklyScheduleSlots: ScheduleSlot[]; // New format instead of schedulePattern
+  status?: string; // Auto set to "Active" when creating new class
 }
 
 export interface Class {
@@ -40,7 +46,8 @@ export interface Class {
   startDate?: string | null;
   endDate?: string | null;
   capacity?: number | null;
-  schedulePattern?: string | null;
+  weeklyScheduleSlots?: ScheduleSlot[] | null;
+  schedulePattern?: string | null; // Kept for backward compatibility
   status?: string | null;
 }
 
