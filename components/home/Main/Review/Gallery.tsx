@@ -2,10 +2,10 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
-import { Image as ImageIcon, ChevronLeft, ChevronRight, Star } from "lucide-react";
+import { Image as ImageIcon, ChevronLeft, ChevronRight } from "lucide-react";
+import ngoisaoIcon from "@/public/image/ngoisao.png";
 import { motion, useMotionValue, useSpring } from "framer-motion";
 import { GALLERY } from "@/lib/data/data";
-import { ACCENT_TEXT } from "@/lib/theme/theme";
 import "@/styles/animations.css";
 
 const AUTO_MS = 4000;
@@ -109,7 +109,7 @@ export default function Gallery() {
   return (
     <section 
       id="gallery" 
-      className="py-20 pb-0 scroll-mt-24  bg-[#8ED462] relative z-30 overflow-hidden"
+      className="gallery-page py-20 pb-0 scroll-mt-24  bg-[#8ED462] relative z-30 overflow-hidden"
       onMouseMove={handleMouseMove}
     >
       {/* Animated gradient orbs - Using CSS animations */}
@@ -153,7 +153,7 @@ export default function Gallery() {
 
       <div className="mx-auto max-w-6xl px-6 relative z-10">
         {/* Header */}
-        <div ref={titleRef} className="text-center mb-16 relative">
+        <div ref={titleRef} className="text-center mb-10 relative">
           <h2 className={`text-4xl md:text-5xl font-black relative mb-4 transition-all duration-1000 ${
             isTitleVisible 
               ? 'opacity-100 translate-y-0' 
@@ -161,9 +161,9 @@ export default function Gallery() {
           }`}>
             <span className="text-white drop-shadow-lg">
               Lớp học & CLB{" "}
-              <span className={`${ACCENT_TEXT} relative inline-block p-2`}>
+              <span className="bg-linear-to-r from-red-600 via-red-500 to-rose-600 bg-clip-text text-transparent relative inline-block p-2">
                 Tiếng Anh Rex
-                <Star className="absolute -top-2 -right-4 w-4 h-4 text-yellow-500 animate-spin" />
+                <img src={ngoisaoIcon.src} alt="star" className="absolute -top-2 -right-4 w-4 h-4 animate-spin" />
               </span>
             </span>
           </h2>
@@ -187,12 +187,12 @@ export default function Gallery() {
           {/* Arrows */}
           <motion.button
             onClick={prev}
-            className="absolute left-0 sm:-left-8 z-30 p-2 sm:p-3 rounded-full bg-white/90 shadow-md hover:shadow-lg transition"
+            className="absolute left-0 sm:-left-20 z-30 p-2 sm:p-3 rounded-full bg-red-600/90 shadow-md hover:shadow-lg transition cursor-pointer"
             aria-label="Previous"
             whileHover={{ scale: 1.1, x: -5 }}
             whileTap={{ scale: 0.95 }}
           >
-            <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 text-slate-700" />
+            <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
           </motion.button>
 
           <div className="relative w-full max-w-6xl h-[400px] sm:h-[440px] lg:h-[500px] flex items-center justify-center">
@@ -219,7 +219,7 @@ export default function Gallery() {
                   <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-black/10 to-transparent" />
                   {pos === "center" && (
                     <motion.div
-                      className="absolute inset-0 border-2 border-white/20 rounded-[32px]"
+                      className="absolute inset-0 border-2 border-red-300/60 rounded-[32px]"
                       animate={{ opacity: [0.3, 0.6, 0.3] }}
                       transition={{ duration: 2, repeat: Infinity }}
                     />
@@ -231,12 +231,12 @@ export default function Gallery() {
 
           <motion.button
             onClick={next}
-            className="absolute right-0 sm:-right-8 z-30 p-2 sm:p-3 rounded-full bg-white/90 shadow-md hover:shadow-lg transition"
+            className="absolute right-0 sm:-right-20 z-30 p-2 sm:p-3 rounded-full bg-red-600/90 shadow-md hover:shadow-lg transition cursor-pointer"
             aria-label="Next"
             whileHover={{ scale: 1.1, x: 5 }}
             whileTap={{ scale: 0.95 }}
           >
-            <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-slate-700" />
+            <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
           </motion.button>
         </motion.div>
 
@@ -252,10 +252,10 @@ export default function Gallery() {
             <motion.button
               key={i}
               onClick={() => setIdx(i)}
-              className={`h-2.5 rounded-full transition-all duration-300 ${
+              className={`h-2.5 rounded-full transition-all duration-300 cursor-pointer ${
                 i === idx
-                  ? "w-6 bg-white shadow-lg"
-                  : "w-2 bg-white/40 hover:bg-white/60"
+                  ? "w-6 bg-red-600 shadow-lg"
+                  : "w-2 bg-white hover:bg-red-300/60"
               }`}
               aria-label={`Go to slide ${i + 1}`}
               whileHover={{ scale: 1.2 }}
@@ -270,8 +270,6 @@ export default function Gallery() {
           ))}
         </motion.div>
       </div>
-
-      
     </section>
   );
 }

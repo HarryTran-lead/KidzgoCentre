@@ -186,9 +186,9 @@ export default function Blogs() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-red-50 via-rose-50 to-red-100 mt-30">
+    <div className="blogs-page min-h-screen bg-gradient-to-b from-red-50 via-rose-50 to-red-100 mt-30">
       {/* Main Content */}
-      <div className="relative z-20 w-full px-4 sm:px-6 lg:px-8 py-12 sm:py-16 -mt-40 bg-gradient-to-b from-red-50 via-rose-50 to-red-100 rounded-t-3xl shadow-2xl">
+      <div id="blog-section" className="relative z-20 w-full px-4 sm:px-6 lg:px-8 py-12 sm:py-16 -mt-40 bg-gradient-to-b from-red-50 via-rose-50 to-red-100 rounded-t-3xl shadow-2xl">
         {/* Search & Filter */}
         <motion.div
           initial="hidden"

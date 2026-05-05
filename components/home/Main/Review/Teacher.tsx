@@ -53,7 +53,7 @@ export default function Teacher() {
   return (
     <section 
       id="teachers" 
-      className="py-16 pb-0 scroll-mt-24 relative z-30 overflow-hidden"
+      className="teacher-page py-16 pb-0 scroll-mt-24 relative z-30 overflow-hidden bg-white"
       style={{ 
         backgroundImage: 'url(/image/background1.jpg)',
         backgroundSize: 'cover',
@@ -63,19 +63,42 @@ export default function Teacher() {
       }}
     >
       {/* Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-b from-white via-white to-red-600 pointer-events-none z-0"></div>
+      <div className="absolute inset-0 bg-gradient-to-b from-white/80 via-white/50 to-transparent pointer-events-none z-0"></div>
+
+      {/* Animated gradient shadow - Using CSS animations for better performance */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div 
+          className="absolute top-20 left-10 w-80 h-80 bg-gradient-to-br from-red-300 to-red-400 rounded-full mix-blend-multiply blur-3xl opacity-35 animate-pulse-scale"
+        />
+        <div 
+          className="absolute bottom-32 right-10 w-96 h-96 bg-gradient-to-tr from-red-400 to-rose-300 rounded-full mix-blend-multiply blur-3xl opacity-30 animate-pulse-scale-sm"
+        />
+        <div 
+          className="absolute top-1/2 left-1/3 w-64 h-64 bg-gradient-to-r from-red-400 to-red-300 rounded-full mix-blend-multiply blur-3xl opacity-25 animate-pulse-scale-md"
+        />
+      </div>
+
+      {/* Title Section */}
+      <div className="relative z-10 text-center">
+        <h1 className="text-4xl md:text-5xl font-black drop-shadow-lg mb-4">
+          <span className="text-black">Thầy Cô</span> <span className="text-red-600">Siêu Vui Tính</span>
+        </h1>
+        <p className="text-lg text-gray-700 max-w-2xl mx-auto">
+          Đội ngũ giáo viên giàu kinh nghiệm và đam mê giáo dục
+        </p>
+      </div>
 
       {/* Team Carousel từ Lightswind */}
-      <div className="relative z-10">
+      <div className="relative z-10 mt-12">
         <TeamCarousel
           members={teachers}
-          title="Thầy Cô Siêu Vui Tính!"
+          title=""
           titleSize="2xl"
           titleColor="rgba(220, 38, 38, 1)"
           background="transparent"
-          cardWidth={280}
-          cardHeight={380}
-          cardRadius={20}
+          cardWidth={320}
+          cardHeight={420}
+          cardRadius={24}
           showArrows={true}
           showDots={true}
           keyboardNavigation={true}
@@ -84,13 +107,13 @@ export default function Teacher() {
           autoPlay={AUTO_MS}
           pauseOnHover={true}
           visibleCards={2}
-          sideCardScale={0.9}
-          sideCardOpacity={0.8}
+          sideCardScale={0.85}
+          sideCardOpacity={0.7}
           grayscaleEffect={false}
           infoPosition="overlay"
           infoTextColor="rgb(255, 255, 255)"
-          infoBackground="rgba(220, 38, 38, 0.9)"
-          cardClassName="bg-white/95 backdrop-blur-sm shadow-xl border-4 border-white rounded-3xl"
+          infoBackground="rgba(220, 38, 38, 0.95)"
+          cardClassName="bg-gradient-to-br from-white via-white to-red-50 backdrop-blur-md shadow-2xl shadow-red-500/20 border-2 border-white/80 rounded-3xl hover:shadow-2xl hover:shadow-red-500/40 transition-all duration-300 hover:border-red-300"
           titleClassName="text-red-600 font-black drop-shadow-lg"
           onMemberChange={(member, index) => {
             console.log(`Now viewing: ${member.name}`);
