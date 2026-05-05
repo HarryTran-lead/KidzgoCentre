@@ -3,6 +3,46 @@ import { useState, useEffect } from "react";
 import { Users, DollarSign, ClipboardList } from "lucide-react";
 import { getStaffDashboard } from "@/lib/api/staffPortalService";
 
+type StaffRecentActivity =
+  | string
+  | {
+      id?: string;
+      title?: string;
+      content?: string;
+      description?: string;
+      createdAt?: string;
+    };
+
+function fmtCurrencyVnd(value: unknown): string {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return `${value.toLocaleString("vi-VN")} đ`;
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return "0 đ";
+    const rawNumber = Number(trimmed.replace(/[^\d.-]/g, ""));
+    if (Number.isFinite(rawNumber)) {
+      return `${rawNumber.toLocaleString("vi-VN")} đ`;
+    }
+    return trimmed;
+  }
+
+  return "0 đ";
+}
+
+function formatActivityLine(activity: StaffRecentActivity): string {
+  if (typeof activity === "string") return activity;
+
+  const mainText = activity.title || activity.content || activity.description || "Hoạt động";
+  if (!activity.createdAt) return mainText;
+
+  const date = new Date(activity.createdAt);
+  if (Number.isNaN(date.getTime())) return mainText;
+
+  return `${mainText} (${date.toLocaleString("vi-VN")})`;
+}
+
 function Stat({
   icon: Icon,
   label,
@@ -45,9 +85,15 @@ export default function StaffDashboard() {
   }, []);
 
   const activeStudents = String(dashboard?.activeStudents ?? dashboard?.totalStudents ?? 0);
-  const monthlyRevenue = dashboard?.monthlyRevenue ?? dashboard?.revenue ?? "0 đ";
-  const pendingEnrollments = String(dashboard?.pendingEnrollments ?? 0);
-  const recentActivities: string[] = Array.isArray(dashboard?.recentActivities) ? dashboard.recentActivities : [];
+  const tuitionCollected = fmtCurrencyVnd(
+    dashboard?.tuitionCollected ?? dashboard?.monthlyRevenue ?? dashboard?.revenue ?? 0
+  );
+  const pendingRegistrations = String(
+    dashboard?.pendingRegistrations ?? dashboard?.pendingEnrollments ?? 0
+  );
+  const recentActivities: StaffRecentActivity[] = Array.isArray(dashboard?.recentActivities)
+    ? dashboard.recentActivities
+    : [];
 
   return (
     <div className="space-y-6">
@@ -58,15 +104,19 @@ export default function StaffDashboard() {
 
       <div className="grid md:grid-cols-3 gap-4">
         <Stat icon={Users} label="Học viên đang hoạt động" value={activeStudents} />
-        <Stat icon={DollarSign} label="Thu học phí tháng này" value={typeof monthlyRevenue === "number" ? monthlyRevenue.toLocaleString("vi-VN") + " đ" : monthlyRevenue} />
-        <Stat icon={ClipboardList} label="Đăng ký chờ duyệt" value={pendingEnrollments} />
+        <Stat icon={DollarSign} label="Thu học phí" value={tuitionCollected} />
+        <Stat icon={ClipboardList} label="Đăng ký chờ duyệt" value={pendingRegistrations} />
       </div>
 
       <div className="rounded-2xl border bg-white p-4">
         <h3 className="font-semibold mb-2">Nhật ký gần đây</h3>
         <ul className="text-sm text-slate-900 list-disc pl-5 space-y-1">
           {recentActivities.length > 0
-            ? recentActivities.map((a: string, i: number) => <li key={i}>{a}</li>)
+            ? recentActivities.map((activity, i) => (
+                <li key={typeof activity === "string" ? `${activity}-${i}` : activity.id || `activity-${i}`}>
+                  {formatActivityLine(activity)}
+                </li>
+              ))
             : <li>Không có hoạt động gần đây</li>
           }
         </ul>

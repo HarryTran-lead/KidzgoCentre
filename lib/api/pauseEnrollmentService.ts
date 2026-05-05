@@ -51,6 +51,7 @@ export async function createPauseEnrollmentRequest(
     PAUSE_ENROLLMENT_ENDPOINTS.CREATE,
     {
       ...data,
+      classId: data.classId?.trim() ? data.classId.trim() : undefined,
       reason: data.reason?.trim() ? data.reason : null,
     }
   );
@@ -125,9 +126,10 @@ export async function reassignPauseEnrollmentEquivalentClass(
     {
       ...payload,
       track: payload.track ?? "primary",
-      sessionSelectionPattern: payload.sessionSelectionPattern?.trim()
-        ? payload.sessionSelectionPattern.trim()
-        : null,
+      weeklyPattern:
+        Array.isArray(payload.weeklyPattern) && payload.weeklyPattern.length > 0
+          ? payload.weeklyPattern
+          : undefined,
       effectiveDate: payload.effectiveDate?.trim() ? payload.effectiveDate : null,
     }
   );

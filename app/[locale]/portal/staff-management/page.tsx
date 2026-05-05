@@ -224,6 +224,27 @@ function buildTicketDistribution(openTickets: StaffDashboardApiPayload["openTick
   }));
 }
 
+function buildReportProgressData(totalClasses: number, pendingReports: number) {
+  const safeTotalClasses = Math.max(safeNumber(totalClasses, 0), 0);
+  const safePendingReports = Math.max(safeNumber(pendingReports, 0), 0);
+  const currentSubmitted = Math.max(safeTotalClasses - safePendingReports, 0);
+
+  // API overview currently provides a snapshot count, so we render an inferred timeline
+  // from the start of month (all pending) to current state for better readability.
+  return [
+    {
+      month: "Đầu tháng",
+      submitted: 0,
+      pending: safeTotalClasses,
+    },
+    {
+      month: "Hiện tại",
+      submitted: currentSubmitted,
+      pending: safePendingReports,
+    },
+  ];
+}
+
 function normalizeDashboardPayload(raw: unknown) {
   const payload = (raw && typeof raw === "object" ? raw : {}) as StaffDashboardApiPayload;
   const stats = payload.statistics ?? {};
@@ -245,13 +266,7 @@ function normalizeDashboardPayload(raw: unknown) {
     leadGrowthData: buildLeadGrowthData(payload.recentLeads),
     classOpsData: buildClassOpsData(payload.upcomingSessions),
     ticketDistribution: buildTicketDistribution(payload.openTickets),
-    reportProgressData: [
-      {
-        month: `T${new Date().getMonth() + 1}`,
-        submitted: Math.max(totalClasses - pendingReports, 0),
-        pending: pendingReports,
-      },
-    ],
+    reportProgressData: buildReportProgressData(totalClasses, pendingReports),
   };
 }
 
@@ -567,8 +582,25 @@ export default function Page() {
                     <YAxis tick={{ fill: "#6b7280", fontSize: 12 }} axisLine={{ stroke: "#e5e7eb" }} />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend />
-                    <Line type="monotone" dataKey="submitted" name="Đã nộp" stroke="#dc2626" strokeWidth={3} dot={{ r: 4 }} />
-                    <Line type="monotone" dataKey="pending" name="Còn lại" stroke="#404040" strokeWidth={3} dot={{ r: 4 }} strokeDasharray="5 5" />
+                    <Line
+                      type="monotone"
+                      dataKey="submitted"
+                      name="Đã nộp"
+                      stroke="#dc2626"
+                      strokeWidth={3}
+                      dot={{ r: 5, fill: "#dc2626", strokeWidth: 2, stroke: "#fff" }}
+                      activeDot={{ r: 7 }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="pending"
+                      name="Còn lại"
+                      stroke="#404040"
+                      strokeWidth={3}
+                      dot={{ r: 5, fill: "#404040", strokeWidth: 2, stroke: "#fff" }}
+                      activeDot={{ r: 7 }}
+                      strokeDasharray="5 5"
+                    />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -668,8 +700,25 @@ export default function Page() {
                   <YAxis tick={{ fill: "#6b7280", fontSize: 12 }} axisLine={{ stroke: "#e5e7eb" }} />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend />
-                  <Line type="monotone" dataKey="submitted" name="Đã nộp" stroke="#dc2626" strokeWidth={3} dot={{ r: 5 }} />
-                  <Line type="monotone" dataKey="pending" name="Còn lại" stroke="#404040" strokeWidth={3} dot={{ r: 5 }} strokeDasharray="5 5" />
+                  <Line
+                    type="monotone"
+                    dataKey="submitted"
+                    name="Đã nộp"
+                    stroke="#dc2626"
+                    strokeWidth={3}
+                    dot={{ r: 5, fill: "#dc2626", strokeWidth: 2, stroke: "#fff" }}
+                    activeDot={{ r: 7 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="pending"
+                    name="Còn lại"
+                    stroke="#404040"
+                    strokeWidth={3}
+                    dot={{ r: 5, fill: "#404040", strokeWidth: 2, stroke: "#fff" }}
+                    activeDot={{ r: 7 }}
+                    strokeDasharray="5 5"
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </div>

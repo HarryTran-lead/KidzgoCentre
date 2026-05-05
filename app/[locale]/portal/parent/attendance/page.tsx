@@ -681,12 +681,12 @@ export default function ParentAttendancePage() {
       await loadMakeupState(payload.studentProfileId);
       toast.success({
         title: changeMakeupTarget
-          ? "Make-up session rescheduled"
-          : "Make-up session selected",
+          ? "Đổi lịch học bù thành công"
+          : "Chọn buổi học bù thành công",
         description:
           changeMakeupTarget
-            ? "The make-up schedule has been updated successfully."
-            : "The make-up session has been scheduled successfully.",
+            ? "Lịch học bù đã được cập nhật thành công."
+            : "Buổi học bù đã được lên lịch thành công.",
       });
     } catch (err: any) {
       const description = resolveMakeupCreditActionError(
@@ -694,7 +694,7 @@ export default function ParentAttendancePage() {
         changeMakeupTarget ? "change" : "create"
       );
       toast.destructive({
-        title: "Unable to schedule make-up session",
+        title: "Không thể xếp lịch học bù",
         description,
       });
     }
@@ -863,7 +863,7 @@ export default function ParentAttendancePage() {
   // Tab configurations
   const tabs: Array<{ id: TabType; label: string; icon: React.ElementType; count: number }> = [
     { id: "leaveRequests", label: "Đơn nghỉ", icon: FileWarning, count: requests.filter(r => normalizeStatus(r.status as string | undefined) === "PENDING").length },
-    { id: "makeup", label: "Makeup Credit", icon: CalendarDays, count: makeupAllocations.length },
+    { id: "makeup", label: "Học bù", icon: CalendarDays, count: makeupAllocations.length },
   ];
 
   return (
@@ -932,7 +932,7 @@ export default function ParentAttendancePage() {
               <FileText className="text-sky-600" size={18} />
             </span>
             <div>
-              <div className="text-sm text-gray-600">Available makeup credits</div>
+              <div className="text-sm text-gray-600">Số suất học bù còn lại</div>
               <div className="text-2xl font-extrabold text-gray-900">{stats.makeupCredits}</div>
             </div>
           </div>
@@ -1098,16 +1098,16 @@ export default function ParentAttendancePage() {
         <div className={`rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-gray-200 px-6 py-4 flex items-center justify-between">
             <div>
-              <div className="text-lg font-semibold text-gray-900">Scheduled make-up sessions</div>
-              {makeupLoading ? <div className="text-sm text-gray-500 mt-1">Loading...</div> : null}
+              <div className="text-lg font-semibold text-gray-900">Các buổi học bù đã lên lịch</div>
+              {makeupLoading ? <div className="text-sm text-gray-500 mt-1">Đang tải...</div> : null}
               {!makeupLoading && makeupCreditSummary.available > 0 ? (
                 <div className="mt-1 text-sm text-amber-700">
-                  {makeupCreditSummary.available}/{makeupCreditSummary.total} makeup credits are still unscheduled. Sessions appear here after a parent picks a schedule for each credit.
+                  Còn {makeupCreditSummary.available}/{makeupCreditSummary.total} suất học bù chưa được lên lịch. Sau khi phụ huynh chọn lịch cho từng suất, buổi học bù sẽ hiển thị tại đây.
                 </div>
               ) : null}
             </div>
             <div className="flex items-center gap-3">
-              <div className="text-sm text-gray-600 font-medium">{makeupAllocations.length} sessions</div>
+              <div className="text-sm text-gray-600 font-medium">{makeupAllocations.length} buổi</div>
               <button
                 type="button"
                 onClick={() => openMakeupModal()}
@@ -1115,7 +1115,7 @@ export default function ParentAttendancePage() {
                 className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Plus size={16} />
-                Select make-up session
+                Chọn buổi học bù
               </button>
             </div>
           </div>
@@ -1127,8 +1127,8 @@ export default function ParentAttendancePage() {
               <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center">
                 <CalendarDays size={24} className="text-gray-400" />
               </div>
-              <div className="text-gray-600 font-medium">No make-up sessions yet</div>
-              <div className="text-sm text-gray-500 mt-1">When makeup credits are available, you can schedule them here.</div>
+              <div className="text-gray-600 font-medium">Chưa có buổi học bù</div>
+              <div className="text-sm text-gray-500 mt-1">Khi có suất học bù khả dụng, bạn có thể lên lịch tại đây.</div>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -1136,14 +1136,14 @@ export default function ParentAttendancePage() {
                 <thead className="bg-gradient-to-r from-red-600/5 to-red-700/5 border-b border-gray-200">
                   <tr>
                     <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                      Session time
+                      Thời gian buổi học
                     </th>
-                    <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Class</th>
+                    <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Lớp</th>
                     <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                      Status
+                      Trạng thái
                     </th>
                     <th className="py-3 px-6 text-right text-sm font-semibold text-gray-700">
-                      Action
+                      Thao tác
                     </th>
                   </tr>
                 </thead>
@@ -1161,21 +1161,21 @@ export default function ParentAttendancePage() {
                       (targetClassId ? classNameById(targetClassId) : null) ??
                       targetClassId ??
                       "—";
-                    const statusText = m.usedAt ? "Completed" : "Scheduled";
+                    const statusText = m.usedAt ? "Đã hoàn tất" : "Đã lên lịch";
                     const canChangeSchedule =
                       !!m.makeupCreditId &&
                       !!targetClassId &&
                       !!m.targetSessionId &&
                       canChangeScheduledMakeup(sessionTime, m.usedAt ?? null);
                     const changeHint = canChangeSchedule
-                      ? "Only alternative sessions in the same makeup program are shown."
+                      ? "Chỉ hiển thị các buổi thay thế trong cùng chương trình học bù."
                       : m.usedAt
-                        ? "This make-up session has already been used and cannot be changed."
+                        ? "Buổi học bù này đã được sử dụng và không thể đổi lịch."
                         : !m.makeupCreditId
-                          ? "Cannot reschedule because makeup credit is missing."
+                          ? "Không thể đổi lịch vì thiếu thông tin suất học bù."
                           : !targetClassId
-                            ? "Cannot reschedule because current makeup class is missing."
-                            : "Cannot reschedule when session time has arrived or passed.";
+                            ? "Không thể đổi lịch vì thiếu thông tin lớp học bù hiện tại."
+                            : "Không thể đổi lịch khi buổi học đã tới hoặc đã qua.";
 
                     return (
                       <tr
@@ -1213,11 +1213,11 @@ export default function ParentAttendancePage() {
                               title={changeHint}
                             >
                               <Plus size={14} />
-                              Reschedule
+                              Đổi lịch
                             </button>
                           ) : (
                             <span className="text-xs text-gray-400" title={changeHint}>
-                              Not available
+                              Không khả dụng
                             </span>
                           )}
                         </td>

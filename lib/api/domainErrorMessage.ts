@@ -32,7 +32,10 @@ const CODE_TO_VIETNAMESE_MESSAGE: Record<string, string> = {
 
   // Pause Enrollment Request
   "PauseEnrollmentRequest.NotFound": "Không tìm thấy yêu cầu bảo lưu.",
+  "PauseEnrollmentRequest.StudentNotFound": "Không tìm thấy học sinh hợp lệ để tạo yêu cầu bảo lưu.",
+  "PauseEnrollmentRequest.NotEnrolled": "Học viên không còn ghi danh active phù hợp với yêu cầu bảo lưu.",
   "PauseEnrollmentRequest.NoEnrollmentsInRange": "Học viên không có ghi danh đang hoạt động trong khoảng ngày bảo lưu.",
+  "PauseEnrollmentRequest.ClassNotInPauseRange": "Lớp được chọn không có buổi học trong khoảng ngày bảo lưu.",
   "PauseEnrollmentRequest.InvalidDateRange": "Khoảng ngày bảo lưu không hợp lệ.",
   "PauseEnrollmentRequest.CannotCancel": "Không thể hủy yêu cầu bảo lưu ở trạng thái hiện tại.",
   "PauseEnrollmentRequest.DuplicateActiveRequest": "Đã tồn tại yêu cầu bảo lưu pending/approved trong khoảng ngày đã chọn.",
