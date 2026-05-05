@@ -22,6 +22,13 @@ import {
   getParentTimetable,
   type ParentTimetableSession,
 } from "@/lib/api/parentScheduleService";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/lightswind/select";
 import { useToast } from "@/hooks/use-toast";
 import { getDomainErrorMessage } from "@/lib/api/domainErrorMessage";
 import { parseApiDateKeepWallClock } from "@/lib/datetime";
@@ -56,10 +63,10 @@ function cn(...values: Array<string | false | null | undefined>) {
 
 function getFieldClass(hasError: boolean, extra?: string) {
   return cn(
-    "w-full rounded-xl bg-white text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all disabled:cursor-not-allowed disabled:opacity-60",
+    "w-full rounded-xl bg-white text-sm text-gray-800 focus:outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60",
     hasError
-      ? "border border-red-500 focus:border-red-500 focus:ring-red-100"
-      : "border border-gray-200 focus:border-red-400 focus:ring-red-200",
+      ? "border border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-100"
+      : "border border-gray-200 focus:border-red-400 focus:ring-2 focus:ring-red-200",
     extra,
   );
 }
@@ -725,7 +732,7 @@ export default function LeaveRequestCreateModal({
 
   return (
     <div
-      className={`fixed inset-0 z-[140] ${open ? "" : "pointer-events-none opacity-0"}`}
+      className={`fixed inset-0 z-140 ${open ? "" : "pointer-events-none opacity-0"}`}
       aria-hidden={!open}
     >
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleClose} />
@@ -735,7 +742,7 @@ export default function LeaveRequestCreateModal({
           className="relative w-full max-w-3xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden"
         >
           {/* Modal Header - Gradient đỏ */}
-          <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
+          <div className="bg-linear-to-r from-red-600 to-red-700 p-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
@@ -782,7 +789,7 @@ export default function LeaveRequestCreateModal({
                       {selectedStudent ? studentLabel(selectedStudent) : "Học viên đang được chọn"}
                     </div>
                     <div className="mt-1 text-xs text-gray-600">
-                      Đơn nghỉ này áp dụng cho học viên đang được chọn ở Parent Portal.
+                      Đơn nghỉ này áp dụng cho học viên đang được chọn ở cổng phụ huynh.
                     </div>
                     {selectedStudentClassText ? (
                       <div className="mt-2 text-xs text-gray-700">
@@ -819,48 +826,60 @@ export default function LeaveRequestCreateModal({
                       </div>
                     </div>
 
-                    <div className="relative">
-                      <select
-                        className={getFieldClass(formErrors.studentProfileId != null, "h-11 appearance-none px-4 pr-10")}
-                        value={formState.studentProfileId}
-                        onChange={(event) => {
-                          const nextStudentId = event.target.value;
-                          setFormState((prev) => ({
-                            ...prev,
-                            studentProfileId: nextStudentId,
-                            classId: "",
-                            sessionId: null,
-                            sessionDate: "",
-                            endDate: null,
-                          }));
-                          setFormErrors((prev) => ({
-                            ...prev,
-                            studentProfileId: undefined,
-                            classId: undefined,
-                            sessionDate: undefined,
-                          }));
-                          setActionError(null);
-                          setClasses([]);
-                        }}
+                    <Select
+                      value={formState.studentProfileId || undefined}
+                      onValueChange={(nextStudentId) => {
+                        setFormState((prev) => ({
+                          ...prev,
+                          studentProfileId: nextStudentId,
+                          classId: "",
+                          sessionId: null,
+                          sessionDate: "",
+                          endDate: null,
+                        }));
+                        setFormErrors((prev) => ({
+                          ...prev,
+                          studentProfileId: undefined,
+                          classId: undefined,
+                          sessionDate: undefined,
+                        }));
+                        setActionError(null);
+                        setClasses([]);
+                      }}
+                      disabled={profilesLoading}
+                    >
+                      <SelectTrigger
+                        className={cn(
+                          "h-11 w-full rounded-xl bg-white px-4 text-sm text-gray-800 transition-all disabled:cursor-not-allowed disabled:opacity-60",
+                          formErrors.studentProfileId
+                            ? "border border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-100"
+                            : "border border-gray-200 focus:border-red-400 focus:ring-2 focus:ring-red-200"
+                        )}
                       >
-                        <option value="">
-                          {profilesLoading
-                            ? "Đang tải học viên..."
-                            : filteredStudents.length
-                              ? "Chọn học viên"
-                              : "Không tìm thấy học viên"}
-                        </option>
-                        {filteredStudents.map((student) => (
-                          <option key={studentId(student)} value={studentId(student)}>
-                            {studentLabel(student)}
-                            {studentClassLabel(student) ? ` • ${studentClassLabel(student)}` : ""}
-                          </option>
-                        ))}
-                      </select>
-                      <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
-                        {profilesLoading ? <Loader2 size={16} className="animate-spin" /> : "▾"}
-                      </div>
-                    </div>
+                        <SelectValue
+                          placeholder={
+                            profilesLoading
+                              ? "Đang tải học viên..."
+                              : filteredStudents.length
+                                ? "Chọn học viên"
+                                : "Không tìm thấy học viên"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {filteredStudents.map((student) => {
+                          const id = studentId(student);
+                          if (!id) return null;
+
+                          return (
+                            <SelectItem key={id} value={id}>
+                              {studentLabel(student)}
+                              {studentClassLabel(student) ? ` • ${studentClassLabel(student)}` : ""}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
                   </>
                 )}
 
@@ -880,49 +899,60 @@ export default function LeaveRequestCreateModal({
                     Lớp <span className="text-red-600">*</span>
                   </div>
                 </div>
-                <div className="relative">
-                  <select
-                    className={getFieldClass(formErrors.classId != null, "h-11 appearance-none px-4 pr-10")}
-                    value={formState.classId}
-                    onChange={(event) => {
-                      const nextClassId = event.target.value;
-                      setFormState((prev) => ({
-                        ...prev,
-                        classId: nextClassId,
-                        sessionId: null,
-                        sessionDate: "",
-                        endDate: null,
-                      }));
-                      setFormErrors((prev) => ({
-                        ...prev,
-                        classId: undefined,
-                        sessionDate: undefined,
-                      }));
-                      setActionError(null);
-                    }}
-                    disabled={!formState.studentProfileId || classesLoading}
+                <Select
+                  value={formState.classId || undefined}
+                  onValueChange={(nextClassId) => {
+                    setFormState((prev) => ({
+                      ...prev,
+                      classId: nextClassId,
+                      sessionId: null,
+                      sessionDate: "",
+                      endDate: null,
+                    }));
+                    setFormErrors((prev) => ({
+                      ...prev,
+                      classId: undefined,
+                      sessionDate: undefined,
+                    }));
+                    setActionError(null);
+                  }}
+                  disabled={!formState.studentProfileId || classesLoading}
+                >
+                  <SelectTrigger
+                    className={cn(
+                      "h-11 w-full rounded-xl bg-white px-4 text-sm text-gray-800 transition-all disabled:cursor-not-allowed disabled:opacity-60",
+                      formErrors.classId
+                        ? "border border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-100"
+                        : "border border-gray-200 focus:border-red-400 focus:ring-2 focus:ring-red-200"
+                    )}
                   >
-                    <option value="">
-                      {!formState.studentProfileId
-                        ? "Chọn học viên trước"
-                        : classesLoading
-                          ? "Đang tải lớp..."
-                          : classes.length
-                            ? "Chọn lớp"
-                            : "Học viên chưa có lớp đang theo học"}
-                    </option>
-                    {classes.map((item) => (
-                      <option key={(item as any).id ?? item.id} value={(item as any).id ?? item.id}>
-                        {classLabel(item)}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
-                    {classesLoading ? <Loader2 size={16} className="animate-spin" /> : "▾"}
-                  </div>
-                </div>
+                    <SelectValue
+                      placeholder={
+                        !formState.studentProfileId
+                          ? "Chọn học viên trước"
+                          : classesLoading
+                            ? "Đang tải lớp..."
+                            : classes.length
+                              ? "Chọn lớp"
+                              : "Học viên chưa có lớp đang theo học"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {classes.map((item) => {
+                      const id = String((item as any).id ?? item.id ?? "").trim();
+                      if (!id) return null;
+
+                      return (
+                        <SelectItem key={id} value={id}>
+                          {classLabel(item)}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
                 <div className="text-xs text-gray-500">
-                  Dropdown chỉ hiển thị các lớp mà học viên đang theo học.
+                  Danh sách chỉ hiển thị các lớp mà học viên đang theo học.
                 </div>
                 {formErrors.classId && (
                   <p className="text-sm text-red-600 flex items-center gap-1">
@@ -1011,9 +1041,9 @@ export default function LeaveRequestCreateModal({
                               }}
                               disabled={!canPick}
                               className={cn(
-                                "min-h-[72px] rounded-xl p-2 text-left transition-all",
+                                "min-h-18 rounded-xl p-2 text-left transition-all",
                                 isSelected
-                                  ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                                  ? "bg-linear-to-r from-red-600 to-red-700 text-white shadow-md"
                                   : canPick
                                     ? "cursor-pointer border-2 border-red-200 bg-red-50/40 text-gray-800 hover:bg-red-100 hover:border-red-300"
                                     : "border border-gray-200 bg-gray-50 text-gray-300",
@@ -1071,7 +1101,7 @@ export default function LeaveRequestCreateModal({
                                   className={cn(
                                     "w-full cursor-pointer rounded-xl border px-3 py-2 text-left transition-all",
                                     formState.sessionId === session.id
-                                      ? "border-red-500 bg-gradient-to-r from-red-600 to-red-700 text-white"
+                                      ? "border-red-500 bg-linear-to-r from-red-600 to-red-700 text-white"
                                       : "border-gray-200 bg-white text-gray-700 hover:bg-red-50 hover:border-red-200",
                                   )}
                                 >
@@ -1138,7 +1168,7 @@ export default function LeaveRequestCreateModal({
                   Lý do <span className="text-red-600">*</span>
                 </div>
                 <textarea
-                  className={getFieldClass(formErrors.reason != null, "min-h-[100px] resize-none px-4 py-3")}
+                  className={getFieldClass(formErrors.reason != null, "min-h-25 resize-none px-4 py-3")}
                   placeholder="Nhập lý do xin nghỉ..."
                   value={formState.reason ?? ""}
                   onChange={(event) => {
@@ -1157,7 +1187,7 @@ export default function LeaveRequestCreateModal({
           </div>
 
           {/* Modal Footer */}
-          <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-6">
+          <div className="border-t border-gray-200 bg-linear-to-r from-red-500/5 to-red-700/5 p-6">
             <div className="flex items-center justify-end gap-3">
               <button
                 onClick={handleClose}
@@ -1169,7 +1199,7 @@ export default function LeaveRequestCreateModal({
               <button
                 onClick={submitLeaveRequest}
                 disabled={!canSubmit || creating}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-linear-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {creating ? (
                   <>

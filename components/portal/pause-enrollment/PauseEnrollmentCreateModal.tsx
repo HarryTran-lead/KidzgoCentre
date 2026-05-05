@@ -11,6 +11,13 @@ import {
   User,
   X,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/lightswind/select";
 
 import { createPauseEnrollmentRequest } from "@/lib/api/pauseEnrollmentService";
 import { getDomainErrorMessage } from "@/lib/api/domainErrorMessage";
@@ -41,6 +48,7 @@ const initialFormState: FormState = {
   studentProfileId: "",
   pauseFrom: "",
   pauseTo: "",
+  classId: null,
   reason: "",
 };
 
@@ -157,6 +165,12 @@ export default function PauseEnrollmentCreateModal({
     selectedStudent?.classText ??
     lockedStudentClassText ??
     null;
+  const hasClassOptions = classes.length > 0;
+  const isSingleClassMode = Boolean(formState.classId);
+  const selectedSingleClass =
+    isSingleClassMode && formState.classId
+      ? classes.find((item) => item.id === formState.classId)
+      : undefined;
 
   useEffect(() => {
     if (!open) {
@@ -216,6 +230,7 @@ export default function PauseEnrollmentCreateModal({
       studentProfileId: nextStudentId,
       pauseFrom: "",
       pauseTo: "",
+      classId: null,
       reason: "",
     });
     setActionError(null);
@@ -248,6 +263,11 @@ export default function PauseEnrollmentCreateModal({
       return;
     }
 
+    if (isSingleClassMode && !formState.classId?.trim()) {
+      setActionError("Vui lòng chọn lớp khi tạo yêu cầu cho một lớp cụ thể.");
+      return;
+    }
+
     setSubmitting(true);
 
     try {
@@ -270,7 +290,7 @@ export default function PauseEnrollmentCreateModal({
 
   return (
     <div
-      className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-10000 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
@@ -278,7 +298,7 @@ export default function PauseEnrollmentCreateModal({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="bg-gradient-to-r from-red-600 to-red-700 px-6 py-5 sm:px-8">
+        <div className="bg-linear-to-r from-red-600 to-red-700 px-6 py-5 sm:px-8">
           <button
             type="button"
             onClick={onClose}
@@ -324,38 +344,36 @@ export default function PauseEnrollmentCreateModal({
                         <div className="text-sm font-semibold text-gray-900">
                           {displayStudentLabel}
                         </div>
-                        <div className="mt-1 text-xs text-gray-500">
-                          Đã khóa theo học sinh đang chọn trên thanh bên.
-                        </div>
                       </div>
-                      <span className="inline-flex rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-600">
-                        Cố định
-                      </span>
                     </div>
                   </div>
                 ) : (
-                  <select
-                    value={formState.studentProfileId}
-                    disabled={studentOptionsLoading || submitting}
-                    onChange={(event) =>
+                  <Select
+                    value={formState.studentProfileId || undefined}
+                    onValueChange={(value) =>
                       setFormState((prev) => ({
                         ...prev,
-                        studentProfileId: event.target.value,
+                        studentProfileId: value,
+                        classId: null,
                       }))
                     }
-                    className="h-12 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-gray-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-200"
+                    disabled={studentOptionsLoading || submitting}
                   >
-                    <option value="">
-                      {studentOptionsLoading ? "Đang tải..." : "Chọn học sinh"}
-                    </option>
-                    {studentOptions.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.parentName
-                          ? `${item.label} - PH: ${item.parentName}`
-                          : item.label}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="h-12 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-gray-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-200">
+                      <SelectValue
+                        placeholder={studentOptionsLoading ? "Đang tải..." : "Chọn học sinh"}
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {studentOptions.map((item) => (
+                        <SelectItem key={item.id} value={item.id}>
+                          {item.parentName
+                            ? `${item.label} - PH: ${item.parentName}`
+                            : item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 )}
 
                 {displayStudentClassText ? (
@@ -363,6 +381,81 @@ export default function PauseEnrollmentCreateModal({
                     Lớp hiện tại: {displayStudentClassText}
                   </div>
                 ) : null}
+
+                <div className="mt-4 rounded-xl border border-red-100 bg-red-50/40 p-3">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-red-700">
+                    Phạm vi bảo lưu
+                  </div>
+                  <div className="mt-2 grid gap-2">
+                    <label className="flex items-center gap-2 rounded-lg border border-red-100 bg-white px-3 py-2 text-sm text-gray-700">
+                      <input
+                        type="radio"
+                        name="pause-scope"
+                        checked={!isSingleClassMode}
+                        onChange={() =>
+                          setFormState((prev) => ({
+                            ...prev,
+                            classId: null,
+                          }))
+                        }
+                        disabled={submitting}
+                      />
+                      Tất cả các lớp 
+                    </label>
+
+                    <label className="flex items-center gap-2 rounded-lg border border-red-100 bg-white px-3 py-2 text-sm text-gray-700">
+                      <input
+                        type="radio"
+                        name="pause-scope"
+                        checked={isSingleClassMode}
+                        onChange={() =>
+                          setFormState((prev) => ({
+                            ...prev,
+                            classId: hasClassOptions ? classes[0]?.id ?? "" : "",
+                          }))
+                        }
+                        disabled={submitting || !hasClassOptions}
+                      />
+                      Một lớp cụ thể 
+                    </label>
+                  </div>
+
+                  {isSingleClassMode ? (
+                    <div className="mt-3">
+                      <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-600">
+                        Chọn lớp cần bảo lưu
+                      </label>
+                      <Select
+                        value={formState.classId ?? undefined}
+                        onValueChange={(value) =>
+                          setFormState((prev) => ({
+                            ...prev,
+                            classId: value || null,
+                          }))
+                        }
+                        disabled={submitting || classesLoading || !hasClassOptions}
+                      >
+                        <SelectTrigger className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-gray-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-200">
+                          <SelectValue
+                            placeholder={classesLoading ? "Đang tải lớp..." : "Chọn lớp"}
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {classes.map((item) => (
+                            <SelectItem key={item.id} value={item.id}>
+                              {classLabel(item)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {!classesLoading && !hasClassOptions ? (
+                        <div className="mt-1 text-xs text-amber-700">
+                          Chưa có lớp hoạt động để tạo yêu cầu một lớp cụ thể.
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
@@ -455,15 +548,25 @@ export default function PauseEnrollmentCreateModal({
                     kiểm tra chính xác theo khoảng ngày khi tạo yêu cầu.
                   </div>
                 )}
+
+                {isSingleClassMode && formState.classId ? (
+                  <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                    Đang tạo theo phạm vi một lớp cụ thể: {selectedSingleClass ? classLabel(selectedSingleClass) : formState.classId}
+                  </div>
+                ) : (
+                  <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800">
+                    Đang tạo theo phạm vi tất cả các lớp có buổi học nằm trong khoảng ngày đã chọn.
+                  </div>
+                )}
               </div>
 
               {!hideBusinessNote ? (
                 <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-800">
-                  <div className="font-semibold text-amber-900">Lưu ý nghiệp vụ</div>
+                  <div className="font-semibold text-red-600">Lưu ý dành cho phụ huynh</div>
                   <ul className="mt-2 space-y-1 list-disc list-inside">
                     <li>Chức năng này dành cho nghỉ dài ngày, không phải nghỉ lẻ từng buổi.</li>
-                    <li>Khoảng ngày sẽ được đối chiếu theo UTC date ở backend.</li>
-                    <li>Chỉ khi yêu cầu được duyệt, enrollment liên quan mới được pause.</li>
+                    <li>Khoảng ngày sẽ được đối chiếu theo khoảng ngày đã chọn.</li>
+                    <li>Chỉ khi yêu cầu được duyệt, các lớp liên quan mới được tạm dừng.</li>
                   </ul>
                 </div>
               ) : null}
@@ -472,7 +575,7 @@ export default function PauseEnrollmentCreateModal({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-5 sm:px-8">
+        <div className="border-t border-gray-200 bg-linear-to-r from-red-500/5 to-red-700/5 px-6 py-5 sm:px-8">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <button
               type="button"
@@ -495,7 +598,7 @@ export default function PauseEnrollmentCreateModal({
                 type="button"
                 onClick={handleSubmit}
                 disabled={submitting || (!lockedStudentProfileId && studentOptionsLoading)}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-5 text-sm font-semibold cursor-pointer text-white shadow-lg hover:shadow-xl transition disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-linear-to-r from-red-600 to-red-700 px-5 text-sm font-semibold cursor-pointer text-white shadow-lg hover:shadow-xl transition disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {submitting ? (
                   <>

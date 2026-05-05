@@ -20,6 +20,7 @@ import { getAllClasses } from "@/lib/api/classService";
 import { getProfiles } from "@/lib/api/authService";
 import {
   approvePauseEnrollmentRequest,
+  approvePauseEnrollmentRequestsBulk,
 
   cancelPauseEnrollmentRequest,
   getPauseEnrollmentRequestsWithParams,
@@ -30,6 +31,7 @@ import {
 import { getRegistrations } from "@/lib/api/registrationService";
 import { getAllStudents } from "@/lib/api/studentService";
 import { getDomainErrorMessage } from "@/lib/api/domainErrorMessage";
+import { useToast } from "@/hooks/use-toast";
 import { useBranchFilter } from "@/hooks/useBranchFilter";
 import { todayDateOnly } from "@/lib/datetime";
 import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
@@ -38,6 +40,7 @@ import type { UserProfile } from "@/types/auth";
 import type {
 
   PauseEnrollmentOutcome,
+  PauseEnrollmentScope,
   ReassignEquivalentClassPayload,
   PauseEnrollmentRequestRecord,
   PauseEnrollmentRequestStatus,
@@ -57,7 +60,7 @@ type ReassignFormState = {
   registrationId: string;
   newClassId: string;
   track: "primary" | "secondary";
-  sessionSelectionPattern: string;
+  weeklyPatternJson: string;
   effectiveDate: string;
 };
 
@@ -88,9 +91,17 @@ type ConfirmAction =
       title: string;
       description: string;
       confirmText: string;
+    }
+  | {
+      kind: "approveBulk";
+      requestIds: string[];
+      title: string;
+      description: string;
+      confirmText: string;
     };
 
 const ALL_STATUS = "__ALL__";
+const ALL_CLASS = "__ALL_CLASS__";
 
 const statusLabels: Record<PauseEnrollmentRequestStatus, string> = {
   Pending: "Chờ duyệt",
@@ -100,16 +111,26 @@ const statusLabels: Record<PauseEnrollmentRequestStatus, string> = {
 };
 
 const statusStyles: Record<PauseEnrollmentRequestStatus, string> = {
-  Pending: "border-amber-200 bg-amber-50 text-amber-700",
-  Approved: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  Rejected: "border-rose-200 bg-rose-50 text-rose-700",
-  Cancelled: "border-gray-200 bg-gray-100 text-gray-700",
+  Pending: "border-amber-300 bg-amber-100 text-amber-800",
+  Approved: "border-emerald-300 bg-emerald-100 text-emerald-800",
+  Rejected: "border-rose-300 bg-rose-100 text-rose-800",
+  Cancelled: "border-red-300 bg-red-100 text-red-800",
 };
 
 const outcomeLabels: Record<PauseEnrollmentOutcome, string> = {
   ContinueSameClass: "Tiếp tục cùng lớp",
   ReassignEquivalentClass: "Chuyển lớp tương đương",
   ContinueWithTutoring: "Tiếp tục theo kèm riêng",
+};
+
+const scopeLabels: Record<PauseEnrollmentScope, string> = {
+  AllEligible: "Tất cả lớp",
+  SingleClass: "Một lớp cụ thể",
+};
+
+const scopeStyles: Record<PauseEnrollmentScope, string> = {
+  AllEligible: "border-sky-200 bg-sky-50 text-sky-700",
+  SingleClass: "border-orange-200 bg-orange-50 text-orange-700",
 };
 
 function normalizeStatus(value?: string | null): PauseEnrollmentRequestStatus {
@@ -120,6 +141,14 @@ function normalizeStatus(value?: string | null): PauseEnrollmentRequestStatus {
   if (normalized === "rejected") return "Rejected";
   if (normalized === "cancelled" || normalized === "canceled") return "Cancelled";
   return "Pending";
+}
+
+function normalizeScope(
+  value?: string | null,
+  classId?: string | null
+): PauseEnrollmentScope {
+  if (value === "SingleClass" || value === "AllEligible") return value;
+  return classId ? "SingleClass" : "AllEligible";
 }
 
 function extractProfileItems(payload: unknown): UserProfile[] {
@@ -313,6 +342,19 @@ function summarizeText(value?: string | null, fallback = "Không có ghi chú b�
   return `${trimmed.slice(0, 137)}...`;
 }
 
+function parseWeeklyPatternJson(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (!Array.isArray(parsed)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
 function getInitials(value?: string | null, fallback = "HS") {
   const parts = value?.trim().split(/\s+/).filter(Boolean) ?? [];
   if (!parts.length) return fallback;
@@ -444,7 +486,7 @@ function MiniMetric({
   label: string;
   value: string | number;
   note: string;
-  tone: "red" | "amber" | "emerald" | "slate";
+  tone: "red" | "amber" | "emerald" | "slate" | "blue";
 }) {
   const tones = {
     red: {
@@ -469,6 +511,12 @@ function MiniMetric({
       label: "text-gray-600",
       panel: "from-slate-500 to-slate-700",
       glow: "bg-slate-500",
+      icon: ShieldCheck,
+    },
+    blue: {
+      label: "text-blue-600",
+      panel: "from-blue-500 to-indigo-500",
+      glow: "bg-blue-500",
       icon: ShieldCheck,
     },
   } as const;
@@ -557,10 +605,10 @@ function ConfirmDialog({
   if (!action) return null;
 
   return (
-    <div onClick={onClose} className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+    <div onClick={onClose} className="fixed inset-0 z-10000 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
       <div className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
+        <div className="bg-linear-to-r from-red-600 to-red-700 p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
               <h2 className="text-xl font-bold text-white">{action.title}</h2>
@@ -658,6 +706,7 @@ function RequestDetailModal({
 
   const status = normalizeStatus(request.status);
   const canEditOutcome = isManagement && status === "Approved";
+  const scope = normalizeScope(request.scope, request.classId);
   const shouldShowReassignPanel =
     canEditOutcome &&
     (outcomeForm.outcome === "ReassignEquivalentClass" ||
@@ -668,10 +717,10 @@ function RequestDetailModal({
     : "";
 
   return (
-    <div onClick={onClose} className="fixed inset-0 z-[9990] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+    <div onClick={onClose} className="fixed inset-0 z-9990 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div onClick={(e) => e.stopPropagation()} className="relative w-full max-w-6xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
+        <div className="bg-linear-to-r from-red-600 to-red-700 p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex items-start gap-4">
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm text-base font-bold text-white shadow-lg">
@@ -710,6 +759,9 @@ function RequestDetailModal({
                   <div className="mt-2 text-sm font-semibold text-gray-900">
                     {formatDate(request.pauseFrom)} - {formatDate(request.pauseTo)}
                   </div>
+                  <div className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${scopeStyles[scope]}`}>
+                    {scopeLabels[scope]}
+                  </div>
                 </div>
 
                 <div className="rounded-2xl border border-gray-200 bg-white p-4">
@@ -742,6 +794,21 @@ function RequestDetailModal({
                       Cập nhật {formatDateTime(request.outcomeAt)}
                     </div>
                   ) : null}
+                </div>
+
+                <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Số buổi đã bảo lưu
+                  </div>
+                  <div className="mt-2 text-sm font-semibold text-gray-900">
+                    {request.reservedSessionCount ?? 0}
+                  </div>
+                  <div className="mt-1 text-xs text-gray-500">
+                    Hết hạn: {formatDate(request.reservationExpiresOn)}
+                  </div>
+                  <div className="mt-1 text-xs text-gray-500">
+                    Ảnh chụp: {formatDateTime(request.reservationSnapshotAt)}
+                  </div>
                 </div>
               </div>
 
@@ -795,9 +862,6 @@ function RequestDetailModal({
               <div className="rounded-2xl border border-gray-200 bg-linear-to-br from-white to-red-50/30 shadow-sm overflow-hidden">
                 <div className="border-b border-gray-200 bg-linear-to-r from-red-500/5 to-red-700/5 px-6 py-4">
                   <div className="text-lg font-bold text-gray-900">Xử lý yêu cầu</div>
-                  <div className="mt-1 text-sm text-gray-500">
-                    Staff/Admin thao tác trực tiếp ngay trong popup này.
-                  </div>
                 </div>
 
                 <div className="space-y-3 p-6">
@@ -988,18 +1052,18 @@ function RequestDetailModal({
 
                         <label className="block">
                           <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-600">
-                            Session selection pattern (optional)
+                            Weekly pattern JSON (optional)
                           </div>
                           <textarea
-                            value={reassignForm.sessionSelectionPattern}
+                            value={reassignForm.weeklyPatternJson}
                             onChange={(event) =>
                               onReassignChange(
-                                "sessionSelectionPattern",
+                                "weeklyPatternJson",
                                 event.target.value
                               )
                             }
                             rows={2}
-                            placeholder="RRULE subset nếu cần"
+                            placeholder='Ví dụ: [{"dayOfWeeks":["MON"],"startTime":"18:00","durationMinutes":90}]'
                             className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-200"
                           />
                         </label>
@@ -1030,6 +1094,7 @@ function RequestDetailModal({
 
 export default function PauseEnrollmentWorkspace({ context }: Props) {
   const router = useRouter();
+  const { toast } = useToast();
   const isManagement = context !== "parent";
   const isStudentPage = context === "parent";
   const { selectedProfile } = useSelectedStudentProfile();
@@ -1043,12 +1108,17 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
 
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>(ALL_STATUS);
+  const [selectedClassId, setSelectedClassId] = useState<string>(ALL_CLASS);
   const [searchQuery, setSearchQuery] = useState("");
 
   const [requests, setRequests] = useState<PauseEnrollmentRequestRecord[]>([]);
   const [requestsLoading, setRequestsLoading] = useState(false);
   const [requestError, setRequestError] = useState<string | null>(null);
   const [requestMessage, setRequestMessage] = useState<string | null>(null);
+  const [selectedRequestIds, setSelectedRequestIds] = useState<string[]>([]);
+
+  const [filterClasses, setFilterClasses] = useState<ReassignClassOption[]>([]);
+  const [filterClassesLoading, setFilterClassesLoading] = useState(false);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
@@ -1068,7 +1138,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
     registrationId: "",
     newClassId: "",
     track: "primary",
-    sessionSelectionPattern: "",
+    weeklyPatternJson: "",
     effectiveDate: "",
   });
   const [reassignRegistrations, setReassignRegistrations] = useState<Registration[]>([]);
@@ -1222,6 +1292,29 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
     }
   }, [isStudentPage, lockedStudentOption]);
 
+  const loadFilterClasses = useCallback(async () => {
+    if (!isManagement) {
+      setFilterClasses([]);
+      return;
+    }
+
+    setFilterClassesLoading(true);
+
+    try {
+      const response = await getAllClasses({
+        pageNumber: 1,
+        pageSize: 500,
+        branchId: selectedBranchId ?? undefined,
+      });
+
+      setFilterClasses(extractClassOptions(response));
+    } catch {
+      setFilterClasses([]);
+    } finally {
+      setFilterClassesLoading(false);
+    }
+  }, [isManagement, selectedBranchId]);
+
   const loadRequests = useCallback(
     async (focusId?: string) => {
       setRequestsLoading(true);
@@ -1230,6 +1323,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
       try {
         const response = await getPauseEnrollmentRequestsWithParams({
           studentProfileId: selectedStudentId || undefined,
+          classId: selectedClassId === ALL_CLASS ? undefined : selectedClassId,
           status: selectedStatus === ALL_STATUS ? undefined : selectedStatus,
           branchId: isManagement ? selectedBranchId ?? undefined : undefined,
           pageNumber: 1,
@@ -1253,7 +1347,13 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
         setRequestsLoading(false);
       }
     },
-    [isManagement, selectedBranchId, selectedStatus, selectedStudentId]
+    [
+      isManagement,
+      selectedBranchId,
+      selectedClassId,
+      selectedStatus,
+      selectedStudentId,
+    ]
   );
 
   useEffect(() => {
@@ -1263,6 +1363,11 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
   useEffect(() => {
     void loadStudentOptions();
   }, [loadStudentOptions]);
+
+  useEffect(() => {
+    if (isManagement && !isBranchLoaded) return;
+    void loadFilterClasses();
+  }, [isBranchLoaded, isManagement, loadFilterClasses]);
 
   useEffect(() => {
     if (!studentOptions.length) {
@@ -1292,6 +1397,22 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
   }, [filteredRequests, selectedRequestId]);
 
   useEffect(() => {
+    if (selectedClassId === ALL_CLASS) return;
+    if (filterClasses.some((item) => item.id === selectedClassId)) return;
+    setSelectedClassId(ALL_CLASS);
+  }, [filterClasses, selectedClassId]);
+
+  useEffect(() => {
+    const visiblePendingIds = new Set(
+      filteredRequests
+        .filter((item) => normalizeStatus(item.status) === "Pending")
+        .map((item) => item.id)
+    );
+
+    setSelectedRequestIds((prev) => prev.filter((id) => visiblePendingIds.has(id)));
+  }, [filteredRequests]);
+
+  useEffect(() => {
     if (selectedRequest) {
       setOutcomeForm({
         outcome: selectedRequest.outcome ?? "ContinueSameClass",
@@ -1301,7 +1422,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
         registrationId: "",
         newClassId: "",
         track: "primary",
-        sessionSelectionPattern: "",
+        weeklyPatternJson: "",
         effectiveDate: selectedRequest.pauseTo || "",
       });
     }
@@ -1402,6 +1523,33 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
     await loadRequests(selectedRequestId ?? undefined);
   };
 
+  const pendingVisibleRequests = filteredRequests.filter(
+    (item) => normalizeStatus(item.status) === "Pending"
+  );
+  const allPendingSelected =
+    pendingVisibleRequests.length > 0 &&
+    pendingVisibleRequests.every((item) => selectedRequestIds.includes(item.id));
+
+  const toggleBulkSelect = (requestId: string, checked: boolean) => {
+    setSelectedRequestIds((prev) => {
+      if (checked) {
+        if (prev.includes(requestId)) return prev;
+        return [...prev, requestId];
+      }
+
+      return prev.filter((id) => id !== requestId);
+    });
+  };
+
+  const toggleSelectAllPending = (checked: boolean) => {
+    if (!checked) {
+      setSelectedRequestIds([]);
+      return;
+    }
+
+    setSelectedRequestIds(pendingVisibleRequests.map((item) => item.id));
+  };
+
   const handleConfirmAction = async () => {
     if (!confirmAction) return;
 
@@ -1431,6 +1579,31 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
         ensureApiSuccess(response, "Không thể hủy yêu cầu bảo lưu.");
         setRequestMessage("Đã hủy yêu cầu bảo lưu.");
         await loadRequests(confirmAction.requestId);
+        router.refresh();
+      }
+
+      if (confirmAction.kind === "approveBulk") {
+        const response = await approvePauseEnrollmentRequestsBulk({
+          ids: confirmAction.requestIds,
+        });
+
+        ensureApiSuccess(response, "Không thể duyệt hàng loạt yêu cầu bảo lưu.");
+
+        const approvedIds = response.data?.approvedIds ?? [];
+        const errors = response.data?.errors ?? [];
+
+        const summary = [
+          approvedIds.length
+            ? `Đã duyệt ${approvedIds.length} yêu cầu.`
+            : "Không có yêu cầu nào được duyệt.",
+          errors.length ? `${errors.length} yêu cầu bị lỗi trong batch.` : "",
+        ]
+          .filter(Boolean)
+          .join(" ");
+
+        setRequestMessage(summary);
+        setSelectedRequestIds([]);
+        await loadRequests(selectedRequestId ?? undefined);
         router.refresh();
       }
 
@@ -1482,6 +1655,12 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
       return;
     }
 
+    const weeklyPattern = parseWeeklyPatternJson(reassignForm.weeklyPatternJson);
+    if (weeklyPattern === null) {
+      setRequestError("Weekly pattern phải là JSON array hợp lệ (hoặc để trống). ");
+      return;
+    }
+
     setActionLoadingKey(`reassign:${selectedRequest.id}`);
     setRequestError(null);
     setRequestMessage(null);
@@ -1491,7 +1670,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
         registrationId,
         newClassId,
         track: reassignForm.track,
-        sessionSelectionPattern: reassignForm.sessionSelectionPattern,
+        weeklyPattern,
         effectiveDate: reassignForm.effectiveDate,
       };
 
@@ -1557,6 +1736,25 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
               <Plus size={16} />
               Tạo yêu cầu
             </button>
+            {isManagement ? (
+              <button
+                type="button"
+                disabled={!selectedRequestIds.length || requestsLoading}
+                onClick={() =>
+                  setConfirmAction({
+                    kind: "approveBulk",
+                    requestIds: selectedRequestIds,
+                    title: "Duyệt hàng loạt yêu cầu bảo lưu",
+                    description: `Bạn sắp duyệt ${selectedRequestIds.length} yêu cầu đang ở trạng thái Pending.`,
+                    confirmText: "Duyệt đã chọn",
+                  })
+                }
+                className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700 transition cursor-pointer hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <CheckCircle2 size={16} />
+                Duyệt đã chọn ({selectedRequestIds.length})
+              </button>
+            ) : null}
           </div>
 
           <div className="grid w-full gap-4 pt-2 md:grid-cols-2 xl:grid-cols-4">
@@ -1568,7 +1766,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
                   ? `${requests.length} yêu cầu trong phạm vi hiện tại`
                   : "Tất cả yêu cầu bảo lưu của học sinh đang chọn"
               }
-              tone="red"
+              tone="blue"
             />
             <MiniMetric
               label="Chờ duyệt"
@@ -1598,7 +1796,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
                   ? "Cần cập nhật hướng xử lý sau khi quay lại"
                   : `${requests.filter(canCancelRequest).length} yêu cầu vẫn còn trong hạn hủy`
               }
-              tone="slate"
+              tone="red"
             />
           </div>
         </div>
@@ -1614,7 +1812,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
         }`}
       >
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="relative flex-1 min-w-[250px]">
+          <div className="relative flex-1 min-w-62.5">
             <Search
               className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
               size={16}
@@ -1631,7 +1829,26 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
             />
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            {isManagement ? (
+              <Select
+                value={selectedClassId}
+                onValueChange={(val) => setSelectedClassId(val)}
+              >
+                <SelectTrigger className="h-10 min-w-62.5 rounded-xl border border-red-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200">
+                  <SelectValue placeholder="Lọc theo lớp" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL_CLASS}>Tất cả lớp</SelectItem>
+                  {filterClasses.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {classOptionLabel(item)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : null}
+
             <Select
               value={selectedStatus}
               onValueChange={(val) => setSelectedStatus(val)}
@@ -1647,6 +1864,13 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
                 <SelectItem value="Cancelled">{statusLabels.Cancelled}</SelectItem>
               </SelectContent>
             </Select>
+
+            {isManagement && filterClassesLoading ? (
+              <div className="inline-flex items-center gap-2 text-xs text-gray-500">
+                <Loader2 size={14} className="animate-spin" />
+                Đang tải lớp...
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
@@ -1680,9 +1904,22 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px]">
-            <thead className="border-b border-red-200 bg-gradient-to-r from-red-600/5 to-red-700/5">
+          <table className="w-full min-w-190">
+            <thead className="border-b border-red-200 bg-linear-to-r from-red-600/5 to-red-700/5">
               <tr className="text-left text-sm font-semibold text-gray-700">
+                {isManagement ? (
+                  <th className="px-4 py-4 w-10">
+                    {pendingVisibleRequests.length ? (
+                      <input
+                        type="checkbox"
+                        checked={allPendingSelected}
+                        onChange={(event) => toggleSelectAllPending(event.target.checked)}
+                        className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-400"
+                        aria-label="Chọn tất cả request pending đang hiển thị"
+                      />
+                    ) : null}
+                  </th>
+                ) : null}
 
                 <th className="px-6 py-4">Học sinh</th>
                 <th className="px-6 py-4">Tổng quan</th>
@@ -1695,7 +1932,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
               {!filteredRequests.length && !requestsLoading ? (
                 <tr>
                   <td
-                    colSpan={4}
+                    colSpan={isManagement ? 5 : 4}
                     className="px-6 py-12 text-center"
                   >
                     <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-50 text-red-400">
@@ -1713,6 +1950,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
 
               {filteredRequests.map((item) => {
                 const status = normalizeStatus(item.status);
+                const scope = normalizeScope(item.scope, item.classId);
                 const student = studentMap.get(item.studentProfileId);
                 const isSelected = selectedRequestId === item.id;
                 const isPending = status === "Pending";
@@ -1720,6 +1958,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
                 const classLabels = getClassLabels(item);
                 const classPreview = classLabels.slice(0, 2);
                 const hiddenClassCount = Math.max(classLabels.length - classPreview.length, 0);
+                const isChecked = selectedRequestIds.includes(item.id);
 
                 return (
                   <tr
@@ -1730,6 +1969,21 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
                         : "hover:bg-linear-to-r hover:from-red-50/50 hover:to-white"
                     }`}
                   >
+                    {isManagement ? (
+                      <td className="px-4 py-4 align-top">
+                        {isPending ? (
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(event) =>
+                              toggleBulkSelect(item.id, event.target.checked)
+                            }
+                            className="mt-1 h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-400"
+                            aria-label={`Chọn request ${item.id}`}
+                          />
+                        ) : null}
+                      </td>
+                    ) : null}
 
 
                     <td className="px-6 py-4 align-top">
@@ -1767,7 +2021,10 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
                         <div className="text-sm leading-6 text-gray-600">
                           {summarizeText(item.reason)}
                         </div>
-                        <div className="flex max-w-[360px] flex-wrap gap-2">
+                        <div className="flex max-w-90 flex-wrap gap-2">
+                          <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${scopeStyles[scope]}`}>
+                            {scopeLabels[scope]}
+                          </span>
                           {classPreview.length ? (
                             <>
                               {classPreview.map((label) => (
@@ -1898,7 +2155,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
         ) : null}
 
         {!requestsLoading && filteredRequests.length ? (
-          <div className="border-t border-red-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
+          <div className="border-t border-red-200 bg-linear-to-r from-red-500/5 to-red-700/5 px-6 py-4">
             <div className="text-sm text-gray-600">
               Hiển thị{" "}
               <span className="font-semibold text-gray-900">
@@ -1908,6 +2165,13 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
               <span className="font-semibold text-gray-900">{requests.length}</span>{" "}
               bản ghi hiện có
             </div>
+            {isManagement ? (
+              <div className="mt-2 text-xs text-gray-500">
+                {pendingVisibleRequests.length
+                  ? `Pending hiển thị: ${pendingVisibleRequests.length} • Đã chọn: ${selectedRequestIds.length}`
+                  : "Không có yêu cầu Pending trong bộ lọc hiện tại."}
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -2002,6 +2266,11 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
         onCreated={(record) => {
           setCreateOpen(false);
           setRequestMessage("Đã tạo yêu cầu bảo lưu.");
+          toast({
+            title: "Thành công",
+            description: "Đã tạo yêu cầu bảo lưu thành công.",
+            type: "success",
+          });
           void loadRequests(record.id);
           router.refresh();
         }}

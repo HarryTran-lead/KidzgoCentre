@@ -9,8 +9,14 @@ import {
   X,
   Calendar,
   Clock,
-  ChevronDown,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/lightswind/select";
 
 import { TEACHER_ENDPOINTS } from "@/constants/apiURL";
 import { parseApiDateKeepWallClock, toISOStartOfDayVN, toISOEndOfDayVN } from "@/lib/datetime";
@@ -182,7 +188,7 @@ const getStudentId = (st: MakeupCreditStudent) =>
 const getStudentName = (st: MakeupCreditStudent) =>
   (pickValue(st, ["displayName", "name", "fullName", "studentName", "studentFullName"]) as
     | string
-    | undefined) ?? "Unknown student";
+    | undefined) ?? "Học viên chưa xác định";
 
 const creditId = (c: MakeupCredit) => (pickValue(c, ["id"]) as string | undefined) ?? "";
 const creditStatus = (c: MakeupCredit) => String(pickValue(c, ["status"]) ?? "").toUpperCase();
@@ -200,16 +206,16 @@ const creditExpiresAt = (c: MakeupCredit) =>
 const creditStatusLabel = (status: string) => {
   const normalized = String(status ?? "").trim().toUpperCase();
   if (!normalized || normalized.includes("AVAILABLE") || normalized.includes("ACTIVE")) {
-    return "Available";
+    return "Khả dụng";
   }
   if (normalized.includes("USED") || normalized.includes("CONSUMED")) {
-    return "Scheduled";
+    return "Đã lên lịch";
   }
   if (normalized.includes("EXPIRE")) {
-    return "Expired";
+    return "Đã hết hạn";
   }
   if (normalized.includes("CANCEL")) {
-    return "Cancelled";
+    return "Đã hủy";
   }
   return normalized;
 };
@@ -260,7 +266,7 @@ const suggestionClassId = (s: any) =>
   (pickValue(s, ["classId", "class.id"]) as string | undefined) ?? "";
 const suggestionClassName = (s: any) =>
   (pickValue(s, ["classTitle", "className", "class.name", "class.code"]) as string | undefined) ??
-  "Unknown class";
+  "Lớp chưa xác định";
 const suggestionClassCode = (s: any) =>
   (pickValue(s, ["classCode", "class.code"]) as string | undefined) ?? "";
 const suggestionSessionId = (s: any) =>
@@ -277,7 +283,7 @@ const suggestionPlannedDatetime = (s: any) =>
 
 const classIdValue = (c: any) => (pickValue(c, ["id", "classId"]) as string | undefined) ?? "";
 const classNameValue = (c: any) =>
-  (pickValue(c, ["title", "name", "className"]) as string | undefined) ?? "Unknown class";
+  (pickValue(c, ["title", "name", "className"]) as string | undefined) ?? "Lớp chưa xác định";
 const classCodeValue = (c: any) => (pickValue(c, ["code", "classCode"]) as string | undefined) ?? "";
 
 const toISODateStart = (dateStr?: string) => {
@@ -507,7 +513,7 @@ export default function MakeupSessionCreateModal({
         const list = (api?.items ?? api?.students ?? api) as any[];
         setStudents(Array.isArray(list) ? list : []);
       } catch {
-        setError("Unable to load students with available makeup credits.");
+        setError("Không thể tải danh sách học sinh có suất học bù khả dụng.");
       } finally {
         setStudentsLoading(false);
       }
@@ -582,7 +588,7 @@ export default function MakeupSessionCreateModal({
 
         setCredits(deduped.filter((credit) => isSelectableCredit(credit, initialMakeupCreditId)));
       } catch {
-        setError("Unable to load the student's makeup credit list.");
+        setError("Không thể tải danh sách suất học bù của học sinh.");
       } finally {
         setCreditsLoading(false);
       }
@@ -728,7 +734,7 @@ export default function MakeupSessionCreateModal({
         const list = (api?.items ?? api?.suggestions ?? api) as any[];
         setSuggestions(normalizeSuggestions(Array.isArray(list) ? list : []));
       } catch {
-        setError("Unable to load available make-up sessions.");
+        setError("Không thể tải danh sách buổi học bù khả dụng.");
       } finally {
         setSuggestionsLoading(false);
       }
@@ -823,7 +829,7 @@ export default function MakeupSessionCreateModal({
 
         setManualSessions(expandedSessions);
       } catch {
-        setError("Unable to load sessions for manual selection.");
+        setError("Không thể tải danh sách buổi học để chọn thủ công.");
       } finally {
         setManualSessionsLoading(false);
       }
@@ -848,11 +854,11 @@ export default function MakeupSessionCreateModal({
       return (
         lockedStudentLabel ??
         studentOptions.find((s) => s.id === payload.studentProfileId)?.name ??
-        "Selected student"
+        "Học viên đã chọn"
       );
     }
     return (
-      studentOptions.find((s) => s.id === payload.studentProfileId)?.name ?? "Selected student"
+      studentOptions.find((s) => s.id === payload.studentProfileId)?.name ?? "Học viên đã chọn"
     );
   }, [lockedStudentLabel, lockedStudentProfileId, payload.studentProfileId, studentOptions]);
 
@@ -870,16 +876,16 @@ export default function MakeupSessionCreateModal({
         formatDateVN(creditSourceSessionDate(c));
       const status = [
         creditStatusLabel(creditStatus(c) || "AVAILABLE"),
-        sourceDate ? `Leave session: ${sourceDate}` : "",
+        sourceDate ? `Buổi nghỉ: ${sourceDate}` : "",
       ]
         .filter(Boolean)
         .join(" • ");
       const created = sourceDate ? "" : formatDateVN(creditCreatedAt(c));
 
       const detailParts = [
-        classText ? `Class: ${classText}` : "",
-        created ? `Created: ${created}` : "",
-        expires ? `Expires: ${expires}` : "",
+        classText ? `Lớp: ${classText}` : "",
+        created ? `Tạo lúc: ${created}` : "",
+        expires ? `Hết hạn: ${expires}` : "",
       ].filter(Boolean);
 
       return {
@@ -1070,11 +1076,54 @@ export default function MakeupSessionCreateModal({
       .join(" • ");
   })();
 
+  const selectedTargetSessionTimeLabel = (() => {
+    const selectedSession = sessionsToShow.find(
+      (session: any) => suggestionSessionId(session) === payload.targetSessionId
+    );
+
+    if (selectedSession) {
+      const planned = suggestionPlannedDatetime(selectedSession);
+      if (planned) return formatDateTimeVN(planned);
+    }
+
+    const fallbackDateTime = [
+      payload.date ? formatDateVN(payload.date) : "",
+      payload.time || "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    return fallbackDateTime || payload.targetSessionId || "?";
+  })();
+
+  const approvedLeaveDetailLines = (() => {
+    if (!payload.makeupCreditId) return ["?"];
+
+    const lines = [
+      selectedCreditSummary?.sourceDate
+        ? `Buổi nghỉ: ${selectedCreditSummary.sourceDate}`
+        : "",
+      selectedCreditSummary?.classText
+        ? `Lớp: ${selectedCreditSummary.classText}`
+        : sourceClassDisplay(sourceSession)
+          ? `Lớp: ${sourceClassDisplay(sourceSession)}`
+          : "",
+      selectedCreditSummary?.expires
+        ? `Hết hạn: ${selectedCreditSummary.expires}`
+        : "",
+      !selectedCreditSummary?.sourceDate && selectedCreditSummary?.created
+        ? `Tạo lúc: ${selectedCreditSummary.created}`
+        : "",
+    ].filter(Boolean);
+
+    return lines.length ? lines : [selectedCreditLabel || "?"];
+  })();
+
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-70 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
       <div className="w-full max-w-3xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
         {/* header - gradient đỏ */}
-        <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
+        <div className="bg-linear-to-r from-red-600 to-red-700 p-6">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="p-2.5 rounded-xl bg-white/20 backdrop-blur-sm">
@@ -1082,10 +1131,10 @@ export default function MakeupSessionCreateModal({
               </div>
               <div>
                 <h2 className="text-2xl font-bold text-white">
-                  {isChangeMode ? "Reschedule make-up session" : "Create make-up session"}
+                  {isChangeMode ? "Đổi lịch buổi học bù" : "Tạo lịch học bù"}
                 </h2>
                 <p className="text-sm text-red-100">
-                  Step {step}/3 • Select leave session • Select make-up session • Confirm
+                  Bước {step}/3 • Chọn buổi nghỉ • Chọn buổi học bù • Xác nhận
                 </p>
               </div>
             </div>
@@ -1093,7 +1142,7 @@ export default function MakeupSessionCreateModal({
             <button
               onClick={onClose}
               className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer"
-              aria-label="Close"
+              aria-label="Đóng"
             >
               <X size={24} className="text-white" />
             </button>
@@ -1109,129 +1158,116 @@ export default function MakeupSessionCreateModal({
               <div className="space-y-3">
                 <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
                   <div className="w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center text-xs font-bold">1</div>
-                  <span>Select student</span>
+                  <span>Chọn học sinh</span>
                 </div>
                 {lockedStudentProfileId ? (
                   <div className="flex h-11 items-center rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm font-medium text-gray-800">
-                    {selectedStudentName || "Selected student"}
+                    {selectedStudentName || "Học viên đã chọn"}
                   </div>
                 ) : (
-                  <div className="relative">
-                    <select
-                      className="h-11 w-full appearance-none rounded-xl border border-gray-200 bg-white px-4 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-400 cursor-pointer"
-                      value={payload.studentProfileId}
-                      onChange={(e) => {
-                        const id = e.target.value;
-                        setPayload((p) => ({
-                          ...p,
-                          studentProfileId: id,
-                          makeupCreditId: "",
-                          fromClassId: "",
-                          targetClassId: "",
-                          targetSessionId: "",
-                          date: "",
-                          time: "",
-                        }));
-                        setStep(1);
-                      }}
-                    >
-                      <option value="">
-                        {studentsLoading ? "Loading students..." : "Select student"}
-                      </option>
+                  <Select
+                    value={payload.studentProfileId || undefined}
+                    onValueChange={(id) => {
+                      setPayload((p) => ({
+                        ...p,
+                        studentProfileId: id,
+                        makeupCreditId: "",
+                        fromClassId: "",
+                        targetClassId: "",
+                        targetSessionId: "",
+                        date: "",
+                        time: "",
+                      }));
+                      setStep(1);
+                    }}
+                    disabled={studentsLoading}
+                  >
+                    <SelectTrigger className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-gray-800 focus:ring-2 focus:ring-red-300 focus:border-red-400">
+                      <SelectValue placeholder={studentsLoading ? "Đang tải học sinh..." : "Chọn học sinh"} />
+                    </SelectTrigger>
+                    <SelectContent>
                       {studentOptions.map((s) => (
-                        <option key={s.id} value={s.id}>
+                        <SelectItem key={s.id} value={s.id}>
                           {s.name}
-                        </option>
+                        </SelectItem>
                       ))}
-                    </select>
-                    <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
-                      {studentsLoading ? (
-                        <Loader2 size={16} className="animate-spin" />
-                      ) : (
-                        <ChevronDown size={16} />
-                      )}
-                    </div>
-                  </div>
+                    </SelectContent>
+                  </Select>
                 )}
               </div>
 
               <div className="space-y-3">
                 <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
                   <div className="w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center text-xs font-bold">2</div>
-                  <span>Select leave session</span>
+                  <span>Chọn buổi nghỉ</span>
                 </div>
                 {isChangeMode ? (
                   <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800">
-                    {selectedCreditLabel || "Loading leave session details..."}
+                    {selectedCreditLabel || "Đang tải chi tiết buổi nghỉ..."}
                   </div>
                 ) : (
-                <div className="relative">
-                  <select
-                    className="h-11 w-full appearance-none rounded-xl border border-gray-200 bg-white px-4 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-400 disabled:opacity-60 cursor-pointer"
-                    value={payload.makeupCreditId}
-                    disabled={!payload.studentProfileId || creditsLoading}
-                    onChange={(e) => {
-                      const creditIdValue = e.target.value;
-                      setPayload((p) => ({
-                        ...p,
-                        makeupCreditId: creditIdValue,
-                        fromClassId: "",
-                        targetClassId: preferredTargetClassId ?? "",
-                        targetSessionId: "",
-                        date: p.date,
-                        time: p.time,
-                      }));
-                    }}
-                  >
-                    <option value="">
-                      {!payload.studentProfileId
-                        ? "Select a student first"
-                        : creditsLoading
-                          ? "Loading leave sessions..."
-                          : creditOptions.length
-                            ? "Select a leave session to schedule"
-                            : "No available makeup credits"}
-                    </option>
+                <Select
+                  value={payload.makeupCreditId || undefined}
+                  onValueChange={(creditIdValue) => {
+                    setPayload((p) => ({
+                      ...p,
+                      makeupCreditId: creditIdValue,
+                      fromClassId: "",
+                      targetClassId: preferredTargetClassId ?? "",
+                      targetSessionId: "",
+                      date: p.date,
+                      time: p.time,
+                    }));
+                  }}
+                  disabled={!payload.studentProfileId || creditsLoading}
+                >
+                  <SelectTrigger className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-gray-800 focus:ring-2 focus:ring-red-300 focus:border-red-400 disabled:opacity-60">
+                    <SelectValue
+                      placeholder={
+                        !payload.studentProfileId
+                          ? "Chọn học sinh trước"
+                          : creditsLoading
+                            ? "Đang tải buổi nghỉ..."
+                            : creditOptions.length
+                              ? "Chọn buổi nghỉ để xếp học bù"
+                              : "Không có suất học bù khả dụng"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
                     {creditOptions.map((c) => (
-                      <option key={c.id} value={c.id}>
+                      <SelectItem key={c.id} value={c.id}>
                         {c.label}
-                      </option>
+                      </SelectItem>
                     ))}
-                  </select>
-                  <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
-                    {creditsLoading ? (
-                      <Loader2 size={16} className="animate-spin" />
-                    ) : (
-                      <ChevronDown size={16} />
-                    )}
-                  </div>
-                </div>
+                  </SelectContent>
+                </Select>
                 )}
 
                 <div className="p-3 rounded-xl border border-blue-200 bg-blue-50 text-sm text-gray-700">
                   {payload.makeupCreditId
                     ? selectedCreditSummary
                       ? [
-                          `Status: ${selectedCreditSummary.status}`,
+                          `Trạng thái: ${selectedCreditSummary.status}`,
                           selectedCreditSummary.sourceDate
-                            ? `Original leave session: ${selectedCreditSummary.sourceDate}`
+                            ? `Buổi nghỉ gốc: ${selectedCreditSummary.sourceDate}`
                             : "",
                           selectedCreditSummary.classText
-                            ? `Original class: ${selectedCreditSummary.classText}`
+                            ? `Lớp gốc: ${selectedCreditSummary.classText}`
                             : sourceClassDisplay(sourceSession),
                           selectedCreditSummary.expires
-                            ? `Expires: ${selectedCreditSummary.expires}`
+                            ? `Hết hạn: ${selectedCreditSummary.expires}`
                             : "",
                           !selectedCreditSummary.sourceDate && selectedCreditSummary.created
-                            ? `Created: ${selectedCreditSummary.created}`
+                            ? `Tạo lúc: ${selectedCreditSummary.created}`
                             : "",
                         ]
                           .filter(Boolean)
                           .join(" • ")
                       : sourceSessionLoading
-                        ? "Loading leave session details..."
-                        : "No original leave session data"
-                    : "Select a leave session to view details"}
+                        ? "Đang tải chi tiết buổi nghỉ..."
+                        : "Không có dữ liệu buổi nghỉ gốc"
+                    : "Chọn buổi nghỉ để xem chi tiết"}
                 </div>
               </div>
             </div>
@@ -1243,65 +1279,61 @@ export default function MakeupSessionCreateModal({
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
                     <div className="w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center text-xs font-bold">3</div>
-                    <span>Select make-up class</span>
+                    <span>Chọn lớp học bù</span>
                   </div>
                   {lockedTargetClassId ? (
                     <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800">
                       {lockedTargetClassLabel || classOptionsToShow[0]?.label || lockedTargetClassId}
                     </div>
                   ) : (
-                    <div className="relative">
-                      <select
-                        className="h-11 w-full appearance-none rounded-xl border border-gray-200 bg-white px-4 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-400 disabled:opacity-60 cursor-pointer"
-                        value={payload.targetClassId}
-                        disabled={!payload.makeupCreditId || isClassLoading}
-                        onChange={(e) =>
-                          setPayload((p) => ({
-                            ...p,
-                            targetClassId: e.target.value,
-                            targetSessionId: "",
-                            date: "",
-                            time: "",
-                          }))
-                        }
-                      >
-                        <option value="">
-                          {!payload.makeupCreditId
-                            ? "Select a leave session first"
-                            : isClassLoading
-                              ? shouldEnableManual
-                                ? "Loading classes..."
-                                : "Loading suggestions..."
-                              : classOptionsToShow.length
+                    <Select
+                      value={payload.targetClassId || undefined}
+                      onValueChange={(value) =>
+                        setPayload((p) => ({
+                          ...p,
+                          targetClassId: value,
+                          targetSessionId: "",
+                          date: "",
+                          time: "",
+                        }))
+                      }
+                      disabled={!payload.makeupCreditId || isClassLoading}
+                    >
+                      <SelectTrigger className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-gray-800 focus:ring-2 focus:ring-red-300 focus:border-red-400 disabled:opacity-60">
+                        <SelectValue
+                          placeholder={
+                            !payload.makeupCreditId
+                              ? "Chọn buổi nghỉ trước"
+                              : isClassLoading
                                 ? shouldEnableManual
-                                  ? "Select any class"
-                                  : "Select make-up class"
-                                : shouldEnableManual
-                                  ? "No classes available"
-                                  : "No suggestions available"}
-                        </option>
+                                  ? "Đang tải danh sách lớp..."
+                                  : "Đang tải gợi ý lớp..."
+                                : classOptionsToShow.length
+                                  ? shouldEnableManual
+                                    ? "Chọn lớp bất kỳ"
+                                    : "Chọn lớp học bù"
+                                  : shouldEnableManual
+                                    ? "Không có lớp khả dụng"
+                                    : "Không có lớp gợi ý"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
                         {classOptionsToShow.map((c) => (
-                          <option key={c.id} value={c.id}>
+                          <SelectItem key={c.id} value={c.id}>
                             {c.label}
-                          </option>
+                          </SelectItem>
                         ))}
-                      </select>
-                      <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
-                        {isClassLoading ? (
-                          <Loader2 size={16} className="animate-spin" />
-                        ) : (
-                          <ChevronDown size={16} />
-                        )}
-                      </div>
-                    </div>
+                      </SelectContent>
+                    </Select>
                   )}
                   <div className="text-xs text-gray-500">
                     {isChangeMode && !shouldEnableManual ? (
-                      <>Only classes and sessions in the same makeup program with open slots are shown.</>
+                      <>Chỉ hiển thị lớp và buổi trong cùng chương trình học bù còn chỗ trống.</>
                     ) : shouldEnableManual ? (
-                      <>No automatic suggestions right now, you can choose any class manually.</>
+                      <>Hiện không có gợi ý tự động, bạn có thể chọn lớp thủ công.</>
                     ) : (
-                      <>Select class first, then select session. Date and time will auto-fill from the selected session.</>
+                      <>Chọn lớp trước, rồi chọn buổi học. Ngày và giờ sẽ tự điền theo buổi đã chọn.</>
                     )}
                   </div>
                 </div>
@@ -1309,51 +1341,52 @@ export default function MakeupSessionCreateModal({
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
                     <div className="w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center text-xs font-bold">4</div>
-                    <span>Select make-up session</span>
+                    <span>Chọn buổi học bù</span>
                   </div>
-                  <div className="relative">
-                    <select
-                      className="h-11 w-full appearance-none rounded-xl border border-gray-200 bg-white px-4 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-400 disabled:opacity-60 cursor-pointer"
-                      value={payload.targetSessionId}
-                      disabled={!payload.targetClassId || isSessionsLoading}
-                      onChange={(e) => {
-                        const sid = e.target.value;
-                        const chosen = sessionsToShow.find((s: any) => suggestionSessionId(s) === sid);
-                        const chosenClassId = chosen ? suggestionClassId(chosen) : payload.targetClassId;
+                  <Select
+                    value={payload.targetSessionId || undefined}
+                    onValueChange={(sid) => {
+                      const chosen = sessionsToShow.find((s: any) => suggestionSessionId(s) === sid);
+                      const chosenClassId = chosen ? suggestionClassId(chosen) : payload.targetClassId;
 
-                        const planned = chosen ? suggestionPlannedDatetime(chosen) : "";
-                        let nextDate = payload.date;
-                        let nextTime = payload.time;
+                      const planned = chosen ? suggestionPlannedDatetime(chosen) : "";
+                      let nextDate = payload.date;
+                      let nextTime = payload.time;
 
-                        if (planned) {
-                          const d = parseApiDateKeepWallClock(planned);
-                          if (!Number.isNaN(d.getTime())) {
-                            nextDate = toDateInputValue(d);
-                            nextTime = toTimeInputValue(d);
-                          }
+                      if (planned) {
+                        const d = parseApiDateKeepWallClock(planned);
+                        if (!Number.isNaN(d.getTime())) {
+                          nextDate = toDateInputValue(d);
+                          nextTime = toTimeInputValue(d);
                         }
+                      }
 
-                        setPayload((p) => ({
-                          ...p,
-                          targetClassId: chosenClassId || p.targetClassId,
-                          targetSessionId: sid,
-                          date: nextDate,
-                          time: nextTime,
-                        }));
-                      }}
-                    >
-                      <option value="">
-                        {!payload.targetClassId
-                          ? "Select class first"
-                          : isSessionsLoading
-                            ? "Loading sessions..."
-                            : sessionsToShow.length
-                              ? shouldEnableManual
-                                ? "Select any session"
-                                : "Select make-up session"
-                              : "No sessions available"}
-                      </option>
-
+                      setPayload((p) => ({
+                        ...p,
+                        targetClassId: chosenClassId || p.targetClassId,
+                        targetSessionId: sid,
+                        date: nextDate,
+                        time: nextTime,
+                      }));
+                    }}
+                    disabled={!payload.targetClassId || isSessionsLoading}
+                  >
+                    <SelectTrigger className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-gray-800 focus:ring-2 focus:ring-red-300 focus:border-red-400 disabled:opacity-60">
+                      <SelectValue
+                        placeholder={
+                          !payload.targetClassId
+                            ? "Chọn lớp trước"
+                            : isSessionsLoading
+                              ? "Đang tải buổi học..."
+                              : sessionsToShow.length
+                                ? shouldEnableManual
+                                  ? "Chọn buổi bất kỳ"
+                                  : "Chọn buổi học bù"
+                                : "Không có buổi học khả dụng"
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
                       {sessionsToShow.map((s: any) => {
                         const id = suggestionSessionId(s);
                         const code = suggestionClassCode(s);
@@ -1365,22 +1398,17 @@ export default function MakeupSessionCreateModal({
                         ]
                           .filter(Boolean)
                           .join(" • ");
+
+                        if (!id) return null;
+
                         return (
-                          <option key={id} value={id}>
+                          <SelectItem key={id} value={id}>
                             {label || id}
-                          </option>
+                          </SelectItem>
                         );
                       })}
-                    </select>
-
-                    <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
-                      {isSessionsLoading ? (
-                        <Loader2 size={16} className="animate-spin" />
-                      ) : (
-                        <ChevronDown size={16} />
-                      )}
-                    </div>
-                  </div>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -1388,20 +1416,20 @@ export default function MakeupSessionCreateModal({
                 <div className="space-y-2">
                   <div className="text-sm font-semibold text-gray-800 flex items-center gap-2">
                     <Calendar size={16} className="text-red-600" />
-                    Make-up date
+                    Ngày học bù
                   </div>
                   <div className="flex h-11 items-center rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm text-gray-700">
-                    {payload.date ? formatDateVN(payload.date) : "Select a make-up session to view date"}
+                    {payload.date ? formatDateVN(payload.date) : "Chọn buổi học bù để xem ngày"}
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <div className="text-sm font-semibold text-gray-800 flex items-center gap-2">
                     <Clock size={16} className="text-red-600" />
-                    Make-up time
+                    Giờ học bù
                   </div>
                   <div className="flex h-11 items-center rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm text-gray-700">
-                    {payload.time || "Select a make-up session to view time"}
+                    {payload.time || "Chọn buổi học bù để xem giờ"}
                   </div>
                 </div>
               </div>
@@ -1413,7 +1441,7 @@ export default function MakeupSessionCreateModal({
               (shouldLoadSessionsFirst || payload.date) &&
               suggestions.length === 0 ? (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                  No make-up sessions currently match the system conditions. You can change date or time to view other suggestions.
+                  Hiện không có buổi học bù phù hợp điều kiện hệ thống. Bạn có thể đổi ngày hoặc giờ để xem thêm gợi ý.
                 </div>
               ) : null}
               {!suggestionsLoading &&
@@ -1422,7 +1450,7 @@ export default function MakeupSessionCreateModal({
               payload.makeupCreditId &&
               suggestions.length === 0 ? (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                  There are no other sessions with open slots in the same makeup program.
+                  Không còn buổi nào khác còn chỗ trong cùng chương trình học bù.
                 </div>
               ) : null}
             </div>
@@ -1431,40 +1459,59 @@ export default function MakeupSessionCreateModal({
           {step === 3 && (
             <div className="space-y-4">
               <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-2 text-sm text-gray-700">
-                <div className="font-semibold text-gray-900 text-base mb-2">Confirm make-up schedule</div>
+                <div className="font-semibold text-gray-900 text-base mb-2">Xác nhận lịch học bù</div>
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="text-gray-500">Student:</div>
+                  <div className="text-gray-500">Học sinh:</div>
                   <div className="font-medium">{selectedStudentName || "?"}</div>
-                  
-                  <div className="text-gray-500">Approved leave session:</div>
-                  <div className="font-medium break-words">{selectedCreditLabel || "?"}</div>
-                  
-                  <div className="text-gray-500">Original class:</div>
-                  <div className="font-medium">
-                    {selectedCreditSummary?.classText || sourceClassDisplay(sourceSession) || "No original class info"}
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3">
+                    <div className="mb-2 inline-flex items-center rounded-full border border-amber-300 bg-amber-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-amber-800">
+                      Buổi cũ
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="text-xs text-amber-800">Buổi nghỉ đã duyệt</div>
+                      <div className="space-y-1">
+                        {approvedLeaveDetailLines.map((line, index) => (
+                          <div key={`${line}-${index}`} className="font-medium wrap-break-word text-gray-800">
+                            {line}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="text-xs text-amber-800">Lớp gốc</div>
+                      <div className="font-medium text-gray-800">
+                        {selectedCreditSummary?.classText || sourceClassDisplay(sourceSession) || "Không có thông tin lớp gốc"}
+                      </div>
+                    </div>
                   </div>
-                  
-                  <div className="text-gray-500">Make-up class:</div>
-                  <div className="font-medium">{selectedTargetClassLabel || "?"}</div>
-                  
-                  <div className="text-gray-500">Make-up session:</div>
-                  <div className="font-medium break-words">{selectedTargetSessionLabel || "?"}</div>
-                  
-                  <div className="text-gray-500">Date/Time:</div>
-                  <div className="font-medium">
-                    {payload.date ? formatDateVN(payload.date) : "?"} {payload.time || ""}
+
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3">
+                    <div className="mb-2 inline-flex items-center rounded-full border border-emerald-300 bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-800">
+                      Buổi mới
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="text-xs text-emerald-800">Lớp học bù</div>
+                      <div className="font-medium text-gray-800">{selectedTargetClassLabel || "?"}</div>
+                      <div className="text-xs text-emerald-800">Buổi học bù</div>
+                      <div className="font-medium wrap-break-word text-gray-800">{selectedTargetSessionTimeLabel}</div>
+                      <div className="text-xs text-emerald-800">Ngày/Giờ</div>
+                      <div className="font-medium text-gray-800">
+                        {payload.date ? formatDateVN(payload.date) : "?"} {payload.time || ""}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <div className="text-sm font-semibold text-gray-800">Note (optional)</div>
+                <div className="text-sm font-semibold text-gray-800">Ghi chú (không bắt buộc)</div>
                 <textarea
                   rows={3}
                   className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-400 cursor-text"
                   value={payload.note ?? ""}
                   onChange={(e) => setPayload((p) => ({ ...p, note: e.target.value }))}
-                  placeholder="Enter note..."
+                  placeholder="Nhập ghi chú..."
                 />
               </div>
             </div>
@@ -1485,7 +1532,7 @@ export default function MakeupSessionCreateModal({
                 disabled={submitting}
                 className="px-5 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-700 font-medium hover:bg-gray-50 transition-all disabled:opacity-60 cursor-pointer"
               >
-                Back
+                Quay lại
               </button>
             )}
 
@@ -1494,32 +1541,32 @@ export default function MakeupSessionCreateModal({
               disabled={submitting}
               className="px-5 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-700 font-medium hover:bg-gray-50 transition-all disabled:opacity-60 cursor-pointer"
             >
-              Cancel
+              Hủy
             </button>
 
             {step < 3 ? (
               <button
                 onClick={() => setStep((s) => (s === 3 ? 3 : ((s + 1) as 1 | 2 | 3)))}
                 disabled={(step === 1 && !canGoStep2) || (step === 2 && !canGoStep3)}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all disabled:opacity-70 cursor-pointer"
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-linear-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all disabled:opacity-70 cursor-pointer"
               >
-                Continue
+                Tiếp tục
               </button>
             ) : (
               <button
                 onClick={handleSubmit}
                 disabled={!canSubmit || submitting}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all disabled:opacity-70 cursor-pointer"
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-linear-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all disabled:opacity-70 cursor-pointer"
               >
                 {submitting ? (
                   <>
                     <Loader2 size={16} className="animate-spin" />
-                    Saving...
+                    Đang lưu...
                   </>
                 ) : (
                   <>
                     <Send size={16} />
-                    {isChangeMode ? "Reschedule" : "Create schedule"}
+                    {isChangeMode ? "Đổi lịch" : "Tạo lịch"}
                   </>
                 )}
               </button>
@@ -1528,8 +1575,8 @@ export default function MakeupSessionCreateModal({
 
           {step === 2 && (
             <div className="text-xs text-gray-500 p-3 rounded-lg border border-blue-200 bg-blue-50">
-              Select <b>make-up class</b> first, then choose a <b>make-up session</b>. The system will auto-fill
-              <b> date</b> and <b>time</b> from the selected session.
+              Chọn <b>lớp học bù</b> trước, sau đó chọn <b>buổi học bù</b>. Hệ thống sẽ tự điền
+              <b> ngày</b> và <b>giờ</b> theo buổi học đã chọn.
             </div>
           )}
         </div>
