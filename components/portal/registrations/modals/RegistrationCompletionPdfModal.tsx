@@ -331,12 +331,12 @@ export default function RegistrationCompletionPdfModal({
                 />
                 <InfoRow
                   icon={Wallet}
-                  label="Tổng thanh toán"
+                  label="Phí dự kiến"
                   value={formatCurrency(Number(pdfData.preview?.totalPayment || 0), "VND")}
                 />
                 <InfoRow
                   icon={Calendar}
-                  label="Form đã resolve"
+                  label="Trạng thái học viên"
                   value={
                     pdfData.formTypeResolved === "continuingStudent"
                       ? "Học viên đang học"

@@ -6,6 +6,7 @@ import {
   XCircle,
   ArrowUpDown,
   Eye,
+  Calendar,
   Pause,
   Play,
   Trash2,
@@ -40,6 +41,8 @@ interface EnrollmentTableProps {
   onPause?: (enrollment: Enrollment) => void;
   onDrop?: (enrollment: Enrollment) => void;
   onReactivate?: (enrollment: Enrollment) => void;
+  onManageScheduleSegment?: (enrollment: Enrollment) => void;
+  canManageScheduleSegment?: (enrollment: Enrollment) => boolean;
   onRefresh?: () => void;
 }
 
@@ -59,6 +62,8 @@ export default function EnrollmentTable({
   onPause,
   onDrop,
   onReactivate,
+  onManageScheduleSegment,
+  canManageScheduleSegment,
   onRefresh,
 }: EnrollmentTableProps) {
   const enrollmentsArray = Array.isArray(enrollments) ? enrollments : [];
@@ -223,6 +228,20 @@ export default function EnrollmentTable({
                     >
                       <Eye size={16} />
                     </button>
+                    {onManageScheduleSegment && (
+                      <button
+                        onClick={() => onManageScheduleSegment(enrollment)}
+                        disabled={canManageScheduleSegment ? !canManageScheduleSegment(enrollment) : false}
+                        className="p-1.5 rounded-lg hover:bg-indigo-50 transition-colors text-gray-400 hover:text-indigo-600 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+                        title={
+                          canManageScheduleSegment && !canManageScheduleSegment(enrollment)
+                            ? "Chỉ áp dụng cho chương trình bù"
+                            : "Quản lý Schedule Segment"
+                        }
+                      >
+                        <Calendar size={16} />
+                      </button>
+                    )}
                     {!readOnly && enrollment.status === "Active" && (
                       <>
                         <button
@@ -241,7 +260,7 @@ export default function EnrollmentTable({
                         </button>
                       </>
                     )}
-                    {!readOnly && (enrollment.status === "Paused" || enrollment.status === "Dropped") && (
+                    {!readOnly && enrollment.status === "Paused" && (
                       <button
                         onClick={() => onReactivate?.(enrollment)}
                         className="p-1.5 rounded-lg hover:bg-emerald-50 transition-colors text-gray-400 hover:text-emerald-600 cursor-pointer"

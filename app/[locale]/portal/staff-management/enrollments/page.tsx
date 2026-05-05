@@ -16,6 +16,10 @@ import {
   dropEnrollment,
   reactivateEnrollment,
 } from "@/lib/api/enrollmentService";
+import {
+  extractDomainErrorCode,
+  getDomainErrorMessage,
+} from "@/lib/api/domainErrorMessage";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import type { Enrollment, CreateEnrollmentRequest } from "@/types/enrollment";
@@ -24,30 +28,30 @@ import {
   EnrollmentTable,
   EnrollmentFormModal,
   EnrollmentDetailModal,
+  EnrollmentScheduleSegmentModal,
 } from "@/components/portal/enrollments";
 import ConfirmModal from "@/components/ConfirmModal";
 
-type EnrollmentErrorPayload = {
-  title?: string;
-  detail?: string;
-  message?: string;
-};
+const getEnrollmentErrorTitle = (error: unknown) => {
+  const code = extractDomainErrorCode(error);
 
-type EnrollmentError = {
-  response?: {
-    data?: EnrollmentErrorPayload;
-  };
-  message?: string;
-};
+  if (
+    code === "Enrollment.StudentScheduleConflict" ||
+    code === "Registration.StudentScheduleConflict" ||
+    code === "StudentScheduleConflict"
+  ) {
+    return "Trùng lịch học";
+  }
 
-const getEnrollmentErrorPayload = (error: unknown): EnrollmentErrorPayload | undefined => {
-  if (!error || typeof error !== "object") return undefined;
-  return (error as EnrollmentError).response?.data;
-};
+  if (code === "Enrollment.ClassFull" || code === "ClassFull") {
+    return "Lớp đã đủ sĩ số";
+  }
 
-const getEnrollmentErrorMessage = (error: unknown, fallback: string) => {
-  const payload = getEnrollmentErrorPayload(error);
-  return payload?.detail || payload?.message || (error as EnrollmentError).message || fallback;
+  if (code === "Enrollment.AlreadyEnrolled" || code === "AlreadyEnrolled") {
+    return "Đã có ghi danh";
+  }
+
+  return "Lỗi";
 };
 
 export default function EnrollmentsPage() {
@@ -78,7 +82,9 @@ export default function EnrollmentsPage() {
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [isScheduleSegmentModalOpen, setIsScheduleSegmentModalOpen] = useState(false);
   const [selectedEnrollment, setSelectedEnrollment] = useState<Enrollment | null>(null);
+  const [scheduleSegmentEnrollment, setScheduleSegmentEnrollment] = useState<Enrollment | null>(null);
   const [confirmAction, setConfirmAction] = useState<{
     action: string;
     title: string;
@@ -163,7 +169,7 @@ export default function EnrollmentsPage() {
       console.error("Error fetching enrollments:", error);
       toast({
         title: "Lỗi",
-        description: "Không thể tải danh sách ghi danh",
+        description: getDomainErrorMessage(error, "Không thể tải danh sách ghi danh."),
         variant: "destructive",
       });
     } finally {
@@ -173,13 +179,9 @@ export default function EnrollmentsPage() {
 
   // ========== Handlers ==========
 
-  const handleCreateEnrollment = async (data: {
-    classId: string;
-    studentProfileId: string;
-    enrollDate: string;
-  }) => {
+  const handleCreateEnrollment = async (data: CreateEnrollmentRequest) => {
     try {
-      const response = await createEnrollment(data as CreateEnrollmentRequest);
+      const response = await createEnrollment(data);
       if (response.isSuccess) {
         toast({ title: "Thành công", description: "Đã tạo ghi danh mới" });
         fetchEnrollments();
@@ -192,13 +194,9 @@ export default function EnrollmentsPage() {
         });
       }
     } catch (error: unknown) {
-      const payload = getEnrollmentErrorPayload(error);
-      const isScheduleConflict =
-        payload?.title === "Enrollment.StudentScheduleConflict";
-      const msg = getEnrollmentErrorMessage(error, "Khong the tao ghi danh");
       toast({
-        title: isScheduleConflict ? "Trùng lịch học" : "Lỗi",
-        description: msg,
+        title: getEnrollmentErrorTitle(error),
+        description: getDomainErrorMessage(error, "Không thể tạo ghi danh."),
         variant: "destructive",
       });
     }
@@ -265,13 +263,9 @@ export default function EnrollmentsPage() {
         });
       }
     } catch (error: unknown) {
-      const payload = getEnrollmentErrorPayload(error);
-      const isScheduleConflict =
-        payload?.title === "Enrollment.StudentScheduleConflict";
-      const msg = getEnrollmentErrorMessage(error, "Da xay ra loi");
       toast({
-        title: isScheduleConflict ? "Trùng lịch học" : "Lỗi",
-        description: msg,
+        title: getEnrollmentErrorTitle(error),
+        description: getDomainErrorMessage(error, "Không thể cập nhật trạng thái ghi danh."),
         variant: "destructive",
       });
     } finally {
@@ -298,6 +292,35 @@ export default function EnrollmentsPage() {
   const handleStatusChange = (status: string) => {
     setSelectedStatus(status);
     setCurrentPage(1);
+  };
+
+  const canManageScheduleSegment = (enrollment: Enrollment) => {
+    if (enrollment.track === "secondary") return true;
+
+    const normalizedSource = [
+      enrollment.programName,
+      enrollment.classTitle,
+      enrollment.classCode,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    return /(supplementary|makeup|compensatory|bù|\bbu\b)/i.test(normalizedSource);
+  };
+
+  const handleManageScheduleSegment = (enrollment: Enrollment) => {
+    if (!canManageScheduleSegment(enrollment)) {
+      toast({
+        title: "Không áp dụng",
+        description: "Schedule segment chỉ áp dụng cho chương trình bù.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setScheduleSegmentEnrollment(enrollment);
+    setIsScheduleSegmentModalOpen(true);
   };
 
   // ========== Sorting ==========
@@ -368,14 +391,14 @@ export default function EnrollmentsPage() {
             <div className="flex items-center gap-2">
               <Filter size={16} className="text-gray-500 shrink-0" />
               <Select value={selectedStatus} onValueChange={handleStatusChange}>
-                <SelectTrigger className="w-auto min-w-[140px] rounded-xl h-10">
+                <SelectTrigger className="h-10 w-auto min-w-35 rounded-xl">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Tất cả">Tất cả</SelectItem>
-                  <SelectItem value="Active">Active</SelectItem>
-                  <SelectItem value="Paused">Paused</SelectItem>
-                  <SelectItem value="Dropped">Dropped</SelectItem>
+                  <SelectItem value="Active">Đang học</SelectItem>
+                  <SelectItem value="Paused">Tạm nghỉ</SelectItem>
+                  <SelectItem value="Dropped">Đã nghỉ</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -395,6 +418,8 @@ export default function EnrollmentsPage() {
           sortKey={sortKey}
           sortDir={sortDir}
           onSort={handleSort}
+          onManageScheduleSegment={handleManageScheduleSegment}
+          canManageScheduleSegment={canManageScheduleSegment}
           onPause={handlePause}
           onDrop={handleDrop}
           onReactivate={handleReactivate}
@@ -415,6 +440,23 @@ export default function EnrollmentsPage() {
             setSelectedEnrollment(null);
           }}
           enrollment={selectedEnrollment}
+          onChanged={() => {
+            fetchEnrollments();
+            fetchInitialData();
+          }}
+        />
+
+        <EnrollmentScheduleSegmentModal
+          isOpen={isScheduleSegmentModalOpen}
+          onClose={() => {
+            setIsScheduleSegmentModalOpen(false);
+            setScheduleSegmentEnrollment(null);
+          }}
+          enrollment={scheduleSegmentEnrollment}
+          onChanged={() => {
+            fetchEnrollments();
+            fetchInitialData();
+          }}
         />
 
         {/* Confirm Modal */}
