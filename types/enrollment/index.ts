@@ -86,23 +86,6 @@ export interface AddEnrollmentScheduleSegmentRequest {
   clearWeeklyPattern?: boolean;
 }
 
-export interface BackfillSessionAssignmentsRequest {
-  enrollmentId?: string;
-  classId?: string;
-  studentProfileId?: string;
-  batchSize?: number;
-}
-
-export interface BackfillSessionAssignmentsResult {
-  matchedEnrollments: number;
-  processedEnrollments: number;
-  affectedClasses: number;
-  batchSize: number;
-  createdAssignments: number;
-  reactivatedAssignments: number;
-  cancelledAssignments: number;
-}
-
 export interface EnrollmentFilterParams {
   classId?: string;
   studentProfileId?: string;

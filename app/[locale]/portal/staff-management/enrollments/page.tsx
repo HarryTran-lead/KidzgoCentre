@@ -15,7 +15,6 @@ import {
   pauseEnrollment,
   dropEnrollment,
   reactivateEnrollment,
-  backfillSessionAssignments,
 } from "@/lib/api/enrollmentService";
 import {
   extractDomainErrorCode,
@@ -29,6 +28,7 @@ import {
   EnrollmentTable,
   EnrollmentFormModal,
   EnrollmentDetailModal,
+  EnrollmentScheduleSegmentModal,
 } from "@/components/portal/enrollments";
 import ConfirmModal from "@/components/ConfirmModal";
 
@@ -62,7 +62,6 @@ export default function EnrollmentsPage() {
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [allEnrollments, setAllEnrollments] = useState<Enrollment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isBackfilling, setIsBackfilling] = useState(false);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -83,7 +82,9 @@ export default function EnrollmentsPage() {
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [isScheduleSegmentModalOpen, setIsScheduleSegmentModalOpen] = useState(false);
   const [selectedEnrollment, setSelectedEnrollment] = useState<Enrollment | null>(null);
+  const [scheduleSegmentEnrollment, setScheduleSegmentEnrollment] = useState<Enrollment | null>(null);
   const [confirmAction, setConfirmAction] = useState<{
     action: string;
     title: string;
@@ -178,13 +179,9 @@ export default function EnrollmentsPage() {
 
   // ========== Handlers ==========
 
-  const handleCreateEnrollment = async (data: {
-    classId: string;
-    studentProfileId: string;
-    enrollDate: string;
-  }) => {
+  const handleCreateEnrollment = async (data: CreateEnrollmentRequest) => {
     try {
-      const response = await createEnrollment(data as CreateEnrollmentRequest);
+      const response = await createEnrollment(data);
       if (response.isSuccess) {
         toast({ title: "Thành công", description: "Đã tạo ghi danh mới" });
         fetchEnrollments();
@@ -202,44 +199,6 @@ export default function EnrollmentsPage() {
         description: getDomainErrorMessage(error, "Không thể tạo ghi danh."),
         variant: "destructive",
       });
-    }
-  };
-
-  const handleBackfillAssignments = async () => {
-    try {
-      setIsBackfilling(true);
-
-      const response = await backfillSessionAssignments({
-        batchSize: 100,
-      });
-
-      if (response.isSuccess && response.data) {
-        toast({
-          title: "Thành công",
-          description: `Đã đồng bộ assignment: tạo mới ${response.data.createdAssignments}, kích hoạt lại ${response.data.reactivatedAssignments}, hủy ${response.data.cancelledAssignments}.`,
-          variant: "success",
-        });
-        fetchEnrollments();
-        fetchInitialData();
-        return;
-      }
-
-      toast({
-        title: "Lỗi",
-        description: response.message || "Không thể đồng bộ assignment của ghi danh.",
-        variant: "destructive",
-      });
-    } catch (error) {
-      toast({
-        title: getEnrollmentErrorTitle(error),
-        description: getDomainErrorMessage(
-          error,
-          "Không thể đồng bộ assignment của ghi danh.",
-        ),
-        variant: "destructive",
-      });
-    } finally {
-      setIsBackfilling(false);
     }
   };
 
@@ -335,6 +294,35 @@ export default function EnrollmentsPage() {
     setCurrentPage(1);
   };
 
+  const canManageScheduleSegment = (enrollment: Enrollment) => {
+    if (enrollment.track === "secondary") return true;
+
+    const normalizedSource = [
+      enrollment.programName,
+      enrollment.classTitle,
+      enrollment.classCode,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    return /(supplementary|makeup|compensatory|bù|\bbu\b)/i.test(normalizedSource);
+  };
+
+  const handleManageScheduleSegment = (enrollment: Enrollment) => {
+    if (!canManageScheduleSegment(enrollment)) {
+      toast({
+        title: "Không áp dụng",
+        description: "Schedule segment chỉ áp dụng cho chương trình bù.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setScheduleSegmentEnrollment(enrollment);
+    setIsScheduleSegmentModalOpen(true);
+  };
+
   // ========== Sorting ==========
 
   const sortedEnrollments = [...enrollments].sort((a, b) => {
@@ -373,14 +361,6 @@ export default function EnrollmentsPage() {
             >
               <RefreshCw size={16} />
               Làm mới
-            </button>
-            <button
-              onClick={handleBackfillAssignments}
-              disabled={isBackfilling}
-              className="inline-flex items-center gap-2 rounded-xl border border-red-300 bg-white px-4 py-2.5 text-sm font-medium text-red-700 hover:bg-red-50 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <RefreshCw size={16} className={isBackfilling ? "animate-spin" : ""} />
-              {isBackfilling ? "Đang đồng bộ..." : "Đồng bộ assignment"}
             </button>
             <button
               onClick={() => setIsFormModalOpen(true)}
@@ -438,6 +418,8 @@ export default function EnrollmentsPage() {
           sortKey={sortKey}
           sortDir={sortDir}
           onSort={handleSort}
+          onManageScheduleSegment={handleManageScheduleSegment}
+          canManageScheduleSegment={canManageScheduleSegment}
           onPause={handlePause}
           onDrop={handleDrop}
           onReactivate={handleReactivate}
@@ -458,6 +440,19 @@ export default function EnrollmentsPage() {
             setSelectedEnrollment(null);
           }}
           enrollment={selectedEnrollment}
+          onChanged={() => {
+            fetchEnrollments();
+            fetchInitialData();
+          }}
+        />
+
+        <EnrollmentScheduleSegmentModal
+          isOpen={isScheduleSegmentModalOpen}
+          onClose={() => {
+            setIsScheduleSegmentModalOpen(false);
+            setScheduleSegmentEnrollment(null);
+          }}
+          enrollment={scheduleSegmentEnrollment}
           onChanged={() => {
             fetchEnrollments();
             fetchInitialData();

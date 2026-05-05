@@ -345,6 +345,14 @@ function translateBackendMessageToVietnamese(message?: string): string | undefin
       vi: "Dữ liệu gửi lên chưa hợp lệ. Vui lòng kiểm tra lại các trường bắt buộc.",
     },
     {
+      test: /scheduledat\s+cannot\s+be\s+in\s+the\s+past/i,
+      vi: "Thời gian test không được ở quá khứ. Vui lòng chọn thời gian hiện tại hoặc tương lai.",
+    },
+    {
+      test: /greaterthanorequalvalidator/i,
+      vi: "Dữ liệu ngày giờ chưa hợp lệ. Vui lòng chọn thời gian hiện tại hoặc tương lai.",
+    },
+    {
       test: /leave\s*request\s*.*not\s*found/i,
       vi: "Không tìm thấy đơn xin nghỉ.",
     },

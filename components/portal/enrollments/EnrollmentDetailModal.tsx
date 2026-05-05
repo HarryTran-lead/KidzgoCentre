@@ -20,11 +20,9 @@ import {
 } from "lucide-react";
 import type { Enrollment, EnrollmentHistoryItem } from "@/types/enrollment";
 import {
-  addEnrollmentScheduleSegment,
   assignTuitionPlan,
   getEnrollmentById,
   getStudentEnrollmentHistory,
-  updateEnrollment,
 } from "@/lib/api/enrollmentService";
 import { getDomainErrorMessage } from "@/lib/api/domainErrorMessage";
 import { useToast } from "@/hooks/use-toast";
@@ -86,18 +84,6 @@ export default function EnrollmentDetailModal({
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [activeTab, setActiveTab] = useState<"details" | "history">("details");
-  const [tuitionPlanIdInput, setTuitionPlanIdInput] = useState("");
-  const [updateEnrollDate, setUpdateEnrollDate] = useState("");
-  const [updateTrack, setUpdateTrack] = useState<"" | "primary" | "secondary">("");
-  const [isUpdatingEnrollment, setIsUpdatingEnrollment] = useState(false);
-  const [isAssigningTuitionPlan, setIsAssigningTuitionPlan] = useState(false);
-  const [segmentEffectiveFrom, setSegmentEffectiveFrom] = useState("");
-  const [segmentEffectiveTo, setSegmentEffectiveTo] = useState("");
-  const [segmentDayCodes, setSegmentDayCodes] = useState("");
-  const [segmentStartTime, setSegmentStartTime] = useState("");
-  const [segmentDurationMinutes, setSegmentDurationMinutes] = useState("90");
-  const [segmentClearPattern, setSegmentClearPattern] = useState(false);
-  const [isAddingSegment, setIsAddingSegment] = useState(false);
 
   const fetchDetail = useCallback(async () => {
     if (!isOpen || !enrollment?.id) return;
@@ -107,9 +93,6 @@ export default function EnrollmentDetailModal({
       const response = await getEnrollmentById(enrollment.id);
       if (response.isSuccess && response.data) {
         setDetailEnrollment(response.data);
-        setTuitionPlanIdInput(response.data.tuitionPlanId || "");
-        setUpdateEnrollDate(response.data.enrollDate || "");
-        setUpdateTrack(response.data.track || "");
         return;
       }
       setDetailEnrollment(null);
@@ -149,14 +132,6 @@ export default function EnrollmentDetailModal({
       setActiveTab("details");
       setHistory([]);
       setDetailEnrollment(null);
-      setSegmentEffectiveFrom("");
-      setSegmentEffectiveTo("");
-      setSegmentDayCodes("");
-      setSegmentStartTime("");
-      setSegmentDurationMinutes("90");
-      setSegmentClearPattern(false);
-      setUpdateEnrollDate("");
-      setUpdateTrack("");
     }
   }, [isOpen]);
 
@@ -205,177 +180,6 @@ export default function EnrollmentDetailModal({
       })
       .filter(Boolean)
       .join(" | ");
-  };
-
-  const handleAssignTuitionPlan = async () => {
-    if (!displayedEnrollment?.id) return;
-
-    const tuitionPlanId = tuitionPlanIdInput.trim();
-    if (!tuitionPlanId) {
-      toast({
-        title: "Thiếu dữ liệu",
-        description: "Vui lòng nhập Tuition Plan ID trước khi cập nhật.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      setIsAssigningTuitionPlan(true);
-      const response = await assignTuitionPlan(displayedEnrollment.id, { tuitionPlanId });
-
-      if (!response.isSuccess) {
-        toast({
-          title: "Lỗi",
-          description: response.message || "Không thể cập nhật gói học phí.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      toast({
-        title: "Thành công",
-        description: "Đã cập nhật gói học phí cho ghi danh.",
-        variant: "success",
-      });
-
-      await fetchDetail();
-      onChanged?.();
-    } catch (error) {
-      toast({
-        title: "Lỗi",
-        description: getDomainErrorMessage(error, "Không thể cập nhật gói học phí."),
-        variant: "destructive",
-      });
-    } finally {
-      setIsAssigningTuitionPlan(false);
-    }
-  };
-
-  const handleUpdateEnrollment = async () => {
-    if (!displayedEnrollment?.id) return;
-
-    if (!updateEnrollDate.trim() && !updateTrack.trim()) {
-      toast({
-        title: "Thiếu dữ liệu",
-        description: "Vui lòng nhập ít nhất một trường để cập nhật ghi danh.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      setIsUpdatingEnrollment(true);
-      const response = await updateEnrollment(displayedEnrollment.id, {
-        enrollDate: updateEnrollDate.trim() || undefined,
-        track: (updateTrack.trim() || undefined) as "primary" | "secondary" | undefined,
-      });
-
-      if (!response.isSuccess) {
-        toast({
-          title: "Lỗi",
-          description: response.message || "Không thể cập nhật ghi danh.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      toast({
-        title: "Thành công",
-        description: "Đã cập nhật thông tin ghi danh.",
-        variant: "success",
-      });
-
-      await fetchDetail();
-      onChanged?.();
-    } catch (error) {
-      toast({
-        title: "Lỗi",
-        description: getDomainErrorMessage(error, "Không thể cập nhật ghi danh."),
-        variant: "destructive",
-      });
-    } finally {
-      setIsUpdatingEnrollment(false);
-    }
-  };
-
-  const handleAddScheduleSegment = async () => {
-    if (!displayedEnrollment?.id) return;
-
-    const effectiveFrom = segmentEffectiveFrom.trim();
-    if (!effectiveFrom) {
-      toast({
-        title: "Thiếu dữ liệu",
-        description: "Vui lòng chọn ngày hiệu lực bắt đầu (effectiveFrom).",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const normalizedDays = segmentDayCodes
-      .split(",")
-      .map((value) => value.trim().toUpperCase())
-      .filter(Boolean);
-
-    const durationMinutes = Number(segmentDurationMinutes || "0");
-    const canBuildPattern =
-      !segmentClearPattern &&
-      normalizedDays.length > 0 &&
-      Boolean(segmentStartTime.trim()) &&
-      Number.isFinite(durationMinutes) &&
-      durationMinutes > 0;
-
-    try {
-      setIsAddingSegment(true);
-
-      const response = await addEnrollmentScheduleSegment(displayedEnrollment.id, {
-        effectiveFrom,
-        effectiveTo: segmentEffectiveTo.trim() || null,
-        clearWeeklyPattern: segmentClearPattern,
-        weeklyPattern: canBuildPattern
-          ? [
-              {
-                dayOfWeeks: normalizedDays as any,
-                startTime: segmentStartTime.trim(),
-                durationMinutes,
-              },
-            ]
-          : undefined,
-      });
-
-      if (!response.isSuccess) {
-        toast({
-          title: "Lỗi",
-          description: response.message || "Không thể thêm schedule segment.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      toast({
-        title: "Thành công",
-        description: "Đã thêm schedule segment cho ghi danh.",
-        variant: "success",
-      });
-
-      setSegmentEffectiveFrom("");
-      setSegmentEffectiveTo("");
-      setSegmentDayCodes("");
-      setSegmentStartTime("");
-      setSegmentDurationMinutes("90");
-      setSegmentClearPattern(false);
-
-      await fetchDetail();
-      onChanged?.();
-    } catch (error) {
-      toast({
-        title: "Lỗi",
-        description: getDomainErrorMessage(error, "Không thể thêm schedule segment."),
-        variant: "destructive",
-      });
-    } finally {
-      setIsAddingSegment(false);
-    }
   };
 
   return (
@@ -543,167 +347,6 @@ export default function EnrollmentDetailModal({
                 </div>
               </Section>
 
-              <Section
-                title="Schedule Segments"
-                icon={<Calendar size={16} className="text-indigo-600" />}
-                colorClass="border-indigo-200 bg-indigo-50/40"
-              >
-                {isLoadingDetail ? (
-                  <div className="flex items-center gap-2 text-sm text-gray-500">
-                    <Loader2 size={14} className="animate-spin text-indigo-500" />
-                    Đang tải chi tiết segment...
-                  </div>
-                ) : !Array.isArray(displayedEnrollment.scheduleSegments) ||
-                  displayedEnrollment.scheduleSegments.length === 0 ? (
-                  <div className="text-sm text-gray-500">Chưa có segment riêng.</div>
-                ) : (
-                  <div className="space-y-2">
-                    {displayedEnrollment.scheduleSegments.map((segment) => (
-                      <div
-                        key={segment.id}
-                        className="rounded-lg border border-indigo-100 bg-white px-3 py-2 text-sm"
-                      >
-                        <div className="font-medium text-gray-800">
-                          {formatDate(segment.effectiveFrom)} - {segment.effectiveTo ? formatDate(segment.effectiveTo) : "Hiện tại"}
-                        </div>
-                        <div className="mt-1 text-gray-600">
-                          {renderWeeklyPattern(
-                            segment.activeWeeklyPattern ?? segment.weeklyPattern ?? undefined,
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </Section>
-
-              <Section
-                title="Thao tác nâng cao"
-                icon={<AlertCircle size={16} className="text-red-600" />}
-                colorClass="border-red-200 bg-red-50/40"
-              >
-                <div className="space-y-4">
-                  <div className="rounded-lg border border-red-100 bg-white p-3">
-                    <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      Cập nhật Enrollment
-                    </div>
-                    <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
-                      <input
-                        type="date"
-                        value={updateEnrollDate}
-                        onChange={(event) => setUpdateEnrollDate(event.target.value)}
-                        className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-red-300 focus:outline-none"
-                      />
-                      <select
-                        value={updateTrack}
-                        onChange={(event) =>
-                          setUpdateTrack(event.target.value as "" | "primary" | "secondary")
-                        }
-                        className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-red-300 focus:outline-none"
-                      >
-                        <option value="">Không đổi track</option>
-                        <option value="primary">primary</option>
-                        <option value="secondary">secondary</option>
-                      </select>
-                    </div>
-                    <div className="mt-3 flex justify-end">
-                      <button
-                        type="button"
-                        onClick={handleUpdateEnrollment}
-                        disabled={isUpdatingEnrollment}
-                        className="inline-flex items-center justify-center rounded-lg bg-linear-to-r from-red-600 to-red-700 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {isUpdatingEnrollment ? "Đang cập nhật..." : "Cập nhật enrollment"}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="rounded-lg border border-red-100 bg-white p-3">
-                    <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      Gán Tuition Plan
-                    </div>
-                    <div className="mt-2 flex flex-col gap-2 md:flex-row">
-                      <input
-                        type="text"
-                        value={tuitionPlanIdInput}
-                        onChange={(event) => setTuitionPlanIdInput(event.target.value)}
-                        placeholder="Nhập Tuition Plan ID (GUID)"
-                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-red-300 focus:outline-none"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleAssignTuitionPlan}
-                        disabled={isAssigningTuitionPlan || !tuitionPlanIdInput.trim()}
-                        className="inline-flex items-center justify-center rounded-lg bg-linear-to-r from-red-600 to-red-700 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {isAssigningTuitionPlan ? "Đang cập nhật..." : "Cập nhật gói học"}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="rounded-lg border border-red-100 bg-white p-3">
-                    <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      Thêm Schedule Segment (Supplementary)
-                    </div>
-                    <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
-                      <input
-                        type="date"
-                        value={segmentEffectiveFrom}
-                        onChange={(event) => setSegmentEffectiveFrom(event.target.value)}
-                        className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-red-300 focus:outline-none"
-                      />
-                      <input
-                        type="date"
-                        value={segmentEffectiveTo}
-                        onChange={(event) => setSegmentEffectiveTo(event.target.value)}
-                        className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-red-300 focus:outline-none"
-                      />
-                      <input
-                        type="text"
-                        value={segmentDayCodes}
-                        onChange={(event) => setSegmentDayCodes(event.target.value)}
-                        placeholder="Days: MO,WE,SA"
-                        className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-red-300 focus:outline-none"
-                      />
-                      <input
-                        type="time"
-                        value={segmentStartTime}
-                        onChange={(event) => setSegmentStartTime(event.target.value)}
-                        className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-red-300 focus:outline-none"
-                      />
-                      <input
-                        type="number"
-                        min={1}
-                        value={segmentDurationMinutes}
-                        onChange={(event) => setSegmentDurationMinutes(event.target.value)}
-                        placeholder="Duration minutes"
-                        className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-red-300 focus:outline-none"
-                      />
-                      <label className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700">
-                        <input
-                          type="checkbox"
-                          checked={segmentClearPattern}
-                          onChange={(event) => setSegmentClearPattern(event.target.checked)}
-                        />
-                        Clear weekly pattern
-                      </label>
-                    </div>
-                    <div className="mt-2 text-xs text-gray-500">
-                      Nếu bật Clear weekly pattern thì học viên sẽ quay về lịch đầy đủ của lớp.
-                    </div>
-                    <div className="mt-3 flex justify-end">
-                      <button
-                        type="button"
-                        onClick={handleAddScheduleSegment}
-                        disabled={isAddingSegment || !segmentEffectiveFrom.trim()}
-                        className="inline-flex items-center justify-center rounded-lg bg-linear-to-r from-red-600 to-red-700 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {isAddingSegment ? "Đang thêm..." : "Thêm segment"}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </Section>
             </div>
           )}
 

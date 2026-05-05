@@ -14,8 +14,6 @@ import type {
   EnrollmentFilterParams,
   EnrollmentPaginatedResponse,
   EnrollmentHistoryItem,
-  BackfillSessionAssignmentsRequest,
-  BackfillSessionAssignmentsResult,
   AddEnrollmentScheduleSegmentRequest,
 } from "@/types/enrollment";
 import type { ApiResponse } from "@/types/apiResponse";
@@ -98,21 +96,6 @@ export async function createEnrollment(
   data: CreateEnrollmentRequest
 ): Promise<ApiResponse<Enrollment>> {
   const response = await post<any>(ENROLLMENT_ENDPOINTS.CREATE, data);
-  const responseData = unwrapData(response);
-  return {
-    isSuccess: toApiSuccess(response),
-    message: toApiMessage(response),
-    data: responseData,
-  };
-}
-
-/**
- * Backfill student session assignments by enrollment/class/student filters
- */
-export async function backfillSessionAssignments(
-  data: BackfillSessionAssignmentsRequest
-): Promise<ApiResponse<BackfillSessionAssignmentsResult>> {
-  const response = await post<any>(ENROLLMENT_ENDPOINTS.BACKFILL_SESSION_ASSIGNMENTS, data);
   const responseData = unwrapData(response);
   return {
     isSuccess: toApiSuccess(response),

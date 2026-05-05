@@ -78,7 +78,7 @@ import {
 } from "@/lib/api/enrollmentService";
 import { getRegistrations } from "@/lib/api/registrationService";
 import { getDomainErrorMessage } from "@/lib/api/domainErrorMessage";
-import type { Enrollment, EnrollmentStatus } from "@/types/enrollment";
+import type { CreateEnrollmentRequest, Enrollment, EnrollmentStatus } from "@/types/enrollment";
 import { StaffRegistrationOverview } from "@/components/portal/registrations";
 
 type StatusType =
@@ -1759,11 +1759,7 @@ export default function Page() {
     setIsEnrollFormModalOpen(true);
   };
 
-  const handleEnrollmentFormSubmit = async (data: {
-    classId: string;
-    studentProfileId: string;
-    enrollDate: string;
-  }) => {
+  const handleEnrollmentFormSubmit = async (data: CreateEnrollmentRequest) => {
     try {
       const response = await createEnrollment(data);
       if (response.isSuccess) {
