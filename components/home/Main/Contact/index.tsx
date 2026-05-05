@@ -166,9 +166,9 @@ export default function Contact() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-red-50 via-rose-50 to-red-100 mt-30">
+    <div className="contact-page min-h-screen bg-gradient-to-b from-red-50 via-rose-50 to-red-100 mt-30">
       {/* Nội dung chính */}
-      <div className="relative z-20 w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-10 -mt-40 bg-gradient-to-b from-red-50 via-rose-50 to-red-100 rounded-t-3xl shadow-2xl">
+      <div id="contact-form-section" className="relative z-20 w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-10 -mt-40 bg-gradient-to-b from-red-50 via-rose-50 to-red-100 rounded-t-3xl shadow-2xl">
         <motion.div
           initial="hidden"
           animate="visible"

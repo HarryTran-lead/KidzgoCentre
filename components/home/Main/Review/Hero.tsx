@@ -48,17 +48,17 @@ function makeParticles(n: number, rand: () => number) {
   return Array.from({ length: n }, () => ({
     left: rand() * 100,
     top: rand() * 100,
-    delay: rand() * 5,
-    dur: 6 + rand() * 6,
+    delay: rand() * 3,
+    dur: 5 + rand() * 4,
   }));
 }
 function makeStars(n: number, rand: () => number) {
   return Array.from({ length: n }, () => ({
     left: rand() * 100,
     top: rand() * 100,
-    delay: rand() * 3,
-    dur: 2 + rand() * 3,
-    size: 12 + rand() * 20,
+    delay: rand() * 2,
+    dur: 2 + rand() * 2,
+    size: 14 + rand() * 14,
   }));
 }
 
@@ -88,51 +88,39 @@ export default function Hero({ locale }: Props) {
     return () => cancelAnimationFrame(id);
   }, []);
 
-  // Scroll effect: fade out và scale down Hero content khi scroll xuống, và ngược lại khi scroll lên
+  // Scroll effect: fade out và scale down Hero content khi scroll xuống (throttled)
   useEffect(() => {
+    let ticking = false;
     const handleScroll = () => {
-      const heroSection = document.getElementById('hero') || document.querySelector('section[data-ready]');
-      if (!heroSection) return;
-
-      const rect = heroSection.getBoundingClientRect();
-      const windowHeight = window.innerHeight;
-      const scrollY = window.scrollY;
-      
-      // Tính toán progress dựa trên scroll position
-      // Khi Hero ở đầu trang (scrollY = 0), progress = 0
-      // Khi scroll xuống, progress tăng từ 0 đến 1
-      // Khi scroll lên lại, progress giảm từ 1 về 0
-      const heroHeight = heroSection.offsetHeight;
-      const progressStart = 0;
-      const progressEnd = heroHeight * 0.5; // Bắt đầu fade khi scroll được 50% chiều cao Hero
-      
-      let scrollProgress = 0;
-      if (scrollY > progressStart) {
-        scrollProgress = Math.min(1, (scrollY - progressStart) / progressEnd);
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          const heroSection = document.getElementById('hero');
+          if (!heroSection) return;
+          const scrollY = window.scrollY;
+          const heroHeight = heroSection.offsetHeight;
+          const progressEnd = heroHeight * 0.5;
+          const scrollProgress = Math.min(1, scrollY / progressEnd);
+          setScrollOpacity(Math.max(0.8, 1 - (scrollProgress * 0.2)));
+          setScrollScale(Math.max(0.7, 1 - (scrollProgress * 0.3)));
+          ticking = false;
+        });
+        ticking = true;
       }
-      
-      // Opacity: từ 1 xuống 0.8 khi scroll xuống
-      setScrollOpacity(Math.max(0.8, 1 - (scrollProgress * 0.2)));
-      // Scale: từ 1 xuống 0.7 khi scroll xuống
-      setScrollScale(Math.max(0.7, 1 - (scrollProgress * 0.3)));
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll(); // Gọi ngay lần đầu
-
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    };
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   /** Tạo mảng particles/stars bằng PRNG có seed cố định (SSR == CSR) */
   const rngParticles = useMemo(() => mulberry32(20241104), []);
   const rngStars = useMemo(() => mulberry32(20241104 ^ 0x9e3779b9), []);
   const particles = useMemo(
-    () => makeParticles(16, rngParticles),
+    () => makeParticles(8, rngParticles),
     [rngParticles]
   );
-  const stars = useMemo(() => makeStars(12, rngStars), [rngStars]);
+  const stars = useMemo(() => makeStars(6, rngStars), [rngStars]);
 
   // Build slides từ dict + icon + image
   const slides = msg.hero.slides.map((s, i) => ({
@@ -176,7 +164,7 @@ export default function Hero({ locale }: Props) {
     <section
       id="hero"
       data-ready={ready ? "true" : "false"}
-      className={`fixed inset-0 min-h-screen flex items-center overflow-hidden z-10 ${
+      className={`landing-page fixed inset-0 min-h-screen flex items-center overflow-hidden z-10 ${
         ready ? "opacity-100" : "opacity-0"
       } transition-opacity duration-200`}
     >
@@ -198,8 +186,8 @@ export default function Hero({ locale }: Props) {
                 i === idx ? "animate-kenburns a-paused" : ""
               }`}
             />
-            <div className="absolute inset-0 bg-linear-to-r from-slate-900/80 via-slate-900/50 to-transparent" />
-            <div className="absolute inset-0 bg-linear-to-t from-slate-900/60 via-transparent to-slate-900/40" />
+            <div className="absolute inset-0 bg-linear-to-r from-slate-950/85 via-slate-900/60 to-transparent" />
+            <div className="absolute inset-0 bg-linear-to-t from-slate-950/70 via-transparent to-slate-950/30" />
           </div>
         ))}
       </div>
@@ -209,12 +197,13 @@ export default function Hero({ locale }: Props) {
         {particles.map((p, i) => (
           <div
             key={i}
-            className="absolute w-1.5 h-1.5 bg-white/30 rounded-full animate-float a-paused"
+            className="absolute w-2 h-2 bg-gradient-to-r from-pink-300 via-white to-amber-300 rounded-full animate-float a-paused opacity-60"
             style={{
               left: `${p.left}%`,
               top: `${p.top}%`,
               animationDelay: `${p.delay}s`,
               animationDuration: `${p.dur}s`,
+              boxShadow: "0 0 12px rgba(236, 72, 153, 0.4)",
             }}
           />
         ))}
@@ -225,13 +214,14 @@ export default function Hero({ locale }: Props) {
         {stars.map((s, i) => (
           <Star
             key={i}
-            className="absolute text-amber-300/40 animate-twinkle a-paused"
+            className="absolute text-amber-200/60 animate-twinkle a-paused drop-shadow-lg"
             size={s.size}
             style={{
               left: `${s.left}%`,
               top: `${s.top}%`,
               animationDelay: `${s.delay}s`,
               animationDuration: `${s.dur}s`,
+              filter: "drop-shadow(0 0 4px rgba(251, 191, 36, 0.8))",
             }}
           />
         ))}
@@ -239,38 +229,32 @@ export default function Hero({ locale }: Props) {
 
       {/* Content */}
       <div 
-        className="relative w-full h-full flex items-center justify-center z-20 px-4 sm:px-6 lg:px-8 transition-all duration-500"
+        className="relative w-full h-full flex items-center justify-center z-20 px-4 sm:px-6 lg:px-8 transition-all duration-300"
         style={{ 
           opacity: Math.max(0.8, scrollOpacity),
           transform: `scale(${scrollScale})`,
+          perspective: "1200px",
         }}
       >
         <div className="text-center max-w-5xl mx-auto">
-          <div
-            key={`icon-${idx}`}
-            className="icon-drop inline-flex items-center justify-center w-14 h-14 md:w-16 md:h-16 rounded-full bg-white/10 backdrop-blur border border-white/20 mb-5 animate-dropIn a-paused"
-          >
-            <Icon className="w-7 h-7 md:w-8 md:h-8 text-amber-300" />
-          </div>
-
-          <div
+          {/* <div
             key={`badge-${idx}`}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur border border-white/20 mb-6 md:mb-7 anim-rotateIn a-paused"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-orange-500/15 to-pink-500/15 border border-orange-300/40 mb-4 md:mb-6 anim-rotateIn a-paused shadow-md shadow-pink-500/10"
           >
-            <Sparkles className="w-4 h-4 text-amber-300 animate-spin-slow a-paused" />
-            <span className="text-xs md:text-sm font-semibold text-amber-100">
+            <Sparkles className="w-3.5 h-3.5 text-orange-300 animate-spin-slow a-paused" />
+            <span className="text-xs font-bold text-orange-100 tracking-wide">
               {slide.badge}
             </span>
-          </div>
+          </div> */}
 
           {/* Titles */}
-          <div className="space-y-1.5 md:space-y-2.5 mb-5 md:mb-7">
+          <div className="space-y-1 md:space-y-2 mb-4 md:mb-6">
             {slide.title.map((line: string, i: number) => (
               <h1
                 key={`t-${idx}-${i}`}
-                className={`font-extrabold leading-tight ${
+                className={`font-black leading-tight tracking-tight ${
                   i === 1
-                    ? "bg-linear-to-r from-pink-300 via-rose-300 to-amber-300 bg-clip-text text-transparent"
+                    ? "bg-linear-to-r from-pink-200 via-rose-200 to-orange-200 bg-clip-text text-transparent drop-shadow-xl"
                     : "text-white"
                 } text-3xl sm:text-4xl md:text-5xl lg:text-6xl ${
                   TITLE_ANIMS[idx % TITLE_ANIMS.length][i]
@@ -283,7 +267,8 @@ export default function Hero({ locale }: Props) {
                       ? "scaleRotate 1.2s ease-out 0.3s both"
                       : "slideInRight 1s ease-out 0.6s both",
                   animationPlayState: ready ? "running" : "paused",
-                  textShadow: "0 0 40px rgba(0,0,0,0.5)",
+                  textShadow: "0 4px 30px rgba(0,0,0,0.7), 0 0 60px rgba(236, 72, 153, 0.3)",
+                  letterSpacing: "-0.02em",
                 }}
               >
                 {line}
@@ -294,10 +279,11 @@ export default function Hero({ locale }: Props) {
           {/* Desc */}
           <p
             key={`d-${idx}`}
-            className="text-sm sm:text-base md:text-lg lg:text-xl text-white/90 max-w-3xl mx-auto leading-relaxed mb-6 md:mb-7 animate-fadeBlurIn a-paused"
+            className="text-sm sm:text-base md:text-lg lg:text-xl text-white/90 max-w-2xl mx-auto leading-relaxed mb-5 md:mb-7 animate-fadeBlurIn a-paused font-medium"
             style={{
               animationDelay: "0.8s",
-              textShadow: "0 2px 10px rgba(0,0,0,0.3)",
+              textShadow: "0 2px 12px rgba(0,0,0,0.4)",
+              letterSpacing: "0.01em",
             }}
           >
             {slide.desc}
@@ -306,12 +292,12 @@ export default function Hero({ locale }: Props) {
           {/* Features */}
           <div
             key={`f-${idx}`}
-            className="flex flex-wrap justify-center gap-2.5 md:gap-3.5 mb-8 px-4"
+            className="flex flex-wrap justify-center gap-2 md:gap-3 mb-6 md:mb-8 px-4"
           >
             {slide.features.map((ft: string, i: number) => (
               <span
                 key={i}
-                className="px-3 py-1.5 md:px-4 md:py-2 rounded-lg bg-white/15 backdrop-blur border border-white/20 text-white text-xs md:text-sm font-semibold shadow-xl hover:bg-white/25 transition animate-flipIn a-paused"
+            className="px-3 py-1.5 md:px-4 md:py-2 rounded-lg bg-gradient-to-r from-pink-500/15 to-orange-500/10 border border-pink-300/30 text-white text-xs font-semibold shadow-md hover:bg-pink-500/25 hover:border-pink-300/50 transition-all duration-300 animate-flipIn a-paused hover:scale-105 cursor-pointer will-change-transform"
                 style={{ animationDelay: `${1 + i * 0.15}s` }}
               >
                 {ft}
@@ -322,27 +308,28 @@ export default function Hero({ locale }: Props) {
           {/* CTA */}
           <div
             key={`cta-wrap-${idx}`}
-            className="flex flex-col sm:flex-row flex-wrap justify-center gap-3 md:gap-4 px-4"
+            className="flex flex-col sm:flex-row flex-wrap justify-center gap-4 md:gap-5 px-4 mt-1"
           >
-            <a
-              key={`cta-1-${idx}`}
-              href="#courses"
-              className="inline-flex items-center justify-center px-6 py-3 md:px-9 md:py-4 rounded-xl text-white font-bold text-sm md:text-base bg-linear-to-r from-pink-500 to-amber-400 hover:from-pink-600 hover:to-amber-500 shadow-2xl hover:shadow-pink-500/40 hover:scale-[1.03] transition animate-bounceIn a-paused"
-              style={{ animationDelay: "1.4s" }}
-            >
-              <span className="inline-flex items-center gap-2">
-                {msg.hero.cta.joinNow}
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1.5 transition-transform" />
-              </span>
-            </a>
-
             <a
               key={`cta-2-${idx}`}
               href="#contact"
-              className="inline-flex items-center justify-center px-6 py-3 md:px-9 md:py-4 rounded-xl bg-white/15 backdrop-blur border border-white/30 font-bold text-white text-sm md:text-base hover:bg-white hover:text-slate-900 hover:scale-[1.03] shadow-2xl transition animate-bounceIn a-paused"
+              className="inline-flex items-center justify-center px-6 py-3 md:px-9 md:py-4 rounded-xl bg-white/15 backdrop-blur-xl border border-white/40 font-bold text-white text-sm md:text-base hover:bg-white/25 hover:border-white/60 hover:scale-[1.03] shadow-lg transition-all duration-300 animate-bounceIn a-paused group cursor-pointer"
+              style={{ animationDelay: "1.4s" }}
+            >
+              <span className="relative z-10 group-hover:text-white transition-colors duration-300">{msg.hero.cta.consult}</span>
+            </a>
+
+            <a
+              key={`cta-1-${idx}`}
+              href="#courses"
+              className="inline-flex items-center justify-center px-6 py-3 md:px-9 md:py-4 rounded-xl text-white font-bold text-sm md:text-base bg-linear-to-r from-pink-600 via-rose-500 to-orange-500 hover:from-pink-700 hover:via-rose-600 hover:to-orange-600 shadow-lg hover:shadow-pink-600/50 hover:scale-[1.03] transition-all duration-300 animate-bounceIn a-paused border border-pink-400/40 group relative overflow-hidden cursor-pointer will-change-transform"
               style={{ animationDelay: "1.6s" }}
             >
-              {msg.hero.cta.consult}
+              <span className="relative z-10 inline-flex items-center gap-2 group-hover:gap-3 transition-all">
+                {msg.hero.cta.joinNow}
+                <ArrowRight className="w-4 h-4 md:w-5 md:h-5 group-hover:translate-x-1 transition-transform duration-300" />
+              </span>
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:translate-x-full transition-transform duration-500" style={{ transform: "translateX(-100%)" }} />
             </a>
           </div>
         </div>
@@ -353,31 +340,31 @@ export default function Hero({ locale }: Props) {
         onClick={prev}
         disabled={isAnimating}
         aria-label="Previous slide"
-        className="hero-nav hero-prev sm:left-4"
+        className="hero-nav hero-prev sm:left-4 cursor-pointer"
       >
-        <ChevronLeft className="w-6 h-6 md:w-8 md:h-8 text-white" />
+        <ChevronLeft className="w-5 h-5 md:w-6 md:h-6 text-white" />
       </button>
       <button
         onClick={next}
         disabled={isAnimating}
         aria-label="Next slide"
-        className="hero-nav hero-next right-4"
+        className="hero-nav hero-next right-4 cursor-pointer"
       >
-        <ChevronRight className="w-6 h-6 md:w-8 md:h-8 text-white" />
+        <ChevronRight className="w-5 h-5 md:w-6 md:h-6 text-white" />
       </button>
 
       {/* Dots */}
-      <div className="hero-dots absolute bottom-4 md:bottom-4 left-1/2 -translate-x-1/2 flex gap-2 md:gap-3 z-20">
+      <div className="hero-dots absolute bottom-4 md:bottom-4 left-1/2 -translate-x-1/2 flex gap-2 md:gap-3 z-20 px-4">
         {slides.map((_, i) => (
           <button
             key={i}
             onClick={() => go(i)}
             disabled={isAnimating}
             aria-label={`Go to slide ${i + 1}`}
-            className={`h-2 md:h-2.5 rounded-full transition-all duration-500 ${
+            className={`h-2 md:h-2.5 rounded-full transition-all duration-300 hover:scale-110 cursor-pointer will-change-transform ${
               i === idx
-                ? "w-8 md:w-10 bg-linear-to-r from-pink-400 to-amber-400 shadow"
-                : "w-2.5 md:w-3 bg-white/50 hover:bg-white/80"
+                ? "w-8 md:w-10 bg-linear-to-r from-pink-400 via-rose-400 to-orange-400 shadow-md shadow-pink-500/40"
+                : "w-2 md:w-2.5 bg-white/40 hover:bg-white/70"
             }`}
           />
         ))}
@@ -430,23 +417,29 @@ export default function Hero({ locale }: Props) {
           top: 50%;
           transform: translateY(-50%);
           z-index: 20;
-          width: 50px;
-          height: 50px;
+          width: 48px;
+          height: 48px;
           display: inline-flex;
           align-items: center;
           justify-content: center;
           border-radius: 9999px;
-          background: rgba(255, 255, 255, 0.12);
-          backdrop-filter: blur(6px);
-          border: 1px solid rgba(255, 255, 255, 0.25);
-          transition: all 0.25s ease;
+          background: rgba(236, 72, 153, 0.15);
+          backdrop-filter: blur(12px);
+          border: 2px solid rgba(244, 114, 182, 0.35);
+          transition: all 0.3s ease;
+          box-shadow: 0 4px 20px rgba(236, 72, 153, 0.15);
+          color: white;
+          font-weight: bold;
+          cursor: pointer;
         }
         .hero-nav:hover {
-          transform: translateY(-50%) scale(1.06);
-          background: rgba(255, 255, 255, 0.2);
+          transform: translateY(-50%) scale(1.1);
+          background: rgba(236, 72, 153, 0.25);
+          border-color: rgba(244, 114, 182, 0.5);
+          box-shadow: 0 8px 30px rgba(236, 72, 153, 0.25);
         }
         .hero-nav:disabled {
-          opacity: 0.6;
+          opacity: 0.5;
           cursor: not-allowed;
         }
 
@@ -525,21 +518,21 @@ export default function Hero({ locale }: Props) {
         @keyframes slideInLeft {
           from {
             opacity: 0;
-            transform: translateX(-100px) rotateY(-15deg);
+            transform: translateX(-80px);
           }
           to {
             opacity: 1;
-            transform: translateX(0) rotateY(0);
+            transform: translateX(0);
           }
         }
         @keyframes slideInRight {
           from {
             opacity: 0;
-            transform: translateX(100px) rotateY(15deg);
+            transform: translateX(80px);
           }
           to {
             opacity: 1;
-            transform: translateX(0) rotateY(0);
+            transform: translateX(0);
           }
         }
         @keyframes scaleRotate {
@@ -595,12 +588,10 @@ export default function Hero({ locale }: Props) {
           from {
             opacity: 0;
             transform: translateY(24px) scale(0.98);
-            filter: blur(6px);
           }
           to {
             opacity: 1;
             transform: translateY(0) scale(1);
-            filter: blur(0);
           }
         }
         @keyframes skewIn {
@@ -616,59 +607,54 @@ export default function Hero({ locale }: Props) {
         @keyframes flipInX {
           from {
             opacity: 0;
-            transform: perspective(600px) rotateX(-90deg);
+            transform: scaleX(0.85);
           }
           to {
             opacity: 1;
-            transform: perspective(600px) rotateX(0);
+            transform: scaleX(1);
           }
         }
         @keyframes fadeIn {
           from {
             opacity: 0;
-            filter: blur(10px);
           }
           to {
             opacity: 1;
-            filter: blur(0);
           }
         }
         @keyframes fadeBlurIn {
           from {
             opacity: 0;
-            filter: blur(10px);
             transform: translateY(20px);
           }
           to {
             opacity: 1;
-            filter: blur(0);
             transform: translateY(0);
           }
         }
         .animate-fadeBlurIn {
           animation: fadeBlurIn 1s ease-out both;
+          will-change: opacity, transform;
         }
 
         @keyframes flipIn {
           from {
             opacity: 0;
-            transform: perspective(400px) rotateX(-90deg);
+            transform: scaleX(0.8);
           }
           to {
             opacity: 1;
-            transform: perspective(400px) rotateX(0);
+            transform: scaleX(1);
           }
         }
         @keyframes bounceInSmooth {
           0% {
             opacity: 0;
-            transform: translateY(20px) scale(0.8);
-            filter: blur(8px);
+            transform: translateY(30px) scale(0.85);
           }
           40% {
             opacity: 1;
-            transform: translateY(-6px) scale(1.05);
-            filter: blur(0);
+            transform: translateY(-8px) scale(1.05);
           }
           70% {
             transform: translateY(3px) scale(0.98);
@@ -681,12 +667,10 @@ export default function Hero({ locale }: Props) {
           0% {
             opacity: 0;
             transform: translateY(-90px) scale(0.85) rotate(-6deg);
-            filter: blur(6px);
           }
           55% {
             opacity: 1;
             transform: translateY(6px) scale(1.06) rotate(1deg);
-            filter: blur(0);
           }
           75% {
             transform: translateY(-3px) scale(0.98);
@@ -695,47 +679,50 @@ export default function Hero({ locale }: Props) {
             transform: translateY(0) scale(1) rotate(0);
           }
         }
-        @keyframes landingRipple {
-          0% {
-            box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.45);
-          }
-          100% {
-            box-shadow: 0 0 0 18px rgba(255, 255, 255, 0);
-          }
-        }
 
         .anim-fadeDown {
           animation: fadeDown 0.8s ease-out both;
+          will-change: opacity, transform;
         }
         .anim-fadeUp {
           animation: fadeUp 0.8s ease-out 0.15s both;
+          will-change: opacity, transform;
         }
         .anim-slideLeft {
           animation: slideLeft 0.8s ease-out both;
+          will-change: opacity, transform;
         }
         .anim-slideRight {
           animation: slideRight 0.8s ease-out both;
+          will-change: opacity, transform;
         }
         .anim-pop {
           animation: pop 0.8s ease-out 0.1s both;
+          will-change: opacity, transform;
         }
         .anim-zoomPop {
           animation: zoomPop 1s ease-out 0.1s both;
+          will-change: opacity, transform;
         }
         .anim-rotateIn {
           animation: rotateIn 0.7s ease-out both;
+          will-change: opacity, transform;
         }
         .anim-rise {
           animation: rise 0.9s ease-out 0.12s both;
+          will-change: opacity, transform;
         }
         .anim-skewIn {
           animation: skewIn 0.9s ease-out 0.12s both;
+          will-change: opacity, transform;
         }
         .anim-flipX {
           animation: flipInX 0.9s ease-out both;
+          will-change: opacity, transform;
         }
         .anim-fadeIn {
           animation: fadeIn 0.9s ease-out 0.25s both;
+          will-change: opacity;
         }
 
         .animate-spin-slow {
@@ -743,6 +730,7 @@ export default function Hero({ locale }: Props) {
         }
         .animate-flipIn {
           animation: flipIn 0.8s ease-out both;
+          will-change: transform, opacity;
         }
         .animate-bounceIn {
           animation: bounceInSmooth 1.2s cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -753,23 +741,8 @@ export default function Hero({ locale }: Props) {
         /* Icon drop + ripple */
         .animate-dropIn {
           animation: dropIn 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
-          will-change: transform, opacity, filter;
+          will-change: transform, opacity;
           transform-origin: center bottom;
-        }
-        .icon-drop {
-          position: relative;
-        }
-        .icon-drop::after {
-          content: "";
-          position: absolute;
-          left: 50%;
-          bottom: -4px;
-          transform: translateX(-50%);
-          width: 6px;
-          height: 6px;
-          border-radius: 9999px;
-          animation: landingRipple 0.9s ease-out 0.55s both;
-          pointer-events: none;
         }
 
         /* Mobile: đưa 2 nút xuống đáy cùng baseline với dots */
@@ -778,8 +751,8 @@ export default function Hero({ locale }: Props) {
             top: auto;
             bottom: calc(16px + env(safe-area-inset-bottom));
             transform: none;
-            width: 44px;
-            height: 44px;
+            width: 40px;
+            height: 40px;
             z-index: 30;
           }
           .hero-prev {  

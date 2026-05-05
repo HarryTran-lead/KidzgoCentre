@@ -3,7 +3,9 @@
 
 import { COURSES } from "@/lib/data/data";
 import { SURFACE_BORDER } from "@/lib/theme/theme";
-import { Clock, ArrowRight, Star, Users, TrendingUp } from "lucide-react";
+import { ArrowRight, Star, TrendingUp } from "lucide-react";
+import clockIcon from "@/public/image/clock.png";
+import manIcon from "@/public/image/man.png";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useRef } from "react";
 import "@/styles/animations.css";
@@ -24,7 +26,7 @@ export default function Courses() {
   return (
     <section
       id="courses"
-      className="py-24 pt-0 md:py-32 scroll-mt-24 bg-white relative z-30 overflow-hidden"
+      className="courses-page py-24 pt-0 md:py-32 scroll-mt-24 bg-white relative z-30 overflow-hidden"
       style={{
         backgroundImage: "url('/image/timeline-end-green-front.svg')",
         backgroundRepeat: "no-repeat",
@@ -71,10 +73,8 @@ export default function Courses() {
           viewport={{ once: true, amount: 0.3 }}
           transition={{ duration: 0.8, ease: "easeOut" }}
         >
-
-          
           <motion.h2 
-            className="mt-8 text-4xl md:text-5xl lg:text-6xl  font-bold tracking-tight"
+            className="text-4xl md:text-5xl  font-bold tracking-tight"
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -135,7 +135,7 @@ export default function Courses() {
                   <motion.img
                     src={`/sticker/${stickerId}.png`}
                     alt={c.title}
-                    className="w-full h-auto max-h-[500px] object-contain drop-shadow-2xl"
+                    className="w-full h-auto max-h-[600px] object-contain drop-shadow-2xl"
                     style={{ 
                       y: isEven ? stickerUpY : stickerDownY,
                       filter: "drop-shadow(0 25px 25px rgba(0, 0, 0, 0.15))"
@@ -157,7 +157,7 @@ export default function Courses() {
                   transition={{ duration: 0.7, delay: index * 0.15 + 0.2 }}
                 >
                   <motion.div
-                    className={`relative rounded-3xl bg-white/90 backdrop-blur-sm border p-8 lg:p-10 h-full flex flex-col justify-center group ${
+                    className={`relative rounded-3xl bg-white/90 backdrop-blur-sm border p-8 lg:p-10 h-full flex flex-col justify-center group cursor-pointer ${
                       c.highlight
                         ? "border-red-200 shadow-2xl shadow-red-500/10"
                         : "border-slate-200 shadow-xl shadow-slate-500/5"
@@ -165,7 +165,7 @@ export default function Courses() {
                     whileHover={{ 
                       y: -8,
                       scale: 1.02,
-                      borderColor: c.highlight ? "rgb(253, 164, 175)" : "rgb(148, 163, 184)"
+                      borderColor: "rgb(220, 38, 38)"
                     }}
                     transition={{ duration: 0.4 }}
                   >
@@ -216,7 +216,7 @@ export default function Courses() {
                         viewport={{ once: true }}
                         transition={{ duration: 0.5, delay: index * 0.15 + 0.3 }}
                       >
-                        <span className={`px-4 py-1.5 rounded-full text-sm font-semibold ${
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
                           c.highlight
                             ? "bg-linear-to-r from-red-100 to-rose-100 text-red-700"
                             : "bg-linear-to-r from-red-100 to-rose-100 text-red-700"
@@ -224,7 +224,7 @@ export default function Courses() {
                           {c.level}
                         </span>
                         {c.highlight && (
-                          <span className="px-3 py-1.5 rounded-full bg-linear-to-r from-red-100 to-rose-100 text-red-700 text-sm font-semibold">
+                          <span className="px-3 py-1 rounded-full bg-linear-to-r from-red-100 to-rose-100 text-red-700 text-sm   font-semibold">
                             <TrendingUp size={12} className="inline mr-1" /> Bán chạy
                           </span>
                         )}
@@ -232,19 +232,13 @@ export default function Courses() {
 
                       {/* Title */}
                       <motion.h3 
-                        className="text-3xl lg:text-4xl xl:text-5xl font-bold mb-4"
+                        className="text-xl lg:text-3xl xl:text-3xl font-bold mb-4"
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
                         transition={{ duration: 0.5, delay: index * 0.15 + 0.4 }}
-                        whileHover={{ 
-                          scale: 1.02,
-                          backgroundImage: c.highlight 
-                            ? "linear-gradient(90deg, #dc2626, #b91c1c, #7f1d1d)" 
-                            : "linear-gradient(90deg, #dc2626, #b91c1c, #991b1b)",
-                        }}
                       >
-                        <span className="bg-linear-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent group-hover:text-transparent group-hover:bg-clip-text transition-all duration-500">
+                        <span className="bg-linear-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
                           {c.title}
                         </span>
                       </motion.h3>
@@ -258,25 +252,25 @@ export default function Courses() {
                         transition={{ duration: 0.5, delay: index * 0.15 + 0.5 }}
                       >
                         <div className="flex items-center gap-3 text-slate-600">
-                          <div className={`p-2 rounded-lg ${
+                          <div className={`p-2.5 rounded-lg flex items-center justify-center ${
                             c.highlight ? "bg-red-100 text-red-600" : "bg-red-100 text-red-600"
                           }`}>
-                            <Clock size={18} />
+                            <img src={clockIcon.src} alt="clock" className="w-[20px] h-[20px]" />
                           </div>
-                          <div>
-                            <div className="text-sm text-slate-500">Thời lượng</div>
-                            <div className="font-semibold">{c.time}</div>
+                          <div className="flex-1">
+                            <div className="text-xs text-slate-500">Thời lượng</div>
+                            <div className="font-semibold text-xs">{c.time}</div>
                           </div>
                         </div>
                         <div className="flex items-center gap-3 text-slate-600">
-                          <div className={`p-2 rounded-lg ${
+                          <div className={`p-2.5 rounded-lg flex items-center justify-center ${
                             c.highlight ? "bg-red-100 text-red-600" : "bg-red-100 text-red-600"
                           }`}>
-                            <Users size={18} />
+                            <img src={manIcon.src} alt="man" className="w-[20px] h-[21px]" />
                           </div>
-                          <div>
-                            <div className="text-sm text-slate-500">Học viên</div>
-                            <div className="font-semibold">500+</div>
+                          <div className="flex-1">
+                            <div className="text-xs text-slate-500">Học viên</div>
+                            <div className="font-semibold text-xs">500+</div>
                           </div>
                         </div>
                       </motion.div>
@@ -314,7 +308,7 @@ export default function Courses() {
                             backgroundSize: "200% 200%",
                           }}
                         >
-                          <span className="text-base">Đăng ký ngay</span>
+                          <span className="text-sm">Đăng ký ngay</span>
                           <ArrowRight size={18} className="group-hover/btn:translate-x-2 transition-transform duration-300" />
                         </motion.a>
                       </motion.div>

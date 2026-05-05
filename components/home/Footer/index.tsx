@@ -118,7 +118,7 @@ export default function Footer() {
   const MAIL_PALETTE: Palette = "rose";
 
   return (
-    <footer className="relative overflow-hidden z-40" style={{ backgroundColor: '#f5f1e4' }}>
+    <footer className="footer-page relative overflow-hidden z-40" style={{ backgroundColor: '#f5f1e4' }}>
       <div className="relative mx-auto max-w-7xl px-4 sm:px-4 md:px-4 lg:px-4 xl:px-0 pt-8 pb-4">
         <motion.div
           variants={container}
