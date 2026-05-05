@@ -87,6 +87,10 @@ function parsePositiveInteger(value: string): number | null {
   return parsed;
 }
 
+function isProgramWithoutMonthlyLeaveLimit(value?: { isMakeup?: boolean | null; isSupplementary?: boolean | null } | null) {
+  return Boolean(value?.isMakeup || value?.isSupplementary);
+}
+
 function formatRelativeTime(value?: string | null) {
   if (!value) return "Không có dữ liệu";
 
@@ -382,7 +386,7 @@ export default function SettingsPage() {
     if (!selectedProgramId) {
       setProgramDetail(null);
       setProgramDetailError(null);
-      setLeaveLimitDraft("2");
+      setLeaveLimitDraft("");
       return;
     }
 
@@ -397,7 +401,9 @@ export default function SettingsPage() {
         if (cancelled) return;
 
         setProgramDetail(detail);
-        setLeaveLimitDraft(String(extractProgramMonthlyLeaveLimit(detail) ?? 2));
+        const defaultLimit = isProgramWithoutMonthlyLeaveLimit(detail) ? null : 2;
+        const resolvedLimit = extractProgramMonthlyLeaveLimit(detail) ?? defaultLimit;
+        setLeaveLimitDraft(resolvedLimit !== null ? String(resolvedLimit) : "");
       } catch (error) {
         if (cancelled) return;
 
@@ -407,7 +413,7 @@ export default function SettingsPage() {
             ? error.message
             : "Không tải được chi tiết chương trình."
         );
-        setLeaveLimitDraft("2");
+        setLeaveLimitDraft("");
       } finally {
         if (!cancelled) {
           setProgramDetailLoading(false);
@@ -422,12 +428,13 @@ export default function SettingsPage() {
     };
   }, [selectedProgramId]);
 
+  const selectedProgramItem = programs.find((item) => item.id === selectedProgramId) ?? null;
+  const isSelectedProgramNoLimit = isProgramWithoutMonthlyLeaveLimit(programDetail ?? selectedProgramItem);
   const currentLeaveLimit = programDetail
     ? extractProgramMonthlyLeaveLimit(programDetail)
     : null;
-  const resolvedLeaveLimit = currentLeaveLimit ?? 2;
-  const selectedProgramName =
-    programs.find((item) => item.id === selectedProgramId)?.name ?? "Chưa chọn chương trình";
+  const resolvedLeaveLimit = isSelectedProgramNoLimit ? null : (currentLeaveLimit ?? 2);
+  const selectedProgramName = selectedProgramItem?.name ?? "Chưa chọn chương trình";
 
   const parsedStars = parseNonNegativeInteger(gamificationDraft.checkInRewardStars);
   const parsedExp = parseNonNegativeInteger(gamificationDraft.checkInRewardExp);
@@ -442,6 +449,7 @@ export default function SettingsPage() {
 
   const hasLeaveLimitChanges =
     Boolean(selectedProgramId) &&
+    !isSelectedProgramNoLimit &&
     parsedLeaveLimit !== null &&
     parsedLeaveLimit !== resolvedLeaveLimit;
 
@@ -481,9 +489,11 @@ export default function SettingsPage() {
       !programDetailError &&
       currentLeaveLimit === null
     ) {
-      items.push(
-        `${selectedProgramName} đang dùng mặc định 2 buổi/tháng, chưa có chính sách riêng.`
-      );
+      if (isSelectedProgramNoLimit) {
+        items.push(`${selectedProgramName} là chương trình bù/phụ trợ nên mặc định không giới hạn ngày nghỉ theo tháng.`);
+      } else {
+        items.push(`${selectedProgramName} đang dùng mặc định 2 buổi/tháng, chưa có chính sách riêng.`);
+      }
     }
 
     return Array.from(new Set(items));
@@ -519,10 +529,12 @@ export default function SettingsPage() {
       label: "Giới hạn nghỉ",
       value: programDetailLoading
         ? "Đang tải"
+        : isSelectedProgramNoLimit
+        ? "Không giới hạn"
         : currentLeaveLimit !== null
         ? `${currentLeaveLimit} buổi`
         : "Mặc định 2 buổi",
-      active: currentLeaveLimit !== null,
+      active: isSelectedProgramNoLimit || currentLeaveLimit !== null,
     },
     {
       icon: <Bell className="h-4 w-4" />,
@@ -576,15 +588,19 @@ export default function SettingsPage() {
       status:
         programDetailLoading
           ? "Đang đồng bộ"
+          : isSelectedProgramNoLimit
+          ? "Không áp dụng"
           : currentLeaveLimit !== null
           ? "Đã cấu hình"
           : "Dùng mặc định",
-      tone: (currentLeaveLimit !== null ? "blue" : "amber") as Tone,
+      tone: (isSelectedProgramNoLimit ? "emerald" : (currentLeaveLimit !== null ? "blue" : "amber")) as Tone,
       color: "bg-gradient-to-r from-blue-500 to-sky-500",
       features: [
         `${programs.length} chương trình`,
         selectedProgramName,
-        currentLeaveLimit !== null
+        isSelectedProgramNoLimit
+          ? "Không giới hạn theo tháng"
+          : currentLeaveLimit !== null
           ? `${currentLeaveLimit} buổi/tháng`
           : "Dùng mặc định 2 buổi/tháng",
       ],
@@ -661,7 +677,7 @@ export default function SettingsPage() {
           checkInRewardExp: String(gamification.checkInRewardExp),
         });
       }
-      setLeaveLimitDraft(String(resolvedLeaveLimit));
+      setLeaveLimitDraft(String(resolvedLeaveLimit ?? ""));
       return;
     }
 
@@ -716,7 +732,7 @@ export default function SettingsPage() {
         updatedSections.push("cấu hình gamification");
       }
 
-      if (hasLeaveLimitChanges && parsedLeaveLimit !== null && selectedProgramId) {
+      if (hasLeaveLimitChanges && !isSelectedProgramNoLimit && parsedLeaveLimit !== null && selectedProgramId) {
         await updateAdminProgramMonthlyLeaveLimit(selectedProgramId, parsedLeaveLimit);
         const refreshedDetail = await fetchAdminProgramDetail(selectedProgramId);
 
@@ -1040,13 +1056,15 @@ export default function SettingsPage() {
                               !isEditing ||
                               isSaving ||
                               !selectedProgramId ||
-                              programDetailLoading
+                              programDetailLoading ||
+                              isSelectedProgramNoLimit
                             }
                             value={leaveLimitDraft}
                             onChange={(event) => setLeaveLimitDraft(event.target.value)}
+                            placeholder={isSelectedProgramNoLimit ? "Không áp dụng cho chương trình bù/phụ trợ" : undefined}
                             className={cn(
                               "w-full rounded-xl border px-3 py-2 text-sm outline-none transition",
-                              !isEditing
+                              !isEditing || isSelectedProgramNoLimit
                                 ? "border-red-100 bg-red-50/40 text-gray-700"
                                 : "border-red-200 bg-white focus:border-red-400 focus:ring-2 focus:ring-red-100"
                             )}

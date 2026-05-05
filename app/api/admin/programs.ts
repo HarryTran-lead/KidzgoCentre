@@ -495,7 +495,6 @@ export async function updateAdminProgramMonthlyLeaveLimit(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      programId,
       maxLeavesPerMonth,
     }),
   });
