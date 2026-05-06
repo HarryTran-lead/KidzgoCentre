@@ -26,6 +26,13 @@ import { createLeadPublic } from "@/lib/api/leadService";
 import { getAllBranchesPublic } from "@/lib/api/branchService";
 import type { Branch } from "@/types/branch";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/lightswind/select";
 
 export default function Contact() {
   const { toast } = useToast();
@@ -422,32 +429,37 @@ export default function Contact() {
                           Chi nhánh mong muốn
                         </div>
                       </label>
-                      <select
-                        className="w-full px-5 py-3.5 rounded-xl border-2 border-gray-200 focus:border-red-500 focus:ring-4 focus:ring-red-100 outline-none transition-all duration-300 bg-white hover:border-gray-300"
+                      <Select
                         value={form.branchPreference}
-                        onChange={(e) =>
-                          setForm({ ...form, branchPreference: e.target.value })
+                        onValueChange={(value) =>
+                          setForm({ ...form, branchPreference: value })
                         }
                         disabled={isLoadingBranches}
                       >
-                        <option value="">
-                          {isLoadingBranches
-                            ? "Đang tải chi nhánh..."
-                            : "Chọn chi nhánh"}
-                        </option>
-                        {!isLoadingBranches &&
-                          branches.length > 0 &&
-                          branches.map((branch) => (
-                            <option key={branch.id} value={branch.id}>
-                              {branch.name}
-                            </option>
-                          ))}
-                        {!isLoadingBranches && branches.length === 0 && (
-                          <option value="" disabled>
-                            Không có chi nhánh nào
-                          </option>
-                        )}
-                      </select>
+                        <SelectTrigger className="w-full px-5 py-3.5 h-12 rounded-xl border-2 border-gray-200 focus:border-red-500 focus:ring-3    focus:ring-red-100 outline-none transition-all duration-300 bg-white hover:border-gray-300 flex items-center">
+                          <SelectValue
+                            placeholder={
+                              isLoadingBranches
+                                ? "Đang tải chi nhánh..."
+                                : "Chọn chi nhánh"
+                            }
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {!isLoadingBranches &&
+                            branches.length > 0 &&
+                            branches.map((branch) => (
+                              <SelectItem key={branch.id} value={branch.id}>
+                                {branch.name}
+                              </SelectItem>
+                            ))}
+                          {!isLoadingBranches && branches.length === 0 && (
+                            <SelectItem value="" disabled>
+                              Không có chi nhánh nào
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 
