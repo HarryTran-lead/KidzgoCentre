@@ -67,6 +67,7 @@ type Submission = {
   id: string;
   student: string;
   studentId: string;
+  classId?: string;
   className: string;
   file: string;
   fileSize: string;
@@ -296,6 +297,41 @@ function FileTypeBadge({ type }: { type: string }) {
 }
 
 function SubmissionRow({ item, onDelete, onViewDetail, onUpdate }: { item: Submission; onDelete: (id: string) => void; onViewDetail: (item: Submission) => void; onUpdate: (item: Submission) => void }) {
+  const normalizedSubmissionType = String(item.submissionType ?? "").trim().toUpperCase();
+
+  const submissionTypeConfig: Record<string, { label: string; className: string }> = {
+    MULTIPLE_CHOICE: {
+      label: "Trắc nghiệm",
+      className: "bg-violet-50 text-violet-700 border-violet-200",
+    },
+    QUIZ: {
+      label: "Quiz",
+      className: "bg-violet-50 text-violet-700 border-violet-200",
+    },
+    FILE: {
+      label: "Nộp file",
+      className: "bg-blue-50 text-blue-700 border-blue-200",
+    },
+    TEXT: {
+      label: "Nhập text",
+      className: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    },
+    IMAGE: {
+      label: "Nộp ảnh",
+      className: "bg-amber-50 text-amber-700 border-amber-200",
+    },
+    LINK: {
+      label: "Nộp link",
+      className: "bg-cyan-50 text-cyan-700 border-cyan-200",
+    },
+  };
+
+  const typeView =
+    submissionTypeConfig[normalizedSubmissionType] ?? {
+      label: item.submissionType || "Nộp file",
+      className: "bg-gray-50 text-gray-700 border-gray-200",
+    };
+
   return (
     <tr className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200 border-b border-red-100">
       <td className="py-4 px-6">
@@ -305,25 +341,14 @@ function SubmissionRow({ item, onDelete, onViewDetail, onUpdate }: { item: Submi
         <div className="text-sm text-gray-600">{item.className || "-"}</div>
       </td>
       <td className="py-4 px-6">
-        <div className="text-sm text-gray-900">{item.session || "-"}</div>
-      </td>
-      <td className="py-4 px-6">
         <div className="text-sm text-gray-700 flex items-center gap-2">
           <Calendar size={14} className="text-gray-400" />
           <span>{item.dueDate}</span>
         </div>
       </td>
       <td className="py-4 px-6">
-        <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium border ${
-          item.submissionType === "Quiz" 
-            ? "bg-purple-50 text-purple-700 border-purple-200"
-            : item.submissionType === "FILE"
-              ? "bg-blue-50 text-blue-700 border-blue-200"
-              : item.submissionType === "TEXT"
-                ? "bg-green-50 text-green-700 border-green-200"
-                : "bg-gray-50 text-gray-700 border-gray-200"
-        }`}>
-          {item.submissionType || "File"}
+        <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium border ${typeView.className}`}>
+          {typeView.label}
         </span>
       </td>
       <td className="py-4 px-6">
@@ -1910,6 +1935,8 @@ export default function TeacherAssignmentsPage() {
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [classOptions, setClassOptions] = useState<ClassOption[]>([]);
+  const [isLoadingClassOptions, setIsLoadingClassOptions] = useState(false);
   const [meta, setMeta] = useState<{ totalItems: number; totalPages: number; pageNumber: number; pageSize: number }>({
     totalItems: 0,
     totalPages: 0,
@@ -1927,8 +1954,6 @@ export default function TeacherAssignmentsPage() {
         selectedClass !== "ALL" ? `&classId=${selectedClass}` : ""
       }`);
 
-      console.log("API Response:", result);
-
       if (result?.data) {
         // Parse response structure: result.data.homeworkAssignments.items
         const homeworkData = result.data?.homeworkAssignments;
@@ -1940,22 +1965,40 @@ export default function TeacherAssignmentsPage() {
         console.log("Mapped submissions:", mappedSubmissions);
         setSubmissions(mappedSubmissions);
         
-        // Get totalStudents from homeworkAssignments or first item
-        const totalStudents = homeworkData?.totalStudents || 0;
+        const totalItems =
+          Number(homeworkData?.totalCount) ||
+          Number(homeworkData?.totalItems) ||
+          (Array.isArray(items) ? items.length : 0);
+        const totalPages =
+          Number(homeworkData?.totalPages) ||
+          (totalItems > 0 ? Math.ceil(totalItems / itemsPerPage) : 1);
+        const pageNumber = Number(homeworkData?.pageNumber) || page;
         
         setMeta({
-          totalItems: totalStudents,
-          totalPages: Math.ceil(totalStudents / itemsPerPage),
-          pageNumber: page,
+          totalItems,
+          totalPages,
+          pageNumber,
           pageSize: itemsPerPage
         });
       } else {
-        console.error("Failed to fetch homework");
+        console.error("Failed to fetch homework", result);
         setSubmissions([]);
+        setMeta({
+          totalItems: 0,
+          totalPages: 1,
+          pageNumber: 1,
+          pageSize: itemsPerPage,
+        });
       }
     } catch (error) {
       console.error("Error loading homework:", error);
       setSubmissions([]);
+      setMeta({
+        totalItems: 0,
+        totalPages: 1,
+        pageNumber: 1,
+        pageSize: itemsPerPage,
+      });
     } finally {
       setIsLoading(false);
     }
@@ -2015,16 +2058,29 @@ export default function TeacherAssignmentsPage() {
   };
 
   useEffect(() => {
-    loadHomework(1);
     setIsPageLoaded(true);
-  }, [loadHomework]);
+  }, []);
+
+  useEffect(() => {
+    const loadClassOptions = async () => {
+      setIsLoadingClassOptions(true);
+      try {
+        const data = await fetchClasses();
+        setClassOptions(data);
+      } catch (error) {
+        console.error("Error loading class options:", error);
+        setClassOptions([]);
+      } finally {
+        setIsLoadingClassOptions(false);
+      }
+    };
+
+    loadClassOptions();
+  }, []);
 
   useEffect(() => {
     loadHomework(1);
-    setCurrentPage(1);
-  }, [filter, selectedClass, loadHomework]);
-
-  const classes = Array.from(new Set(submissions.map(s => s.className)));
+  }, [loadHomework]);
 
   const handleSort = (column: "student" | "assignment" | "turnIn") => {
     if (sortColumn === column) {
@@ -2045,10 +2101,6 @@ export default function TeacherAssignmentsPage() {
 
   const filtered = useMemo(() => {
     let result = submissions;
-
-    if (selectedClass !== "ALL") {
-      result = result.filter(s => s.className === selectedClass);
-    }
 
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
@@ -2079,7 +2131,10 @@ export default function TeacherAssignmentsPage() {
     setCurrentPage(1);
   }, [filter, searchQuery, selectedClass]);
 
-  const totalPages = Math.ceil(meta.totalItems / itemsPerPage);
+  const displayTotalItems = meta.totalItems > 0 ? meta.totalItems : filtered.length;
+  const totalPages = Math.max(1, Math.ceil(displayTotalItems / itemsPerPage));
+  const displayFrom = filtered.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0;
+  const displayTo = filtered.length > 0 ? Math.min(currentPage * itemsPerPage, displayTotalItems) : 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-6 space-y-6">
@@ -2209,12 +2264,13 @@ export default function TeacherAssignmentsPage() {
             <select
               value={selectedClass}
               onChange={(e) => setSelectedClass(e.target.value)}
+              disabled={isLoadingClassOptions}
               className="h-10 rounded-xl border border-red-200 bg-white px-4 pr-10 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200 appearance-none cursor-pointer"
             >
               <option value="ALL">Tất cả lớp</option>
-              {classes.map((cls, index) => (
-                <option key={`${cls}-${index}`} value={cls}>
-                  {cls}
+              {classOptions.map((cls) => (
+                <option key={cls.id} value={cls.id}>
+                  {cls.name}
                 </option>
               ))}
             </select>
@@ -2258,9 +2314,6 @@ export default function TeacherAssignmentsPage() {
                   Lớp học
                 </th>
                 <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                  Buổi học
-                </th>
-                <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
                   Hạn nộp
                 </th>
                 <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
@@ -2277,15 +2330,15 @@ export default function TeacherAssignmentsPage() {
             <tbody className="divide-y divide-red-100">
               {isLoading ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center">
+                  <td colSpan={6} className="py-12 text-center">
                     <div className="flex justify-center">
                       <div className="w-8 h-8 border-4 border-red-200 border-t-red-600 rounded-full animate-spin"></div>
                     </div>
                     <div className="text-gray-600 font-medium mt-2">Đang tải dữ liệu...</div>
                   </td>
                 </tr>
-              ) : submissions.length > 0 ? (
-                submissions.map((item) => (
+              ) : filtered.length > 0 ? (
+                filtered.map((item) => (
                   <SubmissionRow 
                     key={item.id} 
                     item={item} 
@@ -2296,7 +2349,7 @@ export default function TeacherAssignmentsPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center">
+                  <td colSpan={6} className="py-12 text-center">
                     <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
                       <Search size={24} className="text-red-400" />
                     </div>
@@ -2313,8 +2366,8 @@ export default function TeacherAssignmentsPage() {
           <div className="border-t border-red-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="text-sm text-gray-600">
-                Hiển thị <span className="font-semibold text-gray-900">{(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, meta.totalItems)}</span> trong tổng số{" "}
-                <span className="font-semibold text-gray-900">{meta.totalItems}</span> bài nộp
+                Hiển thị <span className="font-semibold text-gray-900">{displayFrom}-{displayTo}</span> trong tổng số{" "}
+                <span className="font-semibold text-gray-900">{displayTotalItems}</span> bài nộp
               </div>
               <div className="flex items-center gap-2">
                 <button

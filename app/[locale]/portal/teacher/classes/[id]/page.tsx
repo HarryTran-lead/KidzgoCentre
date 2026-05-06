@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -20,23 +20,7 @@ import {
   Star,
 } from "lucide-react";
 import { fetchClassDetail } from "@/app/api/teacher/classes";
-import type { Student, ClassDetail, Track } from "@/types/teacher/classes";
-
-function TrackBadge({ track }: { track: Track }) {
-  const trackColors = {
-    IELTS: "from-red-600 to-red-700",
-    TOEIC: "from-gray-600 to-gray-700",
-    Business: "from-gray-800 to-gray-900",
-  };
-
-  return (
-    <span
-      className={`text-xs px-3 py-1.5 rounded-full bg-gradient-to-r ${trackColors[track]} text-white font-medium shadow-sm`}
-    >
-      {track}
-    </span>
-  );
-}
+import type { Student, ClassDetail } from "@/types/teacher/classes";
 
 function StudentAvatar({ name }: { name: string }) {
   const initials = name
@@ -264,21 +248,29 @@ export default function ClassDetailPage() {
   const endIndex = startIndex + itemsPerPage;
   const paginatedStudents = filteredStudents.slice(startIndex, endIndex);
 
-  if (loading || !classData) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Đang tải thông tin lớp học...</h2>
-          {error && <p className="text-gray-600 mb-4">{error}</p>}
-          {!error && <p className="text-gray-600 mb-4">Vui lòng chờ trong giây lát.</p>}
-          {error && (
-            <button
-              onClick={() => router.push(`/${locale}/portal/teacher/classes`)}
-              className="px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl hover:shadow-lg transition-all cursor-pointer"
-            >
-              Quay lại danh sách lớp
-            </button>
-          )}
+          <p className="text-gray-600 mb-4">Vui lòng chờ trong giây lát.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!classData) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Không tìm thấy dữ liệu lớp học</h2>
+          <p className="text-gray-600 mb-4">{error || "Lớp học không tồn tại hoặc chưa có dữ liệu hiển thị."}</p>
+          <button
+            onClick={() => router.push(`/${locale}/portal/teacher/classes`)}
+            className="px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl hover:shadow-lg transition-all cursor-pointer"
+          >
+            Quay lại danh sách lớp
+          </button>
         </div>
       </div>
     );
@@ -314,7 +306,6 @@ export default function ClassDetailPage() {
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">
                   <h1 className="text-3xl font-bold text-gray-900">{classData.name}</h1>
-                  <TrackBadge track={classData.track} />
                 </div>
                 <p className="text-gray-600">Mã lớp: {classData.code}</p>
               </div>
@@ -410,20 +401,6 @@ export default function ClassDetailPage() {
             </div>
             <div className="p-3 rounded-xl bg-blue-100">
               <Award size={24} className="text-blue-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-gradient-to-br from-white to-amber-50 rounded-2xl border border-amber-200 p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm text-gray-600">Buổi học</div>
-              <div className="text-2xl font-bold mt-2 text-amber-600">
-                {classData.completedLessons}/{classData.totalLessons}
-              </div>
-            </div>
-            <div className="p-3 rounded-xl bg-amber-100">
-              <FileText size={24} className="text-amber-600" />
             </div>
           </div>
         </div>

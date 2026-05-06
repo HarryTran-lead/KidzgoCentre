@@ -247,6 +247,32 @@ function ScheduleDisplay({ schedule, classId, locale, router }: { schedule: stri
     );
   }
 
+  if (readableSchedule.includes(";")) {
+    const lines = readableSchedule
+      .split(";")
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    return (
+      <div className="flex flex-col gap-1.5">
+        {lines.map((line, idx) => (
+          <div key={`${line}-${idx}`} className="text-xs text-gray-700">
+            {line}
+          </div>
+        ))}
+        {locale && router && (
+          <button
+            onClick={() => router.push(`/${locale}/portal/teacher/schedule`)}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold text-blue-700 bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 hover:from-blue-100 hover:to-cyan-100 hover:border-blue-300 transition-all cursor-pointer group"
+          >
+            <span>Xem lịch</span>
+            <ArrowRight size={11} className="group-hover:translate-x-0.5 transition-transform" />
+          </button>
+        )}
+      </div>
+    );
+  }
+
   // Parse schedule string format: "Thứ 2,5 (08:00 - 10:00)"
   const match = readableSchedule.match(/(.+?)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/);
   

@@ -41,7 +41,10 @@ function formatDateISO(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-/**\n * Parse ISO datetime string thanh Date object.\n * Backend tr\u1ea3 ISO 8601 c\u00f3 offset, d\u00f9ng new Date() tr\u1ef1c ti\u1ebfp.\n */
+/**
+ * Parse ISO datetime string thanh Date object.
+ * Backend tra ISO 8601 co offset, dung new Date() truc tiep.
+ */
 function parseISODateTime(isoString: string): Date {
   return new Date(isoString);
 }
@@ -57,15 +60,15 @@ function mapApiLessonToLesson(item: TimetableApiItem, fallbackDate: string, inde
     // Parse truc tiep tu ISO string de tranh van de timezone (giong admin schedule)
     const startDate = parseISODateTime(plannedDatetime);
 
-    // Get date string (yyyy-mm-dd) — dung UTC methods vi backend tra ISO co offset +07:00
-    const year = startDate.getUTCFullYear();
-    const month = String(startDate.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(startDate.getUTCDate()).padStart(2, '0');
+    // Dung local getters de hien thi dung gio dia phuong, tranh bi lech -7h tren teacher view.
+    const year = startDate.getFullYear();
+    const month = String(startDate.getMonth() + 1).padStart(2, '0');
+    const day = String(startDate.getDate()).padStart(2, '0');
     const date = `${year}-${month}-${day}`;
 
-    // Get time string (HH:mm) — dung UTC methods
-    const hours = String(startDate.getUTCHours()).padStart(2, '0');
-    const minutes = String(startDate.getUTCMinutes()).padStart(2, '0');
+    // Dung local getters de hien thi gio dung voi lich admin.
+    const hours = String(startDate.getHours()).padStart(2, '0');
+    const minutes = String(startDate.getMinutes()).padStart(2, '0');
     const startTimeStr = `${hours}:${minutes}`;
 
     const duration = typeof durationMinutesRaw === 'number' && durationMinutesRaw > 0 ? durationMinutesRaw : 60;
@@ -74,8 +77,8 @@ function mapApiLessonToLesson(item: TimetableApiItem, fallbackDate: string, inde
     let endTimeStr = '00:00';
     try {
       const endDateCalc = new Date(startDate.getTime() + duration * 60 * 1000);
-      const eh = String(endDateCalc.getUTCHours()).padStart(2, '0');
-      const em = String(endDateCalc.getUTCMinutes()).padStart(2, '0');
+      const eh = String(endDateCalc.getHours()).padStart(2, '0');
+      const em = String(endDateCalc.getMinutes()).padStart(2, '0');
       endTimeStr = `${eh}:${em}`;
     } catch {
       endTimeStr = '00:00';

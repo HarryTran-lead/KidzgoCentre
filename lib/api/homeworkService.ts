@@ -813,6 +813,7 @@ export function mapSubmissionToUi(submission: HomeworkSubmission) {
     id: submission.id,
     student: submission.studentName,
     studentId: submission.studentCode || submission.studentId,
+    classId: submission.classId,
     className: submission.classTitle,
     file: primaryAttachment?.name || "No file",
     fileSize: primaryAttachment?.size || formatFileSize(primaryAttachment?.sizeInBytes),
