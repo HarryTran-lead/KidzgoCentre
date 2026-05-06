@@ -187,6 +187,336 @@ function normalizeClassTime(value?: unknown): string {
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
+function normalizeRRuleDay(value?: unknown): string {
+  const raw = String(value || "").trim().toUpperCase();
+  const map: Record<string, string> = {
+    MO: "MO",
+    MON: "MO",
+    TU: "TU",
+    TUE: "TU",
+    WE: "WE",
+    WED: "WE",
+    TH: "TH",
+    THU: "TH",
+    FR: "FR",
+    FRI: "FR",
+    SA: "SA",
+    SAT: "SA",
+    SU: "SU",
+    SUN: "SU",
+    T2: "MO",
+    T3: "TU",
+    T4: "WE",
+    T5: "TH",
+    T6: "FR",
+    T7: "SA",
+    CN: "SU",
+    "2": "MO",
+    "3": "TU",
+    "4": "WE",
+    "5": "TH",
+    "6": "FR",
+    "7": "SA",
+  };
+  return map[raw] || "";
+}
+
+function buildSessionPatternFromWeeklyPattern(
+  weeklyPattern?: WeeklyPatternEntry[] | null,
+): string {
+  if (!Array.isArray(weeklyPattern) || weeklyPattern.length === 0) return "";
+
+  const candidate = weeklyPattern
+    .map((entry) => {
+      const days = Array.isArray(entry?.dayOfWeeks)
+        ? entry.dayOfWeeks
+            .map((day) => normalizeRRuleDay(day))
+            .filter(Boolean)
+        : [];
+      const startTime = normalizeClassTime(entry?.startTime);
+      return {
+        days,
+        startTime,
+      };
+    })
+    .filter((entry) => entry.days.length > 0 && Boolean(entry.startTime))
+    .sort((a, b) => b.days.length - a.days.length)[0];
+
+  if (!candidate) return "";
+  const [hourRaw, minuteRaw] = candidate.startTime.split(":");
+  return `FREQ=WEEKLY;BYDAY=${candidate.days.join(",")};BYHOUR=${Number(hourRaw)};BYMINUTE=${Number(minuteRaw)}`;
+}
+
+function buildSessionPatternFromSlots(slots: unknown): string {
+  if (!Array.isArray(slots) || slots.length === 0) return "";
+
+  const grouped = new Map<string, { startTime: string; days: string[] }>();
+  slots.forEach((slot: any) => {
+    const day = normalizeRRuleDay(slot?.dayOfWeek ?? slot?.dayCode);
+    const startTime = normalizeClassTime(slot?.startTime);
+    if (!day || !startTime) return;
+
+    const key = startTime;
+    const existing = grouped.get(key);
+    if (!existing) {
+      grouped.set(key, { startTime, days: [day] });
+      return;
+    }
+
+    if (!existing.days.includes(day)) {
+      existing.days.push(day);
+    }
+  });
+
+  const candidate = Array.from(grouped.values())
+    .filter((entry) => entry.days.length > 0)
+    .sort((a, b) => b.days.length - a.days.length)[0];
+
+  if (!candidate) return "";
+  const [hourRaw, minuteRaw] = candidate.startTime.split(":");
+  return `FREQ=WEEKLY;BYDAY=${candidate.days.join(",")};BYHOUR=${Number(hourRaw)};BYMINUTE=${Number(minuteRaw)}`;
+}
+
+function extractRRuleDayFromText(value: string): string {
+  const raw = value.toUpperCase();
+  if (/\bCN\b|CHU\s*NHAT|CHỦ\s*NHẬT/.test(raw)) return "SU";
+  if (/\bT2\b|THU\s*2|THỨ\s*2/.test(raw)) return "MO";
+  if (/\bT3\b|THU\s*3|THỨ\s*3/.test(raw)) return "TU";
+  if (/\bT4\b|THU\s*4|THỨ\s*4/.test(raw)) return "WE";
+  if (/\bT5\b|THU\s*5|THỨ\s*5/.test(raw)) return "TH";
+  if (/\bT6\b|THU\s*6|THỨ\s*6/.test(raw)) return "FR";
+  if (/\bT7\b|THU\s*7|THỨ\s*7/.test(raw)) return "SA";
+  return "";
+}
+
+function buildSessionPatternFromScheduleText(value?: unknown): string {
+  const text = String(value || "").trim();
+  if (!text) return "";
+
+  const chunks = text
+    .split(",")
+    .map((chunk) => chunk.trim())
+    .filter(Boolean)
+    .map((chunk) => {
+      const day = extractRRuleDayFromText(chunk);
+      const timeMatch = chunk.match(/(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})?/);
+      const startTime = normalizeClassTime(timeMatch?.[1]);
+      return {
+        day,
+        startTime,
+      };
+    })
+    .filter((item) => item.day && item.startTime);
+
+  if (!chunks.length) return "";
+
+  const grouped = new Map<string, string[]>();
+  chunks.forEach((item) => {
+    const existing = grouped.get(item.startTime);
+    if (!existing) {
+      grouped.set(item.startTime, [item.day]);
+      return;
+    }
+
+    if (!existing.includes(item.day)) {
+      existing.push(item.day);
+    }
+  });
+
+  const [startTime, days] = Array.from(grouped.entries())
+    .sort((a, b) => b[1].length - a[1].length)[0] || ["", [] as string[]];
+  if (!startTime || !days.length) return "";
+
+  const [hourRaw, minuteRaw] = startTime.split(":");
+  return `FREQ=WEEKLY;BYDAY=${days.join(",")};BYHOUR=${Number(hourRaw)};BYMINUTE=${Number(minuteRaw)}`;
+}
+
+function buildWeeklyPatternFromScheduleText(value?: unknown): WeeklyPatternEntry[] {
+  const text = String(value || "").trim();
+  if (!text) return [];
+
+  const chunks = text
+    .split(",")
+    .map((chunk) => chunk.trim())
+    .filter(Boolean)
+    .map((chunk) => {
+      const day = extractRRuleDayFromText(chunk);
+      const timeMatch = chunk.match(/(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})?/);
+      const startTime = normalizeClassTime(timeMatch?.[1]);
+      return {
+        day,
+        startTime,
+      };
+    })
+    .filter((item) => item.day && item.startTime);
+
+  if (!chunks.length) return [];
+
+  const grouped = new Map<string, string[]>();
+  chunks.forEach((item) => {
+    const existing = grouped.get(item.startTime);
+    if (!existing) {
+      grouped.set(item.startTime, [item.day]);
+      return;
+    }
+
+    if (!existing.includes(item.day)) {
+      existing.push(item.day);
+    }
+  });
+
+  return Array.from(grouped.entries())
+    .map(([startTime, dayOfWeeks]) => ({
+      dayOfWeeks,
+      startTime,
+      durationMinutes: 90,
+    }))
+    .filter((entry) => entry.dayOfWeeks.length > 0 && Boolean(entry.startTime));
+}
+
+function buildWeeklyPatternFromSlots(slots: unknown): WeeklyPatternEntry[] {
+  if (!Array.isArray(slots) || slots.length === 0) return [];
+
+  const grouped = new Map<string, string[]>();
+  slots.forEach((slot: any) => {
+    const day = normalizeRRuleDay(slot?.dayOfWeek ?? slot?.dayCode);
+    const startTime = normalizeClassTime(slot?.startTime);
+    if (!day || !startTime) return;
+
+    const existing = grouped.get(startTime);
+    if (!existing) {
+      grouped.set(startTime, [day]);
+      return;
+    }
+
+    if (!existing.includes(day)) {
+      existing.push(day);
+    }
+  });
+
+  return Array.from(grouped.entries())
+    .map(([startTime, dayOfWeeks]) => ({
+      dayOfWeeks,
+      startTime,
+      durationMinutes: 90,
+    }))
+    .filter((entry) => entry.dayOfWeeks.length > 0 && Boolean(entry.startTime));
+}
+
+function buildWeeklyPatternFromRRule(value?: unknown): WeeklyPatternEntry[] {
+  const normalized = normalizeRRulePattern(value);
+  if (!normalized) return [];
+
+  const parts = new Map<string, string>();
+  normalized.split(";").forEach((token) => {
+    const [key, val] = token.split("=");
+    if (!key || !val) return;
+    parts.set(key.toUpperCase(), val);
+  });
+
+  const dayOfWeeks = String(parts.get("BYDAY") || "")
+    .split(",")
+    .map((item) => normalizeRRuleDay(item))
+    .filter(Boolean);
+  const hour = Number(parts.get("BYHOUR") || "");
+  const minute = Number(parts.get("BYMINUTE") || "");
+  if (!dayOfWeeks.length || Number.isNaN(hour) || Number.isNaN(minute)) return [];
+
+  const startTime = normalizeClassTime(
+    `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`,
+  );
+  if (!startTime) return [];
+
+  return [
+    {
+      dayOfWeeks,
+      startTime,
+      durationMinutes: 90,
+    },
+  ];
+}
+
+function buildDefaultWeeklyPatternFromClass(cls: any): WeeklyPatternEntry[] {
+  const weeklyPattern = Array.isArray(cls?.effectiveWeeklyPattern)
+    ? cls.effectiveWeeklyPattern
+    : Array.isArray(cls?.weeklyPattern)
+      ? cls.weeklyPattern
+      : null;
+
+  if (Array.isArray(weeklyPattern) && weeklyPattern.length > 0) {
+    const normalized = weeklyPattern
+      .map((entry: any) => {
+        const dayOfWeeks = Array.isArray(entry?.dayOfWeeks)
+          ? entry.dayOfWeeks
+              .map((day: unknown) => normalizeRRuleDay(day))
+              .filter(Boolean)
+          : [];
+        const startTime = normalizeClassTime(entry?.startTime);
+        const durationMinutes = Number(entry?.durationMinutes);
+        return {
+          dayOfWeeks,
+          startTime,
+          durationMinutes:
+            Number.isFinite(durationMinutes) && durationMinutes > 0
+              ? Math.floor(durationMinutes)
+              : 90,
+        } as WeeklyPatternEntry;
+      })
+      .filter((entry: WeeklyPatternEntry) => entry.dayOfWeeks.length > 0 && Boolean(entry.startTime));
+    if (normalized.length > 0) return normalized;
+  }
+
+  const fromSlots = buildWeeklyPatternFromSlots(
+    cls?.weeklyScheduleSlots || cls?.classWeeklyScheduleSlots,
+  );
+  if (fromSlots.length > 0) return fromSlots;
+
+  const fromScheduleText = buildWeeklyPatternFromScheduleText(
+    cls?.scheduleText || cls?.schedule || cls?.description,
+  );
+  if (fromScheduleText.length > 0) return fromScheduleText;
+
+  return buildWeeklyPatternFromRRule(
+    cls?.schedulePattern || cls?.classSchedulePattern || cls?.effectiveSchedulePattern,
+  );
+}
+
+function normalizeRRulePattern(value?: unknown): string {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  const normalized = raw.replace(/^RRULE:/i, "");
+  if (!normalized.includes("BYDAY=") || !normalized.includes("BYHOUR=")) {
+    return "";
+  }
+  if (normalized.includes("FREQ=")) return normalized;
+  return `FREQ=WEEKLY;${normalized}`;
+}
+
+function buildDefaultSessionPatternFromClass(cls: any): string {
+  const fromRRule = normalizeRRulePattern(
+    cls?.schedulePattern || cls?.classSchedulePattern || cls?.effectiveSchedulePattern,
+  );
+  if (fromRRule) return fromRRule;
+
+  const fromWeeklyPattern = buildSessionPatternFromWeeklyPattern(
+    Array.isArray(cls?.effectiveWeeklyPattern)
+      ? cls.effectiveWeeklyPattern
+      : Array.isArray(cls?.weeklyPattern)
+        ? cls.weeklyPattern
+        : null,
+  );
+  if (fromWeeklyPattern) return fromWeeklyPattern;
+
+  const fromScheduleText = buildSessionPatternFromScheduleText(
+    cls?.scheduleText || cls?.schedule || cls?.description,
+  );
+  if (fromScheduleText) return fromScheduleText;
+
+  return buildSessionPatternFromSlots(
+    cls?.weeklyScheduleSlots || cls?.classWeeklyScheduleSlots,
+  );
+}
+
 function formatScheduleFromWeeklySlots(slots: unknown): string {
   const list = Array.isArray(slots) ? slots : [];
   if (list.length === 0) return "";
@@ -315,6 +645,7 @@ export default function StaffRegistrationOverview({
   const [transferClassId, setTransferClassId] = useState("");
   const [transferEffectiveDate, setTransferEffectiveDate] = useState("");
   const [transferSessionPattern, setTransferSessionPattern] = useState("");
+  const [transferWeeklyPattern, setTransferWeeklyPattern] = useState<WeeklyPatternEntry[]>([]);
   const [transferClasses, setTransferClasses] = useState<any[]>([]);
   const [isLoadingTransferClasses, setIsLoadingTransferClasses] = useState(false);
   const [isTransferring, setIsTransferring] = useState(false);
@@ -381,13 +712,28 @@ export default function StaffRegistrationOverview({
         .map((cls) => {
           const id = String(cls?.id || "");
           const remainingSlots = getClassRemainingSlots(cls);
+          const status = String(cls?.status || "").trim();
+          const statusValue = status.toLowerCase();
           const safeRemaining =
             typeof remainingSlots === "number" ? Math.max(0, remainingSlots) : null;
+
+          const isCancelled = statusValue === "cancelled";
+          const isFull = safeRemaining !== null && safeRemaining <= 0;
+
+          let disabledReason = "";
+          if (isCancelled) disabledReason = "Lớp đã hủy";
+          else if (isFull) disabledReason = "Lớp đã hết chỗ";
+
           return {
             id,
             name: getClassDisplayName(cls),
             schedule: getClassScheduleLabel(cls),
+            status,
             remainingSlots: safeRemaining,
+            disabled: Boolean(disabledReason),
+            disabledReason,
+            defaultSessionPattern: buildDefaultSessionPatternFromClass(cls),
+            defaultWeeklyPattern: buildDefaultWeeklyPatternFromClass(cls),
             programId: String(cls?.programId || cls?.program?.id || ""),
             programName: String(cls?.programName || cls?.program?.name || ""),
             levelName: String(cls?.levelName || cls?.courseLevel || ""),
@@ -419,7 +765,8 @@ export default function StaffRegistrationOverview({
               ? String(selectedActionRegistration?.secondaryClassId || "")
               : String(selectedActionRegistration?.classId || "");
           if (currentClassId && item.id === currentClassId) return false;
-          return item.remainingSlots === null || item.remainingSlots > 0;
+
+          return String(item.status || "").toLowerCase() !== "cancelled";
         }),
     [transferClasses, transferTrack, selectedActionRegistration?.classId, selectedActionRegistration?.secondaryClassId],
   );
@@ -1166,6 +1513,7 @@ export default function StaffRegistrationOverview({
       setTransferClassId("");
       setTransferEffectiveDate("");
       setTransferSessionPattern("");
+      setTransferWeeklyPattern([]);
       setIsLoadingTransferClasses(true);
 
       const response = await getAllClasses({
@@ -1173,12 +1521,7 @@ export default function StaffRegistrationOverview({
         pageSize: 1000,
         branchId: targetBranchId,
       });
-      const items = pickClassItems(response)
-        .filter((item) => item?.id)
-        .filter((item) => {
-          const statusValue = String(item?.status || "").toLowerCase();
-          return statusValue !== "cancelled" && statusValue !== "completed";
-        });
+      const items = pickClassItems(response).filter((item) => item?.id);
 
       setTransferClasses(items);
     } catch (error: any) {
@@ -1203,6 +1546,15 @@ export default function StaffRegistrationOverview({
       return;
     }
 
+    if (!Array.isArray(transferWeeklyPattern) || transferWeeklyPattern.length === 0) {
+      toast({
+        title: "Thiếu dữ liệu",
+        description: "Vui lòng chọn ít nhất một buổi học trong lịch lớp.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       setIsTransferring(true);
       await transferRegistrationClass(
@@ -1212,6 +1564,7 @@ export default function StaffRegistrationOverview({
         {
           track: transferTrack,
           sessionSelectionPattern: transferSessionPattern || undefined,
+          weeklyPattern: transferWeeklyPattern,
         },
       );
 
@@ -1583,6 +1936,8 @@ export default function StaffRegistrationOverview({
         setTransferEffectiveDate={setTransferEffectiveDate}
         transferSessionPattern={transferSessionPattern}
         setTransferSessionPattern={setTransferSessionPattern}
+        transferWeeklyPattern={transferWeeklyPattern}
+        setTransferWeeklyPattern={setTransferWeeklyPattern}
         transferClassOptions={transferClassOptions}
         isLoadingTransferClasses={isLoadingTransferClasses}
         isTransferring={isTransferring}
