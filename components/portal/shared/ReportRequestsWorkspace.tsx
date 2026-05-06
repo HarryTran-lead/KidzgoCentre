@@ -14,7 +14,6 @@ import {
   completeReportRequest,
   cancelReportRequest,
 } from "@/lib/api/reportRequestService";
-import { TEACHER_ENDPOINTS } from "@/constants/apiURL";
 import { get } from "@/lib/axios";
 import type {
   ReportRequestDto,
@@ -179,15 +178,22 @@ function CreateRequestModal({
     if (!selectedClass) { setStudentList([]); setSessionList([]); return; }
     setLoadingStudents(true);
     setSelectedStudent(null);
-    get<Record<string, unknown>>(`/api/classes/${selectedClass.id}/students?pageNumber=1&pageSize=200`)
+    get<Record<string, unknown>>(`/api/enrollments?classId=${selectedClass.id}&pageNumber=1&pageSize=200&status=Active`)
       .then((res) => {
         const raw = res as Record<string, unknown>;
         const data = raw?.data as Record<string, unknown>;
-        const items = ((data?.students as Record<string, unknown>)?.items ?? data?.items) as Record<string, unknown>[] ?? [];
+        const nestedItems = (data?.enrollments as Record<string, unknown>)?.items;
+        const items = (Array.isArray(nestedItems)
+          ? nestedItems
+          : Array.isArray(data?.items)
+            ? data?.items
+            : Array.isArray(data)
+              ? data
+              : []) as Record<string, unknown>[];
         setStudentList(items.map((e) => ({
           profileId: (e.studentProfileId as string) ?? "",
-          name: (e.fullName as string) ?? (e.studentProfileId as string) ?? "",
-        })));
+          name: (e.studentName as string) ?? (e.fullName as string) ?? (e.studentProfileId as string) ?? "",
+        })).filter((s) => s.profileId));
       })
       .catch(() => {})
       .finally(() => setLoadingStudents(false));
@@ -200,18 +206,14 @@ function CreateRequestModal({
 
     setLoadingSessions(true);
     setSelectedSession(null);
-    const today = new Date();
-    const fromDate = new Date(today.getFullYear() - 1, today.getMonth(), 1);
-    const toDate = new Date(today.getFullYear() + 1, today.getMonth() + 1, 0);
     const query = new URLSearchParams({
-      from: fromDate.toISOString(),
-      to: toDate.toISOString(),
+      classId: selectedClass.id,
       pageSize: "500",
       pageNumber: "1",
     });
 
-    get<Record<string, unknown>>(`${TEACHER_ENDPOINTS.TIMETABLE}?${query.toString()}`)
-      .then(async (res) => {
+    get<Record<string, unknown>>(`/api/sessions?${query.toString()}`)
+      .then((res) => {
         const raw = res as Record<string, unknown>;
         const data = raw?.data as Record<string, unknown>;
         const nestedSessions = (data?.sessions as Record<string, unknown>)?.items;
@@ -226,7 +228,6 @@ function CreateRequestModal({
                 : []) as Record<string, unknown>[];
 
         const mappedSessions = items
-          .filter((s) => String((s.classId as string) ?? "") === selectedClass.id)
           .map((s) => ({
             id: (s.id as string) ?? "",
             plannedDatetime: (s.plannedDatetime as string) ?? (s.actualDatetime as string) ?? "",
@@ -235,41 +236,11 @@ function CreateRequestModal({
           .filter((s) => s.id)
           .sort((a, b) => new Date(a.plannedDatetime).getTime() - new Date(b.plannedDatetime).getTime());
 
-        let filteredSessions = mappedSessions;
-
-        if (selectedStudent?.profileId && mappedSessions.length) {
-          const checks = await Promise.allSettled(
-            mappedSessions.map(async (session) => {
-              const attendanceRes = await get<Record<string, unknown>>(`/api/attendance/${session.id}`);
-              const attendanceRaw = attendanceRes as Record<string, unknown>;
-              const attendanceData = attendanceRaw?.data as Record<string, unknown>;
-
-              const students =
-                (Array.isArray(attendanceData?.students) ? attendanceData.students : null) ??
-                (Array.isArray(attendanceData?.attendances) ? attendanceData.attendances : null) ??
-                (Array.isArray(attendanceData?.items) ? attendanceData.items : null) ??
-                [];
-
-              const hasStudent = students.some((s) => {
-                const item = s as Record<string, unknown>;
-                const candidateId = String(item.studentProfileId ?? item.studentId ?? item.id ?? "").trim();
-                return candidateId === selectedStudent.profileId;
-              });
-
-              return hasStudent;
-            })
-          );
-
-          filteredSessions = mappedSessions.filter((_, idx) => {
-            const result = checks[idx];
-            return result.status === "fulfilled" && result.value;
-          });
-        }
-
         if (cancelled) return;
 
+        // All sessions of the selected class apply to any enrolled student — no per-session attendance check needed
         setSessionList(
-          filteredSessions.map((s, i) => ({
+          mappedSessions.map((s, i) => ({
             ...s,
             label: s.plannedDatetime
               ? `Buổi ${i + 1} – ${formatSessionDateTimeMinus7(s.plannedDatetime)}`

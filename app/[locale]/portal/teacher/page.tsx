@@ -1,96 +1,173 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import {
-  BookOpen,
-  CalendarClock,
-  Users,
-  TrendingUp,
-  Clock,
   AlertCircle,
-  CheckCircle,
-  Star,
-  Sparkles,
-  Zap,
-  ChevronRight,
   BarChart3,
-  Target,
-  Award,
-  Download,
   Bell,
+  BookOpen,
   Calendar,
-  MapPin,
-  UserRound,
-  MessageSquare,
+  CalendarClock,
+  CheckCircle2,
+  ChevronRight,
+  Clock3,
   FileText,
-  Eye,
-  ArrowUpRight,
-  CalendarDays,
-  MoreVertical,
-  Video,
-  Mic,
-  CheckSquare,
-  PlayCircle,
-  ExternalLink,
-  BellRing
+  RefreshCw,
+  Users,
 } from "lucide-react";
 import { getTeacherDashboard } from "@/lib/api/teacherPortalService";
 
-// Custom Components
+type TeacherDashboardStats = {
+  totalClasses?: number;
+  totalStudents?: number;
+  upcomingSessions?: number;
+  pendingHomeworks?: number;
+  pendingReports?: number;
+  openTickets?: number;
+};
+
+type TeacherDashboardSession = {
+  id: string;
+  classId?: string;
+  classCode?: string;
+  plannedDatetime?: string;
+  status?: string;
+  attendanceMarked?: boolean;
+};
+
+type TeacherDashboardAlert = {
+  id: string;
+  title?: string;
+  status?: string;
+  createdAt?: string;
+};
+
+type TeacherDashboardRecentActivity = {
+  sessionId: string;
+  classCode?: string;
+  sessionDate?: string;
+  presentCount?: number;
+  absentCount?: number;
+};
+
+type TeacherDashboardPendingTask = {
+  id: string;
+  studentName?: string;
+  classCode?: string;
+  status?: string;
+  reportMonth?: string;
+};
+
+type TeacherDashboardData = {
+  stats?: TeacherDashboardStats;
+  todayClasses?: TeacherDashboardSession[];
+  upcomingClasses?: TeacherDashboardSession[];
+  alerts?: TeacherDashboardAlert[];
+  recentActivities?: TeacherDashboardRecentActivity[];
+  pendingTasks?: TeacherDashboardPendingTask[];
+};
+
+function cn(...classes: Array<string | false | null | undefined>) {
+  return classes.filter(Boolean).join(" ");
+}
+
+function toArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
+function formatDateTime(value?: string, mode: "date" | "time" | "datetime" = "datetime") {
+  if (!value) return "-";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+
+  const optionsByMode: Record<typeof mode, Intl.DateTimeFormatOptions> = {
+    date: { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Asia/Ho_Chi_Minh" },
+    time: { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Ho_Chi_Minh" },
+    datetime: {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      timeZone: "Asia/Ho_Chi_Minh",
+    },
+  };
+
+  return new Intl.DateTimeFormat("vi-VN", optionsByMode[mode]).format(date);
+}
+
+function isTodayInVietnam(value?: string) {
+  if (!value) return false;
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: "Asia/Ho_Chi_Minh",
+  });
+
+  return formatter.format(date) === formatter.format(new Date());
+}
+
+function formatSessionDayLabel(value?: string) {
+  if (!value) return "Chưa có lịch";
+  return isTodayInVietnam(value) ? "Hôm nay" : formatDateTime(value, "date");
+}
+
+function normalizeDashboardResponse(response: any): TeacherDashboardData {
+  const raw = response?.data?.data ?? response?.data ?? {};
+  const stats = raw?.stats ?? raw ?? {};
+  const todayClasses = toArray<TeacherDashboardSession>(raw?.todayClasses);
+  const upcomingClasses = toArray<TeacherDashboardSession>(raw?.upcomingClasses);
+
+  const normalizedToday =
+    todayClasses.length > 0
+      ? todayClasses
+      : upcomingClasses.filter((item) => isTodayInVietnam(item?.plannedDatetime));
+
+  const todayIds = new Set(normalizedToday.map((item) => item.id));
+
+  return {
+    stats,
+    todayClasses: normalizedToday,
+    upcomingClasses: upcomingClasses.filter((item) => !todayIds.has(item.id)),
+    alerts: toArray<TeacherDashboardAlert>(raw?.alerts),
+    recentActivities: toArray<TeacherDashboardRecentActivity>(raw?.recentActivities),
+    pendingTasks: toArray<TeacherDashboardPendingTask>(raw?.pendingTasks),
+  };
+}
+
 function StatCard({
   icon,
   label,
   value,
-  hint,
-  trend = "up",
-  color = "red",
-  delay = 0
+  accent = "red",
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
-  hint: string;
-  trend?: "up" | "down" | "stable";
-  color?: "red" | "gray" | "black";
-  delay?: number;
+  accent?: "red" | "gray" | "black";
 }) {
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsVisible(true), delay);
-    return () => clearTimeout(timer);
-  }, [delay]);
-
-  const colorClasses = {
+  const accentClass = {
     red: "from-red-600 to-red-700",
-    gray: "from-gray-600 to-gray-700",
-    black: "from-gray-800 to-gray-900"
-  };
-
-  const trendColors = {
-    up: "text-red-600",
-    down: "text-gray-600",
-    stable: "text-gray-800"
-  };
+    gray: "from-gray-500 to-gray-700",
+    black: "from-gray-800 to-black",
+  }[accent];
 
   return (
-    <div
-      className={`bg-white rounded-2xl border border-gray-200 p-5 transition-all duration-700 transform cursor-pointer hover:border-red-300 hover:shadow-md ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-        }`}
-    >
-      <div className="flex items-center justify-between">
+    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-4">
         <div>
           <div className="text-sm text-gray-600">{label}</div>
-          <div className="text-2xl font-bold mt-2 text-gray-900">{value}</div>
-          <div className={`text-xs flex items-center gap-1 mt-1 ${trendColors[trend]}`}>
-            {trend === "up" && <TrendingUp size={12} />}
-            {trend === "down" && <TrendingUp size={12} className="rotate-180" />}
-            {trend === "stable" && <span>→</span>}
-            {hint}
-          </div>
+          <div className="mt-2 text-3xl font-bold text-gray-900">{value}</div>
         </div>
-        <div className={`p-3 rounded-xl bg-gradient-to-r ${colorClasses[color]} text-white shadow-lg`}>
+        <div className={cn("rounded-xl bg-gradient-to-r p-3 text-white shadow-lg", accentClass)}>
           {icon}
         </div>
       </div>
@@ -98,576 +175,96 @@ function StatCard({
   );
 }
 
-function Badge({
-  color = "gray",
-  children
+function SectionCard({
+  title,
+  icon,
+  count,
+  action,
+  children,
 }: {
-  color?: "gray" | "red" | "black";
+  title: string;
+  icon: React.ReactNode;
+  count?: number;
+  action?: React.ReactNode;
   children: React.ReactNode;
 }) {
-  const colorClasses = {
-    gray: "bg-gray-100 text-gray-700 border border-gray-200",
-    red: "bg-red-50 text-red-700 border border-red-200",
-    black: "bg-gray-900 text-white border border-gray-800"
-  };
-
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${colorClasses[color]}`}>
-      {children}
-    </span>
+    <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+      <div className="flex items-center justify-between gap-4 border-b border-gray-200 px-6 py-4">
+        <div className="flex items-center gap-2">
+          <div className="text-red-600">{icon}</div>
+          <h2 className="text-lg font-bold text-gray-900">{title}</h2>
+          {typeof count === "number" ? (
+            <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-red-600 px-2 text-xs font-semibold text-white">
+              {count}
+            </span>
+          ) : null}
+        </div>
+        {action}
+      </div>
+      <div className="p-6">{children}</div>
+    </section>
   );
 }
 
-function ClassCard({
-  cls,
-  index,
-  locale,
-  router
-}: {
-  cls: any;
-  index: number;
-  locale: string;
-  router: any;
-}) {
-  const [isHovered, setIsHovered] = useState(false);
-
-  // Map màu theme của lớp sang màu pie chart
-  const getPieChartColor = (colorGradient: string): "red" | "gray" | "black" => {
-    if (colorGradient.includes("red")) return "red";
-    if (colorGradient.includes("gray") || colorGradient.includes("grey")) return "gray";
-    return "red"; // default
-  };
-
-  // Map màu theme của lớp sang các class Tailwind
-  const getThemeClasses = (colorGradient: string) => {
-    if (colorGradient.includes("red")) {
-      return {
-        border: "border-red-200",
-        bg: "bg-white",
-        hover: "from-red-500/5 to-red-500/5",
-        timeBorder: "border-red-100",
-        dayBg: "bg-red-50",
-        dayBorder: "border-red-100",
-        dayText: "text-red-700",
-        pieBorder: "border-red-100",
-        corner: "text-red-200",
-        cornerBg: "bg-red-100"
-      };
-    }
-    if (colorGradient.includes("gray") || colorGradient.includes("grey")) {
-      return {
-        border: "border-gray-200",
-        bg: "bg-white",
-        hover: "from-gray-500/5 to-gray-500/5",
-        timeBorder: "border-gray-100",
-        dayBg: "bg-gray-50",
-        dayBorder: "border-gray-100",
-        dayText: "text-gray-700",
-        pieBorder: "border-gray-100",
-        corner: "text-gray-200",
-        cornerBg: "bg-gray-100"
-      };
-    }
-    // Default red
-    return {
-      border: "border-red-200",
-      bg: "bg-white",
-      hover: "from-red-500/5 to-red-500/5",
-      timeBorder: "border-red-100",
-      dayBg: "bg-red-50",
-      dayBorder: "border-red-100",
-      dayText: "text-red-700",
-      pieBorder: "border-red-100",
-      corner: "text-red-200",
-      cornerBg: "bg-red-100"
-    };
-  };
-
-  const themeClasses = getThemeClasses(cls.color);
-
-  // Tính toán thời gian còn lại
-  const getTimeRemaining = () => {
-    const now = new Date();
-    const classTimes = cls.time.split(' - ');
-    const startTime = classTimes[0];
-
-    // Tạo thời gian bắt đầu (giả định là hôm nay)
-    const [startHour, startMinute] = startTime.split(':').map(Number);
-    const classStart = new Date();
-    classStart.setHours(startHour, startMinute, 0, 0);
-
-    // Tính khoảng cách thời gian
-    const diffMs = classStart.getTime() - now.getTime();
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-
-    if (diffMs < 0) return "Đã bắt đầu";
-    if (diffHours > 0) return `${diffHours}h ${diffMinutes}p`;
-    return `${diffMinutes} phút`;
-  };
-
-  const timeRemaining = getTimeRemaining();
-  const isUpcomingSoon = timeRemaining.includes("phút") || timeRemaining.includes("h");
-
-  const handleCardClick = () => {
-    if (cls.id) {
-      router.push(`/${locale}/portal/teacher/schedule/${cls.id}`);
-    }
-  };
-
+function EmptyState({ message }: { message: string }) {
   return (
-    <div
-      onClick={handleCardClick}
-      className={`group relative overflow-hidden rounded-2xl border-2 transition-all duration-300 hover:shadow-xl cursor-pointer ${isUpcomingSoon ? themeClasses.border.replace('200', '300') : themeClasses.border} ${themeClasses.bg}`}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+    <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-10 text-center text-sm text-gray-500">
+      {message}
+    </div>
+  );
+}
+
+function SessionCard({
+  item,
+  onOpen,
+}: {
+  item: TeacherDashboardSession;
+  onOpen: (id: string) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => item.id && onOpen(item.id)}
+      className="w-full rounded-2xl border border-gray-200 bg-white p-4 text-left transition-colors hover:border-red-300 hover:bg-red-50/30"
     >
-      {/* Background gradient effect on hover */}
-      <div
-        className={`absolute inset-0 bg-gradient-to-r opacity-0 group-hover:opacity-100 transition-opacity duration-500 ${themeClasses.hover}`}
-      />
-
-      <div className="relative p-6">
-        <div className="flex flex-col lg:flex-row lg:items-start gap-6">
-          {/* Left - time & day card */}
-          <div className="flex flex-col gap-3 lg:w-56">
-            <div
-              className={`w-full rounded-2xl border px-4 py-3 bg-white/80 shadow-sm flex items-center justify-between gap-3 ${themeClasses.timeBorder}`}
-            >
-              <div className="flex items-center gap-2">
-                <div
-                  className={`w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-semibold bg-gradient-to-r ${cls.color}`}
-                >
-                  <Clock size={16} className="text-white" />
-                </div>
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-gray-500">Khung giờ</div>
-                  <div className="text-sm font-semibold text-gray-900">{cls.time}</div>
-                </div>
-              </div>
-
-            </div>
-
-            <div className="flex gap-2">
-              <div className={`flex-1 rounded-xl ${themeClasses.dayBg} border ${themeClasses.dayBorder} px-3 py-2 flex items-center justify-between`}>
-                <span className={`text-xs font-semibold ${themeClasses.dayText}`}>{cls.day}</span>
-                <span className="text-[11px] text-gray-500">Lịch dạy</span>
-              </div>
-            </div>
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700">
+              {formatSessionDayLabel(item.plannedDatetime)}
+            </span>
+            <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
+              {item.status ?? "Scheduled"}
+            </span>
+            {item.attendanceMarked ? (
+              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                Đã điểm danh
+              </span>
+            ) : (
+              <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
+                Chưa điểm danh
+              </span>
+            )}
           </div>
-
-          {/* Middle - Class Details */}
-          <div className="flex-1">
-            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
-              <div>
-                <h4 className="text-lg font-bold text-gray-900 mb-1">{cls.name}</h4>
-                <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-gray-600">
-                  {/* Mode badge */}
-                  {cls.type === "online" && (
-                    <Badge color="red">
-                      <Video size={12} />
-                      Online · Google Meet
-                    </Badge>
-                  )}
-                  {cls.type === "offline" && (
-                    <Badge color="gray">
-                      <MapPin size={12} />
-                      Offline · {cls.room}
-                    </Badge>
-                  )}
-                  {cls.type === "hybrid" && (
-                    <Badge color="red">
-                      <Video size={12} />
-                      Hybrid · Phòng {cls.room}
-                    </Badge>
-                  )}
-
-                  {/* Room or Meet link */}
-                  {cls.type !== "online" && (
-                    <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-gray-50 border border-gray-100">
-                      <MapPin size={12} />
-                      <span className="text-xs sm:text-[13px] text-gray-700">{cls.room}</span>
-                    </span>
-                  )}
-                  {cls.type !== "offline" && cls.meetUrl && (
-                    <a
-                      href={cls.meetUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-red-50 border border-red-100 text-xs sm:text-[13px] text-red-700 hover:bg-red-100 transition-colors"
-                    >
-                      <ExternalLink size={12} />
-                      <span className="truncate max-w-[140px] sm:max-w-[200px]">
-                        {cls.meetUrl.replace('https://', '')}
-                      </span>
-                    </a>
-                  )}
-
-                  <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-gray-50 border border-gray-100">
-                    <UserRound size={12} />
-                    <span className="text-xs sm:text-[13px] text-gray-700">{cls.students} học viên</span>
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Right - progress pie chart */}
-          <div className="mt-6 lg:mt-0 lg:w-44 flex items-center justify-center">
-            <div className={`bg-white/80 border ${themeClasses.pieBorder} rounded-2xl px-4 py-3 shadow-sm flex flex-col items-center gap-2`}>
-              <span className="text-xs font-semibold text-gray-600">Tiến độ công việc</span>
-              <PieChart
-                value={cls.progress ?? 0}
-                size={72}
-                color={getPieChartColor(cls.color)}
-                label={`${cls.progress ?? 0}%`}
-              />
-              <span className="text-[11px] text-gray-500">Hoàn thành chương trình</span>
-            </div>
+          <div className="text-lg font-bold text-gray-900">{item.classCode || "Chưa có mã lớp"}</div>
+          <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
+            <span className="inline-flex items-center gap-2">
+              <Clock3 size={16} />
+              {formatDateTime(item.plannedDatetime, "time")}
+            </span>
+            <span className="inline-flex items-center gap-2">
+              <Calendar size={16} />
+              {formatDateTime(item.plannedDatetime, "datetime")}
+            </span>
           </div>
         </div>
-      </div>
-
-      {/* Corner accent */}
-      <div className={`absolute top-0 right-0 w-16 h-16 overflow-hidden ${themeClasses.corner}`}>
-        <div className={`absolute -top-4 -right-4 w-12 h-12 transform rotate-45 ${themeClasses.cornerBg}`} />
-      </div>
-    </div>
-  );
-}
-
-function PieChart({
-  value,
-  size = 80,
-  color = "red",
-  label = "",
-  animate = true
-}: {
-  value: number;
-  size?: number;
-  color?: "red" | "gray" | "black";
-  label?: string;
-  animate?: boolean;
-}) {
-  const [progress, setProgress] = useState(0);
-  const hasAnimated = useRef(false);
-
-  useEffect(() => {
-    if (!animate || hasAnimated.current) return;
-
-    const timer = setTimeout(() => {
-      hasAnimated.current = true;
-      let start = 0;
-      const end = value;
-      const duration = 1000;
-      const incrementTime = 10;
-
-      const step = () => {
-        start += (end / (duration / incrementTime));
-        if (start > end) start = end;
-        setProgress(start);
-
-        if (start < end) {
-          setTimeout(step, incrementTime);
-        }
-      };
-
-      step();
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [value, animate]);
-
-  const displayValue = animate ? Math.round(progress) : value;
-  const colorClasses = {
-    red: { fill: "#dc2626", stroke: "#fee2e2", bg: "bg-red-100" },
-    gray: { fill: "#6b7280", stroke: "#f3f4f6", bg: "bg-gray-100" },
-    black: { fill: "#171717", stroke: "#e5e7eb", bg: "bg-gray-200" }
-  };
-
-  const radius = size / 2 - 4;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (displayValue / 100) * circumference;
-  const colors = colorClasses[color];
-
-  return (
-    <div className="flex flex-col items-center">
-      <div className="relative" style={{ width: size, height: size }}>
-        <svg width={size} height={size} className="transform -rotate-90">
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            fill="none"
-            stroke={colors.stroke}
-            strokeWidth="8"
-          />
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            fill="none"
-            stroke={colors.fill}
-            strokeWidth="8"
-            strokeLinecap="round"
-            strokeDasharray={circumference}
-            strokeDashoffset={offset}
-            className="transition-all duration-1000 ease-out"
-          />
-        </svg>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-sm font-bold text-gray-900">{displayValue}%</span>
+        <div className="inline-flex items-center gap-2 text-sm font-medium text-red-600">
+          Chi tiết
+          <ChevronRight size={16} />
         </div>
       </div>
-      {label && (
-        <div className="text-xs text-gray-600 mt-2 text-center">{label}</div>
-      )}
-    </div>
-  );
-}
-
-function BarChart({
-  data,
-  labels,
-  colors = ["#dc2626", "#6b7280", "#171717", "#991b1b"],
-  height = 200,
-  animate = true
-}: {
-  data: number[];
-  labels: string[];
-  colors?: string[];
-  height?: number;
-  animate?: boolean;
-}) {
-  const [animatedData, setAnimatedData] = useState(data.map(() => 0));
-  const maxValue = Math.max(...data);
-  const hasAnimated = useRef(false);
-
-  useEffect(() => {
-    if (!animate || hasAnimated.current) return;
-
-    const timer = setTimeout(() => {
-      hasAnimated.current = true;
-      let currentData = [...animatedData];
-      const incrementTime = 20;
-      const steps = 50;
-
-      const step = (stepCount: number) => {
-        currentData = currentData.map((val, idx) => {
-          const target = data[idx];
-          const increment = (target - val) / (steps - stepCount);
-          return val + increment;
-        });
-
-        setAnimatedData([...currentData]);
-
-        if (stepCount < steps) {
-          setTimeout(() => step(stepCount + 1), incrementTime);
-        } else {
-          setAnimatedData([...data]);
-        }
-      };
-
-      step(0);
-    }, 400);
-
-    return () => clearTimeout(timer);
-  }, [data, animate]);
-
-  const displayData = animate ? animatedData : data;
-
-  return (
-    <div className="w-full h-full p-4">
-      <div className="flex items-end justify-between h-full" style={{ height: `${height}px` }}>
-        {displayData.map((value, index) => {
-          const barHeight = maxValue > 0 ? (value / maxValue) * (height - 40) : 0;
-          return (
-            <div key={index} className="flex flex-col items-center flex-1 mx-1">
-              <div
-                className="w-3/4 rounded-t-lg transition-all duration-500 ease-out"
-                style={{
-                  height: `${barHeight}px`,
-                  backgroundColor: colors[index % colors.length],
-                  animationDelay: `${index * 100}ms`
-                }}
-              ></div>
-              <div className="text-xs text-gray-600 mt-2 text-center truncate w-full px-1">
-                {labels[index]}
-              </div>
-              <div className="text-xs font-semibold mt-1">{value}</div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function LineChart({
-  data,
-  labels,
-  color = "#dc2626",
-  height = 150,
-  animate = true
-}: {
-  data: number[];
-  labels: string[];
-  color?: string;
-  height?: number;
-  animate?: boolean;
-}) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [animatedData, setAnimatedData] = useState(data.map(() => 0));
-  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-  const maxValue = Math.max(...data, 1);
-  const minValue = Math.min(...data, 0);
-  const valueRange = maxValue - minValue || 1;
-  const hasAnimated = useRef(false);
-
-  useEffect(() => {
-    const updateDimensions = () => {
-      if (containerRef.current) {
-        setDimensions({
-          width: containerRef.current.offsetWidth - 40,
-          height: height - 40
-        });
-      }
-    };
-
-    updateDimensions();
-    window.addEventListener('resize', updateDimensions);
-    return () => window.removeEventListener('resize', updateDimensions);
-  }, [height]);
-
-  useEffect(() => {
-    if (!animate || hasAnimated.current) return;
-
-    const timer = setTimeout(() => {
-      hasAnimated.current = true;
-      let currentData = [...animatedData];
-      const incrementTime = 20;
-      const steps = 50;
-
-      const step = (stepCount: number) => {
-        currentData = currentData.map((val, idx) => {
-          const target = data[idx];
-          const increment = (target - val) / (steps - stepCount);
-          return val + increment;
-        });
-
-        setAnimatedData([...currentData]);
-
-        if (stepCount < steps) {
-          setTimeout(() => step(stepCount + 1), incrementTime);
-        } else {
-          setAnimatedData([...data]);
-        }
-      };
-
-      step(0);
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [data, animate]);
-
-  const displayData = animate ? animatedData : data;
-  const pointRadius = 5;
-  const padding = 20;
-  const chartWidth = dimensions.width || 300;
-  const chartHeight = dimensions.height || height - 40;
-
-  const getX = (index: number) => {
-    if (data.length === 1) return padding;
-    return padding + (index / (data.length - 1)) * (chartWidth - padding * 2);
-  };
-
-  const getY = (value: number) => {
-    const normalizedValue = (value - minValue) / valueRange;
-    return padding + chartHeight - (normalizedValue * (chartHeight - padding * 2));
-  };
-
-  const pathPoints = displayData.map((value, index) => `${getX(index)},${getY(value)}`);
-  const pathData = `M ${pathPoints.join(' L ')}`;
-
-  return (
-    <div className="w-full h-full p-4">
-      <div ref={containerRef} className="relative" style={{ height: `${height}px` }}>
-        {/* Grid lines */}
-        <svg width="100%" height="100%" className="absolute inset-0">
-          {[0, 25, 50, 75, 100].map((percent, idx) => (
-            <line
-              key={idx}
-              x1={padding}
-              y1={padding + (percent / 100) * (chartHeight - padding * 2)}
-              x2={chartWidth - padding}
-              y2={padding + (percent / 100) * (chartHeight - padding * 2)}
-              stroke="#e5e7eb"
-              strokeWidth="1"
-            />
-          ))}
-        </svg>
-
-        {/* Line chart */}
-        <svg width="100%" height="100%" className="relative z-10">
-          {/* Gradient fill under line */}
-          <defs>
-            <linearGradient id={`gradient-${color.replace('#', '')}`} x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor={color} stopOpacity="0.3" />
-              <stop offset="100%" stopColor={color} stopOpacity="0.05" />
-            </linearGradient>
-          </defs>
-
-          {/* Area under line */}
-          <path
-            d={`${pathData} L ${getX(data.length - 1)},${chartHeight - padding} L ${getX(0)},${chartHeight - padding} Z`}
-            fill={`url(#gradient-${color.replace('#', '')})`}
-            className="transition-all duration-1000 ease-out"
-          />
-
-          {/* Line */}
-          <path
-            d={pathData}
-            fill="none"
-            stroke={color}
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="transition-all duration-1000 ease-out"
-          />
-
-          {/* Data points */}
-          {displayData.map((value, index) => (
-            <g key={index}>
-              <circle
-                cx={getX(index)}
-                cy={getY(value)}
-                r={pointRadius + 2}
-                fill="white"
-                className="transition-all duration-1000 ease-out"
-              />
-              <circle
-                cx={getX(index)}
-                cy={getY(value)}
-                r={pointRadius}
-                fill={color}
-                stroke="white"
-                strokeWidth="2"
-                className="transition-all duration-1000 ease-out"
-              />
-            </g>
-          ))}
-        </svg>
-
-        {/* Labels */}
-        <div className="absolute bottom-0 left-0 right-0 flex justify-between px-5 pb-1">
-          {labels.map((label, index) => (
-            <div key={index} className="text-xs text-gray-600 text-center" style={{ width: `${100 / labels.length}%` }}>
-              {label}
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
+    </button>
   );
 }
 
@@ -675,369 +272,271 @@ export default function Page() {
   const router = useRouter();
   const params = useParams();
   const locale = params.locale as string;
-  const [isPageLoaded, setIsPageLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState<"today" | "upcoming">("today");
-  const [dashboardData, setDashboardData] = useState<any>(null);
-
-  const [upcomingClasses, setUpcomingClasses] = useState<any[]>([]);
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const [classProgress, setClassProgress] = useState<any[]>([]);
-  const [weeklyPerformance, setWeeklyPerformance] = useState({ labels: ["T2", "T3", "T4", "T5", "T6", "T7", "CN"], data: [0, 0, 0, 0, 0, 0, 0] });
-  const [classSizeData, setClassSizeData] = useState({ labels: [] as string[], data: [] as number[] });
-  const [monthlyHours, setMonthlyHours] = useState({ labels: ["Tuần 1", "Tuần 2", "Tuần 3", "Tuần 4"], data: [0, 0, 0, 0] });
+  const [dashboard, setDashboard] = useState<TeacherDashboardData>({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   useEffect(() => {
-    let alive = true;
-    getTeacherDashboard()
-      .then((res: any) => {
-        if (!alive) return;
-        const raw = res?.data?.data ?? res?.data ?? {};
-        setDashboardData(raw);
-        if (Array.isArray(raw.upcomingClasses)) setUpcomingClasses(raw.upcomingClasses);
-        if (Array.isArray(raw.notifications)) setNotifications(raw.notifications);
-        if (Array.isArray(raw.classProgress)) setClassProgress(raw.classProgress);
-        if (raw.weeklyPerformance) setWeeklyPerformance(raw.weeklyPerformance);
-        if (raw.classSizeData) setClassSizeData(raw.classSizeData);
-        if (raw.monthlyHours) setMonthlyHours(raw.monthlyHours);
-      })
-      .catch(() => {});
-    return () => { alive = false; };
+    let active = true;
+
+    const loadDashboard = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await getTeacherDashboard();
+        if (!active) return;
+        setDashboard(normalizeDashboardResponse(response));
+        setLastUpdated(new Date());
+      } catch {
+        if (!active) return;
+        setError("Không thể tải dữ liệu tổng quan giáo viên.");
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadDashboard();
+    return () => {
+      active = false;
+    };
   }, []);
 
-  const todayClasses = upcomingClasses.filter(cls => cls?.day?.includes("Hôm nay"));
-  const upcomingFutureClasses = upcomingClasses.filter(cls => cls?.day && !cls.day.includes("Hôm nay"));
+  const stats = dashboard.stats ?? {};
+  const todayClasses = dashboard.todayClasses ?? [];
+  const upcomingClasses = dashboard.upcomingClasses ?? [];
+  const alerts = dashboard.alerts ?? [];
+  const recentActivities = dashboard.recentActivities ?? [];
+  const pendingTasks = dashboard.pendingTasks ?? [];
+  const visibleClasses = activeTab === "today" ? todayClasses : upcomingClasses;
+  const openAlertCount = alerts.filter((item) => (item.status ?? "").toLowerCase() !== "closed").length;
 
-  useEffect(() => {
-    setIsPageLoaded(true);
-  }, []);
+  const topStats = useMemo(
+    () => [
+      {
+        label: "Lớp đang dạy",
+        value: String(stats.totalClasses ?? 0),
+        icon: <BookOpen size={20} />,
+        accent: "red" as const,
+      },
+      {
+        label: "Buổi sắp tới",
+        value: String(stats.upcomingSessions ?? 0),
+        icon: <CalendarClock size={20} />,
+        accent: "gray" as const,
+      },
+      {
+        label: "Tổng học viên",
+        value: String(stats.totalStudents ?? 0),
+        icon: <Users size={20} />,
+        accent: "black" as const,
+      },
+      {
+        label: "Báo cáo chờ xử lý",
+        value: String(stats.pendingReports ?? pendingTasks.length),
+        icon: <FileText size={20} />,
+        accent: "red" as const,
+      },
+    ],
+    [pendingTasks.length, stats.pendingReports, stats.totalClasses, stats.totalStudents, stats.upcomingSessions]
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
-      {/* Header */}
-      <div className={`mb-8 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
-        <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
-              <BarChart3 size={28} className="text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-                Tổng quan giảng dạy
-              </h1>
-              <p className="text-gray-600 mt-1 flex items-center gap-2">
-                Thống kê và phân tích hiệu suất tuần này
-              </p>
-            </div>
+      <div className="mb-8 flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
+        <div className="flex items-start gap-4">
+          <div className="rounded-2xl bg-gradient-to-r from-red-600 to-red-700 p-3 text-white shadow-lg">
+            <BarChart3 size={28} />
           </div>
-          <div className="flex items-center gap-2">
-            <button className="p-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-colors cursor-pointer">
-              <Download size={18} className="text-gray-600" />
-            </button>
-            <button className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white text-sm font-medium hover:shadow-lg transition-all cursor-pointer">
-              <Calendar size={16} className="inline mr-2" />
-              Tuần này
-            </button>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 md:text-3xl">Tổng quan giảng dạy</h1>
+            <p className="mt-1 text-gray-600">Chỉ hiển thị dữ liệu có trong API teacher dashboard.</p>
           </div>
         </div>
 
-        {/* Main Stats */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <StatCard
-            icon={<BookOpen size={20} />}
-            label="Lớp đang dạy"
-            value={String(dashboardData?.totalClasses ?? upcomingClasses.length ?? 0)}
-            hint=""
-            trend="stable"
-            color="red"
-            delay={100}
-          />
-          <StatCard
-            icon={<CalendarClock size={20} />}
-            label="Buổi/tuần"
-            value={String(dashboardData?.sessionsPerWeek ?? 0)}
-            hint=""
-            trend="up"
-            color="gray"
-            delay={200}
-          />
-          <StatCard
-            icon={<Users size={20} />}
-            label="Tổng học viên"
-            value={String(dashboardData?.totalStudents ?? 0)}
-            hint=""
-            trend="up"
-            color="black"
-            delay={300}
-          />
-          <StatCard
-            icon={<TrendingUp size={20} />}
-            label="Hiệu suất TB"
-            value={dashboardData?.averagePerformance ? `${dashboardData.averagePerformance}%` : "—"}
-            hint=""
-            trend="up"
-            color="red"
-            delay={400}
-          />
+        <div className="flex items-center gap-3">
+          {lastUpdated ? (
+            <div className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600">
+              Cập nhật: {formatDateTime(lastUpdated.toISOString(), "datetime")}
+            </div>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => router.refresh()}
+            className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+          >
+            <RefreshCw size={16} />
+            Làm mới
+          </button>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className={`grid lg:grid-cols-3 gap-6 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-        {/* Left Column - Upcoming Classes & Progress */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Upcoming Classes - Redesigned */}
-          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-2">
-                  <CalendarClock size={20} className="text-red-600" />
-                  <h3 className="font-bold text-gray-900">Lịch dạy sắp tới</h3>
-                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-red-600 text-white text-xs">
-                    {todayClasses.length + upcomingFutureClasses.length}
-                  </span>
-                </div>
+      {error ? (
+        <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      ) : null}
 
-                <div className="flex items-center gap-2">
-                  <div className="flex bg-gray-100 p-1 rounded-lg">
-                    <button
-                      onClick={() => setActiveTab("today")}
-                      className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all cursor-pointer ${activeTab === "today"
-                        ? "bg-white text-red-600 shadow-sm"
-                        : "text-gray-600 hover:text-gray-900"
-                        }`}
-                    >
-                      Hôm nay ({todayClasses.length})
-                    </button>
-                    <button
-                      onClick={() => setActiveTab("upcoming")}
-                      className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all cursor-pointer ${activeTab === "upcoming"
-                        ? "bg-white text-red-600 shadow-sm"
-                        : "text-gray-600 hover:text-gray-900"
-                        }`}
-                    >
-                      Sắp tới ({upcomingFutureClasses.length})
-                    </button>
-                  </div>
+      <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {topStats.map((item) => (
+          <StatCard key={item.label} {...item} />
+        ))}
+      </div>
 
-                  <button
-                    onClick={() => router.push(`/${locale}/portal/teacher/schedule`)}
-                    className="text-sm text-red-600 font-medium hover:text-red-700 flex items-center gap-1 whitespace-nowrap cursor-pointer"
-                  >
-                    Xem lịch đầy đủ
-                    <ChevronRight size={14} />
-                  </button>
-                </div>
-              </div>
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(340px,1fr)]">
+        <div className="space-y-6">
+          <SectionCard
+            title="Lịch dạy sắp tới"
+            icon={<CalendarClock size={20} />}
+            count={todayClasses.length + upcomingClasses.length}
+            action={
+              <button
+                type="button"
+                onClick={() => router.push(`/${locale}/portal/teacher/schedule`)}
+                className="inline-flex items-center gap-1 text-sm font-medium text-red-600 hover:text-red-700"
+              >
+                Xem lịch đầy đủ
+                <ChevronRight size={16} />
+              </button>
+            }
+          >
+            <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl bg-gray-100 p-1">
+              <button
+                type="button"
+                onClick={() => setActiveTab("today")}
+                className={cn(
+                  "rounded-lg px-4 py-2 text-sm font-medium transition-colors",
+                  activeTab === "today" ? "bg-white text-red-600 shadow-sm" : "text-gray-600 hover:text-gray-900"
+                )}
+              >
+                Hôm nay ({todayClasses.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("upcoming")}
+                className={cn(
+                  "rounded-lg px-4 py-2 text-sm font-medium transition-colors",
+                  activeTab === "upcoming" ? "bg-white text-red-600 shadow-sm" : "text-gray-600 hover:text-gray-900"
+                )}
+              >
+                Sắp tới ({upcomingClasses.length})
+              </button>
             </div>
 
-            <div className="p-6">
-              {activeTab === "today" ? (
-                <div className="space-y-4">
-                  {todayClasses.map((cls, index) => (
-                    <ClassCard key={index} cls={cls} index={index} locale={locale} router={router} />
-                  ))}
+            {loading ? (
+              <EmptyState message="Đang tải lịch dạy..." />
+            ) : visibleClasses.length === 0 ? (
+              <EmptyState message="Không có dữ liệu lịch dạy trong mục này." />
+            ) : (
+              <div className="space-y-4">
+                {visibleClasses.map((item) => (
+                  <SessionCard
+                    key={item.id}
+                    item={item}
+                    onOpen={(id) => router.push(`/${locale}/portal/teacher/schedule/${id}`)}
+                  />
+                ))}
+              </div>
+            )}
+          </SectionCard>
 
-                  {todayClasses.length === 0 && (
-                    <div className="text-center py-12">
-                      <CalendarClock size={48} className="text-gray-300 mx-auto mb-4" />
-                      <h4 className="text-lg font-medium text-gray-900 mb-2">Không có lớp học nào hôm nay</h4>
-                      <p className="text-gray-600">Hãy kiểm tra lịch dạy sắp tới hoặc tận hưởng ngày nghỉ của bạn!</p>
-                    </div>
-                  )}
-                </div>
+          <div className="grid gap-6 lg:grid-cols-2">
+            <SectionCard title="Hoạt động gần đây" icon={<CheckCircle2 size={20} />} count={recentActivities.length}>
+              {loading ? (
+                <EmptyState message="Đang tải hoạt động gần đây..." />
+              ) : recentActivities.length === 0 ? (
+                <EmptyState message="Chưa có bản ghi điểm danh gần đây." />
               ) : (
-                <div className="space-y-4">
-                  {upcomingFutureClasses.map((cls, index) => (
-                    <ClassCard key={index} cls={cls} index={index} locale={locale} router={router} />
+                <div className="space-y-3">
+                  {recentActivities.map((item) => (
+                    <div key={item.sessionId} className="rounded-2xl border border-gray-200 p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <div className="font-semibold text-gray-900">{item.classCode || "Không rõ lớp"}</div>
+                          <div className="mt-1 text-sm text-gray-600">{formatDateTime(item.sessionDate, "datetime")}</div>
+                        </div>
+                        <div className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                          Có mặt: {item.presentCount ?? 0}
+                        </div>
+                      </div>
+                      <div className="mt-3 text-sm text-gray-600">Vắng: {item.absentCount ?? 0} học viên</div>
+                    </div>
                   ))}
                 </div>
               )}
-            </div>
+            </SectionCard>
 
-            {/* Calendar Preview */}
-            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-white rounded-lg border border-gray-200">
-                    <Calendar size={18} className="text-red-600" />
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium text-gray-900">Tuần sau có 8 buổi dạy</div>
-                    <div className="text-xs text-gray-600">Tổng cộng 16 giờ giảng dạy</div>
-                  </div>
+            <SectionCard title="Cần xử lý" icon={<FileText size={20} />} count={pendingTasks.length}>
+              {loading ? (
+                <EmptyState message="Đang tải danh sách công việc..." />
+              ) : pendingTasks.length === 0 ? (
+                <EmptyState message="Không có pending task từ backend." />
+              ) : (
+                <div className="space-y-3">
+                  {pendingTasks.map((item) => (
+                    <div key={item.id} className="rounded-2xl border border-gray-200 p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <div className="font-semibold text-gray-900">{item.studentName || "Không rõ học viên"}</div>
+                          <div className="mt-1 text-sm text-gray-600">Lớp: {item.classCode || "-"}</div>
+                        </div>
+                        <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
+                          {item.status || "Pending"}
+                        </span>
+                      </div>
+                      <div className="mt-3 text-sm text-gray-600">Tháng báo cáo: {formatDateTime(item.reportMonth, "date")}</div>
+                    </div>
+                  ))}
                 </div>
-                <button className="px-4 py-2 bg-white border border-gray-200 text-red-600 hover:bg-gray-50 rounded-lg text-sm font-medium transition-colors cursor-pointer">
-                  Xem tất cả
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Charts Section */}
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* Performance Chart */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <TrendingUp size={20} className="text-red-600" />
-                  <h3 className="font-bold text-gray-900">Hiệu suất tuần</h3>
-                </div>
-                <span className="text-sm text-gray-600">Điểm TB: 87%</span>
-              </div>
-              <div className="h-48">
-                <LineChart
-                  data={weeklyPerformance.data}
-                  labels={weeklyPerformance.labels}
-                  color="#dc2626"
-                  height={150}
-                  animate={isPageLoaded}
-                />
-              </div>
-            </div>
-
-            {/* Class Size Chart */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <Users size={20} className="text-gray-900" />
-                  <h3 className="font-bold text-gray-900">Quy mô lớp học</h3>
-                </div>
-                <span className="text-sm text-gray-600">Tổng: 55 học viên</span>
-              </div>
-              <div className="h-48">
-                <BarChart
-                  data={classSizeData.data}
-                  labels={classSizeData.labels}
-                  colors={["#dc2626", "#6b7280", "#171717", "#991b1b"]}
-                  height={150}
-                  animate={isPageLoaded}
-                />
-              </div>
-            </div>
+              )}
+            </SectionCard>
           </div>
         </div>
 
-        {/* Right Column - Notifications & Quick Actions */}
         <div className="space-y-6">
-          {/* Notifications */}
-          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Bell size={20} className="text-red-600" />
-                  <h3 className="font-bold text-gray-900">Thông báo mới</h3>
-                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-white text-xs">
-                    {notifications.filter(n => !n.read).length}
-                  </span>
-                </div>
-                <button className="text-sm text-red-600 font-medium hover:text-red-700 cursor-pointer">
-                  Đánh dấu đã đọc
-                </button>
-              </div>
-            </div>
-
-            <div className="divide-y divide-gray-100">
-              {notifications.map((notif, index) => {
-                const Icon = notif.icon;
-                const typeColors = {
-                  info: "bg-blue-100 text-blue-700",
-                  warning: "bg-amber-100 text-amber-700",
-                  success: "bg-emerald-100 text-emerald-700"
-                };
-
-                return (
-                  <div
-                    key={index}
-                    className={`px-6 py-4 transition-colors ${!notif.read ? 'bg-red-50/50' : ''}`}
-                  >
-                    <div className="flex items-start gap-3 cursor-pointer">
-                      <div className={`p-2 rounded-lg ${typeColors[notif.type as keyof typeof typeColors]}`}>
-                        <Icon size={16} />
+          <SectionCard title="Cảnh báo mở" icon={<Bell size={20} />} count={openAlertCount}>
+            {loading ? (
+              <EmptyState message="Đang tải cảnh báo..." />
+            ) : alerts.length === 0 ? (
+              <EmptyState message="Không có cảnh báo nào đang mở." />
+            ) : (
+              <div className="space-y-3">
+                {alerts.map((item) => (
+                  <div key={item.id} className="rounded-2xl border border-gray-200 p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="rounded-xl bg-red-50 p-2 text-red-600">
+                        <AlertCircle size={18} />
                       </div>
-                      <div className="flex-1">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">{notif.title}</div>
-                            <div className="text-xs text-gray-600 mt-1">{notif.message}</div>
-                          </div>
-                          {!notif.read && (
-                            <div className="h-1.5 w-1.5 rounded-full bg-red-600 flex-shrink-0 mt-1"></div>
-                          )}
-                        </div>
-                        <div className="flex items-center justify-between mt-3">
-                          <div className="text-xs text-gray-500">{notif.time}</div>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-semibold text-gray-900">{item.title || "Không có tiêu đề"}</div>
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-gray-600">
+                          <span>Trạng thái: {item.status || "Open"}</span>
+                          <span className="text-gray-300">|</span>
+                          <span>{formatDateTime(item.createdAt, "datetime")}</span>
                         </div>
                       </div>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Class Progress Pie Charts */}
-          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-            <div className="flex items-center gap-2 mb-4">
-              <Target size={20} className="text-red-600" />
-              <h3 className="font-bold text-gray-900">Tiến độ lớp học</h3>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              {classProgress.slice(0, 4).map((cls, index) => (
-                <div key={index} className="flex flex-col items-center p-3 bg-white rounded-xl border border-gray-200">
-                  <div className="text-xs font-medium text-gray-900 mb-2 text-center truncate w-full">
-                    {cls.name.split(' ')[0]}
-                  </div>
-                  <PieChart
-                    value={cls.progress}
-                    size={70}
-                    color={cls.color as any}
-                    label="Tiến độ"
-                    animate={isPageLoaded}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Performance Highlight */}
-          <div className="bg-gradient-to-r from-red-600 to-red-700 rounded-2xl p-6 text-white">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-                <Award size={20} />
+                ))}
               </div>
-              <div>
-                <h3 className="font-bold">Xuất sắc tuần này</h3>
-                <p className="text-sm opacity-90">IELTS Foundation - A1</p>
+            )}
+          </SectionCard>
+
+          <SectionCard title="Thống kê bổ sung" icon={<BookOpen size={20} />}>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+              <div className="rounded-2xl bg-red-600 p-5 text-white">
+                <div className="text-sm opacity-90">Ticket đang mở</div>
+                <div className="mt-2 text-3xl font-bold">{stats.openTickets ?? 0}</div>
+              </div>
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5">
+                <div className="text-sm text-gray-600">Homework chờ xử lý</div>
+                <div className="mt-2 text-3xl font-bold text-gray-900">{stats.pendingHomeworks ?? 0}</div>
               </div>
             </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="text-sm opacity-90">Tỷ lệ hoàn thành</div>
-                <div className="font-bold">92%</div>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="text-sm opacity-90">Đánh giá học viên</div>
-                <div className="font-bold">4.9/5.0</div>
-              </div>
-            </div>
-
-            <button className="w-full mt-6 py-2.5 bg-white text-red-600 rounded-xl font-medium hover:bg-white/90 transition-colors cursor-pointer">
-              Xem chi tiết
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Footer Stats */}
-      <div className={`mt-8 pt-6 border-t border-gray-200 transition-all duration-700 delay-300 ${isPageLoaded ? 'opacity-100' : 'opacity-0'}`}>
-        <div className="flex flex-col sm:flex-row items-center justify-between text-sm text-gray-600 gap-2">
-          <div className="flex items-center gap-2">
-            <Sparkles size={16} className="text-red-600" />
-            <span>Cập nhật lần cuối: Hôm nay, 09:30</span>
-          </div>
-          <div>© 2024 Education Dashboard</div>
+          </SectionCard>
         </div>
       </div>
     </div>

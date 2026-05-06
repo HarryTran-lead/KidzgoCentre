@@ -75,6 +75,42 @@ type BroadcastHistoryItem = {
 
 const EVENT_NAME = "kidzgo:notifications-updated";
 
+const EXACT_NOTIFICATION_TRANSLATIONS: Record<string, string> = {
+  "session report request": "Yêu cầu báo cáo buổi học",
+  "monthly report request": "Yêu cầu báo cáo tháng",
+  "report request": "Yêu cầu báo cáo",
+  "urgent request": "Yêu cầu khẩn cấp",
+  "session report submitted": "Đã gửi báo cáo buổi học",
+  "session report approved": "Báo cáo buổi học đã được duyệt",
+  "session report rejected": "Báo cáo buổi học bị từ chối",
+  "monthly report published": "Báo cáo tháng đã được công bố",
+  "schedule updated": "Lịch dạy đã được cập nhật",
+};
+
+const NOTIFICATION_FRAGMENT_TRANSLATIONS: Array<[RegExp, string]> = [
+  [/session report/gi, "báo cáo buổi học"],
+  [/monthly report/gi, "báo cáo tháng"],
+  [/report request/gi, "yêu cầu báo cáo"],
+  [/urgent request/gi, "yêu cầu khẩn cấp"],
+  [/urgent/gi, "khẩn cấp"],
+];
+
+function localizeNotificationText(value?: string | null) {
+  if (!value) {
+    return value ?? "";
+  }
+
+  const normalized = value.trim();
+  const exactMatch = EXACT_NOTIFICATION_TRANSLATIONS[normalized.toLowerCase()];
+  if (exactMatch) {
+    return exactMatch;
+  }
+
+  return NOTIFICATION_FRAGMENT_TRANSLATIONS.reduce((text, [pattern, replacement]) => {
+    return text.replace(pattern, replacement);
+  }, normalized);
+}
+
 async function readApiError(response: Response, fallback: string) {
   const rawText = await response.text();
 
@@ -146,8 +182,8 @@ export async function fetchNotifications(role: Role, unreadOnly = false) {
 
   return items.map((item: NotificationListItem) => ({
     id: item.id,
-    title: item.title,
-    content: item.content ?? null,
+    title: localizeNotificationText(item.title),
+    content: item.content ? localizeNotificationText(item.content) : null,
     deeplink: item.deeplink ?? null,
     status: String(item.status ?? ""),
     channel: String(item.channel ?? ""),
@@ -190,8 +226,8 @@ export async function fetchBroadcastHistory(senderRole?: Role) {
 
   return items.map((item) => ({
     id: item.id ?? item.campaignId ?? crypto.randomUUID(),
-    title: item.title ?? "Broadcast",
-    message: item.message ?? item.content ?? "",
+    title: localizeNotificationText(item.title ?? "Broadcast"),
+    message: localizeNotificationText(item.message ?? item.content ?? ""),
     audience: mapBroadcastAudience(item.audience ?? item.role),
     channel: normalizeBroadcastChannel(item.channel),
     kind: normalizeBroadcastKind(item.kind),

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   AlertCircle,
   BookOpen,
@@ -1030,6 +1030,7 @@ function RequestDetailModal({
 
 export default function PauseEnrollmentWorkspace({ context }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const isManagement = context !== "parent";
   const isStudentPage = context === "parent";
   const { selectedProfile } = useSelectedStudentProfile();
@@ -1075,6 +1076,12 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
   const [reassignClasses, setReassignClasses] = useState<ReassignClassOption[]>([]);
   const [reassignOptionsLoading, setReassignOptionsLoading] = useState(false);
   const [reassignOptionsError, setReassignOptionsError] = useState<string | null>(null);
+
+  const requestIdFromUrl = useMemo(() => {
+    const raw = searchParams.get("requestId")?.trim();
+    if (!raw) return null;
+    return /^[0-9a-fA-F-]{36}$/.test(raw) ? raw : null;
+  }, [searchParams]);
 
   const titles = {
     parent: {
@@ -1380,12 +1387,13 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
     if (isStudentPage && studentOptionsLoading) return;
     if (isStudentPage && !selectedStudentId && studentOptions.length > 0) return;
 
-    void loadRequests();
+    void loadRequests(requestIdFromUrl ?? undefined);
   }, [
     isBranchLoaded,
     isManagement,
     isStudentPage,
     loadRequests,
+    requestIdFromUrl,
     selectedStudentId,
     studentOptions.length,
     studentOptionsLoading,

@@ -738,11 +738,9 @@ export default function MakeupSessionCreateModal({
   }, [open, payload.makeupCreditId, payload.date, payload.time, shouldLoadSessionsFirst]);
 
   const shouldEnableManual = useMemo(() => {
-    if (!allowManualFallback) return false;
-    if (!payload.makeupCreditId) return false;
-    if (suggestionsLoading) return false;
-    return suggestions.length === 0;
-  }, [allowManualFallback, payload.makeupCreditId, suggestionsLoading, suggestions.length]);
+    // FE now follows backend eligibility rules strictly and does not allow manual class/session fallback.
+    return false;
+  }, []);
 
   // load classes + session pool for manual selection when no suggestions
   useEffect(() => {
@@ -952,29 +950,12 @@ export default function MakeupSessionCreateModal({
   const filteredSessions = useMemo(() => {
     if (!payload.targetClassId) return [];
 
-    // Determine the source session date to filter out sessions before it
-    const sourceDate = sourceSession?.plannedDatetime
-      ? parseApiDateKeepWallClock(sourceSession.plannedDatetime)
-      : null;
-
     return suggestions.filter((s: any) => {
       if (suggestionClassId(s) !== payload.targetClassId) return false;
       if (suggestionSessionId(s) === excludedSessionId) return false;
-
-      // Filter out sessions that are on or before the source (missed) session date
-      if (sourceDate && !Number.isNaN(sourceDate.getTime())) {
-        const planned = suggestionPlannedDatetime(s);
-        if (planned) {
-          const sessionDate = parseApiDateKeepWallClock(planned);
-          if (!Number.isNaN(sessionDate.getTime()) && sessionDate <= sourceDate) {
-            return false;
-          }
-        }
-      }
-
       return true;
     });
-  }, [suggestions, payload.targetClassId, excludedSessionId, sourceSession]);
+  }, [suggestions, payload.targetClassId, excludedSessionId]);
 
   const canSubmit = useMemo(() => {
     return (
