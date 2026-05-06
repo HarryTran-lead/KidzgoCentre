@@ -54,29 +54,32 @@ function StudentIconButton({
   gradient?: string;
 }) {
   return (
-    <div className="group relative flex flex-col items-center justify-center gap-3 transition-all duration-300 hover:-translate-y-1">
-      {/* Icon Container với 3D effect và gradient động */}
+    <div className="group relative flex flex-col items-center justify-center gap-1.5 transition-all duration-300 hover:-translate-y-1">
+      {/* Icon Container */}
       <div
-        className={`relative grid place-items-center h-16 w-16 rounded-[18px] transition-all duration-300 shadow-lg ${
+        className={`relative grid place-items-center h-12 w-12 rounded-[12px] transition-all duration-300 shadow-lg ${
           active
-            ? `bg-gradient-to-br ${gradient} scale-110 shadow-xl shadow-purple-500/50 animate-pulse ring-2 ring-white/30`
+            ? `bg-gradient-to-br ${gradient} scale-110 shadow-2xl shadow-purple-500/70 animate-pulse ring-2 ring-white/30`
             : `bg-gradient-to-br ${gradient} group-hover:scale-110 group-hover:shadow-xl group-hover:shadow-purple-400/40 group-hover:rotate-3`
         }`}
+        style={active ? {
+          boxShadow: '0 0 16px rgba(251, 191, 36, 0.6), 0 0 32px rgba(251, 191, 36, 0.3), 0 8px 20px rgba(251, 191, 36, 0.4)'
+        } : undefined}
       >
         {/* Glow effect bên trong */}
-        <div className={`absolute inset-0 rounded-[18px] bg-gradient-to-t from-white/0 to-white/20 ${active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity`} />
+        <div className={`absolute inset-0 rounded-[12px] bg-gradient-to-t from-white/0 to-white/20 ${active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity`} />
         
         <Image
           src={iconSrc}
           alt={label}
-          width={34}
-          height={34}
+          width={24}
+          height={24}
           className="relative z-10 transition-transform duration-300 group-hover:scale-125 drop-shadow-lg"
         />
         
-        {/* Badge với animation */}
+        {/* Badge */}
         {badge ? (
-          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-gradient-to-r from-rose-500 via-pink-500 to-rose-400 px-1 text-center text-[10px] font-bold text-white shadow-lg border-2 border-white/50 animate-float">
+          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-gradient-to-r from-rose-500 via-pink-500 to-rose-400 px-1 text-center text-[10px] font-bold text-white shadow-lg border-2 border-white/50">
             {badge}
           </span>
         ) : null}
@@ -90,10 +93,10 @@ function StudentIconButton({
         )}
       </div>
 
-      {/* Label bên dưới với glow effect */}
+      {/* Label */}
       <div className="text-center w-full px-0.5">
         <div
-          className={`text-xs font-bold text-white drop-shadow-md truncate transition-all leading-tight ${
+          className={`text-[10px] font-bold text-white drop-shadow-md truncate transition-all leading-tight ${
             active 
               ? "scale-105 drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]" 
               : "group-hover:scale-110 group-hover:drop-shadow-[0_0_6px_rgba(255,255,255,0.6)]"
@@ -118,6 +121,8 @@ export default function StudentSidebar({
   const locale = (pickLocaleFromPath(pathname) ?? DEFAULT_LOCALE) as "vi" | "en";
   const withLocale = (p: string) => localizePath(p, locale);
 
+  const [mobileOpen, setMobileOpen] = useState(false);
+
   const isActive = (href: string) => {
     const rawHref = href && href.length > 0 ? href : roleRoot;
     const target = withLocale(rawHref);
@@ -132,8 +137,6 @@ export default function StudentSidebar({
     if (isRootLink) return pathname === target;
     return pathname === target || pathname.startsWith(target + "/");
   };
-
-  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => setMobileOpen(false), [pathname]);
 
@@ -150,13 +153,12 @@ export default function StudentSidebar({
     return () => window.removeEventListener("portal:sidebar-open", open);
   }, []);
 
-  // Define main navigation items directly
-  // Define main navigation items directly
+  // Define main navigation items
   const mainNav = [
     { 
       label: "Tất cả", 
       href: roleRoot, 
-      iconSrc: "/icons/crown.png",
+      iconSrc: "/icons/house.png",
     },
     {
       label: "Lịch học",
@@ -207,7 +209,7 @@ export default function StudentSidebar({
       )}
 
       <aside
-        className={`relative h-full w-[130px] shrink-0 overflow-hidden text-white transition-all duration-500 lg:sticky lg:top-0 fixed top-0 left-0 z-80 ${
+        className={`relative h-full w-[90px] shrink-0 overflow-y-auto overflow-x-hidden text-white transition-all duration-500 lg:sticky lg:top-0 fixed top-0 left-0 z-80 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
@@ -215,7 +217,7 @@ export default function StudentSidebar({
         {/* Close button (mobile) */}
         <button
           onClick={() => setMobileOpen(false)}
-          className="lg:hidden absolute top-2 left-2 z-[90] rounded-xl bg-white/10 p-2 text-white backdrop-blur hover:bg-white/20 active:scale-95 transition-all border border-white/20"
+          className="lg:hidden absolute top-3 right-3 z-[90] rounded-xl bg-white/10 p-2 text-white backdrop-blur hover:bg-white/20 active:scale-95 transition-all border border-white/20"
           aria-label="Đóng menu"
           type="button"
         >
@@ -223,9 +225,9 @@ export default function StudentSidebar({
         </button>
 
         {/* Content */}
-        <div className="relative flex flex-col h-full gap-3 px-2 pb-4 pt-4">
+        <div className="relative flex flex-col h-full gap-1.5 px-1 pb-2 pt-2">
           {/* Navigation Items */}
-          <div className="flex-1 flex flex-col justify-center space-y-4 overflow-y-auto scrollbar-hide">
+          <div className="flex-1 flex flex-col justify-start space-y-4 py-4">
             {mainNav.map((nav, index) => (
               <Link key={nav.label} href={withLocale(nav.href)}>
                 <div 
@@ -245,16 +247,25 @@ export default function StudentSidebar({
               </Link>
             ))}
           </div>
+
+          {/* Version info */}
+          <div className="text-center py-3">
+            <p className="text-[8px] text-white/40 font-mono tracking-wider">
+              {version}
+            </p>
+          </div>
         </div>
       </aside>
 
       <style jsx global>{`
-        .scrollbar-hide::-webkit-scrollbar {
-          display: none;
+        /* Hide scrollbar but keep functionality */
+        .overflow-y-auto {
+          scrollbar-width: none; /* Firefox */
+          -ms-overflow-style: none; /* IE and Edge */
         }
-        .scrollbar-hide {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
+        
+        .overflow-y-auto::-webkit-scrollbar {
+          display: none; /* Chrome, Safari, Opera */
         }
 
         @keyframes float {

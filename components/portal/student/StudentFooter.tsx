@@ -70,36 +70,6 @@ export default function StudentFooter() {
 
   return (
     <>
-      {/* Home Button - Fixed ở góc dưới trái */}
-      <Link href={`/${locale}`}>
-        <div
-          className={`fixed bottom-4 left-13 z-[100] flex flex-col items-center gap-2 transition-all duration-300 ${
-            isActive("/") && !pathname.includes("/")
-              ? "scale-110"
-              : "hover:scale-110"
-          }`}
-        >
-          <div
-            className={`relative flex flex-col items-center justify-center w-15 h-15 rounded-t-3xl transition-all duration-300 ${
-              isActive("/") && !pathname.includes("/")
-                ? ""
-                : ""
-            } `}
-          >
-            <div className="relative">
-              <Image
-                src="/icons/house.png"
-                alt="Home"
-                width={40}
-                height={40}
-                className="w-10 h-10 drop-shadow-lg"
-              />
-            </div>
-          </div>
-          <span className="text-xs font-bold text-white drop-shadow-md">Home</span>
-        </div>
-      </Link>
-
       {/* Footer Navigation */}
       <div
         className={`fixed bottom-0 left-32 z-[90] transition-transform duration-500 ease-out ${

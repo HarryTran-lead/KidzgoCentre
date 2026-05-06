@@ -1,18 +1,23 @@
 // components/portal/student/StudentHeader.tsx
 "use client";
 
-import { Bell, ChevronDown, User, LogOut, Star, Sparkles } from "lucide-react";
+import { ChevronDown, Star, Sparkles } from "lucide-react";
 import Image from "next/image";
 import { LOGO } from "@/lib/theme/theme";
 import { useState, useMemo, useRef, useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { getMyStarBalance, getMyLevel, getMyAttendanceStreak } from "@/lib/api/gamificationService";
+import {
+  getMyStarBalance,
+  getMyLevel,
+  getMyAttendanceStreak,
+} from "@/lib/api/gamificationService";
 import { buildFileUrl } from "@/constants/apiURL";
 import type { UserProfile } from "@/types/auth";
+import { localizePath } from "@/lib/i18n";
 
 type StudentHeaderProps = {
   userName?: string;
@@ -29,16 +34,25 @@ export default function StudentHeader({
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [starBalance, setStarBalance] = useState<number | null>(null);
   const [streakDays, setStreakDays] = useState<number | null>(null);
-  const [levelInfo, setLevelInfo] = useState<{ level: number; xp: number; xpRequiredForNextLevel: number } | null>(null);
+  const [levelInfo, setLevelInfo] = useState<{
+    level: number;
+    xp: number;
+    xpRequiredForNextLevel: number;
+  } | null>(null);
   const pathname = usePathname();
+  const router = useRouter();
   const btnRef = useRef<HTMLButtonElement>(null);
   const popRef = useRef<HTMLDivElement>(null);
 
   // Extract locale from pathname
   const locale = useMemo(() => {
-    const parts = pathname.split('/');
-    return parts[1] || 'vi'; // Default to 'vi' if no locale found
+    const parts = pathname.split("/");
+    return parts[1] || "vi";
   }, [pathname]);
+
+  const handleSwitchAccount = () => {
+    router.push(localizePath("/portal", locale as any));
+  };
 
   const activeStudentProfile = useMemo<UserProfile | undefined>(() => {
     const profiles = currentUser?.profiles ?? [];
@@ -49,13 +63,15 @@ export default function StudentHeader({
 
     if (currentUser?.selectedProfileId) {
       const byId = profiles.find(
-        (profile) => profile.profileType === "Student" && profile.id === currentUser.selectedProfileId
+        (profile) =>
+          profile.profileType === "Student" &&
+          profile.id === currentUser.selectedProfileId,
       );
       if (byId) return byId;
     }
 
     return profiles.find((profile) => profile.profileType === "Student");
-  }, [currentUser?.profiles, currentUser?.selectedProfile, currentUser?.selectedProfileId]);
+  }, [currentUser]);
 
   const displayUserName =
     activeStudentProfile?.displayName ??
@@ -64,7 +80,8 @@ export default function StudentHeader({
     "Nguyen Van An";
 
   const headerAvatarUrl = useMemo(() => {
-    const rawAvatar = activeStudentProfile?.avatarUrl ?? currentUser?.avatarUrl ?? avatarUrl;
+    const rawAvatar =
+      activeStudentProfile?.avatarUrl ?? currentUser?.avatarUrl ?? avatarUrl;
     return rawAvatar ? buildFileUrl(rawAvatar) : "";
   }, [activeStudentProfile?.avatarUrl, currentUser?.avatarUrl, avatarUrl]);
 
@@ -77,7 +94,8 @@ export default function StudentHeader({
         setIsDropdownOpen(false);
       }
     };
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setIsDropdownOpen(false);
+    const onKey = (e: KeyboardEvent) =>
+      e.key === "Escape" && setIsDropdownOpen(false);
     document.addEventListener("mousedown", onDoc);
     document.addEventListener("keydown", onKey);
     return () => {
@@ -91,40 +109,48 @@ export default function StudentHeader({
 
   // Load gamification data for header
   useEffect(() => {
-    getMyStarBalance().then((res) => setStarBalance(res.balance)).catch(() => {});
-    getMyAttendanceStreak().then((res) => setStreakDays(res.currentStreak)).catch(() => {});
-    getMyLevel().then((res) => setLevelInfo(res)).catch(() => {});
+    getMyStarBalance()
+      .then((res) => setStarBalance(res.balance))
+      .catch(() => {});
+    getMyAttendanceStreak()
+      .then((res) => setStreakDays(res.currentStreak))
+      .catch(() => {});
+    getMyLevel()
+      .then((res) => setLevelInfo(res))
+      .catch(() => {});
   }, []);
 
   const handleLogout = async () => {
     if (isLoggingOut) return;
     setIsDropdownOpen(false);
     setIsLoggingOut(true);
-    
+
     // Clear all tokens and auth data
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       localStorage.clear();
       sessionStorage.clear();
       // Clear all cookies
-      document.cookie.split(';').forEach(c => {
-        document.cookie = c.trim().split('=')[0] + '=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/';
+      document.cookie.split(";").forEach((c) => {
+        document.cookie =
+          c.trim().split("=")[0] +
+          "=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/";
       });
     }
-    
+
     await new Promise((r) => setTimeout(r, 700));
     window.location.replace("/");
   };
 
   return (
-    <div className="relative z-10 px-4 sm:px-6 pt-2 pb-2">
+    <div className="relative z-10 px-2 sm:px-3 pt-0.5 pb-0.5">
       <div className="flex justify-between items-center">
         {/* Logo section */}
         <div className="flex items-center">
           <Image
             src={LOGO}
             alt="KidzGo Logo"
-            width={130}
-            height={90}
+            width={80}
+            height={50}
             className="drop-shadow-[0_4px_12px_rgba(255,255,255,0.3)]"
             priority
           />
@@ -135,35 +161,43 @@ export default function StudentHeader({
           {/* Header hoa quyen - 1 thanh dai chung border */}
           <div className="flex items-center rounded-full">
             {/* Stats badges section */}
-            <div className="flex items-center gap-4 bg-transparent px-5 py-3">
+            <div className="flex items-center gap-1.5 bg-transparent px-2 py-1.5">
               {/* Stars */}
-              <Star className="w-8 h-8 text-yellow-400" fill="currentColor" />
-              <div className="text-lg font-black text-white drop-shadow-md">
-                  {starBalance != null ? starBalance.toLocaleString("vi-VN") : "—"}
-                </div>
+              <Star className="w-5 h-5 text-yellow-400" fill="currentColor" />
+              <div className="text-sm font-black text-white drop-shadow-md">
+                {starBalance != null
+                  ? starBalance.toLocaleString("vi-VN")
+                  : "—"}
+              </div>
 
               {/* Chuoi ngay */}
-              <div className="flex items-center gap-2">
-                <div className="grid h-9 w-9 place-items-center">
+              <div className="flex items-center gap-1.5">
+                <div className="grid h-6 w-6 place-items-center">
                   <Image
                     src="/icons/fire.png"
                     alt="Fire"
-                    width={30}
-                    height={30}
+                    width={20}
+                    height={20}
                   />
                 </div>
-                <div className="text-lg font-black text-white drop-shadow-md">
+                <div className="text-sm font-black text-white drop-shadow-md">
                   {streakDays != null ? `${streakDays} ngày` : "— ngày"}
                 </div>
               </div>
             </div>
 
+            {/* Notification Button */}
             <Link
               href={notificationsRoute}
-              className="group relative mr-3 inline-flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white backdrop-blur-sm transition hover:bg-white/20"
+              className="group relative mr-1.5 inline-flex h-10 w-10 items-center justify-center rounded-full border-2 border-white/40 bg-white/10 text-white backdrop-blur-sm transition hover:bg-white/20"
               aria-label="Thông báo"
             >
-              <Bell className="h-5 w-5" />
+              <Image
+                src="/image/notification-bell.png"
+                alt="Notification"
+                width={20}
+                height={20}
+              />
               {unreadCount > 0 && (
                 <span className="absolute -right-1 -top-1 min-w-[22px] rounded-full bg-rose-500 px-1.5 py-0.5 text-center text-[11px] font-bold text-white shadow-lg">
                   {unreadCount > 99 ? "99+" : unreadCount}
@@ -171,13 +205,27 @@ export default function StudentHeader({
               )}
             </Link>
 
-            {/* Profile section - noi lien */}
+            {/* Switch Account Button */}
+            <button
+              onClick={handleSwitchAccount}
+              className="group relative cursor-pointer mr-1.5 inline-flex h-10 w-10 items-center justify-center rounded-full border-2 border-white/40 bg-gradient-to-br from-purple-500/30 to-pink-500/30 text-white backdrop-blur-sm transition hover:from-purple-500/50 hover:to-pink-500/50 hover:shadow-lg"
+              aria-label="Chuyển tài khoản"
+              title="Chuyển tài khoản"
+            >
+              <Image src="/image/exit.png" alt="Exit" width={24} height={24} />
+            </button>
+
+            {/* Profile section */}
             <div className="relative">
               <button
                 ref={btnRef}
-                onClick={() => !isLoggingOut && setIsDropdownOpen(!isDropdownOpen)}
-                className={`group relative flex items-center gap-3 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 px-5 py-3 transition-all duration-300 ${
-                  isLoggingOut ? "cursor-wait opacity-90" : "hover:bg-white/20 hover:shadow-lg"
+                onClick={() =>
+                  !isLoggingOut && setIsDropdownOpen(!isDropdownOpen)
+                }
+                className={`group relative flex items-center gap-1.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 px-3 py-1.5 transition-all duration-300 cursor-pointer ${
+                  isLoggingOut
+                    ? "cursor-wait opacity-90"
+                    : "hover:bg-white/20 hover:shadow-lg"
                 }`}
                 aria-haspopup="menu"
                 aria-expanded={isDropdownOpen}
@@ -186,7 +234,7 @@ export default function StudentHeader({
                 {/* Avatar với effect */}
                 <div className="relative">
                   <div className="relative rounded-full p-[2px] bg-gradient-to-br from-cyan-400 via-blue-400 to-purple-400 shadow-lg">
-                    <div className="relative h-[52px] w-[52px] rounded-full overflow-hidden bg-indigo-900">
+                    <div className="relative h-[38px] w-[38px] rounded-full overflow-hidden bg-indigo-900">
                       {headerAvatarUrl ? (
                         <Image
                           src={headerAvatarUrl}
@@ -201,7 +249,7 @@ export default function StudentHeader({
                       )}
                     </div>
                   </div>
-                  
+
                   {/* Status indicator hoặc loading spinner */}
                   {!isLoggingOut && (
                     <span className="absolute -bottom-0.5 right-0.5 w-3 h-3 bg-green-400 rounded-full border-2 border-white animate-pulse" />
@@ -209,7 +257,7 @@ export default function StudentHeader({
                   {isLoggingOut && (
                     <span className="pointer-events-none absolute inset-[-3px] rounded-full border-2 border-transparent border-t-yellow-400 animate-spin" />
                   )}
-                  
+
                   {/* Sparkle effect khi mở dropdown */}
                   {!isLoggingOut && (
                     <motion.div
@@ -219,7 +267,11 @@ export default function StudentHeader({
                           ? { scale: 1, rotate: 0 }
                           : { scale: 0, rotate: -180 }
                       }
-                      transition={{ type: "spring", stiffness: 200, damping: 15 }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 200,
+                        damping: 15,
+                      }}
                       className="absolute -top-1 -right-1"
                     >
                       <Sparkles className="w-3.5 h-3.5 text-yellow-400 fill-yellow-300" />
@@ -227,10 +279,10 @@ export default function StudentHeader({
                   )}
                 </div>
 
-                {/* Name & Level - thu gọn trong 1 khối */}
-                <div className="flex flex-col items-start gap-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-base font-black text-white drop-shadow-md truncate max-w-[140px]">
+                {/* Name & Level */}
+                <div className="flex flex-col items-start gap-0.5 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-black text-white drop-shadow-md truncate max-w-[120px]">
                       {isLoggingOut ? "Đang đăng xuất..." : displayUserName}
                     </span>
                     {!isLoggingOut && (
@@ -239,34 +291,40 @@ export default function StudentHeader({
                         transition={{ duration: 0.3, ease: "easeInOut" }}
                       >
                         <ChevronDown
-                          size={16}
+                          size={14}
                           className="text-white/80 transition-transform"
                         />
                       </motion.div>
                     )}
                   </div>
-                  
-                  {/* Experience bar thu gọn */}
+
+                  {/* Experience bar */}
                   <div className="w-full">
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <span className="text-[13px] font-bold text-yellow-300">
+                    <div className="flex items-center gap-1 mb-0.5">
+                      <span className="text-[11px] font-bold text-yellow-300">
                         {levelInfo ? `Level ${levelInfo.level}` : "—"}
                       </span>
                     </div>
-                    <div className="relative h-2 w-[140px] bg-white/20 rounded-full overflow-hidden">
-                      <div 
+                    <div className="relative h-1.5 w-[120px] bg-white/20 rounded-full overflow-hidden">
+                      <div
                         className="h-full bg-gradient-to-r from-yellow-400 via-orange-400 to-pink-500 rounded-full shadow-[0_0_8px_rgba(251,191,36,0.5)]"
-                        style={{ width: levelInfo ? `${Math.min(100, Math.round((levelInfo.xp / Math.max(1, levelInfo.xp + levelInfo.xpRequiredForNextLevel)) * 100))}%` : '0%' }}
+                        style={{
+                          width: levelInfo
+                            ? `${Math.min(100, Math.round((levelInfo.xp / Math.max(1, levelInfo.xp + levelInfo.xpRequiredForNextLevel)) * 100))}%`
+                            : "0%",
+                        }}
                       />
-                      <span className="absolute inset-0 flex items-center justify-center text-[10px] font-black text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-                        {levelInfo ? `${levelInfo.xp} / ${levelInfo.xp + levelInfo.xpRequiredForNextLevel}` : "—"}
+                      <span className="absolute inset-0 flex items-center justify-center text-[8px] font-black text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                        {levelInfo
+                          ? `${levelInfo.xp} / ${levelInfo.xp + levelInfo.xpRequiredForNextLevel}`
+                          : "—"}
                       </span>
                     </div>
                   </div>
                 </div>
               </button>
 
-              {/* Dropdown Menu với Framer Motion */}
+              {/* Dropdown Menu */}
               <AnimatePresence>
                 {isDropdownOpen && !isLoggingOut && (
                   <>
@@ -303,8 +361,17 @@ export default function StudentHeader({
                       className="absolute -right-2 mt-11 w-[280px] rounded-4xl border border-gray-200 bg-white shadow-xl z-50 overflow-hidden"
                     >
                       {/* Header */}
-                      <div className="relative px-6 py-4 bg-linear-to-br from-purple-500 via-blue-500 to-purple-600 border-b border-gray-100">
-                        <div className="absolute inset-0 bg-grid-pattern opacity-10" />
+                      <div className="relative px-6 py-4 bg-gradient-to-br from-purple-500 via-blue-500 to-purple-600 border-b border-gray-100">
+                        <div
+                          className="absolute inset-0"
+                          style={{
+                            backgroundImage: `
+                            linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
+                            linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)
+                          `,
+                            backgroundSize: "20px 20px",
+                          }}
+                        />
                         <div className="relative">
                           <p className="text-base font-bold text-white mb-1">
                             {displayUserName}
@@ -340,9 +407,14 @@ export default function StudentHeader({
                           }}
                         >
                           <Link href={`/${locale}/portal/student/profile`}>
-                            <button className="group w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-purple-50 hover:text-purple-600 rounded-xl transition-all duration-200">
+                            <button className="group w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-purple-50 hover:text-purple-600 rounded-xl transition-all duration-200 cursor-pointer">
                               <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-purple-50 group-hover:bg-purple-100 transition-colors duration-200">
-                                <User size={16} />
+                                <Image
+                                  src="/image/man.png"
+                                  alt="Profile"
+                                  width={20}
+                                  height={20}
+                                />
                               </div>
                               <span>Hồ sơ cá nhân</span>
                               <motion.div
@@ -370,10 +442,15 @@ export default function StudentHeader({
                           onClick={handleLogout}
                           initial="rest"
                           whileHover="hover"
-                          className="group w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 rounded-xl transition-all duration-200"
+                          className="group w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 rounded-xl transition-all duration-200 cursor-pointer"
                         >
                           <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-red-50 group-hover:bg-red-100 transition-colors duration-200">
-                            <LogOut size={16} />
+                            <Image
+                              src="/image/logout.png"
+                              alt="Logout"
+                              width={18}
+                              height={18}
+                            />
                           </div>
                           <span>Đăng xuất</span>
                           <motion.div
@@ -400,16 +477,6 @@ export default function StudentHeader({
           </div>
         </div>
       </div>
-
-      {/* CSS cho grid pattern */}
-      <style>{`
-        .bg-grid-pattern {
-          background-image:
-            linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px);
-          background-size: 20px 20px;
-        }
-      `}</style>
     </div>
   );
 }

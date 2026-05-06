@@ -48,18 +48,43 @@ import {
   Table,
 } from "lucide-react";
 
-import { fetchHomework, mapSubmissionToUi, createHomework, fetchClasses, fetchSessions, deleteHomework, updateHomework, createMultipleChoiceHomework } from "@/lib/api/homeworkService";
+import {
+  fetchHomework,
+  mapSubmissionToUi,
+  createHomework,
+  fetchClasses,
+  fetchSessions,
+  deleteHomework,
+  updateHomework,
+  createMultipleChoiceHomework,
+  fetchHomeworkDetail,
+} from "@/lib/api/homeworkService";
 import { get } from "@/lib/axios";
 import { uploadFile, isUploadSuccess } from "@/lib/api/fileService";
-import { getActiveProgramsForDropdown, getAllProgramsForDropdown } from "@/lib/api/programService";
+import {
+  getActiveProgramsForDropdown,
+  getAllProgramsForDropdown,
+} from "@/lib/api/programService";
 import { dateOnlyVN } from "@/lib/datetime";
 import { toast } from "@/hooks/use-toast";
-import type { HomeworkSubmission, CreateHomeworkPayload, ClassOption, SessionOption, MultipleChoiceQuestion } from "@/types/teacher/homework";
+import type {
+  HomeworkSubmission,
+  CreateHomeworkPayload,
+  ClassOption,
+  SessionOption,
+  MultipleChoiceQuestion,
+} from "@/types/teacher/homework";
 import type { AiGeneratedQuestionDraft } from "@/app/api/admin/question-bank";
 import AiCreatorModal from "@/components/question-bank/AiCreatorModal";
 import { ImportFromBankModal } from "./modal/ImportFromBankModal";
 import { ImportFromExcelModal } from "./modal/ImportFromExcelModal";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/lightswind/select";
 
 type SubmissionStatus = "PENDING" | "SUBMITTED" | "REVIEWED" | "OVERDUE";
 
@@ -108,7 +133,10 @@ function createEmptyBuilderOptions(): BuilderQuestionOption[] {
   ];
 }
 
-function normalizeCorrectOptionIndex(options: string[], correctAnswer?: string | null) {
+function normalizeCorrectOptionIndex(
+  options: string[],
+  correctAnswer?: string | null,
+) {
   const normalizedAnswer = String(correctAnswer ?? "").trim();
 
   if (/^\d+$/.test(normalizedAnswer)) {
@@ -122,7 +150,10 @@ function normalizeCorrectOptionIndex(options: string[], correctAnswer?: string |
     }
   }
 
-  const normalizedLabel = normalizedAnswer.replace(/[\.\)]/g, "").trim().toUpperCase();
+  const normalizedLabel = normalizedAnswer
+    .replace(/[\.\)]/g, "")
+    .trim()
+    .toUpperCase();
   if (/^[A-Z]$/.test(normalizedLabel)) {
     const alphaIndex = normalizedLabel.charCodeAt(0) - 65;
     if (alphaIndex >= 0 && alphaIndex < options.length) {
@@ -131,14 +162,14 @@ function normalizeCorrectOptionIndex(options: string[], correctAnswer?: string |
   }
 
   const matchedIndex = options.findIndex(
-    (option) => option.trim().toLowerCase() === normalizedAnswer.toLowerCase()
+    (option) => option.trim().toLowerCase() === normalizedAnswer.toLowerCase(),
   );
 
   return matchedIndex >= 0 ? matchedIndex : 0;
 }
 
 function mapAiDraftToBuilderQuestion(
-  draft: AiGeneratedQuestionDraft
+  draft: AiGeneratedQuestionDraft,
 ): BuilderQuestion | null {
   if (draft.questionType !== "MultipleChoice") {
     return null;
@@ -153,7 +184,10 @@ function mapAiDraftToBuilderQuestion(
     return null;
   }
 
-  const correctIndex = normalizeCorrectOptionIndex(options, draft.correctAnswer);
+  const correctIndex = normalizeCorrectOptionIndex(
+    options,
+    draft.correctAnswer,
+  );
   const points = Number(draft.points);
 
   return {
@@ -169,41 +203,44 @@ function mapAiDraftToBuilderQuestion(
   };
 }
 
-const STATUS_CONFIG: Record<SubmissionStatus, {
-  text: string;
-  icon: any;
-  color: string;
-  bgColor: string;
-  borderColor: string;
-}> = {
+const STATUS_CONFIG: Record<
+  SubmissionStatus,
+  {
+    text: string;
+    icon: any;
+    color: string;
+    bgColor: string;
+    borderColor: string;
+  }
+> = {
   PENDING: {
     text: "Chờ chấm",
     icon: Clock,
     color: "text-amber-600",
     bgColor: "bg-gradient-to-r from-amber-50 to-orange-50",
-    borderColor: "border-amber-200"
+    borderColor: "border-amber-200",
   },
   SUBMITTED: {
     text: "Đã gửi",
     icon: UploadCloud,
     color: "text-sky-600",
     bgColor: "bg-gradient-to-r from-sky-50 to-blue-50",
-    borderColor: "border-sky-200"
+    borderColor: "border-sky-200",
   },
   REVIEWED: {
     text: "Đã phản hồi",
     icon: CheckCircle,
     color: "text-emerald-600",
     bgColor: "bg-gradient-to-r from-emerald-50 to-teal-50",
-    borderColor: "border-emerald-200"
+    borderColor: "border-emerald-200",
   },
   OVERDUE: {
     text: "Quá hạn",
     icon: AlertCircle,
     color: "text-red-600",
     bgColor: "bg-gradient-to-r from-red-50 to-red-100",
-    borderColor: "border-red-200"
-  }
+    borderColor: "border-red-200",
+  },
 };
 
 function SortableHeader<T extends string>({
@@ -211,7 +248,7 @@ function SortableHeader<T extends string>({
   column,
   sortColumn,
   sortDirection,
-  onSort
+  onSort,
 }: {
   label: string;
   column: T;
@@ -234,7 +271,9 @@ function SortableHeader<T extends string>({
           <span aria-hidden>↓</span>
         )
       ) : (
-        <span aria-hidden className="text-gray-300">↕</span>
+        <span aria-hidden className="text-gray-300">
+          ↕
+        </span>
       )}
     </button>
   );
@@ -244,27 +283,28 @@ function StudentAvatar({ name = "", color }: { name?: string; color: string }) {
   const initials = name
     .split(" ")
     .filter(Boolean)
-    .map(word => word[0])
+    .map((word) => word[0])
     .slice(-2)
     .join("")
     .toUpperCase();
 
   return (
-    <div className={`flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-r ${color} text-white font-bold text-sm`}>
+    <div
+      className={`flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-r ${color} text-white font-bold text-sm`}
+    >
       {initials}
     </div>
   );
 }
 
 function StatusBadge({ status }: { status: SubmissionStatus }) {
-  const config =
-    STATUS_CONFIG[status] ?? {
-      icon: Clock,
-      bgColor: "bg-gray-100",
-      borderColor: "border-gray-200",
-      color: "text-gray-600",
-      text: "Unknown",
-    };
+  const config = STATUS_CONFIG[status] ?? {
+    icon: Clock,
+    bgColor: "bg-gray-100",
+    borderColor: "border-gray-200",
+    color: "text-gray-600",
+    text: "Unknown",
+  };
 
   const Icon = config.icon;
 
@@ -280,26 +320,42 @@ function StatusBadge({ status }: { status: SubmissionStatus }) {
 
 function FileTypeBadge({ type }: { type: string }) {
   const typeColors: Record<string, string> = {
-    "PDF": "bg-red-100 text-red-700",
-    "DOCX": "bg-blue-100 text-blue-700",
-    "MP3": "bg-emerald-100 text-emerald-700",
-    "ZIP": "bg-amber-100 text-amber-700",
-    "PPT": "bg-orange-100 text-orange-700",
-    "XLSX": "bg-green-100 text-green-700"
+    PDF: "bg-red-100 text-red-700",
+    DOCX: "bg-blue-100 text-blue-700",
+    MP3: "bg-emerald-100 text-emerald-700",
+    ZIP: "bg-amber-100 text-amber-700",
+    PPT: "bg-orange-100 text-orange-700",
+    XLSX: "bg-green-100 text-green-700",
   };
 
   return (
-    <span className={`text-xs px-2 py-1 rounded-full ${typeColors[type] || "bg-gray-100 text-gray-700"}`}>
+    <span
+      className={`text-xs px-2 py-1 rounded-full ${typeColors[type] || "bg-gray-100 text-gray-700"}`}
+    >
       {type}
     </span>
   );
 }
 
-function SubmissionRow({ item, onDelete, onViewDetail, onUpdate }: { item: Submission; onDelete: (id: string) => void; onViewDetail: (item: Submission) => void; onUpdate: (item: Submission) => void }) {
+function SubmissionRow({
+  item,
+  onDelete,
+  onViewDetail,
+  onUpdate,
+  onViewAssignmentDetails,
+}: {
+  item: Submission;
+  onDelete: (id: string) => void;
+  onViewDetail: (item: Submission) => void;
+  onUpdate: (item: Submission) => void;
+  onViewAssignmentDetails: (item: Submission) => void;
+}) {
   return (
     <tr className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200 border-b border-red-100">
       <td className="py-4 px-6">
-        <div className="text-sm font-medium text-gray-900">{item.assignmentTitle}</div>
+        <div className="text-sm font-medium text-gray-900">
+          {item.assignmentTitle}
+        </div>
       </td>
       <td className="py-4 px-6">
         <div className="text-sm text-gray-600">{item.className || "-"}</div>
@@ -314,29 +370,40 @@ function SubmissionRow({ item, onDelete, onViewDetail, onUpdate }: { item: Submi
         </div>
       </td>
       <td className="py-4 px-6">
-        <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium border ${
-          item.submissionType === "Quiz" 
-            ? "bg-purple-50 text-purple-700 border-purple-200"
-            : item.submissionType === "FILE"
-              ? "bg-blue-50 text-blue-700 border-blue-200"
-              : item.submissionType === "TEXT"
-                ? "bg-green-50 text-green-700 border-green-200"
-                : "bg-gray-50 text-gray-700 border-gray-200"
-        }`}>
+        <span
+          className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium border ${
+            item.submissionType === "Quiz"
+              ? "bg-purple-50 text-purple-700 border-purple-200"
+              : item.submissionType === "FILE"
+                ? "bg-blue-50 text-blue-700 border-blue-200"
+                : item.submissionType === "TEXT"
+                  ? "bg-green-50 text-green-700 border-green-200"
+                  : "bg-gray-50 text-gray-700 border-gray-200"
+          }`}
+        >
           {item.submissionType || "File"}
         </span>
       </td>
       <td className="py-4 px-6">
-        <div className="text-sm text-gray-600 line-clamp-2 max-w-[200px]">{item.description || "-"}</div>
+        <div className="text-sm text-gray-600 line-clamp-2 max-w-[200px]">
+          {item.description || "-"}
+        </div>
       </td>
       <td className="py-4 px-6">
         <div className="flex items-center gap-1">
           <button
             onClick={() => onViewDetail(item)}
             className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors text-gray-400 hover:text-blue-600 cursor-pointer"
-            title="Xem chi tiết"
+            title="Xem danh sách nộp bài"
           >
             <Eye size={14} />
+          </button>
+          <button
+            onClick={() => onViewAssignmentDetails(item)}
+            className="p-1.5 rounded-lg hover:bg-purple-50 transition-colors text-gray-400 hover:text-purple-600 cursor-pointer"
+            title="Xem chi tiết bài tập"
+          >
+            <FileText size={14} />
           </button>
           <button
             onClick={() => onUpdate(item)}
@@ -345,15 +412,9 @@ function SubmissionRow({ item, onDelete, onViewDetail, onUpdate }: { item: Submi
           >
             <Edit size={14} />
           </button>
-          <button className="p-1.5 rounded-lg hover:bg-emerald-50 transition-colors text-gray-400 hover:text-emerald-600 cursor-pointer" title="Tải xuống">
-            <Download size={14} />
-          </button>
-          <button className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors text-gray-400 hover:text-blue-600 cursor-pointer" title="Gửi phản hồi">
-            <Send size={14} />
-          </button>
-          <button 
+          <button
             onClick={() => onDelete(item.id)}
-            className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer" 
+            className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
             title="Xóa bài tập"
           >
             <Trash2 size={14} />
@@ -368,13 +429,15 @@ function SubmissionRow({ item, onDelete, onViewDetail, onUpdate }: { item: Submi
 function CreateAssignmentModal({
   isOpen,
   onClose,
-  onSuccess
+  onSuccess,
 }: {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
 }) {
-  const [activeTab, setActiveTab] = useState<"UPLOAD" | "MULTIPLE_CHOICE">("UPLOAD");
+  const [activeTab, setActiveTab] = useState<"UPLOAD" | "MULTIPLE_CHOICE">(
+    "UPLOAD",
+  );
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [selectedClass, setSelectedClass] = useState("");
@@ -385,29 +448,34 @@ function CreateAssignmentModal({
   const [rewardStars, setRewardStars] = useState("0");
   const [book, setBook] = useState("");
   const [pages, setPages] = useState("");
-  const [submissionType, setSubmissionType] = useState<"FILE" | "IMAGE" | "TEXT" | "LINK" | "MULTIPLE_CHOICE">("FILE");
+  const [submissionType, setSubmissionType] = useState<
+    "FILE" | "IMAGE" | "TEXT" | "LINK" | "MULTIPLE_CHOICE"
+  >("FILE");
   const [instructions, setInstructions] = useState("");
   const [expectedAnswer, setExpectedAnswer] = useState("");
   const [rubric, setRubric] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
-  
+
   const [questions, setQuestions] = useState<BuilderQuestion[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState("");
   const [currentOptions, setCurrentOptions] = useState<BuilderQuestionOption[]>(
-    createEmptyBuilderOptions()
+    createEmptyBuilderOptions(),
   );
   const [currentExplanation, setCurrentExplanation] = useState("");
   const [currentPoints, setCurrentPoints] = useState("10");
   const [showQuestionForm, setShowQuestionForm] = useState(false);
   const [timeLimitMinutes, setTimeLimitMinutes] = useState("0");
-  
+
   const [showImportBankModal, setShowImportBankModal] = useState(false);
   const [showImportExcelModal, setShowImportExcelModal] = useState(false);
   const [showAiCreatorModal, setShowAiCreatorModal] = useState(false);
-  const [aiCreatorCourseOptions, setAiCreatorCourseOptions] = useState<Array<{ id: string; name: string }>>([]);
-  const [isLoadingAiCreatorCourses, setIsLoadingAiCreatorCourses] = useState(false);
-  
+  const [aiCreatorCourseOptions, setAiCreatorCourseOptions] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
+  const [isLoadingAiCreatorCourses, setIsLoadingAiCreatorCourses] =
+    useState(false);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [classes, setClasses] = useState<ClassOption[]>([]);
@@ -432,10 +500,10 @@ function CreateAssignmentModal({
       }
 
       const target = event.target as HTMLElement;
-      
+
       // Check if click is from Select dropdown (trigger or content)
       // SelectContent được render vào document.body nên cần check riêng
-      if (target.closest('[data-state]') || target.closest('[role="option"]')) {
+      if (target.closest("[data-state]") || target.closest('[role="option"]')) {
         return;
       }
 
@@ -505,26 +573,31 @@ function CreateAssignmentModal({
   }, [selectedSession, sessions, dueDate]);
 
   const addOption = () => {
-    setCurrentOptions([...currentOptions, { id: crypto.randomUUID(), text: "", isCorrect: false }]);
+    setCurrentOptions([
+      ...currentOptions,
+      { id: crypto.randomUUID(), text: "", isCorrect: false },
+    ]);
   };
 
   const removeOption = (id: string) => {
     if (currentOptions.length > 2) {
-      setCurrentOptions(currentOptions.filter(opt => opt.id !== id));
+      setCurrentOptions(currentOptions.filter((opt) => opt.id !== id));
     }
   };
 
   const updateOptionText = (id: string, text: string) => {
-    setCurrentOptions(currentOptions.map(opt => 
-      opt.id === id ? { ...opt, text } : opt
-    ));
+    setCurrentOptions(
+      currentOptions.map((opt) => (opt.id === id ? { ...opt, text } : opt)),
+    );
   };
 
   const toggleCorrectOption = (id: string) => {
-    setCurrentOptions(currentOptions.map(opt => ({
-      ...opt,
-      isCorrect: opt.id === id
-    })));
+    setCurrentOptions(
+      currentOptions.map((opt) => ({
+        ...opt,
+        isCorrect: opt.id === id,
+      })),
+    );
   };
 
   const addQuestion = () => {
@@ -532,22 +605,25 @@ function CreateAssignmentModal({
       setError("Vui lòng nhập câu hỏi");
       return;
     }
-    if (currentOptions.some(opt => !opt.text.trim())) {
+    if (currentOptions.some((opt) => !opt.text.trim())) {
       setError("Vui lòng nhập đầy đủ nội dung các lựa chọn");
       return;
     }
-    if (!currentOptions.some(opt => opt.isCorrect)) {
+    if (!currentOptions.some((opt) => opt.isCorrect)) {
       setError("Vui lòng chọn đáp án đúng");
       return;
     }
 
-    setQuestions([...questions, {
-      id: crypto.randomUUID(),
-      question: currentQuestion,
-      options: [...currentOptions],
-      explanation: currentExplanation || undefined,
-      points: parseInt(currentPoints) || 10
-    }]);
+    setQuestions([
+      ...questions,
+      {
+        id: crypto.randomUUID(),
+        question: currentQuestion,
+        options: [...currentOptions],
+        explanation: currentExplanation || undefined,
+        points: parseInt(currentPoints) || 10,
+      },
+    ]);
 
     setCurrentQuestion("");
     setCurrentOptions(createEmptyBuilderOptions());
@@ -558,9 +634,9 @@ function CreateAssignmentModal({
   };
 
   const removeQuestion = (id: string) => {
-    setQuestions(questions.filter(q => q.id !== id));
+    setQuestions(questions.filter((q) => q.id !== id));
   };
-  
+
   const loadAiCreatorCourses = async () => {
     if (aiCreatorCourseOptions.length > 0 || isLoadingAiCreatorCourses) {
       return;
@@ -573,14 +649,14 @@ function CreateAssignmentModal({
         activePrograms.length > 0
           ? activePrograms
           : (await getAllProgramsForDropdown()).filter(
-              (program) => program.isActive !== false
+              (program) => program.isActive !== false,
             );
 
       setAiCreatorCourseOptions(
         fallbackPrograms.map((program) => ({
           id: program.id,
           name: program.name || program.code || program.id,
-        }))
+        })),
       );
     } catch (loadError) {
       console.error("Error loading AI creator courses:", loadError);
@@ -601,7 +677,9 @@ function CreateAssignmentModal({
       .filter((item): item is BuilderQuestion => Boolean(item));
 
     if (mappedQuestions.length === 0) {
-      throw new Error("AI chưa tạo được câu hỏi trắc nghiệm hợp lệ để thêm vào bài tập.");
+      throw new Error(
+        "AI chưa tạo được câu hỏi trắc nghiệm hợp lệ để thêm vào bài tập.",
+      );
     }
 
     setQuestions((prev) => [...prev, ...mappedQuestions]);
@@ -610,11 +688,11 @@ function CreateAssignmentModal({
   };
 
   const handleImportFromBank = (importedQuestions: BuilderQuestion[]) => {
-    setQuestions(prev => [...prev, ...importedQuestions]);
+    setQuestions((prev) => [...prev, ...importedQuestions]);
   };
-  
+
   const handleImportFromExcel = (importedQuestions: BuilderQuestion[]) => {
-    setQuestions(prev => [...prev, ...importedQuestions]);
+    setQuestions((prev) => [...prev, ...importedQuestions]);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -638,7 +716,10 @@ function CreateAssignmentModal({
         variant: "destructive",
         duration: 3000,
       });
-      classSelectRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      classSelectRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
       return;
     }
     if (!dueDate) {
@@ -649,7 +730,10 @@ function CreateAssignmentModal({
         duration: 3000,
       });
       dueDateRef.current?.focus();
-      dueDateRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      dueDateRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
       return;
     }
     if (activeTab === "MULTIPLE_CHOICE" && questions.length === 0) {
@@ -667,12 +751,12 @@ function CreateAssignmentModal({
 
     try {
       if (activeTab === "MULTIPLE_CHOICE") {
-        const apiQuestions: MultipleChoiceQuestion[] = questions.map(q => {
-          const correctIndex = q.options.findIndex(opt => opt.isCorrect);
+        const apiQuestions: MultipleChoiceQuestion[] = questions.map((q) => {
+          const correctIndex = q.options.findIndex((opt) => opt.isCorrect);
           return {
             questionText: q.question,
             questionType: "multipleChoice",
-            options: q.options.map(opt => opt.text),
+            options: q.options.map((opt) => opt.text),
             correctAnswer: String(correctIndex),
             points: q.points || 10,
             explanation: q.explanation,
@@ -687,14 +771,17 @@ function CreateAssignmentModal({
           dueAt: `${dueDate}T${dueTime}:00+07:00`,
           rewardStars: rewardStars ? parseInt(rewardStars) : undefined,
           instructions: instructions || undefined,
-          timeLimitMinutes: timeLimitMinutes ? parseInt(timeLimitMinutes) : undefined,
+          timeLimitMinutes: timeLimitMinutes
+            ? parseInt(timeLimitMinutes)
+            : undefined,
           questions: apiQuestions,
         });
 
         if (result.ok) {
           toast({
             title: "Thành công",
-            description: "Bài tập trắc nghiệm đã được tạo và giao cho học viên.",
+            description:
+              "Bài tập trắc nghiệm đã được tạo và giao cho học viên.",
             variant: "success",
             duration: 5000,
           });
@@ -720,7 +807,7 @@ function CreateAssignmentModal({
                     uploadResult.error ||
                     uploadResult.title ||
                     `KhÃ´ng thá»ƒ táº£i file ${attachment.name}`
-                : `KhÃ´ng thá»ƒ táº£i file ${attachment.name}`
+                : `KhÃ´ng thá»ƒ táº£i file ${attachment.name}`,
             );
             return;
           }
@@ -736,7 +823,12 @@ function CreateAssignmentModal({
           dueAt: `${dueDate}T${dueTime}:00+07:00`,
           book: book || undefined,
           pages: pages || undefined,
-          submissionType: submissionType as "FILE" | "IMAGE" | "TEXT" | "LINK" | undefined,
+          submissionType: submissionType as
+            | "FILE"
+            | "IMAGE"
+            | "TEXT"
+            | "LINK"
+            | undefined,
           maxScore: maxScore ? parseInt(maxScore) : undefined,
           rewardStars: rewardStars ? parseInt(rewardStars) : undefined,
           instructions: instructions || undefined,
@@ -744,9 +836,13 @@ function CreateAssignmentModal({
           rubric: rubric || undefined,
           attachment: uploadedAttachmentUrls[0] || undefined,
           attachmentUrls:
-            uploadedAttachmentUrls.length > 0 ? uploadedAttachmentUrls : undefined,
+            uploadedAttachmentUrls.length > 0
+              ? uploadedAttachmentUrls
+              : undefined,
           attachments:
-            uploadedAttachmentUrls.length > 0 ? uploadedAttachmentUrls : undefined,
+            uploadedAttachmentUrls.length > 0
+              ? uploadedAttachmentUrls
+              : undefined,
         };
 
         const result = await createHomework(payload);
@@ -785,9 +881,16 @@ function CreateAssignmentModal({
 
   const isMultipleChoice = activeTab === "MULTIPLE_CHOICE";
   const selectedClassOption = classes.find((item) => item.id === selectedClass);
-  const selectedSessionOption = sessions.find((item) => item.id === selectedSession);
-  const totalQuestionPoints = questions.reduce((sum, item) => sum + (item.points || 0), 0);
-  const dueDateTimeLabel = dueDate ? `${dueDate}${dueTime ? ` ${dueTime}` : ""}` : "Chưa chọn";
+  const selectedSessionOption = sessions.find(
+    (item) => item.id === selectedSession,
+  );
+  const totalQuestionPoints = questions.reduce(
+    (sum, item) => sum + (item.points || 0),
+    0,
+  );
+  const dueDateTimeLabel = dueDate
+    ? `${dueDate}${dueTime ? ` ${dueTime}` : ""}`
+    : "Chưa chọn";
   const submissionTypeLabel =
     submissionType === "TEXT"
       ? "Nhập text"
@@ -795,7 +898,7 @@ function CreateAssignmentModal({
         ? "Nộp ảnh"
         : submissionType === "LINK"
           ? "Nộp link"
-        : "Nộp file";
+          : "Nộp file";
 
   return (
     <>
@@ -837,7 +940,7 @@ function CreateAssignmentModal({
                   "py-3 px-4 text-sm font-medium border-b-2 transition-all cursor-pointer",
                   activeTab === "UPLOAD"
                     ? "border-red-600 text-red-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300",
                 )}
               >
                 <div className="flex items-center gap-2">
@@ -851,7 +954,7 @@ function CreateAssignmentModal({
                   "py-3 px-4 text-sm font-medium border-b-2 transition-all cursor-pointer",
                   activeTab === "MULTIPLE_CHOICE"
                     ? "border-red-600 text-red-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300",
                 )}
               >
                 <div className="flex items-center gap-2">
@@ -892,7 +995,10 @@ function CreateAssignmentModal({
                     <Users size={16} className="text-red-600" />
                     Lớp học <span className="text-red-500">*</span>
                   </label>
-                  <div onClick={(e) => e.stopPropagation()} ref={classSelectRef}>
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    ref={classSelectRef}
+                  >
                     <Select
                       value={selectedClass}
                       onValueChange={(val) => {
@@ -902,7 +1008,11 @@ function CreateAssignmentModal({
                       disabled={isLoadingClasses}
                     >
                       <SelectTrigger className="w-full border-gray-200 rounded-xl">
-                        <SelectValue placeholder={isLoadingClasses ? "Đang tải..." : "Chọn lớp học..."} />
+                        <SelectValue
+                          placeholder={
+                            isLoadingClasses ? "Đang tải..." : "Chọn lớp học..."
+                          }
+                        />
                       </SelectTrigger>
                       <SelectContent>
                         {classes.map((cls) => (
@@ -926,18 +1036,21 @@ function CreateAssignmentModal({
                       disabled={!selectedClass || isLoadingSessions}
                     >
                       <SelectTrigger className="w-full border-gray-200 rounded-xl">
-                        <SelectValue placeholder={
-                          !selectedClass
-                            ? "Chọn lớp trước"
-                            : isLoadingSessions
-                              ? "Đang tải..."
-                              : "Chọn buổi học..."
-                        } />
+                        <SelectValue
+                          placeholder={
+                            !selectedClass
+                              ? "Chọn lớp trước"
+                              : isLoadingSessions
+                                ? "Đang tải..."
+                                : "Chọn buổi học..."
+                          }
+                        />
                       </SelectTrigger>
                       <SelectContent>
                         {sessions.map((session) => (
                           <SelectItem key={session.id} value={session.id}>
-                            {session.name} {session.date ? `(${session.date})` : ""}
+                            {session.name}{" "}
+                            {session.date ? `(${session.date})` : ""}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -996,8 +1109,6 @@ function CreateAssignmentModal({
                   </div>
                 )}
               </div>
-
-              
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
@@ -1065,9 +1176,12 @@ function CreateAssignmentModal({
                     <Award size={16} className="text-red-600" />
                     Tổng điểm bài trắc nghiệm
                   </div>
-                  <p className="mt-2 text-2xl font-bold text-gray-900">{totalQuestionPoints || 0}</p>
+                  <p className="mt-2 text-2xl font-bold text-gray-900">
+                    {totalQuestionPoints || 0}
+                  </p>
                   <p className="mt-1 text-xs text-gray-500">
-                    Tự tính từ tổng điểm các câu hỏi, không cần teacher nhập tay.
+                    Tự tính từ tổng điểm các câu hỏi, không cần teacher nhập
+                    tay.
                   </p>
                 </div>
               )}
@@ -1086,33 +1200,41 @@ function CreateAssignmentModal({
 
               <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
                 <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                  <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Loại bài</p>
+                  <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
+                    Loại bài
+                  </p>
                   <p className="mt-2 text-sm font-semibold text-gray-900">
                     {isMultipleChoice ? "Multiple choice" : "Bài tập thường"}
                   </p>
                 </div>
                 <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                  <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Lớp học</p>
+                  <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
+                    Lớp học
+                  </p>
                   <p className="mt-2 text-sm font-semibold text-gray-900">
                     {selectedClassOption?.name || "Chưa chọn"}
                   </p>
                 </div>
                 <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                  <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Buổi học</p>
+                  <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
+                    Buổi học
+                  </p>
                   <p className="mt-2 text-sm font-semibold text-gray-900">
                     {selectedSessionOption?.name || "Không gắn buổi"}
                   </p>
                 </div>
                 <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                  <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Hạn nộp</p>
-                  <p className="mt-2 text-sm font-semibold text-gray-900">{dueDateTimeLabel}</p>
+                  <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
+                    Hạn nộp
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-gray-900">
+                    {dueDateTimeLabel}
+                  </p>
                 </div>
               </div>
 
               {activeTab === "UPLOAD" ? (
                 <>
-                  
-
                   <div className="space-y-3">
                     <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                       <Upload size={16} className="text-red-600" />
@@ -1120,40 +1242,76 @@ function CreateAssignmentModal({
                     </label>
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
                       {[
-                        { value: "FILE", label: "Nộp file", hint: "Phù hợp khi học viên cần tải bài lên." },
-                        { value: "TEXT", label: "Nhập text", hint: "Phù hợp cho câu trả lời ngắn hoặc tự luận." },
-                        { value: "IMAGE", label: "Nộp ảnh", hint: "Phù hợp khi học viên gửi ảnh bài làm hoặc sản phẩm thủ công." },
-                        { value: "LINK", label: "Nộp link", hint: "Phù hợp cho Google Docs, Drive hoặc sản phẩm online." },
+                        {
+                          value: "FILE",
+                          label: "Nộp file",
+                          hint: "Phù hợp khi học viên cần tải bài lên.",
+                        },
+                        {
+                          value: "TEXT",
+                          label: "Nhập text",
+                          hint: "Phù hợp cho câu trả lời ngắn hoặc tự luận.",
+                        },
+                        {
+                          value: "IMAGE",
+                          label: "Nộp ảnh",
+                          hint: "Phù hợp khi học viên gửi ảnh bài làm hoặc sản phẩm thủ công.",
+                        },
+                        {
+                          value: "LINK",
+                          label: "Nộp link",
+                          hint: "Phù hợp cho Google Docs, Drive hoặc sản phẩm online.",
+                        },
                       ].map((option) => {
                         const isSelected = submissionType === option.value;
                         return (
                           <button
                             key={option.value}
                             type="button"
-                            onClick={() => setSubmissionType(option.value as "FILE" | "IMAGE" | "TEXT" | "LINK")}
+                            onClick={() =>
+                              setSubmissionType(
+                                option.value as
+                                  | "FILE"
+                                  | "IMAGE"
+                                  | "TEXT"
+                                  | "LINK",
+                              )
+                            }
                             className={clsx(
                               "rounded-2xl border p-4 text-left transition-all cursor-pointer",
                               isSelected
                                 ? "border-red-300 bg-red-50 shadow-sm"
-                                : "border-gray-200 bg-white hover:border-red-200 hover:bg-red-50/40"
+                                : "border-gray-200 bg-white hover:border-red-200 hover:bg-red-50/40",
                             )}
                           >
-                            <p className={clsx("text-sm font-semibold", isSelected ? "text-red-700" : "text-gray-900")}>
+                            <p
+                              className={clsx(
+                                "text-sm font-semibold",
+                                isSelected ? "text-red-700" : "text-gray-900",
+                              )}
+                            >
                               {option.label}
                             </p>
-                            <p className="mt-1 text-xs text-gray-500">{option.hint}</p>
+                            <p className="mt-1 text-xs text-gray-500">
+                              {option.hint}
+                            </p>
                           </button>
                         );
                       })}
                     </div>
-                    <p className="text-xs text-gray-500">Teacher đang chọn: {submissionTypeLabel}.</p>
+                    <p className="text-xs text-gray-500">
+                      Teacher đang chọn: {submissionTypeLabel}.
+                    </p>
                   </div>
 
                   <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-4 space-y-4">
                     <div>
-                      <p className="text-sm font-semibold text-gray-900">Hướng dẫn chấm điểm</p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        Hướng dẫn chấm điểm
+                      </p>
                       <p className="text-xs text-gray-500">
-                        Chỉ nhập khi teacher muốn chuẩn hóa cách chấm hoặc lưu đáp án mẫu.
+                        Chỉ nhập khi teacher muốn chuẩn hóa cách chấm hoặc lưu
+                        đáp án mẫu.
                       </p>
                     </div>
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -1193,7 +1351,9 @@ function CreateAssignmentModal({
                     </label>
                     <div
                       className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-red-300 transition-colors cursor-pointer"
-                      onClick={() => document.getElementById("file-upload-input")?.click()}
+                      onClick={() =>
+                        document.getElementById("file-upload-input")?.click()
+                      }
                       onDragOver={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
@@ -1221,9 +1381,16 @@ function CreateAssignmentModal({
                           e.target.value = "";
                         }}
                       />
-                      <UploadCloud size={32} className="mx-auto text-gray-400 mb-2" />
-                      <p className="text-sm text-gray-600">Kéo thả file vào đây hoặc click để chọn</p>
-                      <p className="text-xs text-gray-500 mt-1">PDF, DOCX, MP3, ZIP, PNG, JPG (tối đa 50MB)</p>
+                      <UploadCloud
+                        size={32}
+                        className="mx-auto text-gray-400 mb-2"
+                      />
+                      <p className="text-sm text-gray-600">
+                        Kéo thả file vào đây hoặc click để chọn
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        PDF, DOCX, MP3, ZIP, PNG, JPG (tối đa 50MB)
+                      </p>
                     </div>
                   </div>
 
@@ -1240,7 +1407,10 @@ function CreateAssignmentModal({
                             className="flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-xl"
                           >
                             <div className="flex items-center gap-3 min-w-0">
-                              <FileText size={18} className="text-red-500 flex-shrink-0" />
+                              <FileText
+                                size={18}
+                                className="text-red-500 flex-shrink-0"
+                              />
                               <div className="min-w-0">
                                 <p className="text-sm font-medium text-gray-900 truncate max-w-[300px]">
                                   {file.name}
@@ -1254,7 +1424,9 @@ function CreateAssignmentModal({
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setAttachments((prev) => prev.filter((_, i) => i !== index));
+                                setAttachments((prev) =>
+                                  prev.filter((_, i) => i !== index),
+                                );
                               }}
                               className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer flex-shrink-0"
                             >
@@ -1278,10 +1450,11 @@ function CreateAssignmentModal({
                           {totalQuestionPoints || 0} điểm
                         </span>
                         <span className="text-gray-600">
-                          Teacher chỉ cần thêm câu hỏi, hệ thống tự dùng tổng điểm này cho bài trắc nghiệm.
+                          Teacher chỉ cần thêm câu hỏi, hệ thống tự dùng tổng
+                          điểm này cho bài trắc nghiệm.
                         </span>
                       </div>
-                      
+
                       <div className="flex flex-wrap gap-2">
                         <button
                           type="button"
@@ -1347,14 +1520,19 @@ function CreateAssignmentModal({
                       </label>
                       <div className="space-y-3">
                         {questions.map((q, index) => (
-                          <div key={q.id} className="p-4 bg-gradient-to-r from-red-50 to-amber-50 rounded-xl border border-red-200">
+                          <div
+                            key={q.id}
+                            className="p-4 bg-gradient-to-r from-red-50 to-amber-50 rounded-xl border border-red-200"
+                          >
                             <div className="flex items-start justify-between gap-2">
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-2">
                                   <span className="w-6 h-6 rounded-full bg-red-600 text-white text-xs flex items-center justify-center font-bold">
                                     {index + 1}
                                   </span>
-                                  <span className="font-medium text-gray-900">{q.question}</span>
+                                  <span className="font-medium text-gray-900">
+                                    {q.question}
+                                  </span>
                                 </div>
                                 <div className="grid grid-cols-2 gap-2 ml-8">
                                   {q.options.map((opt) => (
@@ -1364,19 +1542,33 @@ function CreateAssignmentModal({
                                         "px-3 py-2 rounded-lg text-sm border",
                                         opt.isCorrect
                                           ? "bg-emerald-50 border-emerald-300 text-emerald-700"
-                                          : "bg-white border-gray-200 text-gray-600"
+                                          : "bg-white border-gray-200 text-gray-600",
                                       )}
                                     >
                                       <div className="flex items-center gap-2">
-                                        {opt.isCorrect && <CheckCircle size={14} className="text-emerald-600" />}
-                                        <span className={opt.isCorrect ? "font-medium" : ""}>{opt.text}</span>
+                                        {opt.isCorrect && (
+                                          <CheckCircle
+                                            size={14}
+                                            className="text-emerald-600"
+                                          />
+                                        )}
+                                        <span
+                                          className={
+                                            opt.isCorrect ? "font-medium" : ""
+                                          }
+                                        >
+                                          {opt.text}
+                                        </span>
                                       </div>
                                     </div>
                                   ))}
                                 </div>
                                 {q.explanation && (
                                   <div className="mt-2 ml-8 text-xs text-gray-500 bg-white p-2 rounded-lg border border-gray-200">
-                                    <span className="font-medium">Giải thích:</span> {q.explanation}
+                                    <span className="font-medium">
+                                      Giải thích:
+                                    </span>{" "}
+                                    {q.explanation}
                                   </div>
                                 )}
                                 <div className="mt-2 ml-8 text-xs font-medium text-red-600">
@@ -1411,7 +1603,9 @@ function CreateAssignmentModal({
                   {showQuestionForm && (
                     <div className="p-4 bg-gradient-to-r from-red-50 to-amber-50 rounded-xl border border-red-200 space-y-4">
                       <div className="flex items-center justify-between">
-                        <h4 className="font-medium text-gray-900">Thêm câu hỏi mới</h4>
+                        <h4 className="font-medium text-gray-900">
+                          Thêm câu hỏi mới
+                        </h4>
                         <button
                           type="button"
                           onClick={() => {
@@ -1429,7 +1623,9 @@ function CreateAssignmentModal({
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700">Câu hỏi</label>
+                        <label className="text-sm font-medium text-gray-700">
+                          Câu hỏi
+                        </label>
                         <textarea
                           value={currentQuestion}
                           onChange={(e) => setCurrentQuestion(e.target.value)}
@@ -1440,7 +1636,9 @@ function CreateAssignmentModal({
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700">Các lựa chọn</label>
+                        <label className="text-sm font-medium text-gray-700">
+                          Các lựa chọn
+                        </label>
                         {currentOptions.map((opt, index) => (
                           <div key={opt.id} className="flex items-center gap-2">
                             <div className="flex-1 flex items-center gap-2">
@@ -1450,7 +1648,9 @@ function CreateAssignmentModal({
                               <input
                                 type="text"
                                 value={opt.text}
-                                onChange={(e) => updateOptionText(opt.id, e.target.value)}
+                                onChange={(e) =>
+                                  updateOptionText(opt.id, e.target.value)
+                                }
                                 className="flex-1 px-3 py-2 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-red-300"
                                 placeholder={`Lựa chọn ${String.fromCharCode(65 + index)}`}
                               />
@@ -1462,7 +1662,7 @@ function CreateAssignmentModal({
                                 "p-2 rounded-lg transition-colors cursor-pointer",
                                 opt.isCorrect
                                   ? "bg-emerald-100 text-emerald-700"
-                                  : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                                  : "bg-gray-100 text-gray-500 hover:bg-gray-200",
                               )}
                               title="Đánh dấu là đáp án đúng"
                             >
@@ -1491,10 +1691,14 @@ function CreateAssignmentModal({
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700">Giải thích (không bắt buộc)</label>
+                        <label className="text-sm font-medium text-gray-700">
+                          Giải thích (không bắt buộc)
+                        </label>
                         <textarea
                           value={currentExplanation}
-                          onChange={(e) => setCurrentExplanation(e.target.value)}
+                          onChange={(e) =>
+                            setCurrentExplanation(e.target.value)
+                          }
                           rows={2}
                           className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-red-300"
                           placeholder="Giải thích đáp án đúng..."
@@ -1502,7 +1706,9 @@ function CreateAssignmentModal({
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700">Điểm</label>
+                        <label className="text-sm font-medium text-gray-700">
+                          Điểm
+                        </label>
                         <input
                           type="number"
                           value={currentPoints}
@@ -1539,51 +1745,6 @@ function CreateAssignmentModal({
                   )}
                 </div>
               )}
-
-              <div className="rounded-2xl border border-gray-200 bg-gray-50/80">
-                <button
-                  type="button"
-                  onClick={() => setShowAdvancedSettings((prev) => !prev)}
-                  className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left cursor-pointer"
-                >
-                  <div className="flex items-center gap-2">
-                    <Tag size={16} className="text-red-600" />
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">Lưu ý gamification</p>
-                      <p className="text-xs text-gray-500">
-                        Homework public API hiện để backend tự xử lý progress và reward, không còn nhận `missionId`.
-                      </p>
-                    </div>
-                  </div>
-                  {showAdvancedSettings ? (
-                    <ChevronUp size={18} className="text-gray-500" />
-                  ) : (
-                    <ChevronDown size={18} className="text-gray-500" />
-                  )}
-                </button>
-
-                {showAdvancedSettings && (
-                  <div className="border-t border-gray-200 px-4 py-4">
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                        <Tag size={16} className="text-red-600" />
-                        Mission public API đã bị ẩn
-                      </label>
-                      <input
-                        type="text"
-                        value="missionId đã bị ẩn khỏi public API"
-                        readOnly
-                        disabled
-                        className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
-                        placeholder=""
-                      />
-                      <p className="text-xs text-gray-500">
-                        HomeworkStreak hiện được backend tự theo dõi cho cả homework thường và quiz; quiz chỉ cộng RewardStars và streak ở lần nộp đúng hạn đầu tiên.
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
             </form>
           </div>
 
@@ -1618,7 +1779,7 @@ function CreateAssignmentModal({
           </div>
         </div>
       </div>
-      
+
       <ImportFromBankModal
         isOpen={showImportBankModal}
         onClose={() => setShowImportBankModal(false)}
@@ -1636,7 +1797,7 @@ function CreateAssignmentModal({
         useDraftsLabel="Dùng cho bài tập này"
         allowedQuestionTypes={["MultipleChoice"]}
       />
-      
+
       <ImportFromExcelModal
         isOpen={showImportExcelModal}
         onClose={() => setShowImportExcelModal(false)}
@@ -1646,11 +1807,310 @@ function CreateAssignmentModal({
   );
 }
 
+// Assignment Details Modal Component
+function AssignmentDetailsModal({
+  assignmentId,
+  onClose,
+}: {
+  assignmentId: string | null;
+  onClose: () => void;
+}) {
+  const [data, setData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!assignmentId) {
+      setIsLoading(false);
+      return;
+    }
+
+    const fetchData = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const result = await fetchHomeworkDetail(assignmentId);
+        if (result.ok && result.data) {
+          setData(result.data);
+        } else {
+          setError(result.error || "Không tìm thấy bài tập");
+        }
+      } catch (err) {
+        setError("Lỗi khi tải dữ liệu");
+        console.error(err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [assignmentId]);
+
+  if (!assignmentId) return null;
+  
+  if (isLoading) return (
+    <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-3xl bg-white rounded-2xl shadow-2xl p-8 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-4 border-red-200 border-t-red-600 rounded-full animate-spin" />
+          <p className="text-gray-600">Đang tải...</p>
+        </div>
+      </div>
+    </div>
+  );
+
+  if (error || !data) return (
+    <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-3xl bg-white rounded-2xl shadow-2xl p-8">
+        <div className="text-center">
+          <p className="text-red-600 font-semibold">{error}</p>
+          <button
+            onClick={onClose}
+            className="mt-4 px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors cursor-pointer"
+          >
+            Đóng
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const homework = data;
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "N/A";
+    const date = new Date(dateString);
+    return dateOnlyVN(date);
+  };
+
+  return (
+    <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <div className="relative w-full max-w-4xl max-h-[90vh] bg-white rounded-2xl shadow-2xl flex flex-col">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-2xl flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <FileText size={24} />
+            <div>
+              <h2 className="text-xl font-bold">Chi tiết bài tập</h2>
+              <p className="text-sm text-red-100">{homework.title}</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-white/20 rounded-xl transition-colors cursor-pointer"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Thông tin cơ bản */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="rounded-xl bg-red-50 border border-red-200 p-4">
+              <div className="flex items-center gap-2 text-red-600 mb-2">
+                <BookOpen size={16} />
+                <span className="text-xs font-medium uppercase">Lớp học</span>
+              </div>
+              <div className="text-sm font-semibold text-gray-900">
+                {homework.classTitle || homework.classCode || "N/A"}
+              </div>
+              {homework.classCode && (
+                <div className="text-xs text-gray-500 mt-1">{homework.classCode}</div>
+              )}
+            </div>
+            <div className="rounded-xl bg-red-50 border border-red-200 p-4">
+              <div className="flex items-center gap-2 text-red-600 mb-2">
+                <Calendar size={16} />
+                <span className="text-xs font-medium uppercase">Hạn nộp</span>
+              </div>
+              <div className="text-sm font-semibold text-gray-900">
+                {formatDate(homework.dueAt)}
+              </div>
+            </div>
+            <div className="rounded-xl bg-red-50 border border-red-200 p-4">
+              <div className="flex items-center gap-2 text-red-600 mb-2">
+                <Tag size={16} />
+                <span className="text-xs font-medium uppercase">Loại nộp</span>
+              </div>
+              <div className="text-sm font-semibold text-gray-900">
+                {homework.submissionType || "File"}
+              </div>
+            </div>
+            <div className="rounded-xl bg-red-50 border border-red-200 p-4">
+              <div className="flex items-center gap-2 text-red-600 mb-2">
+                <Award size={16} />
+                <span className="text-xs font-medium uppercase">Điểm tối đa</span>
+              </div>
+              <div className="text-sm font-semibold text-gray-900">
+                {homework.maxScore || "N/A"}
+              </div>
+            </div>
+          </div>
+
+          {/* Tiêu đề */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Tiêu đề bài tập
+            </label>
+            <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-gray-900 font-medium">
+              {homework.title}
+            </div>
+          </div>
+
+          {/* Mô tả */}
+          {homework.description && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Mô tả bài tập
+              </label>
+              <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-gray-700 whitespace-pre-wrap">
+                {homework.description}
+              </div>
+            </div>
+          )}
+
+          {/* Hướng dẫn */}
+          {homework.instructions && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Hướng dẫn
+              </label>
+              <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-gray-700 whitespace-pre-wrap">
+                {homework.instructions}
+              </div>
+            </div>
+          )}
+
+          {/* Đáp án mong đợi */}
+          {homework.expectedAnswer && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Đáp án mong đợi
+              </label>
+              <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-gray-700 whitespace-pre-wrap">
+                {homework.expectedAnswer}
+              </div>
+            </div>
+          )}
+
+          {/* Rubric */}
+          {homework.rubric && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Tiêu chí chấm
+              </label>
+              <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-gray-700 whitespace-pre-wrap">
+                {homework.rubric}
+              </div>
+            </div>
+          )}
+
+          {/* Tệp đính kèm */}
+          {homework.attachmentUrl && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Tệp đính kèm
+              </label>
+              <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-red-50 border border-red-200">
+                <Paperclip size={16} className="text-red-600" />
+                <a
+                  href={homework.attachmentUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-red-600 hover:text-red-700 font-medium truncate"
+                >
+                  {homework.attachmentUrl.split("/").pop()}
+                </a>
+              </div>
+            </div>
+          )}
+
+          {/* Danh sách câu hỏi */}
+          {homework.questions && homework.questions.length > 0 && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                Câu hỏi ({homework.questions.length} câu)
+              </label>
+              <div className="space-y-4">
+                {homework.questions.map((question: any, index: number) => (
+                  <div
+                    key={question.id}
+                    className="p-4 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100/50 transition-colors"
+                  >
+                    <div className="flex items-start gap-3 mb-3">
+                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center text-xs font-semibold">
+                        {index + 1}
+                      </span>
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-gray-900">{question.questionText}</p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-600 text-white">
+                            {question.points} điểm
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Các tùy chọn */}
+                    {question.options && question.options.length > 0 && (
+                      <div className="ml-9 space-y-2 mb-3">
+                        {question.options.map((option: string, optionIndex: number) => (
+                          <div
+                            key={optionIndex}
+                            className={`p-2 rounded-lg text-sm border ${
+                              option === question.correctAnswer
+                                ? "bg-emerald-50 text-emerald-900 border-emerald-300 font-medium"
+                                : "bg-white text-gray-700 border-gray-200"
+                            }`}
+                          >
+                            <span className="font-medium">{String.fromCharCode(65 + optionIndex)}.</span> {option}
+                            {option === question.correctAnswer && (
+                              <span className="ml-2 text-xs font-semibold text-emerald-600">✓ Đáp án đúng</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Giải thích */}
+                    {question.explanation && (
+                      <div className="ml-9 p-2 rounded-lg bg-white border border-red-300">
+                        <div className="text-xs font-semibold text-red-900 mb-1">Giải thích:</div>
+                        <div className="text-xs text-red-800">{question.explanation}</div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="border-t border-red-200 bg-gradient-to-r from-red-50 to-red-100 px-6 py-4 rounded-b-2xl flex items-center justify-end flex-shrink-0">
+          <button
+            onClick={onClose}
+            className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:from-red-700 hover:to-red-800 transition-all cursor-pointer"
+          >
+            Đóng
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Update Assignment Modal Component
 function UpdateAssignmentModal({
   homework,
   onClose,
-  onSuccess
+  onSuccess,
 }: {
   homework: Submission;
   onClose: () => void;
@@ -1670,7 +2130,7 @@ function UpdateAssignmentModal({
       }
       return {
         date: dateOnlyVN(dateObj),
-        time: `${String(dateObj.getHours()).padStart(2, "0")}:${String(dateObj.getMinutes()).padStart(2, "0")}`
+        time: `${String(dateObj.getHours()).padStart(2, "0")}:${String(dateObj.getMinutes()).padStart(2, "0")}`,
       };
     } catch {
       return { date: "", time: "23:59" };
@@ -1701,7 +2161,10 @@ function UpdateAssignmentModal({
         duration: 3000,
       });
       updateTitleRef.current?.focus();
-      updateTitleRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      updateTitleRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
       return;
     }
     if (!dueDate) {
@@ -1712,7 +2175,10 @@ function UpdateAssignmentModal({
         duration: 3000,
       });
       updateDueDateRef.current?.focus();
-      updateDueDateRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      updateDueDateRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
       return;
     }
 
@@ -1764,7 +2230,10 @@ function UpdateAssignmentModal({
 
   return (
     <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={onClose}
+      />
       <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white rounded-2xl shadow-2xl">
         <div className="sticky top-0 bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-2xl flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -1774,7 +2243,10 @@ function UpdateAssignmentModal({
               <p className="text-sm text-red-100">{homework.assignmentTitle}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-xl transition-colors cursor-pointer">
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-white/20 rounded-xl transition-colors cursor-pointer"
+          >
             <X size={20} />
           </button>
         </div>
@@ -1792,7 +2264,9 @@ function UpdateAssignmentModal({
                 <Users size={16} />
                 <span className="text-xs font-medium uppercase">Học viên</span>
               </div>
-              <div className="text-base font-semibold text-gray-900">{homework.student}</div>
+              <div className="text-base font-semibold text-gray-900">
+                {homework.student}
+              </div>
               <div className="text-xs text-gray-500">{homework.studentId}</div>
             </div>
             <div className="bg-red-50/50 rounded-xl p-4 border border-red-100">
@@ -1800,7 +2274,9 @@ function UpdateAssignmentModal({
                 <BookMarked size={16} />
                 <span className="text-xs font-medium uppercase">Lớp học</span>
               </div>
-              <div className="text-base font-semibold text-gray-900">{homework.className}</div>
+              <div className="text-base font-semibold text-gray-900">
+                {homework.className}
+              </div>
             </div>
           </div>
 
@@ -1857,8 +2333,6 @@ function UpdateAssignmentModal({
             </div>
           </div>
 
-          
-
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-red-100">
             <button
               type="button"
@@ -1897,7 +2371,9 @@ export default function TeacherAssignmentsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedClass, setSelectedClass] = useState<string>("ALL");
   const [isPageLoaded, setIsPageLoaded] = useState(false);
-  const [sortColumn, setSortColumn] = useState<"student" | "assignment" | "turnIn" | null>(null);
+  const [sortColumn, setSortColumn] = useState<
+    "student" | "assignment" | "turnIn" | null
+  >(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [currentPage, setCurrentPage] = useState(1);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -1905,61 +2381,79 @@ export default function TeacherAssignmentsPage() {
   const [homeworkToDelete, setHomeworkToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
-  const [homeworkToUpdate, setHomeworkToUpdate] = useState<Submission | null>(null);
+  const [homeworkToUpdate, setHomeworkToUpdate] = useState<Submission | null>(
+    null,
+  );
   const [isUpdating, setIsUpdating] = useState(false);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [meta, setMeta] = useState<{ totalItems: number; totalPages: number; pageNumber: number; pageSize: number }>({
+  const [assignmentDetailsModalOpen, setAssignmentDetailsModalOpen] =
+    useState(false);
+  const [selectedAssignmentForDetails, setSelectedAssignmentForDetails] =
+    useState<string | null>(null);
+  const [meta, setMeta] = useState<{
+    totalItems: number;
+    totalPages: number;
+    pageNumber: number;
+    pageSize: number;
+  }>({
     totalItems: 0,
     totalPages: 0,
     pageNumber: 1,
-    pageSize: 10
+    pageSize: 10,
   });
-  
+
   const itemsPerPage = 10;
 
-  const loadHomework = useCallback(async (page: number = 1) => {
-    setIsLoading(true);
-    setCurrentPage(page);
-    try {
-      const result = await get<any>(`/api/homework/my-created?pageNumber=${page}&pageSize=${itemsPerPage}${
-        selectedClass !== "ALL" ? `&classId=${selectedClass}` : ""
-      }`);
+  const loadHomework = useCallback(
+    async (page: number = 1) => {
+      setIsLoading(true);
+      setCurrentPage(page);
+      try {
+        const result = await get<any>(
+          `/api/homework/my-created?pageNumber=${page}&pageSize=${itemsPerPage}${
+            selectedClass !== "ALL" ? `&classId=${selectedClass}` : ""
+          }`,
+        );
 
-      console.log("API Response:", result);
+        console.log("API Response:", result);
 
-      if (result?.data) {
-        // Parse response structure: result.data.homeworkAssignments.items
-        const homeworkData = result.data?.homeworkAssignments;
-        const items = homeworkData?.items || [];
-        
-        console.log("Mapped items:", items);
-        const mappedSubmissions = (Array.isArray(items) ? items : []).map((item: any) => mapSubmissionToUi(item));
-        
-        console.log("Mapped submissions:", mappedSubmissions);
-        setSubmissions(mappedSubmissions);
-        
-        // Get totalStudents from homeworkAssignments or first item
-        const totalStudents = homeworkData?.totalStudents || 0;
-        
-        setMeta({
-          totalItems: totalStudents,
-          totalPages: Math.ceil(totalStudents / itemsPerPage),
-          pageNumber: page,
-          pageSize: itemsPerPage
-        });
-      } else {
-        console.error("Failed to fetch homework");
+        if (result?.data) {
+          // Parse response structure: result.data.homeworkAssignments.items
+          const homeworkData = result.data?.homeworkAssignments;
+          const items = homeworkData?.items || [];
+
+          console.log("Mapped items:", items);
+          const mappedSubmissions = (Array.isArray(items) ? items : []).map(
+            (item: any) => mapSubmissionToUi(item),
+          );
+
+          console.log("Mapped submissions:", mappedSubmissions);
+          setSubmissions(mappedSubmissions);
+
+          // Get totalStudents from homeworkAssignments or first item
+          const totalStudents = homeworkData?.totalStudents || 0;
+
+          setMeta({
+            totalItems: totalStudents,
+            totalPages: Math.ceil(totalStudents / itemsPerPage),
+            pageNumber: page,
+            pageSize: itemsPerPage,
+          });
+        } else {
+          console.error("Failed to fetch homework");
+          setSubmissions([]);
+        }
+      } catch (error) {
+        console.error("Error loading homework:", error);
         setSubmissions([]);
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error("Error loading homework:", error);
-      setSubmissions([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [selectedClass, itemsPerPage]);
+    },
+    [selectedClass, itemsPerPage],
+  );
 
   const handleDeleteHomework = (id: string) => {
     setHomeworkToDelete(id);
@@ -1990,7 +2484,8 @@ export default function TeacherAssignmentsPage() {
       } else {
         toast({
           title: "Lỗi",
-          description: result.error || "Không thể xóa bài tập. Vui lòng thử lại.",
+          description:
+            result.error || "Không thể xóa bài tập. Vui lòng thử lại.",
           variant: "destructive",
           duration: 5000,
         });
@@ -2014,6 +2509,12 @@ export default function TeacherAssignmentsPage() {
     setUpdateModalOpen(true);
   };
 
+  const handleViewAssignmentDetails = (item: Submission) => {
+    const homeworkId = item.assignmentId || item.id;
+    setSelectedAssignmentForDetails(homeworkId);
+    setAssignmentDetailsModalOpen(true);
+  };
+
   useEffect(() => {
     loadHomework(1);
     setIsPageLoaded(true);
@@ -2024,7 +2525,7 @@ export default function TeacherAssignmentsPage() {
     setCurrentPage(1);
   }, [filter, selectedClass, loadHomework]);
 
-  const classes = Array.from(new Set(submissions.map(s => s.className)));
+  const classes = Array.from(new Set(submissions.map((s) => s.className)));
 
   const handleSort = (column: "student" | "assignment" | "turnIn") => {
     if (sortColumn === column) {
@@ -2036,10 +2537,8 @@ export default function TeacherAssignmentsPage() {
   };
 
   const handleSelect = (id: string) => {
-    setSelectedItems(prev => 
-      prev.includes(id) 
-        ? prev.filter(item => item !== id)
-        : [...prev, id]
+    setSelectedItems((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
     );
   };
 
@@ -2047,16 +2546,17 @@ export default function TeacherAssignmentsPage() {
     let result = submissions;
 
     if (selectedClass !== "ALL") {
-      result = result.filter(s => s.className === selectedClass);
+      result = result.filter((s) => s.className === selectedClass);
     }
 
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      result = result.filter(s =>
-        s.student.toLowerCase().includes(query) ||
-        s.studentId.toLowerCase().includes(query) ||
-        s.assignmentTitle.toLowerCase().includes(query) ||
-        s.className.toLowerCase().includes(query)
+      result = result.filter(
+        (s) =>
+          s.student.toLowerCase().includes(query) ||
+          s.studentId.toLowerCase().includes(query) ||
+          s.assignmentTitle.toLowerCase().includes(query) ||
+          s.className.toLowerCase().includes(query),
       );
     }
 
@@ -2073,7 +2573,14 @@ export default function TeacherAssignmentsPage() {
     }
 
     return result;
-  }, [filter, searchQuery, selectedClass, sortColumn, sortDirection, submissions]);
+  }, [
+    filter,
+    searchQuery,
+    selectedClass,
+    sortColumn,
+    sortDirection,
+    submissions,
+  ]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -2085,7 +2592,9 @@ export default function TeacherAssignmentsPage() {
     <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-6 space-y-6">
       <div
         className={`flex flex-wrap items-center justify-between gap-4 transition-all duration-700 ${
-          isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"
+          isPageLoaded
+            ? "opacity-100 translate-y-0"
+            : "opacity-0 -translate-y-4"
         }`}
       >
         <div className="flex items-center gap-4">
@@ -2097,7 +2606,8 @@ export default function TeacherAssignmentsPage() {
               Quản lý bài tập
             </h1>
             <p className="text-sm text-gray-600 mt-1">
-              Quản lý bài tập đã giao, theo dõi tiến độ nộp bài và gửi nhận xét cho học viên.
+              Quản lý bài tập đã giao, theo dõi tiến độ nộp bài và gửi nhận xét
+              cho học viên.
             </p>
           </div>
         </div>
@@ -2148,7 +2658,7 @@ export default function TeacherAssignmentsPage() {
                 Đã chấm
               </div>
               <div className="text-xl font-bold text-gray-900 leading-tight">
-                {submissions.filter(s => s.status === "REVIEWED").length}
+                {submissions.filter((s) => s.status === "REVIEWED").length}
               </div>
             </div>
           </div>
@@ -2165,7 +2675,7 @@ export default function TeacherAssignmentsPage() {
                 Chờ chấm
               </div>
               <div className="text-xl font-bold text-gray-900 leading-tight">
-                {submissions.filter(s => s.status === "PENDING").length}
+                {submissions.filter((s) => s.status === "PENDING").length}
               </div>
             </div>
           </div>
@@ -2218,7 +2728,10 @@ export default function TeacherAssignmentsPage() {
                 </option>
               ))}
             </select>
-            <ChevronDown size={16} className="absolute ml-64 pointer-events-none text-gray-400" />
+            <ChevronDown
+              size={16}
+              className="absolute ml-64 pointer-events-none text-gray-400"
+            />
           </div>
         </div>
       </div>
@@ -2234,9 +2747,7 @@ export default function TeacherAssignmentsPage() {
               Danh sách bài nộp
             </h2>
             <div className="flex items-center gap-2 text-sm text-gray-600">
-              <span className="font-medium">
-                {filtered.length} bài nộp
-              </span>
+              <span className="font-medium">{filtered.length} bài nộp</span>
             </div>
           </div>
         </div>
@@ -2270,7 +2781,9 @@ export default function TeacherAssignmentsPage() {
                   Mô tả
                 </th>
                 <th className="py-3 px-6 text-left">
-                  <span className="text-sm font-semibold text-gray-700">Thao tác</span>
+                  <span className="text-sm font-semibold text-gray-700">
+                    Thao tác
+                  </span>
                 </th>
               </tr>
             </thead>
@@ -2281,17 +2794,20 @@ export default function TeacherAssignmentsPage() {
                     <div className="flex justify-center">
                       <div className="w-8 h-8 border-4 border-red-200 border-t-red-600 rounded-full animate-spin"></div>
                     </div>
-                    <div className="text-gray-600 font-medium mt-2">Đang tải dữ liệu...</div>
+                    <div className="text-gray-600 font-medium mt-2">
+                      Đang tải dữ liệu...
+                    </div>
                   </td>
                 </tr>
               ) : submissions.length > 0 ? (
                 submissions.map((item) => (
-                  <SubmissionRow 
-                    key={item.id} 
-                    item={item} 
-                    onDelete={handleDeleteHomework} 
-                    onViewDetail={handleViewDetail} 
-                    onUpdate={handleUpdateHomework} 
+                  <SubmissionRow
+                    key={item.id}
+                    item={item}
+                    onDelete={handleDeleteHomework}
+                    onViewDetail={handleViewDetail}
+                    onUpdate={handleUpdateHomework}
+                    onViewAssignmentDetails={handleViewAssignmentDetails}
                   />
                 ))
               ) : (
@@ -2300,8 +2816,12 @@ export default function TeacherAssignmentsPage() {
                     <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
                       <Search size={24} className="text-red-400" />
                     </div>
-                    <div className="text-gray-600 font-medium">Không tìm thấy bài nộp</div>
-                    <div className="text-sm text-gray-500 mt-1">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</div>
+                    <div className="text-gray-600 font-medium">
+                      Không tìm thấy bài nộp
+                    </div>
+                    <div className="text-sm text-gray-500 mt-1">
+                      Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm
+                    </div>
                   </td>
                 </tr>
               )}
@@ -2313,8 +2833,16 @@ export default function TeacherAssignmentsPage() {
           <div className="border-t border-red-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="text-sm text-gray-600">
-                Hiển thị <span className="font-semibold text-gray-900">{(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, meta.totalItems)}</span> trong tổng số{" "}
-                <span className="font-semibold text-gray-900">{meta.totalItems}</span> bài nộp
+                Hiển thị{" "}
+                <span className="font-semibold text-gray-900">
+                  {(currentPage - 1) * itemsPerPage + 1}-
+                  {Math.min(currentPage * itemsPerPage, meta.totalItems)}
+                </span>{" "}
+                trong tổng số{" "}
+                <span className="font-semibold text-gray-900">
+                  {meta.totalItems}
+                </span>{" "}
+                bài nộp
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -2325,19 +2853,21 @@ export default function TeacherAssignmentsPage() {
                   <ChevronLeft size={18} />
                 </button>
                 <div className="flex items-center gap-1">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                    <button
-                      key={page}
-                      onClick={() => loadHomework(page)}
-                      className={`min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium transition-all cursor-pointer ${
-                        page === currentPage
-                          ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
-                          : "border border-red-200 hover:bg-red-50 text-gray-700"
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  ))}
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                    (page) => (
+                      <button
+                        key={page}
+                        onClick={() => loadHomework(page)}
+                        className={`min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+                          page === currentPage
+                            ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                            : "border border-red-200 hover:bg-red-50 text-gray-700"
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ),
+                  )}
                 </div>
                 <button
                   onClick={() => loadHomework(currentPage + 1)}
@@ -2378,6 +2908,16 @@ export default function TeacherAssignmentsPage() {
         />
       )}
 
+      {assignmentDetailsModalOpen && selectedAssignmentForDetails && (
+        <AssignmentDetailsModal
+          assignmentId={selectedAssignmentForDetails}
+          onClose={() => {
+            setAssignmentDetailsModalOpen(false);
+            setSelectedAssignmentForDetails(null);
+          }}
+        />
+      )}
+
       {deleteModalOpen && (
         <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
           <div
@@ -2391,7 +2931,7 @@ export default function TeacherAssignmentsPage() {
                 Xác nhận xóa
               </h3>
             </div>
-            
+
             <div className="p-6">
               <div className="flex items-center gap-4 mb-4">
                 <div className="p-3 bg-red-100 rounded-full">
