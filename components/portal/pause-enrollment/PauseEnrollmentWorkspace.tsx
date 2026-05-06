@@ -1324,6 +1324,7 @@ function RequestDetailModal({
 
 export default function PauseEnrollmentWorkspace({ context }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const isManagement = context !== "parent";
   const isStudentPage = context === "parent";

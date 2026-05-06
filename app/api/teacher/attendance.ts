@@ -245,7 +245,7 @@ function mapSessionToLesson(session: SessionApiItem): { lesson: LessonDetail; at
     status: sessionLike.status ?? null,
     participationType: sessionLike.participationType ?? null,
     branch: sessionLike.branchName ?? null,
-    branchId: sessionLike.branchId ?? null,
+    branchId: sessionLike.branchId != null ? String(sessionLike.branchId) : null,
     students:
       typeof sessionLike.students === "number"
         ? sessionLike.students
