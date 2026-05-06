@@ -3,3 +3,4 @@ export { default as EnrollmentFilters } from "./EnrollmentFilters";
 export { default as EnrollmentTable } from "./EnrollmentTable";
 export { default as EnrollmentFormModal } from "./EnrollmentFormModal";
 export { default as EnrollmentDetailModal } from "./EnrollmentDetailModal";
+export { default as EnrollmentScheduleSegmentModal } from "./EnrollmentScheduleSegmentModal";

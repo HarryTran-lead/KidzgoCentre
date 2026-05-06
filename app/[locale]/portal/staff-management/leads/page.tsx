@@ -78,7 +78,7 @@ import {
 } from "@/lib/api/enrollmentService";
 import { getRegistrations } from "@/lib/api/registrationService";
 import { getDomainErrorMessage } from "@/lib/api/domainErrorMessage";
-import type { Enrollment, EnrollmentStatus } from "@/types/enrollment";
+import type { CreateEnrollmentRequest, Enrollment, EnrollmentStatus } from "@/types/enrollment";
 import { StaffRegistrationOverview } from "@/components/portal/registrations";
 
 type StatusType =
@@ -1759,11 +1759,7 @@ export default function Page() {
     setIsEnrollFormModalOpen(true);
   };
 
-  const handleEnrollmentFormSubmit = async (data: {
-    classId: string;
-    studentProfileId: string;
-    enrollDate: string;
-  }) => {
+  const handleEnrollmentFormSubmit = async (data: CreateEnrollmentRequest) => {
     try {
       const response = await createEnrollment(data);
       if (response.isSuccess) {
@@ -1914,9 +1910,7 @@ export default function Page() {
         </div>
         {activeTab === "leads" ? (
           <div className="flex flex-wrap gap-2">
-            <button className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-gray-100 transition-colors cursor-pointer text-gray-700">
-              <Download size={16} /> Xuất DS
-            </button>
+            
             <button
               onClick={handleCreateLead}
               className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer hover:scale-105 active:scale-95"
@@ -1926,9 +1920,7 @@ export default function Page() {
           </div>
         ) : activeTab === "placement_tests" ? (
           <div className="flex flex-wrap gap-2">
-            <button className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-gray-100 transition-colors cursor-pointer text-gray-700">
-              <Download size={16} /> Xuất DS Test
-            </button>
+           
             <button
               onClick={handleCreateTest}
               className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer hover:scale-105 active:scale-95"
@@ -1938,9 +1930,7 @@ export default function Page() {
           </div>
         ) : activeTab === "enrollments" ? (
           <div className="flex flex-wrap gap-2">
-            <button className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-pink-50 transition-colors">
-              <Download size={16} /> Xuất DS Ghi danh
-            </button>
+            
             <button
               onClick={handleCreateEnrollment}
               className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer hover:scale-105 active:scale-95"
@@ -1948,13 +1938,7 @@ export default function Page() {
               <BookOpen size={16} /> Tạo ghi danh mới
             </button>
           </div>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            <button className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-red-700 hover:bg-red-50 transition-colors">
-              <Download size={16} /> Xuất DS Đăng ký
-            </button>
-          </div>
-        )}
+        ) : null}
       </div>
 
       {/* Tab Navigation */}

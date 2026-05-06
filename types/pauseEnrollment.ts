@@ -1,4 +1,5 @@
 import type { ApiResponse } from "@/types/apiResponse";
+import type { WeeklyPatternEntry } from "@/types/registration";
 
 export type PauseEnrollmentRequestStatus =
   | "Pending"
@@ -10,6 +11,8 @@ export type PauseEnrollmentOutcome =
   | "ContinueSameClass"
   | "ReassignEquivalentClass"
   | "ContinueWithTutoring";
+
+export type PauseEnrollmentScope = "AllEligible" | "SingleClass";
 
 export interface PauseEnrollmentClassSummary {
   id: string;
@@ -28,6 +31,7 @@ export interface PauseEnrollmentRequestRecord {
   id: string;
   studentProfileId: string;
   classId?: string | null;
+  scope?: PauseEnrollmentScope | string | null;
   pauseFrom: string;
   pauseTo: string;
   reason?: string | null;
@@ -45,6 +49,9 @@ export interface PauseEnrollmentRequestRecord {
   reassignedEnrollmentId?: string | null;
   outcomeCompletedBy?: string | null;
   outcomeCompletedAt?: string | null;
+  reservedSessionCount?: number | null;
+  reservationExpiresOn?: string | null;
+  reservationSnapshotAt?: string | null;
   classes?: PauseEnrollmentClassSummary[];
 }
 
@@ -52,7 +59,9 @@ export interface CreatePauseEnrollmentRequestPayload {
   studentProfileId: string;
   pauseFrom: string;
   pauseTo: string;
+  classId?: string | null;
   reason?: string | null;
+  name?: string | null;
 }
 
 export interface UpdatePauseEnrollmentOutcomePayload {
@@ -64,6 +73,7 @@ export interface ReassignEquivalentClassPayload {
   registrationId: string;
   newClassId: string;
   track?: "primary" | "secondary";
+  weeklyPattern?: WeeklyPatternEntry[] | null;
   sessionSelectionPattern?: string | null;
   effectiveDate?: string | null;
 }

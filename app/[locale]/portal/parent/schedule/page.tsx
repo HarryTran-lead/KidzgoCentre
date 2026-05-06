@@ -626,11 +626,11 @@ export default function SchedulePage() {
       {/* Class Detail Modal */}
       {selectedClass && (
         <div
-          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-100 p-4"
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-9999 p-4"
           onClick={() => setSelectedClass(null)}
         >
           <div
-            className="rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-red-200 bg-gradient-to-br from-white to-red-50"
+            className="rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-hidden border border-red-200 bg-gradient-to-br from-white to-red-50"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="sticky top-0 bg-gradient-to-r from-red-100 to-red-100 border-b border-red-200 px-6 py-4 flex items-center justify-between">
@@ -653,7 +653,7 @@ export default function SchedulePage() {
               </button>
             </div>
 
-            <div className="p-6 space-y-4">
+            <div className="max-h-[calc(90vh-84px)] overflow-y-auto p-6 space-y-4">
               <div>
                 <div className="flex items-center gap-3 mb-3">
                   <TypeBadge type={selectedClass.type} />

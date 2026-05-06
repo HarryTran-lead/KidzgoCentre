@@ -476,9 +476,6 @@ export default function TeacherFeedbackPage() {
 					</div>
 				</div>
 				<div className="flex flex-wrap gap-2">
-					<button className="inline-flex items-center gap-2 rounded-xl border border-red-300 bg-gradient-to-r from-white to-red-50 px-4 py-2.5 text-sm font-medium hover:bg-red-50 transition-colors cursor-pointer">
-						<Download size={16} /> Xuất DS
-					</button>
 				</div>
 			</div>
 

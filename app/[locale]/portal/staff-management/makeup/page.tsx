@@ -1141,7 +1141,7 @@ export default function Page() {
     try {
       await expireMakeupCredit(expireTarget.id, { expiresAt: nowISOVN() });
       await fetchUsedCredits();
-      setActionMessage("Đã cập nhật trạng thái hết hạn cho makeup credit.");
+      setActionMessage("Đã cập nhật trạng thái hết hạn cho bù.");
       setExpireTarget(null);
     } catch (error: any) {
       setActionError(getDomainErrorMessage(error, "Không thể cập nhật trạng thái hết hạn cho makeup credit."));
@@ -1159,7 +1159,7 @@ export default function Page() {
             <CalendarDays size={24} className="text-white" />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">Staff Management</h1>
+            <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">Nghỉ ngắn ngày và bù</h1>
             <p className="text-sm text-gray-600">Quản lý đơn xin nghỉ và makeup credit</p>
           </div>
         </div>
@@ -1211,7 +1211,7 @@ export default function Page() {
           }`}
         >
           <Clock3 size={16} />
-          Makeup credit
+          Bù
           <span
             className={`ml-1 rounded-lg px-2 py-0.5 text-xs font-bold ${
               activeTab === "makeup"
@@ -1258,7 +1258,7 @@ export default function Page() {
               color="from-red-500 to-pink-500"
             />
             <StatCard
-              title="Auto-approve"
+              title="Tự động duyệt"
               value={String(stats.auto)}
               icon={CheckCircle2}
               color="from-fuchsia-500 to-purple-500"

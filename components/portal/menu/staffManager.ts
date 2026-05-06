@@ -1,6 +1,5 @@
 import {
   AlertTriangle,
-  BookOpen,
   BookOpenCheck,
   CalendarRange,
   Clock3,
@@ -10,7 +9,6 @@ import {
   LayoutDashboard,
   Megaphone,
   MessageSquare,
-  NotebookText,
   RefreshCw,
   Send,
   Sparkles,
@@ -50,8 +48,6 @@ export function staffManagerMenu(root: string, locale: Locale = "vi"): MenuItem[
     [t.incidentReports, AlertTriangle, "/incident-reports"],
     [t.notifications, Megaphone, "/notifications"],
     [t.media, Image, "/media"],
-    [t.studentProfiles, NotebookText, "/students"],
-    [t.enrollments, BookOpen, "/enrollments"],
     [t.templates, FileText, "/templates"],
     [t.profile, UserCircle, "/profile"],
   ];

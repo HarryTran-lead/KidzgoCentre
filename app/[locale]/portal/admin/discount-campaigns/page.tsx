@@ -129,7 +129,7 @@ function DiscountTypeBadge({ type, value }: { type: DiscountType; value: number 
       {type === "Percentage" ? (
         <>
           <Percent size={13} className="text-blue-500" />
-          {value}%
+          {value}
         </>
       ) : (
         <>
@@ -266,7 +266,7 @@ function CampaignFormModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-9999 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
         {/* Header */}
         <div className="bg-gradient-to-r from-red-600 to-red-700 px-6 py-5 flex items-center justify-between flex-shrink-0">
@@ -560,7 +560,7 @@ function CampaignDetailModal({
   if (campaign.applyForUpgrade) applyParts.push("Nâng cấp");
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-9999 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden">
         <div className="bg-gradient-to-r from-red-600 to-red-700 px-6 py-5 flex items-center justify-between">
           <h2 className="text-xl font-bold text-white">Chi tiết campaign</h2>

@@ -396,42 +396,6 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
                     </SelectContent>
                   </Select>
                 </div>
-
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                    Chương trình quan tâm
-                  </label>
-                  <Select
-                    value={formData.programInterest || ""}
-                    onValueChange={(value) =>
-                      setFormData({
-                        ...formData,
-                        programInterest: value,
-                      })
-                    }
-                    disabled={isProgramsLoading || programs.length === 0}
-                  >
-                    <SelectTrigger className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all">
-                      <SelectValue
-                        placeholder={
-                          isProgramsLoading
-                            ? "Đang tải chương trình..."
-                            : programs.length > 0
-                              ? "Tìm và chọn chương trình"
-                              : "Không có chương trình"
-                        }
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">Không chọn chương trình</SelectItem>
-                      {programs.map((program) => (
-                        <SelectItem key={program.id} value={program.id}>
-                          {program.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
               </div>
 
               <div className="space-y-2">

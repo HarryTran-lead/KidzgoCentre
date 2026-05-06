@@ -378,7 +378,7 @@ export default function AdminRegistrationsPage() {
                 <SortableHeader field="createdAt" currentField={sortField} direction={sortDirection} onSort={handleSort}>
                   Tạo lúc
                 </SortableHeader>
-                <th className="text-right text-xs font-medium tracking-wide text-gray-700 whitespace-nowrap">Thao tác</th>
+                <th className="text-left text-xs font-medium tracking-wide text-gray-700 whitespace-nowrap">Thao tác</th>
               </tr>
             </thead>
 
@@ -429,7 +429,7 @@ export default function AdminRegistrationsPage() {
                     </td>
                     <td className="py-3 px-6 text-sm text-gray-700">{row.createdAt}</td>
                     <td className="py-3 px-6">
-                      <div className="flex items-center justify-end gap-1">
+                      <div className="flex items-center gap-1">
                         <button
                           onClick={() => openDetail(row.id)}
                           className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-700 cursor-pointer"

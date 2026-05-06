@@ -20,6 +20,7 @@ import { getAllClasses } from "@/lib/api/classService";
 import { getProfiles } from "@/lib/api/authService";
 import {
   approvePauseEnrollmentRequest,
+  approvePauseEnrollmentRequestsBulk,
 
   cancelPauseEnrollmentRequest,
   getPauseEnrollmentRequestsWithParams,
@@ -30,6 +31,7 @@ import {
 import { getRegistrations } from "@/lib/api/registrationService";
 import { getAllStudents } from "@/lib/api/studentService";
 import { getDomainErrorMessage } from "@/lib/api/domainErrorMessage";
+import { useToast } from "@/hooks/use-toast";
 import { useBranchFilter } from "@/hooks/useBranchFilter";
 import { todayDateOnly } from "@/lib/datetime";
 import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
@@ -38,12 +40,13 @@ import type { UserProfile } from "@/types/auth";
 import type {
 
   PauseEnrollmentOutcome,
+  PauseEnrollmentScope,
   ReassignEquivalentClassPayload,
   PauseEnrollmentRequestRecord,
   PauseEnrollmentRequestStatus,
   PauseEnrollmentStudentOption,
 } from "@/types/pauseEnrollment";
-import type { Registration } from "@/types/registration";
+import type { Registration, WeeklyPatternEntry } from "@/types/registration";
 import type { StudentClass } from "@/types/student/class";
 import type { StudentSummary } from "@/types/student/student";
 
@@ -57,7 +60,7 @@ type ReassignFormState = {
   registrationId: string;
   newClassId: string;
   track: "primary" | "secondary";
-  sessionSelectionPattern: string;
+  weeklyPatternJson: string;
   effectiveDate: string;
 };
 
@@ -65,6 +68,23 @@ type ReassignClassOption = StudentClass & {
   programId?: string | null;
   programName?: string | null;
   branchId?: string | null;
+  schedulePattern?: string | null;
+  classSchedulePattern?: string | null;
+  effectiveSchedulePattern?: string | null;
+  weeklyScheduleSlots?: Array<{
+    dayOfWeek?: string;
+    dayCode?: string;
+    startTime?: string;
+    durationMinutes?: number;
+  }>;
+  classWeeklyScheduleSlots?: Array<{
+    dayOfWeek?: string;
+    dayCode?: string;
+    startTime?: string;
+    durationMinutes?: number;
+  }>;
+  weeklyPattern?: WeeklyPatternEntry[] | null;
+  effectiveWeeklyPattern?: WeeklyPatternEntry[] | null;
 };
 
 type ConfirmAction =
@@ -88,9 +108,19 @@ type ConfirmAction =
       title: string;
       description: string;
       confirmText: string;
+    }
+  | {
+      kind: "approveBulk";
+      requestIds: string[];
+      title: string;
+      description: string;
+      confirmText: string;
     };
 
 const ALL_STATUS = "__ALL__";
+const ALL_CLASS = "__ALL_CLASS__";
+const EMPTY_REASSIGN_REGISTRATION = "__EMPTY_REASSIGN_REGISTRATION__";
+const EMPTY_REASSIGN_CLASS = "__EMPTY_REASSIGN_CLASS__";
 
 const statusLabels: Record<PauseEnrollmentRequestStatus, string> = {
   Pending: "Chờ duyệt",
@@ -100,16 +130,45 @@ const statusLabels: Record<PauseEnrollmentRequestStatus, string> = {
 };
 
 const statusStyles: Record<PauseEnrollmentRequestStatus, string> = {
-  Pending: "border-amber-200 bg-amber-50 text-amber-700",
-  Approved: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  Rejected: "border-rose-200 bg-rose-50 text-rose-700",
-  Cancelled: "border-gray-200 bg-gray-100 text-gray-700",
+  Pending: "border-amber-300 bg-amber-100 text-amber-800",
+  Approved: "border-emerald-300 bg-emerald-100 text-emerald-800",
+  Rejected: "border-rose-300 bg-rose-100 text-rose-800",
+  Cancelled: "border-red-300 bg-red-100 text-red-800",
 };
 
 const outcomeLabels: Record<PauseEnrollmentOutcome, string> = {
   ContinueSameClass: "Tiếp tục cùng lớp",
   ReassignEquivalentClass: "Chuyển lớp tương đương",
   ContinueWithTutoring: "Tiếp tục theo kèm riêng",
+};
+
+const REASSIGN_WEEK_DAYS = [
+  { value: "2", shortLabel: "T2", label: "Thứ 2", rrule: "MO" },
+  { value: "3", shortLabel: "T3", label: "Thứ 3", rrule: "TU" },
+  { value: "4", shortLabel: "T4", label: "Thứ 4", rrule: "WE" },
+  { value: "5", shortLabel: "T5", label: "Thứ 5", rrule: "TH" },
+  { value: "6", shortLabel: "T6", label: "Thứ 6", rrule: "FR" },
+  { value: "7", shortLabel: "T7", label: "Thứ 7", rrule: "SA" },
+  { value: "CN", shortLabel: "CN", label: "Chủ nhật", rrule: "SU" },
+] as const;
+
+const REASSIGN_TIME_SLOTS = [
+  { value: "morning", label: "Sáng", timeRange: "08:00 - 10:00", startTime: "08:00", durationMinutes: 120 },
+  { value: "late-morning", label: "Trưa", timeRange: "10:00 - 12:00", startTime: "10:00", durationMinutes: 120 },
+  { value: "afternoon", label: "Chiều", timeRange: "14:00 - 16:00", startTime: "14:00", durationMinutes: 120 },
+  { value: "late-afternoon", label: "Chiều", timeRange: "16:00 - 18:00", startTime: "16:00", durationMinutes: 120 },
+  { value: "evening", label: "Tối", timeRange: "18:00 - 20:00", startTime: "18:00", durationMinutes: 120 },
+  { value: "late-evening", label: "Tối", timeRange: "19:30 - 21:30", startTime: "19:30", durationMinutes: 120 },
+] as const;
+
+const scopeLabels: Record<PauseEnrollmentScope, string> = {
+  AllEligible: "Tất cả lớp",
+  SingleClass: "Một lớp cụ thể",
+};
+
+const scopeStyles: Record<PauseEnrollmentScope, string> = {
+  AllEligible: "border-sky-200 bg-sky-50 text-sky-700",
+  SingleClass: "border-orange-200 bg-orange-50 text-orange-700",
 };
 
 function normalizeStatus(value?: string | null): PauseEnrollmentRequestStatus {
@@ -120,6 +179,14 @@ function normalizeStatus(value?: string | null): PauseEnrollmentRequestStatus {
   if (normalized === "rejected") return "Rejected";
   if (normalized === "cancelled" || normalized === "canceled") return "Cancelled";
   return "Pending";
+}
+
+function normalizeScope(
+  value?: string | null,
+  classId?: string | null
+): PauseEnrollmentScope {
+  if (value === "SingleClass" || value === "AllEligible") return value;
+  return classId ? "SingleClass" : "AllEligible";
 }
 
 function extractProfileItems(payload: unknown): UserProfile[] {
@@ -206,6 +273,26 @@ function toReassignClassOption(item: any): ReassignClassOption {
         : typeof item?.branch?.id === "string"
           ? item.branch.id
           : null,
+    schedulePattern:
+      typeof item?.schedulePattern === "string" ? item.schedulePattern : null,
+    classSchedulePattern:
+      typeof item?.classSchedulePattern === "string"
+        ? item.classSchedulePattern
+        : null,
+    effectiveSchedulePattern:
+      typeof item?.effectiveSchedulePattern === "string"
+        ? item.effectiveSchedulePattern
+        : null,
+    weeklyScheduleSlots: Array.isArray(item?.weeklyScheduleSlots)
+      ? item.weeklyScheduleSlots
+      : undefined,
+    classWeeklyScheduleSlots: Array.isArray(item?.classWeeklyScheduleSlots)
+      ? item.classWeeklyScheduleSlots
+      : undefined,
+    weeklyPattern: Array.isArray(item?.weeklyPattern) ? item.weeklyPattern : undefined,
+    effectiveWeeklyPattern: Array.isArray(item?.effectiveWeeklyPattern)
+      ? item.effectiveWeeklyPattern
+      : undefined,
   };
 }
 
@@ -311,6 +398,19 @@ function summarizeText(value?: string | null, fallback = "Không có ghi chú b�
   if (!trimmed) return fallback;
   if (trimmed.length <= 140) return trimmed;
   return `${trimmed.slice(0, 137)}...`;
+}
+
+function parseWeeklyPatternJson(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (!Array.isArray(parsed)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
 }
 
 function getInitials(value?: string | null, fallback = "HS") {
@@ -444,7 +544,7 @@ function MiniMetric({
   label: string;
   value: string | number;
   note: string;
-  tone: "red" | "amber" | "emerald" | "slate";
+  tone: "red" | "amber" | "emerald" | "slate" | "blue";
 }) {
   const tones = {
     red: {
@@ -469,6 +569,12 @@ function MiniMetric({
       label: "text-gray-600",
       panel: "from-slate-500 to-slate-700",
       glow: "bg-slate-500",
+      icon: ShieldCheck,
+    },
+    blue: {
+      label: "text-blue-600",
+      panel: "from-blue-500 to-indigo-500",
+      glow: "bg-blue-500",
       icon: ShieldCheck,
     },
   } as const;
@@ -557,10 +663,10 @@ function ConfirmDialog({
   if (!action) return null;
 
   return (
-    <div onClick={onClose} className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+    <div onClick={onClose} className="fixed inset-0 z-10000 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
       <div className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
+        <div className="bg-linear-to-r from-red-600 to-red-700 p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
               <h2 className="text-xl font-bold text-white">{action.title}</h2>
@@ -658,9 +764,115 @@ function RequestDetailModal({
 
   const status = normalizeStatus(request.status);
   const canEditOutcome = isManagement && status === "Approved";
+  const scope = normalizeScope(request.scope, request.classId);
+  const selectedReassignRegistration =
+    reassignRegistrations.find((item) => item.id === reassignForm.registrationId) ?? null;
+  const selectedReassignClass =
+    reassignClasses.find((item) => item.id === reassignForm.newClassId) ?? null;
+  const [selectedScheduleKeys, setSelectedScheduleKeys] = useState<string[]>([]);
+  const selectedClassWeeklyPattern = useMemo(
+    () => buildWeeklyPatternFromClassOption(selectedReassignClass),
+    [selectedReassignClass],
+  );
+  const scheduleOptions = useMemo(
+    () =>
+      selectedClassWeeklyPattern
+        .flatMap((entry) => {
+          const startTime = normalizeWeeklyStartTime(entry.startTime);
+          const durationMinutes = Math.max(
+            0,
+            Number(entry.durationMinutes) || 120,
+          );
+          if (!startTime) return [];
+
+          return (entry.dayOfWeeks || []).map((day) => {
+            const dayCode = normalizeWeeklyDayCode(day);
+            if (!dayCode) return null;
+
+            const dayLabel =
+              REASSIGN_WEEK_DAYS.find((item) => item.rrule === dayCode)?.label ||
+              dayCode;
+
+            return {
+              key: `${dayCode}|${startTime}|${durationMinutes}`,
+              dayCode,
+              startTime,
+              durationMinutes,
+              label: `${dayLabel} • ${startTime}`,
+            };
+          });
+        })
+        .filter((item): item is {
+          key: string;
+          dayCode: string;
+          startTime: string;
+          durationMinutes: number;
+          label: string;
+        } => Boolean(item)),
+    [selectedClassWeeklyPattern],
+  );
+  const selectedWeeklyPattern = useMemo(() => {
+    if (!scheduleOptions.length || !selectedScheduleKeys.length) return [] as WeeklyPatternEntry[];
+
+    const selected = scheduleOptions.filter((item) =>
+      selectedScheduleKeys.includes(item.key),
+    );
+    if (!selected.length) return [];
+
+    const grouped = new Map<string, WeeklyPatternEntry>();
+    selected.forEach((item) => {
+      const key = `${item.startTime}|${item.durationMinutes}`;
+      const existing = grouped.get(key);
+      if (!existing) {
+        grouped.set(key, {
+          dayOfWeeks: [item.dayCode],
+          startTime: item.startTime,
+          durationMinutes: item.durationMinutes,
+        });
+        return;
+      }
+
+      if (!existing.dayOfWeeks.includes(item.dayCode)) {
+        existing.dayOfWeeks.push(item.dayCode);
+      }
+    });
+
+    return Array.from(grouped.values()).filter(
+      (entry) => entry.dayOfWeeks.length > 0 && Boolean(entry.startTime),
+    );
+  }, [scheduleOptions, selectedScheduleKeys]);
+  const hasSecondaryProgram = Boolean(
+    selectedReassignRegistration?.secondaryProgramId
+  );
+
+  useEffect(() => {
+    if (!reassignForm.newClassId || scheduleOptions.length === 0) {
+      setSelectedScheduleKeys([]);
+      return;
+    }
+
+    setSelectedScheduleKeys((prev) => {
+      const available = new Set(scheduleOptions.map((item) => item.key));
+      const kept = prev.filter((key) => available.has(key));
+      return kept.length > 0 ? kept : scheduleOptions.map((item) => item.key);
+    });
+  }, [reassignForm.newClassId, scheduleOptions]);
+
+  useEffect(() => {
+    const nextValue = selectedWeeklyPattern.length
+      ? JSON.stringify(selectedWeeklyPattern)
+      : "";
+    if (nextValue !== reassignForm.weeklyPatternJson) {
+      onReassignChange("weeklyPatternJson", nextValue);
+    }
+  }, [
+    onReassignChange,
+    reassignForm.weeklyPatternJson,
+    selectedWeeklyPattern,
+  ]);
   const shouldShowReassignPanel =
     canEditOutcome &&
-    (outcomeForm.outcome === "ReassignEquivalentClass" ||
+    (request.outcome === "ContinueWithTutoring" ||
       request.outcome === "ReassignEquivalentClass");
   const studentLabel = student?.label ?? "Học viên";
   const studentSubtext = student?.parentName
@@ -668,10 +880,10 @@ function RequestDetailModal({
     : "";
 
   return (
-    <div onClick={onClose} className="fixed inset-0 z-[9990] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+    <div onClick={onClose} className="fixed inset-0 z-9990 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div onClick={(e) => e.stopPropagation()} className="relative w-full max-w-6xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
+        <div className="bg-linear-to-r from-red-600 to-red-700 p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex items-start gap-4">
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm text-base font-bold text-white shadow-lg">
@@ -710,6 +922,9 @@ function RequestDetailModal({
                   <div className="mt-2 text-sm font-semibold text-gray-900">
                     {formatDate(request.pauseFrom)} - {formatDate(request.pauseTo)}
                   </div>
+                  <div className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${scopeStyles[scope]}`}>
+                    {scopeLabels[scope]}
+                  </div>
                 </div>
 
                 <div className="rounded-2xl border border-gray-200 bg-white p-4">
@@ -742,6 +957,21 @@ function RequestDetailModal({
                       Cập nhật {formatDateTime(request.outcomeAt)}
                     </div>
                   ) : null}
+                </div>
+
+                <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Số buổi đã bảo lưu
+                  </div>
+                  <div className="mt-2 text-sm font-semibold text-gray-900">
+                    {request.reservedSessionCount ?? 0}
+                  </div>
+                  <div className="mt-1 text-xs text-gray-500">
+                    Hết hạn: {formatDate(request.reservationExpiresOn)}
+                  </div>
+                  <div className="mt-1 text-xs text-gray-500">
+                    Ảnh chụp: {formatDateTime(request.reservationSnapshotAt)}
+                  </div>
                 </div>
               </div>
 
@@ -795,9 +1025,6 @@ function RequestDetailModal({
               <div className="rounded-2xl border border-gray-200 bg-linear-to-br from-white to-red-50/30 shadow-sm overflow-hidden">
                 <div className="border-b border-gray-200 bg-linear-to-r from-red-500/5 to-red-700/5 px-6 py-4">
                   <div className="text-lg font-bold text-gray-900">Xử lý yêu cầu</div>
-                  <div className="mt-1 text-sm text-gray-500">
-                    Staff/Admin thao tác trực tiếp ngay trong popup này.
-                  </div>
                 </div>
 
                 <div className="space-y-3 p-6">
@@ -838,19 +1065,23 @@ function RequestDetailModal({
                   <div className="space-y-4 p-6">
                     <label className="block">
                       <div className="mb-2 text-sm font-semibold text-gray-700">Kết quả</div>
-                      <select
+                      <Select
                         value={outcomeForm.outcome}
-                        onChange={(event) =>
-                          onOutcomeChange(event.target.value as PauseEnrollmentOutcome)
+                        onValueChange={(value) =>
+                          onOutcomeChange(value as PauseEnrollmentOutcome)
                         }
-                        className="h-12 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-gray-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-200"
                       >
-                        {Object.entries(outcomeLabels).map(([value, label]) => (
-                          <option key={value} value={value}>
-                            {label}
-                          </option>
-                        ))}
-                      </select>
+                        <SelectTrigger className="h-12 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-gray-900 focus:border-red-400 focus:ring-2 focus:ring-red-200">
+                          <SelectValue placeholder="Chọn kết quả" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(outcomeLabels).map(([value, label]) => (
+                            <SelectItem key={value} value={value}>
+                              {label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </label>
 
                     <label className="block">
@@ -882,7 +1113,7 @@ function RequestDetailModal({
                           Chuyển lớp tương đương
                         </div>
                         <div className="text-xs leading-5 text-gray-600">
-                          Hãy lưu outcome là "Chuyển lớp tương đương" trước, sau đó nhập thông tin để hoàn tất reassign.
+                          Chỉ thao tác được sau khi đã lưu kết quả là "Tiếp tục theo kèm riêng".
                         </div>
                         {selectedReassignProgramName ? (
                           <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800">
@@ -898,82 +1129,117 @@ function RequestDetailModal({
 
                         <label className="block">
                           <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-600">
-                            Registration
+                            Ghi danh
                           </div>
-                          <select
-                            value={reassignForm.registrationId}
-                            onChange={(event) =>
-                              onReassignChange("registrationId", event.target.value)
+                          <Select
+                            value={
+                              reassignForm.registrationId ||
+                              EMPTY_REASSIGN_REGISTRATION
+                            }
+                            onValueChange={(value) =>
+                              onReassignChange(
+                                "registrationId",
+                                value === EMPTY_REASSIGN_REGISTRATION ? "" : value
+                              )
                             }
                             disabled={reassignOptionsLoading}
-                            className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-200"
                           >
-                            <option value="">
-                              {reassignOptionsLoading
-                                ? "Đang tải registrations..."
-                                : "Chọn registration"}
-                            </option>
-                            {reassignRegistrations.map((item) => (
-                              <option key={item.id} value={item.id}>
-                                {`${item.programName || "Program"} - ${item.status} - ${item.id}`}
-                              </option>
-                            ))}
-                          </select>
+                            <SelectTrigger className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 focus:border-red-400 focus:ring-2 focus:ring-red-200">
+                              <SelectValue
+                                placeholder={
+                                  reassignOptionsLoading
+                                    ? "Đang tải danh sách ghi danh..."
+                                    : "Chọn ghi danh"
+                                }
+                              />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value={EMPTY_REASSIGN_REGISTRATION}>
+                                {reassignOptionsLoading
+                                  ? "Đang tải danh sách ghi danh..."
+                                  : "Chọn ghi danh"}
+                              </SelectItem>
+                              {reassignRegistrations.map((item) => (
+                                <SelectItem key={item.id} value={item.id}>
+                                  {item.programName || "Chương trình"}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </label>
 
                         <label className="block">
                           <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-600">
                             Lớp mới
                           </div>
-                          <select
-                            value={reassignForm.newClassId}
-                            onChange={(event) =>
-                              onReassignChange("newClassId", event.target.value)
+                          <Select
+                            value={reassignForm.newClassId || EMPTY_REASSIGN_CLASS}
+                            onValueChange={(value) =>
+                              onReassignChange(
+                                "newClassId",
+                                value === EMPTY_REASSIGN_CLASS ? "" : value
+                              )
                             }
                             disabled={reassignOptionsLoading}
-                            className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-200"
                           >
-                            <option value="">
-                              {reassignOptionsLoading
-                                ? "Đang tải classes..."
-                                : "Chọn lớp mới"}
-                            </option>
-                            {reassignClasses.map((item) => (
-                              <option key={item.id} value={item.id}>
-                                {`${classOptionLabel(item)}${item.programName ? ` (${item.programName})` : ""} - ${item.id}`}
-                              </option>
-                            ))}
-                          </select>
+                            <SelectTrigger className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 focus:border-red-400 focus:ring-2 focus:ring-red-200">
+                              <SelectValue
+                                placeholder={
+                                  reassignOptionsLoading
+                                    ? "Đang tải danh sách lớp..."
+                                    : "Chọn lớp mới"
+                                }
+                              />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value={EMPTY_REASSIGN_CLASS}>
+                                {reassignOptionsLoading
+                                  ? "Đang tải danh sách lớp..."
+                                  : "Chọn lớp mới"}
+                              </SelectItem>
+                              {reassignClasses.map((item) => (
+                                <SelectItem key={item.id} value={item.id}>
+                                  {`${classOptionLabel(item)}${item.programName ? ` (${item.programName})` : ""}`}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                           {!reassignOptionsLoading && !reassignClasses.length ? (
                             <div className="mt-1 text-xs text-amber-700">
-                              Không có lớp phù hợp với chương trình của registration đã chọn.
+                              Không có lớp phù hợp với chương trình của ghi danh đã chọn.
                             </div>
                           ) : null}
                         </label>
 
                         <div className="grid gap-3 sm:grid-cols-2">
-                          <label className="block">
-                            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-600">
-                              Track
-                            </div>
-                            <select
-                              value={reassignForm.track}
-                              onChange={(event) =>
-                                onReassignChange(
-                                  "track",
-                                  event.target.value as ReassignFormState["track"]
-                                )
-                              }
-                              className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-200"
-                            >
-                              <option value="primary">primary</option>
-                              <option value="secondary">secondary</option>
-                            </select>
-                          </label>
+                          {hasSecondaryProgram ? (
+                            <label className="block">
+                              <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-600">
+                                Chương trình
+                              </div>
+                              <Select
+                                value={reassignForm.track}
+                                onValueChange={(value) =>
+                                  onReassignChange(
+                                    "track",
+                                    value as ReassignFormState["track"]
+                                  )
+                                }
+                              >
+                                <SelectTrigger className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 focus:border-red-400 focus:ring-2 focus:ring-red-200">
+                                  <SelectValue placeholder="Chọn chương trình" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="primary">Chính</SelectItem>
+                                  <SelectItem value="secondary">Phụ</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </label>
+                          ) : null}
 
                           <label className="block">
                             <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-600">
-                              Effective date
+                              Ngày hiệu lực
                             </div>
                             <input
                               type="date"
@@ -986,23 +1252,51 @@ function RequestDetailModal({
                           </label>
                         </div>
 
-                        <label className="block">
-                          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-600">
-                            Session selection pattern (optional)
+                        <div className="rounded-2xl border border-red-100 p-3">
+                          <div className="mb-3 text-sm font-semibold text-gray-800">Lịch học mong muốn</div>
+                          <div className="space-y-3 rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-3">
+                            {!reassignForm.newClassId ? (
+                              <div className="rounded-lg border border-dashed border-gray-200 bg-white px-3 py-2 text-xs text-gray-500">
+                                Chọn lớp mới để xem lịch học áp dụng.
+                              </div>
+                            ) : scheduleOptions.length > 0 ? (
+                              <>
+                                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                  {scheduleOptions.map((item) => {
+                                    const isSelected = selectedScheduleKeys.includes(item.key);
+                                    return (
+                                      <button
+                                        key={item.key}
+                                        type="button"
+                                        onClick={() =>
+                                          setSelectedScheduleKeys((prev) =>
+                                            prev.includes(item.key)
+                                              ? prev.filter((key) => key !== item.key)
+                                              : [...prev, item.key],
+                                          )
+                                        }
+                                        className={`rounded-xl border px-3 py-2 text-left text-sm font-medium transition-colors ${
+                                          isSelected
+                                            ? "border-emerald-400 bg-emerald-50 text-emerald-800"
+                                            : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                                        }`}
+                                      >
+                                        {item.label}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  Đã chọn {selectedScheduleKeys.length}/{scheduleOptions.length} buổi.
+                                </div>
+                              </>
+                            ) : (
+                              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                                Lớp đã chọn chưa có dữ liệu lịch chuẩn. Vui lòng kiểm tra lịch lớp trước khi chuyển.
+                              </div>
+                            )}
                           </div>
-                          <textarea
-                            value={reassignForm.sessionSelectionPattern}
-                            onChange={(event) =>
-                              onReassignChange(
-                                "sessionSelectionPattern",
-                                event.target.value
-                              )
-                            }
-                            rows={2}
-                            placeholder="RRULE subset nếu cần"
-                            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-200"
-                          />
-                        </label>
+                        </div>
 
                         <button
                           type="button"
@@ -1013,7 +1307,7 @@ function RequestDetailModal({
                           {actionLoadingKey === `reassign:${request.id}` ? (
                             <Loader2 size={16} className="animate-spin" />
                           ) : null}
-                          Xác nhận chuyển lớp tương đương
+                          Xác nhận chuyển lớp
                         </button>
                       </div>
                     ) : null}
@@ -1030,7 +1324,7 @@ function RequestDetailModal({
 
 export default function PauseEnrollmentWorkspace({ context }: Props) {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const { toast } = useToast();
   const isManagement = context !== "parent";
   const isStudentPage = context === "parent";
   const { selectedProfile } = useSelectedStudentProfile();
@@ -1044,12 +1338,17 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
 
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>(ALL_STATUS);
+  const [selectedClassId, setSelectedClassId] = useState<string>(ALL_CLASS);
   const [searchQuery, setSearchQuery] = useState("");
 
   const [requests, setRequests] = useState<PauseEnrollmentRequestRecord[]>([]);
   const [requestsLoading, setRequestsLoading] = useState(false);
   const [requestError, setRequestError] = useState<string | null>(null);
   const [requestMessage, setRequestMessage] = useState<string | null>(null);
+  const [selectedRequestIds, setSelectedRequestIds] = useState<string[]>([]);
+
+  const [filterClasses, setFilterClasses] = useState<ReassignClassOption[]>([]);
+  const [filterClassesLoading, setFilterClassesLoading] = useState(false);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
@@ -1069,7 +1368,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
     registrationId: "",
     newClassId: "",
     track: "primary",
-    sessionSelectionPattern: "",
+    weeklyPatternJson: "",
     effectiveDate: "",
   });
   const [reassignRegistrations, setReassignRegistrations] = useState<Registration[]>([]);
@@ -1125,31 +1424,64 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
     [reassignForm.registrationId, reassignRegistrations]
   );
 
+  const selectedReassignHasSecondaryProgram = useMemo(
+    () => Boolean(selectedReassignRegistration?.secondaryProgramId),
+    [selectedReassignRegistration?.secondaryProgramId]
+  );
+
   const selectedReassignProgramId = useMemo(() => {
     if (!selectedReassignRegistration) return null;
-    if (reassignForm.track === "secondary") {
+    if (selectedReassignHasSecondaryProgram && reassignForm.track === "secondary") {
       return selectedReassignRegistration.secondaryProgramId ?? selectedReassignRegistration.programId;
     }
     return selectedReassignRegistration.programId;
-  }, [reassignForm.track, selectedReassignRegistration]);
+  }, [reassignForm.track, selectedReassignHasSecondaryProgram, selectedReassignRegistration]);
 
   const selectedReassignProgramName = useMemo(() => {
     if (!selectedReassignRegistration) return null;
-    if (reassignForm.track === "secondary") {
+    if (selectedReassignHasSecondaryProgram && reassignForm.track === "secondary") {
       return (
         selectedReassignRegistration.secondaryProgramName ??
         selectedReassignRegistration.programName
       );
     }
     return selectedReassignRegistration.programName;
-  }, [reassignForm.track, selectedReassignRegistration]);
+  }, [reassignForm.track, selectedReassignHasSecondaryProgram, selectedReassignRegistration]);
+
+  const selectedReassignCurrentClassId = useMemo(() => {
+    if (!selectedReassignRegistration) {
+      return String(selectedRequest?.classId || "");
+    }
+    if (selectedReassignHasSecondaryProgram && reassignForm.track === "secondary") {
+      return String(
+        selectedReassignRegistration.secondaryClassId ||
+          selectedReassignRegistration.classId ||
+          selectedRequest?.classId ||
+          "",
+      );
+    }
+
+    return String(selectedReassignRegistration.classId || selectedRequest?.classId || "");
+  }, [
+    reassignForm.track,
+    selectedRequest?.classId,
+    selectedReassignHasSecondaryProgram,
+    selectedReassignRegistration,
+  ]);
 
   const filteredReassignClasses = useMemo(() => {
-    if (!selectedReassignProgramId) return reassignClasses;
-    return reassignClasses.filter(
-      (item) => !item.programId || item.programId === selectedReassignProgramId
-    );
-  }, [reassignClasses, selectedReassignProgramId]);
+    return reassignClasses.filter((item) => {
+      if (selectedReassignProgramId && item.programId && item.programId !== selectedReassignProgramId) {
+        return false;
+      }
+
+      if (selectedReassignCurrentClassId && item.id === selectedReassignCurrentClassId) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [reassignClasses, selectedReassignCurrentClassId, selectedReassignProgramId]);
 
   const stats = useMemo(() => {
     const total = requests.length;
@@ -1229,6 +1561,29 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
     }
   }, [isStudentPage, lockedStudentOption]);
 
+  const loadFilterClasses = useCallback(async () => {
+    if (!isManagement) {
+      setFilterClasses([]);
+      return;
+    }
+
+    setFilterClassesLoading(true);
+
+    try {
+      const response = await getAllClasses({
+        pageNumber: 1,
+        pageSize: 500,
+        branchId: selectedBranchId ?? undefined,
+      });
+
+      setFilterClasses(extractClassOptions(response));
+    } catch {
+      setFilterClasses([]);
+    } finally {
+      setFilterClassesLoading(false);
+    }
+  }, [isManagement, selectedBranchId]);
+
   const loadRequests = useCallback(
     async (focusId?: string) => {
       setRequestsLoading(true);
@@ -1237,6 +1592,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
       try {
         const response = await getPauseEnrollmentRequestsWithParams({
           studentProfileId: selectedStudentId || undefined,
+          classId: selectedClassId === ALL_CLASS ? undefined : selectedClassId,
           status: selectedStatus === ALL_STATUS ? undefined : selectedStatus,
           branchId: isManagement ? selectedBranchId ?? undefined : undefined,
           pageNumber: 1,
@@ -1260,7 +1616,13 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
         setRequestsLoading(false);
       }
     },
-    [isManagement, selectedBranchId, selectedStatus, selectedStudentId]
+    [
+      isManagement,
+      selectedBranchId,
+      selectedClassId,
+      selectedStatus,
+      selectedStudentId,
+    ]
   );
 
   useEffect(() => {
@@ -1270,6 +1632,11 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
   useEffect(() => {
     void loadStudentOptions();
   }, [loadStudentOptions]);
+
+  useEffect(() => {
+    if (isManagement && !isBranchLoaded) return;
+    void loadFilterClasses();
+  }, [isBranchLoaded, isManagement, loadFilterClasses]);
 
   useEffect(() => {
     if (!studentOptions.length) {
@@ -1299,6 +1666,22 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
   }, [filteredRequests, selectedRequestId]);
 
   useEffect(() => {
+    if (selectedClassId === ALL_CLASS) return;
+    if (filterClasses.some((item) => item.id === selectedClassId)) return;
+    setSelectedClassId(ALL_CLASS);
+  }, [filterClasses, selectedClassId]);
+
+  useEffect(() => {
+    const visiblePendingIds = new Set(
+      filteredRequests
+        .filter((item) => normalizeStatus(item.status) === "Pending")
+        .map((item) => item.id)
+    );
+
+    setSelectedRequestIds((prev) => prev.filter((id) => visiblePendingIds.has(id)));
+  }, [filteredRequests]);
+
+  useEffect(() => {
     if (selectedRequest) {
       setOutcomeForm({
         outcome: selectedRequest.outcome ?? "ContinueSameClass",
@@ -1308,7 +1691,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
         registrationId: "",
         newClassId: "",
         track: "primary",
-        sessionSelectionPattern: "",
+        weeklyPatternJson: "",
         effectiveDate: selectedRequest.pauseTo || "",
       });
     }
@@ -1323,6 +1706,16 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
       newClassId: "",
     }));
   }, [filteredReassignClasses, reassignForm.newClassId]);
+
+  useEffect(() => {
+    if (selectedReassignHasSecondaryProgram) return;
+    if (reassignForm.track === "primary") return;
+
+    setReassignForm((prev) => ({
+      ...prev,
+      track: "primary",
+    }));
+  }, [reassignForm.track, selectedReassignHasSecondaryProgram]);
 
   const loadReassignOptions = useCallback(async () => {
     if (!selectedRequest?.studentProfileId) {
@@ -1354,7 +1747,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
     } catch {
       setReassignRegistrations([]);
       setReassignClasses([]);
-      setReassignOptionsError("Không thể tải danh sách registration/lớp để chuyển tương đương.");
+      setReassignOptionsError("Không thể tải danh sách ghi danh/lớp để chuyển tương đương.");
     } finally {
       setReassignOptionsLoading(false);
     }
@@ -1369,8 +1762,8 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
     }
 
     const shouldLoad =
-      selectedRequest.outcome === "ReassignEquivalentClass" ||
-      outcomeForm.outcome === "ReassignEquivalentClass";
+      selectedRequest.outcome === "ContinueWithTutoring" ||
+      selectedRequest.outcome === "ReassignEquivalentClass";
 
     if (!shouldLoad) {
       setReassignRegistrations([]);
@@ -1380,7 +1773,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
     }
 
     void loadReassignOptions();
-  }, [loadReassignOptions, outcomeForm.outcome, selectedRequest]);
+  }, [loadReassignOptions, selectedRequest]);
 
   useEffect(() => {
     if (isManagement && !isBranchLoaded) return;
@@ -1408,6 +1801,33 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
   const handleReload = async () => {
     setRequestMessage(null);
     await loadRequests(selectedRequestId ?? undefined);
+  };
+
+  const pendingVisibleRequests = filteredRequests.filter(
+    (item) => normalizeStatus(item.status) === "Pending"
+  );
+  const allPendingSelected =
+    pendingVisibleRequests.length > 0 &&
+    pendingVisibleRequests.every((item) => selectedRequestIds.includes(item.id));
+
+  const toggleBulkSelect = (requestId: string, checked: boolean) => {
+    setSelectedRequestIds((prev) => {
+      if (checked) {
+        if (prev.includes(requestId)) return prev;
+        return [...prev, requestId];
+      }
+
+      return prev.filter((id) => id !== requestId);
+    });
+  };
+
+  const toggleSelectAllPending = (checked: boolean) => {
+    if (!checked) {
+      setSelectedRequestIds([]);
+      return;
+    }
+
+    setSelectedRequestIds(pendingVisibleRequests.map((item) => item.id));
   };
 
   const handleConfirmAction = async () => {
@@ -1442,6 +1862,31 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
         router.refresh();
       }
 
+      if (confirmAction.kind === "approveBulk") {
+        const response = await approvePauseEnrollmentRequestsBulk({
+          ids: confirmAction.requestIds,
+        });
+
+        ensureApiSuccess(response, "Không thể duyệt hàng loạt yêu cầu bảo lưu.");
+
+        const approvedIds = response.data?.approvedIds ?? [];
+        const errors = response.data?.errors ?? [];
+
+        const summary = [
+          approvedIds.length
+            ? `Đã duyệt ${approvedIds.length} yêu cầu.`
+            : "Không có yêu cầu nào được duyệt.",
+          errors.length ? `${errors.length} yêu cầu bị lỗi trong batch.` : "",
+        ]
+          .filter(Boolean)
+          .join(" ");
+
+        setRequestMessage(summary);
+        setSelectedRequestIds([]);
+        await loadRequests(selectedRequestId ?? undefined);
+        router.refresh();
+      }
+
       setConfirmAction(null);
     } catch (error: any) {
       setRequestError(getDomainErrorMessage(error, "Không thể thực hiện thao tác."));
@@ -1465,10 +1910,21 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
 
       ensureApiSuccess(response, "Không thể cập nhật outcome.");
       setRequestMessage("Đã cập nhật kết quả sau bảo lưu.");
+      toast({
+        title: "Thành công",
+        description: "Đã lưu kết quả sau bảo lưu.",
+        type: "success",
+      });
       await loadRequests(selectedRequest.id);
       router.refresh();
     } catch (error: any) {
-      setRequestError(getDomainErrorMessage(error, "Không thể cập nhật outcome."));
+      const message = getDomainErrorMessage(error, "Không thể cập nhật outcome.");
+      setRequestError(message);
+      toast({
+        title: "Lỗi",
+        description: message,
+        variant: "destructive",
+      });
     } finally {
       setActionLoadingKey(null);
     }
@@ -1481,12 +1937,47 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
     const newClassId = reassignForm.newClassId.trim();
 
     if (!registrationId) {
-      setRequestError("Vui lòng chọn registration để chuyển lớp tương đương.");
+      const message = "Vui lòng chọn ghi danh để chuyển lớp tương đương.";
+      setRequestError(message);
+      toast({
+        title: "Thiếu dữ liệu",
+        description: message,
+        variant: "destructive",
+      });
       return;
     }
 
     if (!newClassId) {
-      setRequestError("Vui lòng chọn lớp mới.");
+      const message = "Vui lòng chọn lớp mới.";
+      setRequestError(message);
+      toast({
+        title: "Thiếu dữ liệu",
+        description: message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const weeklyPattern = parseWeeklyPatternJson(reassignForm.weeklyPatternJson);
+    if (weeklyPattern === null) {
+      const message = "Dữ liệu lịch học không hợp lệ. Vui lòng chọn lại buổi học.";
+      setRequestError(message);
+      toast({
+        title: "Dữ liệu không hợp lệ",
+        description: message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!Array.isArray(weeklyPattern) || weeklyPattern.length === 0) {
+      const message = "Vui lòng chọn ít nhất một buổi học trong lịch lớp mới.";
+      setRequestError(message);
+      toast({
+        title: "Thiếu dữ liệu",
+        description: message,
+        variant: "destructive",
+      });
       return;
     }
 
@@ -1499,7 +1990,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
         registrationId,
         newClassId,
         track: reassignForm.track,
-        sessionSelectionPattern: reassignForm.sessionSelectionPattern,
+        weeklyPattern,
         effectiveDate: reassignForm.effectiveDate,
       };
 
@@ -1510,12 +2001,21 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
 
       ensureApiSuccess(response, "Không thể chuyển lớp tương đương.");
       setRequestMessage("Đã chuyển lớp tương đương thành công.");
+      toast({
+        title: "Thành công",
+        description: "Đã xác nhận chuyển lớp tương đương thành công.",
+        type: "success",
+      });
       await loadRequests(selectedRequest.id);
       router.refresh();
     } catch (error: any) {
-      setRequestError(
-        getDomainErrorMessage(error, "Không thể chuyển lớp tương đương.")
-      );
+      const message = getDomainErrorMessage(error, "Không thể chuyển lớp tương đương.");
+      setRequestError(message);
+      toast({
+        title: "Lỗi",
+        description: message,
+        variant: "destructive",
+      });
     } finally {
       setActionLoadingKey(null);
     }
@@ -1565,6 +2065,25 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
               <Plus size={16} />
               Tạo yêu cầu
             </button>
+            {isManagement ? (
+              <button
+                type="button"
+                disabled={!selectedRequestIds.length || requestsLoading}
+                onClick={() =>
+                  setConfirmAction({
+                    kind: "approveBulk",
+                    requestIds: selectedRequestIds,
+                    title: "Duyệt hàng loạt yêu cầu bảo lưu",
+                    description: `Bạn sắp duyệt ${selectedRequestIds.length} yêu cầu đang ở trạng thái Pending.`,
+                    confirmText: "Duyệt đã chọn",
+                  })
+                }
+                className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700 transition cursor-pointer hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <CheckCircle2 size={16} />
+                Duyệt đã chọn ({selectedRequestIds.length})
+              </button>
+            ) : null}
           </div>
 
           <div className="grid w-full gap-4 pt-2 md:grid-cols-2 xl:grid-cols-4">
@@ -1576,7 +2095,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
                   ? `${requests.length} yêu cầu trong phạm vi hiện tại`
                   : "Tất cả yêu cầu bảo lưu của học sinh đang chọn"
               }
-              tone="red"
+              tone="blue"
             />
             <MiniMetric
               label="Chờ duyệt"
@@ -1606,7 +2125,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
                   ? "Cần cập nhật hướng xử lý sau khi quay lại"
                   : `${requests.filter(canCancelRequest).length} yêu cầu vẫn còn trong hạn hủy`
               }
-              tone="slate"
+              tone="red"
             />
           </div>
         </div>
@@ -1622,7 +2141,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
         }`}
       >
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="relative flex-1 min-w-[250px]">
+          <div className="relative flex-1 min-w-62.5">
             <Search
               className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
               size={16}
@@ -1639,7 +2158,26 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
             />
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            {isManagement ? (
+              <Select
+                value={selectedClassId}
+                onValueChange={(val) => setSelectedClassId(val)}
+              >
+                <SelectTrigger className="h-10 min-w-62.5 rounded-xl border border-red-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200">
+                  <SelectValue placeholder="Lọc theo lớp" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL_CLASS}>Tất cả lớp</SelectItem>
+                  {filterClasses.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {classOptionLabel(item)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : null}
+
             <Select
               value={selectedStatus}
               onValueChange={(val) => setSelectedStatus(val)}
@@ -1655,6 +2193,13 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
                 <SelectItem value="Cancelled">{statusLabels.Cancelled}</SelectItem>
               </SelectContent>
             </Select>
+
+            {isManagement && filterClassesLoading ? (
+              <div className="inline-flex items-center gap-2 text-xs text-gray-500">
+                <Loader2 size={14} className="animate-spin" />
+                Đang tải lớp...
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
@@ -1688,9 +2233,22 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px]">
-            <thead className="border-b border-red-200 bg-gradient-to-r from-red-600/5 to-red-700/5">
+          <table className="w-full min-w-190">
+            <thead className="border-b border-red-200 bg-linear-to-r from-red-600/5 to-red-700/5">
               <tr className="text-left text-sm font-semibold text-gray-700">
+                {isManagement ? (
+                  <th className="px-4 py-4 w-10">
+                    {pendingVisibleRequests.length ? (
+                      <input
+                        type="checkbox"
+                        checked={allPendingSelected}
+                        onChange={(event) => toggleSelectAllPending(event.target.checked)}
+                        className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-400"
+                        aria-label="Chọn tất cả request pending đang hiển thị"
+                      />
+                    ) : null}
+                  </th>
+                ) : null}
 
                 <th className="px-6 py-4">Học sinh</th>
                 <th className="px-6 py-4">Tổng quan</th>
@@ -1703,7 +2261,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
               {!filteredRequests.length && !requestsLoading ? (
                 <tr>
                   <td
-                    colSpan={4}
+                    colSpan={isManagement ? 5 : 4}
                     className="px-6 py-12 text-center"
                   >
                     <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-50 text-red-400">
@@ -1721,6 +2279,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
 
               {filteredRequests.map((item) => {
                 const status = normalizeStatus(item.status);
+                const scope = normalizeScope(item.scope, item.classId);
                 const student = studentMap.get(item.studentProfileId);
                 const isSelected = selectedRequestId === item.id;
                 const isPending = status === "Pending";
@@ -1728,6 +2287,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
                 const classLabels = getClassLabels(item);
                 const classPreview = classLabels.slice(0, 2);
                 const hiddenClassCount = Math.max(classLabels.length - classPreview.length, 0);
+                const isChecked = selectedRequestIds.includes(item.id);
 
                 return (
                   <tr
@@ -1738,6 +2298,21 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
                         : "hover:bg-linear-to-r hover:from-red-50/50 hover:to-white"
                     }`}
                   >
+                    {isManagement ? (
+                      <td className="px-4 py-4 align-top">
+                        {isPending ? (
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(event) =>
+                              toggleBulkSelect(item.id, event.target.checked)
+                            }
+                            className="mt-1 h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-400"
+                            aria-label={`Chọn request ${item.id}`}
+                          />
+                        ) : null}
+                      </td>
+                    ) : null}
 
 
                     <td className="px-6 py-4 align-top">
@@ -1775,7 +2350,10 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
                         <div className="text-sm leading-6 text-gray-600">
                           {summarizeText(item.reason)}
                         </div>
-                        <div className="flex max-w-[360px] flex-wrap gap-2">
+                        <div className="flex max-w-90 flex-wrap gap-2">
+                          <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${scopeStyles[scope]}`}>
+                            {scopeLabels[scope]}
+                          </span>
                           {classPreview.length ? (
                             <>
                               {classPreview.map((label) => (
@@ -1906,7 +2484,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
         ) : null}
 
         {!requestsLoading && filteredRequests.length ? (
-          <div className="border-t border-red-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
+          <div className="border-t border-red-200 bg-linear-to-r from-red-500/5 to-red-700/5 px-6 py-4">
             <div className="text-sm text-gray-600">
               Hiển thị{" "}
               <span className="font-semibold text-gray-900">
@@ -1916,6 +2494,13 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
               <span className="font-semibold text-gray-900">{requests.length}</span>{" "}
               bản ghi hiện có
             </div>
+            {isManagement ? (
+              <div className="mt-2 text-xs text-gray-500">
+                {pendingVisibleRequests.length
+                  ? `Pending hiển thị: ${pendingVisibleRequests.length} • Đã chọn: ${selectedRequestIds.length}`
+                  : "Không có yêu cầu Pending trong bộ lọc hiện tại."}
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -2010,6 +2595,11 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
         onCreated={(record) => {
           setCreateOpen(false);
           setRequestMessage("Đã tạo yêu cầu bảo lưu.");
+          toast({
+            title: "Thành công",
+            description: "Đã tạo yêu cầu bảo lưu thành công.",
+            type: "success",
+          });
           void loadRequests(record.id);
           router.refresh();
         }}
@@ -2022,5 +2612,174 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
         onConfirm={() => void handleConfirmAction()}
       />
     </div>
+  );
+}
+
+function normalizeWeeklyDayCode(value?: unknown): string {
+  const raw = String(value || "").trim().toUpperCase();
+  const map: Record<string, string> = {
+    MO: "MO",
+    MON: "MO",
+    TU: "TU",
+    TUE: "TU",
+    WE: "WE",
+    WED: "WE",
+    TH: "TH",
+    THU: "TH",
+    FR: "FR",
+    FRI: "FR",
+    SA: "SA",
+    SAT: "SA",
+    SU: "SU",
+    SUN: "SU",
+    T2: "MO",
+    T3: "TU",
+    T4: "WE",
+    T5: "TH",
+    T6: "FR",
+    T7: "SA",
+    CN: "SU",
+    "2": "MO",
+    "3": "TU",
+    "4": "WE",
+    "5": "TH",
+    "6": "FR",
+    "7": "SA",
+  };
+  return map[raw] || "";
+}
+
+function normalizeWeeklyStartTime(value?: unknown): string {
+  const raw = String(value || "").trim();
+  const matched = raw.match(/^(\d{1,2}):(\d{1,2})/);
+  if (!matched) return "";
+
+  const hour = Number(matched[1]);
+  const minute = Number(matched[2]);
+  if (
+    Number.isNaN(hour) ||
+    Number.isNaN(minute) ||
+    hour < 0 ||
+    hour > 23 ||
+    minute < 0 ||
+    minute > 59
+  ) {
+    return "";
+  }
+
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+function normalizeWeeklyPatternEntries(
+  entries?: WeeklyPatternEntry[] | null,
+): WeeklyPatternEntry[] {
+  if (!Array.isArray(entries)) return [];
+
+  return entries
+    .map((entry) => {
+      const dayOfWeeks = Array.isArray(entry?.dayOfWeeks)
+        ? entry.dayOfWeeks
+            .map((day) => normalizeWeeklyDayCode(day))
+            .filter(Boolean)
+        : [];
+      const startTime = normalizeWeeklyStartTime(entry?.startTime);
+      const durationMinutes = Math.max(0, Number(entry?.durationMinutes) || 0);
+
+      return {
+        dayOfWeeks,
+        startTime,
+        durationMinutes,
+      };
+    })
+    .filter(
+      (entry) =>
+        entry.dayOfWeeks.length > 0 &&
+        Boolean(entry.startTime) &&
+        entry.durationMinutes > 0,
+    );
+}
+
+function buildWeeklyPatternFromSlots(slots: unknown): WeeklyPatternEntry[] {
+  if (!Array.isArray(slots) || slots.length === 0) return [];
+
+  const grouped = new Map<string, WeeklyPatternEntry>();
+  slots.forEach((slot: any) => {
+    const day = normalizeWeeklyDayCode(slot?.dayOfWeek ?? slot?.dayCode);
+    const startTime = normalizeWeeklyStartTime(slot?.startTime);
+    const durationMinutes = Math.max(0, Number(slot?.durationMinutes) || 0);
+
+    if (!day || !startTime || durationMinutes <= 0) return;
+
+    const key = `${startTime}-${durationMinutes}`;
+    const existing = grouped.get(key);
+
+    if (!existing) {
+      grouped.set(key, {
+        dayOfWeeks: [day],
+        startTime,
+        durationMinutes,
+      });
+      return;
+    }
+
+    if (!existing.dayOfWeeks.includes(day)) {
+      existing.dayOfWeeks.push(day);
+    }
+  });
+
+  return Array.from(grouped.values()).filter((entry) => entry.dayOfWeeks.length > 0);
+}
+
+function buildWeeklyPatternFromRRule(value?: string | null): WeeklyPatternEntry[] {
+  const raw = String(value || "").trim();
+  if (!raw) return [];
+
+  const normalized = raw.replace(/^RRULE:/i, "");
+  const tokens = normalized.split(";").map((item) => item.trim());
+  const tokenMap = new Map<string, string>();
+
+  tokens.forEach((token) => {
+    const [key, val] = token.split("=");
+    if (!key || !val) return;
+    tokenMap.set(key.toUpperCase(), val);
+  });
+
+  const days = String(tokenMap.get("BYDAY") || "")
+    .split(",")
+    .map((day) => normalizeWeeklyDayCode(day))
+    .filter(Boolean);
+  const hour = Number(tokenMap.get("BYHOUR") || "");
+  const minute = Number(tokenMap.get("BYMINUTE") || "");
+
+  if (!days.length || Number.isNaN(hour) || Number.isNaN(minute)) return [];
+
+  return [
+    {
+      dayOfWeeks: days,
+      startTime: `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`,
+      durationMinutes: 120,
+    },
+  ];
+}
+
+function buildWeeklyPatternFromClassOption(item?: ReassignClassOption | null): WeeklyPatternEntry[] {
+  if (!item) return [];
+
+  const fromWeeklyPattern = normalizeWeeklyPatternEntries(
+    Array.isArray(item.effectiveWeeklyPattern)
+      ? item.effectiveWeeklyPattern
+      : Array.isArray(item.weeklyPattern)
+        ? item.weeklyPattern
+        : null,
+  );
+  if (fromWeeklyPattern.length > 0) return fromWeeklyPattern;
+
+  const fromSlots = buildWeeklyPatternFromSlots(
+    item.weeklyScheduleSlots || item.classWeeklyScheduleSlots,
+  );
+  if (fromSlots.length > 0) return fromSlots;
+
+  return buildWeeklyPatternFromRRule(
+    item.schedulePattern || item.classSchedulePattern || item.effectiveSchedulePattern,
   );
 }
