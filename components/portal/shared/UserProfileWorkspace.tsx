@@ -688,16 +688,22 @@ export default function UserProfileWorkspace() {
       : "";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 p-4 md:p-8">
+    <div
+      className={isStudentPortal
+        ? "space-y-6 px-4 pb-6 pt-4 md:px-6"
+        : "min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 p-4 md:p-8"}
+    >
       {/* Animated Background Elements */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-red-500/5 rounded-full blur-3xl"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-red-500/5 rounded-full blur-3xl"></div>
-      </div>
+      {!isStudentPortal && (
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -right-40 w-80 h-80 bg-red-500/5 rounded-full blur-3xl"></div>
+          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-red-500/5 rounded-full blur-3xl"></div>
+        </div>
+      )}
 
-      <div className="max-w-8xl mx-auto relative z-10">
+      <div className={isStudentPortal ? "relative z-10" : "max-w-8xl mx-auto relative z-10"}>
         {/* Page Header with Animation */}
-        <div className={`mb-10 transition-all duration-700 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-8"}`}>
+        <div className={`mb-6 transition-all duration-700 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-8"}`}>
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="relative">
@@ -707,10 +713,10 @@ export default function UserProfileWorkspace() {
                 </div>
               </div>
               <div>
-                <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                <h1 className={`text-3xl md:text-4xl font-bold ${isStudentPortal ? "text-slate-100" : "bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent"}`}>
                   Hồ sơ cá nhân
                 </h1>
-                <p className="text-gray-500 mt-1 flex items-center gap-2">
+                <p className={`mt-1 flex items-center gap-2 ${isStudentPortal ? "text-slate-300/80" : "text-gray-500"}`}>
                   <Sparkles size={14} className="text-red-500" />
                   Quản lý thông tin cá nhân và bảo mật tài khoản
                 </p>
@@ -720,11 +726,11 @@ export default function UserProfileWorkspace() {
         </div>
 
         {/* 2-column layout */}
-        <div className={`grid grid-cols-1 lg:grid-cols-3 gap-8 transition-all duration-700 delay-100 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}>
+        <div className={`grid grid-cols-1 lg:grid-cols-3 gap-6 transition-all duration-700 delay-100 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}>
 
           {/* LEFT: Profile card (sticky) */}
           <div className="lg:col-span-1">
-            <div className="bg-white/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 shadow-xl overflow-hidden sticky top-6 transition-all duration-300 hover:shadow-2xl">
+            <div className={`rounded-3xl border shadow-xl overflow-hidden sticky top-6 transition-all duration-300 ${isStudentPortal ? "border-indigo-400/20 bg-slate-900/60 shadow-indigo-950/20 backdrop-blur-sm" : "border-gray-200/50 bg-white/80 hover:shadow-2xl backdrop-blur-sm"}`}>
               {/* Gradient Banner with Pattern */}
               <div className="relative h-32 bg-gradient-to-r from-red-600 via-red-500 to-red-700 overflow-hidden">
                 <div 
@@ -734,7 +740,7 @@ export default function UserProfileWorkspace() {
                     backgroundSize: '60px 60px',
                   }}
                 ></div>
-                <div className="absolute -bottom-6 left-0 right-0 h-12 bg-white/80 backdrop-blur-sm rounded-t-3xl"></div>
+                <div className={`absolute -bottom-6 left-0 right-0 h-12 rounded-t-3xl backdrop-blur-sm ${isStudentPortal ? "bg-slate-900/60" : "bg-white/80"}`}></div>
               </div>
               
               <div className="px-6 pb-6 relative">
@@ -771,15 +777,15 @@ export default function UserProfileWorkspace() {
                     />
                   </div>
                 </div>
-                <p className="text-center text-xs text-gray-500 mb-4">
+                <p className={`text-center text-xs mb-4 ${isStudentPortal ? "text-slate-300/70" : "text-gray-500"}`}>
                   Ảnh JPG/PNG/WEBP, dung lượng tối đa 10MB.
                 </p>
 
                 <div className="text-center">
-                  <h2 className="text-xl font-bold text-gray-900">
+                  <h2 className={`text-xl font-bold ${isStudentPortal ? "text-slate-100" : "text-gray-900"}`}>
                     {displayName || user?.userName}
                   </h2>
-                  {!isStudentPortal && <p className="text-sm text-gray-500 mt-0.5">{user?.email}</p>}
+                  {!isStudentPortal && <p className="mt-0.5 text-sm text-gray-500">{user?.email}</p>}
                 </div>
 
                 {/* Chips */}
@@ -848,7 +854,7 @@ export default function UserProfileWorkspace() {
           {/* RIGHT: Tabs + Form */}
           <div className="lg:col-span-2 space-y-6">
             {/* Tabs */}
-            <div className="flex gap-1 bg-white/80 backdrop-blur-sm border border-gray-200/50 p-1.5 rounded-2xl shadow-sm">
+            <div className={`flex gap-1 rounded-2xl p-1.5 border ${isStudentPortal ? "border-indigo-400/20 bg-slate-900/60 backdrop-blur-sm" : "border-gray-200/50 bg-white/80 shadow-sm backdrop-blur-sm"}`}>
               <TabButton
                 active={tab === "info"}
                 onClick={() => setTab("info")}
@@ -884,7 +890,7 @@ export default function UserProfileWorkspace() {
 
             {/* Tab panels */}
             {tab === "info" && (
-              <div className="bg-white/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 shadow-xl p-6 md:p-8 space-y-6 transition-all duration-300 hover:shadow-2xl">
+              <div className={`rounded-3xl border shadow-xl p-6 md:p-8 space-y-6 transition-all duration-300 ${isStudentPortal ? "border-indigo-400/20 bg-slate-900/60 shadow-indigo-950/20 backdrop-blur-sm" : "border-gray-200/50 bg-white/80 hover:shadow-2xl backdrop-blur-sm"}`}>
                 <div className="flex items-center gap-3 pb-4 border-b border-gray-100">
                   <div className="p-2.5 bg-gradient-to-br from-red-50 to-red-100 rounded-xl">
                     <UserRound size={18} className="text-red-600" />
@@ -1002,7 +1008,7 @@ export default function UserProfileWorkspace() {
             )}
 
             {tab === "password" && (
-              <div className="bg-white/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 shadow-xl p-6 md:p-8 space-y-6 transition-all duration-300 hover:shadow-2xl">
+              <div className={`rounded-3xl border shadow-xl p-6 md:p-8 space-y-6 transition-all duration-300 ${isStudentPortal ? "border-indigo-400/20 bg-slate-900/60 shadow-indigo-950/20 backdrop-blur-sm" : "border-gray-200/50 bg-white/80 hover:shadow-2xl backdrop-blur-sm"}`}>
                 <div className="flex items-center gap-3 pb-4 border-b border-gray-100">
                   <div className="p-2.5 bg-gradient-to-br from-red-50 to-red-100 rounded-xl">
                     <ShieldCheck size={18} className="text-red-600" />
@@ -1085,7 +1091,7 @@ export default function UserProfileWorkspace() {
             )}
 
             {isParentRole && tab === "pin" && (
-              <div className="bg-white/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 shadow-xl p-6 md:p-8 space-y-6 transition-all duration-300 hover:shadow-2xl">
+              <div className={`rounded-3xl border shadow-xl p-6 md:p-8 space-y-6 transition-all duration-300 ${isStudentPortal ? "border-indigo-400/20 bg-slate-900/60 shadow-indigo-950/20 backdrop-blur-sm" : "border-gray-200/50 bg-white/80 hover:shadow-2xl backdrop-blur-sm"}`}>
                 <div className="flex items-center gap-3 pb-4 border-b border-gray-100">
                   <div className="p-2.5 bg-gradient-to-br from-red-50 to-red-100 rounded-xl">
                     <KeyRound size={18} className="text-red-600" />
