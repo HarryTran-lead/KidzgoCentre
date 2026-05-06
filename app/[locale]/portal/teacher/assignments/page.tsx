@@ -2557,9 +2557,9 @@ export default function TeacherAssignmentsPage() {
   useEffect(() => {
     loadHomework(1);
     setCurrentPage(1);
-  }, [filter, selectedClass, loadHomework]);
+  }, [selectedClass, loadHomework]);
 
-  const classes = Array.from(new Set(submissions.map((s) => s.className)));
+  useEffect(() => {
     const loadClassOptions = async () => {
       setIsLoadingClassOptions(true);
       try {
@@ -2575,10 +2575,6 @@ export default function TeacherAssignmentsPage() {
 
     loadClassOptions();
   }, []);
-
-  useEffect(() => {
-    loadHomework(1);
-  }, [loadHomework]);
 
   const handleSort = (column: "student" | "assignment" | "turnIn") => {
     if (sortColumn === column) {
@@ -2599,7 +2595,9 @@ export default function TeacherAssignmentsPage() {
     let result = submissions;
 
     if (selectedClass !== "ALL") {
-      result = result.filter((s) => s.className === selectedClass);
+      result = result.filter(
+        (s) => s.classId === selectedClass || s.className === selectedClass,
+      );
     }
 
     if (searchQuery) {
