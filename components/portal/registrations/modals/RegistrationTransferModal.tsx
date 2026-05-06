@@ -10,13 +10,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/lightswind/select";
+import type { WeeklyPatternEntry } from "@/types/registration";
 import type { Registration, RegistrationTrackType } from "@/types/registration";
 
 type TransferClassOption = {
   id: string;
   name: string;
   schedule: string;
+  status?: string;
   remainingSlots: number | null;
+  disabled?: boolean;
+  disabledReason?: string;
+  defaultSessionPattern?: string;
+  defaultWeeklyPattern?: WeeklyPatternEntry[];
 };
 
 type RegistrationTransferModalProps = {
@@ -31,30 +37,122 @@ type RegistrationTransferModalProps = {
   setTransferEffectiveDate: (value: string) => void;
   transferSessionPattern: string;
   setTransferSessionPattern: (value: string) => void;
+  transferWeeklyPattern: WeeklyPatternEntry[];
+  setTransferWeeklyPattern: (value: WeeklyPatternEntry[]) => void;
   transferClassOptions: TransferClassOption[];
   isLoadingTransferClasses: boolean;
   isTransferring: boolean;
   onConfirmTransfer: () => void;
 };
 
-const WEEK_DAYS = [
-  { value: "2", shortLabel: "T2", label: "Thứ 2", rrule: "MO" },
-  { value: "3", shortLabel: "T3", label: "Thứ 3", rrule: "TU" },
-  { value: "4", shortLabel: "T4", label: "Thứ 4", rrule: "WE" },
-  { value: "5", shortLabel: "T5", label: "Thứ 5", rrule: "TH" },
-  { value: "6", shortLabel: "T6", label: "Thứ 6", rrule: "FR" },
-  { value: "7", shortLabel: "T7", label: "Thứ 7", rrule: "SA" },
-  { value: "CN", shortLabel: "CN", label: "Chủ nhật", rrule: "SU" },
-];
+const RRULE_DAY_LABELS: Record<string, string> = {
+  MO: "Thứ 2",
+  TU: "Thứ 3",
+  WE: "Thứ 4",
+  TH: "Thứ 5",
+  FR: "Thứ 6",
+  SA: "Thứ 7",
+  SU: "Chủ nhật",
+};
 
-const TIME_SLOTS = [
-  { value: "morning", label: "Sáng", timeRange: "08:00 - 10:00", startTime: "08:00" },
-  { value: "late-morning", label: "Trưa", timeRange: "10:00 - 12:00", startTime: "10:00" },
-  { value: "afternoon", label: "Chiều", timeRange: "14:00 - 16:00", startTime: "14:00" },
-  { value: "late-afternoon", label: "Chiều", timeRange: "16:00 - 18:00", startTime: "16:00" },
-  { value: "evening", label: "Tối", timeRange: "18:00 - 20:00", startTime: "18:00" },
-  { value: "late-evening", label: "Tối", timeRange: "19:30 - 21:30", startTime: "19:30" },
-];
+function normalizeRRuleDay(value?: string): string {
+  const raw = String(value || "").trim().toUpperCase();
+  const map: Record<string, string> = {
+    MO: "MO",
+    MON: "MO",
+    TU: "TU",
+    TUE: "TU",
+    WE: "WE",
+    WED: "WE",
+    TH: "TH",
+    THU: "TH",
+    FR: "FR",
+    FRI: "FR",
+    SA: "SA",
+    SAT: "SA",
+    SU: "SU",
+    SUN: "SU",
+    T2: "MO",
+    T3: "TU",
+    T4: "WE",
+    T5: "TH",
+    T6: "FR",
+    T7: "SA",
+    CN: "SU",
+  };
+  return map[raw] || "";
+}
+
+function normalizeTime(value?: string): string {
+  const raw = String(value || "").trim();
+  const matched = raw.match(/^(\d{1,2}):(\d{1,2})/);
+  if (!matched) return "";
+  const hour = Number(matched[1]);
+  const minute = Number(matched[2]);
+  if (
+    Number.isNaN(hour) ||
+    Number.isNaN(minute) ||
+    hour < 0 ||
+    hour > 23 ||
+    minute < 0 ||
+    minute > 59
+  ) {
+    return "";
+  }
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+function extractRRuleDayFromText(value: string): string {
+  const raw = value.toUpperCase();
+  if (/\bCN\b|CHU\s*NHAT|CHỦ\s*NHẬT/.test(raw)) return "SU";
+  if (/\bT2\b|THU\s*2|THỨ\s*2/.test(raw)) return "MO";
+  if (/\bT3\b|THU\s*3|THỨ\s*3/.test(raw)) return "TU";
+  if (/\bT4\b|THU\s*4|THỨ\s*4/.test(raw)) return "WE";
+  if (/\bT5\b|THU\s*5|THỨ\s*5/.test(raw)) return "TH";
+  if (/\bT6\b|THU\s*6|THỨ\s*6/.test(raw)) return "FR";
+  if (/\bT7\b|THU\s*7|THỨ\s*7/.test(raw)) return "SA";
+  return "";
+}
+
+function buildPreviewFromWeeklyPattern(value?: WeeklyPatternEntry[]): string[] {
+  if (!Array.isArray(value) || value.length === 0) return [];
+
+  const lines = value
+    .flatMap((entry) => {
+      const time = normalizeTime(entry?.startTime);
+      const days = Array.isArray(entry?.dayOfWeeks)
+        ? entry.dayOfWeeks.map((day) => normalizeRRuleDay(String(day))).filter(Boolean)
+        : [];
+      if (!time || days.length === 0) return [] as string[];
+      return days.map((dayCode) => `${RRULE_DAY_LABELS[dayCode] || dayCode} • ${time}`);
+    })
+    .filter(Boolean);
+
+  return Array.from(new Set(lines));
+}
+
+function buildPreviewFromScheduleText(value?: string): string[] {
+  const text = String(value || "").trim();
+  if (!text) return [];
+
+  const chunks = text
+    .split(",")
+    .map((chunk) => chunk.trim())
+    .filter(Boolean)
+    .map((chunk) => {
+      const day = extractRRuleDayFromText(chunk);
+      const timeMatch = chunk.match(/(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})?/);
+      const startTime = normalizeTime(timeMatch?.[1]);
+      return {
+        day,
+        startTime,
+      };
+    })
+    .filter((item) => item.day && item.startTime)
+    .map((item) => `${RRULE_DAY_LABELS[item.day] || item.day} • ${item.startTime}`);
+
+  return Array.from(new Set(chunks));
+}
 
 export default function RegistrationTransferModal({
   isOpen,
@@ -68,90 +166,206 @@ export default function RegistrationTransferModal({
   setTransferEffectiveDate,
   transferSessionPattern,
   setTransferSessionPattern,
+  transferWeeklyPattern,
+  setTransferWeeklyPattern,
   transferClassOptions,
   isLoadingTransferClasses,
   isTransferring,
   onConfirmTransfer,
 }: RegistrationTransferModalProps) {
-  const [sessionsPerWeek, setSessionsPerWeek] = useState(2);
-  const [selectedDays, setSelectedDays] = useState<string[]>([]);
-  const [selectedTimeSlot, setSelectedTimeSlot] = useState("");
-  const [useCustomTime, setUseCustomTime] = useState(false);
-  const [startTime, setStartTime] = useState("18:00");
-  const [endTime, setEndTime] = useState("20:00");
-  const [scheduleControlsEnabled, setScheduleControlsEnabled] = useState(false);
+  const [selectedScheduleKeys, setSelectedScheduleKeys] = useState<string[]>([]);
 
-  const toggleDay = (dayValue: string) => {
-    setSelectedDays((prev) => {
-      if (prev.includes(dayValue)) {
-        return prev.filter((d) => d !== dayValue);
-      }
-      if (prev.length >= sessionsPerWeek) {
-        return prev;
-      }
-      return [...prev, dayValue];
-    });
-  };
-
-  const handleSessionsPerWeekChange = (value: number) => {
-    setSessionsPerWeek(value);
-    if (selectedDays.length > value) {
-      setSelectedDays((prev) => prev.slice(0, value));
-    }
-  };
+  const selectedTransferClass = useMemo(
+    () => transferClassOptions.find((item) => item.id === transferClassId) ?? null,
+    [transferClassId, transferClassOptions],
+  );
+  const hasEnabledTransferOption = useMemo(
+    () => transferClassOptions.some((item) => !item.disabled),
+    [transferClassOptions],
+  );
 
   const computedSessionPattern = useMemo(() => {
-    if (!scheduleControlsEnabled) return "";
-    if (selectedDays.length === 0) return "";
+    return selectedTransferClass?.defaultSessionPattern || "";
+  }, [selectedTransferClass?.defaultSessionPattern]);
 
-    const dayOrder = ["2", "3", "4", "5", "6", "7", "CN"];
-    const byDay = [...selectedDays]
-      .sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b))
-      .map((dayValue) => WEEK_DAYS.find((day) => day.value === dayValue)?.rrule)
-      .filter(Boolean)
-      .join(",");
+  const scheduleOptions = useMemo(() => {
+    const fromWeeklyPattern =
+      selectedTransferClass?.defaultWeeklyPattern
+        ?.flatMap((entry) => {
+          const time = normalizeTime(entry?.startTime);
+          const durationRaw = Number(entry?.durationMinutes);
+          const durationMinutes =
+            Number.isFinite(durationRaw) && durationRaw > 0 ? Math.floor(durationRaw) : 90;
+          const days = Array.isArray(entry?.dayOfWeeks)
+            ? entry.dayOfWeeks.map((day) => normalizeRRuleDay(String(day))).filter(Boolean)
+            : [];
+          if (!time || days.length === 0) return [] as Array<{
+            key: string;
+            dayCode: string;
+            time: string;
+            durationMinutes: number;
+            label: string;
+          }>;
+          return days.map((dayCode) => ({
+            key: `${dayCode}|${time}`,
+            dayCode,
+            time,
+            durationMinutes,
+            label: `${RRULE_DAY_LABELS[dayCode] || dayCode} • ${time}`,
+          }));
+        }) || [];
 
-    if (!byDay) return "";
-
-    let sourceTime = "";
-    if (useCustomTime) {
-      if (!startTime || !endTime || startTime >= endTime) return "";
-      sourceTime = startTime;
-    } else {
-      sourceTime = TIME_SLOTS.find((slot) => slot.value === selectedTimeSlot)?.startTime || "";
-      if (!sourceTime) return "";
+    if (fromWeeklyPattern.length > 0) {
+      return Array.from(
+        new Map(fromWeeklyPattern.map((item) => [item.key, item])).values(),
+      );
     }
 
-    const [hourRaw, minuteRaw] = sourceTime.split(":");
-    const hour = Number(hourRaw);
-    const minute = Number(minuteRaw);
-    if (Number.isNaN(hour) || Number.isNaN(minute)) return "";
+    const pattern = computedSessionPattern.trim();
+    if (pattern) {
+      const normalized = pattern.replace(/^RRULE:/i, "");
+      const parts = new Map<string, string>();
+      normalized.split(";").forEach((token) => {
+        const [key, value] = token.split("=");
+        if (!key || !value) return;
+        parts.set(key.toUpperCase(), value);
+      });
 
-    return `FREQ=WEEKLY;BYDAY=${byDay};BYHOUR=${hour};BYMINUTE=${minute}`;
-  }, [selectedDays, selectedTimeSlot, useCustomTime, startTime, endTime, scheduleControlsEnabled]);
+      const dayCodes = String(parts.get("BYDAY") || "")
+        .split(",")
+        .map((item) => normalizeRRuleDay(item))
+        .filter(Boolean);
+      const hour = Number(parts.get("BYHOUR") || "");
+      const minute = Number(parts.get("BYMINUTE") || "");
+      if (dayCodes.length > 0 && !Number.isNaN(hour) && !Number.isNaN(minute)) {
+        const time = normalizeTime(
+          `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`,
+        );
+        if (time) {
+          return dayCodes.map((dayCode) => ({
+            key: `${dayCode}|${time}`,
+            dayCode,
+            time,
+            durationMinutes: 90,
+            label: `${RRULE_DAY_LABELS[dayCode] || dayCode} • ${time}`,
+          }));
+        }
+      }
+    }
+
+    const fromScheduleText = buildPreviewFromScheduleText(selectedTransferClass?.schedule)
+      .map((line) => {
+        const [dayLabelRaw, timeRaw] = line.split("•").map((part) => part.trim());
+        const dayCode = Object.entries(RRULE_DAY_LABELS).find(([, label]) => label === dayLabelRaw)?.[0] || "";
+        const time = normalizeTime(timeRaw);
+        if (!dayCode || !time) return null;
+        return {
+          key: `${dayCode}|${time}`,
+          dayCode,
+          time,
+          durationMinutes: 90,
+          label: `${RRULE_DAY_LABELS[dayCode] || dayCode} • ${time}`,
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => Boolean(item));
+
+    return Array.from(new Map(fromScheduleText.map((item) => [item.key, item])).values());
+  }, [computedSessionPattern, selectedTransferClass?.defaultWeeklyPattern, selectedTransferClass?.schedule]);
 
   useEffect(() => {
-    setTransferSessionPattern(computedSessionPattern);
-  }, [computedSessionPattern, setTransferSessionPattern]);
+    if (!transferClassId || scheduleOptions.length === 0) {
+      setSelectedScheduleKeys([]);
+      return;
+    }
+
+    setSelectedScheduleKeys((prev) => {
+      const available = new Set(scheduleOptions.map((item) => item.key));
+      const kept = prev.filter((key) => available.has(key));
+      return kept.length > 0 ? kept : scheduleOptions.map((item) => item.key);
+    });
+  }, [transferClassId, scheduleOptions]);
+
+  const selectedWeeklyPattern = useMemo(() => {
+    if (scheduleOptions.length === 0 || selectedScheduleKeys.length === 0) return [] as WeeklyPatternEntry[];
+    const selected = scheduleOptions.filter((item) => selectedScheduleKeys.includes(item.key));
+    if (selected.length === 0) return [];
+
+    const grouped = new Map<string, { dayOfWeeks: string[]; startTime: string; durationMinutes: number }>();
+    selected.forEach((item) => {
+      const groupKey = `${item.time}|${item.durationMinutes}`;
+      const existing = grouped.get(groupKey);
+      if (!existing) {
+        grouped.set(groupKey, {
+          dayOfWeeks: [item.dayCode],
+          startTime: item.time,
+          durationMinutes: item.durationMinutes,
+        });
+        return;
+      }
+
+      if (!existing.dayOfWeeks.includes(item.dayCode)) {
+        existing.dayOfWeeks.push(item.dayCode);
+      }
+    });
+
+    return Array.from(grouped.values())
+      .map((entry) => ({
+        dayOfWeeks: entry.dayOfWeeks,
+        startTime: entry.startTime,
+        durationMinutes: entry.durationMinutes,
+      }))
+      .filter((entry) => entry.dayOfWeeks.length > 0 && Boolean(entry.startTime));
+  }, [scheduleOptions, selectedScheduleKeys]);
+
+  const schedulePreview = useMemo(
+    () => scheduleOptions.map((item) => item.label),
+    [scheduleOptions],
+  );
+
+  const selectedCount = selectedScheduleKeys.length;
+
+  const toggleScheduleKey = (key: string) => {
+    setSelectedScheduleKeys((prev) =>
+      prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key],
+    );
+  };
 
   useEffect(() => {
-    if (!isOpen) return;
-    setSessionsPerWeek(2);
-    setSelectedDays([]);
-    setSelectedTimeSlot("");
-    setUseCustomTime(false);
-    setStartTime("18:00");
-    setEndTime("20:00");
-    setScheduleControlsEnabled(false);
-  }, [isOpen]);
+    setTransferWeeklyPattern(selectedWeeklyPattern);
+  }, [selectedWeeklyPattern, setTransferWeeklyPattern]);
 
   useEffect(() => {
-    if (!isOpen) return;
-    setScheduleControlsEnabled(false);
-    setSelectedDays([]);
-    setSelectedTimeSlot("");
-    setUseCustomTime(false);
-  }, [transferClassId, transferTrack, isOpen]);
+    if (!selectedWeeklyPattern.length) {
+      setTransferSessionPattern("");
+      return;
+    }
+
+    if (selectedWeeklyPattern.length === 1) {
+      const entry = selectedWeeklyPattern[0];
+      const [hourRaw, minuteRaw] = String(entry.startTime || "").split(":");
+      const hour = Number(hourRaw || "");
+      const minute = Number(minuteRaw || "");
+      if (!Number.isNaN(hour) && !Number.isNaN(minute) && Array.isArray(entry.dayOfWeeks) && entry.dayOfWeeks.length > 0) {
+        setTransferSessionPattern(
+          `FREQ=WEEKLY;BYDAY=${entry.dayOfWeeks.join(",")};BYHOUR=${hour};BYMINUTE=${minute}`,
+        );
+        return;
+      }
+    }
+
+    setTransferSessionPattern("");
+  }, [selectedWeeklyPattern, setTransferSessionPattern]);
+
+  useEffect(() => {
+    if (!transferClassId) {
+      if (transferWeeklyPattern.length > 0) {
+        setTransferWeeklyPattern([]);
+      }
+      if (transferSessionPattern) {
+        setTransferSessionPattern("");
+      }
+    }
+  }, [transferClassId, transferWeeklyPattern, transferSessionPattern, setTransferWeeklyPattern, setTransferSessionPattern]);
 
   if (!isOpen) return null;
   if (typeof window === "undefined") return null;
@@ -222,8 +436,9 @@ export default function RegistrationTransferModal({
                 <SelectContent>
                   <SelectItem value="__none__">Chọn lớp mới cùng trình độ</SelectItem>
                   {transferClassOptions.map((item) => (
-                    <SelectItem key={item.id} value={item.id}>
+                    <SelectItem key={item.id} value={item.id} disabled={Boolean(item.disabled)}>
                       {item.name} • Còn chỗ: {item.remainingSlots ?? "-"} • Lịch: {item.schedule || "Chưa có"}
+                      {item.disabledReason ? ` • ${item.disabledReason}` : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -231,6 +446,14 @@ export default function RegistrationTransferModal({
               {isLoadingTransferClasses ? (
                 <p className="inline-flex items-center gap-2 text-xs text-gray-500">
                   <Loader2 size={12} className="animate-spin" /> Đang tải danh sách lớp...
+                </p>
+              ) : !transferClassOptions.length ? (
+                <p className="text-xs text-amber-700">
+                  Không có lớp nào cùng chương trình để chuyển.
+                </p>
+              ) : !hasEnabledTransferOption ? (
+                <p className="text-xs text-amber-700">
+                  Các lớp cùng chương trình hiện không khả dụng để chuyển (đã hủy hoặc hết chỗ).
                 </p>
               ) : null}
             </div>
@@ -247,140 +470,42 @@ export default function RegistrationTransferModal({
           </div>
 
           <div className="rounded-2xl border border-red-100 p-4">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <div className="text-lg font-semibold text-gray-800">Lịch học mong muốn</div>
-              <button
-                type="button"
-                onClick={() => {
-                  const next = !scheduleControlsEnabled;
-                  setScheduleControlsEnabled(next);
-                  if (!next) {
-                    setSelectedDays([]);
-                    setSelectedTimeSlot("");
-                    setUseCustomTime(false);
-                  }
-                }}
-                disabled={!transferClassId}
-                className="rounded-lg border border-red-200 bg-white px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {scheduleControlsEnabled ? "Ẩn tùy chỉnh lịch" : "Tùy chỉnh lịch học"}
-              </button>
-            </div>
-
-            {!scheduleControlsEnabled ? (
-              <div className="mb-3 rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-500">
-                Đang dùng lịch mặc định của lớp. Nếu cần chọn buổi cụ thể, nhấn "Tùy chỉnh lịch học".
-              </div>
-            ) : null}
-
-            <div className="space-y-4 rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-3">
-              {!scheduleControlsEnabled ? null : (
+            <div className="mb-3 text-lg font-semibold text-gray-800">Lịch học mong muốn</div>
+            <div className="space-y-3 rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-3">
+              {!transferClassId ? (
+                <div className="rounded-lg border border-dashed border-gray-200 bg-white px-3 py-2 text-xs text-gray-500">
+                  Chọn lớp mới để xem lịch học áp dụng.
+                </div>
+              ) : schedulePreview.length > 0 ? (
                 <>
-              <div className="space-y-1.5">
-                <p className="text-sm text-gray-700">Số buổi học mỗi tuần</p>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleSessionsPerWeekChange(2)}
-                    className={`flex-1 rounded-xl border px-3 py-1.5 text-sm font-semibold transition-colors ${
-                      sessionsPerWeek === 2
-                        ? "border-red-600 bg-linear-to-r from-red-600 to-red-700 text-white"
-                        : "border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
-                    }`}
-                  >
-                    2 buổi/tuần
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSessionsPerWeekChange(3)}
-                    className={`flex-1 rounded-xl border px-3 py-1.5 text-sm font-semibold transition-colors ${
-                      sessionsPerWeek === 3
-                        ? "border-red-600 bg-linear-to-r from-red-600 to-red-700 text-white"
-                        : "border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
-                    }`}
-                  >
-                    3 buổi/tuần
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <p className="text-sm text-gray-700">Chọn ngày học (tối đa {sessionsPerWeek} ngày)</p>
-                <div className="grid grid-cols-4 gap-2 lg:grid-cols-7">
-                  {WEEK_DAYS.map((day) => {
-                    const isSelected = selectedDays.includes(day.value);
-                    const isDisabled = !isSelected && selectedDays.length >= sessionsPerWeek;
-                    return (
-                      <button
-                        key={day.value}
-                        type="button"
-                        onClick={() => toggleDay(day.value)}
-                        disabled={isDisabled}
-                        className={`rounded-xl border p-1.5 text-center transition-colors ${
-                          isSelected
-                            ? "border-red-500 bg-red-100 text-red-700"
-                            : isDisabled
-                              ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400"
-                              : "border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
-                        }`}
-                      >
-                        <div className="text-sm font-semibold leading-none">{day.shortLabel}</div>
-                        <div className="mt-1 text-[11px] leading-tight">{day.label}</div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-gray-700">Khung giờ học</p>
-                  <button
-                    type="button"
-                    onClick={() => setUseCustomTime((prev) => !prev)}
-                    className="text-xs font-semibold text-red-600 hover:text-red-700"
-                  >
-                    {useCustomTime ? "Chọn khung giờ mẫu" : "Nhập giờ tùy chỉnh"}
-                  </button>
-                </div>
-
-                {!useCustomTime ? (
-                  <div className="grid grid-cols-2 gap-2">
-                    {TIME_SLOTS.map((slot) => (
-                      <button
-                        key={slot.value}
-                        type="button"
-                        onClick={() => setSelectedTimeSlot(slot.value)}
-                        className={`rounded-xl border px-2 py-1.5 text-center transition-colors ${
-                          selectedTimeSlot === slot.value
-                            ? "border-red-600 bg-linear-to-r from-red-600 to-red-700 text-white"
-                            : "border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
-                        }`}
-                      >
-                        <div className="text-sm font-semibold leading-none">{slot.label}</div>
-                        <div className="mt-1 text-[11px] leading-tight">{slot.timeRange}</div>
-                      </button>
-                    ))}
+                  
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {scheduleOptions.map((item) => {
+                      const isSelected = selectedScheduleKeys.includes(item.key);
+                      return (
+                        <button
+                          key={item.key}
+                          type="button"
+                          onClick={() => toggleScheduleKey(item.key)}
+                          className={`rounded-xl border px-3 py-2 text-left text-sm font-medium transition-colors ${
+                            isSelected
+                              ? "border-emerald-400 bg-emerald-50 text-emerald-800"
+                              : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                          }`}
+                        >
+                          {item.label}
+                        </button>
+                      );
+                    })}
                   </div>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="time"
-                      value={startTime}
-                      onChange={(e) => setStartTime(e.target.value)}
-                      className="flex-1 rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
-                    />
-                    <span className="text-sm font-medium text-gray-500">đến</span>
-                    <input
-                      type="time"
-                      value={endTime}
-                      onChange={(e) => setEndTime(e.target.value)}
-                      className="flex-1 rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
-                    />
+                  <div className="text-xs text-gray-500">
+                    Đã chọn {selectedCount}/{scheduleOptions.length} buổi.
                   </div>
-                )}
-              </div>
                 </>
+              ) : (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                  Lớp đã chọn chưa có dữ liệu lịch chuẩn. Vui lòng kiểm tra lịch lớp trước khi chuyển.
+                </div>
               )}
             </div>
           </div>
