@@ -23,6 +23,7 @@ import {
   Calendar,
   Crown,
   MessageCircle,
+  Route,
 } from "lucide-react";
 import { makeMenu, makeGroup, type RawItem } from "./utils";
 import type { MenuItem } from "./types";
@@ -72,6 +73,12 @@ export function studentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     label: t.items.aiSpeaking,
     icon: Mic,
     href: `${root}/ai-speaking`,
+  };
+
+  const progressionItem: MenuItem = {
+    label: "Tiến trình chuyển chương trình",
+    icon: Route,
+    href: `${root}/program-progressions`,
   };
 
   // 📊 Báo cáo & Kiểm tra
@@ -133,6 +140,7 @@ export function studentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     homeworkItem,
     aiTutorItem,
     aiSpeakingItem,
+    progressionItem,
     reportsTestsGroup,
     gamificationGroup,
     mediaGroup,

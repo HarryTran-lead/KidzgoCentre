@@ -14,6 +14,7 @@ import {
   Image,
   Inbox,
   LayoutDashboard,
+  Route,
   Send,
   Settings,
   Sparkles,
@@ -44,6 +45,7 @@ export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
   const opsItems: RawItem[] = [
     [t.groups.ops.rooms, Building2, "/rooms"],
     [t.groups.ops.schedule, CalendarRange, "/schedule"],
+    ["Tiến trình chuyển chương trình", Route, "/program-progressions"],
     [t.groups.ops.pauseEnrollments, CalendarClock, "/pause-enrollments"],
     [t.groups.ops.documents, FileText, "/documents"],
     [t.groups.ops.teachingMaterials, Folder, "/materials"],
