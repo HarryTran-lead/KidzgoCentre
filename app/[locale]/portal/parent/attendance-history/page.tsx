@@ -42,20 +42,17 @@ function toVNDateLabel(value: string | null | undefined): string {
 }
 
 function getAttendanceHistoryTitle(item: StudentAttendanceHistoryItem) {
-  const sessionName = String(item.sessionName ?? "").trim();
-  if (sessionName) return sessionName;
-
-  const className = String(item.className ?? "").trim();
+  const className = String(item.className).trim();
   if (className) return className;
 
-  const sessionId = String(item.sessionId ?? "").trim();
-  if (sessionId) return `Buổi học ${sessionId.slice(0, 8)}`;
+  const sessionName = String(item.sessionName).trim();
+  if (sessionName) return sessionName;
 
   return "Buổi học";
 }
 
 function getAttendanceAbsenceTypeLabel(value?: string | null) {
-  const normalized = String(value ?? "").trim();
+  const normalized = String(value).trim();
   if (!normalized) return null;
   return attendanceAbsenceTypeLabels[normalized] ?? normalized;
 }
@@ -245,7 +242,6 @@ export default function ParentAttendanceHistoryPage() {
                     <tr key={`${item.sessionId}-${item.markedAt ?? item.date ?? ""}`} className="group hover:bg-linear-to-r hover:from-red-50/50 hover:to-white transition-all duration-200">
                       <td className="py-3 px-6">
                         <div className="font-medium text-gray-900">{getAttendanceHistoryTitle(item)}</div>
-                        <div className="text-xs text-gray-500">{item.className ?? item.sessionId ?? "-"}</div>
                       </td>
                       <td className="py-3 px-6 whitespace-nowrap text-sm text-gray-700">
                         {toVNDateLabel(item.date)} {item.startTime ? `- ${item.startTime}` : ""}

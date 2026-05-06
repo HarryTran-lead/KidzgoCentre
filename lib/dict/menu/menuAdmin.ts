@@ -32,8 +32,8 @@ export const menuAdmin = {
           sessionReport: "Báo cáo theo buổi",
         },
         documents: "Giáo án & Tài liệu",
-        teachingMaterials: "Teaching Materials",
-        media: "Media & Moderation",
+        teachingMaterials: "Tài liệu giảng dạy",
+        media: "Truyền thông & Kiểm duyệt",
         reportRequests: "Yêu cầu báo cáo",
       },
       finance: {

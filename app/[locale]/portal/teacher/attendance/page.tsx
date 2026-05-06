@@ -194,6 +194,9 @@ function getSessionReportTimestamp(report: SessionReportItem | any): number {
 function translateSessionReportError(message?: string): string | null {
   if (!message) return null;
   const m = message.toLowerCase();
+  if (m.includes("sessionreport.sessionnotended") || m.includes("session report can only be created")) {
+    return "Chỉ có thể thao tác nhận xét sau khi buổi học đã kết thúc.";
+  }
   if (m.includes("published")) return "Không thể chỉnh sửa nhận xét đã được xuất bản.";
   if (m.includes("review")) return "Nhận xét đang trong trạng thái chờ duyệt, không thể gửi lại.";
   if (m.includes("not found")) return "Không tìm thấy báo cáo buổi học.";

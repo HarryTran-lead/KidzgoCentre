@@ -50,10 +50,10 @@ function StatusBadge({ status }: { status: TestStatus }) {
   const { variant, label } = config[status];
   
   const colors = {
-    success: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    info: "bg-blue-50 text-blue-700 border-blue-200",
-    danger: "bg-rose-50 text-rose-700 border-rose-200",
-    warning: "bg-amber-50 text-amber-700 border-amber-200",
+    success: "bg-emerald-500/10 text-emerald-200 border-emerald-400/40",
+    info: "bg-sky-500/10 text-sky-200 border-sky-400/40",
+    danger: "bg-rose-500/10 text-rose-200 border-rose-400/40",
+    warning: "bg-amber-500/10 text-amber-200 border-amber-400/40",
   };
 
   return (
@@ -78,23 +78,23 @@ function StatsCard({
   trend?: { value: number; isPositive: boolean };
 }) {
   const colorClasses = {
-    indigo: "bg-indigo-50 text-indigo-600",
-    emerald: "bg-emerald-50 text-emerald-600",
-    amber: "bg-amber-50 text-amber-600",
-    rose: "bg-rose-50 text-rose-600",
-    blue: "bg-blue-50 text-blue-600",
+    indigo: "bg-indigo-500/15 text-indigo-200",
+    emerald: "bg-emerald-500/15 text-emerald-200",
+    amber: "bg-amber-500/15 text-amber-200",
+    rose: "bg-rose-500/15 text-rose-200",
+    blue: "bg-sky-500/15 text-sky-200",
   };
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="rounded-2xl border border-indigo-400/20 bg-slate-900/60 p-5 shadow-lg shadow-indigo-950/20 backdrop-blur-sm">
       <div className="flex items-start gap-3">
         <div className={`w-10 h-10 rounded-lg grid place-items-center shrink-0 ${colorClasses[color]}`}>
           {icon}
         </div>
         <div className="flex-1">
-          <div className="text-sm text-slate-500">{label}</div>
+          <div className="text-sm text-slate-300/80">{label}</div>
           <div className="flex items-center gap-2">
-            <div className="text-2xl font-bold text-slate-900">{value}</div>
+            <div className="text-2xl font-bold text-slate-100">{value}</div>
             {trend && (
               <div className={`text-sm font-semibold flex items-center gap-1 ${
                 trend.isPositive ? "text-emerald-600" : "text-rose-600"
@@ -229,11 +229,11 @@ export default function TestsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-4 pb-6 pt-4 md:px-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Kết quả kiểm tra</h1>
-        <p className="text-slate-600 mt-1">Xem chi tiết điểm số và thành tích của bạn</p>
+        <h1 className="text-2xl font-bold text-slate-100">Kết quả kiểm tra</h1>
+        <p className="mt-1 text-slate-300/80">Xem chi tiết điểm số và thành tích của bạn</p>
       </div>
 
       {/* Stats */}
@@ -272,7 +272,7 @@ export default function TestsPage() {
       </div>
 
       {/* Search & Filters */}
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="rounded-2xl border border-indigo-400/20 bg-slate-900/60 p-5 shadow-lg shadow-indigo-950/20 backdrop-blur-sm">
         <div className="flex flex-col md:flex-row gap-4">
           {/* Search */}
           <div className="flex-1 relative">
@@ -282,7 +282,7 @@ export default function TestsPage() {
               placeholder="Tìm kiếm bài kiểm tra..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-lg border border-slate-700 bg-slate-950/70 py-2.5 pl-10 pr-4 text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/50"
             />
           </div>
 
@@ -290,7 +290,7 @@ export default function TestsPage() {
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as TestSortOption)}
-            className="px-4 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            className="rounded-lg border border-slate-700 bg-slate-950/70 px-4 py-2.5 text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-400/50"
           >
             <option value="DATE_DESC">Ngày thi: Mới nhất</option>
             <option value="DATE_ASC">Ngày thi: Cũ nhất</option>
@@ -302,7 +302,7 @@ export default function TestsPage() {
           {/* Filter Button */}
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="px-4 py-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 flex items-center gap-2 font-medium"
+            className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-950/60 px-4 py-2.5 font-medium text-slate-100 hover:bg-slate-900"
           >
             <Filter size={20} />
             Lọc
@@ -316,10 +316,10 @@ export default function TestsPage() {
 
         {/* Filter Panel */}
         {showFilters && (
-          <div className="mt-4 pt-4 border-t border-slate-200 space-y-4">
+          <div className="mt-4 space-y-4 border-t border-slate-700 pt-4">
             {/* Status Filter */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <label className="mb-2 block text-sm font-medium text-slate-200">
                 Trạng thái
               </label>
               <div className="flex flex-wrap gap-2">
@@ -335,8 +335,8 @@ export default function TestsPage() {
                     }}
                     className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition ${
                       statusFilter.includes(status)
-                        ? "bg-blue-50 border-blue-200 text-blue-700"
-                        : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                        ? "border-indigo-400/60 bg-indigo-500/20 text-indigo-100"
+                        : "border-slate-700 bg-slate-950/60 text-slate-200 hover:bg-slate-900"
                     }`}
                   >
                     <StatusBadge status={status} />
@@ -347,7 +347,7 @@ export default function TestsPage() {
 
             {/* Type Filter */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <label className="mb-2 block text-sm font-medium text-slate-200">
                 Loại bài thi
               </label>
               <div className="flex flex-wrap gap-2">
@@ -363,8 +363,8 @@ export default function TestsPage() {
                     }}
                     className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition ${
                       typeFilter.includes(type)
-                        ? "bg-blue-50 border-blue-200 text-blue-700"
-                        : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                        ? "border-indigo-400/60 bg-indigo-500/20 text-indigo-100"
+                        : "border-slate-700 bg-slate-950/60 text-slate-200 hover:bg-slate-900"
                     }`}
                   >
                     {getTypeLabel(type)}
@@ -379,7 +379,7 @@ export default function TestsPage() {
                   setStatusFilter([]);
                   setTypeFilter([]);
                 }}
-                className="text-sm text-blue-600 font-medium hover:underline"
+                className="text-sm font-medium text-indigo-200 hover:text-indigo-100 hover:underline"
               >
                 Xóa tất cả bộ lọc
               </button>
@@ -391,16 +391,16 @@ export default function TestsPage() {
       {/* Tests List */}
       <div className="space-y-3">
         {filteredTests.length === 0 ? (
-          <div className="rounded-xl border border-slate-200 bg-white p-12 text-center">
-            <FileText size={48} className="mx-auto text-slate-300 mb-4" />
-            <p className="text-slate-500">Không tìm thấy bài kiểm tra nào</p>
+          <div className="rounded-2xl border border-indigo-400/20 bg-slate-900/60 p-12 text-center backdrop-blur-sm">
+            <FileText size={48} className="mx-auto mb-4 text-slate-500" />
+            <p className="text-slate-300/80">Không tìm thấy bài kiểm tra nào</p>
           </div>
         ) : (
           filteredTests.map((test) => (
             <div
               key={test.id}
               onClick={() => test.status === "COMPLETED" && router.push(`/${locale}/portal/student/tests/${test.id}`)}
-              className={`rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition ${
+              className={`rounded-2xl border border-indigo-400/20 bg-slate-900/60 p-5 shadow-lg shadow-indigo-950/20 backdrop-blur-sm transition ${
                 test.status === "COMPLETED" ? "hover:shadow-md cursor-pointer" : ""
               }`}
             >
@@ -408,10 +408,10 @@ export default function TestsPage() {
                 {/* Icon */}
                 <div className={`w-12 h-12 rounded-lg grid place-items-center shrink-0 ${
                   test.status === "COMPLETED" 
-                    ? "bg-emerald-50 text-emerald-600" 
+                    ? "bg-emerald-500/15 text-emerald-200" 
                     : test.status === "SCHEDULED"
-                    ? "bg-blue-50 text-blue-600"
-                    : "bg-slate-50 text-slate-400"
+                    ? "bg-sky-500/15 text-sky-200"
+                    : "bg-slate-800 text-slate-300"
                 }`}>
                   <FileText size={20} />
                 </div>
@@ -420,10 +420,10 @@ export default function TestsPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-4 mb-2">
                     <div className="flex-1">
-                      <h3 className="font-semibold text-slate-900 mb-1">
+                      <h3 className="mb-1 font-semibold text-slate-100">
                         {test.title}
                       </h3>
-                      <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
+                      <div className="flex flex-wrap items-center gap-3 text-sm text-slate-300/80">
                         <span className="flex items-center gap-1">
                           <BookOpen size={14} />
                           {test.className}
@@ -431,7 +431,7 @@ export default function TestsPage() {
                         <span>•</span>
                         <span>{test.subject}</span>
                         <span>•</span>
-                        <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs font-medium">
+                        <span className="rounded bg-slate-800 px-2 py-0.5 text-xs font-medium text-slate-200">
                           {getTypeLabel(test.type)}
                         </span>
                       </div>
@@ -441,11 +441,11 @@ export default function TestsPage() {
 
                   {/* Metadata */}
                   <div className="flex flex-wrap items-center gap-4 text-sm">
-                    <span className="text-slate-600 flex items-center gap-1">
+                    <span className="flex items-center gap-1 text-slate-300/80">
                       <Calendar size={14} />
                       {test.testDate}
                     </span>
-                    <span className="text-slate-600 flex items-center gap-1">
+                    <span className="flex items-center gap-1 text-slate-300/80">
                       <Clock size={14} />
                       {test.duration} phút
                     </span>
@@ -458,14 +458,14 @@ export default function TestsPage() {
                         </span>
                         
                         {test.rank && (
-                          <span className="flex items-center gap-1 text-blue-600 font-medium">
+                          <span className="flex items-center gap-1 font-medium text-indigo-200">
                             <Medal size={14} />
                             #{test.rank}/{test.totalStudents}
                           </span>
                         )}
                         
                         {test.averageScore && (
-                          <span className="text-slate-500 flex items-center gap-1">
+                          <span className="flex items-center gap-1 text-slate-300/70">
                             <Users size={14} />
                             ĐTB lớp: {test.averageScore}
                           </span>

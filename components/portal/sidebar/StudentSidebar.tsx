@@ -59,15 +59,15 @@ function StudentIconButton({
       <div
         className={`relative grid place-items-center h-12 w-12 rounded-[12px] transition-all duration-300 shadow-lg ${
           active
-            ? `bg-gradient-to-br ${gradient} scale-110 shadow-2xl shadow-purple-500/70 animate-pulse ring-2 ring-white/30`
-            : `bg-gradient-to-br ${gradient} group-hover:scale-110 group-hover:shadow-xl group-hover:shadow-purple-400/40 group-hover:rotate-3`
+            ? `bg-linear-to-br ${gradient} scale-110 shadow-2xl shadow-purple-500/70 animate-pulse ring-2 ring-white/30`
+            : `bg-linear-to-br ${gradient} group-hover:scale-110 group-hover:shadow-xl group-hover:shadow-purple-400/40 group-hover:rotate-3`
         }`}
         style={active ? {
           boxShadow: '0 0 16px rgba(251, 191, 36, 0.6), 0 0 32px rgba(251, 191, 36, 0.3), 0 8px 20px rgba(251, 191, 36, 0.4)'
         } : undefined}
       >
         {/* Glow effect bên trong */}
-        <div className={`absolute inset-0 rounded-[12px] bg-gradient-to-t from-white/0 to-white/20 ${active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity`} />
+        <div className={`absolute inset-0 rounded-[12px] bg-linear-to-t from-white/0 to-white/20 ${active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity`} />
         
         <Image
           src={iconSrc}
@@ -79,7 +79,7 @@ function StudentIconButton({
         
         {/* Badge */}
         {badge ? (
-          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-gradient-to-r from-rose-500 via-pink-500 to-rose-400 px-1 text-center text-[10px] font-bold text-white shadow-lg border-2 border-white/50">
+          <span className="absolute -top-1 -right-1 h-4.5 min-w-4.5 flex items-center justify-center rounded-full bg-linear-to-r from-rose-500 via-pink-500 to-rose-400 px-1 text-center text-[10px] font-bold text-white shadow-lg border-2 border-white/50">
             {badge}
           </span>
         ) : null}
@@ -182,6 +182,11 @@ export default function StudentSidebar({
       href: `${roleRoot}/ai-speaking`,
       iconSrc: "/icons/phone.png",
     },
+    {
+      label: "Tiến trình",
+      href: `${roleRoot}/program-progressions`,
+      iconSrc: "/icons/schedule.png",
+    },
     { 
       label: "Nhiệm vụ", 
       href: `${roleRoot}/gamification`,
@@ -217,7 +222,7 @@ export default function StudentSidebar({
         {/* Close button (mobile) */}
         <button
           onClick={() => setMobileOpen(false)}
-          className="lg:hidden absolute top-3 right-3 z-[90] rounded-xl bg-white/10 p-2 text-white backdrop-blur hover:bg-white/20 active:scale-95 transition-all border border-white/20"
+          className="absolute top-3 right-3 z-90 rounded-xl border border-white/20 bg-white/10 p-2 text-white backdrop-blur transition-all hover:bg-white/20 active:scale-95 lg:hidden"
           aria-label="Đóng menu"
           type="button"
         >

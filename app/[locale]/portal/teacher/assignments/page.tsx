@@ -92,6 +92,7 @@ type Submission = {
   id: string;
   student: string;
   studentId: string;
+  classId?: string;
   className: string;
   file: string;
   fileSize: string;
@@ -350,6 +351,41 @@ function SubmissionRow({
   onUpdate: (item: Submission) => void;
   onViewAssignmentDetails: (item: Submission) => void;
 }) {
+  const normalizedSubmissionType = String(item.submissionType ?? "").trim().toUpperCase();
+
+  const submissionTypeConfig: Record<string, { label: string; className: string }> = {
+    MULTIPLE_CHOICE: {
+      label: "Trắc nghiệm",
+      className: "bg-violet-50 text-violet-700 border-violet-200",
+    },
+    QUIZ: {
+      label: "Quiz",
+      className: "bg-violet-50 text-violet-700 border-violet-200",
+    },
+    FILE: {
+      label: "Nộp file",
+      className: "bg-blue-50 text-blue-700 border-blue-200",
+    },
+    TEXT: {
+      label: "Nhập text",
+      className: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    },
+    IMAGE: {
+      label: "Nộp ảnh",
+      className: "bg-amber-50 text-amber-700 border-amber-200",
+    },
+    LINK: {
+      label: "Nộp link",
+      className: "bg-cyan-50 text-cyan-700 border-cyan-200",
+    },
+  };
+
+  const typeView =
+    submissionTypeConfig[normalizedSubmissionType] ?? {
+      label: item.submissionType || "Nộp file",
+      className: "bg-gray-50 text-gray-700 border-gray-200",
+    };
+
   return (
     <tr className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200 border-b border-red-100">
       <td className="py-4 px-6">
@@ -359,9 +395,6 @@ function SubmissionRow({
       </td>
       <td className="py-4 px-6">
         <div className="text-sm text-gray-600">{item.className || "-"}</div>
-      </td>
-      <td className="py-4 px-6">
-        <div className="text-sm text-gray-900">{item.session || "-"}</div>
       </td>
       <td className="py-4 px-6">
         <div className="text-sm text-gray-700 flex items-center gap-2">
@@ -2392,6 +2425,8 @@ export default function TeacherAssignmentsPage() {
     useState(false);
   const [selectedAssignmentForDetails, setSelectedAssignmentForDetails] =
     useState<string | null>(null);
+  const [classOptions, setClassOptions] = useState<ClassOption[]>([]);
+  const [isLoadingClassOptions, setIsLoadingClassOptions] = useState(false);
   const [meta, setMeta] = useState<{
     totalItems: number;
     totalPages: number;
@@ -2516,16 +2551,30 @@ export default function TeacherAssignmentsPage() {
   };
 
   useEffect(() => {
-    loadHomework(1);
     setIsPageLoaded(true);
-  }, [loadHomework]);
+  }, []);
 
   useEffect(() => {
     loadHomework(1);
     setCurrentPage(1);
-  }, [filter, selectedClass, loadHomework]);
+  }, [selectedClass, loadHomework]);
 
-  const classes = Array.from(new Set(submissions.map((s) => s.className)));
+  useEffect(() => {
+    const loadClassOptions = async () => {
+      setIsLoadingClassOptions(true);
+      try {
+        const data = await fetchClasses();
+        setClassOptions(data);
+      } catch (error) {
+        console.error("Error loading class options:", error);
+        setClassOptions([]);
+      } finally {
+        setIsLoadingClassOptions(false);
+      }
+    };
+
+    loadClassOptions();
+  }, []);
 
   const handleSort = (column: "student" | "assignment" | "turnIn") => {
     if (sortColumn === column) {
@@ -2546,7 +2595,9 @@ export default function TeacherAssignmentsPage() {
     let result = submissions;
 
     if (selectedClass !== "ALL") {
-      result = result.filter((s) => s.className === selectedClass);
+      result = result.filter(
+        (s) => s.classId === selectedClass || s.className === selectedClass,
+      );
     }
 
     if (searchQuery) {
@@ -2586,7 +2637,10 @@ export default function TeacherAssignmentsPage() {
     setCurrentPage(1);
   }, [filter, searchQuery, selectedClass]);
 
-  const totalPages = Math.ceil(meta.totalItems / itemsPerPage);
+  const displayTotalItems = meta.totalItems > 0 ? meta.totalItems : filtered.length;
+  const totalPages = Math.max(1, Math.ceil(displayTotalItems / itemsPerPage));
+  const displayFrom = filtered.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0;
+  const displayTo = filtered.length > 0 ? Math.min(currentPage * itemsPerPage, displayTotalItems) : 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-6 space-y-6">
@@ -2719,12 +2773,13 @@ export default function TeacherAssignmentsPage() {
             <select
               value={selectedClass}
               onChange={(e) => setSelectedClass(e.target.value)}
+              disabled={isLoadingClassOptions}
               className="h-10 rounded-xl border border-red-200 bg-white px-4 pr-10 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200 appearance-none cursor-pointer"
             >
               <option value="ALL">Tất cả lớp</option>
-              {classes.map((cls, index) => (
-                <option key={`${cls}-${index}`} value={cls}>
-                  {cls}
+              {classOptions.map((cls) => (
+                <option key={cls.id} value={cls.id}>
+                  {cls.name}
                 </option>
               ))}
             </select>
@@ -2769,9 +2824,6 @@ export default function TeacherAssignmentsPage() {
                   Lớp học
                 </th>
                 <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                  Buổi học
-                </th>
-                <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
                   Hạn nộp
                 </th>
                 <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
@@ -2790,7 +2842,7 @@ export default function TeacherAssignmentsPage() {
             <tbody className="divide-y divide-red-100">
               {isLoading ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center">
+                  <td colSpan={6} className="py-12 text-center">
                     <div className="flex justify-center">
                       <div className="w-8 h-8 border-4 border-red-200 border-t-red-600 rounded-full animate-spin"></div>
                     </div>
@@ -2799,8 +2851,8 @@ export default function TeacherAssignmentsPage() {
                     </div>
                   </td>
                 </tr>
-              ) : submissions.length > 0 ? (
-                submissions.map((item) => (
+              ) : filtered.length > 0 ? (
+                filtered.map((item) => (
                   <SubmissionRow
                     key={item.id}
                     item={item}
@@ -2812,7 +2864,7 @@ export default function TeacherAssignmentsPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center">
+                  <td colSpan={6} className="py-12 text-center">
                     <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
                       <Search size={24} className="text-red-400" />
                     </div>
@@ -2835,12 +2887,12 @@ export default function TeacherAssignmentsPage() {
               <div className="text-sm text-gray-600">
                 Hiển thị{" "}
                 <span className="font-semibold text-gray-900">
-                  {(currentPage - 1) * itemsPerPage + 1}-
-                  {Math.min(currentPage * itemsPerPage, meta.totalItems)}
+                  {displayFrom}-
+                  {displayTo}
                 </span>{" "}
                 trong tổng số{" "}
                 <span className="font-semibold text-gray-900">
-                  {meta.totalItems}
+                  {displayTotalItems}
                 </span>{" "}
                 bài nộp
               </div>

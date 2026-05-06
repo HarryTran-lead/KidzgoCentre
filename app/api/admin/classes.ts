@@ -133,6 +133,126 @@ function parseRRULEToSchedule(rrule: string): string {
   }
 }
 
+type WeeklyScheduleSlot = {
+  dayOfWeek?: string;
+  startTime?: string;
+  durationMinutes?: number;
+};
+
+function toReadableScheduleFromSlots(slots: WeeklyScheduleSlot[] | null | undefined): string {
+  if (!Array.isArray(slots) || slots.length === 0) {
+    return "";
+  }
+
+  const dayLabelMap: Record<string, string> = {
+    MO: "Thứ 2",
+    TU: "Thứ 3",
+    WE: "Thứ 4",
+    TH: "Thứ 5",
+    FR: "Thứ 6",
+    SA: "Thứ 7",
+    SU: "CN",
+  };
+  const dayOrder: Record<string, number> = {
+    MO: 1,
+    TU: 2,
+    WE: 3,
+    TH: 4,
+    FR: 5,
+    SA: 6,
+    SU: 7,
+  };
+
+  return [...slots]
+    .filter((slot) => {
+      const day = String(slot?.dayOfWeek ?? "").toUpperCase();
+      const start = String(slot?.startTime ?? "").trim();
+      const duration = Number(slot?.durationMinutes ?? 0);
+      return !!dayLabelMap[day] && !!start && /^\d{2}:\d{2}$/.test(start) && Number.isFinite(duration) && duration > 0;
+    })
+    .sort((a, b) => {
+      const dayA = dayOrder[String(a?.dayOfWeek ?? "").toUpperCase()] ?? 99;
+      const dayB = dayOrder[String(b?.dayOfWeek ?? "").toUpperCase()] ?? 99;
+      if (dayA !== dayB) return dayA - dayB;
+      return String(a?.startTime ?? "").localeCompare(String(b?.startTime ?? ""));
+    })
+    .map((slot) => {
+      const day = String(slot?.dayOfWeek ?? "").toUpperCase();
+      const start = String(slot?.startTime ?? "");
+      const duration = Number(slot?.durationMinutes ?? 0);
+      const [h, m] = start.split(":").map((part) => Number(part));
+      const endTotal = h * 60 + m + duration;
+      const endHour = String(Math.floor(endTotal / 60)).padStart(2, "0");
+      const endMinute = String(endTotal % 60).padStart(2, "0");
+      return `${dayLabelMap[day]} (${start} - ${endHour}:${endMinute})`;
+    })
+    .join(", ");
+}
+
+function normalizeScheduleText(scheduleText: string): string {
+  const text = String(scheduleText ?? "").trim();
+  if (!text) return "";
+
+  if (/\(\d{2}:\d{2}\s*-\s*\d{2}:\d{2}\)/.test(text)) {
+    return text;
+  }
+
+  const dayNumberMap: Record<string, string> = {
+    "2": "Thứ 2",
+    "3": "Thứ 3",
+    "4": "Thứ 4",
+    "5": "Thứ 5",
+    "6": "Thứ 6",
+    "7": "Thứ 7",
+  };
+
+  const compactSegments = text
+    .split(",")
+    .map((segment) => segment.trim())
+    .filter(Boolean)
+    .map((segment) => {
+      const compactMatch = segment.match(/^Thu\s*(\d)\s*(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})$/i);
+      if (compactMatch) {
+        const [, dayNum, start, end] = compactMatch;
+        const dayLabel = dayNumberMap[dayNum] ?? `Thứ ${dayNum}`;
+        return `${dayLabel} (${start} - ${end})`;
+      }
+
+      const sundayMatch = segment.match(/^Chu\s*nhat\s*(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})$/i);
+      if (sundayMatch) {
+        const [, start, end] = sundayMatch;
+        return `CN (${start} - ${end})`;
+      }
+
+      return segment;
+    })
+    .join(", ");
+
+  return compactSegments || text;
+}
+
+function resolveClassSchedule(item: any): string {
+  const scheduleText = String(item?.scheduleText ?? "").trim();
+  if (scheduleText) {
+    const normalizedScheduleText = normalizeScheduleText(scheduleText);
+    if (normalizedScheduleText) {
+      return normalizedScheduleText;
+    }
+  }
+
+  const fromSlots = toReadableScheduleFromSlots(item?.weeklyScheduleSlots);
+  if (fromSlots) {
+    return fromSlots;
+  }
+
+  const schedulePattern = String(item?.schedulePattern ?? "").trim();
+  if (schedulePattern) {
+    return parseRRULEToSchedule(schedulePattern);
+  }
+
+  return "Chưa có lịch";
+}
+
 function mapApiClassToRow(item: any): ClassRow {
   // Use UUID as id for API calls, code for display
   const id = String(item?.id ?? item?.classId ?? "");
@@ -143,8 +263,7 @@ function mapApiClassToRow(item: any): ClassRow {
   const branch = String(item?.branchName ?? item?.branch?.name ?? "").trim() || "Chưa có chi nhánh";
   const current = item?.currentEnrollmentCount ?? 0;
   const capacity = item?.capacity ?? 0;
-  const schedulePattern = (item?.schedulePattern as string | undefined) ?? "";
-  const schedule = schedulePattern ? parseRRULEToSchedule(schedulePattern) : "Chưa có lịch";
+  const schedule = resolveClassSchedule(item);
   const startDate = item?.startDate ?? "";
   
   const rawStatus: string = (item?.status as string | undefined) ?? "";
@@ -838,8 +957,7 @@ export async function fetchAndMapAdminClassDetail(classId: string): Promise<Clas
   if (trackHint.includes("toeic")) track = "TOEIC";
   else if (trackHint.includes("business")) track = "Business";
 
-  const schedulePattern = apiData?.schedulePattern ?? "";
-  const schedule = schedulePattern.trim() ? parseRRULEToSchedule(schedulePattern) : "Chưa có lịch";
+  const schedule = resolveClassSchedule(apiData);
 
   // Fetch teacher names if needed
   let teacherName = apiData?.mainTeacherName ?? "Chưa phân công";

@@ -516,6 +516,46 @@ export const BACKEND_PLACEMENT_TEST_ENDPOINTS = {
   CONVERT_TO_ENROLLED: (id: string) => `/placement-tests/${id}/convert-to-enrolled`,
 } as const;
 
+// Program Progression Endpoints (Client-side -> Next.js API Routes)
+export const PROGRAM_PROGRESSION_ENDPOINTS = {
+  RULES: '/api/program-progressions/rules',
+  RULE_BY_ID: (id: string) => `/api/program-progressions/rules/${id}`,
+
+  SCHEDULES_AVAILABILITY: '/api/program-progressions/schedules/availability',
+  SCHEDULES: '/api/program-progressions/schedules',
+  SCHEDULE_BY_ID: (id: string) => `/api/program-progressions/schedules/${id}`,
+  SCHEDULE_CANCEL: (id: string) => `/api/program-progressions/schedules/${id}/cancel`,
+  SCHEDULE_PARTICIPANT_NO_SHOW: (participantId: string) =>
+    `/api/program-progressions/schedules/participants/${participantId}/no-show`,
+
+  MY_ASSESSMENT_SCHEDULES: '/api/program-progressions/my-assessment-schedules',
+
+  ASSESSMENTS: '/api/program-progressions/assessments',
+  ASSESSMENT_BY_ID: (id: string) => `/api/program-progressions/assessments/${id}`,
+  ASSESSMENT_APPROVE: (id: string) => `/api/program-progressions/assessments/${id}/approve`,
+  ASSESSMENT_BULK_APPROVE: '/api/program-progressions/assessments/bulk-approve',
+} as const;
+
+// Backend Program Progression Endpoints (Next.js API Routes -> Backend API)
+export const BACKEND_PROGRAM_PROGRESSION_ENDPOINTS = {
+  RULES: '/program-progressions/rules',
+  RULE_BY_ID: (id: string) => `/program-progressions/rules/${id}`,
+
+  SCHEDULES_AVAILABILITY: '/program-progressions/schedules/availability',
+  SCHEDULES: '/program-progressions/schedules',
+  SCHEDULE_BY_ID: (id: string) => `/program-progressions/schedules/${id}`,
+  SCHEDULE_CANCEL: (id: string) => `/program-progressions/schedules/${id}/cancel`,
+  SCHEDULE_PARTICIPANT_NO_SHOW: (participantId: string) =>
+    `/program-progressions/schedules/participants/${participantId}/no-show`,
+
+  MY_ASSESSMENT_SCHEDULES: '/program-progressions/my-assessment-schedules',
+
+  ASSESSMENTS: '/program-progressions/assessments',
+  ASSESSMENT_BY_ID: (id: string) => `/program-progressions/assessments/${id}`,
+  ASSESSMENT_APPROVE: (id: string) => `/program-progressions/assessments/${id}/approve`,
+  ASSESSMENT_BULK_APPROVE: '/program-progressions/assessments/bulk-approve',
+} as const;
+
 // Enrollment Endpoints (Client-side → Next.js API Routes)
 export const ENROLLMENT_ENDPOINTS = {
   GET_ALL: '/api/enrollments',

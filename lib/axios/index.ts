@@ -7,7 +7,7 @@
 
 import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { buildApiUrl } from '@/constants/apiURL';
-import { getAccessToken, setAccessToken, clearAccessToken, clearRefreshToken } from '@/lib/store/authToken';
+import { getAccessToken, getRefreshToken, setAccessToken, clearAccessToken, clearRefreshToken } from '@/lib/store/authToken';
 import { mapApiErrorToMessage } from '@/lib/api/errorMapper';
 
 // Create axios instance with default config
@@ -78,7 +78,7 @@ axiosInstance.interceptors.response.use(
 
       try {
         // Attempt to refresh token
-        const refreshToken = localStorage.getItem('refreshToken');
+        const refreshToken = getRefreshToken();
         if (!refreshToken) {
           throw new Error('No refresh token available');
         }

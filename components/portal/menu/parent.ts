@@ -8,6 +8,7 @@ import {
   ImageIcon,
   BellRing,
   HeadphonesIcon,
+  Route,
   UserCircle,
   History,
   Users,
@@ -47,6 +48,12 @@ export function parentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     label: t.items.homework,
     icon: BookOpen,
     href: `${root}/homework`,
+  };
+
+  const progressionItem: MenuItem = {
+    label: "Tiến trình chuyển chương trình",
+    icon: Route,
+    href: `${root}/program-progressions`,
   };
 
   const testsReportsItem: MenuItem = {
@@ -94,6 +101,7 @@ export function parentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
 
   return [
     scheduleItem,
+    progressionItem,
     homeworkItem,
     testsReportsItem,
     paymentItem,

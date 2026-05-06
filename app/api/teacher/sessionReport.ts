@@ -43,6 +43,93 @@ type EnhanceFeedbackApiResponse = {
   data?: EnhanceSessionFeedbackResult;
 };
 
+type ProblemDetailsPayload = {
+  type?: string;
+  title?: string;
+  detail?: string;
+  message?: string;
+  errors?: Record<string, unknown>;
+};
+
+function tryParseProblemDetails(raw: string): ProblemDetailsPayload | null {
+  try {
+    const parsed = JSON.parse(raw) as ProblemDetailsPayload;
+    if (!parsed || typeof parsed !== "object") return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function parseUtcDateTimeFromDetail(detail?: string): string | null {
+  if (!detail) return null;
+
+  const match = detail.match(/'(\d{4})-(\d{2})-(\d{2})\s(\d{2}):(\d{2}):(\d{2})'\s*UTC/i);
+  if (!match) return null;
+
+  const [, y, m, d, hh, mm, ss] = match;
+  const utcDate = new Date(Date.UTC(Number(y), Number(m) - 1, Number(d), Number(hh), Number(mm), Number(ss)));
+
+  if (Number.isNaN(utcDate.getTime())) return null;
+
+  return utcDate.toLocaleString("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+}
+
+function mapSessionReportProblemToVietnamese(problem: ProblemDetailsPayload, fallback: string): string {
+  const type = String(problem.type ?? "").toLowerCase();
+  const title = String(problem.title ?? "").toLowerCase();
+  const code = `${type} ${title}`;
+
+  if (code.includes("sessionreport.sessionnotended") || code.includes("sessionnotended")) {
+    const endedAtVn = parseUtcDateTimeFromDetail(problem.detail);
+    if (endedAtVn) {
+      return `Chỉ có thể tạo, chỉnh sửa, gửi duyệt, duyệt hoặc xuất bản nhận xét sau khi buổi học kết thúc lúc ${endedAtVn} (UTC+7).`;
+    }
+    return "Chỉ có thể tạo, chỉnh sửa, gửi duyệt, duyệt hoặc xuất bản nhận xét sau khi buổi học đã kết thúc.";
+  }
+
+  if (code.includes("published")) {
+    return "Không thể chỉnh sửa nhận xét đã được xuất bản.";
+  }
+
+  if (code.includes("review")) {
+    return "Nhận xét đang ở trạng thái chờ duyệt, không thể gửi lại.";
+  }
+
+  if (code.includes("forbidden") || code.includes("unauthorized")) {
+    return "Bạn không có quyền thực hiện thao tác này.";
+  }
+
+  const detail = String(problem.detail ?? "").trim();
+  if (detail) return detail;
+
+  const message = String(problem.message ?? "").trim();
+  if (message) return message;
+
+  const problemTitle = String(problem.title ?? "").trim();
+  if (problemTitle) return problemTitle;
+
+  return fallback;
+}
+
+function toSessionReportErrorMessage(raw: string, fallback: string): string {
+  const problem = tryParseProblemDetails(raw);
+  if (!problem) {
+    const plain = raw.trim();
+    return plain || fallback;
+  }
+  return mapSessionReportProblemToVietnamese(problem, fallback);
+}
+
 function extractSessionReport(data?: SessionReportApiResponse["data"]): SessionReportItem | null {
   if (!data) return null;
   if ("item" in data && data.item) return data.item;
@@ -128,12 +215,7 @@ export async function createSessionReport(
   if (!res.ok) {
     const text = await res.text();
     console.error("Create session report error", res.status, text, normalizedPayload);
-    let msg = "Không thể tạo nhận xét buổi học.";
-    try {
-      const err = JSON.parse(text);
-      if (err?.detail) msg = err.detail;
-      else if (err?.title) msg = err.title;
-    } catch { /* ignore parse error */ }
+    const msg = toSessionReportErrorMessage(text, "Không thể tạo nhận xét buổi học.");
     throw new Error(msg);
   }
 
@@ -161,12 +243,7 @@ export async function updateSessionReport(
   if (!res.ok) {
     const text = await res.text();
     console.error("Update session report error", res.status, text, normalizedPayload);
-    let msg = "Không thể cập nhật nhận xét buổi học.";
-    try {
-      const err = JSON.parse(text);
-      if (err?.detail) msg = err.detail;
-      else if (err?.title) msg = err.title;
-    } catch { /* ignore parse error */ }
+    const msg = toSessionReportErrorMessage(text, "Không thể cập nhật nhận xét buổi học.");
     throw new Error(msg);
   }
 
@@ -267,12 +344,7 @@ async function postSessionReportAction(url: string, body?: unknown): Promise<Ses
   if (!res.ok) {
     const text = await res.text();
     console.error("Session report action error", res.status, text, url);
-    let msg = "Không thể xử lý session report.";
-    try {
-      const err = JSON.parse(text);
-      if (err?.detail) msg = err.detail;
-      else if (err?.title) msg = err.title;
-    } catch { /* ignore parse error */ }
+    const msg = toSessionReportErrorMessage(text, "Không thể xử lý session report.");
     throw new Error(msg);
   }
 
