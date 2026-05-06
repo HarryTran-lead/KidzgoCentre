@@ -50,10 +50,10 @@ export default async function StudentLayout({ children, params }: Props) {
         </div>
 
         {/* Main content section with sidebar */}
-        <div className="relative flex flex-1 min-h-0 px-4 pb-4 pt-2">
+        <div className="relative flex flex-1 min-h-0 px-2 pb-1.5 pt-0.5">
           <StudentSidebar roleRoot={roleRoot} version="v1.0.0" />
 
-          <section className="flex min-w-0 flex-1 flex-col min-h-0 relative ml-3">
+          <section className="flex min-w-0 flex-1 flex-col min-h-0 relative ml-1.5">
             <NeonContentFrame>
               <div className="relative h-full overflow-hidden backdrop-blur-sm">
                 <div className="relative z-10 h-full overflow-hidden">{children}</div>

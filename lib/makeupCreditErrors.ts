@@ -59,6 +59,22 @@ export function resolveMakeupCreditActionError(
       : "This make-up credit is no longer available for scheduling.";
   }
 
+  if (code === "MakeupCredit.TargetClassMustBeMakeupProgram") {
+    return "The selected session must belong to a make-up program class.";
+  }
+
+  if (code === "MakeupCredit.CannotChangeAllocatedPastSession") {
+    return "Cannot reschedule because the current make-up session is today or already in the past.";
+  }
+
+  if (code === "MakeupCredit.ParentMustProvideStudentProfileId") {
+    return "Please select a student before scheduling this make-up session.";
+  }
+
+  if (code === "MakeupCredit.TargetSessionConflict") {
+    return "The selected make-up session conflicts with another assigned session.";
+  }
+
   return extractMakeupCreditErrorMessage(
     error,
     mode === "change"

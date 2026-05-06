@@ -64,9 +64,20 @@ export type MakeupAllocation = {
   [key: string]: unknown;
 };
 
+export type MakeupSettings = {
+  creditExpiryDays: number;
+  createdAt?: string;
+  updatedAt?: string | null;
+};
+
+export type UpdateMakeupSettingsPayload = {
+  creditExpiryDays: number;
+};
+
 export type MakeupCreditsResponse = ApiResponse<ListData<MakeupCredit>>;
 export type MakeupCreditResponse = ApiResponse<MakeupCredit>;
 export type MakeupCreditStudentsResponse = ApiResponse<ListData<MakeupCreditStudent>>;
 export type MakeupSuggestionsResponse = ApiResponse<ListData<MakeupSuggestion>>;
 export type MakeupAllocationsResponse = ApiResponse<ListData<MakeupAllocation>>;
 export type MakeupAllocationResponse = ApiResponse<MakeupAllocation>;
+export type MakeupSettingsResponse = ApiResponse<MakeupSettings>;

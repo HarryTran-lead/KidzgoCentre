@@ -32,6 +32,7 @@ export type LessonDetail = {
   teacher: string;
   students: number;
   branch?: string | null;
+  branchId?: string | null;
   status?: string | null;
   participationType?: string | null;
 };

@@ -37,6 +37,7 @@ type SessionLike = SessionApiItem & {
   students?: number | Array<unknown> | null;
   studentCount?: number | null;
   attendanceSummary?: AttendanceSummaryApi;
+  branchId?: string | number | null;
 };
 
 type SessionResponseData = {
@@ -304,6 +305,7 @@ function mapSessionToLesson(session: SessionApiItem): { lesson: LessonDetail; at
     status: sessionLike.status ?? null,
     participationType: sessionLike.participationType ?? null,
     branch: sessionLike.branchName ?? null,
+    branchId: sessionLike.branchId != null ? String(sessionLike.branchId) : null,
     students:
       typeof sessionLike.students === "number"
         ? sessionLike.students

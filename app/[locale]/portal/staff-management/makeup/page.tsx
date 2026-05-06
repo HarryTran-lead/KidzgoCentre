@@ -10,7 +10,6 @@ import {
   Clock3,
   CheckCircle2,
   AlertCircle,
-  ArrowRight,
   Search,
   ChevronUp,
   ChevronDown,
@@ -30,10 +29,24 @@ import {
   getMakeupCreditStudents,
   getMakeupCredits,
   expireMakeupCredit,
+  getMakeupSettings,
+  updateMakeupSettings,
 } from "@/lib/api/makeupCreditService";
-import type { MakeupCredit, MakeupCreditStudent } from "@/types/makeupCredit";
+import type { MakeupCredit, MakeupCreditStudent, MakeupSettings } from "@/types/makeupCredit";
+import {
+  createHoliday,
+  deleteHoliday,
+  getHolidays,
+  toggleHolidayStatus,
+  updateHoliday,
+} from "@/lib/api/holidayService";
+import type { Holiday, HolidayUpsertPayload } from "@/types/holiday";
 
 import LeaveRequestCreateModal from "@/components/portal/parent/modalsLeaveRequest/LeaveRequestCreateModal";
+import HolidayManagementBlock from "@/components/portal/staff-management/HolidayManagementBlock";
+import type { HolidayFormState as _HolidayFormState } from "@/components/portal/staff-management/HolidayManagementBlock";
+import MakeupSettingsBlock from "@/components/portal/staff-management/MakeupSettingsBlock";
+import { getMessagesFromPath } from "@/lib/dict";
 
 import { TEACHER_ENDPOINTS } from "@/constants/apiURL";
 import { get } from "@/lib/axios";
@@ -93,6 +106,8 @@ type UsedMakeupCredit = {
   usedSession?: SessionDetail | null;
   raw?: MakeupCredit;
 };
+
+type HolidayFormState = _HolidayFormState;
 
 /* ===================== Constants ===================== */
 
@@ -539,6 +554,7 @@ function ConfirmModal({
 /* ===================== Page ===================== */
 
 export default function Page() {
+  const msg = getMessagesFromPath().adminPages.staffManagement;
   const [activeTab, setActiveTab] = useState<"leave" | "makeup">("leave");
 
   // Leave Requests
@@ -573,6 +589,23 @@ export default function Page() {
   const [loadingMakeupCredits, setLoadingMakeupCredits] = useState(false);
   const [makeupError, setMakeupError] = useState<string | null>(null);
   const [makeupSort, setMakeupSort] = useState<{ column: string; direction: "asc" | "desc" }>({ column: "student", direction: "asc" });
+  const [makeupSettings, setMakeupSettings] = useState<MakeupSettings | null>(null);
+  const [makeupSettingsLoading, setMakeupSettingsLoading] = useState(false);
+  const [makeupSettingsSaving, setMakeupSettingsSaving] = useState(false);
+  const [creditExpiryDaysInput, setCreditExpiryDaysInput] = useState("7");
+
+  const [holidays, setHolidays] = useState<Holiday[]>([]);
+  const [holidaysLoading, setHolidaysLoading] = useState(false);
+  const [holidaySubmitting, setHolidaySubmitting] = useState(false);
+  const [holidayForm, setHolidayForm] = useState<HolidayFormState>({
+    id: null,
+    name: "",
+    startDate: "",
+    endDate: "",
+    description: "",
+    isActive: true,
+  });
+
   const usedCredits = makeupCredits;
   const setUsedCredits = setMakeupCredits;
   const loadingUsedCredits = loadingMakeupCredits;
@@ -705,12 +738,171 @@ export default function Page() {
 
   const fetchUsedCredits = fetchMakeupCredits;
 
+  const resetHolidayForm = () => {
+    setHolidayForm({
+      id: null,
+      name: "",
+      startDate: "",
+      endDate: "",
+      description: "",
+      isActive: true,
+    });
+  };
+
+  const fetchHolidayList = async () => {
+    setHolidaysLoading(true);
+    try {
+      const res = await getHolidays();
+      const api = unwrap(res);
+      const items = Array.isArray(api?.items)
+        ? api.items
+        : Array.isArray(api?.data?.items)
+          ? api.data.items
+          : Array.isArray(api)
+            ? api
+            : [];
+
+      const sorted = [...(items as Holiday[])].sort((a, b) => {
+        const aTime = Date.parse(a.startDate ?? "") || 0;
+        const bTime = Date.parse(b.startDate ?? "") || 0;
+        return bTime - aTime;
+      });
+      setHolidays(sorted);
+    } catch (error: any) {
+      setActionError(getDomainErrorMessage(error, msg.holiday.msgLoadError));
+    } finally {
+      setHolidaysLoading(false);
+    }
+  };
+
+  const fetchMakeupSettingsState = async () => {
+    setMakeupSettingsLoading(true);
+    try {
+      const res = await getMakeupSettings();
+      const api = unwrap(res) as MakeupSettings | null;
+      setMakeupSettings(api);
+      if (api?.creditExpiryDays) {
+        setCreditExpiryDaysInput(String(api.creditExpiryDays));
+      }
+    } catch (error: any) {
+      setActionError(getDomainErrorMessage(error, msg.settings.msgLoadError));
+    } finally {
+      setMakeupSettingsLoading(false);
+    }
+  };
+
+  const handleSaveMakeupSettings = async () => {
+    const parsed = Number(creditExpiryDaysInput);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      setActionError(msg.settings.msgValidation);
+      return;
+    }
+
+    setMakeupSettingsSaving(true);
+    setActionError(null);
+    setActionMessage(null);
+
+    try {
+      const res = await updateMakeupSettings({ creditExpiryDays: parsed });
+      const api = unwrap(res) as MakeupSettings | null;
+      setMakeupSettings(api);
+      setActionMessage(msg.settings.msgSaveSuccess);
+    } catch (error: any) {
+      setActionError(getDomainErrorMessage(error, msg.settings.msgSaveError));
+    } finally {
+      setMakeupSettingsSaving(false);
+    }
+  };
+
+  const handleSubmitHoliday = async () => {
+    if (!holidayForm.name.trim() || !holidayForm.startDate || !holidayForm.endDate) {
+      setActionError(msg.holiday.msgValidation);
+      return;
+    }
+
+    setHolidaySubmitting(true);
+    setActionError(null);
+    setActionMessage(null);
+
+    try {
+      if (holidayForm.id) {
+        await updateHoliday(holidayForm.id, {
+          name: holidayForm.name.trim(),
+          startDate: holidayForm.startDate,
+          endDate: holidayForm.endDate,
+          description: holidayForm.description?.trim() || null,
+          isActive: holidayForm.isActive,
+        });
+        setActionMessage(msg.holiday.msgUpdateSuccess);
+      } else {
+        await createHoliday({
+          name: holidayForm.name.trim(),
+          startDate: holidayForm.startDate,
+          endDate: holidayForm.endDate,
+          description: holidayForm.description?.trim() || null,
+          isActive: holidayForm.isActive,
+        });
+        setActionMessage(msg.holiday.msgCreateSuccess);
+      }
+
+      resetHolidayForm();
+      await fetchHolidayList();
+    } catch (error: any) {
+      setActionError(getDomainErrorMessage(error, msg.holiday.msgSaveError));
+    } finally {
+      setHolidaySubmitting(false);
+    }
+  };
+
+  const handleHolidayToggle = async (holidayId: string) => {
+    setActionError(null);
+    setActionMessage(null);
+    try {
+      await toggleHolidayStatus(holidayId);
+      setActionMessage(msg.holiday.msgToggleSuccess);
+      await fetchHolidayList();
+    } catch (error: any) {
+      setActionError(getDomainErrorMessage(error, msg.holiday.msgToggleError));
+    }
+  };
+
+  const handleHolidayDelete = async (holidayId: string) => {
+    const ok = window.confirm(msg.holiday.msgDeleteConfirm);
+    if (!ok) return;
+
+    setActionError(null);
+    setActionMessage(null);
+    try {
+      await deleteHoliday(holidayId);
+      setActionMessage(msg.holiday.msgDeleteSuccess);
+      await fetchHolidayList();
+    } catch (error: any) {
+      setActionError(getDomainErrorMessage(error, msg.holiday.msgDeleteError));
+    }
+  };
+
+  const handleHolidayEdit = (holiday: Holiday) => {
+    setHolidayForm({
+      id: holiday.id,
+      name: holiday.name,
+      startDate: holiday.startDate,
+      endDate: holiday.endDate,
+      description: holiday.description ?? "",
+      isActive: holiday.isActive,
+    });
+    setActiveTab("makeup");
+  };
+
   useEffect(() => {
     const init = async () => {
       const lookups = await fetchLeaveLookups();
       setLeaveLookups(lookups);
-      await fetchLeaveRequests(lookups);
-      await fetchUsedCredits(lookups);
+      await Promise.all([
+        fetchLeaveRequests(lookups),
+        fetchUsedCredits(lookups),
+        fetchHolidayList(),
+        fetchMakeupSettingsState(),
+      ]);
     };
 
     init();
@@ -1245,7 +1437,31 @@ export default function Page() {
 
       {/* MAKEUP TAB */}
       {activeTab === "makeup" && (
-        <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 shadow-sm overflow-hidden">
+        <>
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+            <MakeupSettingsBlock
+              settings={makeupSettings}
+              loading={makeupSettingsLoading}
+              saving={makeupSettingsSaving}
+              expiryDaysInput={creditExpiryDaysInput}
+              onExpiryDaysChange={setCreditExpiryDaysInput}
+              onSave={handleSaveMakeupSettings}
+            />
+            <HolidayManagementBlock
+              holidays={holidays}
+              holidaysLoading={holidaysLoading}
+              holidaySubmitting={holidaySubmitting}
+              holidayForm={holidayForm}
+              onFormChange={(update) => setHolidayForm((prev) => ({ ...prev, ...update }))}
+              onSubmit={handleSubmitHoliday}
+              onResetForm={resetHolidayForm}
+              onEdit={handleHolidayEdit}
+              onToggle={handleHolidayToggle}
+              onDelete={handleHolidayDelete}
+            />
+          </div>
+
+          <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 shadow-sm overflow-hidden">
           <div className="bg-gradient-to-r from-red-50 to-red-100/30 border-b border-red-200 px-6 py-4">
             <div className="flex items-center justify-between">
               <div>
@@ -1387,7 +1603,8 @@ export default function Page() {
               </tbody>
             </table>
           </div>
-        </div>
+          </div>
+        </>
       )}
 
       {/* Confirm Modal */}

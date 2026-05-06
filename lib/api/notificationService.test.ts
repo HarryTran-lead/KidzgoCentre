@@ -59,4 +59,35 @@ describe("notificationService smoke", () => {
       "Không thể tải danh sách thông báo cho vai trò Teacher.",
     );
   });
+
+  it("localizes common backend english notification titles", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          isSuccess: true,
+          data: {
+            items: [
+              {
+                id: "noti-vi-001",
+                title: "Session report request",
+                content: "urgent request",
+                deeplink: null,
+                status: "sent",
+                channel: "InApp",
+                createdAt: "2026-05-05T07:58:00.000Z",
+              },
+            ],
+          },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+
+    await expect(fetchNotifications("Teacher")).resolves.toEqual([
+      expect.objectContaining({
+        title: "Yêu cầu báo cáo buổi học",
+        content: "Yêu cầu khẩn cấp",
+      }),
+    ]);
+  });
 });

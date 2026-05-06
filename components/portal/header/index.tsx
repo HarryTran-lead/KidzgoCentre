@@ -168,6 +168,10 @@ function normalizeNotificationLink(input: string | undefined, locale: Locale, ro
   if (!raw) return fallback;
 
   const roleBase = ROLES[role];
+  const rolePauseEnrollmentPath =
+    role === "Staff_Manager" || role === "Admin"
+      ? `/${locale}${roleBase}/pause-enrollments`
+      : null;
   const roleReportRequestPath =
     role === "Teacher" || role === "Admin"
       ? `/${locale}${roleBase}/report-requests`
@@ -188,6 +192,14 @@ function normalizeNotificationLink(input: string | undefined, locale: Locale, ro
   if (legacyReportRequestMatch && roleReportRequestPath) {
     const requestId = legacyReportRequestMatch[1];
     return `${roleReportRequestPath}?requestId=${requestId}`;
+  }
+
+  const legacyPauseEnrollmentMatch = path.match(
+    /^\/(?:(?:vi|en)\/)?pause-enrollment-requests\/([0-9a-fA-F-]{36})$/
+  );
+  if (legacyPauseEnrollmentMatch && rolePauseEnrollmentPath) {
+    const requestId = legacyPauseEnrollmentMatch[1];
+    return `${rolePauseEnrollmentPath}?requestId=${requestId}`;
   }
 
   const localePrefix = `/${locale}`;

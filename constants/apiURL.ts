@@ -175,6 +175,7 @@ export const MAKEUP_CREDIT_ENDPOINTS = {
   STUDENTS: "/api/makeup-credits/students",
   GET: "/api/makeup-credits",
   GET_ALL: "/api/makeup-credits/all",
+  SETTINGS: "/api/makeup-credits/settings",
   GET_BY_ID: (id: string) => `/api/makeup-credits/${id}`,
   SUGGESTIONS: (id: string) => `/api/makeup-credits/${id}/suggestions`,
   AVAILABLE_SESSIONS: (id: string) =>
@@ -184,8 +185,18 @@ export const MAKEUP_CREDIT_ENDPOINTS = {
   ALLOCATIONS: "/api/makeup-credits/allocations",
 } as const;
 
+export const HOLIDAY_ENDPOINTS = {
+  GET_ALL: "/api/holidays",
+  GET_BY_ID: (id: string) => `/api/holidays/${id}`,
+  CREATE: "/api/holidays",
+  UPDATE: (id: string) => `/api/holidays/${id}`,
+  DELETE: (id: string) => `/api/holidays/${id}`,
+  TOGGLE_STATUS: (id: string) => `/api/holidays/${id}/toggle-status`,
+} as const;
+
 export const SESSION_ENDPOINTS = {
   GET_BY_ID: (id: string) => `/api/sessions/${id}`,
+  AVAILABILITY: '/api/sessions/availability',
 } as const;
 
 // Next API → Backend
@@ -197,6 +208,9 @@ export const BACKEND_SESSION_ENDPOINTS = {
   DELETE: (id: string) => `/sessions/${id}`,
   GENERATE_FROM_PATTERN: '/sessions/generate-from-pattern',
   UPDATE_BY_CLASS: '/sessions/by-class',
+  CHANGE_ROOM: '/sessions/change-room',
+  CHANGE_TEACHER: '/sessions/change-teacher',
+  AVAILABILITY: '/sessions/availability',
 } as const;
 
 export const BACKEND_CLASS_ENDPOINTS = {
@@ -208,6 +222,7 @@ export const BACKEND_MAKEUP_CREDIT_ENDPOINTS = {
   STUDENTS: "/makeup-credits/students",
   GET: "/makeup-credits",
   GET_ALL: "/makeup-credits/all",
+  SETTINGS: "/makeup-credits/settings",
   GET_BY_ID: (id: string) => `/makeup-credits/${id}`,
   SUGGESTIONS: (id: string) => `/api/makeup-credits/${id}/suggestions`,
   AVAILABLE_SESSIONS: (id: string) =>
@@ -215,6 +230,15 @@ export const BACKEND_MAKEUP_CREDIT_ENDPOINTS = {
   USE: (id: string) => `/makeup-credits/${id}/use`,
   EXPIRE: (id: string) => `/makeup-credits/${id}/expire`,
   ALLOCATIONS: "/makeup-credits/allocations",
+} as const;
+
+export const BACKEND_HOLIDAY_ENDPOINTS = {
+  GET_ALL: "/holidays",
+  GET_BY_ID: (id: string) => `/holidays/${id}`,
+  CREATE: "/holidays",
+  UPDATE: (id: string) => `/holidays/${id}`,
+  DELETE: (id: string) => `/holidays/${id}`,
+  TOGGLE_STATUS: (id: string) => `/holidays/${id}/toggle-status`,
 } as const;
 
 // Backend Auth Endpoints (Next.js API Routes → Backend API)
@@ -406,6 +430,8 @@ export const ADMIN_ENDPOINTS = {
   SESSIONS: '/api/sessions',
   SESSIONS_GENERATE_FROM_PATTERN: '/api/sessions/generate-from-pattern',
   SESSIONS_BY_CLASS: '/api/sessions/by-class',
+  SESSIONS_CHANGE_ROOM: '/api/sessions/change-room',
+  SESSIONS_CHANGE_TEACHER: '/api/sessions/change-teacher',
   LESSON_PLAN_TEMPLATES: '/api/lesson-plan-templates',
   LESSON_PLAN_TEMPLATES_BY_ID: (id: string) => `/api/lesson-plan-templates/${id}`,
   LESSON_PLAN_TEMPLATES_IMPORT: '/api/lesson-plan-templates/import',

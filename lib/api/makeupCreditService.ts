@@ -6,7 +6,7 @@
  */
 
 import { MAKEUP_CREDIT_ENDPOINTS } from "@/constants/apiURL";
-import { get, post } from "@/lib/axios";
+import { get, post, put } from "@/lib/axios";
 import type {
   MakeupAllocationResponse,
   MakeupCredit,
@@ -14,7 +14,9 @@ import type {
   MakeupCreditResponse,
   MakeupCreditStudentsResponse,
   MakeupAllocationsResponse,
+  MakeupSettingsResponse,
   MakeupSuggestionsResponse,
+  UpdateMakeupSettingsPayload,
 } from "@/types/makeupCredit";
 
 export type UseMakeupCreditPayload = {
@@ -143,5 +145,17 @@ export async function getMakeupAllocations(params: {
   const endpoint = MAKEUP_CREDIT_ENDPOINTS.ALLOCATIONS ?? "/api/makeup-credits/allocations";
   const url = `${endpoint}?studentProfileId=${encodeURIComponent(params.studentProfileId)}`;
   return get<MakeupAllocationsResponse>(url);
+}
+
+export async function getMakeupSettings(): Promise<MakeupSettingsResponse> {
+  const endpoint = MAKEUP_CREDIT_ENDPOINTS.SETTINGS ?? "/api/makeup-credits/settings";
+  return get<MakeupSettingsResponse>(endpoint);
+}
+
+export async function updateMakeupSettings(
+  payload: UpdateMakeupSettingsPayload
+): Promise<MakeupSettingsResponse> {
+  const endpoint = MAKEUP_CREDIT_ENDPOINTS.SETTINGS ?? "/api/makeup-credits/settings";
+  return put<MakeupSettingsResponse>(endpoint, payload);
 }
 

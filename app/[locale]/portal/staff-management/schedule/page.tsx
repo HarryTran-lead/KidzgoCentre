@@ -5,12 +5,13 @@ import { useSearchParams, useRouter, useParams } from "next/navigation";
 import { getAccessToken } from "@/lib/store/authToken";
 import { getAllBranches } from "@/lib/api/branchService";
 import {
+  changeSessionRoom,
+  changeSessionTeacher,
   createAdminSession,
   fetchAdminSessions,
   updateSessionColor,
   updateClassColor,
   updateAdminSession,
-  updateAdminSessionsByClass,
 } from "@/app/api/admin/sessions";
 import { fetchAdminUsersByIds, fetchAdminClasses } from "@/app/api/admin/classes";
 import type { CreateSessionRequest, ParticipationType, Session } from "@/types/admin/sessions";
@@ -41,6 +42,7 @@ import {
 import { useBranchFilter } from "@/hooks/useBranchFilter";
 import { useToast } from "@/hooks/use-toast";
 import ConfirmModal from "@/components/ConfirmModal";
+import SessionBulkChangeModal from "@/components/portal/schedule/SessionBulkChangeModal";
 
 type SlotType = "CLASS" | "MAKEUP" | "EVENT";
 type Slot = {
@@ -60,6 +62,7 @@ type Slot = {
   color?: string;
   conflict?: boolean;
   branch?: string;
+  branchId?: string;
   plannedDatetime?: string;
   durationMinutes?: number;
 };
@@ -985,249 +988,14 @@ function CreateScheduleModal({
   );
 }
 
-function BulkUpdateByClassModal({
-  isOpen,
-  onClose,
-  classId,
-  className,
-  onSuccess,
-}: {
+function BulkUpdateByClassModal(props: {
   isOpen: boolean;
   onClose: () => void;
   classId: string;
   className: string;
-  onSuccess: (message: string) => void;
+  onSuccess: () => void;
 }) {
-  const statusOptions = [
-    { value: "Scheduled", label: "Đã lên lịch" },
-    { value: "InProgress", label: "Đang diễn ra" },
-    { value: "Completed", label: "Đã hoàn thành" },
-    { value: "Cancelled", label: "Đã hủy" },
-  ] as const;
-  const [roomOptions, setRoomOptions] = useState<SelectOption[]>([]);
-  const [teacherOptions, setTeacherOptions] = useState<SelectOption[]>([]);
-  const [plannedRoomId, setPlannedRoomId] = useState("");
-  const [plannedTeacherId, setPlannedTeacherId] = useState("");
-  const [plannedAssistantId, setPlannedAssistantId] = useState("");
-  const [filterByStatus, setFilterByStatus] = useState<string[]>([]);
-  const [fromDate, setFromDate] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const modalRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    setError(null);
-    const today = new Date();
-    const mm = String(today.getMonth() + 1).padStart(2, "0");
-    const dd = String(today.getDate()).padStart(2, "0");
-    setFromDate(`${today.getFullYear()}-${mm}-${dd}`);
-    setPlannedRoomId("");
-    setPlannedTeacherId("");
-    setPlannedAssistantId("");
-    setFilterByStatus([]);
-
-    const token = getAccessToken();
-    if (!token) return;
-
-    const authHeaders = { Authorization: `Bearer ${token}` };
-    Promise.all([
-      fetch(`/api/classrooms?pageNumber=1&pageSize=200`, { headers: authHeaders })
-        .then((r) => (r.ok ? r.json() : null))
-        .catch(() => null),
-      fetch(`/api/admin/users?pageNumber=1&pageSize=200&role=Teacher`, { headers: authHeaders })
-        .then((r) => (r.ok ? r.json() : null))
-        .catch(() => null),
-    ]).then(([roomsJson, teachersJson]) => {
-      const roomsItems: any[] =
-        roomsJson?.data?.classrooms?.items ?? roomsJson?.data?.items ?? roomsJson?.data ?? (Array.isArray(roomsJson) ? roomsJson : []);
-      const teachersItems: any[] =
-        teachersJson?.data?.items ?? teachersJson?.data?.users ?? teachersJson?.data ?? (Array.isArray(teachersJson) ? teachersJson : []);
-
-      setRoomOptions(
-        roomsItems
-          .map((r) => ({ id: String(r?.id ?? ""), label: String(r?.name ?? "Phòng") }))
-          .filter((r) => r.id)
-      );
-      setTeacherOptions(
-        teachersItems
-          .map((u) => ({ id: String(u?.id ?? ""), label: String(u?.name ?? u?.fullName ?? u?.email ?? "Teacher") }))
-          .filter((t) => t.id)
-      );
-    });
-  }, [isOpen]);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
-        if (!isSubmitting) onClose();
-      }
-    };
-    if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-      document.body.style.overflow = "hidden";
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.body.style.overflow = "unset";
-    };
-  }, [isOpen, isSubmitting, onClose]);
-
-  const handleSubmit = async () => {
-    if (!classId) return;
-    if (!plannedRoomId && !plannedTeacherId && !plannedAssistantId) {
-      setError("Vui lòng chọn ít nhất 1 trường cần cập nhật.");
-      return;
-    }
-
-    setIsSubmitting(true);
-    setError(null);
-    try {
-      const result = await updateAdminSessionsByClass({
-        classId,
-        fromDate: fromDate ? `${fromDate}T00:00:00+07:00` : undefined,
-        filterByStatus: filterByStatus.length > 0 ? filterByStatus : undefined,
-        plannedRoomId: plannedRoomId || undefined,
-        plannedTeacherId: plannedTeacherId || undefined,
-        plannedAssistantId: plannedAssistantId || undefined,
-      });
-
-      const updatedCount = Number(result?.data?.updatedSessionsCount ?? 0);
-      onSuccess(`Đã cập nhật ${updatedCount} buổi học cho lớp ${className}.`);
-      onClose();
-    } catch (err: any) {
-      setError(err?.message ?? "Không thể cập nhật hàng loạt session.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div ref={modalRef} className="w-full max-w-lg bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
-        <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 p-5 flex items-center justify-between">
-          <div>
-            <div className="text-lg font-bold text-white">Cập nhật hàng loạt theo lớp</div>
-            <div className="text-sm text-emerald-100 mt-1">{className}</div>
-          </div>
-          <button onClick={onClose} disabled={isSubmitting} className="p-1.5 rounded-full hover:bg-white/20 cursor-pointer disabled:opacity-60">
-            <X size={20} className="text-white" />
-          </button>
-        </div>
-
-        <div className="p-5 space-y-4">
-          {error && <div className="rounded-lg bg-red-50 border border-red-200 p-2 text-sm text-red-700">{error}</div>}
-
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-800">Áp dụng từ ngày</label>
-            <input
-              type="date"
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-800">Lọc theo trạng thái (tùy chọn)</label>
-            <div>
-              <button
-                type="button"
-                onClick={() => setFilterByStatus(["Scheduled"])}
-                className="px-3 py-1.5 rounded-full text-xs font-semibold border bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100 transition-colors"
-              >
-                Chỉ Scheduled
-              </button>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {statusOptions.map((status) => {
-                const active = filterByStatus.includes(status.value);
-                return (
-                  <button
-                    key={status.value}
-                    type="button"
-                    onClick={() => {
-                      setFilterByStatus((prev) =>
-                        prev.includes(status.value)
-                          ? prev.filter((s) => s !== status.value)
-                          : [...prev, status.value]
-                      );
-                    }}
-                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
-                      active
-                        ? "bg-emerald-600 text-white border-emerald-600"
-                        : "bg-white text-gray-700 border-gray-300 hover:bg-emerald-50"
-                    }`}
-                  >
-                    {status.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-800">Phòng học mới (tùy chọn)</label>
-            <select
-              value={plannedRoomId}
-              onChange={(e) => setPlannedRoomId(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900"
-            >
-              <option value="">Giữ nguyên</option>
-              {roomOptions.map((r) => (
-                <option key={r.id} value={r.id}>{r.label}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-800">Giáo viên chính mới (tùy chọn)</label>
-            <select
-              value={plannedTeacherId}
-              onChange={(e) => setPlannedTeacherId(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900"
-            >
-              <option value="">Giữ nguyên</option>
-              {teacherOptions.map((t) => (
-                <option key={t.id} value={t.id}>{t.label}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-800">Giáo viên phụ mới (tùy chọn)</label>
-            <select
-              value={plannedAssistantId}
-              onChange={(e) => setPlannedAssistantId(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900"
-            >
-              <option value="">Giữ nguyên</option>
-              {teacherOptions
-                .filter((t) => t.id !== plannedTeacherId)
-                .map((t) => (
-                  <option key={t.id} value={t.id}>{t.label}</option>
-                ))}
-            </select>
-          </div>
-        </div>
-
-        <div className="border-t border-gray-200 p-4 flex justify-end gap-3">
-          <button onClick={onClose} disabled={isSubmitting} className="px-5 py-2 rounded-xl border border-gray-300 text-gray-600 font-medium hover:bg-gray-50 cursor-pointer disabled:opacity-60">
-            Hủy
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-            className="px-5 py-2 rounded-xl bg-emerald-600 text-white font-medium hover:bg-emerald-700 transition-colors cursor-pointer disabled:opacity-60"
-          >
-            {isSubmitting ? "Đang cập nhật..." : "Cập nhật hàng loạt"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+  return <SessionBulkChangeModal {...props} />;
 }
 
 /* =================== CHANGE ROOM MODAL =================== */
@@ -1245,23 +1013,70 @@ function ChangeRoomModal({
   const [roomOptions, setRoomOptions] = useState<SelectOption[]>([]);
   const [selectedRoomId, setSelectedRoomId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !slot) return;
     setSelectedRoomId(slot?.roomId ?? "");
     setError(null);
+    setIsCheckingAvailability(true);
+
     const token = getAccessToken();
-    if (!token) return;
-    fetch(`/api/classrooms?pageNumber=1&pageSize=200`, { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((json) => {
-        const items: any[] =
-          json?.data?.classrooms?.items ?? json?.data?.items ?? json?.data ?? (Array.isArray(json) ? json : []);
-        setRoomOptions(items.map((r) => ({ id: String(r?.id ?? ""), label: String(r?.name ?? "Phòng") })).filter((r) => r.id));
+    if (!token) {
+      setIsCheckingAvailability(false);
+      return;
+    }
+
+    const scheduledAt = slot.plannedDatetime;
+    const durationMinutes = slot.durationMinutes && slot.durationMinutes > 0 ? slot.durationMinutes : 60;
+
+    const loadFallbackRooms = () => {
+      fetch(`/api/classrooms?pageNumber=1&pageSize=200`, { headers: { Authorization: `Bearer ${token}` } })
+        .then((response) => (response.ok ? response.json() : null))
+        .then((json) => {
+          const items: Array<Record<string, unknown>> =
+            json?.data?.classrooms?.items ?? json?.data?.items ?? json?.data ?? (Array.isArray(json) ? json : []);
+          setRoomOptions(
+            items
+              .map((room) => ({ id: String(room?.id ?? ""), label: String(room?.name ?? "Phòng") }))
+              .filter((room) => room.id)
+          );
+        })
+        .catch(() => setRoomOptions([]))
+        .finally(() => setIsCheckingAvailability(false));
+    };
+
+    if (scheduledAt) {
+      const params = new URLSearchParams({
+        scheduledAt,
+        durationMinutes: String(durationMinutes),
+        includeUnavailable: "true",
+      });
+      if (slot.branchId) params.set("branchId", slot.branchId);
+      if (slot.id) params.set("excludeSessionId", slot.id);
+
+      fetch(`/api/sessions/availability?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
       })
-      .catch(() => {});
+        .then((response) => (response.ok ? response.json() : null))
+        .then((json) => {
+          const data = json?.data ?? json;
+          const rooms: Array<{ roomId: string; name?: string; isAvailable: boolean }> =
+            data?.rooms ?? [];
+          if (rooms.length === 0) { loadFallbackRooms(); return; }
+          const available = rooms
+            .filter((room) => room.isAvailable || String(room.roomId) === slot.roomId)
+            .map((room) => ({ id: String(room.roomId), label: String(room.name ?? "Phòng") }))
+            .filter((room) => room.id);
+          setRoomOptions(available);
+          setIsCheckingAvailability(false);
+        })
+        .catch(() => loadFallbackRooms());
+    } else {
+      loadFallbackRooms();
+    }
   }, [isOpen, slot]);
 
   useEffect(() => {
@@ -1320,6 +1135,7 @@ function ChangeRoomModal({
           {error && <div className="rounded-lg bg-red-50 border border-red-200 p-2 text-sm text-red-700">{error}</div>}
           <div className="space-y-2">
             <label className="text-sm font-semibold text-gray-800">Chọn phòng mới</label>
+            <div className="text-xs text-gray-500">Chỉ hiển thị phòng đang rảnh theo khung giờ của buổi học này.</div>
             <select
               value={selectedRoomId}
               onChange={(e) => setSelectedRoomId(e.target.value)}
@@ -1330,6 +1146,9 @@ function ChangeRoomModal({
                 <option key={r.id} value={r.id}>{r.label}</option>
               ))}
             </select>
+            {!isCheckingAvailability && roomOptions.length === 0 && (
+              <div className="text-xs text-amber-700">Không có phòng rảnh ở khung giờ này.</div>
+            )}
           </div>
         </div>
         <div className="border-t border-gray-200 p-4 flex justify-end gap-3">
@@ -1365,24 +1184,81 @@ function ChangeTeacherModal({
   const [selectedTeacherId, setSelectedTeacherId] = useState("");
   const [selectedAssistantId, setSelectedAssistantId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !slot) return;
     setSelectedTeacherId(slot?.teacherId ?? "");
     setSelectedAssistantId(slot?.assistantId ?? "");
     setError(null);
+    setIsCheckingAvailability(true);
+
     const token = getAccessToken();
-    if (!token) return;
-    fetch(`/api/admin/users?pageNumber=1&pageSize=200&role=Teacher`, { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((json) => {
-        const items: any[] =
-          json?.data?.items ?? json?.data?.users ?? json?.data ?? (Array.isArray(json) ? json : []);
-        setTeacherOptions(items.map((u) => ({ id: String(u?.id ?? ""), label: String(u?.name ?? u?.fullName ?? u?.email ?? "Teacher") })).filter((t) => t.id));
+    if (!token) {
+      setIsCheckingAvailability(false);
+      return;
+    }
+
+    const scheduledAt = slot.plannedDatetime;
+    const durationMinutes = slot.durationMinutes && slot.durationMinutes > 0 ? slot.durationMinutes : 60;
+
+    const loadFallbackTeachers = () => {
+      fetch(`/api/admin/users?pageNumber=1&pageSize=200&role=Teacher`, {
+        headers: { Authorization: `Bearer ${token}` },
       })
-      .catch(() => {});
+        .then((response) => (response.ok ? response.json() : null))
+        .then((json) => {
+          const items: Array<Record<string, unknown>> =
+            json?.data?.items ?? json?.data?.users ?? json?.data ?? (Array.isArray(json) ? json : []);
+          setTeacherOptions(
+            items
+              .map((teacher) => ({
+                id: String(teacher?.id ?? ""),
+                label: String(teacher?.name ?? teacher?.fullName ?? teacher?.email ?? "Teacher"),
+              }))
+              .filter((teacher) => teacher.id)
+          );
+        })
+        .catch(() => setTeacherOptions([]))
+        .finally(() => setIsCheckingAvailability(false));
+    };
+
+    if (scheduledAt) {
+      const params = new URLSearchParams({
+        scheduledAt,
+        durationMinutes: String(durationMinutes),
+        includeUnavailable: "true",
+      });
+      if (slot.branchId) params.set("branchId", slot.branchId);
+      if (slot.id) params.set("excludeSessionId", slot.id);
+
+      fetch(`/api/sessions/availability?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((response) => (response.ok ? response.json() : null))
+        .then((json) => {
+          const data = json?.data ?? json;
+          const teachers: Array<{ userId: string; name?: string; isAvailable: boolean }> =
+            data?.teachers ?? [];
+          if (teachers.length === 0) { loadFallbackTeachers(); return; }
+          const available = teachers
+            .filter(
+              (teacher) =>
+                teacher.isAvailable ||
+                String(teacher.userId) === slot.teacherId ||
+                String(teacher.userId) === slot.assistantId
+            )
+            .map((teacher) => ({ id: String(teacher.userId), label: String(teacher.name ?? "Giáo viên") }))
+            .filter((teacher) => teacher.id);
+          setTeacherOptions(available);
+          setIsCheckingAvailability(false);
+        })
+        .catch(() => loadFallbackTeachers());
+    } else {
+      loadFallbackTeachers();
+    }
   }, [isOpen, slot]);
 
   useEffect(() => {
@@ -1445,6 +1321,7 @@ function ChangeTeacherModal({
           {error && <div className="rounded-lg bg-red-50 border border-red-200 p-2 text-sm text-red-700">{error}</div>}
           <div className="space-y-2">
             <label className="text-sm font-semibold text-gray-800">Giáo viên chính mới *</label>
+            <div className="text-xs text-gray-500">Chỉ hiển thị giáo viên đang rảnh theo khung giờ của buổi học này.</div>
             <select
               value={selectedTeacherId}
               onChange={(e) => setSelectedTeacherId(e.target.value)}
@@ -1455,6 +1332,9 @@ function ChangeTeacherModal({
                 <option key={t.id} value={t.id}>{t.label}</option>
               ))}
             </select>
+            {!isCheckingAvailability && teacherOptions.length === 0 && (
+              <div className="text-xs text-amber-700">Không có giáo viên rảnh ở khung giờ này.</div>
+            )}
           </div>
           <div className="space-y-2">
             <label className="text-sm font-semibold text-gray-800">Giáo viên phụ (tùy chọn)</label>
@@ -1945,6 +1825,8 @@ export default function Page() {
       type: "CLASS",
       teacher: String(created.plannedTeacherName ?? created.teacherName ?? display.teacher),
       teacherId: created.plannedTeacherId ?? undefined,
+      assistantId: created.plannedAssistantId ?? undefined,
+      assistantName: created.plannedAssistantName ?? created.assistantName ?? undefined,
       room: String(created.plannedRoomName ?? created.roomName ?? display.room),
       roomId: created.plannedRoomId ?? undefined,
       date: formatVNDate(startDate),
@@ -2024,6 +1906,8 @@ export default function Page() {
               type: "CLASS",
               teacher: teacherName.trim(),
               teacherId: s.plannedTeacherId ?? undefined,
+              assistantId: s.plannedAssistantId ?? s.actualAssistantId ?? undefined,
+              assistantName: s.plannedAssistantName ?? s.assistantName ?? s.actualAssistantName ?? undefined,
               room: String(s.plannedRoomName ?? s.roomName ?? ""),
               roomId: s.plannedRoomId ?? undefined,
               date: formatVNDate(planned),
@@ -2031,6 +1915,7 @@ export default function Page() {
               note: s.participationType ?? "",
               color: resolveSlotColor(s.color, String(s.classId ?? ""), "CLASS"),
               branch: s.branchName ?? undefined,
+              branchId: s.branchId ?? undefined,
               plannedDatetime: s.plannedDatetime,
               durationMinutes,
             };
@@ -2097,7 +1982,7 @@ export default function Page() {
 
   // Swap handlers
   const handleChangeRoom = async (sessionId: string, roomId: string, roomName: string) => {
-    await updateAdminSession(sessionId, { plannedRoomId: roomId });
+    await changeSessionRoom({ sessionId, roomId });
     setSlots((prev) => prev.map((s) => (s.id === sessionId ? { ...s, room: roomName, roomId } : s)));
     toast({ title: "Đổi phòng thành công", description: `Đã chuyển sang phòng: ${roomName}` });
   };
@@ -2109,9 +1994,10 @@ export default function Page() {
     assistantId: string,
     assistantName: string
   ) => {
-    const payload: any = { plannedTeacherId: teacherId };
-    if (assistantId) payload.plannedAssistantId = assistantId;
-    await updateAdminSession(sessionId, payload);
+    await changeSessionTeacher({ sessionId, teacherId, role: "MainTeacher" });
+    if (assistantId) {
+      await changeSessionTeacher({ sessionId, teacherId: assistantId, role: "Assistant" });
+    }
     setSlots((prev) =>
       prev.map((s) =>
         s.id === sessionId
@@ -2336,11 +2222,7 @@ export default function Page() {
         onClose={() => setIsBulkUpdateModalOpen(false)}
         classId={classFilter === "ALL" ? "" : classFilter}
         className={classOptions.find((c) => c.id === classFilter)?.name ?? "Lớp học"}
-        onSuccess={(message) => {
-          toast.success({
-            title: "Cập nhật hàng loạt thành công",
-            description: message,
-          });
+        onSuccess={() => {
           setRefreshTick((v) => v + 1);
         }}
       />

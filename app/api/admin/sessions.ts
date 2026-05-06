@@ -6,11 +6,36 @@
 import { getAccessToken } from "@/lib/store/authToken";
 import { ADMIN_ENDPOINTS } from "@/constants/apiURL";
 import type {
+  ChangeTeacherRole,
   CreateSessionRequest,
   Session,
+  SessionChangeResult,
+  SessionChangeRoomRequest,
+  SessionChangeTeacherRequest,
   UpdateSessionsByClassRequest,
   UpdateSessionsByClassResult,
 } from "@/types/admin/sessions";
+
+function extractApiErrorMessage(json: any, text: string, fallback: string): string {
+  if (Array.isArray(json?.errors) && json.errors.length > 0) {
+    const messages = json.errors
+      .map((entry: any) => entry?.description || entry?.message || entry?.code)
+      .filter(Boolean);
+
+    if (messages.length > 0) {
+      return messages.join("\n");
+    }
+  }
+
+  return (
+    json?.detail ||
+    json?.message ||
+    json?.error ||
+    json?.title ||
+    (typeof text === "string" && text.trim() ? text : null) ||
+    fallback
+  );
+}
 
 /**
  * Generate sessions from class schedule pattern
@@ -126,16 +151,31 @@ function mapApiSession(item: any): Session {
     classId: item?.classId ? String(item.classId) : null,
     classTitle: item?.classTitle ?? item?.className ?? null,
     className: item?.className ?? null,
+    branchId: item?.branchId ? String(item.branchId) : null,
+    branchName: item?.branchName ?? null,
     plannedDatetime: String(item?.plannedDatetime ?? item?.startTime ?? ""),
+    actualDatetime: item?.actualDatetime ?? null,
     durationMinutes:
       typeof item?.durationMinutes === "number" && item.durationMinutes > 0
         ? item.durationMinutes
         : 60,
+    plannedRoomId: item?.plannedRoomId ? String(item.plannedRoomId) : null,
     plannedRoomName: item?.plannedRoomName ?? null,
+    actualRoomId: item?.actualRoomId ? String(item.actualRoomId) : null,
+    actualRoomName: item?.actualRoomName ?? null,
     roomName: item?.roomName ?? null,
+    plannedTeacherId: item?.plannedTeacherId ? String(item.plannedTeacherId) : null,
     plannedTeacherName: item?.plannedTeacherName ?? null,
+    actualTeacherId: item?.actualTeacherId ? String(item.actualTeacherId) : null,
+    actualTeacherName: item?.actualTeacherName ?? null,
     teacherName: item?.teacherName ?? null,
+    plannedAssistantId: item?.plannedAssistantId ? String(item.plannedAssistantId) : null,
+    plannedAssistantName: item?.plannedAssistantName ?? null,
+    actualAssistantId: item?.actualAssistantId ? String(item.actualAssistantId) : null,
+    actualAssistantName: item?.actualAssistantName ?? null,
+    assistantName: item?.assistantName ?? null,
     participationType: item?.participationType ?? null,
+    status: item?.status ?? null,
     color: item?.color ?? item?.Color ?? null,
   };
 
@@ -420,6 +460,75 @@ export async function updateAdminSessionsByClass(
   if (!res.ok) {
     const msg = json?.message || json?.error || json?.title || "Không thể cập nhật hàng loạt session.";
     throw new Error(msg);
+  }
+
+  return { isSuccess: json?.isSuccess ?? true, data: json?.data ?? json, message: json?.message };
+}
+
+export async function changeSessionRoom(
+  payload: SessionChangeRoomRequest
+): Promise<{ isSuccess: boolean; data?: SessionChangeResult; message?: string }> {
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error("Bạn chưa đăng nhập.");
+  }
+
+  const res = await fetch(ADMIN_ENDPOINTS.SESSIONS_CHANGE_ROOM, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const text = await res.text();
+  let json: any = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    json = null;
+  }
+
+  if (!res.ok) {
+    throw new Error(extractApiErrorMessage(json, text, "Không thể đổi phòng học."));
+  }
+
+  return { isSuccess: json?.isSuccess ?? true, data: json?.data ?? json, message: json?.message };
+}
+
+export async function changeSessionTeacher(
+  payload: SessionChangeTeacherRequest
+): Promise<{ isSuccess: boolean; data?: SessionChangeResult; message?: string }> {
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error("Bạn chưa đăng nhập.");
+  }
+
+  const normalizedPayload: SessionChangeTeacherRequest & { role: ChangeTeacherRole } = {
+    ...payload,
+    role: payload.role,
+  };
+
+  const res = await fetch(ADMIN_ENDPOINTS.SESSIONS_CHANGE_TEACHER, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(normalizedPayload),
+  });
+
+  const text = await res.text();
+  let json: any = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    json = null;
+  }
+
+  if (!res.ok) {
+    throw new Error(extractApiErrorMessage(json, text, "Không thể đổi giáo viên."));
   }
 
   return { isSuccess: json?.isSuccess ?? true, data: json?.data ?? json, message: json?.message };

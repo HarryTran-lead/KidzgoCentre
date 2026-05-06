@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getAccessToken } from "@/lib/store/authToken";
-import { updateAdminSession } from "@/app/api/admin/sessions";
+import { changeSessionRoom, changeSessionTeacher, updateAdminSession } from "@/app/api/admin/sessions";
 import {
   ArrowLeft,
   BookOpen,
@@ -29,6 +29,7 @@ import {
   fetchAttendance,
   saveAttendance,
 } from "@/app/api/teacher/attendance";
+import { useToast } from "@/hooks/use-toast";
 import type {
   AttendanceStatus,
   Student,
@@ -50,6 +51,20 @@ const PERIODS: { key: Period; label: string }[] = [
 ];
 
 type SelectOption = { id: string; label: string };
+
+function buildScheduledAt(dateISO: string, timeRange: string): { scheduledAt: string; durationMinutes: number } | null {
+  const startTimeStr = String(timeRange || "").split(" - ")[0]?.trim();
+  const endTimeStr = String(timeRange || "").split(" - ")[1]?.trim();
+  if (!dateISO || !startTimeStr || !endTimeStr) return null;
+
+  const [sh, sm] = startTimeStr.split(":").map(Number);
+  const [eh, em] = endTimeStr.split(":").map(Number);
+  if ([sh, sm, eh, em].some((value) => Number.isNaN(value))) return null;
+
+  const durationMinutes = (eh * 60 + em) - (sh * 60 + sm);
+  const scheduledAt = `${dateISO}T${String(sh).padStart(2, "0")}:${String(sm).padStart(2, "0")}:00+07:00`;
+  return { scheduledAt, durationMinutes: durationMinutes > 0 ? durationMinutes : 60 };
+}
 
 /* ===== Sub-components ===== */
 function StatusBadge({ status }: { status: AttendanceStatus }) {
@@ -136,14 +151,21 @@ function Pagination({
 
 /* =================== CHANGE ROOM MODAL =================== */
 function ChangeRoomModal({
-  isOpen, onClose, currentRoom, onConfirm,
+  isOpen, onClose, sessionId, currentDate, currentTime, currentRoom, branchId, onConfirm,
 }: {
-  isOpen: boolean; onClose: () => void; currentRoom: string;
+  isOpen: boolean;
+  onClose: () => void;
+  sessionId: string;
+  currentDate: string;
+  currentTime: string;
+  currentRoom: string;
+  branchId?: string;
   onConfirm: (roomId: string, roomName: string) => Promise<void>;
 }) {
   const [roomOptions, setRoomOptions] = useState<SelectOption[]>([]);
   const [selectedRoomId, setSelectedRoomId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -151,16 +173,65 @@ function ChangeRoomModal({
     if (!isOpen) return;
     setSelectedRoomId("");
     setError(null);
+    setIsCheckingAvailability(true);
+
     const token = getAccessToken();
-    if (!token) return;
-    fetch(`/api/classrooms?pageNumber=1&pageSize=200`, { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((json) => {
-        const items: Record<string, unknown>[] = json?.data?.classrooms?.items ?? json?.data?.items ?? json?.data ?? (Array.isArray(json) ? json : []);
-        setRoomOptions(items.map((r) => ({ id: String(r?.id ?? ""), label: String(r?.name ?? "Ph\u00f2ng") })).filter((r: SelectOption) => r.id));
+    if (!token) {
+      setIsCheckingAvailability(false);
+      return;
+    }
+
+    const window = buildScheduledAt(currentDate, currentTime);
+
+    const loadFallbackRooms = () => {
+      fetch(`/api/classrooms?pageNumber=1&pageSize=200`, { headers: { Authorization: `Bearer ${token}` } })
+        .then((response) => (response.ok ? response.json() : null))
+        .then((json) => {
+          const items: Record<string, unknown>[] =
+            json?.data?.classrooms?.items ?? json?.data?.items ?? json?.data ?? (Array.isArray(json) ? json : []);
+          const mapped = items
+            .map((room) => ({ id: String(room?.id ?? ""), label: String(room?.name ?? "Ph\u00f2ng") }))
+            .filter((room: SelectOption) => room.id);
+          setRoomOptions(mapped);
+          const current = mapped.find((room) => room.label === currentRoom);
+          setSelectedRoomId(current?.id ?? "");
+        })
+        .catch(() => setRoomOptions([]))
+        .finally(() => setIsCheckingAvailability(false));
+    };
+
+    if (window) {
+      const params = new URLSearchParams({
+        scheduledAt: window.scheduledAt,
+        durationMinutes: String(window.durationMinutes),
+        includeUnavailable: "true",
+      });
+      if (branchId) params.set("branchId", branchId);
+      if (sessionId) params.set("excludeSessionId", sessionId);
+
+      fetch(`/api/sessions/availability?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
       })
-      .catch(() => {});
-  }, [isOpen]);
+        .then((response) => (response.ok ? response.json() : null))
+        .then((json) => {
+          const data = json?.data ?? json;
+          const rooms: Array<{ roomId: string; name?: string; isAvailable: boolean }> =
+            data?.rooms ?? [];
+          if (rooms.length === 0) { loadFallbackRooms(); return; }
+          const currentRoomMatch = rooms.find((room) => room.name === currentRoom);
+          const available = rooms
+            .filter((room) => room.isAvailable || String(room.roomId) === currentRoomMatch?.roomId)
+            .map((room) => ({ id: String(room.roomId), label: String(room.name ?? "Ph\u00f2ng") }))
+            .filter((room) => room.id);
+          setRoomOptions(available);
+          setSelectedRoomId(currentRoomMatch?.roomId ? String(currentRoomMatch.roomId) : "");
+          setIsCheckingAvailability(false);
+        })
+        .catch(() => loadFallbackRooms());
+    } else {
+      loadFallbackRooms();
+    }
+  }, [isOpen, currentDate, currentTime, currentRoom, branchId, sessionId]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -196,10 +267,14 @@ function ChangeRoomModal({
           {error && <div className="rounded-lg bg-red-50 border border-red-200 p-2 text-sm text-red-700">{error}</div>}
           <div className="space-y-2">
             <label className="text-sm font-semibold text-gray-800">{"Ch\u1ecdn ph\u00f2ng m\u1edbi"}</label>
+            <div className="text-xs text-gray-500">{"Ch\u1ec9 hi\u1ec3n th\u1ecb ph\u00f2ng \u0111ang r\u1ea3nh theo khung gi\u1edd c\u1ee7a bu\u1ed5i h\u1ecdc n\u00e0y."}</div>
             <select value={selectedRoomId} onChange={(e) => setSelectedRoomId(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-300">
               <option value="">{"Ch\u1ecdn ph\u00f2ng"}</option>
               {roomOptions.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
             </select>
+            {!isCheckingAvailability && roomOptions.length === 0 && (
+              <div className="text-xs text-amber-700">{"Kh\u00f4ng c\u00f3 ph\u00f2ng r\u1ea3nh \u1edf khung gi\u1edd n\u00e0y."}</div>
+            )}
           </div>
         </div>
         <div className="border-t border-gray-200 p-4 flex justify-end gap-3">
@@ -215,31 +290,104 @@ function ChangeRoomModal({
 
 /* =================== CHANGE TEACHER MODAL =================== */
 function ChangeTeacherModal({
-  isOpen, onClose, currentTeacher, currentAssistant, onConfirm,
+  isOpen, onClose, sessionId, currentDate, currentTime, currentTeacher, currentAssistant, branchId, onConfirm,
 }: {
-  isOpen: boolean; onClose: () => void; currentTeacher: string; currentAssistant?: string;
+  isOpen: boolean;
+  onClose: () => void;
+  sessionId: string;
+  currentDate: string;
+  currentTime: string;
+  currentTeacher: string;
+  currentAssistant?: string;
+  branchId?: string;
   onConfirm: (teacherId: string, teacherName: string, assistantId: string, assistantName: string) => Promise<void>;
 }) {
   const [teacherOptions, setTeacherOptions] = useState<SelectOption[]>([]);
   const [selectedTeacherId, setSelectedTeacherId] = useState("");
   const [selectedAssistantId, setSelectedAssistantId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isOpen) return;
-    setSelectedTeacherId(""); setSelectedAssistantId(""); setError(null);
+    setSelectedTeacherId("");
+    setSelectedAssistantId("");
+    setError(null);
+    setIsCheckingAvailability(true);
+
     const token = getAccessToken();
-    if (!token) return;
-    fetch(`/api/admin/users?pageNumber=1&pageSize=200&role=Teacher`, { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((json) => {
-        const items: Record<string, unknown>[] = json?.data?.items ?? json?.data?.users ?? json?.data ?? (Array.isArray(json) ? json : []);
-        setTeacherOptions(items.map((u) => ({ id: String(u?.id ?? ""), label: String(u?.name ?? u?.fullName ?? u?.email ?? "Teacher") })).filter((t: SelectOption) => t.id));
+    if (!token) {
+      setIsCheckingAvailability(false);
+      return;
+    }
+
+    const window = buildScheduledAt(currentDate, currentTime);
+
+    const loadFallbackTeachers = () => {
+      fetch(`/api/admin/users?pageNumber=1&pageSize=200&role=Teacher`, {
+        headers: { Authorization: `Bearer ${token}` },
       })
-      .catch(() => {});
-  }, [isOpen]);
+        .then((response) => (response.ok ? response.json() : null))
+        .then((json) => {
+          const items: Record<string, unknown>[] =
+            json?.data?.items ?? json?.data?.users ?? json?.data ?? (Array.isArray(json) ? json : []);
+          const mapped = items
+            .map((teacher) => ({
+              id: String(teacher?.id ?? ""),
+              label: String(teacher?.name ?? teacher?.fullName ?? teacher?.email ?? "Teacher"),
+            }))
+            .filter((teacher: SelectOption) => teacher.id);
+          setTeacherOptions(mapped);
+          const currentTeacherOption = mapped.find((teacher) => teacher.label === currentTeacher);
+          const currentAssistantOption = mapped.find((teacher) => teacher.label === currentAssistant);
+          setSelectedTeacherId(currentTeacherOption?.id ?? "");
+          setSelectedAssistantId(currentAssistantOption?.id ?? "");
+        })
+        .catch(() => setTeacherOptions([]))
+        .finally(() => setIsCheckingAvailability(false));
+    };
+
+    if (window) {
+      const params = new URLSearchParams({
+        scheduledAt: window.scheduledAt,
+        durationMinutes: String(window.durationMinutes),
+        includeUnavailable: "true",
+      });
+      if (branchId) params.set("branchId", branchId);
+      if (sessionId) params.set("excludeSessionId", sessionId);
+
+      fetch(`/api/sessions/availability?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((response) => (response.ok ? response.json() : null))
+        .then((json) => {
+          const data = json?.data ?? json;
+          const teachers: Array<{ userId: string; name?: string; isAvailable: boolean }> =
+            data?.teachers ?? [];
+          if (teachers.length === 0) { loadFallbackTeachers(); return; }
+          const currentTeacherMatch = teachers.find((teacher) => teacher.name === currentTeacher);
+          const currentAssistantMatch = teachers.find((teacher) => teacher.name === currentAssistant);
+          const available = teachers
+            .filter(
+              (teacher) =>
+                teacher.isAvailable ||
+                String(teacher.userId) === currentTeacherMatch?.userId ||
+                String(teacher.userId) === currentAssistantMatch?.userId
+            )
+            .map((teacher) => ({ id: String(teacher.userId), label: String(teacher.name ?? "Gi\u00e1o vi\u00ean") }))
+            .filter((teacher) => teacher.id);
+          setTeacherOptions(available);
+          setSelectedTeacherId(currentTeacherMatch?.userId ? String(currentTeacherMatch.userId) : "");
+          setSelectedAssistantId(currentAssistantMatch?.userId ? String(currentAssistantMatch.userId) : "");
+          setIsCheckingAvailability(false);
+        })
+        .catch(() => loadFallbackTeachers());
+    } else {
+      loadFallbackTeachers();
+    }
+  }, [isOpen, currentDate, currentTime, currentTeacher, currentAssistant, branchId, sessionId]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -279,10 +427,14 @@ function ChangeTeacherModal({
           {error && <div className="rounded-lg bg-red-50 border border-red-200 p-2 text-sm text-red-700">{error}</div>}
           <div className="space-y-2">
             <label className="text-sm font-semibold text-gray-800">{"Gi\u00e1o vi\u00ean ch\u00ednh m\u1edbi *"}</label>
+            <div className="text-xs text-gray-500">{"Ch\u1ec9 hi\u1ec3n th\u1ecb gi\u00e1o vi\u00ean \u0111ang r\u1ea3nh theo khung gi\u1edd c\u1ee7a bu\u1ed5i h\u1ecdc n\u00e0y."}</div>
             <select value={selectedTeacherId} onChange={(e) => setSelectedTeacherId(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-300">
               <option value="">{"Ch\u1ecdn gi\u00e1o vi\u00ean ch\u00ednh"}</option>
               {teacherOptions.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
             </select>
+            {!isCheckingAvailability && teacherOptions.length === 0 && (
+              <div className="text-xs text-amber-700">{"Kh\u00f4ng c\u00f3 gi\u00e1o vi\u00ean r\u1ea3nh \u1edf khung gi\u1edd n\u00e0y."}</div>
+            )}
           </div>
           <div className="space-y-2">
             <label className="text-sm font-semibold text-gray-800">{"Gi\u00e1o vi\u00ean ph\u1ee5 (t\u00f9y ch\u1ecdn)"}</label>
@@ -493,18 +645,23 @@ export default function StaffSessionDetailPage() {
     } finally { setSaving(false); }
   }, [lessonId, editedStudents, list]);
 
+  const { toast } = useToast();
+
   // Swap handlers
   const handleChangeRoom = useCallback(async (roomId: string, roomName: string) => {
-    await updateAdminSession(lessonId, { plannedRoomId: roomId });
+    await changeSessionRoom({ sessionId: lessonId, roomId });
     setLesson((prev) => prev ? { ...prev, room: roomName } : prev);
-  }, [lessonId]);
+    toast({ title: "Đổi phòng thành công", description: `Đã chuyển sang phòng: ${roomName}` });
+  }, [lessonId, toast]);
 
-  const handleChangeTeacher = useCallback(async (teacherId: string, teacherName: string, assistantId: string) => {
-    const payload: Record<string, string> = { plannedTeacherId: teacherId };
-    if (assistantId) payload.plannedAssistantId = assistantId;
-    await updateAdminSession(lessonId, payload);
+  const handleChangeTeacher = useCallback(async (teacherId: string, teacherName: string, assistantId: string, assistantName: string) => {
+    await changeSessionTeacher({ sessionId: lessonId, teacherId, role: "MainTeacher" });
+    if (assistantId) {
+      await changeSessionTeacher({ sessionId: lessonId, teacherId: assistantId, role: "Assistant" });
+    }
     setLesson((prev) => prev ? { ...prev, teacher: teacherName } : prev);
-  }, [lessonId]);
+    toast({ title: "Đổi giáo viên thành công", description: `GV chính: ${teacherName}${assistantName ? ` • GV phụ: ${assistantName}` : ""}` });
+  }, [lessonId, toast]);
 
   const handleChangeSchedule = useCallback(async (newDate: string, newTime: string) => {
     const [startTime] = newTime.split(" - ");
@@ -746,13 +903,21 @@ export default function StaffSessionDetailPage() {
       <ChangeRoomModal
         isOpen={showRoomModal}
         onClose={() => setShowRoomModal(false)}
+        sessionId={lesson.id}
+        currentDate={lessonDateISO}
+        currentTime={lesson.time}
         currentRoom={lesson.room}
+        branchId={lesson.branchId ?? undefined}
         onConfirm={handleChangeRoom}
       />
       <ChangeTeacherModal
         isOpen={showTeacherModal}
         onClose={() => setShowTeacherModal(false)}
+        sessionId={lesson.id}
+        currentDate={lessonDateISO}
+        currentTime={lesson.time}
         currentTeacher={lesson.teacher}
+        branchId={lesson.branchId ?? undefined}
         onConfirm={handleChangeTeacher}
       />
       <ChangeScheduleModal
