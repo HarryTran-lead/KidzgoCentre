@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Building2, Clock, DollarSign, FileText, Wallet, X } from "lucide-react";
+import { BookOpen, Clock, DollarSign, FileText, Wallet, X } from "lucide-react";
 import type { TuitionPlan } from "@/types/admin/tuition_plan";
 
 function cn(...a: Array<string | false | null | undefined>) {
@@ -72,21 +72,13 @@ export default function TuitionPlanDetailModal({
                 <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">{detail.name}</div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                     <BookOpen size={16} className="text-red-600" />
                     Chương trình học
                   </label>
                   <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">{detail.programName || "Chưa có"}</div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                    <Building2 size={16} className="text-red-600" />
-                    Chi nhánh
-                  </label>
-                  <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">{detail.branchName || "Chưa có"}</div>
                 </div>
               </div>
 

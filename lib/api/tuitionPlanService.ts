@@ -41,11 +41,30 @@ function pickDetail(payload: any): any {
   return payload;
 }
 
+function pickNestedName(candidate: any): string {
+  if (!candidate) return "";
+  if (typeof candidate === "string") return candidate.trim();
+  if (typeof candidate !== "object") return "";
+
+  const value = candidate?.name ?? candidate?.branchName ?? candidate?.displayName ?? candidate?.title;
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function resolveBranchName(item: any): string {
+  const direct = String(item?.branchName ?? item?.branchDisplayName ?? item?.branch_title ?? "").trim();
+  if (direct) return direct;
+
+  const nested = pickNestedName(item?.branch) || pickNestedName(item?.branchInfo);
+  if (nested) return nested;
+
+  return "";
+}
+
 function mapToTuitionPlan(item: any): TuitionPlan {
   return {
     id: String(item?.id ?? ""),
     branchId: String(item?.branchId ?? ""),
-    branchName: String(item?.branchName ?? item?.branch?.name ?? ""),
+    branchName: resolveBranchName(item),
     programId: String(item?.programId ?? ""),
     programName: String(item?.programName ?? item?.program?.name ?? ""),
     name: String(item?.name ?? ""),

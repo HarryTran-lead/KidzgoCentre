@@ -2,9 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AlertCircle, BookOpen, Clock, DollarSign, Wallet, X } from "lucide-react";
-import { getAllBranches } from "@/lib/api/branchService";
 import { getProgramsForBranch, type ProgramOption } from "@/lib/api/tuitionPlanService";
-import AdminBranchSelectField from "@/components/admin/common/AdminBranchSelectField";
 
 function cn(...a: Array<string | false | null | undefined>) {
   return a.filter(Boolean).join(" ");
@@ -38,18 +36,18 @@ export default function TuitionPlanModal({
   onSubmit,
   mode = "create",
   initialData,
+  defaultBranchId,
 }: {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: TuitionPlanFormData) => void;
   mode?: "create" | "edit";
   initialData?: TuitionPlanFormData | null;
+  defaultBranchId?: string | null;
 }) {
   const [formData, setFormData] = useState<TuitionPlanFormData>(initialFormData);
   const [errors, setErrors] = useState<Partial<Record<keyof TuitionPlanFormData, string>>>({});
-  const [branches, setBranches] = useState<Array<{ id: string; name: string }>>([]);
   const [programs, setPrograms] = useState<ProgramOption[]>([]);
-  const [loadingBranches, setLoadingBranches] = useState(false);
   const [loadingPrograms, setLoadingPrograms] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -77,36 +75,13 @@ export default function TuitionPlanModal({
     if (mode === "edit" && initialData) {
       setFormData(initialData);
     } else {
-      setFormData(initialFormData);
+      setFormData({
+        ...initialFormData,
+        branchId: defaultBranchId || "",
+      });
     }
     setErrors({});
-  }, [isOpen, mode, initialData]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    async function loadBranches() {
-      try {
-        setLoadingBranches(true);
-        const res = await getAllBranches({ page: 1, limit: 100 });
-        const items = res?.data?.branches ?? res?.data ?? [];
-        setBranches(
-          items
-            .map((b: any) => ({
-              id: String(b?.id ?? ""),
-              name: String(b?.name ?? b?.code ?? "Chi nhánh"),
-            }))
-            .filter((b: { id: string }) => b.id)
-        );
-      } catch {
-        setBranches([]);
-      } finally {
-        setLoadingBranches(false);
-      }
-    }
-
-    loadBranches();
-  }, [isOpen]);
+  }, [isOpen, mode, initialData, defaultBranchId]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -114,7 +89,8 @@ export default function TuitionPlanModal({
     async function loadPrograms() {
       try {
         setLoadingPrograms(true);
-        const items = await getProgramsForBranch(formData.branchId || undefined);
+        const branchId = formData.branchId || defaultBranchId || undefined;
+        const items = await getProgramsForBranch(branchId);
         setPrograms(items.filter((x) => x.isActive !== false));
       } catch {
         setPrograms([]);
@@ -124,7 +100,7 @@ export default function TuitionPlanModal({
     }
 
     loadPrograms();
-  }, [isOpen, formData.branchId]);
+  }, [isOpen, formData.branchId, defaultBranchId]);
 
   useEffect(() => {
     const sessions = Number(formData.totalSessions);
@@ -149,7 +125,6 @@ export default function TuitionPlanModal({
   const validate = () => {
     const next: Partial<Record<keyof TuitionPlanFormData, string>> = {};
 
-    if (!formData.branchId) next.branchId = "Chi nhánh là bắt buộc";
     if (!formData.programId) next.programId = "Chương trình học là bắt buộc";
     if (!formData.name.trim()) next.name = "Tên gói học là bắt buộc";
     if (!formData.totalSessions || Number(formData.totalSessions) <= 0) next.totalSessions = "Số buổi học phải lớn hơn 0";
@@ -199,23 +174,6 @@ export default function TuitionPlanModal({
         <div className="p-6 max-h-[80vh] overflow-y-auto">
           <form onSubmit={submit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <AdminBranchSelectField
-                isOpen={isOpen}
-                mode={mode}
-                value={formData.branchId}
-                options={branches.map((branch) => ({ id: branch.id, label: branch.name }))}
-                onValueChange={(value) => {
-                  setFormData((prev: TuitionPlanFormData) => ({ ...prev, branchId: value, programId: "" }));
-                  if (errors.branchId) {
-                    setErrors((prev) => ({ ...prev, branchId: undefined }));
-                  }
-                }}
-                error={errors.branchId}
-                disabled={loadingBranches}
-                placeholder={loadingBranches ? "Đang tải chi nhánh..." : "Vui lòng chọn chi nhánh"}
-                dataField="branchId"
-              />
-
               <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                 <BookOpen size={16} className="text-red-600" />
@@ -224,11 +182,11 @@ export default function TuitionPlanModal({
               <select
                 value={formData.programId}
                 onChange={(e) => handleChange("programId", e.target.value)}
-                disabled={loadingPrograms || !formData.branchId}
+                disabled={loadingPrograms}
                 className={cn(
                   "w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
                   errors.programId ? "border-red-500" : "border-gray-200",
-                  loadingPrograms || !formData.branchId ? "opacity-50 cursor-not-allowed" : ""
+                  loadingPrograms ? "opacity-50 cursor-not-allowed" : ""
                 )}
               >
                 <option value="">Chọn chương trình học</option>

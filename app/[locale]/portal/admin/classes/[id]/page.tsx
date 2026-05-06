@@ -30,30 +30,57 @@ import { fetchAndMapAdminClassDetail, fetchAdminClassStudents, type Student } fr
 import type { ClassDetail, Track } from "@/types/admin/classes";
 import clsx from "clsx";
 
+type ParsedScheduleSegment = {
+  dayPart: string;
+  startTime: string;
+  endTime: string;
+};
+
+function parseScheduleSegments(schedule: string): ParsedScheduleSegment[] {
+  const text = String(schedule ?? "").trim();
+  if (!text || text === "Chưa có lịch") {
+    return [];
+  }
+
+  const segmentRegex = /(Thứ\s*[2-7](?:\s*,\s*[2-7])*(?:\s*&\s*CN)?|CN)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/g;
+  const segments: ParsedScheduleSegment[] = [];
+  let match: RegExpExecArray | null;
+
+  while ((match = segmentRegex.exec(text)) !== null) {
+    segments.push({
+      dayPart: match[1],
+      startTime: match[2],
+      endTime: match[3],
+    });
+  }
+
+  if (segments.length > 0) {
+    return segments;
+  }
+
+  const singleMatch = text.match(/(.+?)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/);
+  if (!singleMatch) {
+    return [];
+  }
+
+  return [{
+    dayPart: singleMatch[1],
+    startTime: singleMatch[2],
+    endTime: singleMatch[3],
+  }];
+}
+
 // Component hiển thị lịch học giống bên classes/page.tsx
 function ScheduleDisplay({ schedule }: { schedule: string }) {
-  // Parse schedule string format: "Thứ 2,4,6 (18:00 - 20:00)" or "Thứ 2,4,6 & CN (18:00 - 20:00)"
-  const match = schedule.match(/(.+?)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/);
+  const segments = parseScheduleSegments(schedule);
 
-  if (!match) {
+  if (segments.length === 0) {
     return (
       <div className="inline-flex items-center gap-1.5 text-gray-500 bg-gray-50 px-2 py-1 rounded-lg">
         <Clock size={14} className="text-gray-400" />
         <span className="text-xs italic">Chưa có lịch</span>
       </div>
     );
-  }
-
-  const [, dayPart, startTime, endTime] = match;
-
-  // Parse days into array
-  const dayNumbers: string[] = [];
-  const hasSunday = dayPart.includes("CN");
-
-  // Extract day numbers from "Thứ 2,4,6" or "Thứ 2,4,6 & CN"
-  const thuMatch = dayPart.match(/Thứ\s*([\d,]+)/);
-  if (thuMatch) {
-    dayNumbers.push(...thuMatch[1].split(","));
   }
 
   // Day display configuration with better colors
@@ -68,54 +95,65 @@ function ScheduleDisplay({ schedule }: { schedule: string }) {
 
   const sundayConfig = { label: "CN", bg: "bg-rose-100", text: "text-rose-700" };
 
-  // Combine all days for display
-  const allDays = [
-    ...dayNumbers.map(day => ({
-      day,
-      ...(dayConfig[day] || { label: `T${day}`, bg: "bg-gray-100", text: "text-gray-700" })
-    })),
-    ...(hasSunday ? [{ day: "CN", ...sundayConfig }] : [])
-  ];
+  const parseDays = (dayPart: string) => {
+    const dayNumbers: string[] = [];
+    const hasSunday = dayPart.includes("CN");
+    const thuMatch = dayPart.match(/Thứ\s*([\d,\s]+)/);
+    if (thuMatch) {
+      dayNumbers.push(...thuMatch[1].split(",").map((d) => d.trim()).filter(Boolean));
+    }
 
-  // Format time range
-  const timeRange = `${startTime} - ${endTime}`;
-
-  // Calculate duration in hours
-  const startHour = parseInt(startTime.split(':')[0]);
-  const startMin = parseInt(startTime.split(':')[1]);
-  const endHour = parseInt(endTime.split(':')[0]);
-  const endMin = parseInt(endTime.split(':')[1]);
-  const durationHours = ((endHour * 60 + endMin) - (startHour * 60 + startMin)) / 60;
-  const durationText = durationHours === Math.floor(durationHours)
-    ? `${durationHours}h`
-    : `${durationHours.toFixed(1)}h`;
+    return [
+      ...dayNumbers.map((day) => ({
+        day,
+        ...(dayConfig[day] || { label: `T${day}`, bg: "bg-gray-100", text: "text-gray-700" }),
+      })),
+      ...(hasSunday ? [{ day: "CN", ...sundayConfig }] : []),
+    ];
+  };
 
   return (
     <div className="flex flex-col gap-1.5">
-      {/* Days row - colorful pills */}
-      <div className="flex items-center gap-1 flex-wrap">
-        {allDays.map((dayInfo) => (
-          <span
-            key={dayInfo.day}
-            className={`px-2 py-0.5 rounded-full text-xs font-semibold ${dayInfo.bg} ${dayInfo.text} shadow-sm`}
-          >
-            {dayInfo.label}
-          </span>
-        ))}
-      </div>
+      {segments.map((segment, index) => {
+        const allDays = parseDays(segment.dayPart);
+        const timeRange = `${segment.startTime} - ${segment.endTime}`;
 
-      {/* Time row with duration */}
-      <div className="flex items-center gap-1.5">
-        <div className="flex items-center gap-1 bg-gray-50 px-2 py-0.5 rounded-md">
-          <Clock size={12} className="text-gray-500" />
-          <span className="text-xs font-medium text-gray-700 whitespace-nowrap">
-            {timeRange}
-          </span>
-        </div>
-        <span className="text-[10px] font-medium text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full">
-          {durationText}
-        </span>
-      </div>
+        const startHour = parseInt(segment.startTime.split(":")[0], 10);
+        const startMin = parseInt(segment.startTime.split(":")[1], 10);
+        const endHour = parseInt(segment.endTime.split(":")[0], 10);
+        const endMin = parseInt(segment.endTime.split(":")[1], 10);
+        const durationHours = ((endHour * 60 + endMin) - (startHour * 60 + startMin)) / 60;
+        const durationText = durationHours === Math.floor(durationHours)
+          ? `${durationHours}h`
+          : `${durationHours.toFixed(1)}h`;
+
+        return (
+          <div key={`${segment.dayPart}-${segment.startTime}-${segment.endTime}-${index}`} className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-1 flex-wrap">
+              {allDays.map((dayInfo) => (
+                <span
+                  key={`${dayInfo.day}-${index}`}
+                  className={`px-2 py-0.5 rounded-full text-xs font-semibold ${dayInfo.bg} ${dayInfo.text} shadow-sm`}
+                >
+                  {dayInfo.label}
+                </span>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1 bg-gray-50 px-2 py-0.5 rounded-md">
+                <Clock size={12} className="text-gray-500" />
+                <span className="text-xs font-medium text-gray-700 whitespace-nowrap">
+                  {timeRange}
+                </span>
+              </div>
+              <span className="text-[10px] font-medium text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full">
+                {durationText}
+              </span>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

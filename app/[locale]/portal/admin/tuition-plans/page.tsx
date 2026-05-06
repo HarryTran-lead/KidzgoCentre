@@ -6,7 +6,6 @@ import {
   ArrowUp,
   ArrowUpDown,
   BookOpen,
-  Building2,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -42,7 +41,6 @@ type SortField =
   | "programName"
   | "totalSessions"
   | "tuitionAmount"
-  | "branchName"
   | "status";
 
 type SortDirection = "asc" | "desc" | null;
@@ -53,7 +51,6 @@ type TuitionPlanRow = {
   programName: string;
   totalSessions: string;
   tuitionAmount: string;
-  branchName: string;
   status: "Đang hoạt động" | "Tạm dừng";
 };
 
@@ -113,7 +110,6 @@ function toRow(plan: TuitionPlan): TuitionPlanRow {
     programName: plan.programName,
     totalSessions: `${plan.totalSessions} buổi`,
     tuitionAmount: `${plan.tuitionAmount.toLocaleString("vi-VN")} ${plan.currency || "VND"}`,
-    branchName: plan.branchName,
     status: plan.isActive ? "Đang hoạt động" : "Tạm dừng",
   };
 }
@@ -186,7 +182,7 @@ export default function TuitionPlansPage() {
     const kw = q.trim().toLowerCase();
     let filtered = !kw
       ? plans
-      : plans.filter((r) => [r.name, r.programName, r.branchName, r.tuitionAmount].some((x) => x.toLowerCase().includes(kw)));
+      : plans.filter((r) => [r.name, r.programName, r.tuitionAmount].some((x) => x.toLowerCase().includes(kw)));
 
     if (statusFilter !== "ALL") {
       filtered = filtered.filter((r) => r.status === statusFilter);
@@ -232,8 +228,13 @@ export default function TuitionPlansPage() {
 
   const handleCreate = async (data: TuitionPlanFormData) => {
     try {
+      const effectiveBranchId = data.branchId || selectedBranchId || getBranchQueryParam();
+      if (!effectiveBranchId) {
+        throw new Error("Vui lòng chọn chi nhánh ở bộ lọc chung trước khi tạo gói học.");
+      }
+
       await createTuitionPlan({
-        branchId: data.branchId,
+        branchId: effectiveBranchId,
         programId: data.programId,
         name: data.name,
         totalSessions: Number(data.totalSessions),
@@ -286,8 +287,13 @@ export default function TuitionPlansPage() {
     if (!editingPlanId) return;
 
     try {
+      const effectiveBranchId = data.branchId || selectedBranchId || getBranchQueryParam();
+      if (!effectiveBranchId) {
+        throw new Error("Không xác định được chi nhánh để cập nhật gói học.");
+      }
+
       await updateTuitionPlan(editingPlanId, {
-        branchId: data.branchId,
+        branchId: effectiveBranchId,
         programId: data.programId,
         name: data.name,
         totalSessions: Number(data.totalSessions),
@@ -419,13 +425,6 @@ export default function TuitionPlansPage() {
           </div>
         </div>
 
-        {selectedBranchId && (
-          <div className="flex items-center gap-2 px-4 py-3 bg-linear-to-r from-red-50 to-red-100 border border-red-200 rounded-xl">
-            <Building2 size={16} className="text-red-600" />
-            <span className="text-sm text-red-700 font-medium">Đang lọc theo chi nhánh đã chọn</span>
-          </div>
-        )}
-
         <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50 p-4">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
             <div className="relative flex-1">
@@ -480,7 +479,6 @@ export default function TuitionPlansPage() {
                   <SortableHeader field="programName" currentField={sortField} direction={sortDirection} onSort={handleSort}>Chương trình học</SortableHeader>
                   <SortableHeader field="totalSessions" currentField={sortField} direction={sortDirection} onSort={handleSort}>Số buổi</SortableHeader>
                   <SortableHeader field="tuitionAmount" currentField={sortField} direction={sortDirection} onSort={handleSort}>Học phí</SortableHeader>
-                  <SortableHeader field="branchName" currentField={sortField} direction={sortDirection} onSort={handleSort}>Chi nhánh</SortableHeader>
                   <SortableHeader field="status" currentField={sortField} direction={sortDirection} onSort={handleSort} align="center">Trạng thái</SortableHeader>
                   <th className="py-3 px-6 text-right text-xs font-medium tracking-wide text-gray-700 whitespace-nowrap">Thao tác</th>
                 </tr>
@@ -499,12 +497,6 @@ export default function TuitionPlansPage() {
                         </div>
                       </td>
                       <td className="py-3 px-6 text-gray-900 text-sm whitespace-nowrap">{r.tuitionAmount}</td>
-                      <td className="py-3 px-6 whitespace-nowrap">
-                        <div className="inline-flex items-center gap-2 text-gray-900 text-sm">
-                          <Building2 size={16} className="text-gray-400" />
-                          <span className="truncate">{r.branchName || "Chưa có"}</span>
-                        </div>
-                      </td>
                       <td className="py-3 px-6 text-center whitespace-nowrap"><StatusBadge value={r.status} /></td>
                       <td className="py-3 px-6">
                         <div className="flex items-center justify-end text-gray-700 gap-1">
@@ -540,7 +532,7 @@ export default function TuitionPlansPage() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center">
+                    <td colSpan={6} className="py-12 text-center">
                       <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-linear-to-r from-gray-100 to-gray-200 flex items-center justify-center">
                         <Search size={24} className="text-gray-400" />
                       </div>
@@ -592,6 +584,7 @@ export default function TuitionPlansPage() {
         onSubmit={handleCreate}
         mode="create"
         initialData={null}
+        defaultBranchId={selectedBranchId}
       />
 
       <TuitionPlanModal
@@ -605,6 +598,7 @@ export default function TuitionPlansPage() {
         onSubmit={handleUpdate}
         mode="edit"
         initialData={editingInitialData}
+        defaultBranchId={selectedBranchId}
       />
 
       <ConfirmModal

@@ -99,17 +99,17 @@ const COPY: Record<
 > = {
   teacher: {
     title: "Giáo án theo lớp",
-    subtitle: "Theo dõi syllabus của lớp, tạo lesson plan theo từng buổi và cập nhật nội dung dạy thực tế.",
+    subtitle: "Theo dõi syllabus của lớp, tạo giáo án theo từng buổi và cập nhật nội dung dạy thực tế.",
     planSubtitle: "Syllabus theo lớp của bạn",
   },
   "staff-management": {
-    title: "Lesson Plan Workspace",
-    subtitle: "Quản lý syllabus chuẩn, import template và rà soát lesson plan theo từng lớp.",
+    title: "Không gian quản lý giáo án",
+    subtitle: "Quản lý syllabus chuẩn, nhập mẫu giáo án và rà soát giáo án theo từng lớp.",
     planSubtitle: "Syllabus theo lớp toàn trung tâm",
   },
   admin: {
-    title: "Lesson Plan Workspace",
-    subtitle: "Quản trị template giáo án và đồng bộ luồng lesson plan theo contract backend mới.",
+    title: "Không gian quản lý giáo án",
+    subtitle: "Quản trị mẫu giáo án và đồng bộ luồng giáo án theo contract backend mới.",
     planSubtitle: "Syllabus theo lớp toàn hệ thống",
   },
 };
@@ -509,7 +509,7 @@ function getTemplateStats(templates: LessonPlanTemplate[]) {
     {
       title: "Lượt áp dụng",
       value: String(templates.reduce((sum, item) => sum + (item.usedCount || 0), 0)),
-      subtitle: "Số lần gắn vào lesson plan",
+      subtitle: "Số lần gắn vào giáo án",
       icon: ShieldCheck,
       color: "from-amber-500 to-orange-500",
     },
@@ -528,7 +528,7 @@ function getPlanStats(syllabus: ClassLessonPlanSyllabus | null) {
       color: "from-red-600 to-red-700",
     },
     {
-      title: "Đã có lesson plan",
+      title: "Đã có giáo án",
 value: String(sessions.filter((item) => item.lessonPlanId).length),
       subtitle: "Session đã được tạo bản ghi",
       icon: FileText,
@@ -686,7 +686,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
     if (rejected) {
       toast({
         title: "Không thể tải dữ liệu",
-        description: rejected.reason?.message || "Đã xảy ra lỗi khi đồng bộ dữ liệu lesson plan.",
+        description: rejected.reason?.message || "Đã xảy ra lỗi khi đồng bộ dữ liệu giáo án.",
         variant: "destructive",
       });
     }
@@ -884,7 +884,7 @@ return activeTab === "templates" && templatesAvailable
         type: "plan",
         loading: false,
         item: null,
-        error: extractMessage(response, "Không thể tải chi tiết lesson plan."),
+        error: extractMessage(response, "Không thể tải chi tiết giáo án."),
       });
       return;
     }
@@ -915,7 +915,7 @@ return activeTab === "templates" && templatesAvailable
     const response = await getLessonPlanById(session.lessonPlanId);
     if (!response.isSuccess || !response.data) {
       toast({
-        title: "Không thể mở lesson plan",
+        title: "Không thể mở giáo án",
         description: extractMessage(response, "Vui lòng thử lại sau."),
         variant: "destructive",
       });
@@ -970,7 +970,7 @@ const uploaded = await uploadLessonPlanFile("template", file);
           });
 
     if (!response.isSuccess) {
-      throw new Error(extractMessage(response, "Không thể lưu template."));
+      throw new Error(extractMessage(response, "Không thể lưu mẫu giáo án."));
     }
 
     toast({
@@ -1005,9 +1005,9 @@ const uploaded = await uploadLessonPlanFile("template", file);
       .join(" • ");
 
     toast({
-      title: "Import syllabus thành công",
+      title: "Nhập syllabus thành công",
       description:
-        importedPrograms || `Đã import ${response.data.importedCount} session template.`,
+        importedPrograms || `Đã nhập ${response.data.importedCount} mẫu buổi học.`,
       variant: "success",
     });
 
@@ -1024,7 +1024,7 @@ const uploaded = await uploadLessonPlanFile("template", file);
     teacherNotes?: string | null;
   }) => {
     if (!classSyllabus?.classId) {
-      throw new Error("Chưa có thông tin lớp để lưu lesson plan.");
+      throw new Error("Chưa có thông tin lớp để lưu giáo án.");
     }
 
     const response =
@@ -1047,11 +1047,11 @@ plannedContent: isTeacher ? (planModal.plan.plannedContent ?? null) : (payload.p
           });
 
     if (!response.isSuccess) {
-      throw new Error(extractMessage(response, "Không thể lưu lesson plan."));
+      throw new Error(extractMessage(response, "Không thể lưu giáo án."));
     }
 
     toast({
-      title: planModal?.mode === "edit" ? "Đã cập nhật lesson plan" : "Đã tạo lesson plan",
+      title: planModal?.mode === "edit" ? "Đã cập nhật giáo án" : "Đã tạo giáo án",
       description: "Dữ liệu của buổi học đã được làm mới theo backend mới.",
       variant: "success",
     });
@@ -1104,7 +1104,7 @@ onClick={() => setShowImportModal(true)}
                   className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100 cursor-pointer"
                 >
                   <Upload size={16} />
-                  Import syllabus
+                  Nhập syllabus
                 </button>
                 <button
                   type="button"
@@ -1112,7 +1112,7 @@ onClick={() => setShowImportModal(true)}
                   className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:shadow-lg cursor-pointer"
                 >
                   <Plus size={16} />
-                  Tạo template
+                  Tạo mẫu giáo án
                 </button>
               </>
             ) : null}
@@ -1123,8 +1123,8 @@ onClick={() => setShowImportModal(true)}
 
       {templatesAvailable ? (
         <div className={cn("inline-flex rounded-2xl border border-red-200 bg-white p-1 transition-all duration-500", isLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3")}>
-          <TabButton active={activeTab === "templates"} label="Template" onClick={() => setActiveTab("templates")} />
-          <TabButton active={activeTab === "plans"} label="Syllabus lớp" onClick={() => setActiveTab("plans")} />
+          <TabButton active={activeTab === "templates"} label="Mẫu giáo án" onClick={() => setActiveTab("templates")} />
+          <TabButton active={activeTab === "plans"} label="Giáo án lớp" onClick={() => setActiveTab("plans")} />
         </div>
       ) : null}
 <div className={cn("grid gap-4 md:grid-cols-2 lg:grid-cols-4 transition-all duration-500", isLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3")}>
@@ -1154,7 +1154,7 @@ onClick={() => setShowImportModal(true)}
         {loading ? (
           <div className="flex items-center justify-center py-16 text-gray-600">
             <Loader2 size={20} className="mr-3 animate-spin text-red-600" />
-            Đang tải dữ liệu lesson plan...
+            Đang tải dữ liệu giáo án...
           </div>
         ) : activeTab === "templates" && templatesAvailable ? (
           <TemplateTable
@@ -1265,7 +1265,7 @@ function FilterBar({
           <input
             value={searchQuery}
             onChange={(event) => onSearchChange(event.target.value)}
-            placeholder={activeTab === "templates" ? "Tìm theo tên template, program..." : "Tìm theo buổi học, giáo viên..."}
+            placeholder={activeTab === "templates" ? "Tìm theo tên mẫu giáo án, chương trình..." : "Tìm theo buổi học, giáo viên..."}
             className="w-full rounded-xl border border-red-200 bg-white py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-red-100"
           />
         </div>
@@ -1281,7 +1281,7 @@ function FilterBar({
                   <SelectItem value="all">Tất cả trạng thái</SelectItem>
                   <SelectItem value="active">Đang hoạt động</SelectItem>
                   <SelectItem value="inactive">Tạm ẩn</SelectItem>
-<SelectItem value="withAttachment">Có attachment</SelectItem>
+<SelectItem value="withAttachment">Có file đính kèm</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -1290,7 +1290,7 @@ function FilterBar({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Tất cả program</SelectItem>
+                  <SelectItem value="all">Tất cả chương trình</SelectItem>
                   {programOptions.map((item) => (
                     <SelectItem key={item.id} value={item.id}>
                       {item.label}
@@ -1306,10 +1306,10 @@ function FilterBar({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Tất cả session</SelectItem>
+                  <SelectItem value="all">Tất cả buổi học</SelectItem>
                   <SelectItem value="editable">Có thể chỉnh sửa</SelectItem>
-                  <SelectItem value="hasPlan">Đã có lesson plan</SelectItem>
-                  <SelectItem value="missingPlan">Chưa có lesson plan</SelectItem>
+                  <SelectItem value="hasPlan">Đã có giáo án</SelectItem>
+                  <SelectItem value="missingPlan">Chưa có giáo án</SelectItem>
                   <SelectItem value="withTemplate">Đã map template</SelectItem>
                   <SelectItem value="reported">Đã báo cáo buổi dạy</SelectItem>
                   <SelectItem value="notReported">Chưa báo cáo buổi dạy</SelectItem>
@@ -1348,22 +1348,22 @@ function TemplateTable({
   onEdit: (item: LessonPlanTemplate) => void;
 }) {
   if (!items.length) {
-    return <EmptyState title="Chưa có template phù hợp" subtitle="Thử đổi bộ lọc hoặc import syllabus để tạo dữ liệu mới." />;
+    return <EmptyState title="Chưa có mẫu giáo án phù hợp" subtitle="Thử đổi bộ lọc hoặc nhập syllabus để tạo dữ liệu mới." />;
   }
 
   return (
     <div>
       <div className="border-b border-red-100 bg-gradient-to-r from-red-50/70 to-white px-5 py-4">
-        <h3 className="text-sm font-semibold text-gray-700">Danh sách {items.length} template</h3>
+        <h3 className="text-sm font-semibold text-gray-700">Danh sách {items.length} mẫu giáo án</h3>
       </div>
       <div className="overflow-x-auto">
 <table className="w-full">
           <thead className="border-b border-red-200 bg-gradient-to-r from-red-50 to-red-50/50">
             <tr>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Template</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Program</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Session</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Source</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Mẫu giáo án</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Chương trình</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Buổi học</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Nguồn</th>
               <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Trạng thái</th>
               <th className="px-6 py-3 text-right text-sm font-semibold text-gray-700">Thao tác</th>
             </tr>
@@ -1373,7 +1373,7 @@ function TemplateTable({
               <tr key={item.id} className="transition-colors hover:bg-red-50/60">
                 <td className="px-6 py-4">
                   <div className="font-semibold text-gray-900">{item.title}</div>
-                  <div className="mt-1 text-sm text-gray-500">Level {item.level || "-"}</div>
+                  <div className="mt-1 text-sm text-gray-500">Cấp độ {item.level || "-"}</div>
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-700">
                   <div>{item.programName || item.programId}</div>
@@ -1464,7 +1464,7 @@ function SyllabusView({
               <div className="rounded-xl bg-white/20 p-2 backdrop-blur-sm">
                 <GraduationCap size={20} className="text-white" />
               </div>
-              <span className="text-sm font-medium text-red-100">Syllabus lớp học</span>
+              <span className="text-sm font-medium text-red-100">Giáo án lớp học</span>
             </div>
             <div>
               <h3 className="text-2xl font-bold text-white">
@@ -1487,7 +1487,7 @@ function SyllabusView({
               </span>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-xs font-medium text-white backdrop-blur-sm">
                 <FileText size={12} />
-                {items.filter((s) => s.lessonPlanId).length}/{items.length} có lesson plan
+                {items.filter((s) => s.lessonPlanId).length}/{items.length} có giáo án
               </span>
             </div>
           </div>
@@ -1562,7 +1562,7 @@ Buổi {session.sessionIndex}
                     {hasPlan && (
                       <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-700">
                         <FileText size={11} />
-                        Có lesson plan
+                        Có giáo án
                       </span>
                     )}
                     {hasTemplate && (
@@ -1630,7 +1630,7 @@ className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-w
                         className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-3 py-2 text-sm font-semibold text-white hover:shadow-lg cursor-pointer"
                       >
                         {session.lessonPlanId ? <Pencil size={15} /> : <FilePlus2 size={15} />}
-                        {session.lessonPlanId ? "Sửa lesson plan" : "Tạo lesson plan"}
+                        {session.lessonPlanId ? "Sửa giáo án" : "Tạo giáo án"}
                       </button>
                     )
                   ) : null}
@@ -1691,7 +1691,7 @@ className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-w
 
                   <ContentCard
                     title="Giáo án dự kiến"
-                    subtitle="Lesson plan sẽ được tạo hoặc cập nhật"
+                    subtitle="Giáo án sẽ được tạo hoặc cập nhật"
                     icon={<FileText size="16" />}
                     gradient="from-red-50 to-white"
                     borderColor="red"
@@ -1989,7 +1989,7 @@ if (current.length === 1 && isActivityDraftEmpty(current[0])) return [nextActivi
     event.preventDefault();
     setError(null);
 
-    if (!programId.trim()) { setError("Vui lòng chọn program."); return; }
+    if (!programId.trim()) { setError("Vui lòng chọn chương trình."); return; }
     if (!level.trim()) { setError("Vui lòng nhập level."); return; }
     if (!title.trim()) { setError("Vui lòng nhập tiêu đề."); return; }
     const effectiveSessionIndex = isEdit ? sessionIndex : 1;
@@ -2045,21 +2045,21 @@ if (current.length === 1 && isActivityDraftEmpty(current[0])) return [nextActivi
     >
       <form onSubmit={handleSubmit} className="space-y-5 p-6">
         <div className="grid gap-4 md:grid-cols-2">
-          <Field label="Program">
+          <Field label="Chương trình">
             <select
               value={programId}
               onChange={(event) => setProgramId(event.target.value)}
               disabled={isEdit}
               className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200 disabled:bg-gray-50"
             >
-              <option value="">Chọn program</option>
+              <option value="">Chọn chương trình</option>
               {programOptions.map((item) => (
                 <option key={item.id} value={item.id}>{item.label}</option>
               ))}
             </select>
           </Field>
 
-          <Field label="Level">
+          <Field label="Cấp độ">
             <input
               value={level}
               onChange={(event) => setLevel(event.target.value)}
@@ -2092,7 +2092,7 @@ if (current.length === 1 && isActivityDraftEmpty(current[0])) return [nextActivi
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
-            <Field label="Day">
+            <Field label="Ngày học">
               <input
                 value={dayLabel}
                 onChange={(event) => setDayLabel(event.target.value)}
@@ -2101,7 +2101,7 @@ if (current.length === 1 && isActivityDraftEmpty(current[0])) return [nextActivi
               />
             </Field>
 
-            <Field label="Duration">
+            <Field label="Thời lượng">
               <input
                 value={durationLabel}
                 onChange={(event) => setDurationLabel(event.target.value)}
@@ -2111,7 +2111,7 @@ if (current.length === 1 && isActivityDraftEmpty(current[0])) return [nextActivi
             </Field>
           </div>
 
-          <Field label="General information">
+          <Field label="Thông tin chung">
             <textarea
               value={generalInformation}
               onChange={(event) => setGeneralInformation(event.target.value)}
@@ -2121,7 +2121,7 @@ if (current.length === 1 && isActivityDraftEmpty(current[0])) return [nextActivi
             />
           </Field>
 
-          <Field label="Teaching materials">
+          <Field label="Tài liệu giảng dạy">
             <p className="mb-2 text-xs text-gray-500">Mỗi dòng là một tài liệu, ví dụ: `Handbook for Reading: https://...`</p>
             <textarea
               value={teachingMaterialsText}
@@ -2132,7 +2132,7 @@ if (current.length === 1 && isActivityDraftEmpty(current[0])) return [nextActivi
             />
           </Field>
 
-          <Field label="Note">
+          <Field label="Ghi chú">
             <textarea
               value={sheetNote}
               onChange={(event) => setSheetNote(event.target.value)}
@@ -2414,7 +2414,7 @@ function ImportTemplateModal({
     }
 
     if (getFileExtension(file.name) === "csv" && !programId) {
-      setError("Import CSV bắt buộc chọn Program để map đúng template.");
+      setError("Import CSV bắt buộc chọn chương trình để map đúng mẫu giáo án.");
       return;
     }
 
@@ -2447,7 +2447,7 @@ function ImportTemplateModal({
           <div className="font-semibold">Trước khi import, vui lòng kiểm tra</div>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-blue-800">
             <li>Định dạng hợp lệ: .xlsx, .xls hoặc .csv</li>
-            <li>Nếu import file .csv: bắt buộc chọn Program</li>
+            <li>Nếu import file .csv: bắt buộc chọn chương trình</li>
             <li>Bật "Cập nhật dữ liệu đã có" nếu muốn ghi đè session đã tồn tại</li>
           </ul>
         </div>
@@ -2859,7 +2859,7 @@ function PlanFormModal({
           : teacherNotes.trim() || null,
       });
     } catch (submitError: unknown) {
-      setError(toErrorMessage(submitError, "Không thể lưu lesson plan."));
+      setError(toErrorMessage(submitError, "Không thể lưu giáo án."));
     } finally {
       setSubmitting(false);
     }
@@ -2867,8 +2867,8 @@ function PlanFormModal({
 
   return (
     <ModalFrame
-      title={isTeacher ? (isEdit ? "Cập nhật giáo án" : "Điền giáo án buổi dạy") : (isEdit ? "Cập nhật lesson plan" : "Tạo lesson plan")}
-      subtitle={isTeacher ? "Teacher chỉ được chỉnh đúng các cột được phép sau buổi học; các cột setup trước bởi Admin là chỉ đọc." : "Buổi học đã có dữ liệu cố định từ syllabus. Bạn chỉ cần chọn template và điền nội dung thực tế nếu cần."}
+      title={isTeacher ? (isEdit ? "Cập nhật giáo án" : "Điền giáo án buổi dạy") : (isEdit ? "Cập nhật giáo án" : "Tạo giáo án")}
+      subtitle={isTeacher ? "Giáo viên chỉ được chỉnh đúng các cột được phép sau buổi học; các cột thiết lập trước bởi quản trị là chỉ đọc." : "Buổi học đã có dữ liệu cố định từ syllabus. Bạn chỉ cần chọn mẫu giáo án và điền nội dung thực tế nếu cần."}
       icon={isTeacher ? ClipboardPen : FilePlus2}
       onClose={onClose}
       widthClass={hasStructuredStarter || hasStructuredPlanner ? "max-w-6xl" : "max-w-4xl"}
@@ -2880,7 +2880,7 @@ function PlanFormModal({
             label="Lớp học"
             value={classSyllabus?.classTitle || classSyllabus?.classCode || classSyllabus?.classId || "-"}
           />
-          <InfoCard icon={CalendarDays} label="Session" value={getSessionDisplay(session)} />
+          <InfoCard icon={CalendarDays} label="Buổi học" value={getSessionDisplay(session)} />
         </div>
 
         {isTeacher ? (
@@ -3401,7 +3401,7 @@ function PlanFormModal({
         <ModalActions
           onClose={onClose}
           submitting={submitting}
-          submitLabel={isTeacher ? "Lưu nội dung buổi dạy" : (isEdit ? "Lưu lesson plan" : "Tạo lesson plan")}
+          submitLabel={isTeacher ? "Lưu nội dung buổi dạy" : (isEdit ? "Lưu giáo án" : "Tạo giáo án")}
           showReset={false}
         />
       </form>
@@ -3420,7 +3420,7 @@ function DetailModal({
   onClose: () => void;
   onOpenAttachment: (url?: string | null) => void;
 }) {
-  const title = state.type === "template" ? "Chi tiết template" : "Chi tiết lesson plan";
+  const title = state.type === "template" ? "Chi tiết mẫu giáo án" : "Chi tiết giáo án";
   const subtitle =
     state.type === "template"
       ? "Dữ liệu lấy từ GET /api/lesson-plan-templates/{id}."
@@ -3459,8 +3459,8 @@ function DetailModal({
         {state.type === "template" && state.item ? (
           <>
             <div className="grid gap-4 md:grid-cols-2">
-              <InfoCard icon={BookOpenCheck} label="Program" value={state.item.programName || state.item.programId || "-"} />
-              <InfoCard icon={GraduationCap} label="Level / Buổi" value={`Level ${state.item.level || "-"} • Buổi ${state.item.sessionIndex || "-"}`} />
+              <InfoCard icon={BookOpenCheck} label="Chương trình" value={state.item.programName || state.item.programId || "-"} />
+              <InfoCard icon={GraduationCap} label="Cấp độ / Buổi" value={`Cấp độ ${state.item.level || "-"} • Buổi ${state.item.sessionIndex || "-"}`} />
               <InfoCard icon={Users} label="Người tạo" value={state.item.createdByName || "-"} />
               <InfoCard icon={Clock3} label="Thời gian" value={formatDate(state.item.updatedAt || state.item.createdAt, true)} />
             </div>
@@ -3469,7 +3469,7 @@ function DetailModal({
             {hasTemplateMetadata ? (
               <ContentPanel
                 title="Thông tin chung của syllabus"
-                subtitle="Áp dụng cho toàn bộ buổi học: Day, Duration, General information, Teaching materials, Note"
+                subtitle="Áp dụng cho toàn bộ buổi học: Ngày học, Thời lượng, Thông tin chung, Tài liệu giảng dạy, Ghi chú"
                 value={state.item.syllabusMetadata}
                 accent="text-blue-700"
               />
@@ -3484,7 +3484,7 @@ function DetailModal({
             ) : null}
             {!hasTemplateMetadata && !hasTemplateContent ? (
               <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                Template này chưa có dữ liệu syllabus chi tiết.
+                Mẫu giáo án này chưa có dữ liệu syllabus chi tiết.
               </div>
             ) : null}
             <ContentPanel title="File nguồn import" value={state.item.sourceFileName} accent="text-amber-700" />
@@ -3534,7 +3534,7 @@ function DetailModal({
                   </div>
                 </div>
               ) : (
-                <div className="text-sm text-gray-500">Lesson plan này chưa gắn template.</div>
+                <div className="text-sm text-gray-500">Giáo án này chưa gắn mẫu giáo án.</div>
               )}
             </div>
           </>
