@@ -206,6 +206,66 @@ function normalizeStudentAttendanceHistoryItem(item: StudentAttendanceHistoryIte
   };
 }
 
+function deriveClassNameFromSession(session: SessionApiItem | null | undefined): string | null {
+  if (!session) return null;
+
+  const classTitle = String(session.classTitle ?? "").trim();
+  if (classTitle) return classTitle;
+
+  const classCode = String(session.classCode ?? "").trim();
+  if (classCode) return classCode;
+
+  return null;
+}
+
+async function buildSessionClassNameMap(
+  token: string,
+  items: StudentAttendanceHistoryItem[],
+  signal?: AbortSignal,
+): Promise<Map<string, string>> {
+  const sessionIds = Array.from(
+    new Set(
+      items
+        .map((item) => String(item.sessionId ?? "").trim())
+        .filter(Boolean),
+    ),
+  );
+
+  if (sessionIds.length === 0) return new Map();
+
+  const lookupResults = await Promise.allSettled(
+    sessionIds.map(async (sessionId) => {
+      const res = await fetch(TEACHER_ENDPOINTS.SESSIONS_BY_ID(sessionId), {
+        headers: getAuthHeaders(token),
+        signal,
+      });
+
+      if (!res.ok) return null;
+
+      const json: SessionApiResponse = await res.json();
+      const payload = (json?.data ?? json) as SessionResponseData | SessionApiItem;
+      const wrapped =
+        payload && !Array.isArray(payload) && typeof payload === "object" && "session" in payload
+          ? payload
+          : null;
+      const session = wrapped?.session ?? (isSessionApiItem(payload) ? payload : undefined);
+
+      const className = deriveClassNameFromSession(session);
+      if (!className) return null;
+
+      return { sessionId, className };
+    }),
+  );
+
+  const classNameBySessionId = new Map<string, string>();
+  for (const result of lookupResults) {
+    if (result.status !== "fulfilled" || !result.value) continue;
+    classNameBySessionId.set(result.value.sessionId, result.value.className);
+  }
+
+  return classNameBySessionId;
+}
+
 function mapApiStatusToUi(status: unknown): AttendanceStatus | null {
   const raw = String(status ?? "").trim().toLowerCase();
   if (raw === "present") return "present";
@@ -576,7 +636,24 @@ export async function fetchStudentAttendanceHistory(
 
   const json: StudentAttendanceHistoryApiResponse = await res.json();
   const data = json?.data ?? {};
-  const items = Array.isArray(data?.items) ? data.items.map(normalizeStudentAttendanceHistoryItem) : [];
+  const baseItems = Array.isArray(data?.items) ? data.items.map(normalizeStudentAttendanceHistoryItem) : [];
+  const classNameBySessionId = await buildSessionClassNameMap(token, baseItems, signal);
+  const items = baseItems.map((item) => {
+    const currentClassName = String(item.className ?? "").trim();
+    if (currentClassName) return item;
+
+    const sessionId = String(item.sessionId ?? "").trim();
+    if (!sessionId) return item;
+
+    const mappedClassName = classNameBySessionId.get(sessionId);
+    if (!mappedClassName) return item;
+
+    return {
+      ...item,
+      className: mappedClassName,
+      sessionName: mappedClassName,
+    };
+  });
 
   return {
     items,
