@@ -37,6 +37,7 @@ type SessionLike = SessionApiItem & {
   students?: number | Array<unknown> | null;
   studentCount?: number | null;
   attendanceSummary?: AttendanceSummaryApi;
+  branchId?: string | number | null;
 };
 
 type SessionResponseData = {
