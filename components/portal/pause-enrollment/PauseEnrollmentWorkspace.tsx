@@ -23,9 +23,11 @@ import {
   approvePauseEnrollmentRequestsBulk,
 
   cancelPauseEnrollmentRequest,
+  getPauseEnrollmentSettings,
   getPauseEnrollmentRequestsWithParams,
   reassignPauseEnrollmentEquivalentClass,
   rejectPauseEnrollmentRequest,
+  updatePauseEnrollmentSettings,
   updatePauseEnrollmentOutcome,
 } from "@/lib/api/pauseEnrollmentService";
 import { getRegistrations } from "@/lib/api/registrationService";
@@ -40,6 +42,7 @@ import type { UserProfile } from "@/types/auth";
 import type {
 
   PauseEnrollmentOutcome,
+  PauseEnrollmentSettings,
   PauseEnrollmentScope,
   ReassignEquivalentClassPayload,
   PauseEnrollmentRequestRecord,
@@ -323,6 +326,23 @@ function ensureApiSuccess(payload: any, fallbackMessage: string) {
   }
 
   return payload;
+}
+
+function extractPauseEnrollmentSettings(payload: any): PauseEnrollmentSettings | null {
+  if (!payload || typeof payload !== "object") return null;
+
+  const data = payload.data ?? payload;
+  const reservationLimitMonths = Number(data?.reservationLimitMonths);
+
+  if (!Number.isFinite(reservationLimitMonths) || reservationLimitMonths <= 0) {
+    return null;
+  }
+
+  return {
+    reservationLimitMonths,
+    createdAt: data?.createdAt ?? null,
+    updatedAt: data?.updatedAt ?? null,
+  };
 }
 
 function formatDate(value?: string | null) {
@@ -1348,6 +1368,12 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
   const [requestMessage, setRequestMessage] = useState<string | null>(null);
   const [selectedRequestIds, setSelectedRequestIds] = useState<string[]>([]);
 
+  const [settings, setSettings] = useState<PauseEnrollmentSettings | null>(null);
+  const [settingsDraft, setSettingsDraft] = useState("3");
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
+
   const [filterClasses, setFilterClasses] = useState<ReassignClassOption[]>([]);
   const [filterClassesLoading, setFilterClassesLoading] = useState(false);
 
@@ -1585,6 +1611,35 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
     }
   }, [isManagement, selectedBranchId]);
 
+  const loadSettings = useCallback(async () => {
+    if (!isManagement) {
+      setSettings(null);
+      setSettingsError(null);
+      return;
+    }
+
+    setSettingsLoading(true);
+    setSettingsError(null);
+
+    try {
+      const response = await getPauseEnrollmentSettings();
+      ensureApiSuccess(response, "Không thể tải cấu hình bảo lưu.");
+      const nextSettings = extractPauseEnrollmentSettings(response);
+
+      if (!nextSettings) {
+        throw new Error("Dữ liệu cấu hình bảo lưu không hợp lệ.");
+      }
+
+      setSettings(nextSettings);
+      setSettingsDraft(String(nextSettings.reservationLimitMonths));
+    } catch (error: any) {
+      setSettings(null);
+      setSettingsError(getDomainErrorMessage(error, "Không thể tải cấu hình bảo lưu."));
+    } finally {
+      setSettingsLoading(false);
+    }
+  }, [isManagement]);
+
   const loadRequests = useCallback(
     async (focusId?: string) => {
       setRequestsLoading(true);
@@ -1638,6 +1693,11 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
     if (isManagement && !isBranchLoaded) return;
     void loadFilterClasses();
   }, [isBranchLoaded, isManagement, loadFilterClasses]);
+
+  useEffect(() => {
+    if (!isManagement) return;
+    void loadSettings();
+  }, [isManagement, loadSettings]);
 
   useEffect(() => {
     if (!studentOptions.length) {
@@ -1801,7 +1861,58 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
 
   const handleReload = async () => {
     setRequestMessage(null);
+    if (isManagement) {
+      await loadSettings();
+    }
     await loadRequests(selectedRequestId ?? undefined);
+  };
+
+  const handleSaveSettings = async () => {
+    const parsed = Number(settingsDraft);
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      const message = "Số tháng bảo lưu tối đa phải là số nguyên lớn hơn 0.";
+      setSettingsError(message);
+      toast({
+        title: "Dữ liệu không hợp lệ",
+        description: message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSettingsSaving(true);
+    setSettingsError(null);
+
+    try {
+      const response = await updatePauseEnrollmentSettings({
+        reservationLimitMonths: parsed,
+      });
+      ensureApiSuccess(response, "Không thể cập nhật cấu hình bảo lưu.");
+
+      const nextSettings = extractPauseEnrollmentSettings(response);
+      if (!nextSettings) {
+        throw new Error("Dữ liệu cấu hình sau khi cập nhật không hợp lệ.");
+      }
+
+      setSettings(nextSettings);
+      setSettingsDraft(String(nextSettings.reservationLimitMonths));
+      setRequestMessage("Đã cập nhật cấu hình bảo lưu.");
+      toast({
+        title: "Thành công",
+        description: "Đã cập nhật số tháng bảo lưu tối đa.",
+        type: "success",
+      });
+    } catch (error: any) {
+      const message = getDomainErrorMessage(error, "Không thể cập nhật cấu hình bảo lưu.");
+      setSettingsError(message);
+      toast({
+        title: "Lỗi",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setSettingsSaving(false);
+    }
   };
 
   const pendingVisibleRequests = filteredRequests.filter(
@@ -2134,6 +2245,59 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
       {requestError ? <Banner kind="error" text={requestError} /> : null}
       {requestMessage ? <Banner kind="success" text={requestMessage} /> : null}
       {studentOptionsError ? <Banner kind="error" text={studentOptionsError} /> : null}
+      {settingsError ? <Banner kind="error" text={settingsError} /> : null}
+
+      {isManagement ? (
+        <div
+          className={`rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50/20 p-4 transition-all duration-700 delay-100 ${
+            isPageLoaded ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
+          }`}
+        >
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900">Cấu hình bảo lưu học phí</h2>
+              <p className="mt-1 text-xs text-gray-600">
+                Giới hạn số tháng tối đa học sinh được phép bảo lưu enrollment.
+              </p>
+              <p className="mt-1 text-xs text-gray-500">
+                {settings?.updatedAt
+                  ? `Cập nhật lần cuối: ${formatDateTime(settings.updatedAt)}`
+                  : settings?.createdAt
+                    ? `Khởi tạo lúc: ${formatDateTime(settings.createdAt)}`
+                    : "Chưa có thông tin thời gian cập nhật."}
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-end gap-3">
+              <label className="flex flex-col gap-1 text-xs text-gray-600">
+                Số tháng tối đa
+                <input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={settingsDraft}
+                  onChange={(event) => setSettingsDraft(event.target.value)}
+                  disabled={settingsLoading || settingsSaving}
+                  className="h-10 w-28 rounded-xl border border-red-200 bg-white px-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-200 disabled:opacity-60"
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => void handleSaveSettings()}
+                disabled={settingsLoading || settingsSaving}
+                className="inline-flex h-10 items-center gap-2 rounded-xl bg-linear-to-r from-red-600 to-red-700 px-4 text-sm font-semibold text-white transition cursor-pointer hover:shadow-lg disabled:opacity-60"
+              >
+                {settingsLoading || settingsSaving ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <ShieldCheck size={14} />
+                )}
+                Lưu cấu hình
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* Filter Card */}
       <div
