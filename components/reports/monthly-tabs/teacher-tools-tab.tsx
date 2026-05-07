@@ -59,6 +59,13 @@ function normalizeStatus(status?: string) {
   return STATUS_ALIAS[normalized] ?? normalized;
 }
 
+function formatDateLabel(value?: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("sv-SE", { timeZone: "Asia/Ho_Chi_Minh" });
+}
+
 export default function TeacherToolsTab({
   month,
   year,
@@ -320,8 +327,15 @@ export default function TeacherToolsTab({
                       <div key={report.id ?? report.sessionId} className="rounded-lg border border-gray-100 bg-white p-2.5 text-xs transition-all hover:border-red-200 hover:bg-red-50/30">
                         <div className="mb-1 flex items-center gap-1.5">
                           <div className="h-1.5 w-1.5 rounded-full bg-red-500"></div>
-                          <span className="font-semibold text-gray-800">{report.reportDate || "Buổi học"}</span>
+                          <span className="font-semibold text-gray-800">{formatDateLabel(report.sessionDate || report.reportDate || report.createdAt) || "Buổi học"}</span>
                         </div>
+                        {(report.sessionDate || report.createdAt) && (
+                          <div className="mb-1 pl-3.5 text-[10px] text-gray-500">
+                            {report.sessionDate && <span>Buổi học: {formatDateLabel(report.sessionDate)}</span>}
+                            {report.sessionDate && report.createdAt && <span> • </span>}
+                            {report.createdAt && <span>Tạo báo cáo: {formatDateLabel(report.createdAt)}</span>}
+                          </div>
+                        )}
                         <p className="pl-3.5 text-gray-600">{report.feedback || "Chưa có nhận xét."}</p>
                       </div>
                     ))}

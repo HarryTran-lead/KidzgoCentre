@@ -4,6 +4,7 @@ export type SessionReportItem = {
   studentProfileId?: string | null;
   teacherUserId?: string | null;
   classId?: string | null;
+  sessionDate?: string | null;
   reportDate?: string | null;
   feedback?: string | null;
   reason?: string | null;

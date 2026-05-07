@@ -97,6 +97,16 @@ export interface PauseEnrollmentBulkApprovePayload {
   ids: string[];
 }
 
+export interface PauseEnrollmentSettings {
+  reservationLimitMonths: number;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface UpdatePauseEnrollmentSettingsPayload {
+  reservationLimitMonths: number;
+}
+
 export interface PauseEnrollmentBulkApproveError {
   id: string;
   code?: string;
@@ -136,3 +146,6 @@ export type PauseEnrollmentBulkApproveResponse =
 
 export type ReassignEquivalentClassResponse =
   ApiResponse<ReassignEquivalentClassResult>;
+
+export type PauseEnrollmentSettingsResponse =
+  ApiResponse<PauseEnrollmentSettings>;

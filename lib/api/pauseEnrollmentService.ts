@@ -7,8 +7,10 @@ import type {
   PauseEnrollmentRequestActionResponse,
   PauseEnrollmentRequestDetailResponse,
   PauseEnrollmentRequestListResponse,
+  PauseEnrollmentSettingsResponse,
   ReassignEquivalentClassPayload,
   ReassignEquivalentClassResponse,
+  UpdatePauseEnrollmentSettingsPayload,
   UpdatePauseEnrollmentOutcomePayload,
 } from "@/types/pauseEnrollment";
 
@@ -133,4 +135,14 @@ export async function reassignPauseEnrollmentEquivalentClass(
       effectiveDate: payload.effectiveDate?.trim() ? payload.effectiveDate : null,
     }
   );
+}
+
+export async function getPauseEnrollmentSettings(): Promise<PauseEnrollmentSettingsResponse> {
+  return get<PauseEnrollmentSettingsResponse>(PAUSE_ENROLLMENT_ENDPOINTS.SETTINGS);
+}
+
+export async function updatePauseEnrollmentSettings(
+  payload: UpdatePauseEnrollmentSettingsPayload
+): Promise<PauseEnrollmentSettingsResponse> {
+  return put<PauseEnrollmentSettingsResponse>(PAUSE_ENROLLMENT_ENDPOINTS.SETTINGS, payload);
 }

@@ -308,6 +308,7 @@ export const BACKEND_LEAVE_REQUEST_ENDPOINTS = {
 
 export const PAUSE_ENROLLMENT_ENDPOINTS = {
   GET_ALL: "/api/pause-enrollment-requests",
+  SETTINGS: "/api/pause-enrollment-requests/settings",
   GET_BY_ID: (id: string) => `/api/pause-enrollment-requests/${id}`,
   CREATE: "/api/pause-enrollment-requests",
   APPROVE: (id: string) => `/api/pause-enrollment-requests/${id}/approve`,
@@ -321,6 +322,7 @@ export const PAUSE_ENROLLMENT_ENDPOINTS = {
 
 export const BACKEND_PAUSE_ENROLLMENT_ENDPOINTS = {
   GET_ALL: "/pause-enrollment-requests",
+  SETTINGS: "/pause-enrollment-requests/settings",
   GET_BY_ID: (id: string) => `/pause-enrollment-requests/${id}`,
   CREATE: "/pause-enrollment-requests",
   APPROVE: (id: string) => `/pause-enrollment-requests/${id}/approve`,
