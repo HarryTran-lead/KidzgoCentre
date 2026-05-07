@@ -17,6 +17,7 @@ import {
   ChevronLeft,
   Sparkles,
   AlertCircle,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/lightswind/button";
 import type { AssignmentListItem, SortOption } from "@/types/student/homework";
@@ -808,37 +809,67 @@ export default function HomeworkPage() {
                       </div>
                     )}
 
-                    <button
-                      className={`w-full h-9 rounded-xl text-[12px] font-bold shadow-md hover:shadow-lg mt-auto cursor-pointer transition-all duration-200 flex items-center justify-center gap-1.5 ${
-                        isGraded
-                          ? "bg-gradient-to-r from-cyan-500 to-sky-500 hover:from-cyan-600 hover:to-sky-600 text-white"
-                          : isSubmitted
-                            ? isLate
-                              ? "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white"
-                              : "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white"
-                            : isDueToday
-                              ? "bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white animate-pulse"
-                              : "bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 text-white"
-                      }`}
-                    >
-                      {isGraded ? (
-                        <>
-                          <Award size={14} /> Xem kết quả
-                        </>
-                      ) : isSubmitted ? (
-                        <>
-                          <CheckCircle size={14} /> Xem lại
-                        </>
-                      ) : isDueToday ? (
-                        <>
-                          <Clock size={14} /> Nộp gấp
-                        </>
-                      ) : (
-                        <>
-                          <ChevronRight size={14} /> Nộp bài
-                        </>
+                    {isSubmitted && (assignment as any)?.maxAttempts && (assignment as any)?.maxAttempts > 1 && (
+                      <div className="mb-3 rounded-xl border border-purple-500/30 bg-purple-500/10 p-2.5">
+                        <div className="flex items-center justify-between text-[11px] font-semibold text-purple-200">
+                          <span>Lần làm:</span>
+                          <span className="bg-purple-500/30 border border-purple-400/40 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                            {((assignment as any)?.attemptCount || 1)}/{(assignment as any)?.maxAttempts}
+                          </span>
+                        </div>
+                        {((assignment as any)?.attemptCount || 1) < (assignment as any)?.maxAttempts && (
+                          <div className="w-full h-1.5 bg-purple-950/50 rounded-full mt-1.5 overflow-hidden">
+                            <div
+                              className="h-full bg-gradient-to-r from-purple-500 to-violet-500 rounded-full transition-all duration-300"
+                              style={{
+                                width: `${(((assignment as any)?.attemptCount || 1) / (assignment as any)?.maxAttempts) * 100}%`,
+                              }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="flex gap-2 mt-auto">
+                      <button
+                        className={`flex-1 h-9 rounded-xl text-[12px] font-bold shadow-md hover:shadow-lg cursor-pointer transition-all duration-200 flex items-center justify-center gap-1.5 ${
+                          isGraded
+                            ? "bg-gradient-to-r from-cyan-500 to-sky-500 hover:from-cyan-600 hover:to-sky-600 text-white"
+                            : isSubmitted
+                              ? isLate
+                                ? "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white"
+                                : "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white"
+                              : isDueToday
+                                ? "bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white animate-pulse"
+                                : "bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 text-white"
+                        }`}
+                      >
+                        {isGraded ? (
+                          <>
+                            <Award size={14} /> Xem kết quả
+                          </>
+                        ) : isSubmitted ? (
+                          <>
+                            <CheckCircle size={14} /> Xem lại
+                          </>
+                        ) : isDueToday ? (
+                          <>
+                            <Clock size={14} /> Nộp gấp
+                          </>
+                        ) : (
+                          <>
+                            <ChevronRight size={14} /> Nộp bài
+                          </>
+                        )}
+                      </button>
+                      {isSubmitted && (assignment as any)?.maxAttempts && ((assignment as any)?.attemptCount || 1) < (assignment as any)?.maxAttempts && (
+                        <button
+                          className="flex-1 h-9 rounded-xl text-[12px] font-bold shadow-md hover:shadow-lg cursor-pointer transition-all duration-200 flex items-center justify-center gap-1.5 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white"
+                        >
+                          <RotateCcw size={14} /> Làm lại
+                        </button>
                       )}
-                    </button>
+                    </div>
                   </div>
                 </div>
               );

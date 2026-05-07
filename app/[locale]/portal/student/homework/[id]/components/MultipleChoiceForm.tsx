@@ -61,6 +61,7 @@ export default function MultipleChoiceForm({
   const [isInitialized, setIsInitialized] = useState(false);
   const [isAutoSubmitting, setIsAutoSubmitting] = useState(false);
   const [showQuizStartModal, setShowQuizStartModal] = useState(false);
+  const [attemptCount, setAttemptCount] = useState(0);
 
   const hasAutoSubmitted = useRef(false);
   const isDirty = useRef(false);
@@ -83,6 +84,10 @@ export default function MultipleChoiceForm({
   const isUrgent = timeRemaining > 0 && timeRemaining <= 5 * 60;
   const isCritical = timeRemaining > 0 && timeRemaining <= 60;
   const timerPercentage = totalSeconds > 0 ? (timeRemaining / totalSeconds) * 100 : 0;
+
+  const maxAttempts = (assignment as any)?.maxAttempts || 1;
+  const attemptsRemaining = maxAttempts - attemptCount;
+  const canAttempt = attemptsRemaining > 0;
 
   const getStorageKey = useCallback((suffix: string = "") => `quiz_${homeworkId}${suffix}`, [homeworkId]);
 
@@ -116,6 +121,10 @@ export default function MultipleChoiceForm({
       if (response.isSuccess) {
         hasAutoSubmitted.current = true;
         localStorage.setItem(getStorageKey("_submitted"), "true");
+        // Track this attempt
+        const storageKey = getStorageKey();
+        const nextAttempt = attemptCount + 1;
+        localStorage.setItem(`${storageKey}_attemptCount`, String(nextAttempt));
         onSubmitSuccess();
       } else {
         onError(response.message || "Không thể nộp bài.");
@@ -127,7 +136,7 @@ export default function MultipleChoiceForm({
       onError("Đã xảy ra lỗi khi nộp bài");
       setIsTimerActive(true);
     } finally { setIsSubmitting(false); }
-  }, [isSubmitting, totalQuestions, questions, selectedAnswers, homeworkId, onSubmitSuccess, onError, stopTimer, getStorageKey]);
+  }, [isSubmitting, totalQuestions, questions, selectedAnswers, homeworkId, attemptCount, onSubmitSuccess, onError, stopTimer, getStorageKey]);
 
   const autoSubmitAndLeave = useCallback(async () => {
     if (isAutoSubmitting || hasAutoSubmitted.current) return;
@@ -142,6 +151,10 @@ export default function MultipleChoiceForm({
       if (response.isSuccess) {
         hasAutoSubmitted.current = true;
         localStorage.setItem(getStorageKey("_submitted"), "true");
+        // Track this attempt
+        const storageKey = getStorageKey();
+        const nextAttempt = attemptCount + 1;
+        localStorage.setItem(`${storageKey}_attemptCount`, String(nextAttempt));
         onSubmitSuccess();
         return true;
       } else { onError(response.message || "Không thể nộp bài."); return false; }
@@ -151,7 +164,7 @@ export default function MultipleChoiceForm({
       return false;
     }
     finally { setIsAutoSubmitting(false); }
-  }, [isAutoSubmitting, questions, selectedAnswers, homeworkId, onSubmitSuccess, onError, stopTimer, getStorageKey]);
+  }, [isAutoSubmitting, questions, selectedAnswers, homeworkId, attemptCount, onSubmitSuccess, onError, stopTimer, getStorageKey]);
 
   const handleNavigationAttempt = useCallback(async (targetUrl?: string) => {
     if (hasAutoSubmitted.current || isSubmitting) { return; }
@@ -176,6 +189,7 @@ export default function MultipleChoiceForm({
   const handleAutoSubmit = useCallback(() => { setTimeUpModal(false); submitQuiz(true); }, [submitQuiz]);
 
   const handleStartQuiz = useCallback(() => {
+    if (!canAttempt) return;
     const storageKey = getStorageKey();
     const now = Date.now();
     setSelectedAnswers({});
@@ -194,8 +208,9 @@ export default function MultipleChoiceForm({
     localStorage.removeItem(`${storageKey}_answers`);
     localStorage.removeItem(`${storageKey}_marked`);
     autoSubmitTriggeredRef.current = false;
+    hasAutoSubmitted.current = false;
     setShowQuizStartModal(false);
-  }, [getStorageKey, totalSeconds]);
+  }, [getStorageKey, totalSeconds, canAttempt]);
 
   // Track unsaved changes - chỉ thông báo khi thực sự có thay đổi (đã chọn đáp án)
   useEffect(() => {
@@ -214,11 +229,27 @@ export default function MultipleChoiceForm({
     if (savedAnswers) { try { const parsed = JSON.parse(savedAnswers); setSelectedAnswers(parsed); if (Object.keys(parsed).length > 0) isDirty.current = true; } catch { /* ignore */ } }
     const savedMarked = localStorage.getItem(`${storageKey}_marked`);
     if (savedMarked) { try { setMarkedQuestions(new Set(JSON.parse(savedMarked))); } catch { /* ignore */ } }
+    const savedAttemptCount = localStorage.getItem(`${storageKey}_attemptCount`);
+    if (savedAttemptCount) {
+      const count = parseInt(savedAttemptCount, 10);
+      setAttemptCount(count);
+    }
     const savedStartTime = localStorage.getItem(`${storageKey}_startTime`);
     const savedRemaining = localStorage.getItem(`${storageKey}_remaining`);
     const savedSubmitted = localStorage.getItem(`${storageKey}_submitted`);
     const savedLastActive = localStorage.getItem(`${storageKey}_lastActive`);
-    if (savedSubmitted === "true") { setIsInitialized(true); autoSubmitTriggeredRef.current = true; return; }
+    if (savedSubmitted === "true") {
+      // Check if user can attempt again
+      const nextAttempt = (parseInt(savedAttemptCount || "0", 10) || 0) + 1;
+      if (nextAttempt <= maxAttempts) {
+        setShowQuizStartModal(true);
+        hasAutoSubmitted.current = false;
+      } else {
+        setIsInitialized(true);
+        autoSubmitTriggeredRef.current = true;
+      }
+      return;
+    }
     if (savedStartTime && savedRemaining) {
       setShowQuizStartModal(false);
       const remaining = parseInt(savedRemaining, 10);
@@ -235,7 +266,7 @@ export default function MultipleChoiceForm({
       }
     } else { setShowQuizStartModal(true); }
     setIsInitialized(true);
-  }, [getStorageKey, totalSeconds]);
+  }, [getStorageKey, totalSeconds, maxAttempts]);
 
   useEffect(() => {
     if (!isInitialized) return;
@@ -352,7 +383,7 @@ export default function MultipleChoiceForm({
                         <div><h3 className="text-white font-bold text-base tracking-wide">{assignment.subject || 'BÀI TẬP TRẮC NGHIỆM'}</h3></div>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4 p-5">
+                    <div className="grid grid-cols-3 gap-4 p-5">
                       <div className="relative rounded-xl bg-gradient-to-br from-slate-800/80 to-slate-900/80 p-4 text-center border border-purple-500/20">
                         <div className="text-[10px] uppercase tracking-widest text-blue-400 font-bold mb-1">ĐIỂM TỐI ĐA</div>
                         <div className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-br from-amber-400 to-orange-500 drop-shadow-lg">{assignment.maxScore || 10}</div>
@@ -362,6 +393,11 @@ export default function MultipleChoiceForm({
                         <div className="text-[10px] uppercase tracking-widest text-blue-400 font-bold mb-1">THỜI GIAN</div>
                         <div className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-br from-cyan-400 to-blue-500 drop-shadow-lg">{timeLimitMinutes || 0}</div>
                         <div className="text-[10px] uppercase tracking-widest text-purple-400 font-semibold mt-1">PHÚT</div>
+                      </div>
+                      <div className="relative rounded-xl bg-gradient-to-br from-slate-800/80 to-slate-900/80 p-4 text-center border border-purple-500/20">
+                        <div className="text-[10px] uppercase tracking-widest text-blue-400 font-bold mb-1">LẦN LÀM</div>
+                        <div className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-br from-violet-400 to-purple-500 drop-shadow-lg">{attemptCount + 1}/{maxAttempts}</div>
+                        <div className="text-[10px] uppercase tracking-widest text-purple-400 font-semibold mt-1">LẦN</div>
                       </div>
                     </div>
                     <div className="px-5 pb-4">
@@ -375,6 +411,12 @@ export default function MultipleChoiceForm({
                     <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
                     <div className="text-amber-200 text-xs leading-relaxed"><strong className="font-bold text-amber-300">Lưu ý:</strong> Khi bắt đầu làm bài, bạn sẽ không thể tạm dừng. Hệ thống sẽ tự động nộp bài khi hết giờ. Đảm bảo bạn có đủ thời gian để hoàn thành.</div>
                   </div>
+                  {!canAttempt && (
+                    <div className="flex items-start gap-3 rounded-xl bg-rose-500/10 border border-rose-500/30 p-4">
+                      <AlertTriangle className="w-5 h-5 text-rose-400 flex-shrink-0 mt-0.5" />
+                      <div className="text-rose-200 text-xs leading-relaxed"><strong className="font-bold text-rose-300">Hết số lần làm!</strong> Bạn đã hoàn thành tất cả {maxAttempts} lần làm bài cho bài tập này.</div>
+                    </div>
+                  )}
                   <div className="flex gap-4 pt-2">
                     <button
                       onClick={() => router.back()}
@@ -385,7 +427,8 @@ export default function MultipleChoiceForm({
                     </button>
                     <button
                       onClick={handleStartQuiz}
-                      className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-green-500 to-emerald-500 px-6 py-4 text-white font-bold shadow-xl shadow-green-500/40 transition-all duration-300 hover:shadow-2xl hover:shadow-green-500/60 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                      disabled={!canAttempt}
+                      className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-green-500 to-emerald-500 px-6 py-4 text-white font-bold shadow-xl shadow-green-500/40 transition-all duration-300 hover:shadow-2xl hover:shadow-green-500/60 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                     >
                       <Play className="w-5 h-5" />
                       Bắt đầu
@@ -466,7 +509,21 @@ export default function MultipleChoiceForm({
 
           {/* Right Panel - Sidebar */}
           <div className="w-80 flex-shrink-0 flex flex-col gap-4">
-            {/* Timer Card */}
+            {/* Attempts Card */}
+            {maxAttempts > 1 && (
+              <div className="rounded-2xl border border-purple-500/30 bg-gradient-to-b from-slate-900/90 to-slate-950/90 backdrop-blur-xl p-4 shadow-lg shadow-purple-900/20">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-purple-300 text-xs font-bold uppercase tracking-widest">Lần làm</span>
+                  <span className="rounded-lg bg-purple-500/30 border border-purple-400/40 px-2 py-1 text-sm font-bold text-purple-300">{attemptCount + 1}/{maxAttempts}</span>
+                </div>
+                <div className="h-1.5 bg-slate-800/50 rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-purple-500 to-violet-500 rounded-full transition-all duration-300" style={{ width: `${((attemptCount + 1) / maxAttempts) * 100}%` }} />
+                </div>
+                {attemptsRemaining === 1 && (
+                  <p className="text-xs text-amber-400 mt-2 font-medium">⚠️ Đây là lần cuối cùng của bạn</p>
+                )}
+              </div>
+            )}
             {timeLimitMinutes && timeLimitMinutes > 0 && totalSeconds > 0 && (
               <div className={`rounded-2xl border p-4 backdrop-blur-xl shadow-lg ${isCritical ? "bg-rose-500/20 border-rose-500/50" : isUrgent ? "bg-amber-500/20 border-amber-500/50" : "bg-gradient-to-b from-indigo-900/60 to-purple-900/60 border-purple-500/40"}`}>
                 <div className="flex flex-col items-center gap-2">
