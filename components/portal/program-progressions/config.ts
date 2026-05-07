@@ -107,18 +107,18 @@ const TAB_DEFINITIONS: ProgramProgressionTabItem[] = [
   },
   {
     key: "schedules",
-    label: "Lịch đánh giá",
-    description: "Quản lý lịch đánh giá chuyển chương trình",
+    label: "Lịch kiểm tra",
+    description: "Quản lý lịch kiểm tra chuyển chương trình",
   },
   {
     key: "assessments",
-    label: "Đánh giá",
-    description: "Kết quả đánh giá và phê duyệt",
+    label: "Kiểm tra và phê duyệt",
+    description: "Kết quả kiểm tra và phê duyệt",
   },
   {
     key: "my-schedules",
     label: "Lịch của tôi",
-    description: "Lịch đánh giá cá nhân",
+    description: "Lịch kiểm tra cá nhân",
   },
 ];
 

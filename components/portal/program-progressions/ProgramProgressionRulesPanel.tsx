@@ -5,6 +5,7 @@ import {
   ArrowRight,
   BarChart3,
   CheckCircle2,
+  Eye,
   Pencil,
   Plus,
   RefreshCw,
@@ -235,6 +236,7 @@ export default function ProgramProgressionRulesPanel({
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<ProgramProgressionRule | null>(null);
+  const [detailRule, setDetailRule] = useState<ProgramProgressionRule | null>(null);
   const [form, setForm] = useState<RuleFormState>(DEFAULT_RULE_FORM);
 
   const query = useMemo(() => {
@@ -617,6 +619,33 @@ export default function ProgramProgressionRulesPanel({
     setForm(DEFAULT_RULE_FORM);
   };
 
+  const renderRuleConditions = useCallback((rule: ProgramProgressionRule): string[] => {
+    const lines: string[] = [];
+
+    if (rule.method === "Shields") {
+      lines.push(`Khiên: ${rule.minimumShieldCount ?? "--"}`);
+      lines.push(`Khiên kỹ năng: ${rule.minimumSkillShieldCount ?? "--"}`);
+    } else if (rule.method === "CambridgeScale") {
+      lines.push(`Điểm tổng tối thiểu: ${rule.minimumOverallScore ?? "--"}`);
+      if (rule.targetProgramId) {
+        lines.push("Áp dụng chương trình cố định");
+      } else {
+        lines.push(`Mức phân loại: ${rule.classificationBands?.length ?? 0}`);
+      }
+    } else {
+      lines.push("Đánh giá theo kết quả Đạt / Chưa đạt");
+    }
+
+    lines.push(`Bảo lưu: ${rule.carryOverRemainingSessions ? "Có" : "Không"}`);
+    lines.push(`Hoàn tất ghi danh cũ: ${rule.stopCurrentEnrollmentOnApproval ? "Có" : "Không"}`);
+
+    if (rule.notes) {
+      lines.push(`Ghi chú: ${rule.notes}`);
+    }
+
+    return lines;
+  }, []);
+
   const addShieldMappingRow = () => {
     setForm((prev) => ({
       ...prev,
@@ -715,7 +744,7 @@ export default function ProgramProgressionRulesPanel({
     if (form.method === "Shields" && hasIncompleteShieldMapping) {
       toast({
         variant: "warning",
-        title: "Thiếu dữ liệu ánh xạ khiên",
+        title: "Thiếu dữ liệu quy đổi điểm khiên",
         description: "Mỗi dòng phải chọn đủ Kỹ năng, Khiên chương trình gốc và Khiên áp dụng.",
       });
       return;
@@ -732,8 +761,8 @@ export default function ProgramProgressionRulesPanel({
     if (form.method === "Shields" && shieldMappings.length === 0) {
       toast({
         variant: "warning",
-        title: "Thiếu ánh xạ khiên",
-        description: "Vui lòng thêm ít nhất một dòng ánh xạ khiên hợp lệ.",
+        title: "Thiếu dữ liệu quy đổi điểm khiên",
+        description: "Vui lòng thêm ít nhất một dòng quy đổi điểm khiên hợp lệ.",
       });
       return;
     }
@@ -1105,7 +1134,7 @@ export default function ProgramProgressionRulesPanel({
           </div>
         </div>
 
-        <div className="p-4">
+        <div>
           {isLoading || isLoadingPrograms ? (
             <div className={isStudentView ? "text-sm text-indigo-100" : "text-sm text-gray-500"}>
               Đang tải dữ liệu...
@@ -1154,7 +1183,6 @@ export default function ProgramProgressionRulesPanel({
                           <div className="font-medium">
                             {resolveProgramName(rule.sourceProgramId, rule.sourceProgramName)}
                           </div>
-                          <div className="text-xs text-gray-500">{rule.sourceProgramId}</div>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-900">
                           <div className="flex items-center gap-1 font-medium">
@@ -1165,24 +1193,16 @@ export default function ProgramProgressionRulesPanel({
                                 : "Dùng phân loại"}
                             </span>
                           </div>
-                          {rule.targetProgramId && (
-                            <div className="text-xs text-gray-500">{rule.targetProgramId}</div>
-                          )}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-700">
                           {formatMethodLabel(rule.method)}
                         </td>
                         <td className="px-4 py-3 text-xs text-gray-700">
-                          <div>
-                            Khiên: {rule.minimumShieldCount ?? "--"} | Khiên kỹ năng: {rule.minimumSkillShieldCount ?? "--"}
-                          </div>
-                          <div>
-                            Điểm tổng: {rule.minimumOverallScore ?? "--"} | Bảo lưu: {rule.carryOverRemainingSessions ? "Có" : "Không"}
-                          </div>
-                          <div>
-                            Dừng ghi danh: {rule.stopCurrentEnrollmentOnApproval ? "Có" : "Không"}
-                          </div>
-                          {rule.notes && <div className="text-gray-500">Ghi chú: {rule.notes}</div>}
+                          {renderRuleConditions(rule).map((line) => (
+                            <div key={`${rule.id}-${line}`} className="leading-5">
+                              {line}
+                            </div>
+                          ))}
                         </td>
                         <td className="px-4 py-3">
                           <span
@@ -1196,17 +1216,25 @@ export default function ProgramProgressionRulesPanel({
                           </span>
                         </td>
                         <td className="px-4 py-3">
-                          {canManageRules ? (
+                          <div className="flex flex-wrap items-center gap-2">
                             <button
                               type="button"
-                              onClick={() => openEdit(rule)}
-                              className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-white px-2 py-1 text-xs font-semibold text-red-700"
+                              onClick={() => setDetailRule(rule)}
+                              className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs font-semibold text-gray-700"
                             >
-                              <Pencil size={12} /> Sửa
+                              <Eye size={12} /> Chi tiết
                             </button>
-                          ) : (
-                            <span className="text-xs text-gray-400">Chỉ xem</span>
-                          )}
+
+                            {canManageRules ? (
+                              <button
+                                type="button"
+                                onClick={() => openEdit(rule)}
+                                className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-white px-2 py-1 text-xs font-semibold text-red-700"
+                              >
+                                <Pencil size={12} /> Sửa
+                              </button>
+                            ) : null}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -1427,7 +1455,7 @@ export default function ProgramProgressionRulesPanel({
                       }))
                     }
                   />
-                  Dừng ghi danh hiện tại khi duyệt
+                  Hoàn tất ghi danh cũ khi duyệt
                 </label>
 
                 <label className="inline-flex items-center gap-2 text-sm text-gray-700">
@@ -1458,7 +1486,7 @@ export default function ProgramProgressionRulesPanel({
                 <div className="space-y-3 rounded-xl border border-red-200 bg-red-50/30 p-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="text-sm font-semibold text-gray-900">Ánh xạ khiên</h4>
+                      <h4 className="text-sm font-semibold text-gray-900">Quy đổi điểm khiên</h4>
                       <p className="text-xs text-gray-500">
                         Chọn theo thứ tự: Kỹ năng - Khiên chương trình gốc - Khiên áp dụng.
                       </p>
@@ -1474,7 +1502,7 @@ export default function ProgramProgressionRulesPanel({
 
                   {form.shieldMappings.length === 0 ? (
                     <div className="rounded-lg border border-dashed border-red-200 bg-white p-3 text-xs text-gray-600">
-                      Chưa có ánh xạ khiên. Bấm "Thêm dòng" để bắt đầu.
+                      Chưa có dữ liệu quy đổi điểm khiên. Bấm "Thêm dòng" để bắt đầu.
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -1748,7 +1776,7 @@ export default function ProgramProgressionRulesPanel({
 
               {form.method === "PassFail" && (
                 <div className="rounded-xl border border-red-200 bg-red-50/30 p-3 text-xs text-gray-600">
-                  Phương pháp Đạt / Chưa đạt không yêu cầu ánh xạ khiên hoặc mức phân loại.
+                  Phương pháp Đạt / Chưa đạt không yêu cầu dữ liệu quy đổi điểm khiên hoặc mức phân loại.
                 </div>
               )}
             </div>
@@ -1768,6 +1796,76 @@ export default function ProgramProgressionRulesPanel({
                 className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-red-600 to-red-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-70"
               >
                 <Save size={14} /> {isSubmitting ? "Đang lưu..." : "Lưu quy tắc"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {detailRule && (
+        <div
+          className="fixed inset-0 z-100 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setDetailRule(null)}
+        >
+          <div
+            className="w-full max-w-2xl overflow-hidden rounded-2xl border border-red-200 bg-white shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="bg-linear-to-r from-red-600 to-red-700 p-4 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-bold">Chi tiết quy tắc</h3>
+                  <p className="text-xs text-red-100">Thông tin đầy đủ của quy tắc chuyển chương trình</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDetailRule(null)}
+                  className="rounded-full p-1 hover:bg-white/20"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            <div className="max-h-[70vh] space-y-4 overflow-y-auto p-4 text-sm">
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                  <div className="text-xs text-gray-500">Chương trình nguồn</div>
+                  <div className="mt-1 font-semibold text-gray-900">
+                    {resolveProgramName(detailRule.sourceProgramId, detailRule.sourceProgramName)}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                  <div className="text-xs text-gray-500">Chương trình áp dụng</div>
+                  <div className="mt-1 font-semibold text-gray-900">
+                    {detailRule.targetProgramId
+                      ? resolveProgramName(detailRule.targetProgramId, detailRule.targetProgramName)
+                      : "Dùng phân loại"}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                  <div className="text-xs text-gray-500">Phương pháp</div>
+                  <div className="mt-1 font-semibold text-gray-900">{formatMethodLabel(detailRule.method)}</div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-red-100 bg-red-50/30 p-3">
+                <div className="mb-2 text-xs font-semibold text-red-700">Điều kiện</div>
+                <div className="space-y-1 text-sm text-gray-700">
+                  {renderRuleConditions(detailRule).map((line) => (
+                    <div key={`detail-${detailRule.id}-${line}`}>{line}</div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end border-t border-gray-200 bg-gray-50 p-4">
+              <button
+                type="button"
+                onClick={() => setDetailRule(null)}
+                className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700"
+              >
+                Đóng
               </button>
             </div>
           </div>
