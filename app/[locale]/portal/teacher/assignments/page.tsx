@@ -46,6 +46,7 @@ import {
   Star,
   Database,
   Table,
+  RefreshCw,
 } from "lucide-react";
 
 import {
@@ -99,6 +100,7 @@ type Submission = {
   fileType: string;
   assignmentTitle: string;
   dueDate: string;
+  startDate?: string;
   description?: string;
   note?: string;
   score?: number;
@@ -106,11 +108,13 @@ type Submission = {
   assignmentId?: string;
   submittedAt?: string;
   attachments?: any[];
+  attachmentUrl?: string;
   content?: string;
   status?: SubmissionStatus;
   session?: string;
   sessionId?: string;
   submissionType?: string;
+  questions?: any[];
 };
 
 type BuilderQuestionOption = {
@@ -242,6 +246,40 @@ const STATUS_CONFIG: Record<
     bgColor: "bg-gradient-to-r from-red-50 to-red-100",
     borderColor: "border-red-200",
   },
+};
+
+// Helper function to translate submission types to Vietnamese
+const getSubmissionTypeLabel = (type: string): string => {
+  const typeMap: Record<string, string> = {
+    "Quiz": "Trắc nghiệm",
+    "FILE": "Nộp file",
+    "TEXT": "Nhập văn bản",
+    "IMAGE": "Nộp ảnh",
+    "LINK": "Nộp link",
+    "MULTIPLE_CHOICE": "Trắc nghiệm",
+  };
+  return typeMap[type] || "Nộp file";
+};
+
+// Helper function to get color for submission type
+const getSubmissionTypeColor = (type: string): string => {
+  if (!type) return "bg-gray-100 text-gray-600 border border-gray-600";
+  
+  const normalizedType = String(type).toUpperCase().trim();
+  
+  if (normalizedType === "QUIZ" || normalizedType === "MULTIPLE_CHOICE") {
+    return "bg-red-100 text-red-600 border border-red-600";
+  } else if (normalizedType === "FILE") {
+    return "bg-blue-100 text-blue-600 border border-blue-600";
+  } else if (normalizedType === "TEXT") {
+    return "bg-green-100 text-green-600 border border-green-600";
+  } else if (normalizedType === "IMAGE") {
+    return "bg-purple-100 text-purple-600 border border-purple-600";
+  } else if (normalizedType === "LINK") {
+    return "bg-orange-100 text-orange-600 border border-orange-600";
+  }
+  
+  return "bg-gray-100 text-gray-600 border border-gray-600";
 };
 
 function SortableHeader<T extends string>({
@@ -404,17 +442,9 @@ function SubmissionRow({
       </td>
       <td className="py-4 px-6">
         <span
-          className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium border ${
-            item.submissionType === "Quiz"
-              ? "bg-purple-50 text-purple-700 border-purple-200"
-              : item.submissionType === "FILE"
-                ? "bg-blue-50 text-blue-700 border-blue-200"
-                : item.submissionType === "TEXT"
-                  ? "bg-green-50 text-green-700 border-green-200"
-                  : "bg-gray-50 text-gray-700 border-gray-200"
-          }`}
+          className={`inline-flex items-center px-4 py-2 rounded-full text-xs font-bold ${getSubmissionTypeColor(item.submissionType || "")}`}
         >
-          {item.submissionType || "File"}
+          {getSubmissionTypeLabel(item.submissionType || "")}
         </span>
       </td>
       <td className="py-4 px-6">
@@ -475,10 +505,14 @@ function CreateAssignmentModal({
   const [description, setDescription] = useState("");
   const [selectedClass, setSelectedClass] = useState("");
   const [selectedSession, setSelectedSession] = useState("");
+  const [showSessionSelect, setShowSessionSelect] = useState(false);
+  const [startDate, setStartDate] = useState("");
+  const [startTime, setStartTime] = useState("00:00");
   const [dueDate, setDueDate] = useState("");
   const [dueTime, setDueTime] = useState("23:59");
   const [maxScore, setMaxScore] = useState("10");
   const [rewardStars, setRewardStars] = useState("0");
+  const [maxAttempts, setMaxAttempts] = useState("1");
   const [book, setBook] = useState("");
   const [pages, setPages] = useState("");
   const [submissionType, setSubmissionType] = useState<
@@ -487,6 +521,7 @@ function CreateAssignmentModal({
   const [instructions, setInstructions] = useState("");
   const [expectedAnswer, setExpectedAnswer] = useState("");
   const [rubric, setRubric] = useState("");
+  const [showRubricSection, setShowRubricSection] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
 
@@ -865,7 +900,7 @@ function CreateAssignmentModal({
           maxScore: maxScore ? parseInt(maxScore) : undefined,
           rewardStars: rewardStars ? parseInt(rewardStars) : undefined,
           instructions: instructions || undefined,
-          expectedAnswer: expectedAnswer || undefined,
+          expectedAnswer: undefined,
           rubric: rubric || undefined,
           attachment: uploadedAttachmentUrls[0] || undefined,
           attachmentUrls:
@@ -978,7 +1013,7 @@ function CreateAssignmentModal({
               >
                 <div className="flex items-center gap-2">
                   <Upload size={18} />
-                  Upload file đề
+                  Tải file đề
                 </div>
               </button>
               <button
@@ -992,7 +1027,7 @@ function CreateAssignmentModal({
               >
                 <div className="flex items-center gap-2">
                   <ClipboardList size={18} />
-                  Multiple choice
+                  Trắc nghiệm
                 </div>
               </button>
             </div>
@@ -1040,7 +1075,7 @@ function CreateAssignmentModal({
                       }}
                       disabled={isLoadingClasses}
                     >
-                      <SelectTrigger className="w-full border-gray-200 rounded-xl">
+                      <SelectTrigger className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300">
                         <SelectValue
                           placeholder={
                             isLoadingClasses ? "Đang tải..." : "Chọn lớp học..."
@@ -1057,43 +1092,7 @@ function CreateAssignmentModal({
                     </Select>
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                    <Calendar size={16} className="text-red-600" />
-                    Buổi học
-                  </label>
-                  <div onClick={(e) => e.stopPropagation()}>
-                    <Select
-                      value={selectedSession}
-                      onValueChange={(val) => setSelectedSession(val)}
-                      disabled={!selectedClass || isLoadingSessions}
-                    >
-                      <SelectTrigger className="w-full border-gray-200 rounded-xl">
-                        <SelectValue
-                          placeholder={
-                            !selectedClass
-                              ? "Chọn lớp trước"
-                              : isLoadingSessions
-                                ? "Đang tải..."
-                                : "Chọn buổi học..."
-                          }
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {sessions.map((session) => (
-                          <SelectItem key={session.id} value={session.id}>
-                            {session.name}{" "}
-                            {session.date ? `(${session.date})` : ""}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {!isMultipleChoice ? (
+                {!isMultipleChoice && (
                   <div className="space-y-2">
                     <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                       <Award size={16} className="text-red-600" />
@@ -1108,8 +1107,77 @@ function CreateAssignmentModal({
                       placeholder="10"
                     />
                   </div>
-                ) : null}
+                )}
+                {isMultipleChoice && (
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <Clock size={16} className="text-red-600" />
+                      Thời gian làm bài (phút) <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      value={timeLimitMinutes}
+                      onChange={(e) => setTimeLimitMinutes(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                      min="0"
+                      placeholder="0 - không giới hạn"
+                    />
+                  </div>
+                )}
+              </div>
 
+              <div className="grid grid-cols-1 gap-6">
+                <div className="space-y-2">
+                  <label className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={showSessionSelect}
+                      onChange={(e) => {
+                        setShowSessionSelect(e.target.checked);
+                        if (!e.target.checked) {
+                          setSelectedSession("");
+                        }
+                      }}
+                      className="w-4 h-4 rounded border-gray-300 text-red-600 cursor-pointer"
+                    />
+                    <span className="flex items-center gap-2 text-sm font-semibold text-gray-700 cursor-pointer">
+                      <Calendar size={16} className="text-red-600" />
+                      Gắn với buổi học (tùy chọn)
+                    </span>
+                  </label>
+                  {showSessionSelect && (
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <Select
+                        value={selectedSession}
+                        onValueChange={(val) => setSelectedSession(val)}
+                        disabled={!selectedClass || isLoadingSessions}
+                      >
+                        <SelectTrigger className="w-full border-gray-200 rounded-xl">
+                          <SelectValue
+                            placeholder={
+                              !selectedClass
+                                ? "Chọn lớp trước"
+                                : isLoadingSessions
+                                  ? "Đang tải..."
+                                  : "Chọn buổi học..."
+                            }
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {sessions.map((session) => (
+                            <SelectItem key={session.id} value={session.id}>
+                              {session.name}{" "}
+                              {session.date ? `(${session.date})` : ""}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                     <Star size={16} className="text-red-600" />
@@ -1125,22 +1193,47 @@ function CreateAssignmentModal({
                   />
                 </div>
 
-                {isMultipleChoice && (
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                      <Clock size={16} className="text-red-600" />
-                      Thời gian làm bài (phút)
-                    </label>
-                    <input
-                      type="number"
-                      value={timeLimitMinutes}
-                      onChange={(e) => setTimeLimitMinutes(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
-                      min="0"
-                      placeholder="0 - không giới hạn"
-                    />
-                  </div>
-                )}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <RefreshCw size={16} className="text-red-600" />
+                    Số lần làm bài tối đa
+                  </label>
+                  <input
+                    type="number"
+                    value={maxAttempts}
+                    onChange={(e) => setMaxAttempts(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                    min="1"
+                    placeholder="1"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <Calendar size={16} className="text-red-600" />
+                    Ngày bắt đầu
+                  </label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <Clock size={16} className="text-red-600" />
+                    Giờ bắt đầu
+                  </label>
+                  <input
+                    type="time"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1237,7 +1330,7 @@ function CreateAssignmentModal({
                     Loại bài
                   </p>
                   <p className="mt-2 text-sm font-semibold text-gray-900">
-                    {isMultipleChoice ? "Multiple choice" : "Bài tập thường"}
+                    {isMultipleChoice ? "Trắc nghiệm" : "Bài tập thường"}
                   </p>
                 </div>
                 <div className="rounded-2xl border border-gray-200 bg-white p-4">
@@ -1337,44 +1430,45 @@ function CreateAssignmentModal({
                     </p>
                   </div>
 
-                  <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-4 space-y-4">
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">
-                        Hướng dẫn chấm điểm
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Chỉ nhập khi teacher muốn chuẩn hóa cách chấm hoặc lưu
-                        đáp án mẫu.
-                      </p>
-                    </div>
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                          <CheckCircle size={16} className="text-red-600" />
-                          Đáp án kỳ vọng
-                        </label>
-                        <textarea
-                          value={expectedAnswer}
-                          onChange={(e) => setExpectedAnswer(e.target.value)}
-                          rows={3}
-                          className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all resize-none"
-                          placeholder="Đáp án mẫu / đáp án kỳ vọng..."
-                        />
+                  <div className="rounded-2xl border border-gray-200 bg-gray-50/70">
+                    <button
+                      type="button"
+                      onClick={() => setShowRubricSection(!showRubricSection)}
+                      className="w-full px-4 py-4 flex items-center justify-between hover:bg-gray-100 transition-colors cursor-pointer"
+                    >
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">
+                          Hướng dẫn chấm điểm
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Nhập tiêu chí và cách chấm điểm cho bài tập
+                        </p>
                       </div>
-                      <div className="space-y-2">
-                        <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                          <BarChart3 size={16} className="text-red-600" />
-                          Rubric (Tiêu chí chấm điểm)
-                        </label>
-                        <textarea
-                          value={rubric}
-                          onChange={(e) => setRubric(e.target.value)}
-                          rows={3}
-                          className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all resize-none"
-                          placeholder="Tiêu chí và cách chấm điểm..."
-                        />
+                      <ChevronDown
+                        size={20}
+                        className={`text-gray-600 transition-transform flex-shrink-0 ${
+                          showRubricSection ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+
+                    {showRubricSection && (
+                      <div className="px-4 pb-4 pt-2 border-t border-gray-200 space-y-3">
+                        <div className="space-y-2">
+                          <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                            <BarChart3 size={16} className="text-red-600" />
+                            Tiêu chí chấm điểm
+                          </label>
+                          <textarea
+                            value={rubric}
+                            onChange={(e) => setRubric(e.target.value)}
+                            rows={3}
+                            className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all resize-none"
+                            placeholder="Nhập tiêu chí và cách chấm điểm..."
+                          />
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -1911,10 +2005,15 @@ function AssignmentDetailsModal({
   );
 
   const homework = data;
-  const formatDate = (dateString: string) => {
+  const formatDateTime = (dateString: string) => {
     if (!dateString) return "N/A";
     const date = new Date(dateString);
-    return dateOnlyVN(date);
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    return `${day}/${month}/${year} ${hours}:${minutes}`;
   };
 
   return (
@@ -1925,73 +2024,102 @@ function AssignmentDetailsModal({
       />
       <div className="relative w-full max-w-4xl max-h-[90vh] bg-white rounded-2xl shadow-2xl flex flex-col">
         {/* Header */}
-        <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-2xl flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <FileText size={24} />
+        <div className="bg-linear-to-r from-red-600 to-red-700 text-white px-8 py-6 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-4">
+            <div className="p-2.5 rounded-xl bg-white/20 backdrop-blur-sm">
+              <FileText size={24} className="text-white" />
+            </div>
             <div>
-              <h2 className="text-xl font-bold">Chi tiết bài tập</h2>
-              <p className="text-sm text-red-100">{homework.title}</p>
+              <h2 className="text-2xl font-bold">Chi tiết bài tập</h2>
+              <p className="text-sm text-red-100 mt-1">{homework.title}</p>
             </div>
           </div>
           <button
             onClick={onClose}
             className="p-2 hover:bg-white/20 rounded-xl transition-colors cursor-pointer"
           >
-            <X size={20} />
+            <X size={24} />
           </button>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Thông tin cơ bản */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="rounded-xl bg-red-50 border border-red-200 p-4">
-              <div className="flex items-center gap-2 text-red-600 mb-2">
-                <BookOpen size={16} />
-                <span className="text-xs font-medium uppercase">Lớp học</span>
-              </div>
-              <div className="text-sm font-semibold text-gray-900">
-                {homework.classTitle || homework.classCode || "N/A"}
-              </div>
-              {homework.classCode && (
-                <div className="text-xs text-gray-500 mt-1">{homework.classCode}</div>
-              )}
+        <div className="flex-1 overflow-y-auto p-8 space-y-8">
+          {/* Thông tin cơ bản - Tiêu đề riêng */}
+          <div>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-1 h-6 bg-red-600 rounded-full"></div>
+              <h3 className="text-base font-semibold text-gray-900">Thông tin cơ bản</h3>
             </div>
-            <div className="rounded-xl bg-red-50 border border-red-200 p-4">
-              <div className="flex items-center gap-2 text-red-600 mb-2">
-                <Calendar size={16} />
-                <span className="text-xs font-medium uppercase">Hạn nộp</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="rounded-lg bg-gradient-to-br from-red-50 to-red-100/50 border border-red-200/50 p-5 hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-2 mb-3">
+                  <BookOpen size={16} className="text-red-600" />
+                  <span className="text-xs font-semibold uppercase tracking-wide text-red-700">Lớp học</span>
+                </div>
+                <div className="text-sm font-bold text-gray-900">
+                  {homework.classTitle || homework.classCode || "N/A"}
+                </div>
+                {homework.classCode && (
+                  <div className="text-xs text-gray-500 mt-2">{homework.classCode}</div>
+                )}
               </div>
-              <div className="text-sm font-semibold text-gray-900">
-                {formatDate(homework.dueAt)}
+              <div className="rounded-lg bg-gradient-to-br from-red-50 to-red-100/50 border border-red-200/50 p-5 hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-2 mb-3">
+                  <Tag size={16} className="text-red-600" />
+                  <span className="text-xs font-semibold uppercase tracking-wide text-red-700">Loại nộp</span>
+                </div>
+                <span
+                  className={`inline-flex items-center px-4 py-2 rounded-full text-xs font-bold ${getSubmissionTypeColor(homework.submissionType || "")}`}
+                >
+                  {getSubmissionTypeLabel(homework.submissionType || "")}
+                </span>
               </div>
-            </div>
-            <div className="rounded-xl bg-red-50 border border-red-200 p-4">
-              <div className="flex items-center gap-2 text-red-600 mb-2">
-                <Tag size={16} />
-                <span className="text-xs font-medium uppercase">Loại nộp</span>
+              <div className="rounded-lg bg-gradient-to-br from-red-50 to-red-100/50 border border-red-200/50 p-5 hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-2 mb-3">
+                  <Calendar size={16} className="text-red-600" />
+                  <span className="text-xs font-semibold uppercase tracking-wide text-red-700">Ngày bắt đầu</span>
+                </div>
+                <div className="text-sm font-bold text-gray-900">
+                  {homework.startDate ? formatDateTime(homework.startDate) : "Không xác định"}
+                </div>
               </div>
-              <div className="text-sm font-semibold text-gray-900">
-                {homework.submissionType || "File"}
+              <div className="rounded-lg bg-gradient-to-br from-red-50 to-red-100/50 border border-red-200/50 p-5 hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-2 mb-3">
+                  <Calendar size={16} className="text-red-600" />
+                  <span className="text-xs font-semibold uppercase tracking-wide text-red-700">Ngày hết hạn</span>
+                </div>
+                <div className="text-sm font-bold text-gray-900">
+                  {formatDateTime(homework.dueAt)}
+                </div>
               </div>
-            </div>
-            <div className="rounded-xl bg-red-50 border border-red-200 p-4">
-              <div className="flex items-center gap-2 text-red-600 mb-2">
-                <Award size={16} />
-                <span className="text-xs font-medium uppercase">Điểm tối đa</span>
+              <div className="rounded-lg bg-gradient-to-br from-red-50 to-red-100/50 border border-red-200/50 p-5 hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-2 mb-3">
+                  <Award size={16} className="text-red-600" />
+                  <span className="text-xs font-semibold uppercase tracking-wide text-red-700">Điểm tối đa</span>
+                </div>
+                <div className="text-sm font-bold text-gray-900">
+                  {homework.maxScore || "N/A"}
+                </div>
               </div>
-              <div className="text-sm font-semibold text-gray-900">
-                {homework.maxScore || "N/A"}
+              <div className="rounded-lg bg-gradient-to-br from-red-50 to-red-100/50 border border-red-200/50 p-5 hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-2 mb-3">
+                  <RefreshCw size={16} className="text-red-600" />
+                  <span className="text-xs font-semibold uppercase tracking-wide text-red-700">Số lần làm</span>
+                </div>
+                <div className="text-sm font-bold text-gray-900">
+                  {homework.maxAttempts || "Không giới hạn"}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Tiêu đề */}
+          {/* Tiêu đề bài tập */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Tiêu đề bài tập
-            </label>
-            <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-gray-900 font-medium">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-1 h-6 bg-red-600 rounded-full"></div>
+              <h3 className="text-base font-semibold text-gray-900">Tiêu đề bài tập</h3>
+            </div>
+            <div className="px-5 py-4 rounded-lg bg-gradient-to-r from-gray-50 to-white border border-gray-200 text-gray-900 font-medium text-sm">
               {homework.title}
             </div>
           </div>
@@ -1999,10 +2127,11 @@ function AssignmentDetailsModal({
           {/* Mô tả */}
           {homework.description && (
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Mô tả bài tập
-              </label>
-              <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-gray-700 whitespace-pre-wrap">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-1 h-6 bg-red-600 rounded-full"></div>
+                <h3 className="text-base font-semibold text-gray-900">Mô tả bài tập</h3>
+              </div>
+              <div className="px-5 py-4 rounded-lg bg-gradient-to-r from-gray-50 to-white border border-gray-200 text-gray-700 whitespace-pre-wrap text-sm leading-relaxed">
                 {homework.description}
               </div>
             </div>
@@ -2011,10 +2140,11 @@ function AssignmentDetailsModal({
           {/* Hướng dẫn */}
           {homework.instructions && (
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Hướng dẫn
-              </label>
-              <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-gray-700 whitespace-pre-wrap">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-1 h-6 bg-red-600 rounded-full"></div>
+                <h3 className="text-base font-semibold text-gray-900">Hướng dẫn làm bài</h3>
+              </div>
+              <div className="px-5 py-4 rounded-lg bg-gradient-to-r from-gray-50 to-white border border-gray-200 text-gray-700 whitespace-pre-wrap text-sm leading-relaxed">
                 {homework.instructions}
               </div>
             </div>
@@ -2023,10 +2153,11 @@ function AssignmentDetailsModal({
           {/* Đáp án mong đợi */}
           {homework.expectedAnswer && (
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Đáp án mong đợi
-              </label>
-              <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-gray-700 whitespace-pre-wrap">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-1 h-6 bg-red-600 rounded-full"></div>
+                <h3 className="text-base font-semibold text-gray-900">Đáp án mong đợi</h3>
+              </div>
+              <div className="px-5 py-4 rounded-lg bg-gradient-to-r from-gray-50 to-white border border-gray-200 text-gray-700 whitespace-pre-wrap text-sm leading-relaxed">
                 {homework.expectedAnswer}
               </div>
             </div>
@@ -2035,10 +2166,11 @@ function AssignmentDetailsModal({
           {/* Rubric */}
           {homework.rubric && (
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Tiêu chí chấm
-              </label>
-              <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-gray-700 whitespace-pre-wrap">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-1 h-6 bg-red-600 rounded-full"></div>
+                <h3 className="text-base font-semibold text-gray-900">Tiêu chí chấm điểm</h3>
+              </div>
+              <div className="px-5 py-4 rounded-lg bg-gradient-to-r from-gray-50 to-white border border-gray-200 text-gray-700 whitespace-pre-wrap text-sm leading-relaxed">
                 {homework.rubric}
               </div>
             </div>
@@ -2047,19 +2179,21 @@ function AssignmentDetailsModal({
           {/* Tệp đính kèm */}
           {homework.attachmentUrl && (
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Tệp đính kèm
-              </label>
-              <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-red-50 border border-red-200">
-                <Paperclip size={16} className="text-red-600" />
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-1 h-6 bg-red-600 rounded-full"></div>
+                <h3 className="text-base font-semibold text-gray-900">Tệp đính kèm</h3>
+              </div>
+              <div className="flex items-center gap-4 px-5 py-4 rounded-lg bg-gradient-to-r from-gray-50 to-white border border-gray-200 hover:shadow-md transition-all">
+                <Paperclip size={18} className="text-red-600 flex-shrink-0" />
                 <a
                   href={homework.attachmentUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm text-red-600 hover:text-red-700 font-medium truncate"
+                  className="text-sm text-red-600 hover:text-red-700 font-medium truncate flex-1 underline"
                 >
                   {homework.attachmentUrl.split("/").pop()}
                 </a>
+                <Download size={16} className="text-gray-400 flex-shrink-0" />
               </div>
             </div>
           )}
@@ -2067,23 +2201,27 @@ function AssignmentDetailsModal({
           {/* Danh sách câu hỏi */}
           {homework.questions && homework.questions.length > 0 && (
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
-                Câu hỏi ({homework.questions.length} câu)
-              </label>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-1 h-6 bg-red-600 rounded-full"></div>
+                <h3 className="text-base font-semibold text-gray-900">Danh sách câu hỏi</h3>
+                <span className="ml-2 px-3 py-1 rounded-full bg-red-100 text-red-700 text-xs font-semibold">
+                  {homework.questions.length} câu
+                </span>
+              </div>
               <div className="space-y-4">
                 {homework.questions.map((question: any, index: number) => (
                   <div
                     key={question.id}
-                    className="p-4 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100/50 transition-colors"
+                    className="p-5 rounded-lg border border-red-200 bg-gradient-to-br from-red-50 to-red-100/30 hover:shadow-md transition-all"
                   >
-                    <div className="flex items-start gap-3 mb-3">
-                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center text-xs font-semibold">
+                    <div className="flex items-start gap-3 mb-4">
+                      <span className="flex-shrink-0 w-7 h-7 rounded-full bg-red-600 text-white flex items-center justify-center text-xs font-bold">
                         {index + 1}
                       </span>
                       <div className="flex-1">
                         <p className="text-sm font-semibold text-gray-900">{question.questionText}</p>
                         <div className="flex items-center gap-2 mt-2">
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-600 text-white">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-red-600 text-white">
                             {question.points} điểm
                           </span>
                         </div>
@@ -2092,19 +2230,19 @@ function AssignmentDetailsModal({
                     
                     {/* Các tùy chọn */}
                     {question.options && question.options.length > 0 && (
-                      <div className="ml-9 space-y-2 mb-3">
+                      <div className="ml-10 space-y-2 mb-4">
                         {question.options.map((option: string, optionIndex: number) => (
                           <div
                             key={optionIndex}
-                            className={`p-2 rounded-lg text-sm border ${
+                            className={`p-3 rounded-lg text-sm border transition-colors ${
                               option === question.correctAnswer
                                 ? "bg-emerald-50 text-emerald-900 border-emerald-300 font-medium"
-                                : "bg-white text-gray-700 border-gray-200"
+                                : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
                             }`}
                           >
-                            <span className="font-medium">{String.fromCharCode(65 + optionIndex)}.</span> {option}
+                            <span className="font-semibold">{String.fromCharCode(65 + optionIndex)}.</span> {option}
                             {option === question.correctAnswer && (
-                              <span className="ml-2 text-xs font-semibold text-emerald-600">✓ Đáp án đúng</span>
+                              <span className="ml-2 text-xs font-bold text-emerald-600">Đáp án đúng</span>
                             )}
                           </div>
                         ))}
@@ -2113,9 +2251,9 @@ function AssignmentDetailsModal({
 
                     {/* Giải thích */}
                     {question.explanation && (
-                      <div className="ml-9 p-2 rounded-lg bg-white border border-red-300">
-                        <div className="text-xs font-semibold text-red-900 mb-1">Giải thích:</div>
-                        <div className="text-xs text-red-800">{question.explanation}</div>
+                      <div className="ml-10 p-3 rounded-lg bg-white border border-red-200">
+                        <div className="text-xs font-bold text-red-700 mb-1.5">Giải thích</div>
+                        <div className="text-xs text-gray-700 leading-relaxed">{question.explanation}</div>
                       </div>
                     )}
                   </div>
@@ -2126,10 +2264,10 @@ function AssignmentDetailsModal({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-red-200 bg-gradient-to-r from-red-50 to-red-100 px-6 py-4 rounded-b-2xl flex items-center justify-end flex-shrink-0">
+        <div className="border-t border-gray-200 bg-linear-to-r from-red-500/5 to-red-700/5 px-8 py-4 flex items-center justify-end flex-shrink-0">
           <button
             onClick={onClose}
-            className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:from-red-700 hover:to-red-800 transition-all cursor-pointer"
+            className="px-8 py-2.5 rounded-xl bg-linear-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer text-sm"
           >
             Đóng
           </button>
@@ -2149,39 +2287,112 @@ function UpdateAssignmentModal({
   onClose: () => void;
   onSuccess: () => void;
 }) {
-  const parseDueDate = (dueDateStr: string) => {
-    if (!dueDateStr) return { date: "", time: "23:59" };
+  const parseISODate = (isoStr: string | undefined) => {
+    if (!isoStr) return { date: "", time: "00:00" };
     try {
-      let dateObj: Date;
-      if (dueDateStr.includes("/")) {
-        const [datePart, timePart] = dueDateStr.split(", ");
-        const [day, month, year] = datePart.split("/").map(Number);
-        const [hours, minutes] = timePart.split(":").map(Number);
-        dateObj = new Date(year, month - 1, day, hours, minutes);
-      } else {
-        dateObj = new Date(dueDateStr);
-      }
+      const dateObj = new Date(isoStr);
+      if (Number.isNaN(dateObj.getTime())) return { date: "", time: "00:00" };
       return {
         date: dateOnlyVN(dateObj),
         time: `${String(dateObj.getHours()).padStart(2, "0")}:${String(dateObj.getMinutes()).padStart(2, "0")}`,
       };
     } catch {
-      return { date: "", time: "23:59" };
+      return { date: "", time: "00:00" };
     }
   };
 
-  const initialDue = parseDueDate(homework.dueDate);
-
   const [title, setTitle] = useState(homework.assignmentTitle || "");
   const [description, setDescription] = useState(homework.description || "");
-  const [dueDate, setDueDate] = useState(initialDue.date);
-  const [dueTime, setDueTime] = useState(initialDue.time);
+  const [startDate, setStartDate] = useState("");
+  const [startTime, setStartTime] = useState("00:00");
+  const [dueDate, setDueDate] = useState("");
+  const [dueTime, setDueTime] = useState("23:59");
+  const [maxAttempts, setMaxAttempts] = useState("1");
+  const [submissionType, setSubmissionType] = useState(homework.submissionType || "");
+  const [attachmentUrl, setAttachmentUrl] = useState(homework.attachmentUrl || "");
+  const [questions, setQuestions] = useState<any[]>(homework.questions || []);
   const [book, setBook] = useState("");
   const [pages, setPages] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  
+  // Question form state for update modal
+  const [showQuestionFormUpdate, setShowQuestionFormUpdate] = useState(false);
+  const [currentQuestion, setCurrentQuestion] = useState("");
+  const [currentOptions, setCurrentOptions] = useState<BuilderQuestionOption[]>(
+    createEmptyBuilderOptions(),
+  );
+  const [currentExplanation, setCurrentExplanation] = useState("");
+  const [currentPoints, setCurrentPoints] = useState("10");
+  const [showImportBankModal, setShowImportBankModal] = useState(false);
+  const [showImportExcelModal, setShowImportExcelModal] = useState(false);
   const updateTitleRef = useRef<HTMLInputElement>(null);
   const updateDueDateRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load full homework details to get raw ISO dates from API
+  useEffect(() => {
+    const loadFullDetails = async () => {
+      const homeworkId = homework.assignmentId || homework.id;
+      if (!homeworkId) return;
+
+      setIsLoadingDetails(true);
+      try {
+        const result = await fetchHomeworkDetail(homeworkId);
+        if (result.ok && result.data) {
+          const fullData = result.data as any;
+          console.log("Full homework data:", fullData);
+          console.log("Submission Type:", fullData.submissionType || fullData.type);
+          console.log("Attachments:", fullData.attachments);
+          
+          // Parse dueAt (ISO format from API)
+          if (fullData.dueAt) {
+            const dueParsed = parseISODate(fullData.dueAt);
+            setDueDate(dueParsed.date);
+            setDueTime(dueParsed.time);
+          }
+          
+          // Parse startDate (ISO format from API)
+          if (fullData.startDate) {
+            const startParsed = parseISODate(fullData.startDate);
+            setStartDate(startParsed.date);
+            setStartTime(startParsed.time);
+          }
+          
+          // Update title and description from full data if not present
+          if (fullData.title) setTitle(fullData.title);
+          if (fullData.description) setDescription(fullData.description);
+          
+          // Set submissionType from full data
+          if (fullData.submissionType) {
+            setSubmissionType(fullData.submissionType);
+          } else if (fullData.type) {
+            setSubmissionType(fullData.type);
+          }
+          
+          // Load attachmentUrl for TEXT submissions
+          if (fullData.attachmentUrl) {
+            setAttachmentUrl(fullData.attachmentUrl);
+          } else if (fullData.attachments && fullData.attachments.length > 0) {
+            setAttachmentUrl(fullData.attachments[0].url || "");
+          }
+          
+          // Load questions for MULTIPLE_CHOICE submissions
+          if (fullData.questions && Array.isArray(fullData.questions)) {
+            setQuestions(fullData.questions);
+          }
+        }
+      } catch (err) {
+        console.error("Error loading homework details:", err);
+      } finally {
+        setIsLoadingDetails(false);
+      }
+    };
+
+    loadFullDetails();
+  }, [homework.id, homework.assignmentId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -2219,13 +2430,59 @@ function UpdateAssignmentModal({
     setError("");
 
     try {
-      const payload = {
+      const payload: Partial<any> = {
         title,
         description: description || undefined,
         dueAt: `${dueDate}T${dueTime}:00+07:00`,
-        book: book || undefined,
-        pages: pages || undefined,
       };
+
+      if (maxAttempts) {
+        payload.maxAttempts = parseInt(maxAttempts);
+      }
+      if (book) {
+        payload.book = book;
+      }
+      if (pages) {
+        payload.pages = pages;
+      }
+
+      // Handle file upload if new file is selected
+      if (selectedFile && submissionType.toUpperCase() === "TEXT") {
+        try {
+          const uploadResult = await uploadFile(selectedFile, "homework");
+          if (isUploadSuccess(uploadResult) && uploadResult.url) {
+            payload.attachmentUrl = uploadResult.url;
+            setAttachmentUrl(uploadResult.url);
+          } else {
+            const errorData = uploadResult as any;
+            const errorMsg = errorData.detail || errorData.error || errorData.title || "Không thể tải file lên";
+            setError(errorMsg);
+            toast({
+              title: "Lỗi upload",
+              description: errorMsg,
+              variant: "destructive",
+              duration: 5000,
+            });
+            return;
+          }
+        } catch {
+          setError("Lỗi khi upload file");
+          toast({
+            title: "Lỗi",
+            description: "Không thể upload file. Vui lòng thử lại.",
+            variant: "destructive",
+            duration: 5000,
+          });
+          return;
+        }
+      } else if (attachmentUrl && submissionType.toUpperCase() === "TEXT") {
+        // Keep existing attachment URL if no new file is selected
+        payload.attachmentUrl = attachmentUrl;
+      }
+
+      if (questions && submissionType.toUpperCase() === "MULTIPLE_CHOICE") {
+        payload.questions = questions;
+      }
 
       const homeworkId = homework.assignmentId || homework.id;
       const result = await updateHomework(homeworkId, payload);
@@ -2267,49 +2524,40 @@ function UpdateAssignmentModal({
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white rounded-2xl shadow-2xl">
-        <div className="sticky top-0 bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-2xl flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Edit size={24} />
+      <div className="relative w-full max-w-2xl max-h-[90vh] bg-white rounded-2xl shadow-2xl flex flex-col">
+        <div className="sticky top-0 z-10 bg-linear-to-r from-red-600 to-red-700 text-white px-8 py-6 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="p-2.5 rounded-xl bg-white/20 backdrop-blur-sm">
+              <Edit size={24} className="text-white" />
+            </div>
             <div>
-              <h2 className="text-xl font-bold">Cập nhật bài tập</h2>
-              <p className="text-sm text-red-100">{homework.assignmentTitle}</p>
+              <h2 className="text-2xl font-bold">Cập nhật bài tập</h2>
+              <p className="text-sm text-red-100 mt-1">{homework.assignmentTitle}</p>
             </div>
           </div>
           <button
             onClick={onClose}
             className="p-2 hover:bg-white/20 rounded-xl transition-colors cursor-pointer"
           >
-            <X size={20} />
+            <X size={24} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        <div className="flex-1 overflow-y-auto">
+          <form onSubmit={handleSubmit} className="p-8 space-y-6" id="update-homework-form">
           {error && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-sm text-red-600 font-medium">{error}</p>
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div className="bg-red-50/50 rounded-xl p-4 border border-red-100">
-              <div className="flex items-center gap-2 text-red-600 mb-1">
-                <Users size={16} />
-                <span className="text-xs font-medium uppercase">Học viên</span>
-              </div>
-              <div className="text-base font-semibold text-gray-900">
-                {homework.student}
-              </div>
-              <div className="text-xs text-gray-500">{homework.studentId}</div>
+          <div className="bg-gradient-to-br from-red-50 to-red-100/50 rounded-lg p-4 border border-red-200/50">
+            <div className="flex items-center gap-2 text-red-600 mb-2">
+              <BookMarked size={16} />
+              <span className="text-xs font-semibold uppercase tracking-wide">Lớp học</span>
             </div>
-            <div className="bg-red-50/50 rounded-xl p-4 border border-red-100">
-              <div className="flex items-center gap-2 text-red-600 mb-1">
-                <BookMarked size={16} />
-                <span className="text-xs font-medium uppercase">Lớp học</span>
-              </div>
-              <div className="text-base font-semibold text-gray-900">
-                {homework.className}
-              </div>
+            <div className="text-base font-semibold text-gray-900">
+              {homework.className}
             </div>
           </div>
 
@@ -2322,7 +2570,7 @@ function UpdateAssignmentModal({
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+              className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-500 transition-all"
               placeholder="Nhập tiêu đề bài tập..."
             />
           </div>
@@ -2335,9 +2583,34 @@ function UpdateAssignmentModal({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
-              className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200 resize-none"
+              className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-500 transition-all resize-none"
               placeholder="Nhập mô tả chi tiết về bài tập..."
             />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Ngày bắt đầu
+              </label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-500 transition-all"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Giờ bắt đầu
+              </label>
+              <input
+                type="time"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-500 transition-all"
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -2350,7 +2623,7 @@ function UpdateAssignmentModal({
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+                className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-500 transition-all"
               />
             </div>
             <div>
@@ -2361,39 +2634,489 @@ function UpdateAssignmentModal({
                 type="time"
                 value={dueTime}
                 onChange={(e) => setDueTime(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+                className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-500 transition-all"
               />
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-red-100">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-5 py-2.5 rounded-xl border border-red-200 text-gray-700 font-medium hover:bg-red-50 transition-colors cursor-pointer"
-            >
-              Hủy
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
-            >
-              {isSubmitting ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Đang cập nhật...
-                </>
-              ) : (
-                <>
-                  <Save size={16} />
-                  Lưu thay đổi
-                </>
-              )}
-            </button>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Số lần làm bài tối đa
+            </label>
+            <input
+              type="number"
+              value={maxAttempts}
+              onChange={(e) => setMaxAttempts(e.target.value)}
+              className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-500 transition-all"
+              min="1"
+              placeholder="1"
+            />
           </div>
-        </form>
+
+          {submissionType.toUpperCase() === "TEXT" && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                Tệp đính kèm
+              </label>
+              
+              <input
+                ref={fileInputRef}
+                type="file"
+                onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                className="hidden"
+              />
+              
+              <div className="space-y-3">
+                {/* Upload Button */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full px-4 py-3 rounded-lg border-2 border-dashed border-red-300 bg-red-50 hover:bg-red-100 text-red-600 font-medium transition-all cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <Upload size={18} />
+                  {selectedFile ? "Chọn tệp khác" : "Chọn tệp để upload"}
+                </button>
+
+                {/* Selected File Display */}
+                {selectedFile && (
+                  <div className="flex items-center justify-between px-4 py-3 bg-white border border-red-200 rounded-lg">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <FileText size={18} className="text-red-600 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {selectedFile.name}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedFile(null)}
+                      className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer flex-shrink-0"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                )}
+
+                {/* Current Attachment Display */}
+                {!selectedFile && attachmentUrl && (
+                  <div className="flex items-center justify-between px-4 py-3 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Paperclip size={18} className="text-green-600 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-gray-500">Tệp hiện tại</p>
+                        <a
+                          href={attachmentUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-green-600 hover:text-green-700 underline truncate"
+                        >
+                          {attachmentUrl.split("/").pop()}
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {submissionType.toUpperCase() === "MULTIPLE_CHOICE" && questions.length > 0 && (
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-amber-50 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="rounded-full bg-white px-3 py-1 font-semibold text-red-700">
+                      {questions.length} câu hỏi
+                    </span>
+                    <span className="text-sm text-gray-600">
+                      Chọn thêm câu hỏi để cập nhật hoặc import câu hỏi mới.
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowImportBankModal(true)}
+                      className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-xl hover:bg-blue-100 transition-all cursor-pointer"
+                    >
+                      <Database size={16} />
+                      Ngân hàng
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowImportExcelModal(true)}
+                      className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-emerald-600 bg-emerald-50 rounded-xl hover:bg-emerald-100 transition-all cursor-pointer"
+                    >
+                      <Table size={16} />
+                      Excel
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <ClipboardList size={16} className="text-red-600" />
+                  Danh sách câu hỏi ({questions.length})
+                </label>
+                <div className="space-y-3">
+                  {questions.map((q: any, index: number) => (
+                    <div
+                      key={index}
+                      className="p-4 bg-gradient-to-r from-red-50 to-amber-50 rounded-xl border border-red-200"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="w-6 h-6 rounded-full bg-red-600 text-white text-xs flex items-center justify-center font-bold">
+                              {index + 1}
+                            </span>
+                            <span className="font-medium text-gray-900">
+                              {q.questionText}
+                            </span>
+                          </div>
+                          {q.options && q.options.length > 0 && (
+                            <div className="grid grid-cols-2 gap-2 ml-8">
+                              {q.options.map((opt: any, optIdx: number) => (
+                                <div
+                                  key={optIdx}
+                                  className={`px-3 py-2 rounded-lg text-sm border ${
+                                    opt === q.correctAnswer
+                                      ? "bg-emerald-50 border-emerald-300 text-emerald-700"
+                                      : "bg-white border-gray-200 text-gray-600"
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    {opt === q.correctAnswer && (
+                                      <CheckCircle
+                                        size={14}
+                                        className="text-emerald-600"
+                                      />
+                                    )}
+                                    <span
+                                      className={
+                                        opt === q.correctAnswer ? "font-medium" : ""
+                                      }
+                                    >
+                                      {opt}
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {q.explanation && (
+                            <div className="mt-2 ml-8 text-xs text-gray-500 bg-white p-2 rounded-lg border border-gray-200">
+                              <span className="font-medium">Giải thích:</span>{" "}
+                              {q.explanation}
+                            </div>
+                          )}
+                          {q.points && (
+                            <div className="mt-2 ml-8 text-xs font-medium text-red-600">
+                              Điểm: {q.points}
+                            </div>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setQuestions((prev: any[]) =>
+                              prev.filter((_, i) => i !== index)
+                            )
+                          }
+                          className="p-1.5 rounded-lg hover:bg-red-100 transition-colors text-gray-400 hover:text-red-600 cursor-pointer flex-shrink-0"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowQuestionFormUpdate(true)}
+                className="w-full py-4 border-2 border-dashed border-red-300 rounded-xl text-red-600 hover:bg-red-50 transition-colors flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Plus size={20} />
+                Thêm câu hỏi
+              </button>
+
+              {showQuestionFormUpdate && (
+                <div className="p-4 bg-gradient-to-r from-red-50 to-amber-50 rounded-xl border border-red-200 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium text-gray-900">
+                      Thêm câu hỏi mới
+                    </h4>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowQuestionFormUpdate(false);
+                        setCurrentQuestion("");
+                        setCurrentOptions(createEmptyBuilderOptions());
+                        setCurrentExplanation("");
+                        setCurrentPoints("10");
+                      }}
+                      className="p-1.5 rounded-lg hover:bg-red-100 transition-colors cursor-pointer"
+                    >
+                      <X size={16} className="text-gray-500" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      Câu hỏi
+                    </label>
+                    <textarea
+                      value={currentQuestion}
+                      onChange={(e) => setCurrentQuestion(e.target.value)}
+                      rows={2}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-red-300"
+                      placeholder="Nhập nội dung câu hỏi..."
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      Các lựa chọn
+                    </label>
+                    {currentOptions.map((opt, optIndex) => (
+                      <div key={opt.id} className="flex items-center gap-2">
+                        <div className="flex-1 flex items-center gap-2">
+                          <span className="w-6 h-6 rounded-full bg-gray-100 text-gray-600 text-xs flex items-center justify-center">
+                            {String.fromCharCode(65 + optIndex)}
+                          </span>
+                          <input
+                            type="text"
+                            value={opt.text}
+                            onChange={(e) =>
+                              setCurrentOptions(
+                                currentOptions.map((o) =>
+                                  o.id === opt.id
+                                    ? { ...o, text: e.target.value }
+                                    : o
+                                )
+                              )
+                            }
+                            className="flex-1 px-3 py-2 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-red-300"
+                            placeholder={`Lựa chọn ${String.fromCharCode(65 + optIndex)}`}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCurrentOptions(
+                              currentOptions.map((o) => ({
+                                ...o,
+                                isCorrect: o.id === opt.id,
+                              }))
+                            )
+                          }
+                          className={`p-2 rounded-lg transition-colors cursor-pointer ${
+                            opt.isCorrect
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                          }`}
+                          title="Đánh dấu là đáp án đúng"
+                        >
+                          <CheckCircle size={16} />
+                        </button>
+                        {currentOptions.length > 2 && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setCurrentOptions(
+                                currentOptions.filter((o) => o.id !== opt.id)
+                              )
+                            }
+                            className="p-2 rounded-lg hover:bg-red-100 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
+                          >
+                            <X size={16} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setCurrentOptions([
+                          ...currentOptions,
+                          {
+                            id: crypto.randomUUID(),
+                            text: "",
+                            isCorrect: false,
+                          },
+                        ])
+                      }
+                      className="mt-2 text-sm text-red-600 hover:text-red-700 font-medium flex items-center gap-1 cursor-pointer"
+                    >
+                      <Plus size={14} />
+                      Thêm lựa chọn
+                    </button>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      Giải thích (không bắt buộc)
+                    </label>
+                    <textarea
+                      value={currentExplanation}
+                      onChange={(e) =>
+                        setCurrentExplanation(e.target.value)
+                      }
+                      rows={2}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-red-300"
+                      placeholder="Giải thích đáp án đúng..."
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      Điểm
+                    </label>
+                    <input
+                      type="number"
+                      value={currentPoints}
+                      onChange={(e) => setCurrentPoints(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-red-300"
+                      placeholder="Điểm cho câu hỏi này"
+                      min="1"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowQuestionFormUpdate(false);
+                        setCurrentQuestion("");
+                        setCurrentOptions(createEmptyBuilderOptions());
+                        setCurrentExplanation("");
+                        setCurrentPoints("10");
+                      }}
+                      className="px-4 py-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer"
+                    >
+                      Hủy
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!currentQuestion.trim()) {
+                          alert("Vui lòng nhập câu hỏi");
+                          return;
+                        }
+                        if (currentOptions.some((opt) => !opt.text.trim())) {
+                          alert("Vui lòng nhập đầy đủ nội dung các lựa chọn");
+                          return;
+                        }
+                        if (!currentOptions.some((opt) => opt.isCorrect)) {
+                          alert("Vui lòng chọn đáp án đúng");
+                          return;
+                        }
+
+                        setQuestions([
+                          ...questions,
+                          {
+                            questionText: currentQuestion,
+                            options: currentOptions.map((o) => o.text),
+                            correctAnswer: currentOptions.find(
+                              (o) => o.isCorrect
+                            )?.text,
+                            explanation: currentExplanation || undefined,
+                            points: parseInt(currentPoints) || 10,
+                          },
+                        ]);
+
+                        setCurrentQuestion("");
+                        setCurrentOptions(createEmptyBuilderOptions());
+                        setCurrentExplanation("");
+                        setCurrentPoints("10");
+                        setShowQuestionFormUpdate(false);
+                      }}
+                      className="px-4 py-2 rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white font-medium hover:shadow-lg transition-all cursor-pointer"
+                    >
+                      Thêm câu hỏi
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          </form>
+        </div>
+
+        <div className="sticky bottom-0 z-10 border-t border-gray-200 bg-linear-to-r from-red-500/5 to-red-700/5 px-8 py-6 flex items-center justify-end gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 text-sm"
+          >
+            Hủy bỏ
+          </button>
+          <button
+            form="update-homework-form"
+            type="submit"
+            disabled={isSubmitting}
+            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-linear-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer text-sm"
+          >
+            {isSubmitting ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Đang cập nhật...
+              </>
+            ) : (
+              <>
+                <Save size={16} />
+                Lưu thay đổi
+              </>
+            )}
+          </button>
+        </div>
       </div>
+
+      <ImportFromBankModal
+        isOpen={showImportBankModal}
+        onClose={() => setShowImportBankModal(false)}
+        onImport={(importedQuestions: BuilderQuestion[]) => {
+          setQuestions((prev: any[]) => [
+            ...prev,
+            ...importedQuestions.map((q) => ({
+              questionText: q.question,
+              options: q.options.map((o) => o.text),
+              correctAnswer: q.options.find((o) => o.isCorrect)?.text,
+              explanation: q.explanation,
+              points: q.points,
+            })),
+          ]);
+          setShowImportBankModal(false);
+        }}
+        selectedClassId=""
+        classesData={[]}
+      />
+
+      <ImportFromExcelModal
+        isOpen={showImportExcelModal}
+        onClose={() => setShowImportExcelModal(false)}
+        onImport={(importedQuestions: BuilderQuestion[]) => {
+          setQuestions((prev: any[]) => [
+            ...prev,
+            ...importedQuestions.map((q) => ({
+              questionText: q.question,
+              options: q.options.map((o) => o.text),
+              correctAnswer: q.options.find((o) => o.isCorrect)?.text,
+              explanation: q.explanation,
+              points: q.points,
+            })),
+          ]);
+          setShowImportExcelModal(false);
+        }}
+      />
     </div>
   );
 }
