@@ -5,6 +5,7 @@ import {
   CalendarClock,
   CheckCircle2,
   Clock3,
+  Eye,
   Edit,
   MapPin,
   Plus,
@@ -196,6 +197,7 @@ export default function ProgramProgressionSchedulesPanel({
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<ProgramProgressionSchedule | null>(null);
+  const [detailSchedule, setDetailSchedule] = useState<ProgramProgressionSchedule | null>(null);
   const [form, setForm] = useState<ScheduleFormState>(DEFAULT_SCHEDULE_FORM);
 
   const [studentListModalSchedule, setStudentListModalSchedule] = useState<ProgramProgressionSchedule | null>(null);
@@ -899,7 +901,7 @@ export default function ProgramProgressionSchedulesPanel({
         >
           <div className="flex items-center justify-between">
             <h3 className={isStudentView ? "text-sm font-semibold text-white" : "text-sm font-semibold text-gray-900"}>
-              Danh sách lịch đánh giá
+              Danh sách lịch kiểm tra
             </h3>
             {!isLoading && (
               <span className={isStudentView ? "text-xs text-indigo-100" : "text-xs text-gray-500"}>
@@ -988,6 +990,16 @@ export default function ProgramProgressionSchedulesPanel({
 
                           <td className="min-w-55 px-6 py-4 align-top">
                             <div className="flex flex-wrap items-center gap-2">
+                              {canManageSchedules && (
+                                <button
+                                  type="button"
+                                  onClick={() => setDetailSchedule(schedule)}
+                                  className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs font-semibold text-gray-700"
+                                >
+                                  <Eye size={12} /> Chi tiết
+                                </button>
+                              )}
+
                               {canManageSchedules && schedule.status === "Scheduled" && (
                                 <button
                                   type="button"
@@ -1367,6 +1379,100 @@ export default function ProgramProgressionSchedulesPanel({
               <button
                 type="button"
                 onClick={() => setStudentListModalSchedule(null)}
+                className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {detailSchedule && (
+        <div
+          className="fixed inset-0 z-100 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setDetailSchedule(null)}
+        >
+          <div
+            className="w-full max-w-2xl overflow-hidden rounded-2xl border border-red-200 bg-white shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="bg-linear-to-r from-red-600 to-red-700 p-4 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-bold">Chi tiết lịch đánh giá</h3>
+                  <p className="text-xs text-red-100">
+                    {resolveClassName(detailSchedule.sourceClassId, detailSchedule.sourceClassName)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDetailSchedule(null)}
+                  className="rounded-full p-1 hover:bg-white/20"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            <div className="max-h-[70vh] space-y-4 overflow-y-auto p-4 text-sm">
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                  <div className="text-xs text-gray-500">Thời gian</div>
+                  <div className="mt-1 font-semibold text-gray-900">
+                    {new Date(detailSchedule.scheduledAt).toLocaleString("vi-VN")}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                  <div className="text-xs text-gray-500">Thời lượng</div>
+                  <div className="mt-1 font-semibold text-gray-900">{detailSchedule.durationMinutes ?? "--"} phút</div>
+                </div>
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                  <div className="text-xs text-gray-500">Phòng học</div>
+                  <div className="mt-1 font-semibold text-gray-900">{detailSchedule.roomName || "Chưa gán phòng"}</div>
+                </div>
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                  <div className="text-xs text-gray-500">Giáo viên</div>
+                  <div className="mt-1 font-semibold text-gray-900">
+                    {detailSchedule.assignedTeacherName || "Chưa gán giáo viên"}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                  <div className="text-xs text-gray-500">Trạng thái</div>
+                  <div className="mt-1 font-semibold text-gray-900">{scheduleStatusLabel(detailSchedule.status)}</div>
+                </div>
+              </div>
+
+              {detailSchedule.notes && (
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                  <div className="text-xs text-gray-500">Ghi chú</div>
+                  <div className="mt-1 whitespace-pre-wrap text-gray-800">{detailSchedule.notes}</div>
+                </div>
+              )}
+
+              <div className="rounded-xl border border-red-100 bg-red-50/30 p-3">
+                <div className="mb-2 text-xs font-semibold text-red-700">Danh sách học sinh</div>
+                <div className="max-h-48 space-y-1 overflow-y-auto rounded-lg border border-red-100 bg-white p-2">
+                  {(detailSchedule.participants || []).length === 0 ? (
+                    <div className="text-xs text-gray-500">Chưa có dữ liệu học sinh.</div>
+                  ) : (
+                    (detailSchedule.participants || []).map((participant) => (
+                      <div key={participant.id || participant.studentProfileId} className="flex items-center justify-between gap-2 text-xs">
+                        <span className="text-gray-900">{participant.studentName || participant.studentProfileId}</span>
+                        <span className="rounded-full border border-gray-200 bg-white px-2 py-0.5 text-gray-700">
+                          {participantStatusLabel(participant.status)}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end border-t border-gray-200 bg-gray-50 p-4">
+              <button
+                type="button"
+                onClick={() => setDetailSchedule(null)}
                 className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700"
               >
                 Đóng

@@ -3,6 +3,7 @@ import {
   CLASS_ENDPOINTS,
   ENROLLMENT_ENDPOINTS,
   PROGRAM_PROGRESSION_ENDPOINTS,
+  REGISTRATION_ENDPOINTS,
   USER_ENDPOINTS,
 } from "@/constants/apiURL";
 import { buildQueryString } from "@/lib/api/queryString";
@@ -540,13 +541,52 @@ function normalizeMyAssessmentScheduleItem(value: unknown): ProgramProgressionMy
   };
 }
 
+function normalizeRuleItem(value: unknown): ProgramProgressionRule {
+  const item = (value && typeof value === "object" ? (value as UnknownRecord) : {}) as UnknownRecord;
+
+  return {
+    id: toStringSafe(item.id, item.ruleId),
+    sourceProgramId: toStringSafe(item.sourceProgramId, item.programId),
+    sourceProgramName:
+      toStringSafe(item.sourceProgramName, item.programName, item.sourceProgramTitle) || undefined,
+    targetProgramId: toStringSafe(item.targetProgramId) || null,
+    targetProgramName: toStringSafe(item.targetProgramName, item.targetProgramTitle) || null,
+    method: normalizeAssessmentMethod(item.method) ?? "PassFail",
+    minimumShieldCount: toNullableNumber(item.minimumShieldCount),
+    minimumSkillShieldCount: toNullableNumber(item.minimumSkillShieldCount),
+    minimumOverallScore: toNullableNumber(item.minimumOverallScore),
+    carryOverRemainingSessions:
+      typeof item.carryOverRemainingSessions === "boolean"
+        ? item.carryOverRemainingSessions
+        : true,
+    stopCurrentEnrollmentOnApproval:
+      typeof item.stopCurrentEnrollmentOnApproval === "boolean"
+        ? item.stopCurrentEnrollmentOnApproval
+        : true,
+    isActive: typeof item.isActive === "boolean" ? item.isActive : true,
+    notes: toStringSafe(item.notes, item.note) || null,
+    shieldMappings: parseArray<ProgramProgressionRule["shieldMappings"] extends (infer U)[] ? U : never>(
+      item.shieldMappings
+    ),
+    classificationBands:
+      parseArray<
+        ProgramProgressionRule["classificationBands"] extends (infer U)[] ? U : never
+      >(item.classificationBands),
+  };
+}
+
 export async function getProgramProgressionRules(
   query?: ProgramProgressionRuleQuery
 ): Promise<ProgramProgressionRule[]> {
   const endpoint = `${PROGRAM_PROGRESSION_ENDPOINTS.RULES}${buildQueryString(asQueryParams(query))}`;
-  const response = await get<MaybeWrapped<ProgramProgressionRule[] | { items: ProgramProgressionRule[] }>>(endpoint);
+  const response = await get<MaybeWrapped<unknown>>(endpoint);
   const data = unwrapData(response);
-  return parseArray<ProgramProgressionRule>(data);
+  const record = (data && typeof data === "object" ? (data as UnknownRecord) : {}) as UnknownRecord;
+  const items = parseArray<unknown>(record.rules ?? record.items ?? record.data ?? data);
+
+  return items
+    .map((item) => normalizeRuleItem(item))
+    .filter((item) => Boolean(item.id) && Boolean(item.sourceProgramId));
 }
 
 export async function getProgramProgressionRuleById(
@@ -957,11 +997,10 @@ export async function getProgramProgressionAssessmentSourceOptions(params?: {
   const registrationSearchParams = new URLSearchParams();
   registrationSearchParams.set("pageNumber", "1");
   registrationSearchParams.set("pageSize", String(queryPageSize));
-  registrationSearchParams.set("status", "Active");
   appendIfPresent(registrationSearchParams, "branchId", params?.branchId);
 
   const registrationPromise = get<unknown>(
-    `${ENROLLMENT_ENDPOINTS.GET_ALL}?${registrationSearchParams.toString()}`
+    `${REGISTRATION_ENDPOINTS.GET_ALL}?${registrationSearchParams.toString()}`
   );
 
   const [scheduleResult, registrationResult] = await Promise.allSettled([
@@ -992,25 +1031,37 @@ export async function getProgramProgressionAssessmentSourceOptions(params?: {
 
   const sourceRegistrations: ProgramProgressionLookupOption[] =
     registrationResult.status === "fulfilled"
-      ? sortAndUniqueOptions(
-          parseNamedItems(registrationResult.value, "enrollments").map((item) => {
-            const className = toStringSafe(item.classTitle, item.classCode);
-            const programName = toStringSafe(item.programName);
-            const status = toStringSafe(item.status);
-            const subtitle = [className, programName, status].filter(Boolean).join(" • ");
+      ? (() => {
+          const rawPayload = unwrapData(registrationResult.value as MaybeWrapped<unknown>);
+          const fallbackItems =
+            rawPayload && typeof rawPayload === "object"
+              ? parseArray<UnknownRecord>((rawPayload as UnknownRecord).page)
+              : [];
+          const registrationItems = [
+            ...parseNamedItems(registrationResult.value, "registrations"),
+            ...fallbackItems,
+          ];
 
-            return {
-              id: toStringSafe(item.id, item.enrollmentId, item.registrationId),
-              name: toStringSafe(
-                item.studentName,
-                item.studentProfileName,
-                item.displayName,
-                item.id
-              ),
-              subtitle: subtitle || undefined,
-            };
-          })
-        )
+          return sortAndUniqueOptions(
+            registrationItems.map((item) => {
+              const className = toStringSafe(item.className, item.classTitle, item.classCode);
+              const programName = toStringSafe(item.programName);
+              const status = toStringSafe(item.status);
+              const subtitle = [className, programName, status].filter(Boolean).join(" • ");
+
+              return {
+                id: toStringSafe(item.id, item.registrationId),
+                name: toStringSafe(
+                  item.studentName,
+                  item.studentProfileName,
+                  item.displayName,
+                  item.id
+                ),
+                subtitle: subtitle || undefined,
+              };
+            })
+          );
+        })()
       : [];
 
   return {

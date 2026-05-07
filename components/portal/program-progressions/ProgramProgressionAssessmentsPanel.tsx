@@ -6,6 +6,7 @@ import {
   BadgeCheck,
   CheckCircle2,
   ClipboardCheck,
+  Eye,
   Edit,
   Plus,
   RefreshCw,
@@ -65,6 +66,17 @@ type AssessmentFormState = {
   attachmentUrls: string[];
 };
 
+type AssessmentInputMode = "auto" | ProgramProgressionMethod;
+type AssessmentSourceType = "registration" | "schedule";
+type ShieldExamVariant = "Starters" | "Movers" | "Flyers";
+type CambridgeExamVariant = "KET" | "PET";
+
+type CambridgeScaleThreshold = {
+  rawScore: number;
+  scaleScore: number;
+  cefrLevel: "B2" | "B1" | "A2" | "A1" | "--";
+};
+
 const SOURCE_REGISTRATION_NONE = "__no_source_registration__";
 const SCHEDULE_PARTICIPANT_NONE = "__no_schedule_participant__";
 
@@ -81,6 +93,77 @@ const DEFAULT_FORM: AssessmentFormState = {
   comment: "",
   attachmentUrls: [],
 };
+
+const KET_CAMBRIDGE_THRESHOLDS: Record<
+  "listening" | "speaking" | "reading" | "writing",
+  CambridgeScaleThreshold[]
+> = {
+  listening: [
+    { rawScore: 23, scaleScore: 140, cefrLevel: "B1" },
+    { rawScore: 17, scaleScore: 120, cefrLevel: "A2" },
+    { rawScore: 11, scaleScore: 100, cefrLevel: "A1" },
+    { rawScore: 6, scaleScore: 82, cefrLevel: "--" },
+  ],
+  speaking: [
+    { rawScore: 41, scaleScore: 140, cefrLevel: "B1" },
+    { rawScore: 27, scaleScore: 120, cefrLevel: "A2" },
+    { rawScore: 18, scaleScore: 100, cefrLevel: "A1" },
+    { rawScore: 10, scaleScore: 82, cefrLevel: "--" },
+  ],
+  reading: [
+    { rawScore: 28, scaleScore: 140, cefrLevel: "B1" },
+    { rawScore: 20, scaleScore: 120, cefrLevel: "A2" },
+    { rawScore: 13, scaleScore: 100, cefrLevel: "A1" },
+    { rawScore: 7, scaleScore: 82, cefrLevel: "--" },
+  ],
+  writing: [
+    { rawScore: 26, scaleScore: 140, cefrLevel: "B1" },
+    { rawScore: 18, scaleScore: 120, cefrLevel: "A2" },
+    { rawScore: 12, scaleScore: 100, cefrLevel: "A1" },
+    { rawScore: 8, scaleScore: 82, cefrLevel: "--" },
+  ],
+};
+
+const PET_CAMBRIDGE_THRESHOLDS: Record<
+  "listening" | "speaking" | "reading" | "writing",
+  CambridgeScaleThreshold[]
+> = {
+  listening: [
+    { rawScore: 23, scaleScore: 160, cefrLevel: "B2" },
+    { rawScore: 18, scaleScore: 140, cefrLevel: "B1" },
+    { rawScore: 11, scaleScore: 120, cefrLevel: "A2" },
+    { rawScore: 5, scaleScore: 102, cefrLevel: "--" },
+  ],
+  speaking: [
+    { rawScore: 27, scaleScore: 160, cefrLevel: "B2" },
+    { rawScore: 18, scaleScore: 140, cefrLevel: "B1" },
+    { rawScore: 12, scaleScore: 120, cefrLevel: "A2" },
+    { rawScore: 7, scaleScore: 102, cefrLevel: "--" },
+  ],
+  reading: [
+    { rawScore: 29, scaleScore: 160, cefrLevel: "B2" },
+    { rawScore: 23, scaleScore: 140, cefrLevel: "B1" },
+    { rawScore: 13, scaleScore: 120, cefrLevel: "A2" },
+    { rawScore: 5, scaleScore: 102, cefrLevel: "--" },
+  ],
+  writing: [
+    { rawScore: 34, scaleScore: 160, cefrLevel: "B2" },
+    { rawScore: 24, scaleScore: 140, cefrLevel: "B1" },
+    { rawScore: 16, scaleScore: 120, cefrLevel: "A2" },
+    { rawScore: 10, scaleScore: 102, cefrLevel: "--" },
+  ],
+};
+
+function resolveCambridgeScale(
+  rawScore: number | null,
+  thresholds: CambridgeScaleThreshold[]
+): CambridgeScaleThreshold | null {
+  if (rawScore == null || Number.isNaN(rawScore)) return null;
+
+  const sorted = [...thresholds].sort((a, b) => b.rawScore - a.rawScore);
+  const matched = sorted.find((item) => rawScore >= item.rawScore);
+  return matched || sorted[sorted.length - 1] || null;
+}
 
 function parseOptionalNumber(value: string): number | null {
   const cleaned = value.trim();
@@ -173,6 +256,10 @@ function resolveAssessmentErrorMessage(error: unknown): string {
     return "Điểm đọc phải nằm trong khoảng 0 đến 5 theo quy tắc Khiên.";
   }
 
+  if (combined.includes("shield-based progression") && combined.includes("readingwritingscore")) {
+    return "Điểm đọc - viết phải nằm trong khoảng 0 đến 5 theo quy tắc Khiên.";
+  }
+
   if (combined.includes("shield-based progression") && combined.includes("writingscore")) {
     return "Điểm viết phải nằm trong khoảng 0 đến 5 theo quy tắc Khiên.";
   }
@@ -194,6 +281,48 @@ function shouldLookupCreatorId(value?: string | null): value is string {
   if (normalized.includes(" ")) return false;
   if (normalized.includes("@")) return false;
   return normalized.length >= 8;
+}
+
+function resolveUserNameFromLookupResponse(response: unknown): string {
+  const payload = (response || {}) as {
+    data?:
+      | {
+          user?: { name?: string; username?: string; email?: string };
+          name?: string;
+          username?: string;
+          email?: string;
+        }
+      | { name?: string; username?: string; email?: string };
+    user?: { name?: string; username?: string; email?: string };
+    name?: string;
+    username?: string;
+    email?: string;
+  };
+
+  const fromData = payload.data as
+    | {
+        user?: { name?: string; username?: string; email?: string };
+        name?: string;
+        username?: string;
+        email?: string;
+      }
+    | undefined;
+
+  return String(
+    fromData?.user?.name ||
+      fromData?.user?.username ||
+      fromData?.user?.email ||
+      fromData?.name ||
+      fromData?.username ||
+      fromData?.email ||
+      payload.user?.name ||
+      payload.user?.username ||
+      payload.user?.email ||
+      payload.name ||
+      payload.username ||
+      payload.email ||
+      ""
+  ).trim();
 }
 
 export default function ProgramProgressionAssessmentsPanel({
@@ -230,6 +359,12 @@ export default function ProgramProgressionAssessmentsPanel({
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAssessment, setEditingAssessment] = useState<ProgramProgressionAssessment | null>(null);
+  const [detailAssessment, setDetailAssessment] = useState<ProgramProgressionAssessment | null>(null);
+  const [assessmentInputMode, setAssessmentInputMode] = useState<AssessmentInputMode>("auto");
+  const [assessmentSourceType, setAssessmentSourceType] =
+    useState<AssessmentSourceType>("registration");
+  const [shieldExamVariant, setShieldExamVariant] = useState<ShieldExamVariant>("Starters");
+  const [cambridgeExamVariant, setCambridgeExamVariant] = useState<CambridgeExamVariant>("KET");
   const [form, setForm] = useState<AssessmentFormState>(DEFAULT_FORM);
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -366,12 +501,22 @@ export default function ProgramProgressionAssessmentsPanel({
 
   const openCreate = () => {
     setEditingAssessment(null);
+    setAssessmentInputMode("auto");
+    setAssessmentSourceType("registration");
+    setShieldExamVariant("Starters");
+    setCambridgeExamVariant("KET");
     setForm(DEFAULT_FORM);
     setIsModalOpen(true);
   };
 
   const openEdit = (assessment: ProgramProgressionAssessment) => {
     setEditingAssessment(assessment);
+    setAssessmentInputMode(assessment.method || "auto");
+    setAssessmentSourceType(
+      assessment.scheduleParticipantId ? "schedule" : "registration"
+    );
+    setShieldExamVariant("Starters");
+    setCambridgeExamVariant("KET");
     setForm({
       sourceRegistrationId: assessment.sourceRegistrationId || "",
       scheduleParticipantId: assessment.scheduleParticipantId || "",
@@ -400,37 +545,92 @@ export default function ProgramProgressionAssessmentsPanel({
     setIsModalOpen(true);
   };
 
+  const openDetail = (assessment: ProgramProgressionAssessment) => {
+    setDetailAssessment(assessment);
+  };
+
   const closeModal = () => {
     if (isSubmitting) return;
     setIsModalOpen(false);
     setEditingAssessment(null);
+    setAssessmentInputMode("auto");
+    setAssessmentSourceType("registration");
+    setShieldExamVariant("Starters");
+    setCambridgeExamVariant("KET");
     setForm(DEFAULT_FORM);
   };
 
   const onSubmit = async () => {
-    const sourceRegistrationId = form.sourceRegistrationId.trim();
-    const scheduleParticipantId = form.scheduleParticipantId.trim();
+    const sourceRegistrationId =
+      assessmentSourceType === "registration" ? form.sourceRegistrationId.trim() : "";
+    const scheduleParticipantId =
+      assessmentSourceType === "schedule" ? form.scheduleParticipantId.trim() : "";
 
     if (!sourceRegistrationId && !scheduleParticipantId) {
       toast({
         variant: "warning",
         title: "Thiếu dữ liệu",
-        description: "Cần ít nhất một nguồn: ghi danh hoặc thành viên lịch.",
+        description:
+          assessmentSourceType === "registration"
+            ? "Vui lòng chọn nguồn từ đăng ký."
+            : "Vui lòng chọn nguồn từ lịch kiểm tra.",
       });
       return;
     }
+
+    const effectiveMethodForSubmit: ProgramProgressionMethod | undefined =
+      assessmentInputMode !== "auto" ? assessmentInputMode : editingAssessment?.method;
+
+    const shieldScores =
+      effectiveMethodForSubmit === "Shields"
+        ? {
+            listeningScore: parseOptionalNumber(form.listeningScore),
+            speakingScore: parseOptionalNumber(form.speakingScore),
+            readingWritingScore: parseOptionalNumber(form.readingWritingScore),
+            readingScore: null,
+            writingScore: null,
+          }
+        : null;
+
+    const cambridgeScores =
+      effectiveMethodForSubmit === "CambridgeScale"
+        ? {
+            listeningScore: parseOptionalNumber(form.listeningScore),
+            speakingScore: parseOptionalNumber(form.speakingScore),
+            readingWritingScore: null,
+            readingScore: parseOptionalNumber(form.readingScore),
+            writingScore: parseOptionalNumber(form.writingScore),
+          }
+        : null;
+
+    const passFailScores =
+      effectiveMethodForSubmit === "PassFail" || !effectiveMethodForSubmit
+        ? {
+            listeningScore: null,
+            speakingScore: null,
+            readingWritingScore: null,
+            readingScore: null,
+            writingScore: null,
+          }
+        : null;
+
+    const methodScores = shieldScores || cambridgeScores || passFailScores;
 
     const payload: ProgramProgressionAssessmentUpsertPayload = {
       sourceRegistrationId: sourceRegistrationId || undefined,
       scheduleParticipantId: scheduleParticipantId || undefined,
       assessmentDate: toUtcIso(form.assessmentDate),
       passedInClass:
-        form.passedInClass === "" ? null : form.passedInClass === "true",
-      listeningScore: parseOptionalNumber(form.listeningScore),
-      speakingScore: parseOptionalNumber(form.speakingScore),
-      readingWritingScore: parseOptionalNumber(form.readingWritingScore),
-      readingScore: parseOptionalNumber(form.readingScore),
-      writingScore: parseOptionalNumber(form.writingScore),
+        effectiveMethodForSubmit === "PassFail"
+          ? form.passedInClass === ""
+            ? null
+            : form.passedInClass === "true"
+          : null,
+      listeningScore: methodScores?.listeningScore ?? null,
+      speakingScore: methodScores?.speakingScore ?? null,
+      readingWritingScore: methodScores?.readingWritingScore ?? null,
+      readingScore: methodScores?.readingScore ?? null,
+      writingScore: methodScores?.writingScore ?? null,
       comment: form.comment.trim() || null,
       attachmentUrls: form.attachmentUrls,
     };
@@ -619,13 +819,7 @@ export default function ProgramProgressionAssessmentsPanel({
       const lookups = await Promise.allSettled(
         unresolvedCreatorIds.map(async (creatorId) => {
           const response = await getUserById(creatorId);
-          const user = (
-            response as {
-              data?: { user?: { name?: string; username?: string; email?: string } };
-            }
-          )?.data?.user;
-
-          const resolvedName = String(user?.name || user?.username || user?.email || "").trim();
+          const resolvedName = resolveUserNameFromLookupResponse(response);
           if (!resolvedName) return null;
 
           return { creatorId, resolvedName };
@@ -678,13 +872,116 @@ export default function ProgramProgressionAssessmentsPanel({
   const resolveCreatorLabel = useCallback(
     (item: ProgramProgressionAssessment): string => {
       if (item.createdByName?.trim()) return item.createdByName;
-      if (item.createdBy && creatorNameById[item.createdBy]) {
-        return creatorNameById[item.createdBy];
+      const creatorId = item.createdBy?.trim();
+      if (creatorId && creatorNameById[creatorId]) {
+        return creatorNameById[creatorId];
       }
       return item.createdBy || "--";
     },
     [creatorNameById]
   );
+
+  const effectiveMethod = useMemo<ProgramProgressionMethod | undefined>(() => {
+    if (assessmentInputMode !== "auto") return assessmentInputMode;
+    return editingAssessment?.method;
+  }, [assessmentInputMode, editingAssessment?.method]);
+
+  const cambridgeThresholds = useMemo(
+    () => (cambridgeExamVariant === "PET" ? PET_CAMBRIDGE_THRESHOLDS : KET_CAMBRIDGE_THRESHOLDS),
+    [cambridgeExamVariant]
+  );
+
+  const cambridgeRawMax = useMemo(
+    () =>
+      cambridgeExamVariant === "PET"
+        ? { listening: 25, speaking: 30, reading: 32, writing: 40 }
+        : { listening: 25, speaking: 45, reading: 30, writing: 30 },
+    [cambridgeExamVariant]
+  );
+
+  const cambridgePreview = useMemo(() => {
+    const listeningRaw = parseOptionalNumber(form.listeningScore);
+    const speakingRaw = parseOptionalNumber(form.speakingScore);
+    const readingRaw = parseOptionalNumber(form.readingScore);
+    const writingRaw = parseOptionalNumber(form.writingScore);
+
+    return {
+      listening: resolveCambridgeScale(listeningRaw, cambridgeThresholds.listening),
+      speaking: resolveCambridgeScale(speakingRaw, cambridgeThresholds.speaking),
+      reading: resolveCambridgeScale(readingRaw, cambridgeThresholds.reading),
+      writing: resolveCambridgeScale(writingRaw, cambridgeThresholds.writing),
+    };
+  }, [form.listeningScore, form.speakingScore, form.readingScore, form.writingScore, cambridgeThresholds]);
+
+  const detailSourceInfo = useMemo(() => {
+    if (!detailAssessment) return null;
+
+    if (detailAssessment.sourceRegistrationId) {
+      const matchedRegistration = sourceRegistrationOptions.find(
+        (option) => option.id === detailAssessment.sourceRegistrationId
+      );
+
+      return {
+        label: "Nguồn từ đăng ký",
+        value:
+          matchedRegistration?.name ||
+          detailAssessment.studentName ||
+          detailAssessment.studentProfileId ||
+          "--",
+      };
+    }
+
+    if (detailAssessment.scheduleParticipantId) {
+      const matchedParticipant = scheduleParticipantOptions.find(
+        (option) => option.id === detailAssessment.scheduleParticipantId
+      );
+
+      return {
+        label: "Nguồn từ lịch kiểm tra",
+        value:
+          matchedParticipant?.name ||
+          detailAssessment.studentName ||
+          detailAssessment.studentProfileId ||
+          "--",
+      };
+    }
+
+    return null;
+  }, [detailAssessment, scheduleParticipantOptions, sourceRegistrationOptions]);
+
+  const detailScoreRows = useMemo(() => {
+    if (!detailAssessment) return [] as Array<{ label: string; value: string }>;
+
+    const rows: Array<{ label: string; value: string }> = [];
+    const method = detailAssessment.method;
+
+    if (method === "Shields") {
+      rows.push({ label: "Listening", value: String(detailAssessment.listeningScore ?? "--") });
+      rows.push({ label: "Speaking", value: String(detailAssessment.speakingScore ?? "--") });
+      rows.push({ label: "Reading - Writing", value: String(detailAssessment.readingWritingScore ?? "--") });
+    } else if (method === "CambridgeScale") {
+      rows.push({ label: "Listening", value: String(detailAssessment.listeningScore ?? "--") });
+      rows.push({ label: "Speaking", value: String(detailAssessment.speakingScore ?? "--") });
+      rows.push({ label: "Reading", value: String(detailAssessment.readingScore ?? "--") });
+      rows.push({ label: "Writing", value: String(detailAssessment.writingScore ?? "--") });
+    } else if (method === "PassFail") {
+      rows.push({
+        label: "Kết quả tại lớp",
+        value:
+          detailAssessment.passedInClass == null
+            ? "--"
+            : detailAssessment.passedInClass
+            ? "Đạt"
+            : "Chưa đạt",
+      });
+    }
+
+    if (detailAssessment.overallScore != null) {
+      rows.push({ label: "Overall", value: String(detailAssessment.overallScore) });
+    }
+
+    return rows;
+  }, [detailAssessment]);
 
   return (
     <div className="space-y-4">
@@ -875,7 +1172,7 @@ export default function ProgramProgressionAssessmentsPanel({
         >
           <div className="flex items-center justify-between">
             <h3 className={isStudentView ? "text-sm font-semibold text-white" : "text-sm font-semibold text-gray-900"}>
-              Danh sách đánh giá
+              Danh sách kiểm tra
             </h3>
             {!isLoading && (
               <span className={isStudentView ? "text-xs text-indigo-100" : "text-xs text-gray-500"}>
@@ -988,6 +1285,14 @@ export default function ProgramProgressionAssessmentsPanel({
 
                           <td className="min-w-55 px-6 py-4 align-top">
                             <div className="flex flex-wrap items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => openDetail(item)}
+                                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-700"
+                              >
+                                <Eye size={12} /> Chi tiết
+                              </button>
+
                               {canEdit && (
                                 <button
                                   type="button"
@@ -1061,81 +1366,151 @@ export default function ProgramProgressionAssessmentsPanel({
             <div className="max-h-[70vh] space-y-4 overflow-y-auto p-4">
               <div className="grid gap-3 md:grid-cols-2">
                 <div>
-                  <label className="mb-1 block text-xs text-gray-600">Nguồn từ đăng ký</label>
+                  <label className="mb-1 block text-xs text-gray-600">Phương pháp nhập điểm</label>
                   <Select
-                    value={form.sourceRegistrationId || SOURCE_REGISTRATION_NONE}
-                    onValueChange={(value) =>
+                    value={assessmentInputMode}
+                    onValueChange={(value) => {
+                      const nextMode = value as AssessmentInputMode;
+                      setAssessmentInputMode(nextMode);
+
                       setForm((prev) => ({
                         ...prev,
-                        sourceRegistrationId:
-                          value === SOURCE_REGISTRATION_NONE ? "" : value,
-                      }))
-                    }
-                    searchPlaceholder="Tìm theo tên học sinh..."
-                    emptyText="Không tìm thấy đăng ký phù hợp."
+                        passedInClass: nextMode === "PassFail" ? prev.passedInClass : "",
+                        listeningScore: nextMode === "PassFail" ? "" : prev.listeningScore,
+                        speakingScore: nextMode === "PassFail" ? "" : prev.speakingScore,
+                        readingWritingScore:
+                          nextMode === "CambridgeScale" || nextMode === "PassFail"
+                            ? ""
+                            : prev.readingWritingScore,
+                        readingScore:
+                          nextMode === "Shields" || nextMode === "PassFail"
+                            ? ""
+                            : prev.readingScore,
+                        writingScore:
+                          nextMode === "Shields" || nextMode === "PassFail"
+                            ? ""
+                            : prev.writingScore,
+                      }));
+                    }}
+                    searchPlaceholder="Chọn phương pháp..."
+                    emptyText="Không có phương pháp phù hợp."
                   >
                     <SelectTrigger className="w-full rounded-xl border border-red-200 bg-white text-sm text-gray-700 data-[state=open]:border-red-300 data-[state=open]:ring-2 data-[state=open]:ring-red-100">
-                      <SelectValue
-                        placeholder={
-                          isLoadingSourceOptions
-                            ? "Đang tải danh sách..."
-                            : "Chọn đăng ký theo tên học sinh"
-                        }
-                      />
+                      <SelectValue placeholder="Chọn phương pháp nhập điểm" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={SOURCE_REGISTRATION_NONE}>Không chọn</SelectItem>
-                      {sourceRegistrationOptions.map((option) => (
-                        <SelectItem key={option.id} value={option.id}>
-                          <div className="flex flex-col">
-                            <span>{option.name}</span>
-                            {option.subtitle && (
-                              <span className="text-[11px] text-gray-500">{option.subtitle}</span>
-                            )}
-                          </div>
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="auto">Tự động theo quy tắc</SelectItem>
+                      <SelectItem value="Shields">Khiên</SelectItem>
+                      <SelectItem value="CambridgeScale">Cambridge</SelectItem>
+                      <SelectItem value="PassFail">Đạt / Chưa đạt</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="mt-1 text-[11px] text-gray-500">
+                    {effectiveMethod
+                      ? `Đang nhập theo: ${methodLabel(effectiveMethod)}`
+                      : "Chưa xác định phương pháp, chọn tạm để nhập điểm nhanh."}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs text-gray-600">Loại nguồn đánh giá</label>
+                  <Select
+                    value={assessmentSourceType}
+                    onValueChange={(value) =>
+                      setAssessmentSourceType(value as AssessmentSourceType)
+                    }
+                    searchPlaceholder="Chọn loại nguồn..."
+                    emptyText="Không có loại nguồn phù hợp."
+                  >
+                    <SelectTrigger className="w-full rounded-xl border border-red-200 bg-white text-sm text-gray-700 data-[state=open]:border-red-300 data-[state=open]:ring-2 data-[state=open]:ring-red-100">
+                      <SelectValue placeholder="Chọn loại nguồn đánh giá" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="registration">Từ đăng ký</SelectItem>
+                      <SelectItem value="schedule">Từ lịch kiểm tra</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-xs text-gray-600">Nguồn từ lịch đánh giá</label>
-                  <Select
-                    value={form.scheduleParticipantId || SCHEDULE_PARTICIPANT_NONE}
-                    onValueChange={(value) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        scheduleParticipantId:
-                          value === SCHEDULE_PARTICIPANT_NONE ? "" : value,
-                      }))
-                    }
-                    searchPlaceholder="Tìm theo tên học sinh hoặc lịch..."
-                    emptyText="Không tìm thấy thành viên phù hợp."
-                  >
-                    <SelectTrigger className="w-full rounded-xl border border-red-200 bg-white text-sm text-gray-700 data-[state=open]:border-red-300 data-[state=open]:ring-2 data-[state=open]:ring-red-100">
-                      <SelectValue
-                        placeholder={
-                          isLoadingSourceOptions
-                            ? "Đang tải danh sách..."
-                            : "Chọn thành viên lịch theo tên học sinh"
-                        }
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={SCHEDULE_PARTICIPANT_NONE}>Không chọn</SelectItem>
-                      {scheduleParticipantOptions.map((option) => (
-                        <SelectItem key={option.id} value={option.id}>
-                          <div className="flex flex-col">
-                            <span>{option.name}</span>
-                            {option.subtitle && (
-                              <span className="text-[11px] text-gray-500">{option.subtitle}</span>
-                            )}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <label className="mb-1 block text-xs text-gray-600">
+                    {assessmentSourceType === "registration"
+                      ? "Nguồn từ đăng ký"
+                      : "Nguồn từ lịch kiểm tra"}
+                  </label>
+                  {assessmentSourceType === "registration" ? (
+                    <Select
+                      value={form.sourceRegistrationId || SOURCE_REGISTRATION_NONE}
+                      onValueChange={(value) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          sourceRegistrationId: value === SOURCE_REGISTRATION_NONE ? "" : value,
+                          scheduleParticipantId: "",
+                        }))
+                      }
+                      searchPlaceholder="Tìm theo tên học sinh..."
+                      emptyText="Không tìm thấy đăng ký phù hợp."
+                    >
+                      <SelectTrigger className="w-full rounded-xl border border-red-200 bg-white text-sm text-gray-700 data-[state=open]:border-red-300 data-[state=open]:ring-2 data-[state=open]:ring-red-100">
+                        <SelectValue
+                          placeholder={
+                            isLoadingSourceOptions
+                              ? "Đang tải danh sách..."
+                              : "Chọn đăng ký theo tên học sinh"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={SOURCE_REGISTRATION_NONE}>Không chọn</SelectItem>
+                        {sourceRegistrationOptions.map((option) => (
+                          <SelectItem key={option.id} value={option.id}>
+                            <div className="flex flex-col">
+                              <span>{option.name}</span>
+                              {option.subtitle && (
+                                <span className="text-[11px] text-gray-500">{option.subtitle}</span>
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Select
+                      value={form.scheduleParticipantId || SCHEDULE_PARTICIPANT_NONE}
+                      onValueChange={(value) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          scheduleParticipantId: value === SCHEDULE_PARTICIPANT_NONE ? "" : value,
+                          sourceRegistrationId: "",
+                        }))
+                      }
+                      searchPlaceholder="Tìm theo tên học sinh hoặc lịch..."
+                      emptyText="Không tìm thấy thành viên phù hợp."
+                    >
+                      <SelectTrigger className="w-full rounded-xl border border-red-200 bg-white text-sm text-gray-700 data-[state=open]:border-red-300 data-[state=open]:ring-2 data-[state=open]:ring-red-100">
+                        <SelectValue
+                          placeholder={
+                            isLoadingSourceOptions
+                              ? "Đang tải danh sách..."
+                              : "Chọn thành viên lịch theo tên học sinh"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={SCHEDULE_PARTICIPANT_NONE}>Không chọn</SelectItem>
+                        {scheduleParticipantOptions.map((option) => (
+                          <SelectItem key={option.id} value={option.id}>
+                            <div className="flex flex-col">
+                              <span>{option.name}</span>
+                              {option.subtitle && (
+                                <span className="text-[11px] text-gray-500">{option.subtitle}</span>
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
 
                 <div>
@@ -1173,51 +1548,221 @@ export default function ProgramProgressionAssessmentsPanel({
                 </div>
               </div>
 
-              <div className="grid gap-3 md:grid-cols-3">
-                <div>
-                  <label className="mb-1 block text-xs text-gray-600">Điểm nghe</label>
-                  <input
-                    value={form.listeningScore}
-                    onChange={(event) => setForm((prev) => ({ ...prev, listeningScore: event.target.value }))}
-                    className="w-full rounded-xl border border-red-200 px-3 py-2 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs text-gray-600">Điểm nói</label>
-                  <input
-                    value={form.speakingScore}
-                    onChange={(event) => setForm((prev) => ({ ...prev, speakingScore: event.target.value }))}
-                    className="w-full rounded-xl border border-red-200 px-3 py-2 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs text-gray-600">Điểm đọc + viết</label>
-                  <input
-                    value={form.readingWritingScore}
-                    onChange={(event) =>
-                      setForm((prev) => ({ ...prev, readingWritingScore: event.target.value }))
-                    }
-                    className="w-full rounded-xl border border-red-200 px-3 py-2 text-sm"
-                  />
-                </div>
+              {effectiveMethod === "Shields" && (
+                <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50/40 p-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                    <div className="text-xs font-semibold text-amber-800">Hướng dẫn nhập điểm Khiên</div>
+                    <div className="w-full sm:w-56">
+                      <label className="mb-1 block text-[11px] text-gray-600">Format bài thi Khiên</label>
+                      <Select
+                        value={shieldExamVariant}
+                        onValueChange={(value) => setShieldExamVariant(value as ShieldExamVariant)}
+                        searchPlaceholder="Chọn format..."
+                        emptyText="Không có format phù hợp."
+                      >
+                        <SelectTrigger className="h-9 w-full rounded-lg border border-amber-200 bg-white text-xs text-gray-700">
+                          <SelectValue placeholder="Chọn format khiên" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Starters">Starters</SelectItem>
+                          <SelectItem value="Movers">Movers</SelectItem>
+                          <SelectItem value="Flyers">Flyers</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
 
-                <div>
-                  <label className="mb-1 block text-xs text-gray-600">Điểm đọc</label>
-                  <input
-                    value={form.readingScore}
-                    onChange={(event) => setForm((prev) => ({ ...prev, readingScore: event.target.value }))}
-                    className="w-full rounded-xl border border-red-200 px-3 py-2 text-sm"
-                  />
+                  <div className="grid gap-2 text-[11px] text-gray-700 md:grid-cols-2">
+                    <div className="rounded-lg border border-amber-200 bg-white p-2">
+                      {shieldExamVariant === "Starters" &&
+                        "Reading & Writing: 25 câu, mỗi câu đúng 1 điểm (tối đa 25)"}
+                      {shieldExamVariant === "Movers" &&
+                        "Reading & Writing (35 câu): Part 1-5 mỗi câu 1 điểm; Part 6 có trọng số (câu 1-2: 1 điểm, câu 3-6: 2 điểm), tổng tối đa 39"}
+                      {shieldExamVariant === "Flyers" &&
+                        "Reading & Writing (44 câu): Part 1-6 mỗi câu đúng 1 điểm; Part 7 tối đa 5 điểm (tổng tối đa 48)"}
+                    </div>
+                    <div className="rounded-lg border border-amber-200 bg-white p-2">
+                      {shieldExamVariant === "Starters"
+                        ? "Listening: 20 câu, mỗi câu đúng 1 điểm (tối đa 20)"
+                        : "Listening: 25 câu, mỗi câu đúng 1 điểm (tối đa 25)"}
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-amber-200 bg-white p-2 text-[11px] text-gray-700">
+                    <div className="font-semibold text-gray-800">Speaking (0-5 theo từng tiêu chí)</div>
+                    <ul className="mt-1 list-disc pl-4">
+                      {shieldExamVariant === "Starters" ? (
+                        <>
+                          <li>Từ vựng</li>
+                          <li>Phát âm</li>
+                          <li>Khả năng tương tác</li>
+                        </>
+                      ) : (
+                        <>
+                          <li>Từ vựng và ngữ pháp</li>
+                          <li>Phát âm</li>
+                          <li>Khả năng tương tác</li>
+                        </>
+                      )}
+                    </ul>
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <div>
+                      <label className="mb-1 block text-xs text-gray-600">Khiên nghe (0-5)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={5}
+                        step={1}
+                        value={form.listeningScore}
+                        onChange={(event) => setForm((prev) => ({ ...prev, listeningScore: event.target.value }))}
+                        className="w-full rounded-xl border border-red-200 px-3 py-2 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs text-gray-600">Khiên nói (0-5)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={5}
+                        step={1}
+                        value={form.speakingScore}
+                        onChange={(event) => setForm((prev) => ({ ...prev, speakingScore: event.target.value }))}
+                        className="w-full rounded-xl border border-red-200 px-3 py-2 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs text-gray-600">Khiên đọc - viết (0-5)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={5}
+                        step={1}
+                        value={form.readingWritingScore}
+                        onChange={(event) =>
+                          setForm((prev) => ({ ...prev, readingWritingScore: event.target.value }))
+                        }
+                        className="w-full rounded-xl border border-red-200 px-3 py-2 text-sm"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="mb-1 block text-xs text-gray-600">Điểm viết</label>
-                  <input
-                    value={form.writingScore}
-                    onChange={(event) => setForm((prev) => ({ ...prev, writingScore: event.target.value }))}
-                    className="w-full rounded-xl border border-red-200 px-3 py-2 text-sm"
-                  />
+              )}
+
+              {effectiveMethod === "CambridgeScale" && (
+                <div className="space-y-3 rounded-xl border border-blue-200 bg-blue-50/40 p-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                    <div className="text-xs font-semibold text-blue-800">Hướng dẫn quy đổi Cambridge</div>
+                    <div className="w-full sm:w-56">
+                      <label className="mb-1 block text-[11px] text-gray-600">Format Cambridge</label>
+                      <Select
+                        value={cambridgeExamVariant}
+                        onValueChange={(value) => setCambridgeExamVariant(value as CambridgeExamVariant)}
+                        searchPlaceholder="Chọn format..."
+                        emptyText="Không có format phù hợp."
+                      >
+                        <SelectTrigger className="h-9 w-full rounded-lg border border-blue-200 bg-white text-xs text-gray-700">
+                          <SelectValue placeholder="Chọn format Cambridge" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="KET">KET</SelectItem>
+                          <SelectItem value="PET">PET</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-4">
+                    <div>
+                      <label className="mb-1 block text-xs text-gray-600">Listening (0-{cambridgeRawMax.listening})</label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={cambridgeRawMax.listening}
+                        value={form.listeningScore}
+                        onChange={(event) => setForm((prev) => ({ ...prev, listeningScore: event.target.value }))}
+                        className="w-full rounded-xl border border-red-200 px-3 py-2 text-sm"
+                      />
+                      <div className="mt-1 text-[11px] text-gray-600">
+                        Scale: {cambridgePreview.listening?.scaleScore ?? "--"} | CEFR: {cambridgePreview.listening?.cefrLevel ?? "--"}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs text-gray-600">Speaking (0-{cambridgeRawMax.speaking})</label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={cambridgeRawMax.speaking}
+                        value={form.speakingScore}
+                        onChange={(event) => setForm((prev) => ({ ...prev, speakingScore: event.target.value }))}
+                        className="w-full rounded-xl border border-red-200 px-3 py-2 text-sm"
+                      />
+                      <div className="mt-1 text-[11px] text-gray-600">
+                        Scale: {cambridgePreview.speaking?.scaleScore ?? "--"} | CEFR: {cambridgePreview.speaking?.cefrLevel ?? "--"}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs text-gray-600">Reading (0-{cambridgeRawMax.reading})</label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={cambridgeRawMax.reading}
+                        value={form.readingScore}
+                        onChange={(event) => setForm((prev) => ({ ...prev, readingScore: event.target.value }))}
+                        className="w-full rounded-xl border border-red-200 px-3 py-2 text-sm"
+                      />
+                      <div className="mt-1 text-[11px] text-gray-600">
+                        Scale: {cambridgePreview.reading?.scaleScore ?? "--"} | CEFR: {cambridgePreview.reading?.cefrLevel ?? "--"}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs text-gray-600">Writing (0-{cambridgeRawMax.writing})</label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={cambridgeRawMax.writing}
+                        value={form.writingScore}
+                        onChange={(event) => setForm((prev) => ({ ...prev, writingScore: event.target.value }))}
+                        className="w-full rounded-xl border border-red-200 px-3 py-2 text-sm"
+                      />
+                      <div className="mt-1 text-[11px] text-gray-600">
+                        Scale: {cambridgePreview.writing?.scaleScore ?? "--"} | CEFR: {cambridgePreview.writing?.cefrLevel ?? "--"}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-blue-200 bg-white p-2 text-[11px] text-gray-700">
+                    {cambridgeExamVariant === "PET" ? (
+                      <>
+                        <div className="font-semibold text-gray-800">Xếp loại chứng chỉ PET (Scale score)</div>
+                        <ul className="mt-1 list-disc pl-4">
+                          <li>120-139: Trình độ A2</li>
+                          <li>140-152 (Hạng C - Pass): Trình độ B1</li>
+                          <li>153-159 (Hạng B - Merit): Trình độ B1</li>
+                          <li>160-170 (Hạng A - Distinction): Trình độ B2</li>
+                        </ul>
+                      </>
+                    ) : (
+                      <>
+                        <div className="font-semibold text-gray-800">Xếp loại chứng chỉ KET (Scale score)</div>
+                        <ul className="mt-1 list-disc pl-4">
+                          <li>100-119: Trình độ A1</li>
+                          <li>120-132 (Hạng C - Pass): Trình độ A2</li>
+                          <li>133-139 (Hạng B - Merit): Trình độ A2</li>
+                          <li>140-150 (Hạng A - Distinction): Trình độ B1</li>
+                        </ul>
+                      </>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {(effectiveMethod === "PassFail" || !effectiveMethod) && (
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600">
+                  Chế độ Đạt / Chưa đạt: chỉ cần chọn Kết quả tại lớp. Các ô điểm chi tiết có thể để trống.
+                </div>
+              )}
 
               <div>
                 <label className="mb-1 block text-xs text-gray-600">Nhận xét</label>
@@ -1318,6 +1863,106 @@ export default function ProgramProgressionAssessmentsPanel({
         variant="info"
         isLoading={isApprovingAssessment}
       />
+
+      {detailAssessment && (
+        <div
+          className="fixed inset-0 z-100 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setDetailAssessment(null)}
+        >
+          <div
+            className="w-full max-w-3xl overflow-hidden rounded-2xl border border-red-200 bg-white shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="bg-linear-to-r from-red-600 to-red-700 p-4 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-bold">Chi tiết kiểm tra</h3>
+                  <p className="text-xs text-red-100">
+                    {detailAssessment.studentName || detailAssessment.studentProfileId}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDetailAssessment(null)}
+                  className="rounded-full p-1 hover:bg-white/20"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            <div className="max-h-[70vh] space-y-4 overflow-y-auto p-4 text-sm">
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                  <div className="text-xs text-gray-500">Phương pháp</div>
+                  <div className="mt-1 font-semibold text-gray-900">{methodLabel(detailAssessment.method)}</div>
+                </div>
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                  <div className="text-xs text-gray-500">Ngày đánh giá</div>
+                  <div className="mt-1 font-semibold text-gray-900">
+                    {detailAssessment.assessmentDate
+                      ? new Date(detailAssessment.assessmentDate).toLocaleString("vi-VN")
+                      : "--"}
+                  </div>
+                </div>
+                {detailSourceInfo && (
+                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                    <div className="text-xs text-gray-500">{detailSourceInfo.label}</div>
+                    <div className="mt-1 font-semibold text-gray-900">{detailSourceInfo.value}</div>
+                  </div>
+                )}
+              </div>
+
+              {detailScoreRows.length > 0 && (
+                <div className="rounded-xl border border-red-100 bg-red-50/30 p-3">
+                  <div className="mb-2 text-xs font-semibold text-red-700">Điểm thành phần</div>
+                  <div className="grid gap-2 text-sm text-gray-700 md:grid-cols-2">
+                    {detailScoreRows.map((row) => (
+                      <div key={`detail-score-${row.label}`}>
+                        {row.label}: {row.value}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                  <div className="text-xs text-gray-500">Trạng thái</div>
+                  <div className="mt-1 font-semibold text-gray-900">{assessmentStatusLabel(detailAssessment.status)}</div>
+                </div>
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                  <div className="text-xs text-gray-500">Điều kiện chuyển chương trình</div>
+                  <div className="mt-1 font-semibold text-gray-900">
+                    {detailAssessment.isEligible == null
+                      ? "--"
+                      : detailAssessment.isEligible
+                      ? "Đủ điều kiện"
+                      : "Chưa đủ điều kiện"}
+                  </div>
+                </div>
+              </div>
+
+              {detailAssessment.comment && (
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                  <div className="text-xs text-gray-500">Nhận xét</div>
+                  <div className="mt-1 whitespace-pre-wrap text-gray-800">{detailAssessment.comment}</div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end border-t border-gray-200 bg-gray-50 p-4">
+              <button
+                type="button"
+                onClick={() => setDetailAssessment(null)}
+                className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ConfirmModal
         isOpen={isBulkApproveModalOpen}
