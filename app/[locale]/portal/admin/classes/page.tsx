@@ -632,23 +632,39 @@ function TimePicker({
   onChange: (value: string) => void; 
   label: string;
 }) {
-  const [hours, setHours] = useState(() => {
-    const [h] = value.split(':').map(Number);
-    return isNaN(h) ? 18 : h;
-  });
-  const [minutes, setMinutes] = useState(() => {
-    const [, m] = value.split(':').map(Number);
-    return isNaN(m) ? 0 : m;
-  });
+  const normalizedValue = (() => {
+    const match = String(value || "").trim().match(/^(\d{1,2}):(\d{1,2})$/);
+    if (!match) return "18:00";
+    const hour = Math.min(23, Math.max(0, Number(match[1]) || 0));
+    const minute = Math.min(59, Math.max(0, Number(match[2]) || 0));
+    return `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
+  })();
 
-  useEffect(() => {
-    onChange(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`);
-  }, [hours, minutes, onChange]);
+  const [rawHour, rawMinute] = normalizedValue.split(":");
+  const parsedHour = Number(rawHour);
+  const parsedMinute = Number(rawMinute);
+  const hours = Number.isFinite(parsedHour) ? ((parsedHour % 24) + 24) % 24 : 18;
+  const minutes = Number.isFinite(parsedMinute) ? ((parsedMinute % 60) + 60) % 60 : 0;
+  const minuteStep = 5;
 
-  const incrementHours = () => setHours(prev => (prev + 1) % 24);
-  const decrementHours = () => setHours(prev => (prev - 1 + 24) % 24);
-  const incrementMinutes = () => setMinutes(prev => (prev + 1) % 60);
-  const decrementMinutes = () => setMinutes(prev => (prev - 1 + 60) % 60);
+  const updateTime = (nextHours: number, nextMinutes: number) => {
+    const normalizedHours = ((nextHours % 24) + 24) % 24;
+    const normalizedMinutes = ((nextMinutes % 60) + 60) % 60;
+    onChange(`${normalizedHours.toString().padStart(2, "0")}:${normalizedMinutes.toString().padStart(2, "0")}`);
+  };
+
+  const handleManualInput = (nextValue: string) => {
+    const match = String(nextValue || "").trim().match(/^(\d{1,2}):(\d{1,2})$/);
+    if (!match) return;
+    const hour = Math.min(23, Math.max(0, Number(match[1]) || 0));
+    const minute = Math.min(59, Math.max(0, Number(match[2]) || 0));
+    onChange(`${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`);
+  };
+
+  const incrementHours = () => updateTime(hours + 1, minutes);
+  const decrementHours = () => updateTime(hours - 1, minutes);
+  const incrementMinutes = () => updateTime(hours, minutes + minuteStep);
+  const decrementMinutes = () => updateTime(hours, minutes - minuteStep);
 
   return (
     <div className="space-y-1">
@@ -697,6 +713,17 @@ function TimePicker({
             ▼
           </button>
         </div>
+      </div>
+
+      <div className="mt-2">
+        <input
+          type="time"
+          value={normalizedValue}
+          step={300}
+          onChange={(e) => handleManualInput(e.target.value)}
+          className="w-full h-9 rounded-lg border border-gray-200 bg-white px-2 text-sm text-gray-700"
+        />
+        <p className="mt-1 text-[11px] text-gray-500">Nhập trực tiếp hoặc dùng nút tăng/giảm (bước 5 phút).</p>
       </div>
     </div>
   );
@@ -2966,6 +2993,13 @@ function CreateClassModal({
                                   onChange={(e) => {
                                     const next = e.target.value;
                                     if (next === "custom") {
+                                      setDaySchedules((prev) => {
+                                        if (prev[day]) return prev;
+                                        return {
+                                          ...prev,
+                                          [day]: slot,
+                                        };
+                                      });
                                       setDayScheduleMode((prev) => ({
                                         ...prev,
                                         [day]: "custom",
@@ -3002,7 +3036,7 @@ function CreateClassModal({
                                     setDaySchedules((prev) => ({
                                       ...prev,
                                       [day]: {
-                                        ...slot,
+                                        ...(prev[day] || slot),
                                         startTime: value,
                                       },
                                     }));
@@ -3019,7 +3053,7 @@ function CreateClassModal({
                                     setDaySchedules((prev) => ({
                                       ...prev,
                                       [day]: {
-                                        ...slot,
+                                        ...(prev[day] || slot),
                                         endTime: value,
                                       },
                                     }));
