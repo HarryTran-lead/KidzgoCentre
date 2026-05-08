@@ -360,6 +360,7 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
   const [month, setMonth] = useState(initialMonth ?? new Date().getMonth() + 1);
   const [year, setYear] = useState(initialYear ?? new Date().getFullYear());
   const [branchId, setBranchId] = useState("");
+  const [hasForcedBranch, setHasForcedBranch] = useState(false); // Track if branchId came from staff's account
   const [activeReportId, setActiveReportId] = useState<string | null>(null);
   const [classQuery, setClassQuery] = useState("");
   const [selectedClassId, setSelectedClassId] = useState<string | null>(initialClassId ?? null);
@@ -442,9 +443,45 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
     if (activeTab === "manage-tools") setShowManageTools(true);
   }, [activeTab]);
 
+  // Fetch staff's branchId from /api/auth/me (priority over localStorage)
   useEffect(() => {
     if (!canManage || typeof window === "undefined") return;
-    if (branchId) return;
+    
+    let alive = true;
+
+    (async () => {
+      try {
+        const userInfo = await apiFetch<{ 
+          branchId?: string; 
+          branch?: { id: string }; 
+          user?: { branchId?: string }; 
+        }>("/api/auth/me");
+        
+        if (!alive) return;
+
+        // Extract branchId from various possible response formats
+        const staffBranchId = userInfo?.branchId 
+          || userInfo?.branch?.id 
+          || userInfo?.user?.branchId;
+
+        if (staffBranchId && staffBranchId.trim()) {
+          // Staff have assigned branch → use it (don't rely on localStorage)
+          setBranchId(staffBranchId.trim());
+          setHasForcedBranch(true); // Mark that this branch was forced from staff account
+        }
+      } catch {
+        // Silently ignore fetch errors, fall through to localStorage logic
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [canManage]);
+
+  useEffect(() => {
+    if (!canManage || typeof window === "undefined") return;
+    if (branchId) return; // Skip if already set by auth/me
     const selectedBranchId = localStorage.getItem("kidzgo_selected_branch_id");
     if (selectedBranchId && selectedBranchId !== "all") {
       setBranchId(selectedBranchId);
@@ -1668,7 +1705,7 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">
                 <Building2 size={12} className="inline mr-1" />
-                Chi nhánh
+                Chi nhánh {hasForcedBranch && <span className="text-gray-400">(được gán cố định)</span>}
               </label>
               <Select
                 value={branchId || ""}
@@ -1679,7 +1716,7 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
                     setBranchId(val);
                   }
                 }}
-                disabled={branchesLoading}
+                disabled={branchesLoading || hasForcedBranch}
               >
                 <SelectTrigger className="w-full rounded-lg border border-gray-200 bg-white text-sm text-gray-700 focus:ring-2 focus:ring-red-200">
                   <SelectValue placeholder={branchesLoading ? "Đang tải..." : "Chọn chi nhánh"} />

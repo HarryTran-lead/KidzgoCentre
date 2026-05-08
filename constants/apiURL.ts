@@ -1,5 +1,13 @@
-// Base URL from environment variable
-export const BASE_URL = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
+// Prefer public env for browser/runtime parity.
+// On server, fallback to BACKEND_API_BASE_URL (and a final hard fallback)
+// so Next API routes still work when NEXT_PUBLIC_API_URL is missing in deployment.
+const PUBLIC_API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
+const SERVER_API_FALLBACK = (
+  process.env.BACKEND_API_BASE_URL ?? "http://103.146.22.206:5000/api"
+).replace(/\/$/, "");
+
+export const BASE_URL =
+  PUBLIC_API_URL || (typeof window === "undefined" ? SERVER_API_FALLBACK : "");
 
 // (Optional) root base nếu BASE_URL đang là .../api
 const ROOT_BASE_URL = BASE_URL.replace(/\/api\/?$/, "");
