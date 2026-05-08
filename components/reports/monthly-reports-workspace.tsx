@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   AlertCircle,
@@ -215,6 +215,79 @@ function formatDateTime(value?: string) {
   return date.toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" });
 }
 
+function pickStringValue(source: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const value = source[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return "";
+}
+
+function pickNumberValue(source: Record<string, unknown>, keys: string[], fallback = 0) {
+  for (const key of keys) {
+    const value = source[key];
+    const parsed = typeof value === "number" ? value : Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return fallback;
+}
+
+function normalizeMonthlyComment(raw: unknown): MonthlyComment {
+  const source = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
+  return {
+    id: pickStringValue(source, ["id", "Id", "commentId", "CommentId"]),
+    content: pickStringValue(source, ["content", "Content", "message", "Message"]),
+    createdAt: pickStringValue(source, ["createdAt", "CreatedAt"]),
+    authorName: pickStringValue(source, ["authorName", "AuthorName"]),
+    commenterName: pickStringValue(source, ["commenterName", "CommenterName"]),
+  };
+}
+
+function normalizeMonthlyReport(raw: unknown): MonthlyReport {
+  const source = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
+  const teacherObject = source.teacher && typeof source.teacher === "object"
+    ? source.teacher as Record<string, unknown>
+    : {};
+  const teacherName = pickStringValue(source, [
+    "teacherName",
+    "TeacherName",
+    "assignedTeacherName",
+    "AssignedTeacherName",
+    "teacherFullName",
+    "TeacherFullName",
+    "mainTeacherName",
+    "MainTeacherName",
+  ]) || pickStringValue(teacherObject, ["name", "fullName", "teacherName"]);
+
+  const commentsRaw = Array.isArray(source.comments)
+    ? source.comments
+    : Array.isArray(source.Comments)
+      ? source.Comments
+      : [];
+
+  return {
+    id: pickStringValue(source, ["id", "Id", "reportId", "ReportId"]),
+    studentProfileId: pickStringValue(source, ["studentProfileId", "StudentProfileId"]),
+    studentName: pickStringValue(source, ["studentName", "StudentName", "studentFullName", "StudentFullName"]),
+    teacherName,
+    classId: pickStringValue(source, ["classId", "ClassId"]),
+    className: pickStringValue(source, ["className", "ClassName"]),
+    jobId: pickStringValue(source, ["jobId", "JobId"]),
+    status: pickStringValue(source, ["status", "Status"]),
+    month: pickNumberValue(source, ["month", "Month"]),
+    year: pickNumberValue(source, ["year", "Year"]),
+    draftContent: pickStringValue(source, ["draftContent", "DraftContent", "draft_text", "draftText"]),
+    finalContent: pickStringValue(source, ["finalContent", "FinalContent"]),
+    pdfUrl: pickStringValue(source, ["pdfUrl", "PdfUrl"]),
+    pdfGeneratedAt: pickStringValue(source, ["pdfGeneratedAt", "PdfGeneratedAt"]),
+    programId: pickStringValue(source, ["programId", "ProgramId"]),
+    programName: pickStringValue(source, ["programName", "ProgramName"]),
+    topicsData: pickStringValue(source, ["topicsData", "TopicsData"]),
+    comments: commentsRaw.map(normalizeMonthlyComment),
+    updatedAt: pickStringValue(source, ["updatedAt", "UpdatedAt"]),
+  };
+}
+
 async function apiFetch<T = unknown>(url: string, init?: RequestInit): Promise<T> {
   const token = getToken();
   const response = await fetch(url, {
@@ -229,7 +302,7 @@ async function apiFetch<T = unknown>(url: string, init?: RequestInit): Promise<T
   });
 
   const text = await response.text();
-  let payload: any = {};
+  let payload: { message?: string; data?: T } & Record<string, unknown> = {};
   if (text) {
     try {
       payload = JSON.parse(text);
@@ -457,14 +530,15 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
 
       const jobItems = getPaginatedItems<MonthlyJob>(jobResult, "jobs");
       const reportItems = reportResult;
+      const normalizedReports = reportItems.map(normalizeMonthlyReport);
       const scopedReports =
         canManage && branchId
           ? (() => {
             const jobIdSet = new Set(jobItems.map((job) => job.id));
             if (!jobIdSet.size) return [];
-            return reportItems.filter((report) => report.jobId && jobIdSet.has(report.jobId));
+            return normalizedReports.filter((report) => report.jobId && jobIdSet.has(report.jobId));
           })()
-          : reportItems;
+          : normalizedReports;
 
       setJobs(jobItems);
       setReports(scopedReports);
@@ -478,7 +552,7 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
   const refreshActiveReportDetail = useCallback(async () => {
     if (!activeReportId) return;
     try {
-      const detail = await apiFetch<MonthlyReport>(`/api/monthly-reports/${activeReportId}`);
+      const detail = normalizeMonthlyReport(await apiFetch<MonthlyReport>(`/api/monthly-reports/${activeReportId}`));
       setActiveReportDetail(detail ?? null);
       setDraftInput(normalizeDraftContent(detail?.draftContent));
     } catch {
@@ -989,7 +1063,7 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
   }, [isTeacher, selectedClassId]);
 
   useEffect(() => {
-    if (!isTeacher) return;
+    if (isViewer) return;
 
     if (!selectedStudentId || !selectedClassId) {
       setSessionReports([]);
@@ -1047,7 +1121,7 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
     return () => {
       alive = false;
     };
-  }, [isTeacher, month, selectedClassId, selectedStudentId, year]);
+  }, [isViewer, month, selectedClassId, selectedStudentId, year]);
 
   useEffect(() => {
     if (!isTeacher) return;
@@ -1071,8 +1145,9 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
         const items = getPaginatedItems<MonthlyReport>(result, "reports");
         if (!items.length) continue;
 
+        const normalizedItems = items.map(normalizeMonthlyReport);
         const matched =
-          items.find(
+          normalizedItems.find(
             (item) =>
               item.studentProfileId === selectedStudentId &&
               item.classId === selectedClassId,
@@ -1113,8 +1188,9 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
     apiFetch<MonthlyReport>(`/api/monthly-reports/${activeReportId}`)
       .then((detail) => {
         if (!alive) return;
-        setActiveReportDetail(detail ?? null);
-        setDraftInput(normalizeDraftContent(detail?.draftContent));
+        const normalizedDetail = normalizeMonthlyReport(detail);
+        setActiveReportDetail(normalizedDetail ?? null);
+        setDraftInput(normalizeDraftContent(normalizedDetail?.draftContent));
       })
       .catch((e: unknown) => {
         if (!alive) return;
@@ -1161,6 +1237,7 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
         if (!alive) return;
         const items: RecentCommentItem[] = details
           .filter((detail): detail is MonthlyReport => Boolean(detail))
+          .map((detail) => normalizeMonthlyReport(detail))
           .flatMap((detail) =>
             (detail.comments ?? []).map((comment) => ({
               id: comment.id,
@@ -1798,10 +1875,14 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
           setClassQuery={setClassQuery}
           selectedClassId={selectedClassId}
           selectedStudentId={selectedStudentId}
+          selectedStudentName={selectedStudentName}
           managementClasses={managementClasses}
           managementStudents={managementStudents}
           managementClassProgress={managementClassProgress}
           reports={reports}
+          sessionReports={sessionReports}
+          sessionsLoading={sessionsLoading}
+          sessionsError={sessionsError}
           bulkLoading={bulkLoading}
           setActiveTab={() => setActiveTab("reports")}
           syncScopeToReports={syncScopeToReports}

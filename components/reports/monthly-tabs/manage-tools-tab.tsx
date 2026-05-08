@@ -1,6 +1,7 @@
 "use client";
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
+import type { SessionReportItem } from "@/types/teacher/sessionReport";
 
 type ManagementClass = { id: string; name: string; reportCount: number };
 type ManagementStudent = { id: string; name: string; reportCount: number };
@@ -20,25 +21,40 @@ type Props = {
   setClassQuery: (value: string) => void;
   selectedClassId: string | null;
   selectedStudentId: string | null;
+  selectedStudentName: string;
   managementClasses: ManagementClass[];
   managementStudents: ManagementStudent[];
   managementClassProgress: ClassProgress[];
   reports: ReportLite[];
+  sessionReports: SessionReportItem[];
+  sessionsLoading: boolean;
+  sessionsError: string;
   bulkLoading: string;
   setActiveTab: (tab: "reports") => void;
   syncScopeToReports: (classId: string | null, studentId: string | null, openReports?: boolean) => void;
   runBulkAction: (action: "approve" | "publish", ids: string[]) => void;
 };
 
+function formatDateLabel(value?: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("sv-SE", { timeZone: "Asia/Ho_Chi_Minh" });
+}
+
 export default function ManageToolsTab({
   classQuery,
   setClassQuery,
   selectedClassId,
   selectedStudentId,
+  selectedStudentName,
   managementClasses,
   managementStudents,
   managementClassProgress,
   reports,
+  sessionReports,
+  sessionsLoading,
+  sessionsError,
   bulkLoading,
   setActiveTab,
   syncScopeToReports,
@@ -441,6 +457,57 @@ export default function ManageToolsTab({
             Áp dụng cho toàn bộ {reports.filter(r => r.classId === selectedClassId).length} báo cáo trong lớp
           </p>
         </div>
+      </div>
+
+      <div className="rounded-xl border border-red-100 bg-gradient-to-br from-white to-red-50 p-5 transition-all duration-500 hover:shadow-xl hover:shadow-red-200/40">
+        <div className="mb-3 flex items-center gap-2">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-red-500 to-rose-600 text-white">
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900">Session trong tháng</h3>
+            <p className="text-xs text-gray-500">Hiển thị các session report của học viên đã chọn trong tháng hiện tại.</p>
+          </div>
+        </div>
+
+        {!selectedStudentId ? (
+          <div className="rounded-lg border border-dashed border-red-200 bg-red-50/50 px-4 py-3 text-xs text-gray-600">
+            Chọn lớp và học viên để xem danh sách session trong tháng.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="rounded-lg border border-amber-200 bg-gradient-to-r from-amber-50 to-red-50 px-3 py-2 text-xs text-amber-800">
+              Đang xem: <strong>{selectedStudentName || "Học viên đã chọn"}</strong>
+            </div>
+            {sessionsLoading && <div className="rounded-lg border border-gray-200 bg-white px-4 py-3 text-xs text-gray-500">Đang tải session...</div>}
+            {sessionsError && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-600">{sessionsError}</div>}
+            {!sessionsLoading && !sessionsError && !sessionReports.length && (
+              <div className="rounded-lg border border-gray-200 bg-white px-4 py-3 text-xs text-gray-500">Chưa có session report trong tháng này.</div>
+            )}
+            <div className="max-h-72 space-y-2 overflow-auto">
+              {sessionReports.map((report) => (
+                <div key={report.id ?? report.sessionId} className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm transition-all hover:border-red-200 hover:bg-red-50/30">
+                  <div className="mb-1 flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-red-500"></div>
+                    <span className="text-xs font-semibold text-gray-800">
+                      {formatDateLabel(report.sessionDate || report.reportDate || report.createdAt) || "Buổi học"}
+                    </span>
+                  </div>
+                  {(report.sessionDate || report.createdAt) && (
+                    <div className="mb-1 pl-4 text-[10px] text-gray-500">
+                      {report.sessionDate && <span>Buổi học: {formatDateLabel(report.sessionDate)}</span>}
+                      {report.sessionDate && report.createdAt && <span> • </span>}
+                      {report.createdAt && <span>Tạo báo cáo: {formatDateLabel(report.createdAt)}</span>}
+                    </div>
+                  )}
+                  <p className="pl-4 text-xs leading-relaxed text-gray-600">{report.feedback || "Chưa có nhận xét."}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

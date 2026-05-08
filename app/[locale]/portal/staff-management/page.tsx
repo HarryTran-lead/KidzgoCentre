@@ -131,7 +131,7 @@ type StaffDashboardApiPayload = {
     openTickets?: number;
   };
   recentLeads?: Array<{ createdAt?: string }>;
-  upcomingSessions?: Array<{ plannedDatetime?: string }>;
+  upcomingSessions?: Array<Record<string, unknown>>;
   openTickets?: Array<{ priority?: string }>;
 };
 
@@ -163,6 +163,30 @@ function normalizeTicketPriority(priority?: string): string {
   return "Khác";
 }
 
+function getCurrentWeekRange(reference = new Date()) {
+  const start = new Date(reference);
+  const day = (start.getDay() + 6) % 7; // Monday as week start
+  start.setDate(start.getDate() - day);
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  end.setHours(23, 59, 59, 999);
+
+  return { start, end };
+}
+
+function filterSessionsInCurrentWeek(sessions: StaffDashboardApiPayload["upcomingSessions"]) {
+  const { start, end } = getCurrentWeekRange();
+  return (sessions ?? []).filter((session) => {
+    const dateValue = getSessionDatetime(session);
+    if (!dateValue) return false;
+    const date = new Date(dateValue);
+    if (Number.isNaN(date.getTime())) return false;
+    return date >= start && date <= end;
+  });
+}
+
 function buildLeadGrowthData(recentLeads: StaffDashboardApiPayload["recentLeads"]) {
   const buckets = new Map<string, number>();
   (recentLeads ?? []).forEach((lead) => {
@@ -181,10 +205,27 @@ function buildLeadGrowthData(recentLeads: StaffDashboardApiPayload["recentLeads"
   }));
 }
 
+function getSessionDatetime(session: Record<string, unknown> | undefined): string {
+  if (!session) return "";
+  const keys = [
+    "plannedDatetime",
+    "plannedDateTime",
+    "scheduledAt",
+    "sessionDate",
+    "startAt",
+    "startsAt",
+  ];
+  for (const key of keys) {
+    const value = session[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return "";
+}
+
 function buildClassOpsData(sessions: StaffDashboardApiPayload["upcomingSessions"]) {
   const buckets = new Map<string, number>();
   (sessions ?? []).forEach((session) => {
-    const key = dayLabelFromIso(session?.plannedDatetime);
+    const key = dayLabelFromIso(getSessionDatetime(session));
     buckets.set(key, safeNumber(buckets.get(key), 0) + 1);
   });
 
@@ -253,18 +294,23 @@ function normalizeDashboardPayload(raw: unknown) {
   const totalClasses = safeNumber(stats.totalClasses, 0);
   const reportRate = totalClasses > 0 ? `${Math.round(((totalClasses - pendingReports) / totalClasses) * 100)}%` : "0%";
 
+  const sessionsInCurrentWeek = filterSessionsInCurrentWeek(payload.upcomingSessions);
+  const weekSessions = sessionsInCurrentWeek.length > 0
+    ? sessionsInCurrentWeek.length
+    : safeNumber(stats.upcomingSessions, 0);
+
   return {
     totalLeads: safeNumber(stats.totalLeads, 0),
     newLeads: safeNumber(stats.totalLeads, 0),
     qualifiedLeads: safeNumber(stats.totalEnrollments, 0),
-    weekSessions: safeNumber(stats.upcomingSessions, 0),
+    weekSessions,
     reportRate,
     leadsTrend: `+${safeNumber(stats.totalLeads, 0)} lead`,
     qualifiedTrend: `${safeNumber(stats.totalEnrollments, 0)} ghi danh`,
-    sessionsTrend: `${safeNumber(stats.upcomingSessions, 0)} ca sắp tới`,
+    sessionsTrend: `${weekSessions} ca trong tuần`,
     reportsTrend: `${pendingReports} báo cáo chờ`,
     leadGrowthData: buildLeadGrowthData(payload.recentLeads),
-    classOpsData: buildClassOpsData(payload.upcomingSessions),
+    classOpsData: buildClassOpsData(sessionsInCurrentWeek),
     ticketDistribution: buildTicketDistribution(payload.openTickets),
     reportProgressData: buildReportProgressData(totalClasses, pendingReports),
   };
@@ -275,6 +321,9 @@ export default function Page() {
   const [activeTab, setActiveTab] = useState<"overview" | "leads" | "schedule" | "reports">("overview");
   const [dashboard, setDashboard] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const now = new Date();
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
 
   useEffect(() => {
     setIsPageLoaded(true);
@@ -282,7 +331,8 @@ export default function Page() {
 
   useEffect(() => {
     let alive = true;
-    getStaffManagementDashboard()
+    setLoading(true);
+    getStaffManagementDashboard({ month: selectedMonth, year: selectedYear })
       .then((res: any) => {
         if (!alive) return;
         const d = res?.data?.data ?? res?.data ?? {};
@@ -291,7 +341,7 @@ export default function Page() {
       .catch(() => {})
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
-  }, []);
+  }, [selectedMonth, selectedYear]);
 
   const leadGrowthData = dashboard?.leadGrowthData ?? [
     { month: "T7", leads: 0, qualified: 0 },
@@ -374,9 +424,28 @@ export default function Page() {
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl">
-              <Calendar size={16} className="text-red-600" />
-              <span className="text-sm font-medium text-gray-700">Tháng 12/2024</span>
+            <div className="flex items-center gap-1 px-3 py-2 bg-white border border-gray-200 rounded-xl">
+              <Calendar size={16} className="text-red-600 shrink-0" />
+              <span className="text-sm font-medium text-gray-700">Tháng</span>
+              <select
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                className="text-sm font-medium text-gray-700 bg-transparent border-none outline-none cursor-pointer"
+              >
+                {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+              <span className="text-sm text-gray-400">/</span>
+              <select
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(Number(e.target.value))}
+                className="text-sm font-medium text-gray-700 bg-transparent border-none outline-none cursor-pointer"
+              >
+                {Array.from({ length: 5 }, (_, i) => now.getFullYear() - 2 + i).map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
             </div>
             <button className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl text-sm font-semibold hover:shadow-lg transition-all cursor-pointer flex items-center gap-2">
               <Download size={16} />

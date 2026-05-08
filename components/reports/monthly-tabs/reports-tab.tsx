@@ -30,6 +30,16 @@ type JobItem = { id: string; month: number; year: number; status: string };
 type RecentComment = { id: string; studentName?: string; className?: string; authorName?: string; content: string; createdAt?: string; reportId: string };
 type ClassFilterOption = { id: string; name: string };
 
+const STATUS_LABELS: Record<string, string> = {
+  "Tất cả": "Tất cả",
+  Draft: "Nháp",
+  Submitted: "Đã gửi",
+  Approved: "Đã duyệt",
+  Rejected: "Cần chỉnh sửa",
+  Published: "Đã công bố",
+  Review: "Chờ duyệt",
+};
+
 type Props = {
   canManage: boolean;
   isTeacher: boolean;
@@ -272,9 +282,9 @@ export default function ReportsTab({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {["Tất cả", "Draft", "Submitted", "Approved", "Rejected", "Published", "Review"].map((s) => (
+                {["Tất cả", "Draft", "Submitted", "Approved", "Rejected", "Published"].map((s) => (
                   <SelectItem key={s} value={s}>
-                    {s}
+                    {STATUS_LABELS[s] || s}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -441,7 +451,7 @@ export default function ReportsTab({
                     <td className="px-6 py-4">
                       <div className="inline-flex items-center gap-1.5 text-sm text-gray-700">
                         <User size={14} className="text-gray-400" />
-                        {report.teacherName || "Teacher"}
+                        {report.teacherName || "Chưa có thông tin"}
                       </div>
                     </td>
                     <td className="px-6 py-4">{renderStatusBadge(report.status)}</td>
@@ -635,7 +645,7 @@ export default function ReportsTab({
               <div>{renderStatusBadge(displayReport.status)}</div>
               <div className="text-xs text-gray-500 flex items-center gap-1">
                 <User size={12} />
-                Teacher: {displayReport.teacherName || "N/A"}
+                Giáo viên: {displayReport.teacherName || "Chưa có thông tin"}
               </div>
               
               {isTeacher && (
@@ -657,7 +667,7 @@ export default function ReportsTab({
                         Đang lưu...
                       </span>
                     ) : (
-                      "Update Draft (manual)"
+                      "Lưu bản nháp thủ công"
                     )}
                   </button>
                   <div className="space-y-2">
