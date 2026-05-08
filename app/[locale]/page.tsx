@@ -18,7 +18,7 @@ export default async function LocalizedHomePage({
 
   // Layout đã bọc Navbar + Footer + SURFACE_SOFT
   return (
-    <main>
+    <main className="landing-page">
       <Navbar />
       <HomeSections />
       <Footer />

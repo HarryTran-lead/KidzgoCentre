@@ -100,31 +100,33 @@ function NotificationCard({
 
   return (
     <article
-      className={`rounded-2xl border p-4 shadow-sm transition ${
-        item.read ? "border-gray-200 bg-white" : "border-red-200 bg-red-50/40"
+      className={`rounded-2xl backdrop-blur-xl border p-4 shadow-lg transition-all duration-300 cursor-pointer group hover:border-white/40 ${
+        item.read 
+          ? "bg-gradient-to-br from-gray-800/50 to-gray-900/50 border-white/10" 
+          : "bg-gradient-to-br from-indigo-600/30 via-purple-600/30 to-pink-600/30 border-white/20 hover:shadow-purple-500/30"
       }`}
     >
       <div className="flex items-start gap-4">
-        <div className="rounded-xl bg-red-600 p-2.5 text-white shrink-0">
+        <div className="rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 p-2.5 text-white shrink-0 shadow-lg shadow-purple-500/30">
           <Icon className="h-4 w-4" />
         </div>
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="font-semibold text-gray-900">{item.title}</h3>
+            <h3 className="font-semibold text-white">{item.title}</h3>
             {!item.read && (
-              <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700">
+              <span className="rounded-full bg-indigo-500/30 px-2.5 py-1 text-xs font-semibold text-indigo-200 border border-indigo-400/50">
                 {tr("Mới", "New")}
               </span>
             )}
-            <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-600">
+            <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs text-indigo-200/80 border border-white/20">
               {kindLabel(item.kind, isEn)}
             </span>
           </div>
 
-          <p className="mt-2 text-sm leading-6 text-gray-700">{item.message}</p>
+          <p className="mt-2 text-sm leading-6 text-white/80">{item.message}</p>
 
-          <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-500">
+          <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-indigo-200/60">
             <span>{formatTime(item.createdAt)}</span>
             <span>{tr("Từ", "From")}: {item.senderName}</span>
           </div>
@@ -134,14 +136,14 @@ function NotificationCard({
           {!item.read && (
             <button
               onClick={onRead}
-              className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 transition hover:bg-emerald-100 cursor-pointer"
+              className="rounded-lg border border-emerald-400/50 bg-emerald-500/20 px-3 py-1.5 text-xs font-medium text-emerald-200 transition hover:bg-emerald-500/40 hover:border-emerald-300 cursor-pointer backdrop-blur-sm"
             >
               {tr("Đã đọc", "Mark read")}
             </button>
           )}
           <button
             onClick={onRetry}
-            className="rounded-lg border border-blue-200 bg-blue-50 p-1.5 text-blue-600 transition hover:bg-blue-100 cursor-pointer"
+            className="rounded-lg border border-blue-400/50 bg-blue-500/20 p-1.5 text-blue-300 transition hover:bg-blue-500/40 hover:border-blue-300 cursor-pointer backdrop-blur-sm"
             aria-label={tr("Thử gửi lại thông báo", "Retry notification")}
             title={tr("Thử gửi lại", "Retry")}
           >
@@ -149,7 +151,7 @@ function NotificationCard({
           </button>
           <button
             onClick={onRemove}
-            className="rounded-lg border border-gray-200 p-1.5 text-gray-500 transition hover:bg-gray-100 cursor-pointer"
+            className="rounded-lg border border-red-400/50 bg-red-500/20 p-1.5 text-red-300 transition hover:bg-red-500/40 hover:border-red-300 cursor-pointer backdrop-blur-sm"
             aria-label={tr("Xóa thông báo", "Delete notification")}
           >
             <Trash2 className="h-4 w-4" />
@@ -340,155 +342,163 @@ export default function NotificationInboxPage({ role }: { role: Role }) {
   }, []);
 
   return (
-    <div className="space-y-6 bg-gray-50 p-4 md:p-6 rounded-3xl">
-      <FcmPermissionCard role={role} />
+    <div className="relative min-h-screen bg-gradient-to-br from-gray-900 via-indigo-900 to-gray-900 p-4 md:p-6">
+      {/* Animated background elements */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute -top-20 -right-20 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl"></div>
+        <div className="absolute -bottom-20 -left-20 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: "2s" }}></div>
+      </div>
 
-      {/* Header */}
-      <div className={`flex flex-col md:flex-row md:items-center md:justify-between gap-4 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
-        <div className="flex items-center gap-3">
-          <div className="p-3 rounded-xl bg-gradient-to-r from-red-600 to-red-700 shadow-lg">
-            <Bell size={24} className="text-white" />
+      <div className="relative z-10 max-w-7xl mx-auto space-y-6">
+        <FcmPermissionCard role={role} />
+
+        {/* Header */}
+        <div className={`flex flex-col md:flex-row md:items-center md:justify-between gap-4 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 shadow-lg shadow-purple-500/30">
+              <Bell size={28} className="text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl md:text-4xl font-extrabold bg-gradient-to-r from-white via-indigo-200 to-purple-200 bg-clip-text text-transparent">
+                {tr("Trung tâm thông báo", "Notification Center")}
+              </h1>
+              <p className="text-indigo-200/80 text-sm">
+                {tr("Quản lý tất cả thông báo của", "Manage all notifications for")} {ROLE_LABEL[role].toLowerCase()}
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">Trung tâm thông báo</h1>
-            <p className="text-sm text-gray-600">
-              {tr("Quản lý tất cả thông báo của", "Manage all notifications for")} {ROLE_LABEL[role].toLowerCase()}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
           <button
             onClick={() => void handleMarkAllAsRead()}
-            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold cursor-pointer transition-all hover:scale-105 active:scale-95 text-sm"
+            className="inline-flex items-center gap-2 rounded-xl px-6 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold cursor-pointer transition-all hover:scale-105 active:scale-95 text-sm border-2 border-transparent hover:shadow-lg hover:shadow-purple-500/50 shadow-lg shadow-purple-500/30"
           >
             <CheckCheck size={18} />
             {tr("Đánh dấu tất cả", "Mark all")}
           </button>
         </div>
-      </div>
 
-      {/* Statistics */}
-      <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-md transition">
-          <div className="flex items-center gap-3">
-            <span className="w-10 h-10 rounded-xl grid place-items-center bg-red-100"><Bell size={18} className="text-red-600" /></span>
-            <div>
-              <div className="text-sm text-gray-600">{tr("Tổng thông báo", "Total notifications")}</div>
-              <div className="text-2xl font-extrabold text-gray-900">{notifications.length}</div>
+        {/* Statistics */}
+        <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
+          <div className="rounded-2xl bg-gradient-to-br from-indigo-600/40 to-purple-600/40 backdrop-blur-xl border border-white/20 p-4 hover:border-white/40 transition-all hover:shadow-xl hover:shadow-indigo-500/20">
+            <div className="flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl grid place-items-center bg-indigo-500/30"><Bell size={18} className="text-indigo-300" /></span>
+              <div>
+                <div className="text-sm text-indigo-200/80">{tr("Tổng thông báo", "Total notifications")}</div>
+                <div className="text-2xl font-extrabold text-white">{notifications.length}</div>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-2xl bg-gradient-to-br from-purple-600/40 to-pink-600/40 backdrop-blur-xl border border-white/20 p-4 hover:border-white/40 transition-all hover:shadow-xl hover:shadow-purple-500/20">
+            <div className="flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl grid place-items-center bg-purple-500/30"><Bell size={18} className="text-purple-300" /></span>
+              <div>
+                <div className="text-sm text-purple-200/80">{tr("Chưa đọc", "Unread")}</div>
+                <div className="text-2xl font-extrabold text-white">{unreadCount}</div>
+              </div>
             </div>
           </div>
         </div>
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 hover:shadow-md transition">
-          <div className="flex items-center gap-3">
-            <span className="w-10 h-10 rounded-xl grid place-items-center bg-rose-100"><Bell size={18} className="text-rose-600" /></span>
-            <div>
-              <div className="text-sm text-rose-600">{tr("Chưa đọc", "Unread")}</div>
-              <div className="text-2xl font-extrabold text-rose-700">{unreadCount}</div>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      {/* Filters */}
-      <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
-        <div className="flex flex-col md:flex-row gap-4">
-          {/* Search */}
-          <div className="flex-1 relative">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              type="text"
-              placeholder={tr("Tìm kiếm theo tiêu đề, nội dung, tác giả...", "Search by title, content, sender...")}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-xl border border-red-200 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
-            />
-          </div>
-
-          {/* Filters */}
-          <div className="flex flex-wrap items-end gap-3">
-            <Select value={filter} onValueChange={(value) => setFilter(value as "all" | "unread")}>
-              <SelectTrigger className="w-auto min-w-max rounded-xl h-10">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{tr("Tất cả", "All")} ({notifications.length})</SelectItem>
-                <SelectItem value="unread">{tr("Chưa đọc", "Unread")} ({unreadCount})</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={kindFilter} onValueChange={(value) => setKindFilter(value as "all" | NotificationKind)}>
-              <SelectTrigger className="w-auto min-w-max rounded-xl h-10">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{tr("Tất cả loại", "All types")}</SelectItem>
-                <SelectItem value="system">{kindLabel("system", isEn)}</SelectItem>
-                <SelectItem value="schedule">{kindLabel("schedule", isEn)}</SelectItem>
-                <SelectItem value="report">{kindLabel("report", isEn)}</SelectItem>
-                <SelectItem value="payment">{kindLabel("payment", isEn)}</SelectItem>
-                <SelectItem value="homework">{kindLabel("homework", isEn)}</SelectItem>
-                <SelectItem value="feedback">{kindLabel("feedback", isEn)}</SelectItem>
-                <SelectItem value="event">{kindLabel("event", isEn)}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </div>
-
-      {/* Notifications List */}
-      <div className={`rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden transition-all duration-700 delay-300 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-        <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">{tr("Danh sách thông báo", "Notification list")}</h2>
-            <span className="text-sm text-gray-600 font-medium">{filtered.length} {tr("thông báo", "notifications")}</span>
-          </div>
-        </div>
-        <div className="space-y-3 p-5">
-          {filtered.length ? (
-            filtered.map((item) => (
-              <NotificationCard
-                key={item.id}
-                item={item}
-                isEn={isEn}
-                tr={tr}
-                onRead={() => void handleMarkAsRead(item)}
-                onRetry={() => void handleRetry(item)}
-                onRemove={() => void handleRemove(item)}
+        {/* Filters */}
+        <div className={`rounded-2xl bg-gradient-to-br from-indigo-600/30 via-purple-600/30 to-pink-600/30 backdrop-blur-xl border border-white/20 p-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
+          <div className="flex flex-col md:flex-row gap-4">
+            {/* Search */}
+            <div className="flex-1 relative">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-indigo-300/60" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                placeholder={tr("Tìm kiếm theo tiêu đề, nội dung, tác giả...", "Search by title, content, sender...")}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400/50 transition-all backdrop-blur-sm"
               />
-            ))
-          ) : (
-            <div className="rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-14 text-center">
-              <Bell className="mx-auto h-10 w-10 text-gray-300" />
-              <h2 className="mt-4 text-lg font-semibold text-gray-800">{tr("Không có thông báo phù hợp", "No matching notifications")}</h2>
-              <p className="mt-2 text-sm text-gray-500">
-                {tr("Thay đổi bộ lọc hoặc chờ thông báo mới", "Change filters or wait for new notifications")}
-              </p>
             </div>
-          )}
-        </div>
-      </div>
 
-      <ConfirmModal
-        isOpen={Boolean(pendingDeleteItem)}
-        onClose={() => setPendingDeleteItem(null)}
-        onConfirm={() => {
-          void confirmDelete();
-        }}
-        title={tr("Xác nhận xóa thông báo", "Confirm notification deletion")}
-        message={
-          pendingDeleteItem
-            ? tr(
-                `Bạn có chắc muốn xóa thông báo \"${pendingDeleteItem.title}\" từ ${pendingDeleteItem.senderName} không? Hành động này không thể hoàn tác.`,
-                `Do you want to delete notification \"${pendingDeleteItem.title}\" from ${pendingDeleteItem.senderName}? This action cannot be undone.`
-              )
-            : ""
-        }
-        confirmText={tr("Xóa thông báo", "Delete notification")}
-        cancelText={tr("Giữ lại", "Keep")}
-        variant="danger"
-        isLoading={isDeleting}
-      />
+            {/* Filters */}
+            <div className="flex flex-wrap items-end gap-3">
+              <Select value={filter} onValueChange={(value) => setFilter(value as "all" | "unread")}>
+                <SelectTrigger className="w-auto min-w-max rounded-xl h-10 bg-white/10 border-white/20 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-gray-900 border-white/20">
+                  <SelectItem value="all">{tr("Tất cả", "All")} ({notifications.length})</SelectItem>
+                  <SelectItem value="unread">{tr("Chưa đọc", "Unread")} ({unreadCount})</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={kindFilter} onValueChange={(value) => setKindFilter(value as "all" | NotificationKind)}>
+                <SelectTrigger className="w-auto min-w-max rounded-xl h-10 bg-white/10 border-white/20 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-gray-900 border-white/20">
+                  <SelectItem value="all">{tr("Tất cả loại", "All types")}</SelectItem>
+                  <SelectItem value="system">{kindLabel("system", isEn)}</SelectItem>
+                  <SelectItem value="schedule">{kindLabel("schedule", isEn)}</SelectItem>
+                  <SelectItem value="report">{kindLabel("report", isEn)}</SelectItem>
+                  <SelectItem value="payment">{kindLabel("payment", isEn)}</SelectItem>
+                  <SelectItem value="homework">{kindLabel("homework", isEn)}</SelectItem>
+                  <SelectItem value="feedback">{kindLabel("feedback", isEn)}</SelectItem>
+                  <SelectItem value="event">{kindLabel("event", isEn)}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+
+        {/* Notifications List */}
+        <div className={`rounded-2xl bg-gradient-to-br from-gray-800/50 to-gray-900/50 backdrop-blur-xl border border-white/10 shadow-2xl overflow-hidden transition-all duration-700 delay-300 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <div className="bg-gradient-to-r from-indigo-600/40 to-purple-600/40 border-b border-white/20 px-6 py-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-white">{tr("Danh sách thông báo", "Notification list")}</h2>
+              <span className="text-sm text-indigo-200/80 font-medium">{filtered.length} {tr("thông báo", "notifications")}</span>
+            </div>
+          </div>
+          <div className="space-y-3 p-5">
+            {filtered.length ? (
+              filtered.map((item) => (
+                <NotificationCard
+                  key={item.id}
+                  item={item}
+                  isEn={isEn}
+                  tr={tr}
+                  onRead={() => void handleMarkAsRead(item)}
+                  onRetry={() => void handleRetry(item)}
+                  onRemove={() => void handleRemove(item)}
+                />
+              ))
+            ) : (
+              <div className="rounded-2xl border border-dashed border-white/20 bg-gradient-to-br from-gray-800/50 to-gray-900/50 px-6 py-14 text-center">
+                <Bell className="mx-auto h-10 w-10 text-indigo-300/40" />
+                <h2 className="mt-4 text-lg font-semibold text-white">{tr("Không có thông báo phù hợp", "No matching notifications")}</h2>
+                <p className="mt-2 text-sm text-indigo-200/60">
+                  {tr("Thay đổi bộ lọc hoặc chờ thông báo mới", "Change filters or wait for new notifications")}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <ConfirmModal
+          isOpen={Boolean(pendingDeleteItem)}
+          onClose={() => setPendingDeleteItem(null)}
+          onConfirm={() => {
+            void confirmDelete();
+          }}
+          title={tr("Xác nhận xóa thông báo", "Confirm notification deletion")}
+          message={
+            pendingDeleteItem
+              ? tr(
+                  `Bạn có chắc muốn xóa thông báo \"${pendingDeleteItem.title}\" từ ${pendingDeleteItem.senderName} không? Hành động này không thể hoàn tác.`,
+                  `Do you want to delete notification \"${pendingDeleteItem.title}\" from ${pendingDeleteItem.senderName}? This action cannot be undone.`
+                )
+              : ""
+          }
+          confirmText={tr("Xóa thông báo", "Delete notification")}
+          cancelText={tr("Giữ lại", "Keep")}
+          variant="danger"
+          isLoading={isDeleting}
+        />
+      </div>
     </div>
   );
 }
