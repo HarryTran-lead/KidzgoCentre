@@ -509,18 +509,6 @@ const formatGradedDate = (dateString?: string): string => {
                 </div>
               )}
 
-              {assignment.grading.aiFeedback && (
-                <div className="mb-6">
-                  <h3 className="font-medium text-white mb-3 flex items-center gap-2">
-                    <Sparkles size={18} className="text-amber-400" />
-                    Gợi ý từ AI
-                  </h3>
-                  <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-100/90">
-                    {assignment.grading.aiFeedback}
-                  </div>
-                </div>
-              )}
-
               {/* Graded Files */}
               {assignment.grading.gradedFiles && assignment.grading.gradedFiles.length > 0 && (
                 <div>
