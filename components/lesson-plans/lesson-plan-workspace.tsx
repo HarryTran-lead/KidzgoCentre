@@ -303,6 +303,152 @@ const v = obj[key];
   return "";
 }
 
+/**
+ * Parses plain-text syllabusMetadata (e.g. imported from Excel) that uses
+ * labelled-section format:
+ *   Day: ___15/04___
+ *   (Duration: ___1h30___ )
+ *   General information: ...
+ *   Teaching Materials: ...
+ *   Note: ...
+ */
+function parsePlainMetadataText(text: string): {
+  day: string;
+  duration: string;
+  generalInformation: string;
+  teachingMaterialsText: string;
+  note: string;
+} | null {
+  if (!text.trim()) return null;
+
+  const lines = text.split("\n").map((l) => l.trim());
+
+  let day = "";
+  let duration = "";
+  let generalInformation = "";
+  const materialLines: string[] = [];
+  let note = "";
+
+  type Mode = "none" | "general" | "materials" | "note";
+  let mode: Mode = "none";
+
+  // Headers that start a new "materials" block
+  const MATERIAL_SECTION_RE =
+    /^(teaching materials?|grapeseed|heinemann|course book|workbook|other materials?|handbook for reading)/i;
+
+  for (const line of lines) {
+    if (!line) continue;
+
+    // Duration: "(Duration: ___1h30___ )" or "Duration: 1h30"
+    const durationMatch = line.match(/^\(?Duration:\s*(.+?)\)?\s*$/i);
+    if (durationMatch) {
+      duration = durationMatch[1].replace(/_+/g, "").trim();
+      mode = "none";
+      continue;
+    }
+
+    // Day: "Day: ___15/04___"
+    const dayMatch = line.match(/^Days?:\s*(.+)/i);
+    if (dayMatch) {
+      day = dayMatch[1].replace(/_+/g, "").trim();
+      mode = "none";
+      continue;
+    }
+
+    // General information section
+    const genMatch = line.match(/^General information[s]?:\s*(.*)/i);
+    if (genMatch) {
+      generalInformation = genMatch[1].trim();
+      mode = "general";
+      continue;
+    }
+
+    // Note section (last)
+    const noteMatch = line.match(/^Note[s]?:\s*(.*)/i);
+    if (noteMatch) {
+      note = noteMatch[1].trim();
+      mode = "note";
+      continue;
+    }
+
+    // Teaching Materials and similar headers → materials section
+    const matHeaderMatch = line.match(/^Teaching Materials?:\s*(.*)/i);
+    if (matHeaderMatch) {
+      const rest = matHeaderMatch[1].trim();
+      if (rest) materialLines.push(`Teaching Materials: ${rest}`);
+      mode = "materials";
+      continue;
+    }
+
+    // Depending on current mode
+    if (mode === "general") {
+      // If line looks like start of a known materials subsection, switch mode
+      if (MATERIAL_SECTION_RE.test(line) || line.startsWith("+ ") || /^https?:\/\//i.test(line)) {
+        materialLines.push(line);
+        mode = "materials";
+      } else {
+        generalInformation = generalInformation ? `${generalInformation}\n${line}` : line;
+      }
+    } else if (mode === "materials") {
+      materialLines.push(line);
+    } else if (mode === "note") {
+      note = note ? `${note}\n${line}` : line;
+    }
+    // mode === "none": skip header lines like "LINES", "SYLLABUS - COURSE TEMPLATE"
+  }
+
+  const hasContent = day || duration || generalInformation || materialLines.length || note;
+  if (!hasContent) return null;
+
+  return { day, duration, generalInformation, teachingMaterialsText: materialLines.join("\n"), note };
+}
+
+function parseMetadataFromLinesObject(obj: Record<string, unknown> | null) {
+  if (!obj) return null;
+  if (!Array.isArray(obj.lines)) return null;
+
+  const linesText = linesToTextarea(obj.lines);
+  if (!linesText.trim()) return null;
+
+  return parsePlainMetadataText(linesText);
+}
+
+function buildPlainMetadataText(input: {
+  day: string;
+  duration: string;
+  generalInformation: string;
+  teachingMaterialsText: string;
+  note: string;
+}): string {
+  const lines: string[] = ["LINES", "SYLLABUS - COURSE TEMPLATE"];
+
+  if (input.duration.trim()) {
+    lines.push(`(Duration: ${input.duration.trim()} )`);
+  }
+
+  if (input.day.trim()) {
+    lines.push(`Day: ${input.day.trim()}`);
+  }
+
+  if (input.generalInformation.trim()) {
+    lines.push(`General information: ${input.generalInformation.trim()}`);
+  }
+
+  const teachingMaterialsLines = textareaToLines(input.teachingMaterialsText);
+  if (teachingMaterialsLines.length) {
+    lines.push(`Teaching Materials: ${teachingMaterialsLines[0]}`);
+    if (teachingMaterialsLines.length > 1) {
+      lines.push(...teachingMaterialsLines.slice(1));
+    }
+  }
+
+  if (input.note.trim()) {
+    lines.push(`Note: ${input.note.trim()}`);
+  }
+
+  return lines.join("\n");
+}
+
 function linesToTextarea(value: unknown): string {
   if (Array.isArray(value)) return value.filter((v) => typeof v === "string").join("\n");
   if (typeof value === "string") return value;
@@ -421,6 +567,24 @@ function linesFromUnknown(value: unknown): string[] {
   if (Array.isArray(value)) return value.filter((v) => typeof v === "string" && v.trim()).map(String);
   if (typeof value === "string" && value.trim()) return value.split("\n").filter(Boolean);
   return [];
+}
+
+function flattenUnknownToLines(value: unknown, prefix = ""): string[] {
+  if (value == null) return [];
+
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => flattenUnknownToLines(item, prefix));
+  }
+
+  if (typeof value === "object") {
+    return Object.entries(value as Record<string, unknown>).flatMap(([key, nested]) =>
+      flattenUnknownToLines(nested, prefix ? `${prefix}.${key}` : key)
+    );
+  }
+
+  const text = String(value).trim();
+  if (!text) return [];
+  return [prefix ? `${prefix}: ${text}` : text];
 }
 
 const URL_IN_TEXT_REGEX = /(https?:\/\/[^\s<>"']+)/gi;
@@ -1859,6 +2023,19 @@ function TemplateFormModal({
 }) {
   const metadataSeed = asObject(parseJsonContent(initialValue?.syllabusMetadata));
   const contentSeed = asObject(parseJsonContent(initialValue?.syllabusContent));
+  const parsedMetadataLinesObject = parseMetadataFromLinesObject(metadataSeed);
+  // Fallback: if stored as plain text (non-JSON), attempt structured parse.
+  // Also try to extract metadata from syllabusContent when syllabusMetadata is absent
+  // (some templates were imported with all data in syllabusContent).
+  const parsedRawMetadata = !metadataSeed
+    ? (initialValue?.syllabusMetadata ? parsePlainMetadataText(initialValue.syllabusMetadata) : null)
+      ?? (!contentSeed && initialValue?.syllabusContent ? parsePlainMetadataText(initialValue.syllabusContent) : null)
+    : null;
+  // rawContent is non-null only when syllabusContent is plain text AND parsePlainMetadataText
+  // couldn't extract structured metadata from it (i.e., it's genuinely unstructured content).
+  const rawContent = !contentSeed && initialValue?.syllabusContent?.trim() && !parsedRawMetadata
+    ? initialValue.syllabusContent.trim()
+    : null;
   const initialProgramId = initialValue?.programId || defaultProgramId || "";
   const isEdit = Boolean(initialValue);
 
@@ -1868,14 +2045,20 @@ function TemplateFormModal({
   const [sessionIndex, setSessionIndex] = useState(initialValue?.sessionIndex || 1);
 
   // Metadata fields
-  const [dayLabel, setDayLabel] = useState(pickStringValue(metadataSeed, ["day", "days", "scheduleDays"]));
-  const [durationLabel, setDurationLabel] = useState(pickStringValue(metadataSeed, ["duration"]));
-  const [generalInformation, setGeneralInformation] = useState(
-    pickStringValue(metadataSeed, ["generalInformation", "generalInfo", "description"])
+  const [dayLabel, setDayLabel] = useState(
+    pickStringValue(metadataSeed, ["day", "days", "scheduleDays"]) || parsedMetadataLinesObject?.day || parsedRawMetadata?.day || ""
   );
-  const [teachingMaterialsText, setTeachingMaterialsText] = useState(linesToTextarea(metadataSeed?.teachingMaterials));
+  const [durationLabel, setDurationLabel] = useState(
+    pickStringValue(metadataSeed, ["duration"]) || parsedMetadataLinesObject?.duration || parsedRawMetadata?.duration || ""
+  );
+  const [generalInformation, setGeneralInformation] = useState(
+    pickStringValue(metadataSeed, ["generalInformation", "generalInfo", "description"]) || parsedMetadataLinesObject?.generalInformation || parsedRawMetadata?.generalInformation || ""
+  );
+  const [teachingMaterialsText, setTeachingMaterialsText] = useState(
+    linesToTextarea(metadataSeed?.teachingMaterials) || parsedMetadataLinesObject?.teachingMaterialsText || parsedRawMetadata?.teachingMaterialsText || ""
+  );
   const [sheetNote, setSheetNote] = useState(
-    pickStringValue(metadataSeed, ["note"]) || linesToTextarea(metadataSeed?.note)
+    pickStringValue(metadataSeed, ["note"]) || linesToTextarea(metadataSeed?.note) || parsedMetadataLinesObject?.note || parsedRawMetadata?.note || ""
   );
 
   // Content fields
@@ -1884,7 +2067,7 @@ function TemplateFormModal({
   const [homeworkMaterialsText, setHomeworkMaterialsText] = useState(linesToTextarea(contentSeed?.homeworkMaterials));
 const [homeworkNotesText, setHomeworkNotesText] = useState(linesToTextarea(contentSeed?.homeworkNotes));
   const [activities, setActivities] = useState<TemplateActivityDraft[]>(
-    activityDraftsFromUnknown(contentSeed?.activities)
+    rawContent ? [{ ...createEmptyTemplateActivity(), classwork: rawContent }] : activityDraftsFromUnknown(contentSeed?.activities)
   );
 
   // File/meta
@@ -1968,16 +2151,16 @@ if (current.length === 1 && isActivityDraftEmpty(current[0])) return [nextActivi
     setLevel(initialValue?.level || "");
     setTitle(initialValue?.title || "");
     setSessionIndex(initialValue?.sessionIndex || 1);
-    setDayLabel(pickStringValue(metadataSeed, ["day", "days", "scheduleDays"]));
-    setDurationLabel(pickStringValue(metadataSeed, ["duration"]));
-    setGeneralInformation(pickStringValue(metadataSeed, ["generalInformation", "generalInfo", "description"]));
-    setTeachingMaterialsText(linesToTextarea(metadataSeed?.teachingMaterials));
-    setSheetNote(pickStringValue(metadataSeed, ["note"]) || linesToTextarea(metadataSeed?.note));
+    setDayLabel(pickStringValue(metadataSeed, ["day", "days", "scheduleDays"]) || parsedMetadataLinesObject?.day || parsedRawMetadata?.day || "");
+    setDurationLabel(pickStringValue(metadataSeed, ["duration"]) || parsedMetadataLinesObject?.duration || parsedRawMetadata?.duration || "");
+    setGeneralInformation(pickStringValue(metadataSeed, ["generalInformation", "generalInfo", "description"]) || parsedMetadataLinesObject?.generalInformation || parsedRawMetadata?.generalInformation || "");
+    setTeachingMaterialsText(linesToTextarea(metadataSeed?.teachingMaterials) || parsedMetadataLinesObject?.teachingMaterialsText || parsedRawMetadata?.teachingMaterialsText || "");
+    setSheetNote(pickStringValue(metadataSeed, ["note"]) || linesToTextarea(metadataSeed?.note) || parsedMetadataLinesObject?.note || parsedRawMetadata?.note || "");
     setTeacherName(pickStringValue(contentSeed, ["teacherName"]));
     setHomeworkLabel(pickStringValue(contentSeed, ["homeworkLabel"]) || "HOMEWORK");
     setHomeworkMaterialsText(linesToTextarea(contentSeed?.homeworkMaterials));
     setHomeworkNotesText(linesToTextarea(contentSeed?.homeworkNotes));
-    setActivities(activityDraftsFromUnknown(contentSeed?.activities));
+    setActivities(rawContent ? [{ ...createEmptyTemplateActivity(), classwork: rawContent }] : activityDraftsFromUnknown(contentSeed?.activities));
     setSourceFileName(initialValue?.sourceFileName || "");
     setAttachment(initialValue?.attachment || "");
     setIsActive(initialValue?.isActive ?? true);
@@ -2009,7 +2192,16 @@ if (current.length === 1 && isActivityDraftEmpty(current[0])) return [nextActivi
       return;
     }
 
-    const metadataPayload = stringifyPrettyJson(generatedMetadataObject);
+    const shouldKeepLegacyPlainMetadata = Boolean(parsedRawMetadata && !metadataSeed);
+    const metadataPayload = shouldKeepLegacyPlainMetadata
+      ? buildPlainMetadataText({
+          day: dayLabel,
+          duration: durationLabel,
+          generalInformation,
+          teachingMaterialsText,
+          note: sheetNote,
+        })
+      : stringifyPrettyJson(generatedMetadataObject);
     const contentPayload = stringifyPrettyJson(generatedContentObject);
 
     setSubmitting(true);
@@ -2091,6 +2283,26 @@ if (current.length === 1 && isActivityDraftEmpty(current[0])) return [nextActivi
             <StatusBadge kind="info">syllabusMetadata</StatusBadge>
           </div>
 
+          {/* Reference panel: show original plain text when it was not stored as JSON.
+              Source may be syllabusMetadata or syllabusContent (when metadata was absent). */}
+          {(() => {
+            const refText = (!metadataSeed && initialValue?.syllabusMetadata)
+              ? initialValue.syllabusMetadata
+              : (!contentSeed && !metadataSeed && initialValue?.syllabusContent)
+                ? initialValue.syllabusContent
+                : null;
+            return refText ? (
+              <details className="rounded-xl border border-amber-300 bg-amber-50">
+                <summary className="cursor-pointer select-none px-4 py-2 text-xs font-semibold text-amber-800">
+                  📋 Dữ liệu gốc (plain text) — các trường bên dưới đã được tự động điền từ đây
+                </summary>
+                <div className="whitespace-pre-wrap border-t border-amber-200 px-4 py-3 text-xs leading-6 text-amber-900 font-mono">
+                  {refText}
+                </div>
+              </details>
+            ) : null;
+          })()}
+
           <div className="grid gap-4 md:grid-cols-2">
             <Field label="Ngày học">
               <input
@@ -2149,6 +2361,18 @@ if (current.length === 1 && isActivityDraftEmpty(current[0])) return [nextActivi
             <div className="text-sm font-semibold text-blue-700">Nội dung session</div>
             <StatusBadge kind="info">syllabusContent</StatusBadge>
           </div>
+
+          {/* Reference panel: show original plain text syllabusContent when not JSON */}
+          {initialValue?.syllabusContent && !contentSeed ? (
+            <details className="rounded-xl border border-blue-300 bg-blue-50">
+              <summary className="cursor-pointer select-none px-4 py-2 text-xs font-semibold text-blue-800">
+                📋 Dữ liệu gốc (plain text) — tham khảo để điền vào form bên dưới
+              </summary>
+              <div className="whitespace-pre-wrap border-t border-blue-200 px-4 py-3 text-xs leading-6 text-blue-900 font-mono">
+                {initialValue.syllabusContent}
+              </div>
+            </details>
+          ) : null}
 
           <Field label="Teacher">
             <input
@@ -3858,11 +4082,8 @@ function SheetCellValue({ value, empty = "-" }: { value: unknown; empty?: string
   }
 
   if (value && typeof value === "object") {
-    return (
-      <pre className="overflow-x-auto rounded-lg bg-gray-950 px-3 py-2 text-[11px] leading-5 text-gray-100">
-        {JSON.stringify(value, null, 2)}
-      </pre>
-    );
+    const flattened = flattenUnknownToLines(value);
+    return <SpreadsheetList value={flattened} empty={empty} />;
   }
 
   const text = typeof value === "string" ? value.trim() : String(value ?? "").trim();
@@ -3874,7 +4095,7 @@ function SheetCellValue({ value, empty = "-" }: { value: unknown; empty?: string
 }
 
 function isMetadataSheetObject(objectValue: Record<string, unknown>) {
-  return ["day", "days", "scheduleDays", "duration", "generalInformation", "generalInfo", "teachingMaterials", "note"].some(
+  return ["day", "days", "scheduleDays", "duration", "generalInformation", "generalInfo", "teachingMaterials", "note", "lines"].some(
     (key) => objectValue[key] !== undefined && objectValue[key] !== null
   );
 }
@@ -3893,15 +4114,17 @@ function isSessionSheetObject(objectValue: Record<string, unknown>) {
 }
 
 function MetadataSheetView({ objectValue }: { objectValue: Record<string, unknown> }) {
+  const parsedFromLines = parseMetadataFromLinesObject(objectValue);
   const sheetTitle = pickStringValue(objectValue, ["title", "sheetTitle"]) || "SYLLABUS";
-  const day = pickStringValue(objectValue, ["day", "days", "scheduleDays"]);
-  const duration = pickStringValue(objectValue, ["duration"]);
-  const generalInformation = pickStringValue(objectValue, ["generalInformation", "generalInfo", "description"]);
-  const teachingMaterials = objectValue.teachingMaterials;
-const note = objectValue.note;
+  const day = pickStringValue(objectValue, ["day", "days", "scheduleDays"]) || parsedFromLines?.day || "";
+  const duration = pickStringValue(objectValue, ["duration"]) || parsedFromLines?.duration || "";
+  const generalInformation =
+    pickStringValue(objectValue, ["generalInformation", "generalInfo", "description"]) || parsedFromLines?.generalInformation || "";
+  const teachingMaterials = linesToTextarea(objectValue.teachingMaterials) || parsedFromLines?.teachingMaterialsText || "";
+const note = pickStringValue(objectValue, ["note"]) || parsedFromLines?.note || "";
   const extraEntries = Object.entries(objectValue).filter(
     ([key]) =>
-      !["title", "sheetTitle", "day", "days", "scheduleDays", "duration", "generalInformation", "generalInfo", "description", "teachingMaterials", "note"].includes(
+      !["title", "sheetTitle", "day", "days", "scheduleDays", "duration", "generalInformation", "generalInfo", "description", "teachingMaterials", "note", "lines"].includes(
         key
       )
   );
@@ -4117,11 +4340,7 @@ function StructuredContent({
   }
 
   if (Array.isArray(parsed)) {
-    return (
-      <pre className="overflow-x-auto rounded-xl bg-gray-950 px-4 py-3 text-xs leading-6 text-gray-100">
-        {JSON.stringify(parsed, null, 2)}
-      </pre>
-    );
+    return <SpreadsheetList value={parsed} empty={placeholder} />;
   }
 
   const objectValue = parsed as Record<string, unknown>;
@@ -4155,11 +4374,7 @@ function StructuredContent({
     }
 
     if (entry && typeof entry === "object") {
-      return (
-        <pre className="overflow-x-auto rounded-xl bg-gray-950 px-4 py-3 text-xs leading-6 text-gray-100">
-          {JSON.stringify(entry, null, 2)}
-        </pre>
-      );
+      return <SpreadsheetList value={flattenUnknownToLines(entry)} empty="-" />;
     }
 
     return <div className="mt-1 whitespace-pre-wrap text-sm text-gray-700">{renderLinkifiedText(String(entry ?? "-"))}</div>;
@@ -4199,7 +4414,9 @@ function StructuredContent({
                 {Object.entries(activity || {}).map(([key, activityValue]) => (
                   <div key={key}>
                     <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">{key}</div>
-                    <div className="mt-1 whitespace-pre-wrap text-sm text-gray-700">{String(activityValue ?? "-")}</div>
+                    <div className="mt-1">
+                      <SheetCellValue value={activityValue} />
+                    </div>
                   </div>
                 ))}
               </div>

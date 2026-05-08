@@ -290,7 +290,7 @@ export function StaffGamificationWorkspace({
   const canEditRules = role !== "Teacher";
   const canManageGamificationSettings = role !== "Teacher";
   const canDeleteMission = role !== "Teacher";
-  const canViewRedemptions = true;
+  const canViewRedemptions = role !== "Teacher";
   const tabs = [
     { id: "missions" as const, label: "Nhiệm vụ" },
     { id: "students" as const, label: "Sao / XP" },
@@ -1881,7 +1881,7 @@ export function StaffGamificationWorkspace({
         </Panel>
       ) : null}
 
-      {!loading && !pageError && activeTab === "redemptions" ? (
+      {!loading && !pageError && canViewRedemptions && activeTab === "redemptions" ? (
         <Panel theme="staff">
           <SectionTitle
             title="Yêu cầu đổi thưởng"
