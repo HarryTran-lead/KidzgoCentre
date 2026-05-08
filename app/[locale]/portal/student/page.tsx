@@ -83,10 +83,10 @@ export default function Page() {
     : (typeof dashboard?.pendingTasks === "number" ? dashboard.pendingTasks : (dashboard?.tasksToDo ?? 0));
 
   const stats = [
-    { label: "Buổi học hôm nay", value: String(dashboard?.todaySessions ?? dashboard?.sessionsToday ?? 0), icon: Calendar, color: "from-indigo-500 to-purple-500" },
-    { label: "Nhiệm vụ cần làm", value: String(pendingTasksCount), icon: BookOpen, color: "from-purple-500 to-pink-500" },
-    { label: "Streak hiện tại", value: `${streakDays}`, icon: Flame, color: "from-orange-500 to-red-500" },
-    { label: "Số sao hiện có", value: starBalance.toLocaleString("vi-VN"), icon: Star, color: "from-yellow-500 to-amber-500" },
+    { label: "Buổi học hôm nay", value: String(dashboard?.todaySessions ?? dashboard?.sessionsToday ?? 0), icon: Calendar, image: "/icons/calendar.png", color: "from-indigo-500 to-purple-500" },
+    { label: "Nhiệm vụ cần làm", value: String(pendingTasksCount), icon: BookOpen, image: "/icons/book.png", color: "from-purple-500 to-pink-500" },
+    { label: "Streak hiện tại", value: `${streakDays}`, icon: Flame, image: "/icons/fire2.png", color: "from-orange-500 to-red-500" },
+    { label: "Số sao hiện có", value: starBalance.toLocaleString("vi-VN"), icon: Star, image: "/image/ngoisao.png", color: "from-yellow-500 to-amber-500" },
   ];
 
   const nextLesson = dashboard?.nextLesson ?? dashboard?.todayLesson ?? null;
@@ -112,7 +112,7 @@ export default function Page() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-400 to-cyan-400 flex items-center justify-center shadow-lg shadow-blue-500/30">
-                  <BellRing size={24} className="text-white" />
+                  <Image src="/icons/bell.png" alt="Bell" width={24} height={24} unoptimized />
                 </div>
                 <div>
                   <h3 className="text-2xl font-bold text-white">Tất cả thông báo</h3>
@@ -121,7 +121,7 @@ export default function Page() {
               </div>
               <button
                 onClick={() => setShowNoticesPopup(false)}
-                className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+                className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all hover:scale-110 active:scale-95 cursor-pointer"
               >
                 <X size={20} className="text-white" />
               </button>
@@ -202,7 +202,11 @@ export default function Page() {
               <div className="absolute inset-0 bg-gradient-to-r rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl" />
               <div className={`relative bg-gradient-to-br ${stat.color} p-4 rounded-2xl backdrop-blur-sm border border-white/20 shadow-lg`}>
                 <div className="flex items-center justify-between mb-2">
-                  <stat.icon size={24} className="text-white/80" />
+                  {stat.image ? (
+                    <Image src={stat.image} alt={stat.label} width={24} height={24} unoptimized />
+                  ) : (
+                    <stat.icon size={24} className="text-white/80" />
+                  )}
                   <span className="text-2xl font-black text-white">{stat.value}</span>
                 </div>
                 <p className="text-white/70 text-sm font-medium">{stat.label}</p>
@@ -252,7 +256,12 @@ export default function Page() {
                 
                 <Link
                   href={`/${locale}/portal/student/gamification`}
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl text-white font-bold hover:shadow-lg hover:shadow-indigo-500/30 transition-all hover:scale-105 active:scale-95 group"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl text-white font-bold border-2 border-transparent hover:shadow-lg hover:shadow-purple-500/50 transition-all hover:scale-105 active:scale-95 group cursor-pointer"
+                  style={{
+                    backgroundImage: 'linear-gradient(rgba(99, 102, 241, 1), rgba(188, 132, 255, 1)), linear-gradient(135deg, rgba(196, 140, 255, 1), rgba(244, 140, 166, 1))',
+                    backgroundOrigin: 'padding-box, border-box',
+                    backgroundClip: 'padding-box, border-box',
+                  }}
                 >
                   <Play size={18} fill="white" />
                   TIẾP TỤC HỌC
@@ -265,7 +274,7 @@ export default function Page() {
             <div className="rounded-2xl bg-white/5 backdrop-blur-xl border border-white/20 p-6 animate-slide-in-bottom flex-1 flex flex-col">
               <div className="flex items-center gap-2 mb-6">
                 <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center">
-                  <Calendar size={18} className="text-white" />
+                  <Image src="/icons/calendar.png" alt="Calendar" width={18} height={18} unoptimized />
                 </div>
                 <h3 className="text-xl font-bold bg-gradient-to-r from-indigo-200 to-purple-200 bg-clip-text text-transparent">Buổi học hôm nay</h3>
               </div>
@@ -343,7 +352,7 @@ export default function Page() {
                         {/* Call to action button */}
                         <Link
                           href={`/${locale}/portal/student/gamification`}
-                          className="inline-flex items-center justify-center gap-2 w-full px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl text-white font-bold hover:shadow-lg hover:shadow-green-500/40 transition-all hover:scale-105 active:scale-95 group/btn"
+                          className="inline-flex items-center justify-center gap-2 w-full px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl text-white font-bold hover:shadow-lg hover:shadow-green-500/40 transition-all hover:scale-105 active:scale-95 group/btn cursor-pointer"
                         >
                           <Play size={16} fill="white" />
                           VÀO LỚP HỌC
@@ -379,12 +388,12 @@ export default function Page() {
                   <div className="relative z-10">
                     <div className="flex items-start gap-4">
                       <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center shrink-0 shadow-lg shadow-pink-500/30">
-                        <MessageSquare size={24} className="text-white" />
+                        <Image src="/icons/open-email.png" alt="Message" width={24} height={24} unoptimized />
                       </div>
                       <div className="flex-1 pt-1">
                         <div className="flex items-center gap-2 mb-2">
-                          <MessageSquare size={18} className="text-pink-300 flex-shrink-0" />
-                          <h5 className="font-bold text-lg text-white">Lời nhắn từ thầy/cô</h5>
+                          
+                          <h5 className="font-bold text-lg text-white">Lời nhắn từ giáo viên</h5>
                         </div>
                         <p className="text-white/80 leading-relaxed text-sm">
                           {teacherNote.content}
@@ -414,7 +423,7 @@ export default function Page() {
               <div className="relative z-10 flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-400 to-cyan-400 flex items-center justify-center shadow-lg shadow-blue-500/30">
-                    <BellRing size={22} className="text-white" />
+                    <Image src="/icons/bell.png" alt="Bell" width={24} height={24} unoptimized />
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-white">Thông báo</h3>
@@ -453,9 +462,9 @@ export default function Page() {
                             : "bg-blue-500/30 text-blue-300"
                         }`}>
                           {notice.type === "warning" ? (
-                            <AlertTriangle size={20} />
+                            <Image src="/icons/attention.png" alt="Warning" width={20} height={20} unoptimized />
                           ) : (
-                            <AlertCircle size={20} />
+                            <Image src="/icons/exclamation-mark.png" alt="Info" width={20} height={20} unoptimized />
                           )}
                         </div>
                         
@@ -498,7 +507,7 @@ export default function Page() {
                 <div className="relative z-10 mt-4 pt-4 border-t border-white/10">
                   <button
                     onClick={() => setShowNoticesPopup(true)}
-                    className="w-full px-4 py-3 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 hover:from-blue-500/40 hover:to-cyan-500/40 border border-blue-400/30 hover:border-blue-400/60 rounded-xl text-white text-sm font-semibold transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/20 flex items-center justify-center gap-2 group"
+                    className="w-full px-4 py-3 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 hover:from-blue-500/40 hover:to-cyan-500/40 border border-blue-400/30 hover:border-blue-400/60 rounded-xl text-white text-sm font-semibold transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/20 flex items-center justify-center gap-2 group cursor-pointer"
                   >
                     <span>Xem thêm {notices.length - DISPLAY_NOTICE_LIMIT} thông báo</span>
                     <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />

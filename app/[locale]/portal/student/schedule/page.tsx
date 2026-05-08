@@ -2,10 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import {
-  CalendarDays,
-  ChevronLeft,
-  ChevronRight,
   Clock3,
   MapPin,
   User2,
@@ -431,7 +429,7 @@ export default function StudentSchedulePage() {
           <div className="flex flex-wrap items-center justify-between gap-4 p-6 border-b border-purple-500/30 bg-gradient-to-r from-purple-500/10 to-pink-500/10">
             <div className="flex items-center gap-4">
               <div className="relative p-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 shadow-lg shadow-purple-500/30">
-                <CalendarDays size={24} className="text-white" />
+                <Image src="/icons/calendar.png" alt="Calendar" width={24} height={24} unoptimized />
                 <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-white flex items-center justify-center shadow-md">
                   <span className="text-xs font-bold text-purple-600">
                     {weekDates[0]?.getDate?.()}
@@ -450,20 +448,20 @@ export default function StudentSchedulePage() {
             <div className="flex items-center gap-2 flex-wrap">
               <button
                 type="button"
-                className="p-2 rounded-lg border border-purple-500/30 bg-slate-800/50 hover:bg-purple-500/30 hover:scale-110 transition-all duration-200 cursor-pointer"
+                className="p-2.5 rounded-lg border border-purple-500/30 bg-slate-800/50 hover:bg-purple-500/30 hover:scale-110 transition-all duration-200 cursor-pointer"
                 onClick={goToPreviousWeek}
               >
-                <ChevronLeft size={18} className="text-purple-300" />
+                <Image src="/icons/arrow-circle-left.png" alt="Previous" width={22} height={22} unoptimized />
               </button>
               <div className="min-w-[220px] text-center text-sm font-semibold text-purple-300 bg-purple-500/10 py-2 px-3 rounded-lg">
                 Tuần {currentWeekLabel}
               </div>
               <button
                 type="button"
-                className="p-2 rounded-lg border border-purple-500/30 bg-slate-800/50 hover:bg-purple-500/30 hover:scale-110 transition-all duration-200 cursor-pointer"
+                className="p-2.5 rounded-lg border border-purple-500/30 bg-slate-800/50 hover:bg-purple-500/30 hover:scale-110 transition-all duration-200 cursor-pointer"
                 onClick={goToNextWeek}
               >
-                <ChevronRight size={18} className="text-purple-300" />
+                <Image src="/icons/arrow-circle-right.png" alt="Next" width={22} height={22} unoptimized />
               </button>
               <button
                 type="button"

@@ -4,19 +4,7 @@ import { motion, useAnimation } from "framer-motion";
 import {
   Mail,
   Lock,
-  TrendingUp,
   ArrowLeft,
-  Home,
-  DollarSign,
-  HelpCircle,
-  Phone,
-  BookOpen,
-  Users,
-  Target,
-  Facebook,
-  Instagram,
-  Youtube,
-  Twitter,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
@@ -49,17 +37,17 @@ export default function LoginCard({ returnTo = "", locale, errorMessage }: Props
   const FEATURES = useMemo(
     () => [
       {
-        icon: BookOpen,
+        image: "/icons/book.png",
         title: "Quản lý học tập",
         description: "Theo dõi lộ trình học tập của con bạn",
       },
       {
-        icon: Users,
+        image: "/image/man.png",
         title: "Kết nối giáo viên",
         description: "Giao tiếp trực tiếp với giáo viên",
       },
       {
-        icon: TrendingUp,
+        image: "/icons/customer.png",
         title: "Theo dõi phát triển",
         description: "Cập nhật thời gian thực về tiến độ",
       },
@@ -67,14 +55,6 @@ export default function LoginCard({ returnTo = "", locale, errorMessage }: Props
     []
   );
 
-  // Navigation items
-  const NAV_ITEMS = [
-    { label: "Trang chủ", icon: Home },
-    { label: "Features", icon: Target },
-    { label: "Pricing", icon: DollarSign },
-    { label: "Câu hỏi thường gặp", icon: HelpCircle },
-    { label: "Liên hệ", icon: Phone },
-  ];
 
   useEffect(() => {
     controls.start((i) => ({
@@ -274,7 +254,7 @@ export default function LoginCard({ returnTo = "", locale, errorMessage }: Props
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="relative mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-6xl items-center justify-center px-4 py-8"
+        className="relative mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-4xl items-center justify-center px-4 py-8"
       >
         <div className="w-full overflow-hidden rounded-2xl border border-gray-200 bg-white/60 shadow-xl backdrop-blur">
           <div className="grid grid-cols-1 lg:grid-cols-2">
@@ -292,9 +272,7 @@ export default function LoginCard({ returnTo = "", locale, errorMessage }: Props
 
               <div className="space-y-5">
                 <h1 className="text-2xl font-bold leading-tight">Đăng nhập Rex</h1>
-                <p className="text-sm text-white/90">
-                  Dành cho học sinh và phụ huynh để theo dõi học tập & kết nối giáo viên.
-                </p>
+                
               </div>
 
               <div className="mt-8 space-y-4">
@@ -308,7 +286,13 @@ export default function LoginCard({ returnTo = "", locale, errorMessage }: Props
                   >
                     <div className="flex items-start gap-3">
                       <div className="rounded-lg bg-white/15 p-2">
-                        <f.icon className="h-5 w-5" />
+                        <Image
+                          src={f.image}
+                          alt={f.title}
+                          width={22}
+                          height={22}
+                          unoptimized
+                        />
                       </div>
                       <div>
                         <div className="text-sm font-semibold">{f.title}</div>
@@ -317,24 +301,6 @@ export default function LoginCard({ returnTo = "", locale, errorMessage }: Props
                     </div>
                   </motion.div>
                 ))}
-              </div>
-
-              <div className="mt-8 border-t border-white/15 pt-6">
-                <div className="grid grid-cols-2 gap-2 text-xs text-white/85">
-                  {NAV_ITEMS.map((n) => (
-                    <div key={n.label} className="flex items-center gap-2">
-                      <n.icon className="h-4 w-4" />
-                      <span>{n.label}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-6 flex items-center gap-3 text-white/80">
-                  <Facebook className="h-4 w-4" />
-                  <Instagram className="h-4 w-4" />
-                  <Youtube className="h-4 w-4" />
-                  <Twitter className="h-4 w-4" />
-                </div>
               </div>
             </div>
 
@@ -358,7 +324,7 @@ export default function LoginCard({ returnTo = "", locale, errorMessage }: Props
                     />
                   </div>
                   <h2 className="text-2xl font-bold text-gray-900 mb-1">
-                    Đăng nhập cho học sinh và phụ huynh
+                    Đăng nhập
                   </h2>
                 </div>
 
