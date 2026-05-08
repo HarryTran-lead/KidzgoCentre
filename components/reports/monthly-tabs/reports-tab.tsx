@@ -880,7 +880,7 @@ export default function ReportsTab({
 
       {/* Edit Modal */}
       {isTeacher && editModalOpen && displayReport && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-4xl rounded-2xl bg-white border border-red-200 shadow-2xl overflow-hidden">
             <div className="bg-gradient-to-r from-red-600 to-red-700 px-6 py-4">
               <h3 className="text-lg font-semibold text-white">Chỉnh sửa báo cáo tháng</h3>
