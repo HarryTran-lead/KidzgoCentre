@@ -642,11 +642,14 @@ export default function ReportsTab({
                 </svg>
                 {displayReport.className || displayReport.classId || "N/A"}
               </div>
+              {canManage && (
+                <div className="text-sm text-gray-600 flex items-center gap-1">
+                  <User size={14} className="text-gray-400" />
+                  <span className="text-gray-500">Giáo viên:</span>
+                  <span className="font-medium text-gray-800">{displayReport.teacherName || "Chưa có thông tin"}</span>
+                </div>
+              )}
               <div>{renderStatusBadge(displayReport.status)}</div>
-              <div className="text-xs text-gray-500 flex items-center gap-1">
-                <User size={12} />
-                Giáo viên: {displayReport.teacherName || "Chưa có thông tin"}
-              </div>
               
               {isTeacher && (
                 <>

@@ -257,6 +257,8 @@ function normalizeMonthlyReport(raw: unknown): MonthlyReport {
     "TeacherFullName",
     "mainTeacherName",
     "MainTeacherName",
+    "submittedByName",
+    "SubmittedByName",
   ]) || pickStringValue(teacherObject, ["name", "fullName", "teacherName"]);
 
   const commentsRaw = Array.isArray(source.comments)
@@ -290,12 +292,13 @@ function normalizeMonthlyReport(raw: unknown): MonthlyReport {
 
 async function apiFetch<T = unknown>(url: string, init?: RequestInit): Promise<T> {
   const token = getToken();
+  const hasBody = init?.body !== undefined && init?.body !== null;
   const response = await fetch(url, {
     ...init,
     cache: "no-store",
     credentials: "include",
     headers: {
-      "Content-Type": "application/json",
+      ...(hasBody ? { "Content-Type": "application/json" } : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(init?.headers || {}),
     },
@@ -312,7 +315,17 @@ async function apiFetch<T = unknown>(url: string, init?: RequestInit): Promise<T
   }
 
   if (!response.ok) {
-    throw new Error(payload?.message || "Không thể xử lý monthly report");
+    const errorDetails = Array.isArray((payload as { errors?: unknown }).errors)
+      ? (payload as { errors: Array<{ description?: string; message?: string }> }).errors
+      : [];
+    const firstDetail = errorDetails[0]?.description || errorDetails[0]?.message;
+    const apiErrorMessage =
+      (typeof payload?.message === "string" && payload.message.trim()) ||
+      (typeof (payload as { detail?: unknown }).detail === "string" && String((payload as { detail?: string }).detail).trim()) ||
+      firstDetail ||
+      "Không thể xử lý monthly report";
+
+    throw new Error(apiErrorMessage);
   }
 
   return (payload?.data ?? payload) as T;
@@ -767,16 +780,17 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
     reportId: string,
     action: string,
     method: "POST" | "PUT" = "POST",
-    body?: Record<string, string>,
+    body?: Record<string, unknown>,
   ) => {
     const actionKey = `${reportId}:${action}`;
     setActionLoading((prev) => ({ ...prev, [actionKey]: true }));
     setError("");
     setMessage("");
     try {
+      const requestBody = action === "generate-draft" ? undefined : body;
       const result = await apiFetch(`/api/monthly-reports/${reportId}/${action}`, {
         method,
-        ...(body ? { body: JSON.stringify(body) } : {}),
+        ...(requestBody ? { body: JSON.stringify(requestBody) } : {}),
       });
       setMessage(`Đã xử lý ${action}`);
       toast({ title: "Thành công", description: `Đã xử lý ${action}`, variant: "success" });
@@ -2092,29 +2106,19 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
 
                 {/* Sidebar - chiếm 2/5 */}
                 <div className="lg:col-span-2 space-y-4">
-                  {/* Thông tin giáo viên */}
-                  <div className="rounded-2xl bg-gradient-to-br from-white to-red-50 border border-red-200 p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="p-1.5 rounded-lg bg-red-100">
-                        <Send size={16} className="text-red-600" />
+                  {displayReport.pdfUrl && (
+                    <div className="rounded-2xl bg-gradient-to-br from-white to-red-50 border border-red-200 p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="p-1.5 rounded-lg bg-red-100">
+                          <FileBarChart size={16} className="text-red-600" />
+                        </div>
+                        <h3 className="text-sm font-semibold text-gray-700">File đính kèm</h3>
                       </div>
-                      <h3 className="text-sm font-semibold text-gray-700">Giáo viên</h3>
-                    </div>
-                    <div className="flex items-center gap-3 p-3 rounded-xl bg-white border border-gray-100 shadow-sm">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-red-500 to-red-600 flex items-center justify-center text-white font-bold text-sm">
-                        {displayReport.teacherName ? displayReport.teacherName.charAt(0).toUpperCase() : "?"}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-gray-900 text-sm truncate">{displayReport.teacherName || "N/A"}</p>
-                        <p className="text-xs text-gray-500">Giáo viên phụ trách</p>
-                      </div>
-                    </div>
-                    {displayReport.pdfUrl && (
                       <a
                         href={displayReport.pdfUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="mt-3 flex items-center gap-2 p-3 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                        className="flex items-center gap-2 p-3 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
                       >
                         <div className="p-2 rounded-lg bg-red-100">
                           <FileBarChart size={16} className="text-red-600" />
@@ -2124,8 +2128,8 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
                           <p className="text-sm font-medium text-red-600 hover:text-red-700">Xem chi tiết →</p>
                         </div>
                       </a>
-                    )}
-                  </div>
+                    </div>
+                  )}
 
                   {/* Góp ý từ Staff/Admin */}
                   {displayReport.comments && displayReport.comments.length > 0 && (

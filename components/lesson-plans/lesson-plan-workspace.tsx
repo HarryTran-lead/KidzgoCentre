@@ -670,7 +670,7 @@ function renderLinkifiedText(text: string) {
     nodes.push(
       <a
         key={`url-${index}-${clean}`}
-        href={clean}
+        href={buildFileUrl(clean)}
         target="_blank"
         rel="noreferrer"
         className="my-1 block w-fit max-w-full rounded-md bg-blue-50 px-2 py-1 font-medium text-blue-700 underline underline-offset-2 break-all hover:bg-blue-100 hover:text-blue-900"
@@ -2344,7 +2344,6 @@ if (current.length === 1 && isActivityDraftEmpty(current[0])) return [nextActivi
   return (
     <ModalFrame
       title={isEdit ? "Cập nhật template" : "Tạo template"}
-      subtitle="Nhập theo đúng bố cục Excel: thông tin chung ở trên, activities của từng session ở dưới."
       icon={FolderOpen}
       onClose={onClose}
       widthClass="max-w-6xl"
@@ -2867,8 +2866,7 @@ function ImportTemplateModal({
   return (
     <ModalFrame
       title="Import mẫu giáo án (Syllabus)"
-      subtitle="Dùng file mẫu để tạo sẵn khung giáo án cho nhiều buổi học. Giáo viên sẽ cập nhật nội dung chi tiết sau khi dạy."
-      icon={Upload}
+        icon={Upload}
       onClose={onClose}
       widthClass="max-w-3xl"
     >
@@ -3298,7 +3296,6 @@ function PlanFormModal({
   return (
     <ModalFrame
       title={isTeacher ? (isEdit ? "Cập nhật giáo án" : "Điền giáo án buổi dạy") : (isEdit ? "Cập nhật giáo án" : "Tạo giáo án")}
-      subtitle={isTeacher ? "Giáo viên chỉ được chỉnh đúng các cột được phép sau buổi học; các cột thiết lập trước bởi quản trị là chỉ đọc." : "Buổi học đã có dữ liệu cố định từ syllabus. Bạn chỉ cần chọn mẫu giáo án và điền nội dung thực tế nếu cần."}
       icon={isTeacher ? ClipboardPen : FilePlus2}
       onClose={onClose}
       widthClass={hasStructuredStarter || hasStructuredPlanner ? "max-w-6xl" : "max-w-4xl"}
@@ -3851,10 +3848,6 @@ function DetailModal({
   onOpenAttachment: (url?: string | null) => void;
 }) {
   const title = state.type === "template" ? "Chi tiết mẫu giáo án" : "Chi tiết giáo án";
-  const subtitle =
-    state.type === "template"
-      ? "Dữ liệu lấy từ GET /api/lesson-plan-templates/{id}."
-      : "Dữ liệu lấy từ GET /api/lesson-plans/{id}.";
   const hasTemplateMetadata = state.type === "template" && state.item
     ? hasDisplayablePayload(state.item.syllabusMetadata)
     : false;
@@ -3864,7 +3857,7 @@ function DetailModal({
 
   if (state.loading) {
     return (
-      <ModalFrame title={title} subtitle={subtitle} icon={state.type === "template" ? FolderOpen : FileText} onClose={onClose} widthClass="max-w-5xl">
+      <ModalFrame title={title} icon={state.type === "template" ? FolderOpen : FileText} onClose={onClose} widthClass="max-w-5xl">
         <div className="flex items-center justify-center py-16 text-gray-600">
           <Loader2 size={20} className="mr-3 animate-spin text-red-600" />
           Đang tải chi tiết...
@@ -3875,7 +3868,7 @@ function DetailModal({
 
   if (state.error) {
     return (
-      <ModalFrame title={title} subtitle={subtitle} icon={state.type === "template" ? FolderOpen : FileText} onClose={onClose} widthClass="max-w-5xl">
+      <ModalFrame title={title} icon={state.type === "template" ? FolderOpen : FileText} onClose={onClose} widthClass="max-w-5xl">
         <div className="p-6">
 <ErrorBox message={state.error} />
         </div>
@@ -3884,7 +3877,7 @@ function DetailModal({
   }
 
   return (
-    <ModalFrame title={title} subtitle={subtitle} icon={state.type === "template" ? FolderOpen : FileText} onClose={onClose} widthClass="max-w-5xl">
+    <ModalFrame title={title} icon={state.type === "template" ? FolderOpen : FileText} onClose={onClose} widthClass="max-w-5xl">
       <div className="space-y-5 p-6">
         {state.type === "template" && state.item ? (
           <>
@@ -4168,14 +4161,12 @@ function StatCard({
 
 function ModalFrame({
   title,
-  subtitle,
   icon: Icon,
   onClose,
   children,
   widthClass = "max-w-3xl",
 }: {
   title: string;
-  subtitle: string;
   icon: LucideIcon;
   onClose: () => void;
   children: React.ReactNode;
@@ -4192,7 +4183,6 @@ function ModalFrame({
               </div>
               <div>
                 <h2 className="text-xl font-bold text-white">{title}</h2>
-                <p className="mt-1 text-sm text-red-100">{subtitle}</p>
               </div>
             </div>
             <button
