@@ -862,7 +862,7 @@ const formatGradedDate = (dateString?: string): string => {
           )}
 
           {/* Re-submission info */}
-          {canResubmit && (
+          {canResubmit && (!assignment.gradedAt || isMultipleChoiceAssignment) && (
             <div className="rounded-2xl border border-blue-500/30 bg-blue-500/10 p-5 shadow-xl shadow-blue-900/10">
               <div className="flex items-start gap-3 justify-between">
                 <div className="flex-1">

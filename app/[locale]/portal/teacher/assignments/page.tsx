@@ -2507,10 +2507,15 @@ function UpdateAssignmentModal({
         });
         onSuccess();
       } else {
-        setError(result.error || "Có lỗi xảy ra. Vui lòng thử lại.");
+        // Translate common API error messages
+        let errorMsg = result.error || "Có lỗi xảy ra. Vui lòng thử lại.";
+        if (errorMsg.includes("Cannot update homework assignment that has submitted or graded submissions")) {
+          errorMsg = "Không thể cập nhật bài tập khi đã có học sinh nộp hoặc đã chấm bài";
+        }
+        setError(errorMsg);
         toast({
           title: "Lỗi",
-          description: result.error || "Có lỗi xảy ra. Vui lòng thử lại.",
+          description: errorMsg,
           variant: "destructive",
           duration: 5000,
         });
