@@ -42,6 +42,15 @@ interface CreateAccountProfileModalProps {
 
 type Step = "account" | "parent-profile" | "student-profile" | "convert" | "done";
 
+interface ExistingParentContext {
+  userId: string;
+  email: string;
+  phoneNumber: string;
+  displayName: string;
+  parentProfileId?: string;
+  parentProfileDisplayName?: string;
+}
+
 export default function CreateAccountProfileModal({
   isOpen,
   onClose,
@@ -55,6 +64,11 @@ export default function CreateAccountProfileModal({
   const [error, setError] = useState<string | null>(null);
   const [convertStatus, setConvertStatus] = useState<"idle" | "success" | "failed">("idle");
   const [convertMessage, setConvertMessage] = useState<string>("");
+  const [existingParentContext, setExistingParentContext] =
+    useState<ExistingParentContext | null>(null);
+  const [isCheckingExistingContext, setIsCheckingExistingContext] =
+    useState(false);
+  const [hasUsedExistingContext, setHasUsedExistingContext] = useState(false);
 
   const initialAccountForm = useMemo(
     () => ({
@@ -110,6 +124,231 @@ export default function CreateAccountProfileModal({
   };
 
   const toLower = (value: unknown) => String(value || "").toLowerCase();
+
+  const normalizeText = (value: unknown) =>
+    String(value || "")
+      .trim()
+      .toLowerCase();
+
+  const normalizePhone = (value: unknown) => {
+    const digits = String(value || "").replace(/\D/g, "");
+    if (!digits) return "";
+    if (digits.startsWith("84")) return digits.slice(2);
+    if (digits.startsWith("0")) return digits.slice(1);
+    return digits;
+  };
+
+  const isSamePhone = (left: unknown, right: unknown) => {
+    const normalizedLeft = normalizePhone(left);
+    const normalizedRight = normalizePhone(right);
+
+    if (!normalizedLeft || !normalizedRight) return false;
+
+    return (
+      normalizedLeft === normalizedRight ||
+      normalizedLeft.endsWith(normalizedRight) ||
+      normalizedRight.endsWith(normalizedLeft)
+    );
+  };
+
+  const extractItems = (payload: any): any[] => {
+    if (Array.isArray(payload?.data?.users?.items)) return payload.data.users.items;
+    if (Array.isArray(payload?.data?.items)) return payload.data.items;
+    if (Array.isArray(payload?.data?.profiles)) return payload.data.profiles;
+    if (Array.isArray(payload?.data)) return payload.data;
+    if (Array.isArray(payload?.items)) return payload.items;
+    if (Array.isArray(payload?.profiles)) return payload.profiles;
+    if (Array.isArray(payload)) return payload;
+    return [];
+  };
+
+  const findMatchedParentUser = (items: any[], email: string, phone: string) => {
+    const normalizedEmail = normalizeText(email);
+
+    return (
+      items.find((item) => {
+        const itemEmail = normalizeText(item?.email);
+        if (normalizedEmail && itemEmail && itemEmail === normalizedEmail) {
+          return true;
+        }
+
+        if (phone && isSamePhone(item?.phoneNumber || item?.phone, phone)) {
+          return true;
+        }
+
+        return false;
+      }) || null
+    );
+  };
+
+  const findExistingParentContext = async (
+    emailInput: string,
+    phoneInput: string,
+  ): Promise<ExistingParentContext | null> => {
+    const token = getAccessToken();
+    if (!token) return null;
+
+    const normalizedEmail = String(emailInput || "").trim();
+    const normalizedPhoneInput = String(phoneInput || "").trim();
+
+    if (!normalizedEmail && !normalizedPhoneInput) {
+      return null;
+    }
+
+    const candidateUsers = new Map<string, any>();
+    const searchTerms = Array.from(
+      new Set([normalizedEmail, normalizedPhoneInput].filter(Boolean)),
+    );
+
+    const fetchParentUsers = async (search?: string) => {
+      const params = new URLSearchParams({
+        role: "Parent",
+        pageNumber: "1",
+        pageSize: "100",
+      });
+      if (search) params.append("search", search);
+
+      const response = await fetch(`${USER_ENDPOINTS.GET_ALL}?${params.toString()}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        return;
+      }
+
+      const payload = await response.json().catch(() => ({}));
+      const items = extractItems(payload);
+
+      items.forEach((item: any) => {
+        const id = String(item?.id || item?.userId || "").trim();
+        if (id) {
+          candidateUsers.set(id, item);
+        }
+      });
+    };
+
+    for (const term of searchTerms) {
+      await fetchParentUsers(term);
+    }
+
+    if (candidateUsers.size === 0) {
+      await fetchParentUsers();
+    }
+
+    const matchedUser = findMatchedParentUser(
+      Array.from(candidateUsers.values()),
+      normalizedEmail,
+      normalizedPhoneInput,
+    );
+
+    if (!matchedUser) {
+      return null;
+    }
+
+    const userId = String(matchedUser?.id || matchedUser?.userId || "").trim();
+    if (!userId) {
+      return null;
+    }
+
+    let parentProfile =
+      Array.isArray(matchedUser?.profiles) && matchedUser.profiles.length > 0
+        ? matchedUser.profiles.find(
+            (profile: any) => normalizeText(profile?.profileType) === "parent",
+          )
+        : null;
+
+    if (!parentProfile) {
+      const profileParams = new URLSearchParams({
+        profileType: "Parent",
+        userId,
+        pageNumber: "1",
+        pageSize: "50",
+      });
+
+      const profileResponse = await fetch(
+        `${PROFILE_ENDPOINTS.GET_ALL}?${profileParams.toString()}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      if (profileResponse.ok) {
+        const profilePayload = await profileResponse.json().catch(() => ({}));
+        const profileItems = extractItems(profilePayload);
+        parentProfile =
+          profileItems.find(
+            (profile: any) => normalizeText(profile?.profileType) === "parent",
+          ) || null;
+      }
+    }
+
+    const parentProfileId = String(
+      parentProfile?.id || parentProfile?.profileId || "",
+    ).trim();
+
+    return {
+      userId,
+      email: String(matchedUser?.email || normalizedEmail || "").trim(),
+      phoneNumber: String(
+        matchedUser?.phoneNumber || matchedUser?.phone || normalizedPhoneInput || "",
+      ).trim(),
+      displayName: String(
+        matchedUser?.name ||
+          matchedUser?.fullName ||
+          matchedUser?.username ||
+          leadInfo?.contactName ||
+          "",
+      ).trim(),
+      parentProfileId: parentProfileId || undefined,
+      parentProfileDisplayName: String(
+        parentProfile?.displayName || parentProfile?.fullName || "",
+      ).trim(),
+    };
+  };
+
+  const handleUseExistingParentContext = (skipParentProfile: boolean) => {
+    if (!existingParentContext) return;
+
+    setHasUsedExistingContext(true);
+    setError(null);
+    setCreatedUserId(existingParentContext.userId);
+    setAccountForm((prev) => ({
+      ...prev,
+      email: existingParentContext.email || prev.email,
+      phoneNumber: existingParentContext.phoneNumber || prev.phoneNumber,
+      name: existingParentContext.displayName || prev.name,
+    }));
+
+    if (skipParentProfile && existingParentContext.parentProfileId) {
+      setCreatedParentProfileId(existingParentContext.parentProfileId);
+      setParentProfileForm((prev) => ({
+        ...prev,
+        displayName:
+          existingParentContext.parentProfileDisplayName ||
+          existingParentContext.displayName ||
+          prev.displayName,
+      }));
+      setCurrentStep("student-profile");
+      toast({
+        title: "Đã dùng tài khoản phụ huynh hiện có",
+        description:
+          "Bỏ qua bước tạo tài khoản và profile phụ huynh. Tiếp tục tạo profile học viên cho bé.",
+        variant: "success",
+      });
+      return;
+    }
+
+    setCurrentStep("parent-profile");
+    toast({
+      title: "Đã dùng tài khoản phụ huynh hiện có",
+      description: "Tiếp tục tạo profile phụ huynh cho tài khoản hiện có.",
+      variant: "success",
+    });
+  };
 
   const translateAccountError = (payload: any, fallback: string) => {
     const code = String(payload?.code || "").trim();
@@ -184,6 +423,9 @@ export default function CreateAccountProfileModal({
     setError(null);
     setConvertStatus("idle");
     setConvertMessage("");
+    setExistingParentContext(null);
+    setIsCheckingExistingContext(false);
+    setHasUsedExistingContext(false);
     setCreatedUserId(null);
     setCreatedParentProfileId(null);
     setCreatedStudentProfileId(null);
@@ -201,6 +443,48 @@ export default function CreateAccountProfileModal({
     initialAccountForm,
     initialParentProfileForm,
     initialStudentProfileForm,
+  ]);
+
+  useEffect(() => {
+    if (!isOpen || currentStep !== "account") return;
+
+    const email = String(accountForm.email || "").trim();
+    const phone = String(accountForm.phoneNumber || "").trim();
+
+    if (!email && !phone) {
+      setExistingParentContext(null);
+      return;
+    }
+
+    let cancelled = false;
+    const timeoutId = window.setTimeout(async () => {
+      setIsCheckingExistingContext(true);
+      try {
+        const detected = await findExistingParentContext(email, phone);
+        if (!cancelled) {
+          setExistingParentContext(detected);
+        }
+      } catch (lookupError) {
+        console.warn("Could not lookup existing parent context:", lookupError);
+        if (!cancelled) {
+          setExistingParentContext(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsCheckingExistingContext(false);
+        }
+      }
+    }, 350);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [
+    isOpen,
+    currentStep,
+    accountForm.email,
+    accountForm.phoneNumber,
   ]);
 
   const handleCreateAccount = async () => {
@@ -240,6 +524,8 @@ export default function CreateAccountProfileModal({
       }
 
       setCreatedUserId(userId);
+      setCreatedParentProfileId(null);
+      setHasUsedExistingContext(false);
       setCurrentStep("parent-profile");
       toast({
         title: "Tạo tài khoản thành công",
@@ -248,7 +534,34 @@ export default function CreateAccountProfileModal({
       });
     } catch (err: any) {
       const message = err?.message || "Có lỗi xảy ra khi tạo tài khoản";
-      setError(message);
+      const normalizedMessage = toLower(message);
+      const looksLikeDuplicate =
+        normalizedMessage.includes("đã tồn tại") ||
+        normalizedMessage.includes("not unique");
+
+      if (looksLikeDuplicate) {
+        try {
+          const detected = await findExistingParentContext(
+            accountForm.email,
+            accountForm.phoneNumber,
+          );
+          if (detected) {
+            setExistingParentContext(detected);
+            setError(
+              detected.parentProfileId
+                ? `${message} Hệ thống đã tìm thấy tài khoản và profile phụ huynh. Bạn có thể dùng tài khoản hiện có để bỏ qua 2 bước đầu.`
+                : `${message} Hệ thống đã tìm thấy tài khoản phụ huynh. Bạn có thể dùng tài khoản hiện có để tiếp tục.`,
+            );
+          } else {
+            setError(message);
+          }
+        } catch {
+          setError(message);
+        }
+      } else {
+        setError(message);
+      }
+
       toast({
         title: "Tạo tài khoản thất bại",
         description: message,
@@ -537,6 +850,76 @@ export default function CreateAccountProfileModal({
               <div className="bg-gradient-to-r from-rose-50 to-red-50 border-l-4 border-rose-400 rounded-lg p-3 text-xs text-rose-700 shadow-sm">
                 <p className="font-medium">Hướng dẫn:</p>
                 <p className="mt-1">Tạo tài khoản đăng nhập cho phụ huynh từ thông tin lead. Mật khẩu mặc định là <strong>123456</strong>.</p>
+                <p className="mt-1">Nếu lead có 2 bé và phụ huynh đã có tài khoản/profile, bạn có thể bỏ qua bước này để tránh tạo trùng.</p>
+              </div>
+
+              <div className="space-y-2">
+                {isCheckingExistingContext && (
+                  <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700 flex items-center gap-2">
+                    <Loader2 size={14} className="animate-spin shrink-0" />
+                    <span>Đang kiểm tra tài khoản/profile phụ huynh đã tồn tại...</span>
+                  </div>
+                )}
+
+                {existingParentContext?.parentProfileId && (
+                  <div className="rounded-lg border border-emerald-200 bg-linear-to-r from-emerald-50 to-green-50 p-3 text-xs text-emerald-800 shadow-sm space-y-2">
+                    <div className="flex items-start gap-2">
+                      <CheckCircle2 size={14} className="shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-semibold">Đã tìm thấy tài khoản + profile phụ huynh</p>
+                        <p className="mt-0.5">Lead này có thể là bé thứ 2 của cùng phụ huynh. Bạn có thể bỏ qua 2 bước đầu và đi tiếp.</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-[11px]">
+                      <div className="rounded-md border border-emerald-200 bg-white px-2 py-1.5">
+                        <p className="text-emerald-600 font-medium">Email</p>
+                        <p className="text-gray-700 truncate">{existingParentContext.email || "-"}</p>
+                      </div>
+                      <div className="rounded-md border border-emerald-200 bg-white px-2 py-1.5">
+                        <p className="text-emerald-600 font-medium">Số điện thoại</p>
+                        <p className="text-gray-700 truncate">{existingParentContext.phoneNumber || "-"}</p>
+                      </div>
+                      <div className="rounded-md border border-emerald-200 bg-white px-2 py-1.5">
+                        <p className="text-emerald-600 font-medium">Profile phụ huynh</p>
+                        <p className="text-gray-700 truncate">{existingParentContext.parentProfileDisplayName || existingParentContext.displayName || "-"}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap justify-end gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => handleUseExistingParentContext(true)}
+                        disabled={isSubmitting}
+                        className="px-3 py-1.5 rounded-md border border-emerald-300 text-emerald-700 bg-white font-semibold hover:bg-emerald-100 transition-all disabled:opacity-50 cursor-pointer"
+                      >
+                        Bỏ qua 2 bước đầu
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {existingParentContext && !existingParentContext.parentProfileId && (
+                  <div className="rounded-lg border border-amber-200 bg-linear-to-r from-amber-50 to-yellow-50 p-3 text-xs text-amber-800 shadow-sm space-y-2">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-semibold">Đã tìm thấy tài khoản phụ huynh</p>
+                        <p className="mt-0.5">Tài khoản phụ huynh đã tồn tại nhưng chưa thấy profile phụ huynh. Bạn có thể dùng tài khoản hiện có để tiếp tục.</p>
+                      </div>
+                    </div>
+                    <div className="flex justify-end pt-1">
+                      <button
+                        type="button"
+                        onClick={() => handleUseExistingParentContext(false)}
+                        disabled={isSubmitting}
+                        className="px-3 py-1.5 rounded-md border border-amber-300 text-amber-800 bg-white font-semibold hover:bg-amber-100 transition-all disabled:opacity-50 cursor-pointer"
+                      >
+                        Dùng tài khoản hiện có
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -680,7 +1063,12 @@ export default function CreateAccountProfileModal({
               <div className="bg-gradient-to-r from-emerald-50 to-green-50 border-l-4 border-emerald-400 rounded-lg p-3 text-xs text-emerald-700 shadow-sm">
                 <div className="flex items-start gap-2">
                   <CheckCircle2 size={14} className="flex-shrink-0 mt-0.5" />
-                  <p><span className="font-semibold">✓ Hoàn tất!</span> Tài khoản đã được tạo thành công. Tiếp tục tạo profile phụ huynh.</p>
+                  <p>
+                    <span className="font-semibold">✓ Hoàn tất!</span>{" "}
+                    {hasUsedExistingContext
+                      ? "Đã dùng tài khoản phụ huynh hiện có. Tiếp tục tạo profile phụ huynh."
+                      : "Tài khoản đã được tạo thành công. Tiếp tục tạo profile phụ huynh."}
+                  </p>
                 </div>
               </div>
 
@@ -767,7 +1155,12 @@ export default function CreateAccountProfileModal({
               <div className="bg-gradient-to-r from-emerald-50 to-green-50 border-l-4 border-emerald-400 rounded-lg p-3 text-xs text-emerald-700 shadow-sm">
                 <div className="flex items-start gap-2">
                   <CheckCircle2 size={14} className="flex-shrink-0 mt-0.5" />
-                  <p><span className="font-semibold">✓ Hoàn tất!</span> Profile phụ huynh đã được tạo thành công. Bây giờ tạo profile cho học viên.</p>
+                  <p>
+                    <span className="font-semibold">✓ Hoàn tất!</span>{" "}
+                    {hasUsedExistingContext && createdParentProfileId
+                      ? "Đã dùng profile phụ huynh hiện có. Bây giờ tạo profile cho học viên."
+                      : "Profile phụ huynh đã được tạo thành công. Bây giờ tạo profile cho học viên."}
+                  </p>
                 </div>
               </div>
 
@@ -875,14 +1268,24 @@ export default function CreateAccountProfileModal({
                 <h3 className="text-2xl font-bold bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent">
                   Hoàn tất!
                 </h3>
-                <p className="text-sm text-gray-600">Tài khoản và profile đã được tạo thành công</p>
+                <p className="text-sm text-gray-600">
+                  {hasUsedExistingContext
+                    ? "Đã dùng tài khoản phụ huynh hiện có và hoàn tất tạo profile học viên"
+                    : "Tài khoản và profile đã được tạo thành công"}
+                </p>
               </div>
 
               <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-xl p-4 text-left text-xs space-y-2 shadow-sm">
                 <div className="font-semibold text-gray-900 text-center mb-3">📋 Trạng thái</div>
                 <div className="flex items-start gap-2">
                   <div className="mt-0.5">✓</div>
-                  <p className="text-gray-700">Tài khoản và profile được tạo với trạng thái <strong className="text-amber-600">chưa kích hoạt</strong></p>
+                  <p className="text-gray-700">
+                    {hasUsedExistingContext
+                      ? "Profile học viên được tạo và liên kết với tài khoản phụ huynh hiện có"
+                      : <>
+                          Tài khoản và profile được tạo với trạng thái <strong className="text-amber-600">chưa kích hoạt</strong>
+                        </>}
+                  </p>
                 </div>
                 <div className="flex items-start gap-2">
                   <div className="mt-0.5">✓</div>
@@ -901,18 +1304,33 @@ export default function CreateAccountProfileModal({
               <div className="bg-gray-50 border-2 border-gray-200 rounded-xl p-4 text-left space-y-2 shadow-sm">
                 <div className="font-bold text-gray-900 flex items-center gap-1.5 text-sm">
                   <Lock size={14} className="text-red-600" />
-                  Thông tin đăng nhập
+                  Thông tin tài khoản phụ huynh
                 </div>
                 <div className="grid gap-2">
                   <div className="flex items-center justify-between p-2 bg-white rounded-lg border border-gray-200 text-sm">
                     <span className="text-gray-600">Email:</span>
-                    <span className="font-mono font-semibold text-gray-800 text-xs">{accountForm.email}</span>
+                    <span className="font-mono font-semibold text-gray-800 text-xs">
+                      {hasUsedExistingContext
+                        ? existingParentContext?.email || accountForm.email
+                        : accountForm.email}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between p-2 bg-white rounded-lg border border-gray-200 text-sm">
-                    <span className="text-gray-600">Mật khẩu:</span>
-                    <span className="font-mono font-semibold text-gray-800 text-xs">{accountForm.password}</span>
+                    <span className="text-gray-600">
+                      {hasUsedExistingContext ? "Trạng thái:" : "Mật khẩu:"}
+                    </span>
+                    <span className="font-mono font-semibold text-gray-800 text-xs">
+                      {hasUsedExistingContext
+                        ? "Đã dùng tài khoản hiện có"
+                        : accountForm.password}
+                    </span>
                   </div>
                 </div>
+                {hasUsedExistingContext && (
+                  <p className="text-xs text-amber-700">
+                    Mật khẩu của tài khoản phụ huynh được giữ nguyên như trước đó.
+                  </p>
+                )}
               </div>
 
               <button

@@ -202,6 +202,9 @@ export default function Page() {
 
   // UI state
   const [isPageLoaded, setIsPageLoaded] = useState(false);
+  const [isCreatingLead, setIsCreatingLead] = useState(false);
+  const [isCreatingTest, setIsCreatingTest] = useState(false);
+  const [isCreatingEnrollment, setIsCreatingEnrollment] = useState(false);
 
   // Filter state
   const [selectedStatus, setSelectedStatus] = useState<string>("Tất cả");
@@ -1006,9 +1009,14 @@ export default function Page() {
   };
 
   // Modal handlers
-  const handleCreateLead = () => {
-    setSelectedLead(null);
-    setIsFormModalOpen(true);
+  const handleCreateLead = async () => {
+    setIsCreatingLead(true);
+    try {
+      setSelectedLead(null);
+      setIsFormModalOpen(true);
+    } finally {
+      setIsCreatingLead(false);
+    }
   };
 
   const handleEditLead = (lead: LeadType) => {
@@ -1345,12 +1353,17 @@ export default function Page() {
 
   // Placement Test handlers
   const handleCreateTest = async () => {
-    // Fetch dropdown data first, then open modal
-    await fetchModalDropdownData();
-    setTestFormDefaultMode("create");
-    setRetakeSourceTestId("");
-    setSelectedTest(null);
-    setIsTestFormModalOpen(true);
+    setIsCreatingTest(true);
+    try {
+      // Fetch dropdown data first, then open modal
+      await fetchModalDropdownData();
+      setTestFormDefaultMode("create");
+      setRetakeSourceTestId("");
+      setSelectedTest(null);
+      setIsTestFormModalOpen(true);
+    } finally {
+      setIsCreatingTest(false);
+    }
   };
 
   const syncPlacementTestDetail = async (testId: string) => {
@@ -1755,8 +1768,13 @@ export default function Page() {
   };
 
   // ========== Enrollment Handlers ==========
-  const handleCreateEnrollment = () => {
-    setIsEnrollFormModalOpen(true);
+  const handleCreateEnrollment = async () => {
+    setIsCreatingEnrollment(true);
+    try {
+      setIsEnrollFormModalOpen(true);
+    } finally {
+      setIsCreatingEnrollment(false);
+    }
   };
 
   const handleEnrollmentFormSubmit = async (data: CreateEnrollmentRequest) => {
@@ -1882,6 +1900,16 @@ export default function Page() {
 
   return (
     <div className="min-h-screen bg-linear-to-b from-red-50/30 to-white p-6 space-y-6">
+      {/* Loading Overlay */}
+      {(isCreatingLead || isCreatingTest || isCreatingEnrollment) && (
+        <div className="fixed inset-0 z-100 bg-black/30 backdrop-blur-sm flex items-center justify-center w-screen h-screen">
+          <div className=" p-8  flex flex-col items-center gap-4">
+            <div className="w-12 h-12 border-4 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-white font-semibold">Đang tải...</p>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div
         className={`flex flex-wrap items-center justify-between gap-4 transition-all duration-700 ${
@@ -1913,9 +1941,19 @@ export default function Page() {
             
             <button
               onClick={handleCreateLead}
-              className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer hover:scale-105 active:scale-95"
+              disabled={isCreatingLead}
+              className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer hover:scale-105 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
-              <UserPlus size={16} /> Nhập khách tiềm năng mới
+              {isCreatingLead ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Đang tải...</span>
+                </>
+              ) : (
+                <>
+                  <UserPlus size={16} /> Nhập khách tiềm năng mới
+                </>
+              )}
             </button>
           </div>
         ) : activeTab === "placement_tests" ? (
@@ -1923,9 +1961,19 @@ export default function Page() {
            
             <button
               onClick={handleCreateTest}
-              className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer hover:scale-105 active:scale-95"
+              disabled={isCreatingTest}
+              className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer hover:scale-105 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
-              <CalendarClock size={16} /> Đặt lịch test mới
+              {isCreatingTest ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Đang tải...</span>
+                </>
+              ) : (
+                <>
+                  <CalendarClock size={16} /> Đặt lịch test mới
+                </>
+              )}
             </button>
           </div>
         ) : activeTab === "enrollments" ? (
@@ -1933,9 +1981,19 @@ export default function Page() {
             
             <button
               onClick={handleCreateEnrollment}
-              className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer hover:scale-105 active:scale-95"
+              disabled={isCreatingEnrollment}
+              className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer hover:scale-105 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
-              <BookOpen size={16} /> Tạo ghi danh mới
+              {isCreatingEnrollment ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Đang tải...</span>
+                </>
+              ) : (
+                <>
+                  <BookOpen size={16} /> Tạo ghi danh mới
+                </>
+              )}
             </button>
           </div>
         ) : null}
@@ -1949,11 +2007,12 @@ export default function Page() {
       >
         <button
           onClick={() => setActiveTab("leads")}
+          disabled={isCreatingLead || isCreatingTest || isCreatingEnrollment}
           className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
             activeTab === "leads"
               ? "bg-linear-to-r from-red-600 to-red-700 text-white shadow-md"
               : "text-gray-700 hover:bg-gray-100"
-          }`}
+          } disabled:opacity-50 disabled:cursor-not-allowed`}
         >
           <div className="flex items-center gap-2">
             <Target size={16} />
@@ -1971,11 +2030,12 @@ export default function Page() {
         </button>
         <button
           onClick={() => setActiveTab("placement_tests")}
+          disabled={isCreatingLead || isCreatingTest || isCreatingEnrollment}
           className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
             activeTab === "placement_tests"
               ? "bg-linear-to-r from-red-600 to-red-700 text-white shadow-md"
               : "text-gray-700 hover:bg-gray-100"
-          }`}
+          } disabled:opacity-50 disabled:cursor-not-allowed`}
         >
           <div className="flex items-center gap-2">
             <CalendarClock size={16} />
@@ -1993,11 +2053,12 @@ export default function Page() {
         </button>
         <button
           onClick={() => setActiveTab("registrations")}
+          disabled={isCreatingLead || isCreatingTest || isCreatingEnrollment}
           className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
             activeTab === "registrations"
               ? "bg-linear-to-r from-red-600 to-red-700 text-white shadow-md"
               : "text-gray-700 hover:bg-gray-100"
-          }`}
+          } disabled:opacity-50 disabled:cursor-not-allowed`}
         >
           <div className="flex items-center gap-2">
             <ClipboardList size={16} />
@@ -2015,11 +2076,12 @@ export default function Page() {
         </button>
         <button
           onClick={() => setActiveTab("enrollments")}
+          disabled={isCreatingLead || isCreatingTest || isCreatingEnrollment}
           className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
             activeTab === "enrollments"
               ? "bg-linear-to-r from-red-600 to-red-700 text-white shadow-md"
               : "text-gray-600 hover:bg-pink-50"
-          }`}
+          } disabled:opacity-50 disabled:cursor-not-allowed`}
         >
           <div className="flex items-center gap-2">
             <BookOpen size={16} />

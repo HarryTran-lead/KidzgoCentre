@@ -452,16 +452,18 @@ export async function createMultipleChoiceHomework(
     sessionId?: string;
     title: string;
     description?: string;
+    startAt?: string;
     dueAt: string;
     rewardStars?: number;
     timeLimitMinutes?: number;
+    maxAttempts?: number;
     allowResubmit?: boolean;
     instructions?: string;
     questions: MultipleChoiceQuestion[];
   }
 ): Promise<CreateHomeworkResult> {
   try {
-    console.log("📤 [API] Sending payload:", JSON.stringify(payload, null, 2));
+    console.log("📤 [API] Sending multiple-choice payload:", JSON.stringify(payload, null, 2));
     
     const response = await post<HomeworkSubmission>(
       `${TEACHER_ENDPOINTS.HOMEWORK}/multiple-choice`, 

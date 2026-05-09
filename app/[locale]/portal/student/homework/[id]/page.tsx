@@ -149,6 +149,30 @@ const formatGradedDate = (dateString?: string): string => {
   }
 };
 
+// Check if assignment has started
+const isAssignmentStarted = (startDate?: string): boolean => {
+  if (!startDate) return true;
+  try {
+    const date = new Date(startDate);
+    if (isNaN(date.getTime())) return true;
+    return new Date() >= date;
+  } catch {
+    return true;
+  }
+};
+
+// Check if deadline hasn't passed yet
+const isBeforeDeadline = (dueDate?: string): boolean => {
+  if (!dueDate) return true;
+  try {
+    const date = new Date(dueDate);
+    if (isNaN(date.getTime())) return true;
+    return new Date() < date;
+  } catch {
+    return true;
+  }
+};
+
 export default function AssignmentDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -165,12 +189,15 @@ export default function AssignmentDetailPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [isAttemptingQuiz, setIsAttemptingQuiz] = useState(false);
 
   // Navigation warning state
   const [showLeaveWarning, setShowLeaveWarning] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
   const isMultipleChoiceRef = useRef(false);
   const hasUnsavedChanges = useRef(false);
+  const formContainerRef = useRef<HTMLDivElement>(null);
 
   // Fetch homework detail
   useEffect(() => {
@@ -184,6 +211,16 @@ export default function AssignmentDetailPage() {
         const response = await getStudentHomeworkById(homeworkId);
 
         if (response.isSuccess && response.data) {
+          // Log response data for debugging
+          console.log("=== HOMEWORK DETAIL RESPONSE ===");
+          console.log("Full Response:", response.data);
+          console.log("Status:", response.data.status);
+          console.log("maxAttempts:", response.data.maxAttempts);
+          console.log("attemptCount:", response.data.attemptCount);
+          console.log("dueDate:", response.data.dueDate);
+          console.log("Grading:", response.data.grading);
+          console.log("Submission:", response.data.submission);
+          console.log("=====================================");
           setAssignment(response.data);
         } else {
           setError(response.message || "Không thể tải thông tin bài tập");
@@ -270,6 +307,13 @@ export default function AssignmentDetailPage() {
           setAssignment(refreshResponse.data);
         }
 
+        // Show success message
+        if (isEditMode) {
+          // Toast message for edit is handled by dependency on isEditMode
+        }
+        // Reset edit mode after successful submission
+        setIsEditMode(false);
+
         setTimeout(() => setSubmitSuccess(false), 5000);
       } else {
         setSubmitError(response.message || "Không thể nộp bài");
@@ -285,6 +329,13 @@ export default function AssignmentDetailPage() {
   const handleQuizSubmitSuccess = async () => {
     setSubmitSuccess(true);
     hasUnsavedChanges.current = false; // Reset unsaved changes after successful submit
+    setIsAttemptingQuiz(false); // Clear re-attempt flag when quiz submitted
+
+    // Clear quiz submission flag from localStorage
+    if (homeworkId) {
+      const storageKey = `quiz_${homeworkId}`;
+      localStorage.removeItem(`${storageKey}_submitted`);
+    }
 
     const refreshResponse = await getStudentHomeworkById(homeworkId);
     if (refreshResponse.isSuccess && refreshResponse.data) {
@@ -296,6 +347,52 @@ export default function AssignmentDetailPage() {
 
   const isPending =
     assignment?.status === "PENDING" || assignment?.status === "ASSIGNED";
+  const isSubmitted =
+    assignment?.status === "SUBMITTED" || assignment?.status === "LATE";
+  const canResubmit =
+    isSubmitted &&
+    assignment?.maxAttempts &&
+    assignment.maxAttempts > 1 &&
+    assignment.attemptCount !== undefined &&
+    assignment.attemptCount < assignment.maxAttempts;
+
+  // Log edit conditions and scroll form into view
+  useEffect(() => {
+    if (assignment) {
+      const deadlineOk = isBeforeDeadline(assignment.dueDate);
+      const notGraded = !assignment.grading;
+      const canEdit = canResubmit && deadlineOk && notGraded;
+      
+      console.log("=== EDIT BUTTON CONDITIONS ===");
+      console.log("canResubmit:", canResubmit);
+      console.log("  - isSubmitted:", isSubmitted);
+      console.log("  - maxAttempts:", assignment.maxAttempts);
+      console.log("  - attemptCount:", assignment.attemptCount);
+      console.log("isBeforeDeadline:", deadlineOk);
+      console.log("notGraded (!assignment.grading):", notGraded);
+      console.log("CAN SHOW EDIT BUTTON:", canEdit);
+      console.log("=============================");
+    }
+
+    // Scroll form into view when user can resubmit for multiple choice
+    if (canResubmit && isMultipleChoiceAssignment && formContainerRef.current) {
+      setTimeout(() => {
+        formContainerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 300);
+    }
+  }, [assignment, canResubmit, isSubmitted, isMultipleChoiceAssignment]);
+
+  // Detect if user is currently attempting a re-submission (for multiple choice)
+  useEffect(() => {
+    if (!isMultipleChoiceAssignment || !homeworkId) return;
+    
+    const storageKey = `quiz_${homeworkId}`;
+    const savedSubmitted = localStorage.getItem(`${storageKey}_submitted`);
+    
+    // If localStorage has _submitted flag, user is re-attempting
+    setIsAttemptingQuiz(savedSubmitted === "true");
+  }, [homeworkId, isMultipleChoiceAssignment, assignment?.status]);
+
   const canReviewQuiz = isMultipleChoiceAssignment &&
     assignment?.review?.showReview &&
     (assignment.review.answerResults?.length ?? 0) > 0;
@@ -441,7 +538,9 @@ const formatGradedDate = (dateString?: string): string => {
             </div>
 
             {/* Date & Time Info */}
-            <div className="grid md:grid-cols-3 gap-4 p-4 rounded-xl bg-slate-800/40 border border-purple-500/20">
+            <div className={`grid gap-4 p-4 rounded-xl bg-slate-800/40 border border-purple-500/20 ${
+              assignment.maxAttempts && assignment.maxAttempts > 1 ? "md:grid-cols-4" : "md:grid-cols-3"
+            }`}>
               <div>
                 <div className="text-sm text-purple-400 mb-1">Loại nộp</div>
                 <div className="font-medium text-white flex items-center gap-2">
@@ -460,6 +559,15 @@ const formatGradedDate = (dateString?: string): string => {
                   {formatDueDateVn(assignment.dueDate)}
                 </div>
               </div>
+              {assignment.maxAttempts && assignment.maxAttempts > 1 && (
+                <div>
+                  <div className="text-sm text-purple-400 mb-1">Lần nộp</div>
+                  <div className="font-medium text-white flex items-center gap-2">
+                    <Award size={16} className="text-purple-400" />
+                    {(assignment.attemptCount ?? 0)}/{assignment.maxAttempts}
+                  </div>
+                </div>
+              )}
               {assignment.timeRemaining && (
                 <div>
                   <div className="text-sm text-purple-400 mb-1">Thời gian còn lại</div>
@@ -476,8 +584,8 @@ const formatGradedDate = (dateString?: string): string => {
             </div>
           </div>
 
-          {/* Grading Section */}
-          {assignment.grading && (
+          {/* Grading Section - Hide if currently re-attempting */}
+          {assignment.grading && !isAttemptingQuiz && (
             <div className="rounded-2xl border border-purple-500/30 bg-gradient-to-b from-slate-900/95 to-slate-950/95 backdrop-blur-xl p-6 shadow-xl shadow-purple-900/20">
               <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                 <Award size={20} className="text-purple-400" />
@@ -489,6 +597,11 @@ const formatGradedDate = (dateString?: string): string => {
                 <div className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-br from-green-400 to-cyan-400 mb-2">
                   {assignment.grading.score}/{assignment.grading.maxScore}
                 </div>
+                {assignment.maxAttempts && assignment.maxAttempts > 1 && (
+                  <div className="text-sm text-slate-400 mt-2">
+                    Lần làm: {assignment.attemptCount ?? 0}/{assignment.maxAttempts}
+                  </div>
+                )}
                 {assignment.gradedAt && (
                   <div className="text-sm text-slate-500 mt-2">
                     Chấm điểm lúc: {formatGradedDate(assignment.gradedAt)}
@@ -733,33 +846,126 @@ const formatGradedDate = (dateString?: string): string => {
             assignment={assignment}
           />
 
-          {/* Submission Section */}
-          {isPending && (
-            isMultipleChoiceAssignment ? (
-              <MultipleChoiceForm
-                assignment={assignment}
-                homeworkId={homeworkId}
-                onSubmitSuccess={handleQuizSubmitSuccess}
-                onError={setSubmitError}
-                onUnsavedChanges={handleUnsavedChanges}
-              />
-            ) : (
-              <FileSubmissionForm
-                assignment={assignment}
-                onSubmit={handleFileSubmit}
-                isSubmitting={isSubmitting}
-                onError={setSubmitError}
-              />
-            )
+          {/* Check if assignment has started */}
+          {isPending && !isAssignmentStarted(assignment.startDate) && (
+            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-5 shadow-xl shadow-amber-900/10">
+              <div className="flex items-start gap-3">
+                <AlertTriangle size={20} className="mt-0.5 text-amber-300" />
+                <div>
+                  <h2 className="text-base font-semibold text-amber-200">Bài tập chưa bắt đầu</h2>
+                  <p className="mt-1 text-sm text-amber-100/80">
+                    Bài tập này sẽ bắt đầu vào lúc {formatDueDateVn(assignment.startDate)}. Hãy quay lại sau để nộp bài.
+                  </p>
+                </div>
+              </div>
+            </div>
           )}
 
-          {/* Submission History */}
-          {assignment.submission && assignment.submission.submittedAt && (
+          {/* Re-submission info */}
+          {canResubmit && (
+            <div className="rounded-2xl border border-blue-500/30 bg-blue-500/10 p-5 shadow-xl shadow-blue-900/10">
+              <div className="flex items-start gap-3 justify-between">
+                <div className="flex-1">
+                  <h2 className="text-base font-semibold text-blue-200">Làm lại bài tập</h2>
+                  <p className="mt-1 text-sm text-blue-100/80">
+                    Bạn có thể nộp lại bài tập. Số lần nộp còn lại: {(assignment.maxAttempts ?? 0) - (assignment.attemptCount ?? 0)}
+                  </p>
+                </div>
+                {isMultipleChoiceAssignment && (
+                  <button
+                    onClick={() => {
+                      // Mark as re-attempting so MultipleChoiceForm shows start modal
+                      const storageKey = `quiz_${homeworkId}`;
+                      // Clear old timer state to force modal display
+                      localStorage.removeItem(`${storageKey}_startTime`);
+                      localStorage.removeItem(`${storageKey}_remaining`);
+                      // Update localStorage attemptCount from latest API data
+                      const currentAttemptCount = assignment.attemptCount ?? 0;
+                      localStorage.setItem(`${storageKey}_attemptCount`, String(currentAttemptCount));
+                      localStorage.setItem(`${storageKey}_submitted`, "true");
+                      setIsAttemptingQuiz(true);
+                      if (formContainerRef.current) {
+                        setTimeout(() => {
+                          formContainerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                        }, 100);
+                      }
+                    }}
+                    className="ml-4 px-4 cursor-pointer py-2 rounded-lg bg-blue-500 text-white font-medium hover:bg-blue-600 transition whitespace-nowrap"
+                  >
+                    Làm lại ngay
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Submission Section */}
+          <div ref={formContainerRef}>
+            {((isPending || (canResubmit && isAttemptingQuiz)) && isAssignmentStarted(assignment.startDate)) || isEditMode ? (
+              isMultipleChoiceAssignment ? (
+                <MultipleChoiceForm
+                  assignment={assignment}
+                  homeworkId={homeworkId}
+                  onSubmitSuccess={handleQuizSubmitSuccess}
+                  onError={setSubmitError}
+                  onUnsavedChanges={handleUnsavedChanges}
+                  isAttemptingQuiz={isAttemptingQuiz}
+                />
+              ) : (
+                <div>
+                  {isEditMode && (
+                    <div className="rounded-2xl border border-blue-500/30 bg-blue-500/10 p-5 shadow-xl shadow-blue-900/10 mb-6">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle size={20} className="mt-0.5 text-blue-300" />
+                      <div>
+                        <h2 className="text-base font-semibold text-blue-200">Chỉnh sửa bài nộp</h2>
+                        <p className="mt-1 text-sm text-blue-100/80">
+                          Thay đổi file hoặc thông tin bài làm của bạn. Lần nộp mới sẽ ghi đè lên bài nộp trước đó.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <FileSubmissionForm
+                  assignment={assignment}
+                  onSubmit={handleFileSubmit}
+                  isSubmitting={isSubmitting}
+                  onError={setSubmitError}
+                  previousSubmission={isEditMode ? assignment.submission : undefined}
+                  isEditMode={isEditMode}
+                  onEditCancel={() => setIsEditMode(false)}
+                />
+              </div>
+            )
+          ) : null}
+          </div>
+
+          {/* Submission History - Hide if currently re-attempting multiple choice */}
+          {assignment.submission && assignment.submission.submittedAt && 
+           (!isMultipleChoiceAssignment || !isAttemptingQuiz) && (
             <div className="rounded-2xl border border-purple-500/30 bg-gradient-to-b from-slate-900/95 to-slate-950/95 backdrop-blur-xl p-6 shadow-xl shadow-purple-900/20">
-              <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <FileCheck size={20} className="text-purple-400" />
-                Bài đã nộp
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <FileCheck size={20} className="text-purple-400" />
+                  Bài đã nộp
+                </h2>
+                {canResubmit && isBeforeDeadline(assignment.dueDate) && !assignment.grading && !isEditMode && (
+                  <button
+                    onClick={() => setIsEditMode(true)}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-500/20 border border-blue-400/30 text-blue-300 hover:bg-blue-500/30 transition text-sm font-medium"
+                  >
+                    Chỉnh sửa
+                  </button>
+                )}
+                {isEditMode && (
+                  <button
+                    onClick={() => setIsEditMode(false)}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-500/20 border border-slate-400/30 text-slate-300 hover:bg-slate-500/30 transition text-sm font-medium"
+                  >
+                    Hủy
+                  </button>
+                )}
+              </div>
               <div className="space-y-4">
                 <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/30">
                   <div className="flex items-center gap-2 text-green-400 font-medium mb-2">
@@ -771,65 +977,106 @@ const formatGradedDate = (dateString?: string): string => {
                   </div>
                 </div>
 
-                {assignment.submission.content?.files && (
-                  <div>
-                    <h3 className="font-medium text-white mb-2">File đã nộp:</h3>
-                    <div className="space-y-2">
-                      {assignment.submission.content.files.map((file) => (
-                        <div
-                          key={file.id}
-                          className="flex items-center justify-between p-3 rounded-xl bg-slate-800/40 border border-purple-500/20"
-                        >
-                          <div className="flex items-center gap-3">
-                            <AttachmentIcon type={file.type} />
-                            <div>
-                              <div className="font-medium text-white">{file.name}</div>
-                              {file.size && <div className="text-sm text-slate-500">{file.size}</div>}
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <button className="p-2 hover:bg-purple-500/20 rounded-lg transition">
-                              <Eye size={18} className="text-purple-400" />
-                            </button>
-                            <button className="p-2 hover:bg-purple-500/20 rounded-lg transition">
-                              <Download size={18} className="text-purple-400" />
-                            </button>
-                          </div>
+                {canResubmit && !isBeforeDeadline(assignment.dueDate) && !isEditMode && (
+                  <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
+                    <div className="flex items-start gap-2 text-amber-300 font-medium">
+                      <Clock size={18} className="mt-0.5 flex-shrink-0" />
+                      <div>
+                        <div>Thời hạn chỉnh sửa đã qua</div>
+                        <div className="text-sm text-amber-200/70 font-normal mt-1">
+                          Bạn không thể chỉnh sửa bài nộp sau khi hết hạn.
                         </div>
-                      ))}
+                      </div>
                     </div>
                   </div>
                 )}
 
-                {assignment.submission.content?.links &&
-                  assignment.submission.content.links.length > 0 && (
-                    <div>
-                      <h3 className="font-medium text-white mb-2">Link bài làm:</h3>
-                      <div className="space-y-2">
-                        {assignment.submission.content.links.map((link, index) => (
-                          <a
-                            key={`${link}-${index}`}
-                            href={link}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="flex items-center justify-between gap-3 rounded-xl border border-purple-500/20 bg-slate-800/40 p-3 text-slate-300 transition hover:border-purple-400/40 hover:bg-slate-800/60"
-                          >
-                            <div className="flex min-w-0 items-center gap-3">
-                              <LinkIcon size={16} className="text-purple-400" />
-                              <span className="truncate">{link}</span>
-                            </div>
-                            <Eye size={16} className="text-purple-400" />
-                          </a>
-                        ))}
+                {assignment.grading && !isEditMode && (
+                  <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30">
+                    <div className="flex items-start gap-2 text-red-300 font-medium">
+                      <CheckCircle size={18} className="mt-0.5 flex-shrink-0" />
+                      <div>
+                        <div>Bài đã được chấm</div>
+                        <div className="text-sm text-red-200/70 font-normal mt-1">
+                          Bạn không thể chỉnh sửa bài nộp sau khi giáo viên đã chấm.
+                        </div>
                       </div>
                     </div>
-                  )}
+                  </div>
+                )}
+
+                {!isEditMode && (
+                  <>
+                    {assignment.submission.content?.text && !assignment.questions?.length && (
+                      <div>
+                        <h3 className="font-medium text-white mb-2">Câu trả lời:</h3>
+                        <div className="p-4 rounded-xl bg-slate-800/40 border border-purple-500/20 text-slate-200 whitespace-pre-wrap">
+                          {assignment.submission.content.text}
+                        </div>
+                      </div>
+                    )}
+
+                    {assignment.submission.content?.files && (
+                      <div>
+                        <h3 className="font-medium text-white mb-2">File đã nộp:</h3>
+                        <div className="space-y-2">
+                          {assignment.submission.content.files.map((file) => (
+                            <div
+                              key={file.id}
+                              className="flex items-center justify-between p-3 rounded-xl bg-slate-800/40 border border-purple-500/20"
+                            >
+                              <div className="flex items-center gap-3">
+                                <AttachmentIcon type={file.type} />
+                                <div>
+                                  <div className="font-medium text-white">{file.name}</div>
+                                  {file.size && <div className="text-sm text-slate-500">{file.size}</div>}
+                                </div>
+                              </div>
+                              <div className="flex gap-2">
+                                <button className="p-2 hover:bg-purple-500/20 rounded-lg transition">
+                                  <Eye size={18} className="text-purple-400" />
+                                </button>
+                                <button className="p-2 hover:bg-purple-500/20 rounded-lg transition">
+                                  <Download size={18} className="text-purple-400" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {assignment.submission.content?.links &&
+                      assignment.submission.content.links.length > 0 && (
+                        <div>
+                          <h3 className="font-medium text-white mb-2">Link bài làm:</h3>
+                          <div className="space-y-2">
+                            {assignment.submission.content.links.map((link, index) => (
+                              <a
+                                key={`${link}-${index}`}
+                                href={link}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="flex items-center justify-between gap-3 rounded-xl border border-purple-500/20 bg-slate-800/40 p-3 text-slate-300 transition hover:border-purple-400/40 hover:bg-slate-800/60"
+                              >
+                                <div className="flex min-w-0 items-center gap-3">
+                                  <LinkIcon size={16} className="text-purple-400" />
+                                  <span className="truncate">{link}</span>
+                                </div>
+                                <Eye size={16} className="text-purple-400" />
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                  </>
+                )}
               </div>
             </div>
           )}
 
-          {/* Quiz Review */}
-          {canReviewQuiz && (
+          {/* Quiz Review - Hide if currently re-attempting */}
+          {canReviewQuiz && !isAttemptingQuiz && (
             <div className="rounded-2xl border border-purple-500/30 bg-gradient-to-b from-slate-900/95 to-slate-950/95 backdrop-blur-xl p-6 shadow-xl shadow-purple-900/20">
               <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                 <Eye size={20} className="text-purple-400" />
@@ -885,21 +1132,6 @@ const formatGradedDate = (dateString?: string): string => {
                         </div>
 
                         <div className="space-y-2 text-sm">
-                          <div>
-                            <span className="font-medium text-slate-400">Bạn đã chọn:</span>{" "}
-                            <span
-                              className={
-                                result.isCorrect === true
-                                  ? "text-green-400"
-                                  : result.isCorrect === false
-                                    ? "text-rose-400"
-                                    : "text-slate-300"
-                              }
-                            >
-                              {result.selectedOptionText || "Chưa trả lời"}
-                            </span>
-                          </div>
-
                           {assignment.review?.showCorrectAnswer && (
                             <div>
                               <span className="font-medium text-slate-400">Đáp án đúng:</span>{" "}

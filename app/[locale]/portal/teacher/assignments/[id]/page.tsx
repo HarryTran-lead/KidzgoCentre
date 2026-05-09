@@ -571,12 +571,8 @@ export default function HomeworkDetailPage() {
           >
             <ArrowLeft size={16} /> Quay lại
           </button>
-          <button className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-red-50 transition-colors cursor-pointer">
-            <Download size={16} /> Tải tất cả
-          </button>
-          <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer">
-            <Send size={16} /> Gửi thông báo
-          </button>
+
+         
         </div>
       </div>
 
@@ -1013,24 +1009,7 @@ export default function HomeworkDetailPage() {
                         >
                           <Eye size={16} />
                         </button>
-                        <button
-                          className="p-2 rounded-lg hover:bg-emerald-50 transition-colors text-gray-400 hover:text-emerald-600 cursor-pointer"
-                          title="Tải xuống"
-                        >
-                          <Download size={16} />
-                        </button>
-                        <button
-                          className="p-2 rounded-lg hover:bg-blue-50 transition-colors text-gray-400 hover:text-blue-600 cursor-pointer"
-                          title="Gửi phản hồi"
-                        >
-                          <MessageSquare size={16} />
-                        </button>
-                        <button
-                          className="p-2 rounded-lg hover:bg-amber-50 transition-colors text-gray-400 hover:text-amber-600 cursor-pointer"
-                          title="Chấm điểm"
-                        >
-                          <Award size={16} />
-                        </button>
+                        
                       </div>
                     </td>
                   </tr>

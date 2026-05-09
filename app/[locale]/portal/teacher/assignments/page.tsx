@@ -817,6 +817,9 @@ function CreateAssignmentModal({
     setIsSubmitting(true);
     setError("");
 
+    // Auto-set startDate to today if not provided
+    const finalStartDate = startDate || new Date().toISOString().split('T')[0];
+
     try {
       if (activeTab === "MULTIPLE_CHOICE") {
         const apiQuestions: MultipleChoiceQuestion[] = questions.map((q) => {
@@ -836,12 +839,14 @@ function CreateAssignmentModal({
           description: description || undefined,
           classId: selectedClass,
           sessionId: selectedSession || undefined,
+          startAt: `${finalStartDate}T${startTime}:00+07:00`,
           dueAt: `${dueDate}T${dueTime}:00+07:00`,
           rewardStars: rewardStars ? parseInt(rewardStars) : undefined,
           instructions: instructions || undefined,
           timeLimitMinutes: timeLimitMinutes
             ? parseInt(timeLimitMinutes)
             : undefined,
+          maxAttempts: maxAttempts ? parseInt(maxAttempts) : undefined,
           questions: apiQuestions,
         });
 
@@ -888,6 +893,7 @@ function CreateAssignmentModal({
           description,
           classId: selectedClass,
           sessionId: selectedSession || undefined,
+          startDate: `${finalStartDate}T${startTime}:00+07:00`,
           dueAt: `${dueDate}T${dueTime}:00+07:00`,
           book: book || undefined,
           pages: pages || undefined,
@@ -902,6 +908,7 @@ function CreateAssignmentModal({
           instructions: instructions || undefined,
           expectedAnswer: undefined,
           rubric: rubric || undefined,
+          maxAttempts: maxAttempts ? parseInt(maxAttempts) : undefined,
           attachment: uploadedAttachmentUrls[0] || undefined,
           attachmentUrls:
             uploadedAttachmentUrls.length > 0
@@ -2429,10 +2436,14 @@ function UpdateAssignmentModal({
     setIsSubmitting(true);
     setError("");
 
+    // Auto-set startDate to today if not provided
+    const finalStartDate = startDate || new Date().toISOString().split('T')[0];
+
     try {
       const payload: Partial<any> = {
         title,
         description: description || undefined,
+        startDate: `${finalStartDate}T${startTime}:00+07:00`,
         dueAt: `${dueDate}T${dueTime}:00+07:00`,
       };
 

@@ -10,6 +10,8 @@ import {
   Upload,
   Wand2,
   X,
+  Trash2,
+  Edit,
 } from "lucide-react";
 
 import { toast } from "@/hooks/use-toast";
@@ -166,6 +168,7 @@ export default function AiCreatorModal({
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<AiGenerateQuestionResult | null>(null);
   const [sourceFile, setSourceFile] = useState<File | null>(null);
+  const [editingQuestionIndex, setEditingQuestionIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSourceFileChange = (file: File | null) => {
@@ -210,6 +213,11 @@ export default function AiCreatorModal({
     }
 
     const onMouseDown = (event: MouseEvent) => {
+      // Don't close if edit modal is open
+      if (editingQuestionIndex !== null) {
+        return;
+      }
+
       if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
         onClose();
       }
@@ -221,7 +229,7 @@ export default function AiCreatorModal({
       document.body.style.overflow = "unset";
       document.removeEventListener("mousedown", onMouseDown);
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, editingQuestionIndex]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -375,6 +383,20 @@ export default function AiCreatorModal({
     }
   };
 
+  const handleDeleteQuestion = (index: number) => {
+    if (result) {
+      setResult({
+        ...result,
+        items: result.items.filter((_, i) => i !== index),
+      });
+      toast({
+        title: "Đã xóa câu hỏi",
+        description: `Câu ${index + 1} đã bị xóa khỏi danh sách.`,
+        type: "success",
+      });
+    }
+  };
+
   const handleUseDrafts = async () => {
     if (!result || result.items.length === 0 || !onUseDrafts) {
       return;
@@ -431,7 +453,7 @@ export default function AiCreatorModal({
     <div className="fixed inset-0 z-[9999] bg-black/50 px-4 py-8 backdrop-blur-sm">
       <div
         ref={modalRef}
-        className="mx-auto flex h-full max-w-4xl flex-col overflow-hidden rounded-[28px] border border-red-200 bg-white shadow-2xl"
+        className="mx-auto flex h-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-red-200 bg-white shadow-2xl"
       >
         <div className="flex items-center justify-between bg-gradient-to-r from-red-600 to-red-700 px-5 py-4 text-white">
           <div className="flex items-center gap-3">
@@ -447,7 +469,7 @@ export default function AiCreatorModal({
             type="button"
             onClick={onClose}
             aria-label="Đóng"
-            className="rounded-full p-1.5 transition hover:bg-white/10"
+            className="rounded-full p-1.5 transition hover:bg-white/10 cursor-pointer"
           >
             <X size={18} />
           </button>
@@ -500,7 +522,7 @@ export default function AiCreatorModal({
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-white px-3 py-2.5 text-sm text-gray-700 hover:bg-red-50"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-white px-3 py-2.5 text-sm text-gray-700 hover:bg-red-50 cursor-pointer"
                   >
                     <Upload size={14} />
                     {sourceFile ? "Đổi file" : "Tải lên"}
@@ -521,7 +543,7 @@ export default function AiCreatorModal({
                         setSourceFile(null);
                         if (fileInputRef.current) fileInputRef.current.value = "";
                       }}
-                      className="rounded-full p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"
+                      className="rounded-full p-1 text-gray-400 hover:bg-red-50 hover:text-red-600 cursor-pointer"
                       aria-label="Xóa file"
                     >
                       <X size={14} />
@@ -717,7 +739,7 @@ export default function AiCreatorModal({
                 type="button"
                 onClick={handleGenerate}
                 disabled={loading}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-3 text-sm font-semibold text-white hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-3 text-sm font-semibold text-white hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
               >
                 {loading ? (
                   <Loader2 size={16} className="animate-spin" />
@@ -799,7 +821,7 @@ export default function AiCreatorModal({
                         className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm"
                       >
                         <div className="flex flex-wrap items-start justify-between gap-3">
-                          <div>
+                          <div className="flex-1">
                             <div className="text-sm font-semibold text-gray-900">
                               Câu {index + 1}
                             </div>
@@ -807,16 +829,36 @@ export default function AiCreatorModal({
                               {item.questionText}
                             </div>
                           </div>
-                          <div className="flex flex-wrap gap-2">
-                            <span className="rounded-full border border-gray-200 px-3 py-1 text-xs font-medium text-gray-700">
-                              {questionTypeLabel}
-                            </span>
-                            <span className="rounded-full border border-gray-200 px-3 py-1 text-xs font-medium text-gray-700">
-                              {levelLabel}
-                            </span>
-                            <span className="rounded-full border border-gray-200 px-3 py-1 text-xs font-medium text-gray-700">
-                              {item.points} điểm
-                            </span>
+                          <div className="flex flex-col gap-2">
+                            <div className="flex flex-wrap gap-2 justify-end">
+                              <span className="rounded-full border border-gray-200 px-3 py-1 text-xs font-medium text-gray-700">
+                                {questionTypeLabel}
+                              </span>
+                              <span className="rounded-full border border-gray-200 px-3 py-1 text-xs font-medium text-gray-700">
+                                {levelLabel}
+                              </span>
+                              <span className="rounded-full border border-gray-200 px-3 py-1 text-xs font-medium text-gray-700">
+                                {item.points} điểm
+                              </span>
+                            </div>
+                            <div className="flex gap-2 justify-end">
+                              <button
+                                type="button"
+                                onClick={() => setEditingQuestionIndex(index)}
+                                className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-600 hover:text-blue-700 transition-colors cursor-pointer"
+                                title="Chỉnh sửa câu hỏi"
+                              >
+                                <Edit size={16} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteQuestion(index)}
+                                className="p-1.5 rounded-lg hover:bg-red-50 text-red-600 hover:text-red-700 transition-colors cursor-pointer"
+                                title="Xóa câu hỏi"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
                           </div>
                         </div>
 
@@ -874,7 +916,7 @@ export default function AiCreatorModal({
               type="button"
               onClick={isAssignmentMode ? handleUseDrafts : handleSaveAll}
               disabled={!canSubmitDrafts || submitting}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-emerald-600 to-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-emerald-600 to-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
             >
               {submitting ? (
                 <Loader2 size={14} className="animate-spin" />
@@ -882,6 +924,327 @@ export default function AiCreatorModal({
                 <PlusCircle size={14} />
               )}
               {primaryActionLabel}
+            </button>
+          </div>
+        </div>
+
+        {/* Edit Question Modal */}
+        {editingQuestionIndex !== null && result && result.items[editingQuestionIndex] && (
+          <QuestionEditModal
+            question={result.items[editingQuestionIndex]}
+            index={editingQuestionIndex}
+            onSave={(editedQuestion) => {
+              if (result) {
+                const newItems = [...result.items];
+                newItems[editingQuestionIndex] = editedQuestion;
+                setResult({ ...result, items: newItems });
+                setEditingQuestionIndex(null);
+                toast({
+                  title: "Câu hỏi đã được cập nhật",
+                  description: `Câu ${editingQuestionIndex + 1} đã được chỉnh sửa thành công.`,
+                  type: "success",
+                });
+              }
+            }}
+            onClose={() => setEditingQuestionIndex(null)}
+          />
+        )}
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+// Edit Question Modal Component
+interface QuestionEditModalProps {
+  question: AiGeneratedQuestionDraft;
+  index: number;
+  onSave: (question: AiGeneratedQuestionDraft) => void;
+  onClose: () => void;
+}
+
+function QuestionEditModal({
+  question,
+  index,
+  onSave,
+  onClose,
+}: QuestionEditModalProps) {
+  const modalRef = useRef<HTMLDivElement>(null);
+  const [editedQuestion, setEditedQuestion] = useState<AiGeneratedQuestionDraft>(
+    { ...question }
+  );
+  const [newOption, setNewOption] = useState("");
+
+  useEffect(() => {
+    const onMouseDown = (event: MouseEvent) => {
+      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+
+    document.addEventListener("mousedown", onMouseDown);
+    return () => {
+      document.removeEventListener("mousedown", onMouseDown);
+    };
+  }, [onClose]);
+
+  const handleAddOption = () => {
+    if (newOption.trim()) {
+      setEditedQuestion({
+        ...editedQuestion,
+        options: [...editedQuestion.options, newOption.trim()],
+      });
+      setNewOption("");
+    }
+  };
+
+  const handleRemoveOption = (optionIndex: number) => {
+    setEditedQuestion({
+      ...editedQuestion,
+      options: editedQuestion.options.filter((_, i) => i !== optionIndex),
+    });
+  };
+
+  return createPortal(
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 p-4">
+      <div ref={modalRef} className="w-full max-w-2xl max-h-[90vh] rounded-2xl bg-white shadow-xl flex flex-col">
+        <div className="flex items-center justify-between rounded-t-2xl bg-gradient-to-r from-red-600 to-red-700 px-5 py-4 text-white">
+          <div className="flex items-center gap-3">
+            <div className="rounded-2xl bg-white/15 p-2">
+              <Edit size={18} />
+            </div>
+            <div>
+              <div className="text-base font-semibold">Chỉnh sửa Câu {index + 1}</div>
+              <div className="text-xs text-white/80">Cập nhật thông tin câu hỏi</div>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-full p-1.5 transition hover:bg-white/10 cursor-pointer"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="space-y-4 p-5 overflow-y-auto flex-1">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Nội dung câu hỏi
+            </label>
+            <textarea
+              value={editedQuestion.questionText}
+              onChange={(e) =>
+                setEditedQuestion({
+                  ...editedQuestion,
+                  questionText: e.target.value,
+                })
+              }
+              rows={3}
+              className="w-full rounded-xl border border-red-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-red-300 focus:ring-1 focus:ring-red-100"
+            />
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Loại câu hỏi
+              </label>
+              <select
+                value={editedQuestion.questionType}
+                onChange={(e) =>
+                  setEditedQuestion({
+                    ...editedQuestion,
+                    questionType: e.target.value as "MultipleChoice" | "TextInput",
+                  })
+                }
+                className="w-full rounded-xl border border-red-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-red-300 focus:ring-1 focus:ring-red-100"
+              >
+                <option value="MultipleChoice">Trắc nghiệm</option>
+                <option value="TextInput">Nhập văn bản</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Mức độ
+              </label>
+              <select
+                value={editedQuestion.level || "Medium"}
+                onChange={(e) =>
+                  setEditedQuestion({
+                    ...editedQuestion,
+                    level: e.target.value as DifficultyLevel,
+                  })
+                }
+                className="w-full rounded-xl border border-red-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-red-300 focus:ring-1 focus:ring-red-100"
+              >
+                <option value="Easy">Dễ</option>
+                <option value="Medium">Trung bình</option>
+                <option value="Hard">Khó</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Điểm
+            </label>
+            <input
+              type="number"
+              min={1}
+              value={editedQuestion.points}
+              onChange={(e) =>
+                setEditedQuestion({
+                  ...editedQuestion,
+                  points: Number(e.target.value),
+                })
+              }
+              className="w-full rounded-xl border border-red-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-red-300 focus:ring-1 focus:ring-red-100"
+            />
+          </div>
+
+          {editedQuestion.questionType === "MultipleChoice" && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Các lựa chọn
+                </label>
+                <div className="space-y-2">
+                  {editedQuestion.options.map((option, optIndex) => (
+                    <div
+                      key={`${option}-${optIndex}`}
+                      className="flex items-center gap-2"
+                    >
+                      <input
+                        type="radio"
+                        name="correctAnswer"
+                        checked={editedQuestion.correctAnswer === option}
+                        onChange={() =>
+                          setEditedQuestion({
+                            ...editedQuestion,
+                            correctAnswer: option,
+                          })
+                        }
+                        className="h-4 w-4 rounded-full border-gray-300"
+                      />
+                      <input
+                        type="text"
+                        value={option}
+                        onChange={(e) => {
+                          const newOptions = [...editedQuestion.options];
+                          const oldCorrectAnswer = editedQuestion.correctAnswer;
+                          newOptions[optIndex] = e.target.value;
+                          setEditedQuestion({
+                            ...editedQuestion,
+                            options: newOptions,
+                            correctAnswer:
+                              oldCorrectAnswer === option ? e.target.value : oldCorrectAnswer,
+                          });
+                        }}
+                        className="flex-1 rounded-lg border border-red-200 bg-white px-3 py-2 text-sm outline-none focus:border-red-300 focus:ring-1 focus:ring-red-100"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveOption(optIndex)}
+                        className="p-1.5 rounded-lg hover:bg-red-50 text-red-600 hover:text-red-700 transition-colors cursor-pointer"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <input
+                    type="text"
+                    value={newOption}
+                    onChange={(e) => setNewOption(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === "Enter") {
+                        handleAddOption();
+                      }
+                    }}
+                    placeholder="Thêm lựa chọn mới..."
+                    className="flex-1 rounded-lg border border-red-200 bg-white px-3 py-2 text-sm outline-none focus:border-red-300 focus:ring-1 focus:ring-red-100"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddOption}
+                    className="rounded-lg bg-red-600 px-3 py-2 text-xs font-medium text-white hover:bg-red-700 transition-colors cursor-pointer"
+                  >
+                    Thêm
+                  </button>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-red-100 bg-red-50 p-4">
+                <div className="text-xs uppercase tracking-wide text-red-600 font-semibold mb-2">
+                  Đáp án đúng
+                </div>
+                <div className="text-sm font-medium text-gray-900">
+                  {editedQuestion.correctAnswer 
+                    ? (editedQuestion.options.includes(editedQuestion.correctAnswer) 
+                        ? editedQuestion.correctAnswer 
+                        : (editedQuestion.options[Number(editedQuestion.correctAnswer)] || "Chưa chọn"))
+                    : "Chưa chọn"}
+                </div>
+              </div>
+            </>
+          )}
+
+          {editedQuestion.questionType === "TextInput" && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Đáp án đúng
+              </label>
+              <input
+                type="text"
+                value={editedQuestion.correctAnswer}
+                onChange={(e) =>
+                  setEditedQuestion({
+                    ...editedQuestion,
+                    correctAnswer: e.target.value,
+                  })
+                }
+                className="w-full rounded-xl border border-red-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-red-300 focus:ring-1 focus:ring-red-100"
+              />
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Giải thích (tùy chọn)
+            </label>
+            <textarea
+              value={editedQuestion.explanation || ""}
+              onChange={(e) =>
+                setEditedQuestion({
+                  ...editedQuestion,
+                  explanation: e.target.value || null,
+                })
+              }
+              rows={2}
+              className="w-full rounded-xl border border-red-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-red-300 focus:ring-1 focus:ring-red-100"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center rounded-b-2xl justify-between border-t border-red-100 bg-white px-5 py-3">
+          <div className="text-xs text-gray-500">Cập nhật những thay đổi và lưu lại</div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 cursor-pointer"
+            >
+              Hủy
+            </button>
+            <button
+              type="button"
+              onClick={() => onSave(editedQuestion)}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-red-600 to-red-700 px-3 py-2 text-xs font-semibold text-white hover:shadow-lg cursor-pointer"
+            >
+              <Edit size={14} />
+              Lưu chỉnh sửa
             </button>
           </div>
         </div>

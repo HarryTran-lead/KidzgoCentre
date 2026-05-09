@@ -88,24 +88,11 @@ const getFeedbackPreview = (assignment: AssignmentListItem): string =>
 const formatDate = (dateString: string, locale: string = "vi-VN") => {
   if (!dateString) return "-";
   try {
-    const match = String(dateString).match(
-      /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::\d{2})?(?:\.\d+)?(?:Z|([+-]\d{2}:?\d{2}))?$/,
-    );
-    let date: Date;
-    if (match) {
-      const [, year, month, day, hours, minutes] = match;
-      const vnMs = Date.UTC(
-        parseInt(year),
-        parseInt(month) - 1,
-        parseInt(day),
-        parseInt(hours) - 7,
-        parseInt(minutes),
-      );
-      date = new Date(vnMs);
-    } else {
-      date = new Date(dateString);
-      if (isNaN(date.getTime())) return dateString;
-    }
+    // Parse ISO 8601 date string directly
+    // JavaScript's Date constructor handles Z suffix and timezone offsets correctly
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+    
     return date.toLocaleDateString(locale, {
       day: "2-digit",
       month: "2-digit",
@@ -120,24 +107,11 @@ const formatDate = (dateString: string, locale: string = "vi-VN") => {
 const formatDateTime = (dateString: string, locale: string = "vi-VN") => {
   if (!dateString) return "-";
   try {
-    const match = String(dateString).match(
-      /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::\d{2})?(?:\.\d+)?(?:Z|([+-]\d{2}:?\d{2}))?$/,
-    );
-    let date: Date;
-    if (match) {
-      const [, year, month, day, hours, minutes] = match;
-      const vnMs = Date.UTC(
-        parseInt(year),
-        parseInt(month) - 1,
-        parseInt(day),
-        parseInt(hours) - 7,
-        parseInt(minutes),
-      );
-      date = new Date(vnMs);
-    } else {
-      date = new Date(dateString);
-      if (isNaN(date.getTime())) return dateString;
-    }
+    // Parse ISO 8601 date string directly
+    // JavaScript's Date constructor handles Z suffix and timezone offsets correctly
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+    
     return date.toLocaleString(locale, {
       day: "2-digit",
       month: "2-digit",
@@ -154,19 +128,21 @@ const formatDateTime = (dateString: string, locale: string = "vi-VN") => {
 const isToday = (dateString: string): boolean => {
   if (!dateString) return false;
   try {
-    const match = String(dateString).match(
-      /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::\d{2})?(?:\.\d+)?(?:Z|([+-]\d{2}:?\d{2}))?$/,
-    );
-    let date: Date;
-    if (match) {
-      const [, year, month, day] = match;
-      date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-    } else {
-      date = new Date(dateString);
-      if (isNaN(date.getTime())) return false;
-    }
-    const today = new Date();
-    return date.toDateString() === today.toDateString();
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return false;
+    
+    // Convert both dates to Vietnam timezone for comparison
+    const options: Intl.DateTimeFormatOptions = {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      timeZone: "Asia/Ho_Chi_Minh",
+    };
+    
+    const dateStr = date.toLocaleDateString("en-CA", options);
+    const todayStr = new Date().toLocaleDateString("en-CA", options);
+    
+    return dateStr === todayStr;
   } catch {
     return false;
   }
@@ -175,22 +151,42 @@ const isToday = (dateString: string): boolean => {
 const isTomorrow = (dateString: string): boolean => {
   if (!dateString) return false;
   try {
-    const match = String(dateString).match(
-      /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::\d{2})?(?:\.\d+)?(?:Z|([+-]\d{2}:?\d{2}))?$/,
-    );
-    let date: Date;
-    if (match) {
-      const [, year, month, day] = match;
-      date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-    } else {
-      date = new Date(dateString);
-      if (isNaN(date.getTime())) return false;
-    }
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return false;
+    
+    // Convert both dates to Vietnam timezone for comparison
+    const options: Intl.DateTimeFormatOptions = {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      timeZone: "Asia/Ho_Chi_Minh",
+    };
+    
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    return date.toDateString() === tomorrow.toDateString();
+    
+    const dateStr = date.toLocaleDateString("en-CA", options);
+    const tomorrowStr = tomorrow.toLocaleDateString("en-CA", options);
+    
+    return dateStr === tomorrowStr;
   } catch {
     return false;
+  }
+};
+
+const isAssignmentStarted = (startDate?: string): boolean => {
+  if (!startDate) return true;
+  try {
+    // Parse ISO 8601 date string directly
+    // JavaScript's Date constructor handles Z suffix correctly
+    const date = new Date(startDate);
+    if (isNaN(date.getTime())) return true;
+    
+    // Compare with current time
+    // Both dates are automatically handled in the browser's local timezone
+    return new Date() >= date;
+  } catch {
+    return true;
   }
 };
 
@@ -609,6 +605,7 @@ export default function HomeworkPage() {
               const isGraded = hasGradingResult(assignment);
               const feedbackPreview = getFeedbackPreview(assignment);
               const isDueToday = isToday(assignment.dueAt) && !isSubmitted;
+              const isNotStarted = !isAssignmentStarted(assignment.startDate) && !isSubmitted;
 
               return (
                 <div
@@ -814,15 +811,15 @@ export default function HomeworkPage() {
                         <div className="flex items-center justify-between text-[11px] font-semibold text-purple-200">
                           <span>Lần làm:</span>
                           <span className="bg-purple-500/30 border border-purple-400/40 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                            {((assignment as any)?.attemptCount || 1)}/{(assignment as any)?.maxAttempts}
+                            {(assignment as any)?.attemptCount ?? 0}/{(assignment as any)?.maxAttempts}
                           </span>
                         </div>
-                        {((assignment as any)?.attemptCount || 1) < (assignment as any)?.maxAttempts && (
+                        {((assignment as any)?.attemptCount ?? 0) < (assignment as any)?.maxAttempts && (
                           <div className="w-full h-1.5 bg-purple-950/50 rounded-full mt-1.5 overflow-hidden">
                             <div
                               className="h-full bg-gradient-to-r from-purple-500 to-violet-500 rounded-full transition-all duration-300"
                               style={{
-                                width: `${(((assignment as any)?.attemptCount || 1) / (assignment as any)?.maxAttempts) * 100}%`,
+                                width: `${(((assignment as any)?.attemptCount ?? 0) / (assignment as any)?.maxAttempts) * 100}%`,
                               }}
                             />
                           </div>
@@ -832,16 +829,20 @@ export default function HomeworkPage() {
 
                     <div className="flex gap-2 mt-auto">
                       <button
-                        className={`flex-1 h-9 rounded-xl text-[12px] font-bold shadow-md hover:shadow-lg cursor-pointer transition-all duration-200 flex items-center justify-center gap-1.5 ${
-                          isGraded
-                            ? "bg-gradient-to-r from-cyan-500 to-sky-500 hover:from-cyan-600 hover:to-sky-600 text-white"
-                            : isSubmitted
-                              ? isLate
-                                ? "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white"
-                                : "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white"
-                              : isDueToday
-                                ? "bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white animate-pulse"
-                                : "bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 text-white"
+                        disabled={isNotStarted}
+                        title={isNotStarted ? "Bài tập chưa bắt đầu" : undefined}
+                        className={`flex-1 h-9 rounded-xl text-[12px] font-bold shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-1.5 ${
+                          isNotStarted
+                            ? "bg-gray-500/50 text-gray-300 cursor-not-allowed opacity-60"
+                            : isGraded
+                              ? "bg-gradient-to-r from-cyan-500 to-sky-500 hover:from-cyan-600 hover:to-sky-600 text-white cursor-pointer"
+                              : isSubmitted
+                                ? isLate
+                                  ? "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white cursor-pointer"
+                                  : "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white cursor-pointer"
+                                : isDueToday
+                                  ? "bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white animate-pulse cursor-pointer"
+                                  : "bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 text-white cursor-pointer"
                         }`}
                       >
                         {isGraded ? (
