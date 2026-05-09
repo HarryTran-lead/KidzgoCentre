@@ -725,6 +725,7 @@ export default function TeacherSubmissionDetailPage() {
     useState<SubmissionDetail | null>(null);
   const [attemptNumber, setAttemptNumber] = useState<number | null>(null);
   const [maxAttempts, setMaxAttempts] = useState<number | null>(null);
+  const [assignmentRubric, setAssignmentRubric] = useState<string>("");
 
   // Grading state
   const [editingScore, setEditingScore] = useState("");
@@ -862,7 +863,7 @@ export default function TeacherSubmissionDetailPage() {
 
         if (!resolvedAssignmentId) return;
 
-        // Fetch homework detail to get maxAttempts
+        // Fetch homework detail to get maxAttempts and rubric
         const homeworkRes = await get<any>(
           `/api/homework/${resolvedAssignmentId}`,
         );
@@ -872,6 +873,10 @@ export default function TeacherSubmissionDetailPage() {
 
         if (homeworkDetail?.maxAttempts) {
           setMaxAttempts(homeworkDetail.maxAttempts);
+        }
+
+        if (homeworkDetail?.rubric) {
+          setAssignmentRubric(homeworkDetail.rubric);
         }
 
         // Try to get all student submissions - using a query that might filter by studentId
@@ -2008,6 +2013,7 @@ export default function TeacherSubmissionDetailPage() {
             <AiQuickGradeCard
               homeworkStudentId={homeworkStudentId}
               onApplied={handleApplyQuickGrade}
+              defaultRubric={assignmentRubric}
             />
           </div>
 
