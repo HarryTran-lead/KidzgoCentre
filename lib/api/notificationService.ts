@@ -88,6 +88,8 @@ const EXACT_NOTIFICATION_TRANSLATIONS: Record<string, string> = {
 };
 
 const NOTIFICATION_FRAGMENT_TRANSLATIONS: Array<[RegExp, string]> = [
+  [/\ba priority\b/gi, "Yêu cầu ưu tiên"],
+  [/\brequest was assigned for\b/gi, "đã được giao cho"],
   [/session report/gi, "báo cáo buổi học"],
   [/monthly report/gi, "báo cáo tháng"],
   [/report request/gi, "yêu cầu báo cáo"],

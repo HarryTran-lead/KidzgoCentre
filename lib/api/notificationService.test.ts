@@ -90,4 +90,35 @@ describe("notificationService smoke", () => {
       }),
     ]);
   });
+
+  it("localizes mixed english assignment sentence in notification content", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          isSuccess: true,
+          data: {
+            items: [
+              {
+                id: "noti-vi-002",
+                title: "Session report request",
+                content: "A priority session report request was assigned for Trần Đức Thịnh.",
+                deeplink: null,
+                status: "sent",
+                channel: "InApp",
+                createdAt: "2026-05-05T11:51:00.000Z",
+              },
+            ],
+          },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+
+    await expect(fetchNotifications("Teacher")).resolves.toEqual([
+      expect.objectContaining({
+        title: "Yêu cầu báo cáo buổi học",
+        content: "Yêu cầu ưu tiên báo cáo buổi học đã được giao cho Trần Đức Thịnh.",
+      }),
+    ]);
+  });
 });

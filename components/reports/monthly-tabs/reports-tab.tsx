@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Download, Eye, FileCheck, MessageSquare, Search, TrendingUp, User, Zap } from "lucide-react";
 import type { ReactNode } from "react";
+import { toast } from "@/hooks/use-toast";
 import {
   Select,
   SelectContent,
@@ -642,13 +643,11 @@ export default function ReportsTab({
                 </svg>
                 {displayReport.className || displayReport.classId || "N/A"}
               </div>
-              {canManage && (
-                <div className="text-sm text-gray-600 flex items-center gap-1">
-                  <User size={14} className="text-gray-400" />
-                  <span className="text-gray-500">Giáo viên:</span>
-                  <span className="font-medium text-gray-800">{displayReport.teacherName || "Chưa có thông tin"}</span>
-                </div>
-              )}
+              <div className="text-sm text-gray-600 flex items-center gap-1">
+                <User size={14} className="text-gray-400" />
+                <span className="text-gray-500">Giáo viên:</span>
+                <span className="font-medium text-gray-800">{displayReport.teacherName || "Chưa có thông tin"}</span>
+              </div>
               <div>{renderStatusBadge(displayReport.status)}</div>
               
               {isTeacher && (
@@ -777,7 +776,14 @@ export default function ReportsTab({
                   </div>
                   <button
                     className="w-full rounded-lg bg-gradient-to-r from-red-600 to-red-700 px-3 py-2 text-xs font-semibold text-white hover:shadow-md transition-all cursor-pointer"
-                    onClick={() => apiFetch(`/api/monthly-reports/jobs/${job.id}/aggregate`, { method: "POST" }).then(fetchData)}
+                    onClick={() => {
+                      void apiFetch(`/api/monthly-reports/jobs/${job.id}/aggregate`, { method: "POST" })
+                        .then(fetchData)
+                        .catch((err: unknown) => {
+                          const message = err instanceof Error ? err.message : "Không thể đồng bộ dữ liệu báo cáo.";
+                          toast({ title: "Lỗi", description: message, variant: "destructive" });
+                        });
+                    }}
                   >
                     Đồng bộ dữ liệu
                   </button>

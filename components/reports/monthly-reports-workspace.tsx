@@ -18,6 +18,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import type { ClassItem, Student } from "@/types/teacher/classes";
 import { fetchClassDetail, fetchTeacherClasses } from "@/app/api/teacher/classes";
+import { fetchAdminClasses } from "@/app/api/admin/classes";
 import type { SessionReportItem } from "@/types/teacher/sessionReport";
 import OverviewTab from "@/components/reports/monthly-tabs/overview-tab";
 import TeacherToolsTab from "@/components/reports/monthly-tabs/teacher-tools-tab";
@@ -223,6 +224,62 @@ function pickStringValue(source: Record<string, unknown>, keys: string[]) {
   return "";
 }
 
+function pickNameFromObject(source: Record<string, unknown>) {
+  const direct = pickStringValue(source, [
+    "name",
+    "fullName",
+    "full_name",
+    "displayName",
+    "teacherName",
+    "userName",
+    "username",
+  ]);
+  if (direct) return direct;
+
+  const firstName = pickStringValue(source, ["firstName", "first_name", "givenName"]);
+  const lastName = pickStringValue(source, ["lastName", "last_name", "familyName"]);
+  return `${lastName} ${firstName}`.trim();
+}
+
+function resolveTeacherName(source: Record<string, unknown>, fallback = "") {
+  const teacherObject = source.teacher && typeof source.teacher === "object"
+    ? source.teacher as Record<string, unknown>
+    : {};
+  const assignedTeacherObject = source.assignedTeacher && typeof source.assignedTeacher === "object"
+    ? source.assignedTeacher as Record<string, unknown>
+    : {};
+  const mainTeacherObject = source.mainTeacher && typeof source.mainTeacher === "object"
+    ? source.mainTeacher as Record<string, unknown>
+    : {};
+  const submittedByObject = source.submittedBy && typeof source.submittedBy === "object"
+    ? source.submittedBy as Record<string, unknown>
+    : {};
+
+  return (
+    pickStringValue(source, [
+      "teacherName",
+      "TeacherName",
+      "assignedTeacherName",
+      "AssignedTeacherName",
+      "teacherFullName",
+      "TeacherFullName",
+      "teacherDisplayName",
+      "TeacherDisplayName",
+      "mainTeacherName",
+      "MainTeacherName",
+      "assistantTeacherName",
+      "AssistantTeacherName",
+      "submittedByName",
+      "SubmittedByName",
+    ]) ||
+    pickNameFromObject(teacherObject) ||
+    pickNameFromObject(assignedTeacherObject) ||
+    pickNameFromObject(mainTeacherObject) ||
+    pickNameFromObject(submittedByObject) ||
+    fallback
+  );
+}
+
 function pickNumberValue(source: Record<string, unknown>, keys: string[], fallback = 0) {
   for (const key of keys) {
     const value = source[key];
@@ -245,21 +302,7 @@ function normalizeMonthlyComment(raw: unknown): MonthlyComment {
 
 function normalizeMonthlyReport(raw: unknown): MonthlyReport {
   const source = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
-  const teacherObject = source.teacher && typeof source.teacher === "object"
-    ? source.teacher as Record<string, unknown>
-    : {};
-  const teacherName = pickStringValue(source, [
-    "teacherName",
-    "TeacherName",
-    "assignedTeacherName",
-    "AssignedTeacherName",
-    "teacherFullName",
-    "TeacherFullName",
-    "mainTeacherName",
-    "MainTeacherName",
-    "submittedByName",
-    "SubmittedByName",
-  ]) || pickStringValue(teacherObject, ["name", "fullName", "teacherName"]);
+  const teacherName = resolveTeacherName(source);
 
   const commentsRaw = Array.isArray(source.comments)
     ? source.comments
@@ -316,9 +359,26 @@ async function apiFetch<T = unknown>(url: string, init?: RequestInit): Promise<T
 
   if (!response.ok) {
     const errorDetails = Array.isArray((payload as { errors?: unknown }).errors)
-      ? (payload as { errors: Array<{ description?: string; message?: string }> }).errors
+      ? (payload as { errors: Array<{ code?: string; description?: string; message?: string }> }).errors
       : [];
+    const firstCode = errorDetails[0]?.code || "";
     const firstDetail = errorDetails[0]?.description || errorDetails[0]?.message;
+    const traceId =
+      typeof (payload as { traceId?: unknown }).traceId === "string"
+        ? String((payload as { traceId: string }).traceId).trim()
+        : "";
+
+    if (
+      firstCode === "MonthlyReport.AiGenerationFailed" &&
+      typeof firstDetail === "string" &&
+      /type\s+'Object'|type\s+'String'/i.test(firstDetail)
+    ) {
+      const traceSuffix = traceId ? ` (traceId: ${traceId})` : "";
+      throw new Error(
+        `AI tổng hợp báo cáo tháng thất bại do dữ liệu nguồn sai định dạng JSON (object/string). Vui lòng kiểm tra dữ liệu báo cáo buổi học và thử lại${traceSuffix}.`,
+      );
+    }
+
     const apiErrorMessage =
       (typeof payload?.message === "string" && payload.message.trim()) ||
       (typeof (payload as { detail?: unknown }).detail === "string" && String((payload as { detail?: string }).detail).trim()) ||
@@ -408,6 +468,7 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
   const [showManageTools, setShowManageTools] = useState(false);
   const [showRecentComments, setShowRecentComments] = useState(false);
   const [jobFlowLoading, setJobFlowLoading] = useState(false);
+  const [classTeacherNameMap, setClassTeacherNameMap] = useState<Record<string, string>>({});
 
   const canManage = role === "management";
   const isTeacher = role === "teacher";
@@ -807,8 +868,9 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
       await fetchData();
       if (reportId === activeReportId) {
         const detail = await apiFetch<MonthlyReport>(`/api/monthly-reports/${reportId}`);
-        setActiveReportDetail(detail ?? null);
-        setDraftInput(normalizeDraftContent(detail?.draftContent));
+        const normalizedDetail = normalizeMonthlyReport(detail);
+        setActiveReportDetail(normalizedDetail ?? null);
+        setDraftInput(normalizeDraftContent(normalizedDetail?.draftContent));
       }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : `Không thể ${action}`);
@@ -856,8 +918,79 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
     [teacherClassItems],
   );
 
+  const teacherClassTeacherMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    teacherClassItems.forEach((item) => {
+      const classId = String(item.id ?? "").trim();
+      const teacherName = String(item.teacher ?? "").trim();
+      if (!classId || !teacherName) return;
+      map[classId] = teacherName;
+    });
+    return map;
+  }, [teacherClassItems]);
+
+  useEffect(() => {
+    if (!canManage) return;
+
+    const missingTeacherClassIds = Array.from(
+      new Set(
+        reports
+          .filter((report) => {
+            const hasTeacherName = Boolean(report.teacherName && report.teacherName.trim());
+            const classId = String(report.classId ?? "").trim();
+            return !hasTeacherName && !!classId && !classTeacherNameMap[classId];
+          })
+          .map((report) => String(report.classId ?? "").trim()),
+      ),
+    );
+
+    if (!missingTeacherClassIds.length) return;
+
+    let cancelled = false;
+
+    fetchAdminClasses({ branchId: branchId || undefined })
+      .then((classes) => {
+        if (cancelled) return;
+
+        const nextMap: Record<string, string> = {};
+        classes.forEach((item) => {
+          const classId = String(item.id ?? "").trim();
+          const teacherName = String(item.teacher ?? "").trim();
+          if (!classId || !teacherName) return;
+          nextMap[classId] = teacherName;
+        });
+
+        if (!Object.keys(nextMap).length) return;
+        setClassTeacherNameMap((prev) => ({ ...prev, ...nextMap }));
+      })
+      .catch((err) => {
+        console.error("Failed to load class teachers for monthly reports:", err);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [branchId, canManage, classTeacherNameMap, reports]);
+
+  const reportsWithTeacherFallback = useMemo(() => {
+    return reports.map((report) => {
+      if (report.teacherName && report.teacherName.trim()) return report;
+
+      const classId = String(report.classId ?? "").trim();
+      if (!classId) return report;
+
+      const fallbackTeacherName = classTeacherNameMap[classId] || teacherClassTeacherMap[classId] || "";
+      if (!fallbackTeacherName) return report;
+
+      return {
+        ...report,
+        teacherName: fallbackTeacherName,
+      };
+    });
+  }, [classTeacherNameMap, reports, teacherClassTeacherMap]);
+
   const filteredReports = useMemo(() => {
-    return reports.filter((r) => {
+    return reportsWithTeacherFallback.filter((r) => {
       const q = searchQuery.trim().toLowerCase();
       const reportStatus = normalizeStatus(r.status);
       const selectedStatus = normalizeStatus(statusFilter);
@@ -877,10 +1010,10 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
       const teacherScopeOk = !isTeacher || (Boolean(classId) && teacherClassIdSet.has(classId));
       return statusOk && textOk && classOk && studentOk && teacherScopeOk;
     });
-  }, [isTeacher, reports, searchQuery, selectedClassId, selectedStudentId, statusFilter, teacherClassIdSet]);
+  }, [isTeacher, reportsWithTeacherFallback, searchQuery, selectedClassId, selectedStudentId, statusFilter, teacherClassIdSet]);
 
   const teacherWorkflowReports = useMemo(() => {
-    return reports.filter((r) => {
+    return reportsWithTeacherFallback.filter((r) => {
       const classOk =
         !selectedClassId ||
         r.classId === selectedClassId ||
@@ -890,7 +1023,7 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
       const teacherScopeOk = !isTeacher || (Boolean(classId) && teacherClassIdSet.has(classId));
       return classOk && studentOk && teacherScopeOk;
     });
-  }, [isTeacher, reports, selectedClassId, selectedStudentId, teacherClassIdSet]);
+  }, [isTeacher, reportsWithTeacherFallback, selectedClassId, selectedStudentId, teacherClassIdSet]);
 
   const teacherClasses = useMemo(() => {
     const q = classQuery.trim().toLowerCase();
@@ -1058,22 +1191,11 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
   const displayReport = useMemo(() => {
     if (!activeReportDetail) return activeReport;
 
-    const rawDetail = activeReportDetail as MonthlyReport & {
-      assignedTeacherName?: string;
-      teacherFullName?: string;
-      teacher?: { name?: string };
-    };
-
-    const teacherName =
-      rawDetail.teacherName ||
-      rawDetail.assignedTeacherName ||
-      rawDetail.teacherFullName ||
-      rawDetail.teacher?.name ||
-      activeReport?.teacherName ||
-      "";
+    const rawDetail = activeReportDetail as Record<string, unknown>;
+    const teacherName = resolveTeacherName(rawDetail, activeReport?.teacherName || "");
 
     return {
-      ...rawDetail,
+      ...activeReportDetail,
       teacherName,
     };
   }, [activeReport, activeReportDetail]);
@@ -2048,7 +2170,7 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
             {/* Content Body */}
             <div className="p-6 max-h-[75vh] overflow-y-auto">
               {/* Stats Row */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
                 <div className="rounded-2xl bg-gradient-to-br from-red-50 to-red-100 border border-red-200 p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="p-1.5 rounded-lg bg-white/60">
@@ -2075,6 +2197,15 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
                     <span className="text-xs font-medium text-blue-600">Tháng/Năm</span>
                   </div>
                   <p className="text-base font-bold text-gray-900 leading-tight">{displayReport.month}/{displayReport.year}</p>
+                </div>
+                <div className="rounded-2xl bg-gradient-to-br from-violet-50 to-violet-100 border border-violet-200 p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="p-1.5 rounded-lg bg-white/60">
+                      <MessageSquare size={14} className="text-violet-600" />
+                    </div>
+                    <span className="text-xs font-medium text-violet-600">Giáo viên</span>
+                  </div>
+                  <p className="text-base font-bold text-gray-900 leading-tight">{displayReport.teacherName || "Chưa có thông tin"}</p>
                 </div>
                 <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200 p-4">
                   <div className="flex items-center gap-2 mb-2">
@@ -2106,45 +2237,20 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
 
                 {/* Sidebar - chiếm 2/5 */}
                 <div className="lg:col-span-2 space-y-4">
-                  {displayReport.pdfUrl && (
-                    <div className="rounded-2xl bg-gradient-to-br from-white to-red-50 border border-red-200 p-4">
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="p-1.5 rounded-lg bg-red-100">
-                          <FileBarChart size={16} className="text-red-600" />
-                        </div>
-                        <h3 className="text-sm font-semibold text-gray-700">File đính kèm</h3>
-                      </div>
-                      <a
-                        href={displayReport.pdfUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 p-3 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-                      >
-                        <div className="p-2 rounded-lg bg-red-100">
-                          <FileBarChart size={16} className="text-red-600" />
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500">File PDF đính kèm</p>
-                          <p className="text-sm font-medium text-red-600 hover:text-red-700">Xem chi tiết →</p>
-                        </div>
-                      </a>
-                    </div>
-                  )}
-
                   {/* Góp ý từ Staff/Admin */}
-                  {displayReport.comments && displayReport.comments.length > 0 && (
-                    <div className="rounded-2xl bg-gradient-to-br from-amber-50 to-white border border-amber-200 p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                          <div className="p-1.5 rounded-lg bg-amber-100">
-                            <MessageSquare size={16} className="text-amber-600" />
-                          </div>
-                          <h3 className="text-sm font-semibold text-gray-700">Góp ý từ Staff</h3>
+                  <div className="rounded-2xl bg-gradient-to-br from-amber-50 to-white border border-amber-200 p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 rounded-lg bg-amber-100">
+                          <MessageSquare size={16} className="text-amber-600" />
                         </div>
-                        <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
-                          {displayReport.comments.length}
-                        </span>
+                        <h3 className="text-sm font-semibold text-gray-700">Góp ý từ Staff</h3>
                       </div>
+                      <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
+                        {displayReport.comments?.length || 0}
+                      </span>
+                    </div>
+                    {displayReport.comments && displayReport.comments.length > 0 ? (
                       <div className="space-y-2 max-h-48 overflow-y-auto">
                         {displayReport.comments.slice().reverse().map((c) => (
                           <div key={c.id} className="p-3 rounded-xl bg-white border border-amber-100 shadow-sm">
@@ -2161,8 +2267,12 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
                           </div>
                         ))}
                       </div>
-                    </div>
-                  )}
+                    ) : (
+                      <div className="rounded-xl border border-dashed border-amber-200 bg-white px-3 py-4 text-sm text-gray-500">
+                        Chưa có góp ý từ staff/admin cho báo cáo này.
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

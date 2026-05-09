@@ -37,6 +37,9 @@ type MonthlyReport = {
   studentProfileId?: string;
   studentName?: string;
   teacherName?: string;
+  submittedByName?: string;
+  reviewedByName?: string;
+  classId?: string;
   className?: string;
   status?: ReportStatus;
   month?: number;
@@ -60,6 +63,7 @@ type ReportPayload = Paginated<MonthlyReport> & {
 type SessionReport = {
   id: string;
   sessionId?: string;
+  sessionDate?: string;
   studentProfileId?: string;
   studentName?: string;
   teacherName?: string;
@@ -89,6 +93,52 @@ function openPdfWindow(url?: string) {
 
 function dedupeById<T extends { id: string }>(items: T[]): T[] {
   return Array.from(new Map(items.map((item) => [item.id, item])).values());
+}
+
+function toTimestamp(value?: string | null): number | null {
+  if (!value) return null;
+  const raw = String(value).trim();
+  if (!raw) return null;
+
+  const parsed = new Date(raw);
+  if (!Number.isNaN(parsed.getTime())) return parsed.getTime();
+
+  const dmyWithTime = raw.match(
+    /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/,
+  );
+  if (dmyWithTime) {
+    const [, d, m, y, hh = "0", mm = "0", ss = "0"] = dmyWithTime;
+    const fallback = new Date(
+      Number(y),
+      Number(m) - 1,
+      Number(d),
+      Number(hh),
+      Number(mm),
+      Number(ss),
+    );
+    if (!Number.isNaN(fallback.getTime())) return fallback.getTime();
+  }
+
+  return null;
+}
+
+function getMonthlyReportTimestamp(report: MonthlyReport): number | null {
+  return (
+    toTimestamp(report.updatedAt) ||
+    toTimestamp(report.pdfGeneratedAt) ||
+    (report.year && report.month
+      ? new Date(report.year, report.month - 1, 1).getTime()
+      : null)
+  );
+}
+
+function getSessionReportTimestamp(report: SessionReport): number | null {
+  return (
+    toTimestamp(report.sessionDate) ||
+    toTimestamp(report.reportDate) ||
+    toTimestamp(report.updatedAt) ||
+    toTimestamp(report.createdAt)
+  );
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -148,6 +198,13 @@ function normalizeSessionReport(raw: Record<string, unknown>): SessionReport | n
   return {
     id,
     sessionId: pickValue(record, "sessionId", "SessionId", "session.id", "session.sessionId"),
+    sessionDate: pickValue(
+      record,
+      "sessionDate",
+      "SessionDate",
+      "session.actualDatetime",
+      "session.plannedDatetime",
+    ),
     studentProfileId: pickValue(
       record,
       "studentProfileId",
@@ -196,13 +253,7 @@ function normalizeSessionReport(raw: Record<string, unknown>): SessionReport | n
     ),
     teacherUserId: pickValue(record, "teacherUserId", "TeacherUserId", "teacher.id", "teacher.userId"),
     classId: pickValue(record, "classId", "ClassId", "class.id", "course.id"),
-    reportDate: pickValue(
-      record,
-      "reportDate",
-      "ReportDate",
-      "session.actualDatetime",
-      "session.plannedDatetime",
-    ),
+    reportDate: pickValue(record, "reportDate", "ReportDate"),
     feedback: pickValue(record, "feedback", "Feedback"),
     reason: pickValue(
       record,
@@ -227,7 +278,24 @@ function normalizeMonthlyReport(raw: Record<string, unknown>): MonthlyReport | n
     id,
     studentProfileId: pickValue(record, "studentProfileId", "StudentProfileId", "studentProfile.id", "student.id"),
     studentName: pickValue(record, "studentName", "StudentName", "displayName", "studentProfile.displayName", "studentProfile.fullName", "student.displayName", "student.fullName", "student.name"),
-    teacherName: pickValue(record, "teacherName", "TeacherName", "teacher.displayName", "teacher.fullName", "teacher.name", "teacherDisplayName"),
+    teacherName: pickValue(
+      record,
+      "teacherName",
+      "TeacherName",
+      "teacher.displayName",
+      "teacher.fullName",
+      "teacher.name",
+      "teacherDisplayName",
+      "reviewerName",
+      "ReviewerName",
+      "reviewedBy",
+      "ReviewedBy",
+      "commentedByTeacherName",
+      "CommentedByTeacherName",
+    ),
+    submittedByName: pickValue(record, "submittedByName", "SubmittedByName"),
+    reviewedByName: pickValue(record, "reviewedByName", "ReviewedByName"),
+    classId: pickValue(record, "classId", "ClassId", "class.id", "course.id"),
     className: pickValue(
       record,
       "className",
@@ -392,6 +460,9 @@ export default function TestsPage() {
   const [sessionDetailLoading, setSessionDetailLoading] = useState(false);
   const [sessionDetailError, setSessionDetailError] = useState<string | null>(null);
   const [activeSessionReport, setActiveSessionReport] = useState<SessionReport | null>(null);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [classTeacherNameMap, setClassTeacherNameMap] = useState<Record<string, string>>({});
   const [profileSelectionRevision, setProfileSelectionRevision] = useState(0);
   const [studentContextReady, setStudentContextReady] = useState(false);
   const [studentContextToken, setStudentContextToken] = useState("");
@@ -654,6 +725,55 @@ export default function TestsPage() {
     return cookieToken || "";
   };
 
+  const resolveClassTeacherName = async (classId?: string): Promise<string | undefined> => {
+    const safeClassId = String(classId ?? "").trim();
+    if (!safeClassId) return undefined;
+
+    if (classTeacherNameMap[safeClassId]) {
+      return classTeacherNameMap[safeClassId];
+    }
+
+    const token = studentContextToken || getToken();
+    const response = await fetch(`/api/classes/${safeClassId}`, {
+      method: "GET",
+      credentials: "include",
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return undefined;
+    }
+
+    const text = await response.text();
+    const payload = text ? JSON.parse(text) : {};
+    const payloadRecord = asRecord(payload);
+    const dataRecord = asRecord(payloadRecord?.data);
+    const nestedDataRecord = asRecord(dataRecord?.data);
+    const classRecord = nestedDataRecord ?? dataRecord ?? payloadRecord;
+    const teacherName = pickValue(
+      classRecord ?? {},
+      "mainTeacherName",
+      "MainTeacherName",
+      "teacherName",
+      "TeacherName",
+      "teacher.displayName",
+      "teacher.fullName",
+      "teacher.name",
+    );
+
+    if (teacherName) {
+      setClassTeacherNameMap((prev) => ({
+        ...prev,
+        [safeClassId]: teacherName,
+      }));
+    }
+
+    return teacherName;
+  };
+
   useEffect(() => {
     if (!activeStudentQueryIds.length) {
       setPublishedReports([]);
@@ -685,18 +805,18 @@ export default function TestsPage() {
       return [];
     };
 
-    const loadPublishedReports = async () => {
-      setReportsLoading(true);
-      setReportsError(null);
-      try {
-        const token = studentContextToken || getToken();
-        const query = new URLSearchParams({
-          studentProfileId: activeStudentQueryIds[0] ?? activeStudentProfileId,
-          month: `${new Date().getMonth() + 1}`,
-          year: `${new Date().getFullYear()}`,
-          pageNumber: "1",
-          pageSize: `${reportPageSize}`,
-        });
+    const fetchMonthlyPages = async (
+      baseQuery: URLSearchParams,
+      options?: { tolerateError?: boolean },
+    ): Promise<MonthlyReport[]> => {
+      const token = studentContextToken || getToken();
+      const collected: MonthlyReport[] = [];
+
+      for (let page = 1; page <= reportMaxPages; page += 1) {
+        const query = new URLSearchParams(baseQuery);
+        query.set("pageNumber", `${page}`);
+        query.set("pageSize", `${reportPageSize}`);
+
         const response = await fetch(`/api/monthly-reports?${query.toString()}`, {
           method: "GET",
           credentials: "include",
@@ -709,12 +829,17 @@ export default function TestsPage() {
         const text = await response.text();
         const payload = text ? JSON.parse(text) : {};
         if (!response.ok) {
+          if (options?.tolerateError) {
+            return [];
+          }
           throw new Error(payload?.message || "Không thể tải báo cáo đã publish.");
         }
 
         const root = (payload?.data ?? payload) as ReportPayload;
-        const buildPublishedMonthlyReports = (reportPayload: ReportPayload) =>
-          getPaginatedItems<Record<string, unknown>>(reportPayload as Paginated<Record<string, unknown>>, "reports")
+        const pageReports = getPaginatedItems<Record<string, unknown>>(
+          root as Paginated<Record<string, unknown>>,
+          "reports",
+        )
           .map((raw) => normalizeMonthlyReport(raw))
           .filter((item): item is MonthlyReport => !!item)
           .filter((item) =>
@@ -722,40 +847,30 @@ export default function TestsPage() {
               ? activeStudentIdentitySet.has(String(item.studentProfileId).trim())
               : true,
           )
-          .filter((item) => normalizeStatus(item.status) === "Published")
-          .sort((a, b) => {
-            const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
-            const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
-            return bTime - aTime;
-          });
+          .filter((item) => normalizeStatus(item.status) === "Published");
 
-        let reports = buildPublishedMonthlyReports(root);
+        if (!pageReports.length) break;
+        collected.push(...pageReports);
+        if (pageReports.length < reportPageSize) break;
+      }
+
+      return dedupeById(collected.filter((item): item is MonthlyReport => Boolean(item.id)));
+    };
+
+    const loadPublishedReports = async () => {
+      setReportsLoading(true);
+      setReportsError(null);
+      try {
+        const baseQuery = new URLSearchParams({
+          studentProfileId: activeStudentQueryIds[0] ?? activeStudentProfileId,
+        });
+
+        let reports = await fetchMonthlyPages(baseQuery);
 
         if (reports.length === 0 && activeStudentQueryIds.length > 1) {
           for (const fallbackStudentProfileId of activeStudentQueryIds.slice(1)) {
-            const fallbackQuery = new URLSearchParams({
-              studentProfileId: fallbackStudentProfileId,
-              month: `${new Date().getMonth() + 1}`,
-              year: `${new Date().getFullYear()}`,
-              pageNumber: "1",
-              pageSize: `${reportPageSize}`,
-            });
-            const fallbackResponse = await fetch(`/api/monthly-reports?${fallbackQuery.toString()}`, {
-              method: "GET",
-              credentials: "include",
-              headers: {
-                ...(token ? { Authorization: `Bearer ${token}` } : {}),
-              },
-              cache: "no-store",
-            });
-
-            if (!fallbackResponse.ok) {
-              continue;
-            }
-
-            const fallbackText = await fallbackResponse.text();
-            const fallbackPayload = fallbackText ? JSON.parse(fallbackText) : {};
-            reports = buildPublishedMonthlyReports((fallbackPayload?.data ?? fallbackPayload) as ReportPayload);
+            const fallbackQuery = new URLSearchParams({ studentProfileId: fallbackStudentProfileId });
+            reports = await fetchMonthlyPages(fallbackQuery, { tolerateError: true });
             if (reports.length > 0) {
               break;
             }
@@ -763,29 +878,18 @@ export default function TestsPage() {
         }
 
         if (reports.length === 0) {
-          const fallbackQuery = new URLSearchParams({
-            month: `${new Date().getMonth() + 1}`,
-            year: `${new Date().getFullYear()}`,
-            pageNumber: "1",
-            pageSize: `${reportPageSize}`,
-          });
-          const fallbackResponse = await fetch(`/api/monthly-reports?${fallbackQuery.toString()}`, {
-            method: "GET",
-            credentials: "include",
-            headers: {
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            },
-            cache: "no-store",
-          });
-
-          if (fallbackResponse.ok) {
-            const fallbackText = await fallbackResponse.text();
-            const fallbackPayload = fallbackText ? JSON.parse(fallbackText) : {};
-            reports = buildPublishedMonthlyReports((fallbackPayload?.data ?? fallbackPayload) as ReportPayload);
-          }
+          reports = await fetchMonthlyPages(new URLSearchParams(), { tolerateError: true });
         }
 
-        setPublishedReports(dedupeById(reports.filter((item): item is MonthlyReport => Boolean(item.id))));
+        setPublishedReports(
+          reports
+            .filter((item): item is MonthlyReport => Boolean(item.id))
+            .sort((a, b) => {
+              const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+              const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+              return bTime - aTime;
+            }),
+        );
       } catch (error) {
         setPublishedReports([]);
         setReportsError(error instanceof Error ? error.message : "Không thể tải báo cáo đã publish.");
@@ -989,9 +1093,21 @@ export default function TestsPage() {
       const rawDetail = (payload?.data ?? payload) as Record<string, unknown>;
       const detail = normalizeMonthlyReport(rawDetail) ?? rawDetail as unknown as MonthlyReport;
       const merged = { ...report, ...detail };
-      // Preserve teacherName from list if detail doesn't provide it
-      if (!merged.teacherName && report.teacherName) {
-        merged.teacherName = report.teacherName;
+      // Resolve teacher name from known report fields first, then by class fallback.
+      if (!merged.teacherName) {
+        merged.teacherName =
+          detail?.submittedByName ||
+          report.submittedByName ||
+          detail?.reviewedByName ||
+          report.reviewedByName ||
+          report.teacherName;
+      }
+
+      if (!merged.teacherName) {
+        const teacherByClass = await resolveClassTeacherName(merged.classId || report.classId);
+        if (teacherByClass) {
+          merged.teacherName = teacherByClass;
+        }
       }
       setActiveReport(merged);
     } catch (error) {
@@ -1048,6 +1164,41 @@ export default function TestsPage() {
   const bestScore = totalTests > 0 ? Math.max(...testResults.map(test => (test.score / test.maxScore * 100))) : 0;
   const totalReports = publishedReports.length;
   const totalSessionReports = publishedSessionReports.length;
+  const dateFilterActive = Boolean(dateFrom || dateTo);
+
+  const dateRangeStart = useMemo(() => {
+    if (!dateFrom) return null;
+    return new Date(`${dateFrom}T00:00:00`).getTime();
+  }, [dateFrom]);
+
+  const dateRangeEnd = useMemo(() => {
+    if (!dateTo) return null;
+    return new Date(`${dateTo}T23:59:59.999`).getTime();
+  }, [dateTo]);
+
+  const isInSelectedRange = (timestamp: number | null) => {
+    if (dateRangeStart === null && dateRangeEnd === null) return true;
+    if (timestamp === null) return false;
+    if (dateRangeStart !== null && timestamp < dateRangeStart) return false;
+    if (dateRangeEnd !== null && timestamp > dateRangeEnd) return false;
+    return true;
+  };
+
+  const filteredMonthlyReports = useMemo(
+    () =>
+      publishedReports.filter((report) =>
+        isInSelectedRange(getMonthlyReportTimestamp(report)),
+      ),
+    [publishedReports, dateRangeStart, dateRangeEnd],
+  );
+
+  const filteredSessionReports = useMemo(
+    () =>
+      publishedSessionReports.filter((report) =>
+        isInSelectedRange(getSessionReportTimestamp(report)),
+      ),
+    [publishedSessionReports, dateRangeStart, dateRangeEnd],
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6 space-y-6">
@@ -1136,6 +1287,43 @@ export default function TestsPage() {
         </div>
       )}
 
+      {(activeTab === "monthly" || activeTab === "session" || activeTab === "history") && (
+        <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3">
+          <div className="flex flex-col gap-3 md:flex-row md:items-end">
+            <div className="w-full md:w-56">
+              <label className="mb-1 block text-xs font-medium text-gray-600">Từ ngày</label>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="h-9 w-full rounded-lg border border-gray-200 px-3 text-sm text-gray-700 outline-none transition-all focus:border-red-300 focus:ring-2 focus:ring-red-100"
+              />
+            </div>
+            <div className="w-full md:w-56">
+              <label className="mb-1 block text-xs font-medium text-gray-600">Đến ngày</label>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="h-9 w-full rounded-lg border border-gray-200 px-3 text-sm text-gray-700 outline-none transition-all focus:border-red-300 focus:ring-2 focus:ring-red-100"
+              />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-9 border-gray-200 text-gray-700"
+              onClick={() => {
+                setDateFrom("");
+                setDateTo("");
+              }}
+              disabled={!dateFilterActive}
+            >
+              Xóa lọc
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Content - Grid 3 columns */}
       {activeTab === "periodic" && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1216,7 +1404,7 @@ export default function TestsPage() {
             </Card>
           )}
 
-          {!reportsLoading && !reportsError && publishedReports.length === 0 && (
+          {!reportsLoading && !reportsError && filteredMonthlyReports.length === 0 && (
             <Card className="border-gray-200 shadow-sm col-span-1 md:col-span-2 lg:col-span-3">
               <CardContent className="p-8 text-center">
                 <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200">
@@ -1224,7 +1412,9 @@ export default function TestsPage() {
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Chưa có báo cáo đã phát hành</h3>
                 <p className="text-sm text-gray-600">
-                  Học viên {selectedStudentName} chưa có báo cáo tháng ở trạng thái Published.
+                  {dateFilterActive
+                    ? "Không có báo cáo tháng nào khớp khoảng thời gian đã chọn."
+                    : `Học viên ${selectedStudentName} chưa có báo cáo tháng ở trạng thái Published.`}
                 </p>
               </CardContent>
             </Card>
@@ -1232,7 +1422,7 @@ export default function TestsPage() {
 
           {!reportsLoading &&
             !reportsError &&
-            publishedReports.map((report) => (
+            filteredMonthlyReports.map((report) => (
               <Card key={report.id} className="border-gray-200 shadow-sm overflow-hidden">
                 <div className="p-3 border-b border-gray-200 bg-gray-50/50">
                   <div className="flex items-center gap-2">
@@ -1255,7 +1445,7 @@ export default function TestsPage() {
 
                     <div className="p-2 bg-gray-50 rounded-lg border border-gray-200">
                       <p className="text-xs text-gray-600 line-clamp-3">
-                        {normalizeDraftContent(report.finalContent ?? report.draftContent) || "Published report"}
+                        {normalizeDraftContent(report.finalContent ?? report.draftContent) || "Báo cáo đã xuất bản"}
                       </p>
                     </div>
 
@@ -1266,7 +1456,7 @@ export default function TestsPage() {
                       onClick={() => openReportDetail(report)}
                     >
                       <Eye className="w-3.5 h-3.5 mr-1" />
-                      View report
+                      Xem báo cáo
                     </Button>
                     <Button
                       size="sm"
@@ -1275,7 +1465,7 @@ export default function TestsPage() {
                       onClick={() => openPdfWindow(report.pdfUrl)}
                     >
                       <Download className="w-3.5 h-3.5 mr-1" />
-                      {report.pdfUrl ? "Open PDF" : "PDF soon"}
+                      {report.pdfUrl ? "Mở PDF" : "Chưa có PDF"}
                     </Button>
                   </div>
                 </CardContent>
@@ -1302,7 +1492,7 @@ export default function TestsPage() {
             </Card>
           )}
 
-          {!sessionReportsLoading && !sessionReportsError && publishedSessionReports.length === 0 && (
+          {!sessionReportsLoading && !sessionReportsError && filteredSessionReports.length === 0 && (
             <Card className="border-gray-200 shadow-sm col-span-1 md:col-span-2 lg:col-span-3">
               <CardContent className="p-8 text-center">
                 <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200">
@@ -1310,7 +1500,9 @@ export default function TestsPage() {
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Chưa có báo cáo theo buổi</h3>
                 <p className="text-sm text-gray-600">
-                  Học viên {selectedStudentName} chưa có Session Report ở trạng thái Published.
+                  {dateFilterActive
+                    ? "Không có báo cáo theo buổi nào khớp khoảng thời gian đã chọn."
+                    : `Học viên ${selectedStudentName} chưa có Session Report ở trạng thái Published.`}
                 </p>
               </CardContent>
             </Card>
@@ -1318,7 +1510,7 @@ export default function TestsPage() {
 
           {!sessionReportsLoading &&
             !sessionReportsError &&
-            publishedSessionReports.map((report) => (
+            filteredSessionReports.map((report) => (
               <Card key={report.id} className="border-gray-200 shadow-sm overflow-hidden">
                 <div className="p-3 border-b border-gray-200 bg-gray-50/50">
                   <div className="flex items-center gap-2">
@@ -1326,7 +1518,7 @@ export default function TestsPage() {
                       <BookOpen className="w-4 h-4 text-gray-700" />
                     </div>
                     <h3 className="font-semibold text-sm text-gray-900">
-                      Buổi {report.reportDate || "-"}
+                      Session {formatDateTime(report.sessionDate || report.reportDate)}
                     </h3>
                   </div>
                 </div>
@@ -1372,11 +1564,11 @@ export default function TestsPage() {
             </CardHeader>
             <CardContent className="p-4 space-y-2">
               {(reportsLoading || sessionReportsLoading) && <div className="text-sm text-gray-600">Đang tải lịch sử...</div>}
-              {!reportsLoading && !sessionReportsLoading && publishedReports.length === 0 && publishedSessionReports.length === 0 && (
+              {!reportsLoading && !sessionReportsLoading && filteredMonthlyReports.length === 0 && filteredSessionReports.length === 0 && (
                 <div className="text-sm text-gray-600">Chưa có báo cáo đã phát hành.</div>
               )}
               {!reportsLoading &&
-                publishedReports.map((report) => (
+                filteredMonthlyReports.map((report) => (
                   <HistoryItem
                     key={report.id}
                     title={`Báo cáo tháng ${report.month ?? "?"}/${report.year ?? "?"}`}
@@ -1385,10 +1577,10 @@ export default function TestsPage() {
                   />
                 ))}
               {!sessionReportsLoading &&
-                publishedSessionReports.map((report) => (
+                filteredSessionReports.map((report) => (
                   <HistoryItem
                     key={report.id}
-                    title={`Session report ${report.reportDate ?? "-"}`}
+                    title={`Session report ${formatDateTime(report.sessionDate || report.reportDate)}`}
                     date={formatDateTime(report.updatedAt || report.createdAt)}
                     size="Published"
                   />
@@ -1404,7 +1596,7 @@ export default function TestsPage() {
           <div className="w-full max-w-3xl rounded-2xl bg-white shadow-xl border border-gray-200 max-h-[85vh] overflow-hidden">
             <div className="p-4 border-b border-gray-200 flex items-start justify-between gap-3">
               <div>
-                <div className="text-lg font-bold text-gray-900">Report details</div>
+                <div className="text-lg font-bold text-gray-900">Chi tiết báo cáo tháng</div>
                 <div className="text-sm text-gray-600 mt-1">
                   {activeReport?.studentName ?? selectedStudentName} - {activeReport?.month ?? "?"}/{activeReport?.year ?? "?"}
                 </div>
@@ -1423,26 +1615,26 @@ export default function TestsPage() {
                   onClick={() => setDetailOpen(false)}
                   className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
                 >
-                  Close
+                  Đóng
                 </button>
               </div>
             </div>
 
             <div className="p-4 overflow-y-auto max-h-[70vh] space-y-3">
-              {detailLoading && <div className="text-sm text-gray-600">Loading report details...</div>}
+              {detailLoading && <div className="text-sm text-gray-600">Đang tải chi tiết báo cáo...</div>}
               {detailError && <div className="text-sm text-red-700">{detailError}</div>}
 
               <div className="text-xs text-gray-600 space-y-1">
-                <div>Class: {activeReport?.className ?? "-"}</div>
-                <div>Teacher: {activeReport?.teacherName ?? "-"}</div>
-                <div>Updated: {formatDateTime(activeReport?.updatedAt)}</div>
+                <div>Lớp: {activeReport?.className ?? "-"}</div>
+                <div>Giáo viên nhận xét: {activeReport?.teacherName ?? "-"}</div>
+                <div>Cập nhật: {formatDateTime(activeReport?.updatedAt)}</div>
               </div>
 
               <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                <div className="text-sm font-semibold text-gray-900 mb-2">Content</div>
+                <div className="text-sm font-semibold text-gray-900 mb-2">Nội dung báo cáo</div>
                 <div className="text-sm text-gray-700 whitespace-pre-line leading-6">
                   {normalizeDraftContent(activeReport?.finalContent ?? activeReport?.draftContent) ||
-                    "Published report has no visible content."}
+                    "Báo cáo đã xuất bản chưa có nội dung hiển thị."}
                 </div>
               </div>
             </div>
@@ -1457,7 +1649,7 @@ export default function TestsPage() {
               <div>
                 <div className="text-lg font-bold text-gray-900">Chi tiết báo cáo theo buổi</div>
                 <div className="text-sm text-gray-600 mt-1">
-                  {activeSessionReport?.studentName ?? selectedStudentName} - {activeSessionReport?.reportDate ?? "-"}
+                  {activeSessionReport?.studentName ?? selectedStudentName} - {formatDateTime(activeSessionReport?.sessionDate || activeSessionReport?.reportDate)}
                 </div>
               </div>
               <button
