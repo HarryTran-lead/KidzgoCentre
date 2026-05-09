@@ -400,6 +400,7 @@ function normalizeLessonPlan(item: any): LessonPlan {
 
 function normalizeSyllabusSession(item: any): ClassLessonPlanSyllabusSession {
   const template = item?.template ?? item?.lessonPlanTemplate ?? item?.linkedTemplate;
+  const lessonPlan = item?.lessonPlan ?? item?.LessonPlan ?? item?.plan;
 
   return {
     sessionId: stringOr(item?.sessionId, item?.id, item?.SessionId),
@@ -418,15 +419,73 @@ function normalizeSyllabusSession(item: any): ClassLessonPlanSyllabusSession {
       item?.syllabusContent,
       template?.syllabusContent
     ),
-    plannedContent: normalizeNullableString(item?.plannedContent, item?.PlannedContent, item?.planContent),
-    actualContent: normalizeNullableString(item?.actualContent, item?.ActualContent, item?.realContent),
-    actualHomework: normalizeNullableString(item?.actualHomework, item?.ActualHomework, item?.homework),
-    teacherNotes: normalizeNullableString(item?.teacherNotes, item?.TeacherNotes, item?.notes),
+    plannedContent: normalizeNullableString(
+      item?.plannedContent,
+      item?.PlannedContent,
+      item?.planContent,
+      lessonPlan?.plannedContent,
+      lessonPlan?.PlannedContent,
+      lessonPlan?.planContent,
+      lessonPlan?.expectedContent
+    ),
+    actualContent: normalizeNullableString(
+      item?.actualContent,
+      item?.ActualContent,
+      item?.realContent,
+      lessonPlan?.actualContent,
+      lessonPlan?.ActualContent,
+      lessonPlan?.realContent,
+      lessonPlan?.deliveredContent
+    ),
+    actualHomework: normalizeNullableString(
+      item?.actualHomework,
+      item?.ActualHomework,
+      item?.homework,
+      lessonPlan?.actualHomework,
+      lessonPlan?.ActualHomework,
+      lessonPlan?.homework,
+      lessonPlan?.actualHomeWork
+    ),
+    teacherNotes: normalizeNullableString(
+      item?.teacherNotes,
+      item?.TeacherNotes,
+      item?.notes,
+      lessonPlan?.teacherNotes,
+      lessonPlan?.TeacherNotes,
+      lessonPlan?.teacherNote,
+      lessonPlan?.note,
+      lessonPlan?.notes
+    ),
     canEdit: booleanOr(item?.canEdit ?? item?.CanEdit, false),
   };
 }
 
 function normalizeSyllabus(data: any): ClassLessonPlanSyllabus {
+  const normalizedSessions = Array.isArray(data?.sessions) ? data.sessions.map(normalizeSyllabusSession) : [];
+
+  const anchorSession =
+    normalizedSessions.find(
+      (session) =>
+        session.sessionIndex === 1 &&
+        (session.templateId || (typeof session.templateSyllabusContent === "string" && session.templateSyllabusContent.trim()))
+    ) ||
+    normalizedSessions.find(
+      (session) => session.templateId || (typeof session.templateSyllabusContent === "string" && session.templateSyllabusContent.trim())
+    );
+
+  const sessions = anchorSession
+    ? normalizedSessions.map((session) => ({
+        ...session,
+        templateId: session.templateId ?? anchorSession.templateId ?? null,
+        templateTitle: session.templateTitle ?? anchorSession.templateTitle ?? null,
+        templateSyllabusContent: session.templateSyllabusContent ?? anchorSession.templateSyllabusContent ?? null,
+        plannedContent:
+          typeof session.plannedContent === "string" && session.plannedContent.trim()
+            ? session.plannedContent
+            : session.templateSyllabusContent ?? anchorSession.templateSyllabusContent ?? null,
+      }))
+    : normalizedSessions;
+
   return {
     classId: stringOr(data?.classId),
     classCode: stringOr(data?.classCode) || undefined,
@@ -434,7 +493,7 @@ function normalizeSyllabus(data: any): ClassLessonPlanSyllabus {
     programId: stringOr(data?.programId) || undefined,
     programName: stringOr(data?.programName) || undefined,
     syllabusMetadata: normalizeNullableString(data?.syllabusMetadata),
-    sessions: Array.isArray(data?.sessions) ? data.sessions.map(normalizeSyllabusSession) : [],
+    sessions,
   };
 }
 

@@ -62,6 +62,7 @@ import {
   updateLessonPlan,
 } from "@/lib/api/lessonPlanService";
 import type { ClassLessonPlanSyllabusSession, LessonPlan } from "@/lib/api/lessonPlanService";
+import { buildFileUrl } from "@/constants/apiURL";
 
 type FilterField = {
   date: string;
@@ -402,6 +403,136 @@ function parseTeachingJson(value?: string | null): Record<string, any> | null {
   try { return JSON.parse(value); } catch { return null; }
 }
 
+type TeachingMaterialReference = {
+  title: string;
+  content: string;
+};
+
+function extractTeachingMaterialsBlockFromPlainText(raw: string): string {
+  const text = raw.trim();
+  if (!text) return "";
+
+  const lines = text.split(/\r?\n/);
+  const startIndex = lines.findIndex((line) => /^\s*Teaching Materials?:/i.test(line));
+  if (startIndex < 0) return "";
+
+  const collected: string[] = [];
+  for (let i = startIndex; i < lines.length; i += 1) {
+    const current = lines[i];
+    if (i > startIndex && /^\s*Note[s]?:/i.test(current)) break;
+    collected.push(current);
+  }
+
+  return collected.join("\n").trim();
+}
+
+function normalizeTeachingMaterialValue(value: unknown): string {
+  if (typeof value === "string") return value.trim();
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => (typeof item === "string" ? item.trim() : String(item ?? "").trim()))
+      .filter(Boolean)
+      .join("\n");
+  }
+  if (value && typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .map(([k, v]) => `${k}: ${normalizeTeachingMaterialValue(v)}`.trim())
+      .filter((line) => line !== ":" && line !== "" && !line.endsWith(": "));
+    return entries.join("\n").trim();
+  }
+  return "";
+}
+
+function extractTeachingMaterialReferences(value?: string | null): TeachingMaterialReference[] {
+  const parsed = parseTeachingJson(value);
+  if (!parsed) {
+    const raw = String(value ?? "").trim();
+    if (!raw) return [];
+
+    const materialBlock = extractTeachingMaterialsBlockFromPlainText(raw);
+    if (materialBlock) {
+      return [{
+        title: "Teaching materials",
+        content: materialBlock,
+      }];
+    }
+
+    const urls = Array.from(new Set(raw.match(/https?:\/\/\S+/g) || []));
+    if (!urls.length) return [];
+
+    return [{
+      title: "Liên kết tài liệu",
+      content: urls.join("\n"),
+    }];
+  }
+
+  const refs: TeachingMaterialReference[] = [];
+  const seen = new Set<string>();
+  const push = (title: string, source: unknown) => {
+    const content = normalizeTeachingMaterialValue(source);
+    if (!content) return;
+    const key = `${title}__${content}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    refs.push({ title, content });
+  };
+
+  push("Teaching materials", parsed.teachingMaterialsText ?? parsed.teachingMaterials ?? parsed.materials);
+  push("Homework materials", parsed.homeworkMaterials ?? parsed.homeworkRequiredMaterials);
+
+  const rawLinesText = Array.isArray(parsed.lines)
+    ? parsed.lines
+        .map((line: unknown) => (typeof line === "string" ? line : String(line ?? "")))
+        .join("\n")
+    : "";
+  if (rawLinesText.trim()) {
+    push("Teaching materials", extractTeachingMaterialsBlockFromPlainText(rawLinesText));
+  }
+
+  const activities = Array.isArray(parsed.activities) ? parsed.activities : [];
+  activities.forEach((activity, index) => {
+    if (!activity || typeof activity !== "object") return;
+    const row = activity as Record<string, unknown>;
+    push(`Dòng ${index + 1} - Materials`, row.requiredMaterials);
+    push(`Dòng ${index + 1} - HW`, row.homeworkRequiredMaterials);
+    push(`Dòng ${index + 1} - Extra`, row.extra);
+  });
+
+  return refs;
+}
+
+function renderTeachingMaterialContent(content: string) {
+  const urlPattern = /(https?:\/\/[^\s]+)/g;
+  const lines = content.split(/\r?\n/);
+
+  return (
+    <div className="mt-1 whitespace-pre-wrap break-words text-xs text-gray-700">
+      {lines.map((line, lineIndex) => (
+        <div key={`material-line-${lineIndex}`}>
+          {line.split(urlPattern).map((part, partIndex) => {
+            const isLink = /^https?:\/\/\S+$/i.test(part);
+            if (!isLink) {
+              return <span key={`material-part-${lineIndex}-${partIndex}`}>{part}</span>;
+            }
+
+            return (
+              <a
+                key={`material-link-${lineIndex}-${partIndex}`}
+                href={buildFileUrl(part)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline text-blue-600 hover:text-blue-700"
+              >
+                {part}
+              </a>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function teachingActivityDraftsFromUnknown(value: unknown): TeachingActivityDraft[] {
   if (!Array.isArray(value) || !value.length) return [createEmptyTeachingActivity()];
   return value.map((item) => {
@@ -544,6 +675,7 @@ export default function TeacherAttendancePage() {
   const [teachingReportError, setTeachingReportError] = useState<string | null>(null);
   const [teachingReportPlan, setTeachingReportPlan] = useState<LessonPlan | null>(null);
   const [teachingReportSession, setTeachingReportSession] = useState<ClassLessonPlanSyllabusSession | null>(null);
+  const [teachingReportSyllabusMetadata, setTeachingReportSyllabusMetadata] = useState<string | null>(null);
   const [teachingActualContent, setTeachingActualContent] = useState("");
   const [teachingActualHomework, setTeachingActualHomework] = useState("");
   const [teachingTeacherNotes, setTeachingTeacherNotes] = useState("");
@@ -1255,6 +1387,7 @@ export default function TeacherAttendancePage() {
     setTeachingReportError(null);
     setTeachingReportPlan(null);
     setTeachingReportSession(null);
+    setTeachingReportSyllabusMetadata(null);
     setTeachingActualContent("");
     setTeachingActualHomework("");
     setTeachingTeacherNotes("");
@@ -1312,6 +1445,7 @@ export default function TeacherAttendancePage() {
       }
 
       setTeachingReportSession(matchedSession);
+      setTeachingReportSyllabusMetadata(syllabusResp.data.syllabusMetadata ?? null);
 
       // Initialize activity drafts from existing data
       const initDraftsFromContent = (content: string | null | undefined): TeachingActivityDraft[] => {
@@ -2335,6 +2469,70 @@ export default function TeacherAttendancePage() {
                         </div>
                       </details>
                     )}
+
+                    {(() => {
+                      const commonSyllabusMaterials = extractTeachingMaterialReferences(teachingReportSyllabusMetadata);
+                      const syllabusMaterials = extractTeachingMaterialReferences(teachingReportSession?.templateSyllabusContent);
+                      const plannedMaterials = extractTeachingMaterialReferences(teachingReportSession?.plannedContent);
+                      const hasAnyMaterials = commonSyllabusMaterials.length > 0 || syllabusMaterials.length > 0 || plannedMaterials.length > 0;
+
+                      return (
+                        <details className="rounded-xl border border-gray-200 bg-gray-50/50">
+                          <summary className="cursor-pointer select-none px-4 py-3 text-sm font-medium text-gray-600 hover:text-gray-900">
+                            Xem tài liệu giáo án (tham khảo)
+                          </summary>
+                          <div className="space-y-4 border-t border-gray-200 p-4">
+                            {commonSyllabusMaterials.length > 0 && (
+                              <div>
+                                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-indigo-700">Tài liệu chung từ syllabus</div>
+                                <div className="space-y-2 rounded-lg border border-indigo-200 bg-white p-3">
+                                  {commonSyllabusMaterials.map((item, index) => (
+                                    <div key={`common-material-${index}`} className="rounded-md border border-indigo-100 bg-indigo-50/30 p-2.5">
+                                      <div className="text-xs font-semibold uppercase tracking-wide text-indigo-700">{item.title}</div>
+                                      {renderTeachingMaterialContent(item.content)}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {syllabusMaterials.length > 0 && (
+                              <div>
+                                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-blue-700">Tài liệu từ syllabus chuẩn</div>
+                                <div className="space-y-2 rounded-lg border border-blue-200 bg-white p-3">
+                                  {syllabusMaterials.map((item, index) => (
+                                    <div key={`syllabus-material-${index}`} className="rounded-md border border-blue-100 bg-blue-50/30 p-2.5">
+                                      <div className="text-xs font-semibold uppercase tracking-wide text-blue-700">{item.title}</div>
+                                      {renderTeachingMaterialContent(item.content)}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {plannedMaterials.length > 0 && (
+                              <div>
+                                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-amber-700">Tài liệu từ giáo án dự kiến</div>
+                                <div className="space-y-2 rounded-lg border border-amber-200 bg-white p-3">
+                                  {plannedMaterials.map((item, index) => (
+                                    <div key={`planned-material-${index}`} className="rounded-md border border-amber-100 bg-amber-50/30 p-2.5">
+                                      <div className="text-xs font-semibold uppercase tracking-wide text-amber-700">{item.title}</div>
+                                      {renderTeachingMaterialContent(item.content)}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {!hasAnyMaterials && (
+                              <div className="rounded-lg border border-dashed border-gray-300 bg-white p-3 text-xs text-gray-500">
+                                Chưa có tài liệu giáo án cho buổi này.
+                              </div>
+                            )}
+                          </div>
+                        </details>
+                      );
+                    })()}
 
                     {/* Editable Activity Table */}
                     <div>

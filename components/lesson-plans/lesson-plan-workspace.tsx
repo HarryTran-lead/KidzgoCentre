@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-import { BASE_URL } from "@/constants/apiURL";
+import { BASE_URL, buildFileUrl } from "@/constants/apiURL";
 import { toast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
 import { getAllClasses } from "@/lib/api/classService";
@@ -460,6 +460,61 @@ function textareaToLines(value: string): string[] {
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean);
+}
+
+type TeachingMaterialDraft = {
+  title: string;
+  resource: string;
+};
+
+function createEmptyTeachingMaterial(): TeachingMaterialDraft {
+  return {
+    title: "",
+    resource: "",
+  };
+}
+
+function parseTeachingMaterialLine(line: string, index: number): TeachingMaterialDraft {
+  const normalized = line.replace(/^\+\s*/, "").trim();
+  const colonIndex = normalized.indexOf(":");
+  if (colonIndex < 0) {
+    return {
+      title: `Tài liệu ${index + 1}`,
+      resource: normalized,
+    };
+  }
+
+  const title = normalized.slice(0, colonIndex).trim() || `Tài liệu ${index + 1}`;
+  const resource = normalized.slice(colonIndex + 1).trim();
+  return {
+    title,
+    resource,
+  };
+}
+
+function parseTeachingMaterialsTextToDrafts(text: string): TeachingMaterialDraft[] {
+  const lines = textareaToLines(text);
+  if (!lines.length) return [createEmptyTeachingMaterial()];
+  return lines.map((line, index) => parseTeachingMaterialLine(line, index));
+}
+
+function stringifyTeachingMaterialDrafts(items: TeachingMaterialDraft[]): string {
+  return items
+    .map((item) => {
+      const title = item.title.trim();
+      const resource = item.resource.trim();
+      if (!title && !resource) return "";
+      if (!title) return resource;
+      if (!resource) return title;
+      return `${title}: ${resource}`;
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
+function extractFirstHttpUrl(text: string): string {
+  const match = text.match(/https?:\/\/\S+/i);
+  return match?.[0] || "";
 }
 
 function removeEmptyDeep(obj: Record<string, unknown>): Record<string, unknown> {
@@ -1687,6 +1742,16 @@ function SyllabusView({
           const hasReport = Boolean(session.actualContent);
           const isEditable = session.canEdit;
           const hasPlan = Boolean(session.lessonPlanId);
+          const normalizedPlannedContent = !isTrivialPlannedContent(session.plannedContent) && hasDisplayablePayload(session.plannedContent)
+            ? session.plannedContent
+            : null;
+          const plannedContentFallback = session.templateSyllabusContent || resolvedTemplate?.syllabusContent || null;
+          const plannedContentDisplay = normalizedPlannedContent || plannedContentFallback;
+          const plannedContentSubtitle = normalizedPlannedContent
+            ? "Giáo án sẽ được tạo hoặc cập nhật"
+            : plannedContentFallback
+              ? "Đang tham chiếu từ syllabus chuẩn"
+              : "Giáo án sẽ được tạo hoặc cập nhật";
 
           return (
             <div
@@ -1855,13 +1920,13 @@ className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-w
 
                   <ContentCard
                     title="Giáo án dự kiến"
-                    subtitle="Giáo án sẽ được tạo hoặc cập nhật"
+                    subtitle={plannedContentSubtitle}
                     icon={<FileText size="16" />}
                     gradient="from-red-50 to-white"
                     borderColor="red"
                   >
                     <StructuredContent 
-                      value={session.plannedContent} 
+                      value={plannedContentDisplay} 
                       placeholder="Chưa có nội dung dự kiến." 
                     />
                   </ContentCard>
@@ -2054,9 +2119,15 @@ function TemplateFormModal({
   const [generalInformation, setGeneralInformation] = useState(
     pickStringValue(metadataSeed, ["generalInformation", "generalInfo", "description"]) || parsedMetadataLinesObject?.generalInformation || parsedRawMetadata?.generalInformation || ""
   );
-  const [teachingMaterialsText, setTeachingMaterialsText] = useState(
-    linesToTextarea(metadataSeed?.teachingMaterials) || parsedMetadataLinesObject?.teachingMaterialsText || parsedRawMetadata?.teachingMaterialsText || ""
+  const initialTeachingMaterialsText =
+    linesToTextarea(metadataSeed?.teachingMaterials) ||
+    parsedMetadataLinesObject?.teachingMaterialsText ||
+    parsedRawMetadata?.teachingMaterialsText ||
+    "";
+  const [teachingMaterialDrafts, setTeachingMaterialDrafts] = useState<TeachingMaterialDraft[]>(
+    () => parseTeachingMaterialsTextToDrafts(initialTeachingMaterialsText)
   );
+  const [teachingMaterialsText, setTeachingMaterialsText] = useState(() => stringifyTeachingMaterialDrafts(parseTeachingMaterialsTextToDrafts(initialTeachingMaterialsText)));
   const [sheetNote, setSheetNote] = useState(
     pickStringValue(metadataSeed, ["note"]) || linesToTextarea(metadataSeed?.note) || parsedMetadataLinesObject?.note || parsedRawMetadata?.note || ""
   );
@@ -2075,6 +2146,7 @@ const [homeworkNotesText, setHomeworkNotesText] = useState(linesToTextarea(conte
   const [attachment, setAttachment] = useState(initialValue?.attachment || "");
   const [isActive, setIsActive] = useState(initialValue?.isActive ?? true);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadingMaterialIndex, setUploadingMaterialIndex] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -2122,6 +2194,38 @@ const [homeworkNotesText, setHomeworkNotesText] = useState(linesToTextarea(conte
 
   const addActivity = () => setActivities((current) => [...current, createEmptyTemplateActivity()]);
 
+  const addTeachingMaterial = () => {
+    setTeachingMaterialDrafts((current) => [...current, createEmptyTeachingMaterial()]);
+  };
+
+  const updateTeachingMaterial = (index: number, patch: Partial<TeachingMaterialDraft>) => {
+    setTeachingMaterialDrafts((current) =>
+      current.map((item, i) => (i === index ? { ...item, ...patch } : item))
+    );
+  };
+
+  const removeTeachingMaterial = (index: number) => {
+    setTeachingMaterialDrafts((current) =>
+      current.length <= 1
+        ? [createEmptyTeachingMaterial()]
+        : current.filter((_, i) => i !== index)
+    );
+  };
+
+  const uploadTeachingMaterial = async (index: number, file: File | null) => {
+    if (!file) return;
+
+    try {
+      setUploadingMaterialIndex(index);
+      const uploaded = await uploadLessonPlanFile("materials", file);
+      updateTeachingMaterial(index, { resource: uploaded.url });
+    } catch (uploadError: unknown) {
+      setError(toErrorMessage(uploadError, "Không thể tải file tài liệu lên."));
+    } finally {
+      setUploadingMaterialIndex(null);
+    }
+  };
+
   const addPresetActivity = (preset: TemplateActivityPresetKey) => {
     setActivities((current) => {
       const nextActivity = createPresetTemplateActivity(preset);
@@ -2154,7 +2258,13 @@ if (current.length === 1 && isActivityDraftEmpty(current[0])) return [nextActivi
     setDayLabel(pickStringValue(metadataSeed, ["day", "days", "scheduleDays"]) || parsedMetadataLinesObject?.day || parsedRawMetadata?.day || "");
     setDurationLabel(pickStringValue(metadataSeed, ["duration"]) || parsedMetadataLinesObject?.duration || parsedRawMetadata?.duration || "");
     setGeneralInformation(pickStringValue(metadataSeed, ["generalInformation", "generalInfo", "description"]) || parsedMetadataLinesObject?.generalInformation || parsedRawMetadata?.generalInformation || "");
-    setTeachingMaterialsText(linesToTextarea(metadataSeed?.teachingMaterials) || parsedMetadataLinesObject?.teachingMaterialsText || parsedRawMetadata?.teachingMaterialsText || "");
+    const nextTeachingMaterialsText =
+      linesToTextarea(metadataSeed?.teachingMaterials) ||
+      parsedMetadataLinesObject?.teachingMaterialsText ||
+      parsedRawMetadata?.teachingMaterialsText ||
+      "";
+    setTeachingMaterialDrafts(parseTeachingMaterialsTextToDrafts(nextTeachingMaterialsText));
+    setTeachingMaterialsText(stringifyTeachingMaterialDrafts(parseTeachingMaterialsTextToDrafts(nextTeachingMaterialsText)));
     setSheetNote(pickStringValue(metadataSeed, ["note"]) || linesToTextarea(metadataSeed?.note) || parsedMetadataLinesObject?.note || parsedRawMetadata?.note || "");
     setTeacherName(pickStringValue(contentSeed, ["teacherName"]));
     setHomeworkLabel(pickStringValue(contentSeed, ["homeworkLabel"]) || "HOMEWORK");
@@ -2167,6 +2277,10 @@ if (current.length === 1 && isActivityDraftEmpty(current[0])) return [nextActivi
     setSelectedFile(null);
     setError(null);
   };
+
+  useEffect(() => {
+    setTeachingMaterialsText(stringifyTeachingMaterialDrafts(teachingMaterialDrafts));
+  }, [teachingMaterialDrafts]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -2334,14 +2448,106 @@ if (current.length === 1 && isActivityDraftEmpty(current[0])) return [nextActivi
           </Field>
 
           <Field label="Tài liệu giảng dạy">
-            <p className="mb-2 text-xs text-gray-500">Mỗi dòng là một tài liệu, ví dụ: `Handbook for Reading: https://...`</p>
-            <textarea
-              value={teachingMaterialsText}
-              onChange={(event) => setTeachingMaterialsText(event.target.value)}
-              rows={4}
-              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-              placeholder={"Handbook for Reading: https://...\nGrapeseed (video): https://...\nCourse book / workbook: ..."}
-            />
+            <p className="mb-2 text-xs text-gray-500">Nhập theo bảng 2 cột: Tên tài liệu và Link hoặc file.</p>
+            <div className="space-y-3 rounded-xl border border-gray-200 bg-white p-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={addTeachingMaterial}
+                  className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 cursor-pointer"
+                >
+                  + Thêm tài liệu
+                </button>
+              </div>
+
+              <div className="overflow-x-auto rounded-xl border border-gray-200">
+                <table className="min-w-[760px] w-full border-collapse text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 text-gray-700">
+                      <th className="border border-gray-200 px-3 py-2 text-left font-semibold w-1/3">Tên tài liệu</th>
+                      <th className="border border-gray-200 px-3 py-2 text-left font-semibold">Link hoặc file</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {teachingMaterialDrafts.map((item, index) => (
+                      <tr key={`material-draft-${index}`} className="align-top">
+                        <td className="border border-gray-200 p-2">
+                          <div className="mb-1 text-xs font-semibold text-gray-500">#{index + 1}</div>
+                          <input
+                            value={item.title}
+                            onChange={(event) => updateTeachingMaterial(index, { title: event.target.value })}
+                            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+                            placeholder="Ví dụ: Handbook for Reading"
+                          />
+                        </td>
+                        <td className="border border-gray-200 p-2">
+                          <textarea
+                            value={item.resource}
+                            onChange={(event) => updateTeachingMaterial(index, { resource: event.target.value })}
+                            rows={2}
+                            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+                            placeholder="Nhập link https://... hoặc ghi Đã gửi file"
+                          />
+                          <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <label className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100">
+                                {uploadingMaterialIndex === index ? (
+                                  <Loader2 size={12} className="animate-spin" />
+                                ) : (
+                                  <Upload size={12} />
+                                )}
+                                {uploadingMaterialIndex === index ? "Đang tải..." : "Tải file"}
+                                <input
+                                  type="file"
+                                  className="hidden"
+                                  disabled={uploadingMaterialIndex !== null}
+                                  onChange={(event) => {
+                                    const file = event.target.files?.[0] || null;
+                                    void uploadTeachingMaterial(index, file);
+                                    event.currentTarget.value = "";
+                                  }}
+                                />
+                              </label>
+                              {extractFirstHttpUrl(item.resource) && (
+                                <a
+                                  href={buildFileUrl(extractFirstHttpUrl(item.resource))}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100"
+                                >
+                                  <Paperclip size={12} />
+                                  Mở link
+                                </a>
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeTeachingMaterial(index)}
+                              className="rounded-lg border border-red-200 bg-white px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-50 cursor-pointer"
+                            >
+                              Xóa dòng
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <details className="rounded-lg border border-gray-200 bg-gray-50">
+                <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-gray-600">Xem dữ liệu text tương thích backend</summary>
+                <div className="border-t border-gray-200 px-3 py-2">
+                  <textarea
+                    value={teachingMaterialsText}
+                    onChange={(event) => setTeachingMaterialsText(event.target.value)}
+                    rows={4}
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+                    placeholder="Hệ thống tự sinh từ danh sách Link/File ở trên"
+                  />
+                </div>
+              </details>
+            </div>
           </Field>
 
           <Field label="Ghi chú">

@@ -451,18 +451,41 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
 
     (async () => {
       try {
-        const userInfo = await apiFetch<{ 
-          branchId?: string; 
-          branch?: { id: string }; 
-          user?: { branchId?: string }; 
+        const userInfo = await apiFetch<{
+          branchId?: string;
+          branch?: { id?: string };
+          user?: { branchId?: string; branch?: { id?: string } };
+          data?: {
+            branchId?: string;
+            branch?: { id?: string };
+            user?: { branchId?: string; branch?: { id?: string } };
+            data?: {
+              branchId?: string;
+              branch?: { id?: string };
+              user?: { branchId?: string; branch?: { id?: string } };
+            };
+          };
         }>("/api/auth/me");
         
         if (!alive) return;
 
-        // Extract branchId from various possible response formats
-        const staffBranchId = userInfo?.branchId 
-          || userInfo?.branch?.id 
-          || userInfo?.user?.branchId;
+        // /api/auth/me can be wrapped as { data: {...} } or even { data: { data: {...} } }
+        const l1 = userInfo?.data;
+        const l2 = l1?.data;
+
+        const staffBranchId =
+          userInfo?.branchId ||
+          userInfo?.branch?.id ||
+          userInfo?.user?.branchId ||
+          userInfo?.user?.branch?.id ||
+          l1?.branchId ||
+          l1?.branch?.id ||
+          l1?.user?.branchId ||
+          l1?.user?.branch?.id ||
+          l2?.branchId ||
+          l2?.branch?.id ||
+          l2?.user?.branchId ||
+          l2?.user?.branch?.id;
 
         if (staffBranchId && staffBranchId.trim()) {
           // Staff have assigned branch → use it (don't rely on localStorage)
@@ -481,15 +504,17 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
 
   useEffect(() => {
     if (!canManage || typeof window === "undefined") return;
+    if (hasForcedBranch) return;
     if (branchId) return; // Skip if already set by auth/me
     const selectedBranchId = localStorage.getItem("kidzgo_selected_branch_id");
     if (selectedBranchId && selectedBranchId !== "all") {
       setBranchId(selectedBranchId);
     }
-  }, [branchId, canManage]);
+  }, [branchId, canManage, hasForcedBranch]);
 
   useEffect(() => {
     if (!canManage || typeof window === "undefined") return;
+    if (hasForcedBranch) return;
 
     const syncBranchId = (value: string | null) => {
       if (!value || value === "all") {
@@ -517,7 +542,7 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
       window.removeEventListener("storage", onStorage);
       window.removeEventListener("localStorageChange", onLocalStorageChange);
     };
-  }, [canManage]);
+  }, [canManage, hasForcedBranch]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -646,7 +671,7 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
         const list = Array.isArray(result) ? result : result?.branches ?? [];
         const activeBranches = list.filter((item) => item?.isActive !== false);
         setBranchOptions(activeBranches);
-        if (!branchId && typeof window !== "undefined") {
+        if (!hasForcedBranch && !branchId && typeof window !== "undefined") {
           const selectedBranchId = localStorage.getItem("kidzgo_selected_branch_id");
           const matched =
             selectedBranchId && selectedBranchId !== "all"
@@ -669,7 +694,7 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
     return () => {
       alive = false;
     };
-  }, [canManage]);
+  }, [branchId, canManage, hasForcedBranch]);
 
   const aggregateJob = useCallback(async (jobId: string) => {
     await apiFetch(`/api/monthly-reports/jobs/${jobId}/aggregate`, { method: "POST" });
