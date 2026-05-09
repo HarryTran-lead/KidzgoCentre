@@ -158,6 +158,20 @@ export default function StudentSchedulePage() {
     setIsPageLoaded(true);
   }, []);
 
+  useEffect(() => {
+    if (selectedClass) {
+      document.documentElement.style.overflow = "hidden";
+      document.body.style.overflow = "hidden";
+    } else {
+      document.documentElement.style.overflow = "";
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.documentElement.style.overflow = "";
+      document.body.style.overflow = "";
+    };
+  }, [selectedClass]);
+
   const weekDates = useMemo(() => {
     return DAY_LABELS.map((_, idx) => {
       const d = new Date(currentWeekStart);
@@ -642,7 +656,7 @@ export default function StudentSchedulePage() {
         {/* Class Detail Modal */}
         {selectedClass && (
           <div
-            className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-200"
+            className="fixed top-0 left-0 right-0 bottom-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-[9999] p-4 animate-in fade-in duration-200"
             onClick={() => setSelectedClass(null)}
           >
             <div
@@ -652,18 +666,9 @@ export default function StudentSchedulePage() {
               <div className="sticky top-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 border-b border-purple-500/30 px-6 py-4 flex items-center justify-between backdrop-blur-sm">
                 <div className="flex items-center gap-3">
                   <div
-                    className={`p-2 rounded-xl ${getEventColor(
-                      selectedClass
-                    )} text-white shadow-md`}
-                    style={
-                      selectedClass.color &&
-                      (selectedClass.color.startsWith("#") ||
-                        selectedClass.color.startsWith("rgb"))
-                        ? { backgroundColor: selectedClass.color }
-                        : undefined
-                    }
+                    className="p-2 rounded-xl bg-gradient-to-br from-purple-500/40 to-pink-500/40 border border-purple-500/30 shadow-md"
                   >
-                    <GraduationCap size={18} />
+                    <GraduationCap size={18} className="text-purple-300" />
                   </div>
                   <div>
                     <h2 className="text-lg md:text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
@@ -730,7 +735,7 @@ export default function StudentSchedulePage() {
                       </div>
                     )}
 
-                    {selectedClass.track && (
+                    {/* {selectedClass.track && (
                       <div className="flex items-center gap-3 p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 hover:bg-purple-500/20 transition-all duration-200">
                         <BookOpen className="w-4 h-4 text-purple-400" />
                         <div>
@@ -742,7 +747,7 @@ export default function StudentSchedulePage() {
                           </div>
                         </div>
                       </div>
-                    )}
+                    )} */}
 
                     {(selectedClass.attendanceStatus ||
                       selectedClass.absenceType) && (

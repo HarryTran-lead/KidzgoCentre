@@ -405,7 +405,6 @@ export default function ClassDetailPage() {
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [isPageLoaded, setIsPageLoaded] = useState(false);
-  const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const itemsPerPage = 10;
 
   useEffect(() => {
@@ -465,23 +464,6 @@ export default function ClassDetailPage() {
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, statusFilter]);
-
-  // Handle checkbox selection
-  const handleSelectAll = () => {
-    if (selectedStudents.length === paginatedStudents.length) {
-      setSelectedStudents([]);
-    } else {
-      setSelectedStudents(paginatedStudents.map(s => s.id));
-    }
-  };
-
-  const handleSelectStudent = (studentId: string) => {
-    setSelectedStudents(prev =>
-      prev.includes(studentId)
-        ? prev.filter(id => id !== studentId)
-        : [...prev, studentId]
-    );
-  };
 
   const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -720,11 +702,6 @@ export default function ClassDetailPage() {
                   {filteredStudents.length} / {allStudents.length} học viên
                 </p>
               </div>
-              {selectedStudents.length > 0 && (
-                <span className="px-2.5 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-full">
-                  {selectedStudents.length} đã chọn
-                </span>
-              )}
             </div>
 
             <div className="flex items-center gap-3">
@@ -759,14 +736,6 @@ export default function ClassDetailPage() {
           <table className="w-full">
             <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-gray-200">
               <tr>
-                <th className="py-3 px-4 text-center">
-                  <input
-                    type="checkbox"
-                    checked={paginatedStudents.length > 0 && selectedStudents.length === paginatedStudents.length}
-                    onChange={handleSelectAll}
-                    className="w-5 h-5 text-red-600 border-red-300 rounded focus:ring-red-200 cursor-pointer"
-                  />
-                </th>
                 <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700 whitespace-nowrap">Học viên</th>
                 <th className="py-3 px-6 text-center text-sm font-semibold text-gray-700 whitespace-nowrap">Chuyên cần</th>
                 <th className="py-3 px-6 text-center text-sm font-semibold text-gray-700 whitespace-nowrap">Thành tích</th>
@@ -780,14 +749,6 @@ export default function ClassDetailPage() {
                     key={student.id}
                     className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200"
                   >
-                    <td className="py-4 px-4 text-center">
-                      <input
-                        type="checkbox"
-                        checked={selectedStudents.includes(student.id)}
-                        onChange={() => handleSelectStudent(student.id)}
-                        className="w-5 h-5 text-red-600 border-red-300 rounded focus:ring-red-200 cursor-pointer"
-                      />
-                    </td>
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-3">
                         <StudentAvatar name={student.name} status={student.status} />
@@ -821,7 +782,7 @@ export default function ClassDetailPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="py-12 text-center">
+                  <td colSpan={4} className="py-12 text-center">
                     <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center">
                       <Search size={24} className="text-gray-400" />
                     </div>

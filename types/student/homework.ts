@@ -20,6 +20,7 @@ export interface AssignmentListItem {
   classId: string;
   classCode: string;
   classTitle: string;
+  startDate?: string;
   dueAt: string;
   book: string | null;
   pages: string | null;
@@ -33,6 +34,8 @@ export interface AssignmentListItem {
   aiFeedback?: string | null;
   isLate: boolean;
   isOverdue: boolean;
+  maxAttempts?: number;
+  attemptCount?: number;
   // Legacy fields for compatibility
   title: string;
   subject: string;
@@ -54,6 +57,7 @@ export interface AssignmentDetail {
   teacher: string;
   assignedDate: string;
   dueDate: string;
+  startDate?: string;
   status: AssignmentStatus;
   submissionType?: "FILE" | "IMAGE" | "TEXT" | "LINK" | "QUIZ" | "MULTIPLE_CHOICE" | "FILE_AND_TEXT";
   timeRemaining?: string;
@@ -68,6 +72,8 @@ export interface AssignmentDetail {
 
   isOverdue?: boolean;
   maxScore?: number;
+  maxAttempts?: number;
+  attemptCount?: number;
   submission?: Submission;
   submissionHistory?: Submission[];
   allowResubmit: boolean;

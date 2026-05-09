@@ -309,12 +309,15 @@ function mapToAssignmentListItem(item: any): AssignmentListItem {
     classCode: item.classCode || "",
     classTitle: item.classTitle || item.className || "",
     dueAt: item.dueAt || item.dueDate || "",
+    startDate: item.startDate,
     isOverdue: item.isOverdue || false,
     book: item.book || null,
     pages: item.pages || null,
     skills: item.skills || null,
     submissionType: item.submissionType || "File",
     maxScore: item.maxScore || 10,
+    maxAttempts: item.maxAttempts || item.max_attempts,
+    attemptCount: item.attemptCount ?? item.attempt_count,
     status: mapApiStatusToUiStatus(item.status),
     submittedAt: item.submittedAt || null,
     gradedAt: item.gradedAt || null,
@@ -917,9 +920,12 @@ export async function getStudentHomeworkById(
       teacher: item.teacherName || item.teacher || "",
       assignedDate: item.assignedDate || item.createdAt || "",
       dueDate: item.dueDate || item.dueAt || "",
+      startDate: item.startDate,
       status: mapApiStatusToUiStatus(item.status) as AssignmentDetail["status"],
       isOverdue: item.isOverdue || item.status === "MISSING" || item.status === "OVERDUE",
       maxScore: item.maxScore || item.max_score || 10,
+      maxAttempts: item.maxAttempts || item.max_attempts,
+      attemptCount: item.attemptCount ?? item.attempt_count,
       submissionType:
         typeof submissionTypeRaw === "string"
           ? (submissionTypeRaw.toUpperCase() as AssignmentDetail["submissionType"])
