@@ -17,7 +17,21 @@ function isBlobUploadEnabled(): boolean {
 }
 
 function shouldFallbackToBackendWhenBlobFails(): boolean {
-  return process.env.NEXT_PUBLIC_BLOB_FALLBACK_TO_BACKEND === "true";
+  // Default to safe behavior (fallback enabled) unless explicitly disabled.
+  return process.env.NEXT_PUBLIC_BLOB_FALLBACK_TO_BACKEND !== "false";
+}
+
+function toBlobUploadErrorMessage(error: unknown): string {
+  const raw = error instanceof Error ? error.message : String(error ?? "");
+  if (/failed to retrieve the client token/i.test(raw)) {
+    return "Upload qua Vercel Blob thất bại: không lấy được client token. Đã thử fallback sang backend upload.";
+  }
+  return raw || "Upload qua Vercel Blob thất bại.";
+}
+
+function isClientTokenFailure(error: unknown): boolean {
+  const raw = error instanceof Error ? error.message : String(error ?? "");
+  return /failed to retrieve the client token/i.test(raw);
 }
 
 function buildBlobPath(fileName: string, folder: string): string {
@@ -152,12 +166,10 @@ export async function uploadFile(
     } catch (error) {
       console.error("Blob direct upload failed:", error);
 
-      if (!shouldFallbackToBackendWhenBlobFails()) {
+      const forceFallback = isClientTokenFailure(error);
+      if (!forceFallback && !shouldFallbackToBackendWhenBlobFails()) {
         return {
-          error:
-            error instanceof Error
-              ? error.message
-              : "Upload qua Vercel Blob thất bại.",
+          error: toBlobUploadErrorMessage(error),
           status: 400,
         };
       }

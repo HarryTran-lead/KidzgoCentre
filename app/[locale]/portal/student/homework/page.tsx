@@ -606,6 +606,7 @@ export default function HomeworkPage() {
               const feedbackPreview = getFeedbackPreview(assignment);
               const isDueToday = isToday(assignment.dueAt) && !isSubmitted;
               const isNotStarted = !isAssignmentStarted(assignment.startDate) && !isSubmitted;
+              const isMultipleChoice = (assignment.submissionType || "").toUpperCase() === "MULTIPLE_CHOICE" || (assignment.submissionType || "").toUpperCase() === "QUIZ";
 
               return (
                 <div
@@ -863,7 +864,7 @@ export default function HomeworkPage() {
                           </>
                         )}
                       </button>
-                      {isSubmitted && (assignment as any)?.maxAttempts && ((assignment as any)?.attemptCount || 1) < (assignment as any)?.maxAttempts && (
+                      {isSubmitted && (assignment as any)?.maxAttempts && ((assignment as any)?.attemptCount || 1) < (assignment as any)?.maxAttempts && (!isGraded || isMultipleChoice) && (
                         <button
                           className="flex-1 h-9 rounded-xl text-[12px] font-bold shadow-md hover:shadow-lg cursor-pointer transition-all duration-200 flex items-center justify-center gap-1.5 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white"
                         >

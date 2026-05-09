@@ -1779,7 +1779,7 @@ export default function AdminSchedulePage() {
               className="px-3 py-2 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 text-sm font-semibold hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed"
               title={classFilter === "ALL" ? "Chọn 1 lớp để cập nhật hàng loạt" : "Cập nhật hàng loạt theo lớp"}
             >
-              Bulk đổi GV/Phòng
+              Đổi GV/Phòng hàng loạt
             </button>
           </div>
 
