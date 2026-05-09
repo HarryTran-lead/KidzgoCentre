@@ -465,16 +465,16 @@ function normalizeSyllabus(data: any): ClassLessonPlanSyllabus {
 
   const anchorSession =
     normalizedSessions.find(
-      (session) =>
+      (session: ClassLessonPlanSyllabusSession) =>
         session.sessionIndex === 1 &&
         (session.templateId || (typeof session.templateSyllabusContent === "string" && session.templateSyllabusContent.trim()))
     ) ||
     normalizedSessions.find(
-      (session) => session.templateId || (typeof session.templateSyllabusContent === "string" && session.templateSyllabusContent.trim())
+      (session: ClassLessonPlanSyllabusSession) => session.templateId || (typeof session.templateSyllabusContent === "string" && session.templateSyllabusContent.trim())
     );
 
   const sessions = anchorSession
-    ? normalizedSessions.map((session) => ({
+    ? normalizedSessions.map((session: ClassLessonPlanSyllabusSession) => ({
         ...session,
         templateId: session.templateId ?? anchorSession.templateId ?? null,
         templateTitle: session.templateTitle ?? anchorSession.templateTitle ?? null,
