@@ -84,8 +84,8 @@ export default function BannerContact() {
 
   // Contact methods data
   const contactMethods = [
-    { icon: Phone, label: "Hotline", value: "1900 1234" },
-    { icon: Mail, label: "Email", value: "support@example.com" },
+    { icon: Phone, label: "Hotline", value: "0867405801" },
+    { icon: Mail, label: "Email", value: "Tearexenglish@gmail.com" },
     { icon: MapPin, label: "Địa chỉ", value: "TP. Hồ Chí Minh" },
     { icon: Clock, label: "Thời gian", value: "8:00 - 22:00" },
   ];

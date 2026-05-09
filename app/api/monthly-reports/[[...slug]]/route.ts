@@ -7,6 +7,10 @@ type RouteParams = {
   }>;
 };
 
+function isGenerateDraftPath(path: string): boolean {
+  return path.endsWith("/generate-draft");
+}
+
 async function proxy(req: Request, { params }: RouteParams) {
   try {
     const authHeader = req.headers.get("authorization");
@@ -21,15 +25,17 @@ async function proxy(req: Request, { params }: RouteParams) {
     const targetUrl = `${buildApiUrl(`/monthly-reports${path}`)}${search}`;
 
     const isBodyMethod = req.method !== "GET" && req.method !== "HEAD";
-    const rawBody = isBodyMethod ? await req.text() : "";
+    const shouldForwardBody = isBodyMethod && !isGenerateDraftPath(path);
+    const rawBody = shouldForwardBody ? await req.text() : "";
+    const hasForwardedBody = rawBody.trim().length > 0;
 
     const upstream = await fetch(targetUrl, {
       method: req.method,
       headers: {
         Authorization: authHeader,
-        ...(isBodyMethod && rawBody ? { "Content-Type": "application/json" } : {}),
+        ...(shouldForwardBody && hasForwardedBody ? { "Content-Type": "application/json" } : {}),
       },
-      ...(isBodyMethod && rawBody ? { body: rawBody } : {}),
+      ...(shouldForwardBody && hasForwardedBody ? { body: rawBody } : {}),
       cache: "no-store",
     });
 

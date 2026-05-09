@@ -52,6 +52,16 @@ function formatDate(value: string | null | undefined) {
   return d.toLocaleDateString("vi-VN");
 }
 
+function translatePdfWarning(warning: string) {
+  const normalized = String(warning || "").trim();
+  const warningMap: Record<string, string> = {
+    PaymentSettingFallbackGlobal:
+      "Đang sử dụng cấu hình thanh toán mặc định toàn hệ thống do chi nhánh chưa có cấu hình riêng.",
+  };
+
+  return warningMap[normalized] || normalized;
+}
+
 function InfoRow({
   icon: Icon,
   label,
@@ -365,7 +375,7 @@ export default function RegistrationCompletionPdfModal({
                     </div>
                     <div className="space-y-1 text-xs text-amber-700">
                       {pdfData.warnings.map((warning, index) => (
-                        <div key={`pdf-warning-${index}`}>• {warning}</div>
+                        <div key={`pdf-warning-${index}`}>• {translatePdfWarning(warning)}</div>
                       ))}
                     </div>
                   </div>
