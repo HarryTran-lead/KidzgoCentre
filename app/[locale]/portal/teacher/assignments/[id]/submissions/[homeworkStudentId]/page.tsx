@@ -719,6 +719,13 @@ export default function TeacherSubmissionDetailPage() {
     [],
   );
 
+  // Highest score tracking for multiple attempts
+  const [allSubmissions, setAllSubmissions] = useState<any[]>([]);
+  const [highestScoreSubmission, setHighestScoreSubmission] =
+    useState<SubmissionDetail | null>(null);
+  const [attemptNumber, setAttemptNumber] = useState<number | null>(null);
+  const [maxAttempts, setMaxAttempts] = useState<number | null>(null);
+
   // Grading state
   const [editingScore, setEditingScore] = useState("");
   const [editingFeedback, setEditingFeedback] = useState("");
@@ -836,7 +843,109 @@ export default function TeacherSubmissionDetailPage() {
     };
 
     fetchDetail();
-  }, [homeworkStudentId]);
+  }, [homeworkStudentId, assignmentId]);
+
+  // Fetch all submissions for this student to find highest score
+  useEffect(() => {
+    if (!data?.assignmentId && !data?.homeworkAssignmentId) {
+      return; // Can't fetch submissions without assignment ID
+    }
+
+    const fetchAllSubmissions = async () => {
+      try {
+        // Try to fetch all submissions for this assignment
+        // The homeworkStudentId format might be: assignmentId-studentId
+        // or we can use the assignment API to get all submissions
+        const resolvedAssignmentId = String(
+          data.assignmentId || data.homeworkAssignmentId || "",
+        );
+
+        if (!resolvedAssignmentId) return;
+
+        // Fetch homework detail to get maxAttempts
+        const homeworkRes = await get<any>(
+          `/api/homework/${resolvedAssignmentId}`,
+        );
+        const homeworkBody = homeworkRes?.data || homeworkRes;
+        const homeworkDetail =
+          homeworkBody?.data || homeworkBody || homeworkBody;
+
+        if (homeworkDetail?.maxAttempts) {
+          setMaxAttempts(homeworkDetail.maxAttempts);
+        }
+
+        // Try to get all student submissions - using a query that might filter by studentId
+        // Since homeworkStudentId is unique per student-homework pair, 
+        // we'll construct a query to fetch all submissions for this assignment
+        const submissionsRes = await get<any>(
+          `/api/homework/submissions?assignmentId=${resolvedAssignmentId}&pageNumber=1&pageSize=1000`,
+        );
+        const submissionsBody = submissionsRes?.data || submissionsRes;
+        let submissions = [];
+
+        // Handle various response formats
+        if (submissionsBody?.data?.items) {
+          submissions = submissionsBody.data.items;
+        } else if (submissionsBody?.items) {
+          submissions = submissionsBody.items;
+        } else if (submissionsBody?.submissions?.items) {
+          submissions = submissionsBody.submissions.items;
+        } else if (Array.isArray(submissionsBody?.data)) {
+          submissions = submissionsBody.data;
+        }
+
+        if (submissions.length > 0) {
+          setAllSubmissions(submissions);
+
+          // Find the submission with the highest score for this student
+          // We need to identify which submissions are from this student
+          // by matching against the current submission's student info
+          const studentIdentifier = data.id || homeworkStudentId;
+
+          // Filter submissions from this student (comparing by studentId or submission id patterns)
+          const studentSubmissions = submissions.filter((sub: any) => {
+            // Match by various identifiers
+            return (
+              sub.id === studentIdentifier ||
+              sub.id === data.id ||
+              String(sub.studentId || "") === String(data.studentId || "") ||
+              String(sub.homeworkStudentId || "") === homeworkStudentId
+            );
+          });
+
+          if (studentSubmissions.length > 0) {
+            // Find the submission with highest score
+            const highest = studentSubmissions.reduce(
+              (max: any, current: any) => {
+                const currentScore = current.score ?? current.earnedPoints ?? 0;
+                const maxScore = max.score ?? max.earnedPoints ?? 0;
+                return currentScore > maxScore ? current : max;
+              },
+            );
+
+            setHighestScoreSubmission(highest);
+
+            // Calculate attempt number (1-indexed)
+            const sortedByDate = [...studentSubmissions].sort(
+              (a: any, b: any) => {
+                const dateA = new Date(a.submittedAt || a.createdAt).getTime();
+                const dateB = new Date(b.submittedAt || b.createdAt).getTime();
+                return dateA - dateB;
+              },
+            );
+
+            const attemptIdx =
+              sortedByDate.findIndex((sub: any) => sub.id === highest.id) + 1;
+            setAttemptNumber(attemptIdx);
+          }
+        }
+      } catch {
+        // Silently fail - highest score tracking is optional
+      }
+    };
+
+    fetchAllSubmissions();
+  }, [data, homeworkStudentId, assignmentId]);
 
   const links = useMemo(
     () => normalizeLinks(data?.attachmentUrls, data?.linkUrl),
@@ -1558,11 +1667,13 @@ export default function TeacherSubmissionDetailPage() {
             <div className="font-bold text-emerald-700 text-2xl">
               {isMultipleChoiceSubmission && teacherQuizSummary.totalPoints > 0
                 ? teacherQuizSummary.earnedPoints
-                : data.score !== null && data.score !== undefined
-                  ? data.score
-                  : data.isOverdue
-                    ? 0
-                    : "—"}
+                : highestScoreSubmission && highestScoreSubmission.score !== null && highestScoreSubmission.score !== undefined
+                  ? highestScoreSubmission.score
+                  : data.score !== null && data.score !== undefined
+                    ? data.score
+                    : data.isOverdue
+                      ? 0
+                      : "—"}
             </div>
             <div className="text-xs text-gray-500 mt-1">
               Tối đa:{" "}
@@ -1570,6 +1681,11 @@ export default function TeacherSubmissionDetailPage() {
                 ? teacherQuizSummary.totalPoints
                 : (data.maxScore ?? "—")}
             </div>
+            {highestScoreSubmission && attemptNumber !== null && maxAttempts && maxAttempts > 1 && (
+              <div className="text-xs text-slate-400 mt-3 pt-3 border-t border-gray-200">
+                Lần làm thứ {attemptNumber}/{maxAttempts}
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -217,7 +217,7 @@ export default function Blogs() {
           <div className="flex flex-wrap gap-2 w-full md:w-auto justify-center md:justify-end">
             <button
               onClick={() => setSelectedTag("all")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 cursor-pointer ${
                 selectedTag === "all"
                   ? "bg-red-600 text-white shadow-lg"
                   : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-200"
@@ -231,7 +231,7 @@ export default function Blogs() {
                 <button
                   key={tag}
                   onClick={() => setSelectedTag(tag)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 cursor-pointer ${
                     selectedTag === tag
                       ? `${colors.bg} ${colors.text} border-2 ${colors.border} shadow-md`
                       : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-200"
@@ -353,7 +353,7 @@ export default function Blogs() {
                         e.stopPropagation();
                         handleBlogClick(blog);
                       }}
-                      className="inline-flex items-center gap-2 text-red-600 font-semibold text-sm hover:gap-3 transition-all group/readmore"
+                      className="inline-flex items-center gap-2 text-red-600 font-semibold text-sm hover:gap-3 transition-all group/readmore cursor-pointer"
                     >
                       <span>{locale === "vi" ? "Đọc thêm" : "Read more"}</span>
                       <ArrowRight className="w-4 h-4 group-hover/readmore:translate-x-1 transition-transform" />
@@ -375,7 +375,7 @@ export default function Blogs() {
                 <button
                   onClick={goToPrevPage}
                   disabled={currentPage === 0}
-                  className="p-3 rounded-xl bg-white border-2 border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md"
+                  className="p-3 rounded-xl bg-white border-2 border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md cursor-pointer"
                   aria-label={locale === "vi" ? "Trang trước" : "Previous page"}
                 >
                   <ChevronLeft className="w-5 h-5" />
@@ -386,7 +386,7 @@ export default function Blogs() {
                     <button
                       key={index}
                       onClick={() => setCurrentPage(index)}
-                      className={`w-10 h-10 rounded-xl font-semibold transition-all ${
+                      className={`w-10 h-10 rounded-xl font-semibold transition-all cursor-pointer ${
                         currentPage === index
                           ? "bg-red-600 text-white shadow-lg scale-110"
                           : "bg-white border-2 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
@@ -400,7 +400,7 @@ export default function Blogs() {
                 <button
                   onClick={goToNextPage}
                   disabled={currentPage === totalPages - 1}
-                  className="p-3 rounded-xl bg-white border-2 border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md"
+                  className="p-3 rounded-xl bg-white border-2 border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md cursor-pointer"
                   aria-label={locale === "vi" ? "Trang sau" : "Next page"}
                 >
                   <ChevronRight className="w-5 h-5" />

@@ -28,6 +28,7 @@ interface MultipleChoiceFormProps {
   onSubmitSuccess: () => void;
   onError: (msg: string | null) => void;
   onUnsavedChanges?: (hasChanges: boolean) => void;
+  isAttemptingQuiz?: boolean;
 }
 
 function formatTime(seconds: number): string {
@@ -45,6 +46,7 @@ export default function MultipleChoiceForm({
   onSubmitSuccess,
   onError,
   onUnsavedChanges,
+  isAttemptingQuiz,
 }: MultipleChoiceFormProps) {
   const questions = assignment.questions || [];
   console.log({assignment});
@@ -242,12 +244,18 @@ export default function MultipleChoiceForm({
       // Check if user can attempt again
       const nextAttempt = (parseInt(savedAttemptCount || "0", 10) || 0) + 1;
       if (nextAttempt <= maxAttempts) {
-        setShowQuizStartModal(true);
+        // Only show modal if user is actively re-attempting
+        if (isAttemptingQuiz) {
+          setShowQuizStartModal(true);
+        } else {
+          // User already completed, don't show modal
+          setShowQuizStartModal(false);
+        }
         hasAutoSubmitted.current = false;
       } else {
-        setIsInitialized(true);
         autoSubmitTriggeredRef.current = true;
       }
+      setIsInitialized(true); // IMPORTANT: Set initialized even on re-attempt
       return;
     }
     if (savedStartTime && savedRemaining) {
@@ -264,9 +272,56 @@ export default function MultipleChoiceForm({
         localStorage.setItem(`${storageKey}_startTime`, String(Date.now()));
         localStorage.setItem(`${storageKey}_remaining`, String(newRemaining));
       }
-    } else { setShowQuizStartModal(true); }
+    } else { 
+      // Show modal UNLESS viewing results after re-attempt
+      // (savedSubmitted=true means already submitted, only hide if not actively re-attempting)
+      if (savedSubmitted === "true" && !isAttemptingQuiz) {
+        setShowQuizStartModal(false);
+      } else {
+        setShowQuizStartModal(true);
+      }
+    }
     setIsInitialized(true);
-  }, [getStorageKey, totalSeconds, maxAttempts]);
+  }, [getStorageKey, totalSeconds, maxAttempts, isAttemptingQuiz]);
+
+  // Show quiz start modal when re-attempting (after previous submission)
+  useEffect(() => {
+    if (!isInitialized || !isAttemptingQuiz) return;
+    const storageKey = getStorageKey();
+    const savedSubmitted = localStorage.getItem(`${storageKey}_submitted`);
+    const savedStartTime = localStorage.getItem(`${storageKey}_startTime`);
+    
+    // If marked as submitted and no current quiz in progress, show modal when re-attempting
+    if (savedSubmitted === "true" && !savedStartTime && !showQuizStartModal) {
+      const savedAttemptCount = localStorage.getItem(`${storageKey}_attemptCount`);
+      const attemptNum = parseInt(savedAttemptCount || "0", 10) || 0;
+      const nextAttempt = attemptNum + 1;
+      
+      // Update attemptCount state to reflect next attempt
+      setAttemptCount(attemptNum);
+      
+      if (nextAttempt <= maxAttempts) {
+        setShowQuizStartModal(true);
+      }
+    }
+  }, [isInitialized, isAttemptingQuiz, maxAttempts, getStorageKey, showQuizStartModal]);
+
+  // Quick re-attempt trigger - show modal immediately when parent sets isAttemptingQuiz=true
+  useEffect(() => {
+    if (!isAttemptingQuiz) return;
+    
+    const storageKey = getStorageKey();
+    const savedSubmitted = localStorage.getItem(`${storageKey}_submitted`);
+    
+    if (savedSubmitted === "true") {
+      const savedAttemptCount = localStorage.getItem(`${storageKey}_attemptCount`);
+      const attemptNum = parseInt(savedAttemptCount || "0", 10) || 0;
+      
+      // Update state and show modal immediately
+      setAttemptCount(attemptNum);
+      setShowQuizStartModal(true);
+    }
+  }, [isAttemptingQuiz, getStorageKey]);
 
   useEffect(() => {
     if (!isInitialized) return;
@@ -281,6 +336,23 @@ export default function MultipleChoiceForm({
     const interval = setInterval(() => { const storageKey = getStorageKey(); localStorage.setItem(`${storageKey}_lastActive`, String(Date.now())); }, 5000);
     return () => clearInterval(interval);
   }, [isInitialized, getStorageKey]);
+
+  // Detect when parent triggers re-attempt (isAttemptingQuiz becomes true)
+  useEffect(() => {
+    if (!isAttemptingQuiz || !isInitialized) return;
+    
+    const storageKey = getStorageKey();
+    const savedSubmitted = localStorage.getItem(`${storageKey}_submitted`);
+    
+    if (savedSubmitted === "true") {
+      const savedAttemptCount = localStorage.getItem(`${storageKey}_attemptCount`);
+      const attemptNum = parseInt(savedAttemptCount || "0", 10) || 0;
+      
+      // Update attemptCount and show modal
+      setAttemptCount(attemptNum);
+      setShowQuizStartModal(true);
+    }
+  }, [isAttemptingQuiz, isInitialized, getStorageKey]);
 
   // Keep submitQuizRef in sync with submitQuiz
   useEffect(() => {
@@ -514,10 +586,10 @@ export default function MultipleChoiceForm({
               <div className="rounded-2xl border border-purple-500/30 bg-gradient-to-b from-slate-900/90 to-slate-950/90 backdrop-blur-xl p-4 shadow-lg shadow-purple-900/20">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-purple-300 text-xs font-bold uppercase tracking-widest">Lần làm</span>
-                  <span className="rounded-lg bg-purple-500/30 border border-purple-400/40 px-2 py-1 text-sm font-bold text-purple-300">{attemptCount + 1}/{maxAttempts}</span>
+                  <span className="rounded-lg bg-purple-500/30 border border-purple-400/40 px-2 py-1 text-sm font-bold text-purple-300">{attemptCount}/{maxAttempts}</span>
                 </div>
                 <div className="h-1.5 bg-slate-800/50 rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-purple-500 to-violet-500 rounded-full transition-all duration-300" style={{ width: `${((attemptCount + 1) / maxAttempts) * 100}%` }} />
+                  <div className="h-full bg-gradient-to-r from-purple-500 to-violet-500 rounded-full transition-all duration-300" style={{ width: `${(attemptCount / maxAttempts) * 100}%` }} />
                 </div>
                 {attemptsRemaining === 1 && (
                   <p className="text-xs text-amber-400 mt-2 font-medium">⚠️ Đây là lần cuối cùng của bạn</p>

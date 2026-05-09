@@ -1,12 +1,13 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import {
   Upload,
   Trash2,
   Link as LinkIcon,
   Loader2,
   Send,
+  X,
 } from "lucide-react";
 import { uploadFile, isUploadSuccess } from "@/lib/api/fileService";
 import { useToast } from "@/hooks/use-toast";
@@ -24,6 +25,9 @@ interface FileSubmissionFormProps {
   onSubmit: (payload: SubmitHomeworkPayload) => Promise<void>;
   isSubmitting: boolean;
   onError: (msg: string | null) => void;
+  previousSubmission?: any;
+  isEditMode?: boolean;
+  onEditCancel?: () => void;
 }
 
 export default function FileSubmissionForm({
@@ -31,6 +35,9 @@ export default function FileSubmissionForm({
   onSubmit,
   isSubmitting,
   onError,
+  previousSubmission,
+  isEditMode = false,
+  onEditCancel,
 }: FileSubmissionFormProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -48,6 +55,27 @@ export default function FileSubmissionForm({
   const [submissionText, setSubmissionText] = useState("");
   const [submissionLinks, setSubmissionLinks] = useState<string[]>([]);
   const [newLink, setNewLink] = useState("");
+
+  // Initialize with previous submission data if in edit mode
+  useEffect(() => {
+    if (isEditMode && previousSubmission?.content) {
+      if (previousSubmission.content.files) {
+        setUploadedFiles(
+          previousSubmission.content.files.map((file: any) => ({
+            name: file.name,
+            size: file.size || 0,
+            url: file.url || "",
+          }))
+        );
+      }
+      if (previousSubmission.content.text) {
+        setSubmissionText(previousSubmission.content.text);
+      }
+      if (previousSubmission.content.links) {
+        setSubmissionLinks(previousSubmission.content.links);
+      }
+    }
+  }, [isEditMode, previousSubmission]);
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
 
   const attachmentSourcesCount = uploadedFiles.length + submissionLinks.length;
@@ -357,7 +385,7 @@ export default function FileSubmissionForm({
         )}
 
         {/* Submit Button */}
-        <div className="flex items-center justify-between border-t border-purple-500/20 pt-4">
+        <div className="flex items-center justify-between border-t border-purple-500/20 pt-4 gap-3">
           <div className="text-sm text-slate-500">
             {assignment.maxResubmissions && (
               <span>
@@ -365,20 +393,35 @@ export default function FileSubmissionForm({
               </span>
             )}
           </div>
-          <button
-            onClick={handleSubmitClick}
-            disabled={
-              attachmentSourcesCount === 0 && !submissionText.trim() || isSubmitting || isUploadingFiles
-            }
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 px-6 py-3 font-semibold text-white transition hover:from-blue-600 hover:to-purple-600 shadow-lg shadow-purple-500/30 disabled:cursor-not-allowed disabled:opacity-50 disabled:from-slate-600 disabled:to-slate-700 cursor-pointer"
-          >
-            {isSubmitting ? (
-              <Loader2 size={18} className="animate-spin" />
-            ) : (
-              <Send size={18} />
+          <div className="flex gap-2">
+            {isEditMode && onEditCancel && (
+              <button
+                onClick={onEditCancel}
+                className="flex items-center gap-2 rounded-xl border border-slate-400/30 bg-slate-500/10 px-6 py-3 font-semibold text-slate-300 transition hover:bg-slate-500/20 hover:border-slate-400/40 cursor-pointer"
+              >
+                <X size={18} />
+                Hủy
+              </button>
             )}
-            {isSubmitting ? "Đang nộp..." : "Nộp bài"}
-          </button>
+            <button
+              onClick={handleSubmitClick}
+              disabled={
+                attachmentSourcesCount === 0 && !submissionText.trim() || isSubmitting || isUploadingFiles
+              }
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 px-6 py-3 font-semibold text-white transition hover:from-blue-600 hover:to-purple-600 shadow-lg shadow-purple-500/30 disabled:cursor-not-allowed disabled:opacity-50 disabled:from-slate-600 disabled:to-slate-700 cursor-pointer"
+            >
+              {isSubmitting ? (
+                <Loader2 size={18} className="animate-spin" />
+              ) : (
+                <Send size={18} />
+              )}
+              {isSubmitting ? (
+                isEditMode ? "Đang cập nhật..." : "Đang nộp..."
+              ) : (
+                isEditMode ? "Lưu chỉnh sửa" : "Nộp bài"
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>

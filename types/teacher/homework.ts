@@ -139,6 +139,7 @@ export interface HomeworkSubmission {
   gradedBy?: string;
 
   // Assignment info
+  startDate?: string;
   dueAt: string;
   description?: string;
   skills?: string;
@@ -227,6 +228,7 @@ export interface CreateHomeworkPayload {
   sessionId?: string;
   title: string;
   description?: string;
+  startDate?: string;
   dueAt: string;
   book?: string;
   pages?: string;
@@ -236,6 +238,7 @@ export interface CreateHomeworkPayload {
   rewardStars?: number;
   timeLimitMinutes?: number;
   allowResubmit?: boolean;
+  maxAttempts?: number;
   instructions?: string;
   expectedAnswer?: string;
   rubric?: string;
@@ -265,6 +268,7 @@ export interface CreateHomeworkFromBankPayload {
   rewardStars?: number;
   timeLimitMinutes?: number;
   allowResubmit?: boolean;
+  maxAttempts?: number;
   instructions?: string;
   distribution: Array<{
     level: QuestionBankDifficulty;

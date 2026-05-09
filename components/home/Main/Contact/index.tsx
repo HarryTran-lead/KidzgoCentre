@@ -205,7 +205,7 @@ export default function Contact() {
                     </p>
                     <a
                       href="tel:+0867405801"
-                      className="text-lg font-bold text-gray-900 hover:text-red-600 transition-colors flex items-center gap-2 group-hover:gap-3"
+                      className="text-lg font-bold text-gray-900 hover:text-red-600 transition-colors flex items-center gap-2 group-hover:gap-3 cursor-pointer"
                     >
                       +0867405801
                       <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all" />
@@ -238,7 +238,7 @@ export default function Contact() {
                     </p>
                     <a
                       href="mailto:Tearexenglish@gmail.com"
-                      className="text-base font-semibold text-gray-900 hover:text-red-600 transition-colors flex items-center gap-2 group-hover:gap-3"
+                      className="text-base font-semibold text-gray-900 hover:text-red-600 transition-colors flex items-center gap-2 group-hover:gap-3 cursor-pointer"
                     >
                       Tearexenglish@gmail.com
                       <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all" />
@@ -320,7 +320,7 @@ export default function Contact() {
                     <a
                       key={idx}
                       href="#"
-                      className="group/social"
+                      className="group/social cursor-pointer"
                       aria-label={item.label}
                     >
                       <div
@@ -468,7 +468,7 @@ export default function Contact() {
                       Bằng cách gửi, bạn đồng ý với{" "}
                       <a
                         href="#"
-                        className="text-red-600 hover:text-red-700 font-medium"
+                        className="text-red-600 hover:text-red-700 font-medium cursor-pointer"
                       >
                         Chính sách Bảo mật
                       </a>{" "}
@@ -478,7 +478,7 @@ export default function Contact() {
                     <button
                       type="submit"
                       disabled={isSubmitting}
-                      className="group relative px-8 py-4 rounded-full text-white font-bold bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105 disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-3"
+                      className="group relative px-8 py-4 rounded-full text-white font-bold bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105 disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer flex items-center gap-3"
                     >
                       <span className="relative">
                         {isSubmitting ? "Đang gửi..." : "Gửi tin nhắn"}

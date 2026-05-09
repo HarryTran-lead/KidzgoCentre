@@ -44,13 +44,14 @@ export default function BlogDetailModal({
           />
 
           {/* Modal */}
-          <div className="fixed inset-0 z-9999 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="fixed inset-0 z-9999 flex items-center justify-center p-4 overflow-y-auto" onClick={onClose}>
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               transition={{ duration: 0.2 }}
               className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden my-8"
+              onClick={(e) => e.stopPropagation()}
             >
               {/* Header with Featured Image */}
               <div className="relative h-64 sm:h-80 overflow-hidden bg-gradient-to-br from-red-100 to-rose-100">
@@ -70,7 +71,7 @@ export default function BlogDetailModal({
                 {/* Close Button */}
                 <button
                   onClick={onClose}
-                  className="absolute top-4 right-4 p-2 rounded-full bg-white/90 hover:bg-white transition-colors shadow-lg"
+                  className="absolute top-4 right-4 p-2 rounded-full bg-white/90 hover:bg-white transition-colors shadow-lg cursor-pointer"
                 >
                   <X size={24} className="text-gray-700" />
                 </button>
