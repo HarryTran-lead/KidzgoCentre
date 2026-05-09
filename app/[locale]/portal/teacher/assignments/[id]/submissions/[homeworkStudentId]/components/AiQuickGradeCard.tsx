@@ -259,15 +259,25 @@ export default function AiQuickGradeCard({
         });
       }
     } catch (error: any) {
-      toast({
-        title: "Không thể chấm nhanh bằng AI",
-        description:
-          error?.response?.data?.message ||
-          error?.response?.data?.detail ||
-          error?.message ||
-          "Vui lòng thử lại sau.",
-        type: "destructive",
-      });
+      // Check for 502/503 errors
+      const statusCode = error?.response?.status;
+      if (statusCode === 502 || statusCode === 503) {
+        toast({
+          title: "AI đang quá tải",
+          description: "AI đang quá tải xin thử lại lần sau.",
+          type: "destructive",
+        });
+      } else {
+        toast({
+          title: "Không thể chấm nhanh bằng AI",
+          description:
+            error?.response?.data?.message ||
+            error?.response?.data?.detail ||
+            error?.message ||
+            "Vui lòng thử lại sau.",
+          type: "destructive",
+        });
+      }
     } finally {
       setLoading(false);
     }
