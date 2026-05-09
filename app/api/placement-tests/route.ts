@@ -126,6 +126,10 @@ export async function POST(request: NextRequest) {
         {
           success: false,
           message: data?.message || `Backend returned ${response.status}`,
+          detail: data?.detail,
+          title: data?.title,
+          code: data?.code,
+          errors: data?.errors,
         },
         { status: response.status }
       );

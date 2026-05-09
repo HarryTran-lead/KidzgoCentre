@@ -355,6 +355,125 @@ function translatePlacementTestMessage(message?: string): string {
   return message;
 }
 
+function parseIsoDate(value: unknown): Date | null {
+  if (!value) return null;
+  const date = new Date(String(value));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatVietnameseDate(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}`;
+}
+
+function formatVietnameseTime(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function extractIsoDateFromText(value: unknown): Date | null {
+  const text = String(value || "");
+  if (!text) return null;
+
+  const isoMatch = text.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:\.\d{1,3})?(?:Z|[+-]\d{2}:?\d{2})?/);
+  if (!isoMatch?.[0]) return null;
+
+  return parseIsoDate(isoMatch[0]);
+}
+
+function extractRequestedScheduleFromAxiosError(error: unknown): { start: Date; end: Date } | null {
+  if (!axios.isAxiosError(error)) return null;
+
+  let body: any = error.config?.data;
+  if (typeof body === "string") {
+    try {
+      body = JSON.parse(body);
+    } catch {
+      body = null;
+    }
+  }
+
+  if (!body || typeof body !== "object") return null;
+
+  const start = parseIsoDate((body as any)?.scheduledAt);
+  if (!start) return null;
+
+  const parsedDuration = Number((body as any)?.durationMinutes);
+  const duration = Number.isFinite(parsedDuration) && parsedDuration > 0 ? parsedDuration : 60;
+  const end = new Date(start.getTime() + duration * 60 * 1000);
+
+  return { start, end };
+}
+
+function resolveConflictSchedule(details: ProblemPayload, error: unknown): { start: Date; end: Date } | null {
+  const requestSchedule = extractRequestedScheduleFromAxiosError(error);
+  if (requestSchedule) {
+    return requestSchedule;
+  }
+
+  const directStart =
+    parseIsoDate((details as any)?.startAt) ||
+    parseIsoDate((details as any)?.scheduledAt) ||
+    extractIsoDateFromText(details?.detail) ||
+    extractIsoDateFromText(details?.message) ||
+    extractIsoDateFromText(details?.title);
+
+  if (!directStart) return null;
+
+  const directEnd =
+    parseIsoDate((details as any)?.endAt) ||
+    parseIsoDate((details as any)?.scheduledTo) ||
+    null;
+
+  return {
+    start: directStart,
+    end: directEnd || new Date(directStart.getTime() + 60 * 60 * 1000),
+  };
+}
+
+function shouldUseChildScheduleConflictMessage(details: ProblemPayload, error: unknown): boolean {
+  const status = details.status;
+  if (status !== 409) return false;
+
+  const searchable = [details.code, details.title, details.detail, details.message]
+    .map((item) => String(item || "").toLowerCase())
+    .join(" ");
+
+  const hasChildHint = /(leadchild|child|student|hoc\s*v[ie]n|b[ée])/.test(searchable);
+  const hasScheduleHint = /(scheduled|schedule|time|slot|khung\s*gi[oơ]|l[ịi]ch\s*test)/.test(searchable);
+
+  if (hasChildHint && hasScheduleHint) {
+    return true;
+  }
+
+  if (axios.isAxiosError(error)) {
+    const method = String(error.config?.method || "").toLowerCase();
+    const url = String(error.config?.url || "");
+    const isCreatePlacementTest = method === "post" && /placement-tests(\?|$)/.test(url) && !/\/retake(\?|$)/.test(url);
+    const isGenericGatewayMessage = String(details.message || "").toLowerCase().includes("backend returned 409");
+
+    if (isCreatePlacementTest && isGenericGatewayMessage) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function formatChildScheduleConflictMessage(details: ProblemPayload, error: unknown): string {
+  if (!shouldUseChildScheduleConflictMessage(details, error)) return "";
+
+  const schedule = resolveConflictSchedule(details, error);
+  if (!schedule) {
+    return "Bé đã có lịch test ở khung giờ này. Vui lòng chọn khung giờ khác.";
+  }
+
+  const timeRange = `${formatVietnameseTime(schedule.start)} - ${formatVietnameseTime(schedule.end)}`;
+  const dateText = formatVietnameseDate(schedule.start);
+
+  return `Bé đã có lịch test vào khoảng ${timeRange} ngày ${dateText}. Vui lòng chọn khung giờ khác.`;
+}
+
 function toPlacementTestApiError(error: unknown, fallbackMessage: string): PlacementTestApiError {
   if (error instanceof PlacementTestApiError) return error;
 
@@ -397,6 +516,10 @@ export function mapPlacementTestStatusCode(status?: number): string {
 
 export function getPlacementTestErrorMessage(error: unknown, fallbackMessage = "Không thể xử lý placement test"): string {
   const details = extractErrorPayload(error);
+
+  const childConflictMessage = formatChildScheduleConflictMessage(details, error);
+  if (childConflictMessage) return childConflictMessage;
+
   const mapped = getDomainErrorMessage(error, fallbackMessage);
   if (mapped && mapped !== fallbackMessage) return mapped;
 
