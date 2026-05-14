@@ -6,6 +6,7 @@
 
 export type AttendanceStatus = "present" | "absent" | "makeup" | "notMarked";
 export type AttendanceRawStatus = "Present" | "Absent" | "Makeup" | "NotMarked";
+export type SectionType = "Normal" | "Review" | "Makeup" | "Remedial" | "Assessment";
 
 export type Student = {
   id: string;
@@ -92,6 +93,7 @@ export type SessionApiItem = {
   color?: string | null;
   programName?: string | null;
   participationType?: string | null;
+  sectionType?: SectionType | string | null;
   registrationId?: string | null;
   track?: string | null;
   isMakeup?: boolean | null;
@@ -160,6 +162,17 @@ export type UpdateAttendanceRequest = {
   attendanceStatus: number;
   note?: string;
 };
+
+/** Ticket consume result returned per-student from mark/update attendance response */
+export type AttendanceTicketResult = {
+  ticketConsumed?: boolean | null;
+  consumedQuantity?: number | null;
+  advanceLessonProgression?: boolean | null;
+  ticketBalance?: number | null;
+};
+
+/** Map studentProfileId → ticket result, populated after attendance save */
+export type AttendanceTicketResultMap = Record<string, AttendanceTicketResult>;
 
 export type FetchAttendanceResult = {
   students: Student[];

@@ -44,7 +44,7 @@ import {
   mapSessionToLessonDetail,
 } from "@/app/api/teacher/attendance";
 
-import type { AttendanceStatus, LessonDetail, SessionApiItem, Student } from "@/types/teacher/attendance";
+import type { AttendanceStatus, AttendanceTicketResultMap, LessonDetail, SessionApiItem, Student } from "@/types/teacher/attendance";
 import type { SessionReportItem } from "@/types/teacher/sessionReport";
 import { todayDateOnly } from "@/lib/datetime";
 import {
@@ -659,6 +659,7 @@ export default function TeacherAttendancePage() {
   const [isPageLoaded, setIsPageLoaded] = useState(false);
 
   const [sessionReports, setSessionReports] = useState<Record<string, SessionReportState>>({});
+  const [ticketResultMap, setTicketResultMap] = useState<AttendanceTicketResultMap>({});
   const [noteModalOpen, setNoteModalOpen] = useState(false);
   const [selectedStudentForNote, setSelectedStudentForNote] = useState<StudentRow | null>(null);
   const [noteModalError, setNoteModalError] = useState<string | null>(null);
@@ -1273,7 +1274,8 @@ export default function TeacherAttendancePage() {
       setIsSaving(true);
       setSaveError(null);
 
-      await saveAttendance(selectedSessionId, attendanceList, !hasAnyMarked);
+      const ticketMap = await saveAttendance(selectedSessionId, attendanceList, !hasAnyMarked);
+      setTicketResultMap(ticketMap);
       await syncSessionReportsWithAttendance();
       await refreshAttendance();
 
@@ -2106,6 +2108,7 @@ export default function TeacherAttendancePage() {
                         />
                       </th>
                       <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">Trạng thái</th>
+                      <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">Vé học</th>
                       <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">Ghi chú</th>
                       <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">Thao tác</th>
                     </tr>
@@ -2205,6 +2208,37 @@ export default function TeacherAttendancePage() {
                                 </div>
                               ) : null}
                             </div>
+                          </td>
+
+                          <td className="px-4 py-4">
+                            {(() => {
+                              const studentId = record.studentProfileId || record.studentId;
+                              const ticketResult = studentId ? ticketResultMap[studentId] : undefined;
+                              if (!ticketResult || ticketResult.ticketConsumed === null || ticketResult.ticketConsumed === undefined) {
+                                return <span className="text-xs text-gray-400">–</span>;
+                              }
+                              return (
+                                <div className="flex flex-col gap-1">
+                                  {ticketResult.ticketConsumed ? (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 border border-orange-200 px-2.5 py-1 text-xs font-medium text-orange-700">
+                                      -{ticketResult.consumedQuantity ?? 1} vé
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-500">
+                                      Không trừ
+                                    </span>
+                                  )}
+                                  {ticketResult.ticketBalance !== null && ticketResult.ticketBalance !== undefined ? (
+                                    <span className="text-xs text-gray-500">Còn: {ticketResult.ticketBalance}</span>
+                                  ) : null}
+                                  {ticketResult.advanceLessonProgression ? (
+                                    <span className="text-xs text-emerald-600">↑ Tiến bài</span>
+                                  ) : ticketResult.advanceLessonProgression === false ? (
+                                    <span className="text-xs text-gray-400">Không tiến bài</span>
+                                  ) : null}
+                                </div>
+                              );
+                            })()}
                           </td>
 
                           <td className="px-4 py-4 max-w-xs">

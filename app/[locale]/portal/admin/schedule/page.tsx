@@ -11,7 +11,8 @@ import {
   updateClassColor,
 } from "@/app/api/admin/sessions";
 import { fetchAdminUsersByIds, fetchAdminClasses } from "@/app/api/admin/classes";
-import type { CreateSessionRequest, ParticipationType, Session } from "@/types/admin/sessions";
+import type { CreateSessionRequest, ParticipationType, SectionType, Session } from "@/types/admin/sessions";
+import { SECTION_TYPE_OPTIONS } from "@/types/admin/sessions";
 import {
   CalendarRange,
   MapPin,
@@ -242,6 +243,7 @@ interface ScheduleFormData {
   note: string;
   sendNotification: boolean;
   participationType: ParticipationType;
+  sectionType: SectionType;
 }
 
 const initialFormData: ScheduleFormData = {
@@ -258,6 +260,7 @@ const initialFormData: ScheduleFormData = {
   note: "",
   sendNotification: true,
   participationType: "OFFLINE",
+  sectionType: "Normal",
 };
 
 type SelectOption = { id: string; label: string };
@@ -490,6 +493,7 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
           plannedTeacherId: formData.teacherId,
           plannedAssistantId: formData.assistantId || undefined,
           participationType: formData.participationType,
+          sectionType: formData.sectionType,
         } as CreateSessionRequest,
         {
           title: findLabel(classOptions, formData.classId) || "Buổi học",
@@ -800,7 +804,30 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
               </div>
             </div>
 
-            {/* Row 6: Ghi chú */}
+            {/* Row 6: Loại buổi học */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                <Tag size={16} className="text-red-600" />
+                Loại buổi học
+              </label>
+              <div className="grid grid-cols-5 gap-2">
+                {SECTION_TYPE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => handleChange("sectionType", opt.value)}
+                    className={`px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all ${formData.sectionType === opt.value
+                      ? "bg-red-50 text-red-800 border-red-300"
+                      : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Row 7: Ghi chú */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
                 <FileText size={16} className="text-red-600" />

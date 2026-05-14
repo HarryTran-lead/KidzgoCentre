@@ -1,5 +1,22 @@
 export type ParticipationType = "OFFLINE" | "ONLINE";
 export type ChangeTeacherRole = "MainTeacher" | "Assistant";
+export type SectionType = "Normal" | "Review" | "Makeup" | "Remedial" | "Assessment";
+
+export const SECTION_TYPE_LABELS: Record<SectionType, string> = {
+  Normal: "Buổi học thường",
+  Review: "Ôn tập",
+  Makeup: "Học bù",
+  Remedial: "Phụ đạo",
+  Assessment: "Kiểm tra",
+};
+
+export const SECTION_TYPE_OPTIONS: { value: SectionType; label: string }[] = [
+  { value: "Normal", label: "Buổi học thường" },
+  { value: "Review", label: "Ôn tập" },
+  { value: "Makeup", label: "Học bù" },
+  { value: "Remedial", label: "Phụ đạo" },
+  { value: "Assessment", label: "Kiểm tra" },
+];
 
 export interface CreateSessionRequest {
   classId: string;
@@ -9,6 +26,7 @@ export interface CreateSessionRequest {
   plannedTeacherId: string;
   plannedAssistantId?: string;
   participationType: ParticipationType | string;
+  sectionType?: SectionType | string;
 }
 
 export interface Session {
@@ -37,6 +55,7 @@ export interface Session {
   actualAssistantId?: string | null;
   actualAssistantName?: string | null;
   participationType?: string | null;
+  sectionType?: SectionType | string | null;
   status?: string | null;
   color?: string | null;
 }
@@ -83,6 +102,7 @@ export interface UpdateSessionsByClassRequest {
   plannedRoomId?: string;
   plannedTeacherId?: string;
   plannedAssistantId?: string;
+  sectionType?: SectionType | string;
 }
 
 export interface UpdateSessionsByClassResult {

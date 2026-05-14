@@ -401,6 +401,12 @@ export const TEACHER_ENDPOINTS = {
   SESSION_REPORT_AI_ENHANCE_FEEDBACK: '/api/session-reports/ai/enhance-feedback',
 } as const;
 
+// Learning Ticket Endpoints (Client-side → Next.js API Routes)
+export const LEARNING_TICKET_ENDPOINTS = {
+  BALANCE: (studentProfileId: string) => `/api/students/${studentProfileId}/tickets/balance`,
+  LEDGER: (studentProfileId: string) => `/api/students/${studentProfileId}/tickets/ledger`,
+} as const;
+
 // Monthly Report Endpoints (Client-side → Next.js API Routes)
 export const MONTHLY_REPORT_ENDPOINTS = {
   BASE: '/api/monthly-reports',

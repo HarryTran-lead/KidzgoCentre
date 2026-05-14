@@ -202,8 +202,21 @@ function normalizeSessionReport(raw: Record<string, unknown>): SessionReport | n
       record,
       "sessionDate",
       "SessionDate",
+      "sessionDateTime",
+      "SessionDateTime",
+      "plannedDatetime",
+      "PlannedDatetime",
+      "actualDatetime",
+      "ActualDatetime",
       "session.actualDatetime",
+      "session.actualDateTime",
       "session.plannedDatetime",
+      "session.plannedDateTime",
+      "session.startAt",
+      "session.startTime",
+      "session.date",
+      "studySession.actualDatetime",
+      "studySession.plannedDatetime",
     ),
     studentProfileId: pickValue(
       record,
@@ -1158,6 +1171,9 @@ export default function TestsPage() {
     return parsed.toLocaleString("vi-VN");
   };
 
+  const getSessionDisplayDate = (report: SessionReport) =>
+    report.sessionDate || report.reportDate || report.updatedAt || report.createdAt;
+
   // Calculate stats
   const totalTests = testResults.length;
   const averageScore = totalTests > 0 ? (testResults.reduce((acc, test) => acc + (test.score / test.maxScore * 100), 0) / totalTests).toFixed(1) : "0";
@@ -1518,7 +1534,7 @@ export default function TestsPage() {
                       <BookOpen className="w-4 h-4 text-gray-700" />
                     </div>
                     <h3 className="font-semibold text-sm text-gray-900">
-                      Session {formatDateTime(report.sessionDate || report.reportDate)}
+                      Buổi học {formatDateTime(getSessionDisplayDate(report))}
                     </h3>
                   </div>
                 </div>
@@ -1580,7 +1596,7 @@ export default function TestsPage() {
                 filteredSessionReports.map((report) => (
                   <HistoryItem
                     key={report.id}
-                    title={`Session report ${formatDateTime(report.sessionDate || report.reportDate)}`}
+                    title={`Báo cáo buổi ${formatDateTime(getSessionDisplayDate(report))}`}
                     date={formatDateTime(report.updatedAt || report.createdAt)}
                     size="Published"
                   />
@@ -1649,7 +1665,9 @@ export default function TestsPage() {
               <div>
                 <div className="text-lg font-bold text-gray-900">Chi tiết báo cáo theo buổi</div>
                 <div className="text-sm text-gray-600 mt-1">
-                  {activeSessionReport?.studentName ?? selectedStudentName} - {formatDateTime(activeSessionReport?.sessionDate || activeSessionReport?.reportDate)}
+                  {activeSessionReport?.studentName ?? selectedStudentName} - {formatDateTime(
+                    activeSessionReport ? getSessionDisplayDate(activeSessionReport) : undefined,
+                  )}
                 </div>
               </div>
               <button

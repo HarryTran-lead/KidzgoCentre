@@ -3,25 +3,10 @@
 import { useCallback, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
-import {
-  Download,
-  ExternalLink,
-  Loader2,
-  X,
-  User,
-  Calendar,
-  BookOpen,
-  Clock,
-  Tag,
-  Users,
-  GraduationCap,
-  CalendarClock,
-  FileText,
-  CheckCircle,
-  AlertCircle,
-} from "lucide-react";
+import { Download, ExternalLink, Loader2, X, User, Calendar, BookOpen, Clock, Tag, Users, GraduationCap, CalendarClock, FileText, CheckCircle, AlertCircle, Wallet, History } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { exportRegistrationEnrollmentConfirmationPdf } from "@/lib/api/registrationService";
+import { getTicketBalance, getTicketLedger } from "@/lib/api/learningTicketService";
 import type { Registration, RegistrationStatus } from "@/types/registration";
 
 type RegistrationDetailModalProps = {
@@ -69,6 +54,26 @@ function statusIcon(status: RegistrationStatus) {
   }
 }
 
+function ticketTransactionLabel(type?: string | null) {
+  const normalized = String(type || "").trim();
+  const labels: Record<string, string> = {
+    Grant: "Cấp vé",
+    Consume: "Trừ vé",
+    Refund: "Hoàn vé",
+    Void: "Huỷ vé",
+    Adjustment: "Điều chỉnh",
+  };
+  return labels[normalized] || normalized || "Khác";
+}
+
+function ticketTransactionBadgeClass(type?: string | null) {
+  const normalized = String(type || "").trim();
+  if (normalized === "Consume") return "bg-orange-100 text-orange-700 border border-orange-200";
+  if (normalized === "Refund") return "bg-emerald-100 text-emerald-700 border border-emerald-200";
+  if (normalized === "Void") return "bg-gray-100 text-gray-700 border border-gray-200";
+  if (normalized === "Adjustment") return "bg-blue-100 text-blue-700 border border-blue-200";
+  return "bg-emerald-100 text-emerald-700 border border-emerald-200";
+}
 function toDate(value?: string | null) {
   if (!value) return "-";
   const d = new Date(value);
@@ -307,6 +312,10 @@ export default function RegistrationDetailModal({
   const pathname = usePathname();
   const { toast } = useToast();
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [ticketBalance, setTicketBalance] = useState<LearningTicketBalance | null>(null);
+  const [ticketLedger, setTicketLedger] = useState<LearningTicketLedgerItem[]>([]);
+  const [ticketLoading, setTicketLoading] = useState(false);
+  const [ticketError, setTicketError] = useState<string | null>(null);
 
   const placementTestId = extractPlacementTestId(item?.note);
 
@@ -359,6 +368,51 @@ export default function RegistrationDetailModal({
       setIsExportingPdf(false);
     }
   }, [isExportingPdf, item?.id, toast]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    if (!isOpen || !item?.studentProfileId) {
+      setTicketBalance(null);
+      setTicketLedger([]);
+      setTicketLoading(false);
+      setTicketError(null);
+      return () => {
+        isActive = false;
+      };
+    }
+
+    const loadTicketData = async () => {
+      try {
+        setTicketLoading(true);
+        setTicketError(null);
+
+        const [balance, ledger] = await Promise.all([
+          getTicketBalance(item.studentProfileId),
+          getTicketLedger(item.studentProfileId),
+        ]);
+
+        if (!isActive) return;
+        setTicketBalance(balance ?? null);
+        setTicketLedger(Array.isArray(ledger?.items) ? ledger.items : []);
+      } catch (error: any) {
+        if (!isActive) return;
+        setTicketBalance(null);
+        setTicketLedger([]);
+        setTicketError(error?.message || "Không thể tải thông tin vé học.");
+      } finally {
+        if (isActive) {
+          setTicketLoading(false);
+        }
+      }
+    };
+
+    loadTicketData();
+
+    return () => {
+      isActive = false;
+    };
+  }, [isOpen, item?.studentProfileId]);
 
   if (!isOpen) return null;
   if (!item && !isLoading) return null;

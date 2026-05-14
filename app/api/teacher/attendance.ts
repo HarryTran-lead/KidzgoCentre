@@ -13,6 +13,8 @@ import type {
   AttendanceRawStatus,
   AttendanceStatus,
   AttendanceSummaryApi,
+  AttendanceTicketResult,
+  AttendanceTicketResultMap,
   UpdateAttendanceRequest,
   FetchAttendanceResult,
   FetchSessionResult,
@@ -534,7 +536,7 @@ export async function saveAttendance(
   students: Student[],
   isCreate: boolean,
   signal?: AbortSignal,
-): Promise<void> {
+): Promise<AttendanceTicketResultMap> {
   const token = getAccessToken();
   if (!token) {
     throw new Error("Ban chua dang nhap. Vui long dang nhap lai.");
@@ -562,7 +564,6 @@ export async function saveAttendance(
   }
 
   // Backend bulk POST is idempotent and can both create missing records and update existing ones.
-  // That matches the Attendance API guide better than forcing PUT for the whole class after first mark.
   void isCreate;
 
   const res = await fetch(`${TEACHER_ENDPOINTS.ATTENDANCE}/${sessionId}`, {
@@ -577,6 +578,30 @@ export async function saveAttendance(
     console.error("Save attendance error", res.status, text);
     throw new Error(formatAttendanceErrorMessage(text, "Không thể lưu điểm danh."));
   }
+
+  // Parse ticket results from response
+  try {
+    const json = await res.json();
+    const results: any[] =
+      json?.data?.results ??
+      json?.results ??
+      json?.data?.attendances ??
+      [];
+    const ticketMap: AttendanceTicketResultMap = {};
+    for (const item of results) {
+      const id = String(item?.studentProfileId ?? "").trim();
+      if (!id) continue;
+      ticketMap[id] = {
+        ticketConsumed: item?.ticketConsumed ?? null,
+        consumedQuantity: item?.consumedQuantity ?? null,
+        advanceLessonProgression: item?.advanceLessonProgression ?? null,
+        ticketBalance: item?.ticketBalance ?? null,
+      };
+    }
+    return ticketMap;
+  } catch {
+    return {};
+  }
 }
 
 export async function updateAttendance(
@@ -584,7 +609,7 @@ export async function updateAttendance(
   studentProfileId: string,
   payload: UpdateAttendanceRequest,
   signal?: AbortSignal,
-): Promise<AttendanceItemApi | null> {
+): Promise<AttendanceItemApi & AttendanceTicketResult | null> {
   const token = getAccessToken();
   if (!token) {
     throw new Error("Ban chua dang nhap. Vui long dang nhap lai.");
@@ -609,7 +634,15 @@ export async function updateAttendance(
   }
 
   const json: AttendanceApiResponse = await res.json();
-  return extractSingleAttendanceItem(json?.data);
+  const item = extractSingleAttendanceItem(json?.data);
+  if (!item) return null;
+  const ticketResult: AttendanceTicketResult = {
+    ticketConsumed: (json?.data as any)?.ticketConsumed ?? null,
+    consumedQuantity: (json?.data as any)?.consumedQuantity ?? null,
+    advanceLessonProgression: (json?.data as any)?.advanceLessonProgression ?? null,
+    ticketBalance: (json?.data as any)?.ticketBalance ?? null,
+  };
+  return { ...item, ...ticketResult };
 }
 
 export async function fetchStudentAttendanceHistory(
