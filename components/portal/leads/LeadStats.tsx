@@ -19,15 +19,15 @@ interface StatCardProps {
 
 function StatCard({ title, value, icon: Icon, color, subtitle }: StatCardProps) {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:border-red-300">
-      <div className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-5 blur-xl bg-gradient-to-r ${color}`}></div>
-      <div className="relative flex items-center justify-between gap-3">
-        <div className={`p-2 rounded-xl bg-gradient-to-r ${color} text-white shadow-sm flex-shrink-0`}>
+    <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+      <div className={`absolute right-0 top-0 h-12 w-12 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r ${color}`}></div>
+      <div className="relative flex items-center gap-3">
+        <div className={`p-2 rounded-xl bg-gradient-to-br ${color} text-white shadow-sm flex-shrink-0`}>
           <Icon size={20} />
         </div>
         <div className="min-w-0 flex-1">
           <div className="text-xs font-medium text-gray-600 truncate">{title}</div>
-          <div className="text-xl font-bold text-gray-900 leading-tight">{value}</div>
+          <div className="text-2xl font-bold text-gray-900 leading-tight">{value}</div>
           {subtitle && <div className="text-[11px] text-gray-500 truncate">{subtitle}</div>}
         </div>
       </div>
@@ -47,9 +47,9 @@ export default function LeadStats({ leads, isLoading }: LeadStatsProps) {
 
   const funnel = useMemo(() => [
     { title: "Khách tiềm năng mới", value: stats.new.toString(), icon: Sparkles, color: "from-red-600 to-red-700", subtitle: "Chưa xử lý" },
-    { title: "Đang tư vấn", value: stats.contacted.toString(), icon: Phone, color: "from-gray-600 to-gray-700", subtitle: "Đang liên hệ" },
-    { title: "Đã test", value: stats.testDone.toString(), icon: FileText, color: "from-gray-700 to-gray-800", subtitle: "Đã kiểm tra" },
-    { title: "Đã ghi danh", value: stats.enrolled.toString(), icon: CheckCircle2, color: "from-red-500 to-red-600", subtitle: "Thành công" },
+    { title: "Đang tư vấn", value: stats.contacted.toString(), icon: Phone, color: "from-blue-600 to-cyan-600", subtitle: "Đang liên hệ" },
+    { title: "Đã test", value: stats.testDone.toString(), icon: FileText, color: "from-amber-600 to-orange-600", subtitle: "Đã kiểm tra" },
+    { title: "Đã ghi danh", value: stats.enrolled.toString(), icon: CheckCircle2, color: "from-emerald-600 to-teal-600", subtitle: "Thành công" },
   ], [stats]);
 
   if (isLoading) {

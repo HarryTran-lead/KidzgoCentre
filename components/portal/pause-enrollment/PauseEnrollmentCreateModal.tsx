@@ -290,7 +290,7 @@ export default function PauseEnrollmentCreateModal({
 
   return (
     <div
-      className="fixed inset-0 z-10000 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-100 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
@@ -298,7 +298,7 @@ export default function PauseEnrollmentCreateModal({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="bg-linear-to-r from-red-600 to-red-700 px-6 py-5 sm:px-8">
+        <div className="bg-linear-to-r from-red-600 to-red-700 px-6 py-4 sm:px-8">
           <button
             type="button"
             onClick={onClose}
@@ -324,7 +324,7 @@ export default function PauseEnrollmentCreateModal({
         </div>
 
         {/* Body */}
-        <div className="space-y-5 px-6 py-6 sm:px-8 max-h-[70vh] overflow-y-auto">
+        <div className="space-y-4 px-6 py-5 sm:px-8 max-h-[60vh] overflow-y-auto">
           {actionError ? <Banner kind="error" text={actionError} /> : null}
           {actionMessage ? <Banner kind="success" text={actionMessage} /> : null}
           {studentOptionsError ? <Banner kind="error" text={studentOptionsError} /> : null}
@@ -383,8 +383,8 @@ export default function PauseEnrollmentCreateModal({
                 ) : null}
 
                 <div className="mt-4 rounded-xl border border-red-100 bg-red-50/40 p-3">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-red-700">
-                    Phạm vi bảo lưu
+                  <div className="text-xs font-semibold text-sm tracking-wide text-red-700">
+                    <span className="text-sm">Phạm vi bảo lưu </span>
                   </div>
                   <div className="mt-2 grid gap-2">
                     <label className="flex items-center gap-2 rounded-lg border border-red-100 bg-white px-3 py-2 text-sm text-gray-700">
@@ -575,7 +575,7 @@ export default function PauseEnrollmentCreateModal({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-gray-200 bg-linear-to-r from-red-500/5 to-red-700/5 px-6 py-5 sm:px-8">
+        <div className="border-t border-gray-200 bg-linear-to-r from-red-500/5 to-red-700/5 px-6 py-4 sm:px-8">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <button
               type="button"

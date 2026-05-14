@@ -19,6 +19,7 @@ import {
   ChevronLeft,
   ChevronRight,
   RefreshCw,
+  User,
 } from "lucide-react";
 import { useState } from "react";
 import type { PlacementTest } from "@/types/placement-test";
@@ -323,15 +324,18 @@ export default function PlacementTestTable({
 
                 {/* Phụ huynh */}
                 <td className="py-4 px-6">
-                  <div className="font-medium text-gray-700">
-                    {test.leadContactName || "N/A"}
+                  <div className="flex items-center gap-2">
+                    <User size={14} className="text-red-600 flex-shrink-0" />
+                    <div className="font-medium text-gray-700">
+                      {test.leadContactName || "N/A"}
+                    </div>
                   </div>
                 </td>
 
                 {/* Thời gian */}
                 <td className="py-4 px-6">
                   <div className="flex items-center gap-1.5 text-sm text-gray-600">
-                    <Calendar size={14} className="text-gray-400" />
+                    <Calendar size={14} className="text-red-600" />
                     <span>{formatTableScheduledAt(test.scheduledAt)}</span>
                   </div>
                   {test.room && (

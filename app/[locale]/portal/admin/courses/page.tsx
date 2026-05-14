@@ -15,13 +15,16 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  CheckCircle2,
   AlertCircle,
   FileText,
   Building2,
   Power,
   PowerOff,
   GitBranch,
-  CheckCircle2,
+  XCircle,
+  CheckCircle,
+  Sparkles,
 } from "lucide-react";
 import {
   fetchAdminPrograms,
@@ -95,11 +98,13 @@ function getProgramTypeBadgeClass(value: { isMakeup?: boolean | null; isSuppleme
 
 function StatusBadge({ value }: { value: string }) {
   const map: Record<string, string> = {
-    "Đang hoạt động": "bg-green-100 text-green-700 border border-green-200",
-    "Tạm dừng": "bg-gray-100 text-gray-700 border border-gray-200",
+    "Đang hoạt động": "bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200",
+    "Tạm dừng": "bg-gradient-to-r from-red-50 to-red-100 text-red-700 border border-red-200",
   };
+  const icon = value === "Đang hoạt động" ? <CheckCircle size={14} /> : <XCircle size={14} />;
   return (
-    <span className={cn("px-2.5 py-1 rounded-full text-xs font-semibold", map[value])}>
+    <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold", map[value])}>
+      {icon}
       {value}
     </span>
   );
@@ -261,7 +266,7 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
     <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div
         ref={modalRef}
-        className="relative w-full max-w-5xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden"
+        className="relative w-full max-w-4xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden"
       >
         {/* Modal Header */}
         <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
@@ -271,7 +276,7 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
                 <BookOpen size={24} className="text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-white">
+                <h2 className="text-xl font-bold text-white">
                   {mode === "edit" ? t.modal.updateTitle : t.modal.createTitle}
                 </h2>
                 <p className="text-sm text-red-100">
@@ -291,7 +296,7 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
         </div>
 
         {/* Modal Body */}
-        <div className="p-6 max-h-[75vh] overflow-y-auto">
+        <div className="p-6 max-h-[70vh] overflow-y-auto">
           {mode === "create" && (
             <div className="mb-5 flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
               <Building2 size={16} className="mt-0.5 shrink-0 text-blue-600" />
@@ -305,7 +310,7 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                 <BookOpen size={16} className="text-red-600" />
-                {t.modal.courseNameRequired}
+                {t.modal.courseNameRequired.replace(" *", "")} <span className="text-red-600">*</span>
               </label>
               <div className="relative">
                 <input
@@ -313,7 +318,7 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
                   value={formData.name}
                   onChange={(e) => handleChange("name", e.target.value)}
                   className={cn(
-                    "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
+                    "w-full px-4 py-3 rounded-xl border text-sm bg-white text-gray-900",
                     "focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
                     errors.name ? "border-red-500" : "border-gray-200"
                   )}
@@ -328,10 +333,13 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
               {errors.name && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.name}</p>}
             </div>
 
-            <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
               <div className="space-y-4">
                 <div className="space-y-1">
-                  <div className="text-sm font-semibold text-gray-800">{t.modal.programTypeLabel}</div>
+                  <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                    <FileText size={16} className="text-red-600" />
+                    {t.modal.programTypeLabel}
+                  </div>
                   <p className="text-sm text-gray-600">
                     {t.modal.programTypeDesc}
                   </p>
@@ -345,7 +353,7 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
                     onChange={(e) => handleChange("isSupplementary", e.target.checked)}
                     className="h-4 w-4 rounded border-violet-300 text-violet-600 focus:ring-violet-300"
                   />
-                  <span>{formData.isSupplementary ? t.modal.supplementaryLabel : t.modal.supplementary}</span>
+                  <span className="text-sm">{formData.isSupplementary ? t.modal.supplementaryLabel : t.modal.supplementary}</span>
                 </label>
 
                 <label className="inline-flex items-center gap-3 rounded-xl border border-blue-200 bg-white px-4 py-3 text-sm font-semibold text-gray-800">
@@ -355,7 +363,7 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
                     onChange={(e) => handleChange("isMakeup", e.target.checked)}
                     className="h-4 w-4 rounded border-blue-300 text-blue-600 focus:ring-blue-300"
                   />
-                  <span>{formData.isMakeup ? t.modal.makeupLabel : t.modal.makeup}</span>
+                  <span className="text-sm">{formData.isMakeup ? t.modal.makeupLabel : t.modal.makeup}</span>
                 </label>
                 </div>
 
@@ -405,7 +413,7 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
                 }}
                 disabled={isNoLimitProgramType}
                 placeholder={isNoLimitProgramType ? "Không giới hạn cho chương trình bù/phụ trợ" : t.modal.leaveLimitPlaceholder}
-                className="w-full rounded-xl border border-amber-200 bg-white px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-300"
+                className="w-full rounded-xl border text-sm border-amber-200 bg-white px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-300"
               />
               {isNoLimitProgramType && (
                 <p className="text-xs text-amber-700">
@@ -420,7 +428,7 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
 
         {/* Modal Footer */}
         <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-6">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center text-sm justify-between">
             <button
               type="button"
               onClick={onClose}
@@ -535,7 +543,7 @@ function AssignBranchModal({ isOpen, onClose, onSubmit, programName, t }: Assign
         className="relative w-full max-w-md bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden"
       >
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6">
+        <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
@@ -543,7 +551,7 @@ function AssignBranchModal({ isOpen, onClose, onSubmit, programName, t }: Assign
               </div>
               <div>
                 <h2 className="text-xl font-bold text-white">{t.modal.assignBranchTitle}</h2>
-                <p className="text-xs text-blue-100 mt-0.5 truncate max-w-[220px]">{programName}</p>
+                <p className="text-xs text-red-100 mt-0.5 truncate max-w-[220px]">{programName}</p>
               </div>
             </div>
             <button
@@ -558,14 +566,14 @@ function AssignBranchModal({ isOpen, onClose, onSubmit, programName, t }: Assign
 
         {/* Body */}
         <div className="p-6 space-y-5">
-          <div className="flex items-start gap-3 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
-            <Building2 size={15} className="mt-0.5 shrink-0 text-blue-600" />
-            <p className="text-sm text-blue-800">{t.modal.assignBranchSubtitle}</p>
+          <div className="flex items-start gap-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3">
+            <Building2 size={15} className="mt-0.5 shrink-0 text-red-600" />
+            <p className="text-sm text-red-800">{t.modal.assignBranchSubtitle}</p>
           </div>
 
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-              <Building2 size={15} className="text-blue-600" />
+              <Building2 size={15} className="text-red-600" />
               {t.modal.assignBranchLabel}
             </label>
             <Select
@@ -574,7 +582,7 @@ function AssignBranchModal({ isOpen, onClose, onSubmit, programName, t }: Assign
               disabled={loadingBranches}
             >
               <SelectTrigger className={cn(
-                "w-full rounded-xl border bg-white text-sm text-gray-900 transition-all hover:border-blue-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-200",
+                "w-full rounded-xl border bg-white text-sm text-gray-900 transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200",
                 error ? "border-red-500" : "border-gray-200",
                 loadingBranches ? "opacity-50 cursor-not-allowed" : ""
               )}>
@@ -608,7 +616,7 @@ function AssignBranchModal({ isOpen, onClose, onSubmit, programName, t }: Assign
             type="button"
             onClick={handleSubmit}
             disabled={submitting || !selectedBranchId}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold hover:shadow-lg hover:shadow-blue-500/25 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {submitting ? (
               <><div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />{t.messages.saving}</>
@@ -702,7 +710,7 @@ function AddExistingProgramModal({ isOpen, onClose, onSubmit, currentBranchId }:
         ref={modalRef}
         className="relative w-full max-w-lg bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden"
       >
-        <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-6">
+        <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
@@ -710,7 +718,7 @@ function AddExistingProgramModal({ isOpen, onClose, onSubmit, currentBranchId }:
               </div>
               <div>
                 <h2 className="text-xl font-bold text-white">Thêm chương trình có sẵn</h2>
-                <p className="text-xs text-emerald-100 mt-0.5">Chỉ hiển thị chương trình chưa có ở chi nhánh hiện tại</p>
+                <p className="text-xs text-red-100 mt-0.5">Chỉ hiển thị chương trình chưa có ở chi nhánh hiện tại</p>
               </div>
             </div>
             <button
@@ -724,7 +732,7 @@ function AddExistingProgramModal({ isOpen, onClose, onSubmit, currentBranchId }:
         </div>
 
         <div className="p-6 space-y-4">
-          <div className="flex items-start gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          <div className="flex items-start gap-2 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">
             <CheckCircle2 size={14} className="mt-0.5 shrink-0" />
             Chọn một chương trình sẵn có để gán vào chi nhánh đang chọn.
           </div>
@@ -784,7 +792,7 @@ function AddExistingProgramModal({ isOpen, onClose, onSubmit, currentBranchId }:
             type="button"
             onClick={handleSubmit}
             disabled={submitting || !selectedProgramId || loading}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold hover:shadow-lg transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {submitting ? "Đang thêm..." : "Thêm vào chi nhánh"}
           </button>
@@ -836,12 +844,33 @@ export function ProgramsManagementPage({
   const [showAddExistingModal, setShowAddExistingModal] = useState(false);
   const [viewMode, setViewMode] = useState<"system" | "branch">(forcedViewMode ?? "system");
   const activeViewMode = forcedViewMode ?? viewMode;
+  const detailModalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (forcedViewMode) {
       setViewMode(forcedViewMode);
     }
   }, [forcedViewMode]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (loadingDetail) return;
+
+      if (detailModalRef.current && !detailModalRef.current.contains(event.target as Node)) {
+        closeDetailModal();
+      }
+    };
+
+    if (showDetailModal) {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.body.style.overflow = "hidden";
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.body.style.overflow = "unset";
+    };
+  }, [showDetailModal, loadingDetail]);
 
   const closeDetailModal = () => {
     setShowDetailModal(false);
@@ -1338,7 +1367,7 @@ export function ProgramsManagementPage({
 
   return (
     <>
-      <div className="space-y-6 bg-gray-50 p-4 md:p-6 rounded-3xl">
+      <div className="space-y-6 bg-gray-50 p-4 md:p-2 rounded-3xl">
         {/* Title */}
         <div className={`flex flex-col md:flex-row md:items-center md:justify-between gap-4 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
           <div className="flex items-center gap-3">
@@ -1346,10 +1375,13 @@ export function ProgramsManagementPage({
               <BookOpen className="text-white" size={24} />
             </div>
             <div>
-              <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">
+              <h1 className="text-2xl md:text-2xl font-extrabold text-gray-900">
                 {t.header.title}
               </h1>
-              <p className="text-sm text-gray-600">{t.header.subtitle}</p>
+              <p className="text-gray-600 mt-1 flex items-center gap-2">
+                <Sparkles size={14} className="text-red-600" />
+                {t.header.subtitle}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -1357,17 +1389,17 @@ export function ProgramsManagementPage({
               <button
                 onClick={() => setShowAddExistingModal(true)}
                 type="button"
-                className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:shadow-lg text-white font-semibold cursor-pointer transition-all hover:scale-105 active:scale-95"
+                className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:shadow-lg text-white text-sm font-semibold cursor-pointer transition-all hover:scale-105 active:scale-95"
               >
-                <Plus size={18} /> Thêm chương trình có sẵn
+                <Plus size={14} /> Thêm chương trình có sẵn
               </button>
             ) : (
               <button
                 onClick={() => setIsCreateModalOpen(true)}
                 type="button"
-                className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:shadow-lg text-white font-semibold cursor-pointer transition-all hover:scale-105 active:scale-95"
+                className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:shadow-lg text-white text-sm font-semibold cursor-pointer transition-all hover:scale-105 active:scale-95"
               >
-                <Plus size={18} /> {t.buttons.create}
+                <Plus size={14} /> {t.buttons.create}
               </button>
             )}
           </div>
@@ -1404,10 +1436,11 @@ export function ProgramsManagementPage({
 
         {/* Stats cards */}
         <div className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          <div className="rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-md transition">
-            <div className="flex items-center gap-3">
-              <span className="w-10 h-10 rounded-xl bg-red-100 grid place-items-center">
-                <BookOpen className="text-red-600" size={18} />
+          <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+            <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r from-red-600 to-red-700"></div>
+            <div className="relative flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-600 grid place-items-center">
+                <BookOpen className="text-white" size={18} />
               </span>
               <div>
                 <div className="text-sm text-gray-600">{t.stats.totalCourses}</div>
@@ -1416,10 +1449,11 @@ export function ProgramsManagementPage({
             </div>
           </div>
 
-          <div className="rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-md transition">
-            <div className="flex items-center gap-3">
-              <span className="w-10 h-10 rounded-xl bg-red-100 grid place-items-center">
-                <GraduationCap className="text-red-600" size={18} />
+          <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+            <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r from-red-600 to-red-700"></div>
+            <div className="relative flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 grid place-items-center">
+                <GraduationCap className="text-white" size={18} />
               </span>
               <div>
                 <div className="text-sm text-gray-600">{t.stats.active}</div>
@@ -1428,10 +1462,11 @@ export function ProgramsManagementPage({
             </div>
           </div>
 
-          <div className="rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-md transition">
-            <div className="flex items-center gap-3">
-              <span className="w-10 h-10 rounded-xl bg-gray-100 grid place-items-center">
-                <Users className="text-gray-600" size={18} />
+          <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+            <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r from-red-600 to-red-700"></div>
+            <div className="relative flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-600 to-purple-600 grid place-items-center">
+                <Users className="text-white" size={18} />
               </span>
               <div>
                 <div className="text-sm text-gray-600">{t.stats.totalStudents}</div>
@@ -1453,31 +1488,62 @@ export function ProgramsManagementPage({
 
         {/* Search & Filters */}
         <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+          <div className="space-y-4">
+            {/* Status Filter Tabs */}
+            <div className="flex text-sm flex-wrap gap-2 pb-4 border-b border-red-200">
+              {(["ALL", "Đang hoạt động", "Tạm dừng"] as const).map((status) => {
+                const counts: Record<typeof status, number> = {
+                  ALL: courses.length,
+                  "Đang hoạt động": courses.filter((c) => c.status === "Đang hoạt động").length,
+                  "Tạm dừng": courses.filter((c) => c.status === "Tạm dừng").length,
+                };
+
+                const labels: Record<typeof status, string> = {
+                  ALL: "Tất cả trạng thái",
+                  "Đang hoạt động": "Đang hoạt động",
+                  "Tạm dừng": "Tạm dừng",
+                };
+
+                const isActive = statusFilter === status;
+                return (
+                  <button
+                    key={status}
+                    onClick={() => {
+                      setStatusFilter(status);
+                      setPage(1);
+                    }}
+                    className={`px-4 py-2 rounded-xl border text-sm   font-medium transition-all cursor-pointer ${
+                      isActive
+                        ? "bg-gradient-to-r from-red-600 to-red-700 text-white border-red-600 shadow-md"
+                        : "bg-white border-red-200 text-gray-700 hover:bg-red-50"
+                    }`}
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      {labels[status]}
+                      <span
+                        className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-semibold ${
+                          isActive
+                            ? "bg-white/30 text-white"
+                            : "bg-red-50 text-red-600"
+                        }`}
+                      >
+                        {counts[status]}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Search Box */}
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
               <input
                 value={q}
                 onChange={(e) => { setQ(e.target.value); setPage(1); }}
                 placeholder={t.filters.search}
-                className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-300"
+                className="w-full pl-10 pr-3 py-2.5 text-sm rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-300"
               />
-            </div>
-
-            <div className="flex flex-wrap items-center gap-4 sm:flex-nowrap">
-              <Select 
-                value={statusFilter} 
-                onValueChange={(val) => { setStatusFilter(val as typeof statusFilter); setPage(1); }}
-              >
-                <SelectTrigger className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200">
-                  <SelectValue placeholder={t.filters.statusLabel} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">{t.filters.allStatus}</SelectItem>
-                  <SelectItem value="Đang hoạt động">{t.filters.active}</SelectItem>
-                  <SelectItem value="Tạm dừng">{t.filters.paused}</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           </div>
         </div>
@@ -1488,7 +1554,7 @@ export function ProgramsManagementPage({
           <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-gray-200 px-6 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <h2 className="text-lg font-semibold text-gray-900">{t.table.title}</h2>
+                <h2 className=" font-semibold text-gray-900">{t.table.title}</h2>
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <span className="font-medium">{rows.length} {t.table.count}</span>
@@ -1504,7 +1570,7 @@ export function ProgramsManagementPage({
                   <SortableHeader field="name" currentField={sortField} direction={sortDirection} onSort={handleSort}>{t.table.courseName}</SortableHeader>
                   <SortableHeader field="branch" currentField={sortField} direction={sortDirection} onSort={handleSort}>{t.table.branch}</SortableHeader>
                   <SortableHeader field="status" currentField={sortField} direction={sortDirection} onSort={handleSort} align="center">{t.table.status}</SortableHeader>
-                  <th className="py-3 px-6 text-right text-xs font-medium tracking-wide text-gray-700 whitespace-nowrap">{t.table.actions}</th>
+                  <th className="py-3 px-6 text-right text-sm font-medium tracking-wide text-gray-700 whitespace-nowrap">{t.table.actions}</th>
                 </tr>
               </thead>
 
@@ -1517,7 +1583,12 @@ export function ProgramsManagementPage({
                     >
                       <td className="py-3 px-6">
                         <div className="flex flex-wrap items-center gap-2">
-                          <div className="text-sm text-gray-900 truncate">{c.name}</div>
+                          <div className="flex items-center gap-2 text-sm font-semibold text-gray-900 truncate">
+                            <div className="p-1.5 rounded-lg bg-red-600 border border-red-700">
+                              <BookOpen size={18} className="text-white shrink-0" />
+                            </div>
+                            {c.name}
+                          </div>
                           <span
                             className={cn(
                               "rounded-full px-2 py-0.5 text-[11px] font-semibold",
@@ -1531,9 +1602,9 @@ export function ProgramsManagementPage({
 
                       <td className="py-3 px-6 whitespace-nowrap">
                         <div className="inline-flex items-center gap-1.5">
-                          <Building2 size={14} className="text-gray-400" />
+                          <Building2 size={14} className="text-red-600" />
                           <span className="text-sm font-semibold text-gray-900">{c.assignedBranchCount ?? 0}</span>
-                          <span className="text-xs text-gray-500">chi nhánh</span>
+                          <span className="text-sm text-gray-700 font-medium">chi nhánh</span>
                         </div>
                       </td>
 
@@ -1748,7 +1819,10 @@ export function ProgramsManagementPage({
       {/* Detail Modal */}
       {showDetailModal && (
         <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="relative w-full max-w-3xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
+          <div
+            ref={detailModalRef}
+            className="relative w-full max-w-3xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden"
+          >
             {/* Modal Header */}
             <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
               <div className="flex items-center justify-between">
@@ -1757,7 +1831,7 @@ export function ProgramsManagementPage({
                     <BookOpen size={24} className="text-white" />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-bold text-white">{t.details.title}</h2>
+                    <h2 className="text-xl font-bold text-white">{t.details.title}</h2>
                     <p className="text-sm text-red-100">{t.details.subtitle}</p>
                   </div>
                 </div>
@@ -1785,9 +1859,9 @@ export function ProgramsManagementPage({
                   <div className="space-y-2">
                     <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                       <BookOpen size={16} className="text-red-600" />
-                      {t.details.nameLabel}
+                      {t.details.nameLabel}<span className="text-red-500">*</span>
                     </label>
-                    <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
+                    <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm text-gray-900">
                       {selectedCourseDetail.name || t.details.noInfo}
                     </div>
                   </div>
@@ -1798,7 +1872,7 @@ export function ProgramsManagementPage({
                       <FileText size={16} className="text-red-600" />
                       {t.details.descLabel}
                     </label>
-                    <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 min-h-[80px]">
+                    <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 min-h-[80px]">
                       {selectedCourseDetail.description || t.details.noDescription}
                     </div>
                   </div>
@@ -1822,7 +1896,7 @@ export function ProgramsManagementPage({
                         <label className="text-sm font-semibold text-gray-700">
                           {t.modal.leaveCurrentLimit}
                         </label>
-                        <div className="px-4 py-3 rounded-xl border border-amber-200 bg-white text-gray-900">
+                        <div className="px-4 py-3 rounded-xl border border-amber-200 bg-white text-sm text-gray-900">
                           {isSelectedProgramNoLimit
                             ? "Không giới hạn"
                             : (currentLeaveLimit !== null ? `${currentLeaveLimit} buổi / tháng` : t.modal.leaveCurrentLimit)}
@@ -1841,7 +1915,7 @@ export function ProgramsManagementPage({
                           onChange={(e) => setLeaveLimitDraft(e.target.value)}
                           placeholder={isSelectedProgramNoLimit ? "Không áp dụng cho chương trình bù/phụ trợ" : t.modal.leaveLimitPlaceholder}
                           disabled={isSelectedProgramNoLimit}
-                          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-200"
+                          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-200"
                         />
                       </div>
 
@@ -1869,7 +1943,7 @@ export function ProgramsManagementPage({
                         <GraduationCap size={16} className="text-red-600" />
                         {t.details.typeLabel}
                       </label>
-                      <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
+                      <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm text-gray-900">
                         {getProgramTypeDetailLabel(selectedCourseDetail)}
                       </div>
                     </div>
@@ -1879,7 +1953,7 @@ export function ProgramsManagementPage({
                         <BookOpen size={16} className="text-red-600" />
                         {t.details.statusLabel}
                       </label>
-                      <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white">
+                      <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm">
                         <StatusBadge value={normalizeIsActive(selectedCourseDetail?.isActive ?? selectedCourseDetail?.status) === true ? t.status.active : t.status.paused} />
                       </div>
                     </div>
@@ -1964,7 +2038,7 @@ export function ProgramsManagementPage({
                   onClick={() => {
                     closeDetailModal();
                   }}
-                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer"
+                  className="px-6 py-2.5 text-sm rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer"
                 >
                   {t.buttons.close}
                 </button>

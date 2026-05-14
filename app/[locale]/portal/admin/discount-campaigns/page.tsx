@@ -16,6 +16,7 @@ import {
   Power,
   PowerOff,
   Search,
+  Sparkles,
   Tag,
   X,
 } from "lucide-react";
@@ -31,10 +32,20 @@ import {
 } from "@/lib/api/discountCampaignService";
 import { getTuitionPlans } from "@/lib/api/tuitionPlanService";
 import { getAllProgramsForDropdown } from "@/lib/api/programService";
-import type { DiscountCampaign, CreateDiscountCampaignRequest, DiscountType } from "@/types/admin/discountCampaign";
+import type {
+  DiscountCampaign,
+  CreateDiscountCampaignRequest,
+  DiscountType,
+} from "@/types/admin/discountCampaign";
 import type { TuitionPlan } from "@/types/admin/tuition_plan";
 import type { Program } from "@/types/admin/programs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/lightswind/select";
 import { getDomainErrorMessage } from "@/lib/api/domainErrorMessage";
 
 function cn(...a: Array<string | false | null | undefined>) {
@@ -43,7 +54,13 @@ function cn(...a: Array<string | false | null | undefined>) {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type SortField = "name" | "discountValue" | "priority" | "startDate" | "endDate" | "status";
+type SortField =
+  | "name"
+  | "discountValue"
+  | "priority"
+  | "startDate"
+  | "endDate"
+  | "status";
 type SortDirection = "asc" | "desc" | null;
 
 interface CampaignFormData {
@@ -100,7 +117,7 @@ function StatusBadge({ isActive }: { isActive: boolean }) {
         "px-2.5 py-1 rounded-full text-xs font-semibold border",
         isActive
           ? "bg-green-100 text-green-700 border-green-200"
-          : "bg-gray-100 text-gray-600 border-gray-200"
+          : "bg-gray-100 text-gray-600 border-gray-200",
       )}
     >
       {isActive ? "Đang bật" : "Đã tắt"}
@@ -108,14 +125,18 @@ function StatusBadge({ isActive }: { isActive: boolean }) {
   );
 }
 
-function ApplicableBadge({ isCurrentlyApplicable }: { isCurrentlyApplicable: boolean }) {
+function ApplicableBadge({
+  isCurrentlyApplicable,
+}: {
+  isCurrentlyApplicable: boolean;
+}) {
   return (
     <span
       className={cn(
         "px-2 py-0.5 rounded-full text-[11px] font-semibold border",
         isCurrentlyApplicable
           ? "bg-emerald-100 text-emerald-700 border-emerald-200"
-          : "bg-amber-100 text-amber-700 border-amber-200"
+          : "bg-amber-100 text-amber-700 border-amber-200",
       )}
     >
       {isCurrentlyApplicable ? "Đang áp dụng" : "Chưa/Hết hạn"}
@@ -123,7 +144,13 @@ function ApplicableBadge({ isCurrentlyApplicable }: { isCurrentlyApplicable: boo
   );
 }
 
-function DiscountTypeBadge({ type, value }: { type: DiscountType; value: number }) {
+function DiscountTypeBadge({
+  type,
+  value,
+}: {
+  type: DiscountType;
+  value: number;
+}) {
   return (
     <span className="inline-flex items-center gap-1 text-sm font-semibold text-gray-800">
       {type === "Percentage" ? (
@@ -244,7 +271,11 @@ function CampaignFormModal({
     if (form.startDate && form.endDate && form.endDate < form.startDate) {
       next.endDate = "Ngày kết thúc phải sau hoặc bằng ngày bắt đầu.";
     }
-    if (!form.applyForInitialRegistration && !form.applyForRenewal && !form.applyForUpgrade) {
+    if (
+      !form.applyForInitialRegistration &&
+      !form.applyForRenewal &&
+      !form.applyForUpgrade
+    ) {
       next.applicability = "Chọn ít nhất một loại đăng ký được áp dụng.";
     }
     setErrors(next);
@@ -266,12 +297,14 @@ function CampaignFormModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-9999 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-9999 flex items-center justify-center p-2 bg-black/50 backdrop-blur-sm">
       <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
         {/* Header */}
         <div className="bg-gradient-to-r from-red-600 to-red-700 px-6 py-5 flex items-center justify-between flex-shrink-0">
           <h2 className="text-xl font-bold text-white">
-            {mode === "create" ? "Tạo khuyến mãi đăng ký" : "Cập nhật khuyến mãi"}
+            {mode === "create"
+              ? "Tạo khuyến mãi đăng ký"
+              : "Cập nhật khuyến mãi"}
           </h2>
           <button
             onClick={onClose}
@@ -282,7 +315,10 @@ function CampaignFormModal({
         </div>
 
         {/* Body */}
-        <form onSubmit={handleSubmit} className="overflow-y-auto flex-1 p-6 space-y-5">
+        <form
+          onSubmit={handleSubmit}
+          className="overflow-y-auto flex-1 p-6 space-y-5"
+        >
           {/* Name */}
           <div className="space-y-1.5">
             <label className="text-sm font-semibold text-gray-700">
@@ -294,7 +330,7 @@ function CampaignFormModal({
               placeholder="VD: Khuyến mãi 30-4"
               className={cn(
                 "w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-200",
-                errors.name ? "border-red-400" : "border-gray-200"
+                errors.name ? "border-red-400" : "border-gray-200",
               )}
             />
             {errors.name && (
@@ -307,7 +343,9 @@ function CampaignFormModal({
           {/* Code + Priority */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-gray-700">Mã campaign</label>
+              <label className="text-sm font-semibold text-gray-700">
+                Mã campaign
+              </label>
               <input
                 value={form.code}
                 onChange={(e) => set("code", e.target.value.toUpperCase())}
@@ -328,7 +366,7 @@ function CampaignFormModal({
                 placeholder="100"
                 className={cn(
                   "w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-200",
-                  errors.priority ? "border-red-400" : "border-gray-200"
+                  errors.priority ? "border-red-400" : "border-gray-200",
                 )}
               />
               {errors.priority && (
@@ -355,24 +393,37 @@ function CampaignFormModal({
           {/* Scope: Program + TuitionPlan */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-gray-700">Chương trình (scope)</label>
-              <Select value={form.programId || "__all__"} onValueChange={(v) => set("programId", v === "__all__" ? "" : v)}>
+              <label className="text-sm font-semibold text-gray-700">
+                Chương trình (scope)
+              </label>
+              <Select
+                value={form.programId || "__all__"}
+                onValueChange={(v) =>
+                  set("programId", v === "__all__" ? "" : v)
+                }
+              >
                 <SelectTrigger className="rounded-xl border border-gray-200 text-sm h-10">
                   <SelectValue placeholder="Tất cả chương trình" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__all__">Tất cả chương trình</SelectItem>
                   {programs.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-gray-700">Gói học (scope)</label>
+              <label className="text-sm font-semibold text-gray-700">
+                Gói học (scope)
+              </label>
               <Select
                 value={form.tuitionPlanId || "__all__"}
-                onValueChange={(v) => set("tuitionPlanId", v === "__all__" ? "" : v)}
+                onValueChange={(v) =>
+                  set("tuitionPlanId", v === "__all__" ? "" : v)
+                }
               >
                 <SelectTrigger className="rounded-xl border border-gray-200 text-sm h-10">
                   <SelectValue placeholder="Tất cả gói học" />
@@ -380,7 +431,9 @@ function CampaignFormModal({
                 <SelectContent>
                   <SelectItem value="__all__">Tất cả gói học</SelectItem>
                   {filteredTuitionPlans.map((tp) => (
-                    <SelectItem key={tp.id} value={tp.id}>{tp.name}</SelectItem>
+                    <SelectItem key={tp.id} value={tp.id}>
+                      {tp.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -393,7 +446,10 @@ function CampaignFormModal({
               <label className="text-sm font-semibold text-gray-700">
                 Loại giảm giá <span className="text-red-500">*</span>
               </label>
-              <Select value={form.discountType} onValueChange={(v) => set("discountType", v as DiscountType)}>
+              <Select
+                value={form.discountType}
+                onValueChange={(v) => set("discountType", v as DiscountType)}
+              >
                 <SelectTrigger className="rounded-xl border border-gray-200 text-sm h-10">
                   <SelectValue />
                 </SelectTrigger>
@@ -414,10 +470,12 @@ function CampaignFormModal({
                   step={form.discountType === "Percentage" ? "0.01" : "1000"}
                   value={form.discountValue}
                   onChange={(e) => set("discountValue", e.target.value)}
-                  placeholder={form.discountType === "Percentage" ? "10" : "1000000"}
+                  placeholder={
+                    form.discountType === "Percentage" ? "10" : "1000000"
+                  }
                   className={cn(
                     "w-full rounded-xl border px-4 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-red-200",
-                    errors.discountValue ? "border-red-400" : "border-gray-200"
+                    errors.discountValue ? "border-red-400" : "border-gray-200",
                   )}
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500 font-semibold">
@@ -444,7 +502,7 @@ function CampaignFormModal({
                 onChange={(e) => set("startDate", e.target.value)}
                 className={cn(
                   "w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-200",
-                  errors.startDate ? "border-red-400" : "border-gray-200"
+                  errors.startDate ? "border-red-400" : "border-gray-200",
                 )}
               />
               {errors.startDate && (
@@ -464,7 +522,7 @@ function CampaignFormModal({
                 onChange={(e) => set("endDate", e.target.value)}
                 className={cn(
                   "w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-200",
-                  errors.endDate ? "border-red-400" : "border-gray-200"
+                  errors.endDate ? "border-red-400" : "border-gray-200",
                 )}
               />
               {errors.endDate && (
@@ -483,12 +541,18 @@ function CampaignFormModal({
             <div className="flex flex-wrap gap-4">
               {(
                 [
-                  { key: "applyForInitialRegistration", label: "Đăng ký lần đầu" },
+                  {
+                    key: "applyForInitialRegistration",
+                    label: "Đăng ký lần đầu",
+                  },
                   { key: "applyForRenewal", label: "Gia hạn" },
                   { key: "applyForUpgrade", label: "Nâng cấp" },
                 ] as const
               ).map(({ key, label }) => (
-                <label key={key} className="flex items-center gap-2 cursor-pointer select-none">
+                <label
+                  key={key}
+                  className="flex items-center gap-2 cursor-pointer select-none"
+                >
                   <input
                     type="checkbox"
                     checked={form[key]}
@@ -524,7 +588,9 @@ function CampaignFormModal({
               if (!validate()) return;
               setSaving(true);
               onSubmit(form)
-                .then((ok) => { if (ok) onClose(); })
+                .then((ok) => {
+                  if (ok) onClose();
+                })
                 .finally(() => setSaving(false));
             }}
             className="px-5 py-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white text-sm font-semibold hover:shadow-lg transition-all cursor-pointer disabled:opacity-60 inline-flex items-center gap-2"
@@ -551,8 +617,10 @@ function CampaignDetailModal({
 
   const scopeParts: string[] = [];
   if (campaign.branchName) scopeParts.push(`Chi nhánh: ${campaign.branchName}`);
-  if (campaign.programName) scopeParts.push(`Chương trình: ${campaign.programName}`);
-  if (campaign.tuitionPlanName) scopeParts.push(`Gói học: ${campaign.tuitionPlanName}`);
+  if (campaign.programName)
+    scopeParts.push(`Chương trình: ${campaign.programName}`);
+  if (campaign.tuitionPlanName)
+    scopeParts.push(`Gói học: ${campaign.tuitionPlanName}`);
 
   const applyParts: string[] = [];
   if (campaign.applyForInitialRegistration) applyParts.push("Đăng ký lần đầu");
@@ -564,26 +632,49 @@ function CampaignDetailModal({
       <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden">
         <div className="bg-gradient-to-r from-red-600 to-red-700 px-6 py-5 flex items-center justify-between">
           <h2 className="text-xl font-bold text-white">Chi tiết campaign</h2>
-          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-white/20 transition-colors cursor-pointer">
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-full hover:bg-white/20 transition-colors cursor-pointer"
+          >
             <X size={20} className="text-white" />
           </button>
         </div>
         <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
           <Row label="Tên" value={campaign.name} />
           {campaign.code && <Row label="Mã" value={campaign.code} />}
-          {campaign.description && <Row label="Mô tả" value={campaign.description} />}
+          {campaign.description && (
+            <Row label="Mô tả" value={campaign.description} />
+          )}
           <Row
             label="Giảm giá"
             value={
-              <DiscountTypeBadge type={campaign.discountType} value={campaign.discountValue} />
+              <DiscountTypeBadge
+                type={campaign.discountType}
+                value={campaign.discountValue}
+              />
             }
           />
           <Row label="Độ ưu tiên" value={String(campaign.priority)} />
-          <Row label="Thời gian" value={`${campaign.startDate} → ${campaign.endDate}`} />
+          <Row
+            label="Thời gian"
+            value={`${campaign.startDate} → ${campaign.endDate}`}
+          />
           <Row label="Áp dụng cho" value={applyParts.join(", ") || "—"} />
-          {scopeParts.length > 0 && <Row label="Phạm vi" value={scopeParts.join(" · ")} />}
-          <Row label="Trạng thái" value={<StatusBadge isActive={campaign.isActive} />} />
-          <Row label="Hiệu lực ngay" value={<ApplicableBadge isCurrentlyApplicable={campaign.isCurrentlyApplicable} />} />
+          {scopeParts.length > 0 && (
+            <Row label="Phạm vi" value={scopeParts.join(" · ")} />
+          )}
+          <Row
+            label="Trạng thái"
+            value={<StatusBadge isActive={campaign.isActive} />}
+          />
+          <Row
+            label="Hiệu lực ngay"
+            value={
+              <ApplicableBadge
+                isCurrentlyApplicable={campaign.isCurrentlyApplicable}
+              />
+            }
+          />
         </div>
         <div className="border-t border-gray-100 px-6 py-4 flex justify-end bg-gray-50">
           <button
@@ -620,8 +711,12 @@ export default function DiscountCampaignsPage() {
 
   // Filters
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"ALL" | "true" | "false">("ALL");
-  const [applicableFilter, setApplicableFilter] = useState<"ALL" | "true" | "false">("ALL");
+  const [statusFilter, setStatusFilter] = useState<"ALL" | "true" | "false">(
+    "ALL",
+  );
+  const [applicableFilter, setApplicableFilter] = useState<
+    "ALL" | "true" | "false"
+  >("ALL");
 
   // Sort & Pagination
   const [sortField, setSortField] = useState<SortField | null>("priority");
@@ -634,9 +729,13 @@ export default function DiscountCampaignsPage() {
   const [formInitial, setFormInitial] = useState<CampaignFormData | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  const [detailCampaign, setDetailCampaign] = useState<DiscountCampaign | null>(null);
+  const [detailCampaign, setDetailCampaign] = useState<DiscountCampaign | null>(
+    null,
+  );
 
-  const [toggleTarget, setToggleTarget] = useState<DiscountCampaign | null>(null);
+  const [toggleTarget, setToggleTarget] = useState<DiscountCampaign | null>(
+    null,
+  );
   const [isToggling, setIsToggling] = useState(false);
 
   // ── Load data ──────────────────────────────────────────────────────────────
@@ -647,7 +746,11 @@ export default function DiscountCampaignsPage() {
       const result = await getDiscountCampaigns({ pageSize: 200 });
       setCampaigns(result.items);
     } catch (err: any) {
-      toast({ title: "Lỗi", description: err?.message || "Không thể tải danh sách khuyến mãi.", variant: "destructive" });
+      toast({
+        title: "Lỗi",
+        description: err?.message || "Không thể tải danh sách khuyến mãi.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -655,8 +758,12 @@ export default function DiscountCampaignsPage() {
 
   useEffect(() => {
     void loadCampaigns();
-    getAllProgramsForDropdown().then(setPrograms).catch(() => setPrograms([]));
-    getTuitionPlans({ pageSize: 200 }).then(setTuitionPlans).catch(() => setTuitionPlans([]));
+    getAllProgramsForDropdown()
+      .then(setPrograms)
+      .catch(() => setPrograms([]));
+    getTuitionPlans({ pageSize: 200 })
+      .then(setTuitionPlans)
+      .catch(() => setTuitionPlans([]));
   }, []);
 
   // ── Computed rows ──────────────────────────────────────────────────────────
@@ -664,9 +771,19 @@ export default function DiscountCampaignsPage() {
   const rows = useMemo(() => {
     const kw = searchTerm.trim().toLowerCase();
     let filtered = campaigns.filter((c) => {
-      if (kw && !c.name.toLowerCase().includes(kw) && !(c.code ?? "").toLowerCase().includes(kw)) return false;
-      if (statusFilter !== "ALL" && String(c.isActive) !== statusFilter) return false;
-      if (applicableFilter !== "ALL" && String(c.isCurrentlyApplicable) !== applicableFilter) return false;
+      if (
+        kw &&
+        !c.name.toLowerCase().includes(kw) &&
+        !(c.code ?? "").toLowerCase().includes(kw)
+      )
+        return false;
+      if (statusFilter !== "ALL" && String(c.isActive) !== statusFilter)
+        return false;
+      if (
+        applicableFilter !== "ALL" &&
+        String(c.isCurrentlyApplicable) !== applicableFilter
+      )
+        return false;
       return true;
     });
 
@@ -675,12 +792,30 @@ export default function DiscountCampaignsPage() {
         let av: string | number = "";
         let bv: string | number = "";
         switch (sortField) {
-          case "name": av = a.name; bv = b.name; break;
-          case "discountValue": av = a.discountValue; bv = b.discountValue; break;
-          case "priority": av = a.priority; bv = b.priority; break;
-          case "startDate": av = a.startDate; bv = b.startDate; break;
-          case "endDate": av = a.endDate; bv = b.endDate; break;
-          case "status": av = String(a.isActive); bv = String(b.isActive); break;
+          case "name":
+            av = a.name;
+            bv = b.name;
+            break;
+          case "discountValue":
+            av = a.discountValue;
+            bv = b.discountValue;
+            break;
+          case "priority":
+            av = a.priority;
+            bv = b.priority;
+            break;
+          case "startDate":
+            av = a.startDate;
+            bv = b.startDate;
+            break;
+          case "endDate":
+            av = a.endDate;
+            bv = b.endDate;
+            break;
+          case "status":
+            av = String(a.isActive);
+            bv = String(b.isActive);
+            break;
         }
         if (typeof av === "number" && typeof bv === "number") {
           return sortDirection === "asc" ? av - bv : bv - av;
@@ -691,25 +826,40 @@ export default function DiscountCampaignsPage() {
       });
     }
     return filtered;
-  }, [campaigns, searchTerm, statusFilter, applicableFilter, sortField, sortDirection]);
+  }, [
+    campaigns,
+    searchTerm,
+    statusFilter,
+    applicableFilter,
+    sortField,
+    sortDirection,
+  ]);
 
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
-  const pagedRows = rows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const pagedRows = rows.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE,
+  );
 
-  const stats = useMemo(() => ({
-    total: campaigns.length,
-    active: campaigns.filter((c) => c.isActive).length,
-    applicable: campaigns.filter((c) => c.isCurrentlyApplicable).length,
-  }), [campaigns]);
+  const stats = useMemo(
+    () => ({
+      total: campaigns.length,
+      active: campaigns.filter((c) => c.isActive).length,
+      applicable: campaigns.filter((c) => c.isCurrentlyApplicable).length,
+    }),
+    [campaigns],
+  );
 
   // ── Sort handler ───────────────────────────────────────────────────────────
 
   function handleSort(field: SortField) {
     if (sortField === field) {
       if (sortDirection === "asc") setSortDirection("desc");
-      else if (sortDirection === "desc") { setSortField(null); setSortDirection(null); }
-      else setSortDirection("asc");
+      else if (sortDirection === "desc") {
+        setSortField(null);
+        setSortDirection(null);
+      } else setSortDirection("asc");
     } else {
       setSortField(field);
       setSortDirection("asc");
@@ -749,7 +899,11 @@ export default function DiscountCampaignsPage() {
       });
       setIsFormOpen(true);
     } catch (err: any) {
-      toast({ title: "Lỗi", description: err?.message || "Không thể tải chi tiết campaign.", variant: "destructive" });
+      toast({
+        title: "Lỗi",
+        description: err?.message || "Không thể tải chi tiết campaign.",
+        variant: "destructive",
+      });
     }
   }
 
@@ -774,15 +928,24 @@ export default function DiscountCampaignsPage() {
     try {
       if (formMode === "create") {
         await createDiscountCampaign(payload);
-        toast({ title: "Tạo thành công", description: `Campaign "${data.name}" đã được tạo.`, variant: "success" });
+        toast({
+          title: "Tạo thành công",
+          description: `Campaign "${data.name}" đã được tạo.`,
+          variant: "success",
+        });
       } else if (editingId) {
         await updateDiscountCampaign(editingId, payload);
-        toast({ title: "Cập nhật thành công", description: `Campaign "${data.name}" đã được cập nhật.`, variant: "success" });
+        toast({
+          title: "Cập nhật thành công",
+          description: `Campaign "${data.name}" đã được cập nhật.`,
+          variant: "success",
+        });
       }
       await loadCampaigns();
       return true;
     } catch (err: any) {
-      const msg = getDomainErrorMessage(err) || err?.message || "Thao tác thất bại.";
+      const msg =
+        getDomainErrorMessage(err) || err?.message || "Thao tác thất bại.";
       toast({ title: "Lỗi", description: msg, variant: "destructive" });
       return false;
     }
@@ -800,7 +963,10 @@ export default function DiscountCampaignsPage() {
       });
       await loadCampaigns();
     } catch (err: any) {
-      const msg = getDomainErrorMessage(err) || err?.message || "Không thể thay đổi trạng thái.";
+      const msg =
+        getDomainErrorMessage(err) ||
+        err?.message ||
+        "Không thể thay đổi trạng thái.";
       toast({ title: "Lỗi", description: msg, variant: "destructive" });
     } finally {
       setIsToggling(false);
@@ -812,41 +978,68 @@ export default function DiscountCampaignsPage() {
 
   return (
     <>
-      <div className="space-y-6 bg-gray-50 p-4 md:p-6 rounded-3xl">
+      <div className="space-y-6 bg-gray-50 p-4 md:p-2 rounded-3xl">
         {/* Title */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="p-3 rounded-xl bg-gradient-to-r from-red-600 to-red-700 shadow-lg">
-              <Tag className="text-white" size={24} />
+              <Tag className="text-white" size={25} />
             </div>
             <div>
-              <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">Khuyến mãi đăng ký</h1>
-              <p className="text-sm text-gray-600">Quản lý discount campaign áp dụng cho registration</p>
+              <h1 className="text-2xl md:text-2xl font-extrabold text-gray-900">
+                Khuyến mãi đăng ký
+              </h1>
+              <p className="text-gray-600 mt-1 flex items-center gap-2">
+                <Sparkles size={14} className="text-red-600" />
+                Quản lý discount campaign áp dụng cho registration
+              </p>
             </div>
           </div>
           <button
             onClick={openCreate}
-            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:shadow-lg text-white font-semibold cursor-pointer transition-all hover:scale-105 active:scale-95"
+            className="inline-flex text-sm items-center gap-2 rounded-xl px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:shadow-lg text-white font-semibold cursor-pointer transition-all hover:scale-105 active:scale-95"
           >
-            <Plus size={18} /> Tạo campaign
+            <Plus size={14} /> Tạo campaign
           </button>
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
-            { label: "Tổng campaign", value: stats.total, color: "bg-red-100 text-red-600" },
-            { label: "Đang bật", value: stats.active, color: "bg-green-100 text-green-600" },
-            { label: "Đang áp dụng", value: stats.applicable, color: "bg-emerald-100 text-emerald-700" },
-          ].map(({ label, value, color }) => (
-            <div key={label} className="rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-md transition">
-              <div className="flex items-center gap-3">
-                <span className={cn("w-10 h-10 rounded-xl grid place-items-center", color)}>
+            {
+              label: "Tổng campaign",
+              value: stats.total,
+              gradient: "from-red-600 to-red-700",
+            },
+            {
+              label: "Đang bật",
+              value: stats.active,
+              gradient: "from-emerald-600 to-teal-600",
+            },
+            {
+              label: "Đang áp dụng",
+              value: stats.applicable,
+              gradient: "from-blue-600 to-cyan-600",
+            },
+          ].map(({ label, value, gradient }) => (
+            <div
+              key={label}
+              className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102"
+            >
+              <div
+                className={`absolute right-0 top-0 h-12 w-12 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r ${gradient}`}
+              ></div>
+              <div className="relative flex items-center gap-3">
+                <span
+                  className={`w-10 h-10 rounded-xl bg-gradient-to-br ${gradient} text-white grid place-items-center flex-shrink-0 shadow-sm`}
+                >
                   <Tag size={18} />
                 </span>
                 <div>
                   <div className="text-sm text-gray-600">{label}</div>
-                  <div className="text-2xl font-extrabold text-gray-900">{value}</div>
+                  <div className="text-2xl font-bold text-gray-900">
+                    {value}
+                  </div>
                 </div>
               </div>
             </div>
@@ -854,28 +1047,74 @@ export default function DiscountCampaignsPage() {
         </div>
 
         {/* Filters */}
-        <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4">
+        <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 space-y-4">
+          {/* Status Filter Tabs */}
+          <div className="flex flex-wrap gap-2 pb-3 border-b border-red-200">
+            {[
+              { label: "Tất cả trạng thái", value: "ALL" },
+              { label: "Đang bật", value: "true" },
+              { label: "Đã tắt", value: "false" },
+            ].map(({ label, value }) => {
+              const count =
+                value === "ALL"
+                  ? campaigns.length
+                  : campaigns.filter((c) => String(c.isActive) === value)
+                      .length;
+              return (
+                <button
+                  key={value}
+                  onClick={() => {
+                    setStatusFilter(value as typeof statusFilter);
+                    setPage(1);
+                  }}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg cursor-pointer text-sm font-medium transition-all whitespace-nowrap flex items-center gap-2",
+                    statusFilter === value
+                      ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                      : "bg-white border border-red-200 text-gray-700 hover:bg-red-50",
+                  )}
+                >
+                  {label}
+                  <span
+                    className={cn(
+                      "px-1.5 py-0.5 rounded text-xs font-semibold",
+                      statusFilter === value
+                        ? "bg-white/30 text-white"
+                        : "bg-red-50 text-red-600",
+                    )}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Search Box + Applicable Filter */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
+              <Search
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
+                size={16}
+              />
               <input
                 value={searchTerm}
-                onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setPage(1);
+                }}
                 placeholder="Tìm theo tên hoặc mã campaign..."
                 className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
               />
             </div>
-            <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v as typeof statusFilter); setPage(1); }}>
-              <SelectTrigger className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm min-w-[150px]">
-                <SelectValue placeholder="Trạng thái" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">Tất cả trạng thái</SelectItem>
-                <SelectItem value="true">Đang bật</SelectItem>
-                <SelectItem value="false">Đã tắt</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={applicableFilter} onValueChange={(v) => { setApplicableFilter(v as typeof applicableFilter); setPage(1); }}>
+
+            <Select
+              value={applicableFilter}
+              onValueChange={(v) => {
+                setApplicableFilter(v as typeof applicableFilter);
+                setPage(1);
+              }}
+            >
               <SelectTrigger className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm min-w-[160px]">
                 <SelectValue placeholder="Hiệu lực" />
               </SelectTrigger>
@@ -886,6 +1125,8 @@ export default function DiscountCampaignsPage() {
               </SelectContent>
             </Select>
           </div>
+
+          
         </div>
 
         {/* Table */}
@@ -894,50 +1135,116 @@ export default function DiscountCampaignsPage() {
             <table className="w-full">
               <thead className="bg-gradient-to-r from-red-50 to-red-100 border-b border-red-200">
                 <tr>
-                  <SortableHeader field="name" currentField={sortField} direction={sortDirection} onSort={handleSort}>Tên</SortableHeader>
-                  <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">Loại / Giá trị</th>
-                  <SortableHeader field="priority" currentField={sortField} direction={sortDirection} onSort={handleSort}>Ưu tiên</SortableHeader>
-                  <SortableHeader field="startDate" currentField={sortField} direction={sortDirection} onSort={handleSort}>Thời gian</SortableHeader>
-                  <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">Phạm vi</th>
-                  <SortableHeader field="status" currentField={sortField} direction={sortDirection} onSort={handleSort}>Trạng thái</SortableHeader>
-                  <th className="py-3 px-4 text-right text-sm font-semibold text-gray-700">Thao tác</th>
+                  <SortableHeader
+                    field="name"
+                    currentField={sortField}
+                    direction={sortDirection}
+                    onSort={handleSort}
+                  >
+                    Tên
+                  </SortableHeader>
+                  <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">
+                    Loại / Giá trị
+                  </th>
+                  <SortableHeader
+                    field="priority"
+                    currentField={sortField}
+                    direction={sortDirection}
+                    onSort={handleSort}
+                  >
+                    Ưu tiên
+                  </SortableHeader>
+                  <SortableHeader
+                    field="startDate"
+                    currentField={sortField}
+                    direction={sortDirection}
+                    onSort={handleSort}
+                  >
+                    Thời gian
+                  </SortableHeader>
+                  <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">
+                    Phạm vi
+                  </th>
+                  <SortableHeader
+                    field="status"
+                    currentField={sortField}
+                    direction={sortDirection}
+                    onSort={handleSort}
+                  >
+                    Trạng thái
+                  </SortableHeader>
+                  <th className="py-3 px-4 text-right text-sm font-semibold text-gray-700">
+                    Thao tác
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {loading ? (
                   <tr>
                     <td colSpan={7} className="py-16 text-center">
-                      <Loader2 size={28} className="animate-spin text-red-400 mx-auto mb-2" />
+                      <Loader2
+                        size={28}
+                        className="animate-spin text-red-400 mx-auto mb-2"
+                      />
                       <p className="text-sm text-gray-500">Đang tải...</p>
                     </td>
                   </tr>
                 ) : pagedRows.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="py-14 text-center">
-                      <Search size={28} className="text-gray-300 mx-auto mb-2" />
-                      <p className="text-sm text-gray-500">Không tìm thấy campaign nào.</p>
+                      <Search
+                        size={28}
+                        className="text-gray-300 mx-auto mb-2"
+                      />
+                      <p className="text-sm text-gray-500">
+                        Không tìm thấy campaign nào.
+                      </p>
                     </td>
                   </tr>
                 ) : (
                   pagedRows.map((c) => (
-                    <tr key={c.id} className="hover:bg-gray-50 transition-colors">
+                    <tr
+                      key={c.id}
+                      className="hover:bg-red-50/40 transition-colors"
+                    >
                       <td className="py-3 px-4">
-                        <div className="font-semibold text-sm text-gray-900">{c.name}</div>
-                        {c.code && <div className="text-xs text-gray-400 font-mono">{c.code}</div>}
+                        <div className="font-semibold text-sm text-gray-900">
+                          {c.name}
+                        </div>
+                        {c.code && (
+                          <div className="text-xs text-gray-400 font-mono">
+                            {c.code}
+                          </div>
+                        )}
                       </td>
                       <td className="py-3 px-4">
-                        <DiscountTypeBadge type={c.discountType} value={c.discountValue} />
+                        <DiscountTypeBadge
+                          type={c.discountType}
+                          value={c.discountValue}
+                        />
                       </td>
-                      <td className="py-3 px-4 text-sm text-gray-700 font-semibold">{c.priority}</td>
+                      <td className="py-3 px-4 text-sm text-gray-700 font-semibold">
+                        {c.priority}
+                      </td>
                       <td className="py-3 px-4">
-                        <div className="text-xs text-gray-600">{c.startDate}</div>
-                        <div className="text-xs text-gray-400">→ {c.endDate}</div>
-                        <ApplicableBadge isCurrentlyApplicable={c.isCurrentlyApplicable} />
+                        <div className="text-xs text-gray-600">
+                          {c.startDate}
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          → {c.endDate}
+                        </div>
+                        <ApplicableBadge
+                          isCurrentlyApplicable={c.isCurrentlyApplicable}
+                        />
                       </td>
                       <td className="py-3 px-4 text-xs text-gray-600 max-w-[180px]">
-                        <div className="truncate">{c.programName ?? "Tất cả"}</div>
+                        <div className="truncate">
+                          {c.programName ?? "Tất cả"}
+                        </div>
                         {c.tuitionPlanName && (
-                          <div className="truncate text-gray-400">{c.tuitionPlanName}</div>
+                          <div className="truncate text-gray-400">
+                            {c.tuitionPlanName}
+                          </div>
                         )}
                       </td>
                       <td className="py-3 px-4">
@@ -965,11 +1272,15 @@ export default function DiscountCampaignsPage() {
                               "p-1.5 rounded-lg transition-colors cursor-pointer",
                               c.isActive
                                 ? "hover:bg-gray-100 text-gray-400 hover:text-gray-800"
-                                : "hover:bg-red-50 text-gray-400 hover:text-red-600"
+                                : "hover:bg-red-50 text-gray-400 hover:text-red-600",
                             )}
                             title={c.isActive ? "Tắt campaign" : "Bật campaign"}
                           >
-                            {c.isActive ? <PowerOff size={14} /> : <Power size={14} />}
+                            {c.isActive ? (
+                              <PowerOff size={14} />
+                            ) : (
+                              <Power size={14} />
+                            )}
                           </button>
                         </div>
                       </td>
@@ -986,9 +1297,13 @@ export default function DiscountCampaignsPage() {
               <div className="text-sm text-gray-600">
                 Hiển thị{" "}
                 <span className="font-semibold text-gray-900">
-                  {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, rows.length)}
+                  {(currentPage - 1) * PAGE_SIZE + 1}–
+                  {Math.min(currentPage * PAGE_SIZE, rows.length)}
                 </span>{" "}
-                / <span className="font-semibold text-gray-900">{rows.length}</span>
+                /{" "}
+                <span className="font-semibold text-gray-900">
+                  {rows.length}
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -998,20 +1313,22 @@ export default function DiscountCampaignsPage() {
                 >
                   <ChevronLeft size={16} />
                 </button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                  <button
-                    key={p}
-                    onClick={() => setPage(p)}
-                    className={cn(
-                      "min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium transition-all cursor-pointer",
-                      p === currentPage
-                        ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
-                        : "border border-red-200 hover:bg-red-50 text-gray-700"
-                    )}
-                  >
-                    {p}
-                  </button>
-                ))}
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                  (p) => (
+                    <button
+                      key={p}
+                      onClick={() => setPage(p)}
+                      className={cn(
+                        "min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium transition-all cursor-pointer",
+                        p === currentPage
+                          ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                          : "border border-red-200 hover:bg-red-50 text-gray-700",
+                      )}
+                    >
+                      {p}
+                    </button>
+                  ),
+                )}
                 <button
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}

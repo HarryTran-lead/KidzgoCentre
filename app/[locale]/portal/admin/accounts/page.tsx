@@ -102,6 +102,7 @@ import {
   UserCircle,
   Shield,
   Trash2,
+  Sparkles,
 } from "lucide-react";
 
 // Map UserRole from API to local Role type
@@ -248,14 +249,14 @@ function StatCard({
   subtitle?: string;
 }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
+    <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
       <div className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl ${color}`}></div>
       <div className="relative flex items-center justify-between gap-3">
         <div className={`p-2 rounded-xl bg-gradient-to-r ${color} text-white shadow-sm flex-shrink-0`}>
           {icon}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-xs font-medium text-gray-600 truncate">{title}</div>
+          <div className="text-sm font-medium text-gray-600 truncate">{title}</div>
           <div className="text-xl font-bold text-gray-900 leading-tight">{value}</div>
           {subtitle && <div className="text-[11px] text-gray-500 truncate">{subtitle}</div>}
         </div>
@@ -1364,18 +1365,19 @@ export default function AccountsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-6 space-y-6">
+    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-2 space-y-6">
       {/* Header */}
       <div className={`flex flex-wrap items-center justify-between gap-4 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
         <div className="flex items-center gap-4">
           <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
-            <Users size={28} className="text-white" />
+            <Users size={25} className="text-white" />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">
+            <h1 className="text-2xl md:text-2xl font-extrabold text-gray-900">
               {t.title}
             </h1>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-gray-600 mt-1 flex items-center gap-2">
+              <Sparkles size={14} className="text-red-600" />
               {t.subtitle}
             </p>
           </div>
@@ -1484,7 +1486,7 @@ export default function AccountsPage() {
                 <button
                   key={r}
                   onClick={() => setRole(r)}
-                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all cursor-pointer ${
+                  className={`px-4 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
                     isActive
                       ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md'
                       : 'bg-white border border-red-200 text-gray-700 hover:bg-red-50'
@@ -1511,7 +1513,7 @@ export default function AccountsPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={t.filters.search}
-                className="w-full h-10 rounded-xl border border-red-200 bg-white pl-10 pr-4 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200"
+                className="w-full h-10 rounded-xl border border-red-200 bg-white pl-10 pr-4 text-xs placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200"
               />
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             </div>
@@ -1522,7 +1524,7 @@ export default function AccountsPage() {
               <Select value={status === null ? 'ALL' : status ? 'ACTIVE' : 'INACTIVE'} onValueChange={(val) => {
                 setStatus(val === 'ALL' ? null : val === 'ACTIVE');
               }}>
-                <SelectTrigger className="w-full sm:w-auto h-10 px-3 py-2 rounded-xl border border-red-200 bg-white text-sm text-gray-700 transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 data-[state=open]:border-red-400 data-[state=open]:ring-2 data-[state=open]:ring-red-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
+                <SelectTrigger className="w-full sm:w-auto h-10 px-3 py-2 rounded-xl border border-red-200 bg-white text-xs text-gray-700 transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 data-[state=open]:border-red-400 data-[state=open]:ring-2 data-[state=open]:ring-red-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1541,7 +1543,7 @@ export default function AccountsPage() {
         {/* Table Header */}
         <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-red-200 px-6 py-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">{t.table.title}</h2>
+            <h2 className="font-semibold text-gray-900">{t.table.title}</h2>
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <span className="font-medium">{list.length} tài khoản</span>
             </div>
@@ -1584,26 +1586,27 @@ export default function AccountsPage() {
                       <div className="flex items-center gap-3">
                         <Avatar name={acc.name} color={acc.avatarColor} />
                         <div>
-                          <div className="font-medium text-gray-900">{acc.name}</div>
-                          {acc.department && (
+                          <div className="text-sm font-medium text-gray-900">{acc.name}</div>
+                          {/* {acc.department && (
                             <div className="text-xs text-gray-400">{acc.department}</div>
-                          )}
+                          )} */}
                         </div>
                       </div>
                     </td>
                     <td className="py-4 px-6">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2 text-sm text-gray-700">
-                          <Mail size={12} className="text-gray-400" />
-                          <span className="font-medium">{acc.email}</span>
+                          <Mail size={14} className="text-red-600" />
+                          <span className="font-medium ">{acc.email}</span>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-gray-700">
-                          <Phone size={12} className="text-gray-400" />
-                          <span>{acc.phoneNumber || t.table.notUpdated}</span>
+                          <Phone size={14} className="text-red-600" />
+                          <span className="font-medium">{acc.phoneNumber || t.table.notUpdated}</span>
                         </div>
                         <div className="text-xs text-gray-500 flex items-center gap-1">
-                          <Calendar size={10} />
-                          {t.table.createdDate}: {formatDate(acc.createdAt)}
+                          <Calendar size={14} className="text-red-600"/>
+                          <span className="font-medium">{t.table.createdDate}: {formatDate(acc.createdAt)}</span>
+                          
                         </div>
                       </div>
                     </td>
@@ -1830,7 +1833,7 @@ export default function AccountsPage() {
           </div>
 
           {/* Filter Bar */}
-          <div className={`rounded-2xl border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
             <div className="space-y-4">
               {/* Bulk Approval Row */}
               <div className="flex flex-wrap items-center gap-3">
@@ -1845,6 +1848,45 @@ export default function AccountsPage() {
                 )}
               </div>
 
+              {/* Type Filter Tabs */}
+              <div className="flex flex-wrap gap-2 pb-4 border-b border-red-200">
+                {(['all', 'Parent', 'Student'] as const).map((type) => {
+                  const counts: Record<typeof type, number> = {
+                    'all': profiles.length,
+                    'Parent': profiles.filter(p => p.profileType === "Parent").length,
+                    'Student': profiles.filter(p => p.profileType === "Student").length,
+                  };
+                  
+                  const labels: Record<typeof type, string> = {
+                    'all': tProfiles.filters.all,
+                    'Parent': tProfiles.filters.parents,
+                    'Student': tProfiles.filters.students,
+                  };
+
+                  const isActive = profileFilterType === type;
+                  return (
+                    <button
+                      key={type}
+                      onClick={() => setProfileFilterType(type)}
+                      className={`px-4 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+                        isActive
+                          ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md'
+                          : 'bg-white border border-red-200 text-gray-700 hover:bg-red-50'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span>{labels[type]}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+                          isActive ? 'bg-white/20' : 'bg-red-100 text-red-700'
+                        }`}>
+                          {counts[type]}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
               {/* Search and Filters Row */}
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
                 {/* Search Box - Full Width */}
@@ -1855,23 +1897,12 @@ export default function AccountsPage() {
                     placeholder={tProfiles.filters.search}
                     value={profileSearchTerm}
                     onChange={(e) => setProfileSearchTerm(e.target.value)}
-                    className="w-full h-10 rounded-xl border border-red-200 bg-white py-2 pl-10 pr-4 text-sm text-gray-700 placeholder-gray-400 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200"
+                    className="w-full h-10 rounded-xl border border-red-200 bg-white py-2 pl-10 pr-4 text-xs text-gray-700 placeholder-gray-400 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200"
                   />
                 </div>
 
                 {/* Filters */}
                 <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
-                  {/* Type Filter Select */}
-                  <Select value={profileFilterType} onValueChange={(value) => setProfileFilterType(value as typeof profileFilterType)}>
-                    <SelectTrigger className="w-full sm:w-auto h-10 px-3 py-2 rounded-xl border border-red-200 bg-white text-sm text-gray-700 transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 data-[state=open]:border-red-400 data-[state=open]:ring-2 data-[state=open]:ring-red-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">{tProfiles.filters.all} ({profiles.length})</SelectItem>
-                      <SelectItem value="Parent">{tProfiles.filters.parents} ({profiles.filter(p => p.profileType === "Parent").length})</SelectItem>
-                      <SelectItem value="Student">{tProfiles.filters.students} ({profiles.filter(p => p.profileType === "Student").length})</SelectItem>
-                    </SelectContent>
-                  </Select>
 
                   {/* Sort Mode Select */}
                   <Select value={profileSortMode} onValueChange={(value) => setProfileSortMode(value as ProfileSortMode)}>
@@ -1906,7 +1937,17 @@ export default function AccountsPage() {
           </div>
 
           {/* Profiles Table */}
-          <div className={`rounded-2xl border border-red-200 bg-white overflow-hidden shadow-sm transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 shadow-sm overflow-hidden transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+            {/* Table Header */}
+            <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-red-200 px-6 py-4">
+              <div className="flex items-center justify-between">
+                <h2 className="font-semibold text-gray-900">Danh sách hồ sơ</h2>
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <span className="font-medium">{filteredProfiles.length} hồ sơ</span>
+                </div>
+              </div>
+            </div>
+
             {profilesLoading ? (
               <div className="flex items-center justify-center py-16">
                 <Loader2 className="w-12 h-12 animate-spin text-red-600" />
@@ -1934,12 +1975,10 @@ export default function AccountsPage() {
                             />
                           </th>
                         )}
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">{tProfiles.table.type}</th>
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">{tProfiles.table.displayName}</th>
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">{tProfiles.table.email}</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">{tProfiles.table.userId}</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">{tProfiles.table.status}</th>
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">{tProfiles.table.createdDate}</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">{tProfiles.table.status}</th>
                         <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700">{tProfiles.table.actions}</th>
                       </tr>
                     </thead>
@@ -1965,22 +2004,28 @@ export default function AccountsPage() {
                           </td>
                         )}
                         <td className="px-6 py-4">
-                          <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${
-                            profile.profileType === "Parent"
-                              ? "bg-linear-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200"
-                              : "bg-linear-to-r from-blue-50 to-cyan-50 text-blue-700 border border-blue-200"
-                          }`}>
-                            {profile.profileType === "Parent" ? <Shield size={12} /> : <UserCircle size={12} />}
-                            {profile.profileType === "Parent" ? "Phụ huynh" : "Học sinh"}
-                          </span>
+                          <div className="flex flex-col gap-2">
+                            <div className="text-sm font-medium text-gray-900">{profile.displayName}</div>
+                            <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium w-fit ${
+                              profile.profileType === "Parent"
+                                ? "bg-linear-to-r from-violet-50 to-purple-50 text-violet-700 border border-violet-200"
+                                : "bg-linear-to-r from-orange-50 to-amber-50 text-orange-700 border border-orange-200"
+                            }`}>
+                              {profile.profileType === "Parent" ? <Shield size={12} /> : <UserCircle size={12} />}
+                              {profile.profileType === "Parent" ? "Phụ huynh" : "Học sinh"}
+                            </span>
+                          </div>
                         </td>
                         <td className="px-6 py-4">
-                          <div className="font-medium text-gray-900">{profile.displayName}</div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2 text-gray-600 text-sm">
-                            <Mail size={14} />
+                          <div className="flex items-center gap-2 font-medium text-gray-700 text-sm">
+                            <Mail size={14} className="text-red-600"/>
                             {profile.userEmail || 'N/A'}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2 text-sm text-gray-700 font-medium">
+                            <Calendar size={14} className="text-red-600"/>
+                            {new Date(profile.createdAt).toLocaleDateString('vi-VN')}
                           </div>
                         </td>
                         <td className="px-6 py-4">
@@ -2008,12 +2053,6 @@ export default function AccountsPage() {
                                 {tProfiles.table.approved}
                               </span>
                             )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <Calendar size={14} />
-                            {new Date(profile.createdAt).toLocaleDateString('vi-VN')}
                           </div>
                         </td>
                         <td className="py-4 px-6">
@@ -2222,120 +2261,6 @@ export default function AccountsPage() {
             cancelText={tProfiles.modals.cancel}
             variant="success"
           />
-        </>
-      )}
-
-      {activeTab === "accounts" && (
-        <>
-      {/* Security Configuration Panel */}
-      <div className={`grid gap-6 lg:grid-cols-3 transition-all duration-700 delay-300 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-        {/* Security Settings */}
-        <div className="lg:col-span-2">
-          <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 text-white">
-                <ShieldCheck size={20} />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">Cấu hình Bảo mật</h3>
-                <p className="text-sm text-gray-600">Thiết lập xác thực và quyền truy cập nâng cao</p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 rounded-xl border border-red-200 bg-white">
-                <div>
-                  <div className="font-medium text-gray-900">Xác thực hai lớp (2FA)</div>
-                  <div className="text-sm text-gray-600">Yêu cầu OTP cho thao tác quan trọng</div>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" className="sr-only peer" defaultChecked />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
-                </label>
-              </div>
-
-              <div className="flex items-center justify-between p-4 rounded-xl border border-red-200 bg-white">
-                <div>
-                  <div className="font-medium text-gray-900">Tự động khóa tài khoản</div>
-                  <div className="text-sm text-gray-600">Sau 30 ngày không đăng nhập</div>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" className="sr-only peer" />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
-                </label>
-              </div>
-
-              <div className="flex items-center justify-between p-4 rounded-xl border border-red-200 bg-white">
-                <div>
-                  <div className="font-medium text-gray-900">Cảnh báo đăng nhập lạ</div>
-                  <div className="text-sm text-gray-600">Thông báo qua email khi có đăng nhập mới</div>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" className="sr-only peer" defaultChecked />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
-                </label>
-              </div>
-            </div>
-
-            <button className="mt-6 w-full rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-3 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer">
-              Lưu cấu hình bảo mật
-            </button>
-          </div>
-        </div>
-
-        {/* Quick Actions & Stats */}
-        <div className="space-y-6">
-          {/* Quick Actions */}
-          <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
-            <h3 className="font-semibold text-gray-900 mb-4">Thao tác nhanh</h3>
-            <div className="space-y-2">
-              <button className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm font-medium hover:bg-red-50 transition-colors flex items-center gap-2 cursor-pointer">
-                <Mail size={16} />
-                Gửi email kích hoạt
-              </button>
-              <button className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm font-medium hover:bg-red-50 transition-colors flex items-center gap-2 cursor-pointer">
-                <Key size={16} />
-                Đặt lại mật khẩu hàng loạt
-              </button>
-              <button className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm font-medium hover:bg-red-50 transition-colors flex items-center gap-2 cursor-pointer">
-                <Bell size={16} />
-                Gửi thông báo bảo mật
-              </button>
-            </div>
-          </div>
-
-          {/* Role Distribution */}
-          {/* <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
-            <h4 className="font-semibold text-gray-900 mb-3">Phân bố vai trò</h4>
-            <div className="space-y-3">
-              {(['Admin', 'Teacher', 'Parent', 'ManagementStaff'] as Role[]).map(role => {
-                const count = accounts.filter(a => mapRoleToDisplay(a.role) === role).length;
-                const percentage = accounts.length > 0 ? Math.round((count / accounts.length) * 100) : 0;
-                const info = ROLE_INFO[role];
-                
-                // Skip if role info is not found
-                if (!info) return null;
-
-                return (
-                  <div key={role} className="space-y-1">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-700">{info.label}</span>
-                      <span className="font-semibold text-gray-900">{count} người</span>
-                    </div>
-                    <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden">
-                      <div
-                        className={`h-full rounded-full bg-gradient-to-r ${info.bg}`}
-                        style={{ width: `${percentage}%` }}
-                      ></div>
-                    </div>
-                    <div className="text-xs text-gray-500 text-right">{percentage}%</div>
-                  </div>
-                );
-              })}
-            </div>
-          </div> */}
-        </div>
-      </div>
         </>
       )}
 

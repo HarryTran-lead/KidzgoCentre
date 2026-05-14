@@ -1,6 +1,6 @@
 "use client";
 
-import { X, Calendar, User, Tag, Eye } from "lucide-react";
+import { X, Calendar, User, Tag, Eye, FileText } from "lucide-react";
 import type { Blog } from "@/types/admin/blog";
 import { buildFileUrl } from "@/constants/apiURL";
 
@@ -38,16 +38,22 @@ export default function BlogDetailModal({
     : "Chưa xuất bản";
 
   return (
-    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/55 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="relative w-full max-w-3xl overflow-hidden rounded-3xl border border-red-200 bg-white shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-red-600 to-red-700">
-          <h2 className="text-2xl font-bold text-white">Chi tiết bài viết</h2>
+        <div className="flex items-center justify-between p-6 border-b border-red-200 bg-gradient-to-r from-red-600 to-red-700">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center h-10 w-10 rounded-lg border-2 border-red-400 bg-gradient-to-br from-red-500 to-red-600">
+              <Eye size={20} className="text-white" />
+            </div>
+            <h2 className="text-xl font-bold text-white">Chi tiết bài viết</h2>
+          </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-white/20 transition-colors text-white"
+            className="cursor-pointer rounded-xl border border-red-400 bg-red-500/20 p-2 text-white transition-colors hover:bg-red-500/40"
           >
-            <X size={24} />
+            <X size={20} />
           </button>
         </div>
 
@@ -55,7 +61,7 @@ export default function BlogDetailModal({
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {/* Featured Image */}
           {blog.featuredImageUrl && (
-            <div className="relative w-full h-64 rounded-xl overflow-hidden border border-gray-200">
+            <div className="relative w-full h-64 rounded-xl overflow-hidden border border-red-200 bg-red-50">
               <img
                 src={buildFileUrl(blog.featuredImageUrl)}
                 alt={blog.title}
@@ -86,7 +92,7 @@ export default function BlogDetailModal({
           </div>
 
           {/* Meta Information */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-xl">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gradient-to-br from-red-50/50 to-white rounded-xl border border-red-200">
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <User size={16} className="text-red-600" />
               <span className="font-medium">Tác giả:</span>
@@ -112,7 +118,7 @@ export default function BlogDetailModal({
                   {blog.tags.map((tag, index) => (
                     <span
                       key={index}
-                      className="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs"
+                      className="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs border border-red-200"
                     >
                       {tag}
                     </span>
@@ -126,7 +132,7 @@ export default function BlogDetailModal({
           {blog.summary && (
             <div>
               <h4 className="text-lg font-semibold text-gray-900 mb-2">Tóm tắt</h4>
-              <p className="text-gray-700 leading-relaxed bg-blue-50 p-4 rounded-xl border border-blue-100">
+              <p className="text-gray-700 leading-relaxed bg-gradient-to-br from-red-50/50 to-white p-4 rounded-xl border border-red-200">
                 {blog.summary}
               </p>
             </div>
@@ -145,7 +151,7 @@ export default function BlogDetailModal({
 
           {/* Additional Info */}
           {blog.updatedAt && (
-            <div className="text-xs text-gray-500 pt-4 border-t border-gray-200">
+            <div className="text-xs text-gray-500 pt-4 border-t border-red-200">
               Cập nhật lần cuối:{" "}
               {new Date(blog.updatedAt).toLocaleDateString("vi-VN", {
                 year: "numeric",
@@ -159,10 +165,10 @@ export default function BlogDetailModal({
         </div>
 
         {/* Footer */}
-        <div className="flex-shrink-0 flex items-center justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
+        <div className="flex-shrink-0 flex items-center justify-end gap-3 p-6 border-t border-red-200 bg-gradient-to-r from-red-500/5 to-red-700/5">
           <button
             onClick={onClose}
-            className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg transition-all"
+            className="cursor-pointer rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-6 py-2.5 text-sm font-semibold text-white transition-all hover:shadow-lg"
           >
             Đóng
           </button>

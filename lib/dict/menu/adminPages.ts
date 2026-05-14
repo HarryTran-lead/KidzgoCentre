@@ -40,6 +40,7 @@ export const adminPages = {
       },
       table: {
         title: "Danh sách tài khoản",
+        titleProfiles: "Danh sách hồ sơ",
         accounts: "tài khoản",
         user: "Người dùng",
         contact: "Thông tin liên hệ",
@@ -125,12 +126,12 @@ export const adminPages = {
       },
       table: {
         type: "Loại",
-        displayName: "Tên hiển thị",
+        displayName: "Họ và Tên",
         email: "Email",
         userId: "User ID",
         status: "Trạng thái",
         createdDate: "Ngày tạo",
-        actions: "Hành động",
+        actions: "Thao tác",
         selectAll: "Chọn tất cả hồ sơ chờ duyệt trong trang",
         selectProfile: "Chọn hồ sơ này",
         profileApproved: "Hồ sơ đã duyệt",
