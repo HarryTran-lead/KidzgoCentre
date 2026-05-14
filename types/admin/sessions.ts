@@ -2,6 +2,11 @@ export type ParticipationType = "OFFLINE" | "ONLINE";
 export type ChangeTeacherRole = "MainTeacher" | "Assistant";
 export type SectionType = "Normal" | "Review" | "Makeup" | "Remedial" | "Assessment";
 
+export type SessionChangeSectionTypeRequest = {
+  sessionId: string;
+  sectionType: SectionType | string;
+};
+
 export const SECTION_TYPE_LABELS: Record<SectionType, string> = {
   Normal: "Buổi học thường",
   Review: "Ôn tập",

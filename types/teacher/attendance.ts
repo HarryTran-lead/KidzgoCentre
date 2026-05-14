@@ -36,6 +36,7 @@ export type LessonDetail = {
   branchId?: string | null;
   status?: string | null;
   participationType?: string | null;
+  sectionType?: SectionType | string | null;
 };
 
 export type AttendanceSummaryApi = {

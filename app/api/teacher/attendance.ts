@@ -306,6 +306,7 @@ function mapSessionToLesson(session: SessionApiItem): { lesson: LessonDetail; at
     time: startDate ? formatTimeRange(startDate, session?.durationMinutes ?? undefined) : "--:--",
     status: sessionLike.status ?? null,
     participationType: sessionLike.participationType ?? null,
+    sectionType: sessionLike.sectionType ?? session?.sectionType ?? null,
     branch: sessionLike.branchName ?? null,
     branchId: sessionLike.branchId != null ? String(sessionLike.branchId) : null,
     students:

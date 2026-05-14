@@ -3,7 +3,9 @@
 import { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getAccessToken } from "@/lib/store/authToken";
-import { changeSessionRoom, changeSessionTeacher, updateAdminSession } from "@/app/api/admin/sessions";
+import { changeSessionRoom, changeSessionTeacher, changeSessionSectionType, updateAdminSession } from "@/app/api/admin/sessions";
+import { SECTION_TYPE_LABELS, SECTION_TYPE_OPTIONS } from "@/types/admin/sessions";
+import type { SectionType } from "@/types/admin/sessions";
 import {
   ArrowLeft,
   BookOpen,
@@ -558,6 +560,8 @@ export default function StaffSessionDetailPage() {
   const [editedStudents, setEditedStudents] = useState<Student[]>([]);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [isUpdatingSectionType, setIsUpdatingSectionType] = useState(false);
+  const [pendingSectionType, setPendingSectionType] = useState<SectionType>("Normal");
   const itemsPerPage = 10;
 
   // Swap modals
@@ -566,6 +570,10 @@ export default function StaffSessionDetailPage() {
   const [showScheduleModal, setShowScheduleModal] = useState(false);
 
   useEffect(() => { setIsPageLoaded(true); }, []);
+
+  useEffect(() => {
+    setPendingSectionType((lesson?.sectionType as SectionType) ?? "Normal");
+  }, [lesson?.sectionType]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -671,6 +679,27 @@ export default function StaffSessionDetailPage() {
     setLesson((prev) => prev ? { ...prev, date: `${d}/${m}/${y}`, time: newTime } : prev);
   }, [lessonId]);
 
+  const handleChangeSectionType = useCallback(async () => {
+    if (!lessonId) return;
+    if ((lesson?.sectionType ?? "Normal") === pendingSectionType) return;
+
+    try {
+      setIsUpdatingSectionType(true);
+
+      await changeSessionSectionType({ sessionId: lessonId, sectionType: pendingSectionType });
+      setLesson((prev) => (prev ? { ...prev, sectionType: pendingSectionType } : prev));
+      toast({ title: "Cập nhật thành công", description: "Đã đổi loại buổi học." });
+    } catch (err: any) {
+      toast({
+        title: "Không thể cập nhật",
+        description: err?.message || "Không thể đổi loại buổi học.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpdatingSectionType(false);
+    }
+  }, [lesson?.sectionType, lessonId, pendingSectionType, toast]);
+
   const totalStudentsCount = attendanceSummary?.totalStudents ?? list.length;
   const checkedCount = attendanceSummary?.totalStudents != null && attendanceSummary?.notMarkedCount != null
     ? Math.max(0, attendanceSummary.totalStudents - attendanceSummary.notMarkedCount)
@@ -758,6 +787,55 @@ export default function StaffSessionDetailPage() {
                   <span className="px-3 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">{lesson.branch}</span>
                 </div>
               )}
+
+              <div className="mt-3 space-y-2">
+                <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Loại buổi học</div>
+                <div className="flex flex-wrap gap-2">
+                  {SECTION_TYPE_OPTIONS.map((opt) => {
+                    const isActive = pendingSectionType === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        disabled={isUpdatingSectionType}
+                        onClick={() => setPendingSectionType(opt.value)}
+                        className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                          isActive
+                            ? "border-red-300 bg-red-50 text-red-700"
+                            : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                {(lesson.sectionType ?? "Normal") !== pendingSectionType ? (
+                  <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+                    <span className="text-xs text-amber-800">
+                      Đổi sang <strong>{SECTION_TYPE_LABELS[pendingSectionType]}</strong>?
+                    </span>
+                    <button
+                      type="button"
+                      disabled={isUpdatingSectionType}
+                      onClick={handleChangeSectionType}
+                      className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isUpdatingSectionType ? "Đang cập nhật..." : "Xác nhận"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isUpdatingSectionType}
+                      onClick={() => setPendingSectionType((lesson.sectionType as SectionType) ?? "Normal")}
+                      className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Hủy
+                    </button>
+                  </div>
+                ) : (
+                  <span className="text-xs text-gray-500">Loại hiện tại: {lesson.sectionType ?? "Normal"}</span>
+                )}
+              </div>
             </div>
           </div>
           {/* Swap buttons */}

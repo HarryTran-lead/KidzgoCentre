@@ -448,6 +448,7 @@ export const ADMIN_ENDPOINTS = {
   SESSIONS_BY_CLASS: '/api/sessions/by-class',
   SESSIONS_CHANGE_ROOM: '/api/sessions/change-room',
   SESSIONS_CHANGE_TEACHER: '/api/sessions/change-teacher',
+  SESSIONS_CHANGE_SECTION_TYPE: '/api/sessions/change-section-type',
   LESSON_PLAN_TEMPLATES: '/api/lesson-plan-templates',
   LESSON_PLAN_TEMPLATES_BY_ID: (id: string) => `/api/lesson-plan-templates/${id}`,
   LESSON_PLAN_TEMPLATES_IMPORT: '/api/lesson-plan-templates/import',

@@ -2108,7 +2108,7 @@ export default function TeacherAttendancePage() {
                         />
                       </th>
                       <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">Trạng thái</th>
-                      <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">Vé học</th>
+                      <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">Tiến độ</th>
                       <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">Ghi chú</th>
                       <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">Thao tác</th>
                     </tr>
@@ -2141,12 +2141,12 @@ export default function TeacherAttendancePage() {
                                   {record.phone ? <span>{record.phone}</span> : null}
                                   {record.track ? (
                                     <span className="rounded-full bg-gray-100 px-2 py-0.5 font-semibold text-gray-700">
-                                      {String(record.track).toLowerCase() === "secondary" ? "Secondary" : "Primary"}
+                                      {String(record.track).toLowerCase() === "secondary" ? "Học phụ" : "Chính thức"}
                                     </span>
                                   ) : null}
                                   {record.isMakeup ? (
                                     <span className="rounded-full bg-amber-100 px-2 py-0.5 font-semibold text-amber-700">
-                                      Makeup
+                                      Học bù
                                     </span>
                                   ) : null}
                                 </div>
@@ -2174,17 +2174,22 @@ export default function TeacherAttendancePage() {
                                     const isActive = record.status === status;
                                     const isSuggestedMakeup =
                                       status === "makeup" && Boolean(record.hasMakeupCredit) && !isActive;
+                                    const isLockedByMakeup = (Boolean(record.isMakeup) || record.status === "makeup") && status !== "makeup";
 
                                     return (
                                       <button
                                         key={status}
-                                        onClick={() => handleStatusChange(record.rowKey, status)}
-                                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer ${isActive
-                                            ? STATUS_STYLES[status].active
-                                            : isSuggestedMakeup
-                                              ? "border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100"
-                                              : `border-gray-200 text-gray-600 ${STATUS_STYLES[status].hover}`
-                                          }`}
+                                        onClick={() => !isLockedByMakeup && handleStatusChange(record.rowKey, status)}
+                                        disabled={isLockedByMakeup}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
+                                          isLockedByMakeup
+                                            ? "border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed"
+                                            : isActive
+                                              ? `cursor-pointer ${STATUS_STYLES[status].active}`
+                                              : isSuggestedMakeup
+                                                ? "border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100 cursor-pointer"
+                                                : `border-gray-200 text-gray-600 ${STATUS_STYLES[status].hover} cursor-pointer`
+                                        }`}
                                       >
                                         {STATUS_BUTTON_LABELS[status]}
                                       </button>
@@ -2211,34 +2216,18 @@ export default function TeacherAttendancePage() {
                           </td>
 
                           <td className="px-4 py-4">
-                            {(() => {
-                              const studentId = record.studentProfileId || record.studentId;
-                              const ticketResult = studentId ? ticketResultMap[studentId] : undefined;
-                              if (!ticketResult || ticketResult.ticketConsumed === null || ticketResult.ticketConsumed === undefined) {
-                                return <span className="text-xs text-gray-400">–</span>;
-                              }
-                              return (
-                                <div className="flex flex-col gap-1">
-                                  {ticketResult.ticketConsumed ? (
-                                    <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 border border-orange-200 px-2.5 py-1 text-xs font-medium text-orange-700">
-                                      -{ticketResult.consumedQuantity ?? 1} vé
-                                    </span>
-                                  ) : (
-                                    <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-500">
-                                      Không trừ
-                                    </span>
-                                  )}
-                                  {ticketResult.ticketBalance !== null && ticketResult.ticketBalance !== undefined ? (
-                                    <span className="text-xs text-gray-500">Còn: {ticketResult.ticketBalance}</span>
-                                  ) : null}
-                                  {ticketResult.advanceLessonProgression ? (
-                                    <span className="text-xs text-emerald-600">↑ Tiến bài</span>
-                                  ) : ticketResult.advanceLessonProgression === false ? (
-                                    <span className="text-xs text-gray-400">Không tiến bài</span>
-                                  ) : null}
-                                </div>
-                              );
-                            })()}
+                            {record.studentProfileId ? (
+                              <button
+                                type="button"
+                                onClick={() => router.push(`/${locale}/portal/teacher/program-progressions`)}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 transition cursor-pointer"
+                              >
+                                <TrendingUp size={13} />
+                                Xem tiến độ
+                              </button>
+                            ) : (
+                              <span className="text-xs text-gray-400">–</span>
+                            )}
                           </td>
 
                           <td className="px-4 py-4 max-w-xs">
