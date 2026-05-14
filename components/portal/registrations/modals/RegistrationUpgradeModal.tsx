@@ -72,6 +72,7 @@ export default function RegistrationUpgradeModal({
               totalSessions={selectedRegistration?.totalSessions || 0}
               usedSessions={selectedRegistration?.usedSessions || 0}
               remainingSessions={selectedRegistration?.remainingSessions || 0}
+              studentProfileId={selectedRegistration?.studentProfileId || ""}
             />
           )}
         </div>
