@@ -567,7 +567,6 @@ export default function AdminLessonDetailPage() {
                         disabled={isUpdatingSectionType}
                         onClick={() => {
                           setPendingSectionType(opt.value);
-                          setSectionTypeMsg(null);
                         }}
                         className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
                           isActive
@@ -596,7 +595,7 @@ export default function AdminLessonDetailPage() {
                     <button
                       type="button"
                       disabled={isUpdatingSectionType}
-                      onClick={() => { setPendingSectionType((lesson.sectionType as SectionType) ?? "Normal"); setSectionTypeMsg(null); }}
+                      onClick={() => { setPendingSectionType((lesson.sectionType as SectionType) ?? "Normal"); }}
                       className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Hủy
