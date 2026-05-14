@@ -30,21 +30,21 @@ export default function PlacementTestStats({ tests, isLoading }: PlacementTestSt
       label: "Đã đặt lịch",
       value: stats.scheduled,
       icon: CalendarClock,
-      color: "from-gray-600 to-gray-700",
+      color: "from-blue-600 to-cyan-600",
       subtitle: "Đang chờ kiểm tra",
     },
     {
       label: "Đã hoàn thành",
       value: stats.completed,
       icon: CheckCircle2,
-      color: "from-gray-700 to-gray-800",
+      color: "from-emerald-600 to-teal-600",
       subtitle: "Đã có kết quả",
     },
     {
       label: "Không đến",
       value: stats.noShow,
       icon: UserX,
-      color: "from-red-500 to-red-600",
+      color: "from-amber-600 to-orange-600",
       subtitle: "Vắng mặt buổi test",
     },
   ];
@@ -66,16 +66,16 @@ export default function PlacementTestStats({ tests, isLoading }: PlacementTestSt
         return (
           <div
             key={stat.label}
-            className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-300 hover:border-red-300 hover:shadow-md"
+            className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102"
           >
-            <div className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-5 blur-xl bg-linear-to-r ${stat.color}`} />
-            <div className="relative flex items-center justify-between gap-3">
-              <div className={`rounded-xl bg-linear-to-r ${stat.color} p-2 text-white shadow-sm`}>
+            <div className={`absolute right-0 top-0 h-12 w-12 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r from-red-600 to-red-700`} />
+            <div className="relative flex items-center gap-3">
+              <div className={`rounded-xl bg-gradient-to-br ${stat.color} p-2 text-white shadow-sm flex-shrink-0`}>
                 <Icon size={20} />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="truncate text-xs font-medium text-gray-600">{stat.label}</div>
-                <div className="leading-tight text-xl font-bold text-gray-900">{stat.value}</div>
+                <div className="leading-tight text-2xl font-bold text-gray-900">{stat.value}</div>
                 <div className="truncate text-[11px] text-gray-500">{stat.subtitle}</div>
               </div>
             </div>

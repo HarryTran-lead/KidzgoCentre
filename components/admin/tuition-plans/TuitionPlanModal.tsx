@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AlertCircle, BookOpen, Clock, DollarSign, Wallet, X } from "lucide-react";
 import { getProgramsForBranch, type ProgramOption } from "@/lib/api/tuitionPlanService";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
 
 function cn(...a: Array<string | false | null | undefined>) {
   return a.filter(Boolean).join(" ");
@@ -147,7 +148,7 @@ export default function TuitionPlanModal({
 
   return (
     <div className="fixed inset-0 z-1000 flex items-center justify-center p-4 bg-black/55 backdrop-blur-sm">
-      <div ref={modalRef} className="relative w-full max-w-4xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
+      <div ref={modalRef} className="relative w-full max-w-3xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
         <div className="bg-linear-to-r from-red-600 to-red-700 p-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -175,52 +176,51 @@ export default function TuitionPlanModal({
           <form onSubmit={submit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                <BookOpen size={16} className="text-red-600" />
-                Chương trình học *
-              </label>
-              <select
-                value={formData.programId}
-                onChange={(e) => handleChange("programId", e.target.value)}
-                disabled={loadingPrograms}
-                className={cn(
-                  "w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
-                  errors.programId ? "border-red-500" : "border-gray-200",
-                  loadingPrograms ? "opacity-50 cursor-not-allowed" : ""
-                )}
-              >
-                <option value="">Chọn chương trình học</option>
-                {programs.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <BookOpen size={16} className="text-red-600" />
+                  Chương trình học <span className="text-red-600">*</span>
+                </label>
+                <Select value={formData.programId} onValueChange={(value) => handleChange("programId", value)}>
+                  <SelectTrigger className={cn(
+                    "w-full rounded-xl border bg-white text-sm text-gray-900 transition-all",
+                    errors.programId ? "border-red-500" : "border-gray-200",
+                    loadingPrograms ? "opacity-50 cursor-not-allowed" : ""
+                  )}>
+                    <SelectValue placeholder="Chọn chương trình học" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {programs.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 {errors.programId && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.programId}</p>}
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                <Wallet size={16} className="text-red-600" />
-                Tên gói học *
-              </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => handleChange("name", e.target.value)}
-                className={cn(
-                  "w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
-                  errors.name ? "border-red-500" : "border-gray-200"
-                )}
-                placeholder="VD: Gói học 24 buổi"
-              />
-              {errors.name && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.name}</p>}
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <Wallet size={16} className="text-red-600" />
+                  Tên gói học <span className="text-red-600">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => handleChange("name", e.target.value)}
+                  className={cn(
+                    "w-full px-4 py-3 rounded-xl border bg-white text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
+                    errors.name ? "border-red-500" : "border-gray-200"
+                  )}
+                  placeholder="VD: Gói học 24 buổi"
+                />
+                {errors.name && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.name}</p>}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                   <Clock size={16} className="text-red-600" />
-                  Số buổi học *
+                  Số buổi học <span className="text-red-600">*</span>
                 </label>
                 <input
                   type="number"
@@ -228,7 +228,7 @@ export default function TuitionPlanModal({
                   value={formData.totalSessions}
                   onChange={(e) => handleChange("totalSessions", e.target.value)}
                   className={cn(
-                    "w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
+                    "w-full px-4 py-3 rounded-xl border bg-white text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
                     errors.totalSessions ? "border-red-500" : "border-gray-200"
                   )}
                   placeholder="VD: 24"
@@ -239,14 +239,14 @@ export default function TuitionPlanModal({
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                   <DollarSign size={16} className="text-red-600" />
-                  Học phí *
+                  Học phí <span className="text-red-600">*</span>
                 </label>
                 <input
                   type="text"
                   value={formData.tuitionAmount}
                   onChange={(e) => handleChange("tuitionAmount", e.target.value.replace(/[^\d]/g, ""))}
                   className={cn(
-                    "w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
+                    "w-full px-4 py-3 rounded-xl border bg-white text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
                     errors.tuitionAmount ? "border-red-500" : "border-gray-200"
                   )}
                   placeholder="VD: 3200000"
@@ -259,14 +259,14 @@ export default function TuitionPlanModal({
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                   <DollarSign size={16} className="text-red-600" />
-                  Giá mỗi buổi *
+                  Giá mỗi buổi <span className="text-red-600">*</span>
                 </label>
                 <input
                   type="text"
                   value={formData.unitPriceSession ? Number(formData.unitPriceSession).toLocaleString("vi-VN") : ""}
                   readOnly
                   className={cn(
-                    "w-full px-4 py-3 rounded-xl border bg-gray-50 text-gray-700 cursor-not-allowed",
+                    "w-full px-4 py-3 rounded-xl border bg-gray-50 text-sm text-gray-700 cursor-not-allowed",
                     errors.unitPriceSession ? "border-red-500" : "border-gray-200"
                   )}
                   placeholder="Tự động tính"
@@ -277,34 +277,55 @@ export default function TuitionPlanModal({
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                   <DollarSign size={16} className="text-red-600" />
-                  Tiền tệ *
+                  Tiền tệ <span className="text-red-600">*</span>
                 </label>
-                <select
-                  value={formData.currency}
-                  onChange={(e) => handleChange("currency", e.target.value)}
-                  className={cn(
-                    "w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
+                <Select value={formData.currency} onValueChange={(value) => handleChange("currency", value)}>
+                  <SelectTrigger className={cn(
+                    "w-full rounded-xl border bg-white text-sm text-gray-900 transition-all",
                     errors.currency ? "border-red-500" : "border-gray-200"
-                  )}
-                >
-                  <option value="VND">VND</option>
-                  <option value="USD">USD</option>
-                </select>
+                  )}>
+                    <SelectValue placeholder="Chọn tiền tệ" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="VND">VND</SelectItem>
+                    <SelectItem value="USD">USD</SelectItem>
+                  </SelectContent>
+                </Select>
                 {errors.currency && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.currency}</p>}
               </div>
             </div>
 
             {mode === "edit" && (
-              <div className="space-y-2 md:max-w-sm">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">Trạng thái</label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => handleChange("status", e.target.value as TuitionPlanFormData["status"])}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
-                >
-                  <option value="Đang hoạt động">Đang hoạt động</option>
-                  <option value="Tạm dừng">Tạm dừng</option>
-                </select>
+              <div className="space-y-3">
+                <label className="block text-sm font-semibold text-gray-700">Trạng thái</label>
+                <div className="flex items-center gap-3">
+                  
+                  <span className={cn(
+                    "px-3 py-1 rounded-full text-xs font-semibold",
+                    formData.status === "Đang hoạt động"
+                      ? "bg-green-100 text-green-700 border border-green-200"
+                      : "bg-gray-100 text-gray-700 border border-gray-200"
+                  )}>
+                    {formData.status === "Đang hoạt động" ? "Đang hoạt động" : "Tạm dừng"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleChange("status", formData.status === "Đang hoạt động" ? "Tạm dừng" : "Đang hoạt động")}
+                    className={cn(
+                      "relative inline-flex h-8 w-16 items-center rounded-full transition-colors cursor-pointer",
+                      formData.status === "Đang hoạt động"
+                        ? "bg-gradient-to-r from-red-600 to-red-700"
+                        : "bg-gray-300"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition-transform",
+                        formData.status === "Đang hoạt động" ? "translate-x-9" : "translate-x-1"
+                      )}
+                    />
+                  </button>
+                </div>
               </div>
             )}
           </form>
@@ -315,17 +336,20 @@ export default function TuitionPlanModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer"
+              className="px-6 py-2.5 rounded-xl border border-gray-300 text-sm text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer"
             >
               Hủy bỏ
             </button>
-            <button
-              type="button"
-              onClick={submit}
-              className="px-6 py-2.5 rounded-xl bg-linear-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer"
-            >
-              {mode === "edit" ? "Lưu thay đổi" : "Tạo gói học"}
-            </button>
+            <div className="flex items-center gap-3">
+
+              <button
+                type="button"
+                onClick={submit}
+                className="px-6 py-2.5 rounded-xl bg-linear-to-r from-red-600 to-red-700 text-sm text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer"
+              >
+                {mode === "edit" ? "Lưu thay đổi" : "Tạo gói học"}
+              </button>
+            </div>
           </div>
         </div>
       </div>

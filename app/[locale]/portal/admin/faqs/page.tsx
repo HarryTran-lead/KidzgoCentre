@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   CheckCircle,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   ChevronUp,
   Edit2,
   Filter,
@@ -43,14 +45,14 @@ function StatCard({ title, value, icon, color, subtitle }: {
   title: string; value: string; icon: React.ReactNode; color: string; subtitle?: string;
 }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-linear-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
+    <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-linear-to-br from-white to-red-50/30 p-2 shadow-sm transition-all duration-300 hover:shadow-md">
       <div className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl ${color}`} />
       <div className="relative flex items-center gap-3">
-        <div className={`p-2 rounded-xl bg-linear-to-r ${color} text-white shadow-sm shrink-0`}>{icon}</div>
+        <div className={`p-1.5 rounded-xl bg-linear-to-r ${color} text-white shadow-sm shrink-0`}>{icon}</div>
         <div className="min-w-0 flex-1">
           <div className="text-xs font-medium text-gray-600 truncate">{title}</div>
-          <div className="text-xl font-bold text-gray-900 leading-tight">{value}</div>
-          {subtitle && <div className="text-[11px] text-gray-500 truncate">{subtitle}</div>}
+          <div className="text-lg font-bold text-gray-900 leading-tight">{value}</div>
+          {subtitle && <div className="text-[10px] text-gray-500 truncate">{subtitle}</div>}
         </div>
       </div>
     </div>
@@ -193,16 +195,16 @@ export default function AdminFaqsPage() {
   const itemTotalPages = Math.ceil(itemsTotalCount / itemPageSize);
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-red-50/30 to-white p-6 space-y-6">
+    <div className="min-h-screen bg-linear-to-b from-red-50/30 to-white p-2 space-y-6">
 
       {/* ── Page Header ── */}
       <div className={`flex flex-wrap items-center justify-between gap-4 transition-all duration-700 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"}`}>
         <div className="flex items-center gap-4">
           <div className="p-3 bg-linear-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
-            <HelpCircle size={28} className="text-white" />
+            <HelpCircle size={24} className="text-white" />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">Quản lý FAQ</h1>
+            <h1 className="text-2xl md:text-2xl font-extrabold text-gray-900">Quản lý FAQ</h1>
             <p className="text-sm text-gray-600 mt-1">Quản lý câu hỏi thường gặp và danh mục</p>
           </div>
         </div>
@@ -545,26 +547,77 @@ export default function AdminFaqsPage() {
 
               {/* Pagination */}
               {itemTotalPages > 1 && (
-                <div className="flex items-center justify-between border-t border-red-100 px-6 py-4">
-                  <p className="text-sm text-gray-600">
-                    Trang <span className="font-semibold">{itemPage}</span> / {itemTotalPages}
-                    <span className="text-gray-400 ml-2">({itemsTotalCount} câu hỏi)</span>
-                  </p>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => setItemPage(p => Math.max(1, p - 1))}
-                      disabled={itemPage === 1}
-                      className="rounded-xl border border-red-200 px-3 py-1.5 text-sm hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
-                    >
-                      Trước
-                    </button>
-                    <button
-                      onClick={() => setItemPage(p => Math.min(itemTotalPages, p + 1))}
-                      disabled={itemPage === itemTotalPages}
-                      className="rounded-xl border border-red-200 px-3 py-1.5 text-sm hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
-                    >
-                      Sau
-                    </button>
+                <div className="border-t border-red-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="text-sm text-gray-600">
+                      Hiển thị <span className="font-semibold">{(itemPage - 1) * itemPageSize + 1}-{Math.min(itemPage * itemPageSize, itemsTotalCount)}</span>
+                      {' '}trong tổng số <span className="font-semibold">{itemsTotalCount}</span> câu hỏi
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setItemPage(p => Math.max(1, p - 1))}
+                        disabled={itemPage === 1}
+                        className="p-2 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                        aria-label="Previous page"
+                      >
+                        <ChevronLeft size={18} />
+                      </button>
+
+                      <div className="flex items-center gap-1">
+                        {(() => {
+                          const pages: (number | string)[] = [];
+                          const maxVisible = 7;
+
+                          if (itemTotalPages <= maxVisible) {
+                            for (let i = 1; i <= itemTotalPages; i++) {
+                              pages.push(i);
+                            }
+                          } else {
+                            if (itemPage <= 3) {
+                              for (let i = 1; i <= 5; i++) pages.push(i);
+                              pages.push("...");
+                              pages.push(itemTotalPages);
+                            } else if (itemPage >= itemTotalPages - 2) {
+                              pages.push(1);
+                              pages.push("...");
+                              for (let i = itemTotalPages - 4; i <= itemTotalPages; i++) pages.push(i);
+                            } else {
+                              pages.push(1);
+                              pages.push("...");
+                              for (let i = itemPage - 1; i <= itemPage + 1; i++) pages.push(i);
+                              pages.push("...");
+                              pages.push(itemTotalPages);
+                            }
+                          }
+
+                          return pages.map((p, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => typeof p === "number" && setItemPage(p)}
+                              disabled={p === "..."}
+                              className={`min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+                                p === itemPage
+                                  ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                                  : p === "..."
+                                    ? "cursor-default text-gray-400"
+                                    : "border border-red-200 hover:bg-red-50 text-gray-700"
+                              }`}
+                            >
+                              {p}
+                            </button>
+                          ));
+                        })()}
+                      </div>
+
+                      <button
+                        onClick={() => setItemPage(p => Math.min(itemTotalPages, p + 1))}
+                        disabled={itemPage === itemTotalPages}
+                        className="p-2 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                        aria-label="Next page"
+                      >
+                        <ChevronRight size={18} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}

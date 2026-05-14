@@ -150,7 +150,9 @@ const DAY_CODE_TO_VN: Record<string, string> = {
 };
 
 function normalizeDayCode(value?: string | null): string {
-  const raw = String(value || "").trim().toUpperCase();
+  const raw = String(value || "")
+    .trim()
+    .toUpperCase();
   return DAY_CODE_TO_VN[raw] || raw;
 }
 
@@ -197,7 +199,10 @@ function getScheduleTimeRanges(schedule: any): string[] {
       const startTime = normalizeTime(entry?.startTime);
       const durationMinutes = Number(entry?.durationMinutes);
       const endTime = startTime
-        ? addMinutes(startTime, Number.isFinite(durationMinutes) ? durationMinutes : 0)
+        ? addMinutes(
+            startTime,
+            Number.isFinite(durationMinutes) ? durationMinutes : 0,
+          )
         : "";
 
       if (!startTime) return [];
@@ -229,7 +234,10 @@ function getScheduleTimeRanges(schedule: any): string[] {
       const startTime = normalizeTime(slot?.startTime || slot?.startAt);
       const durationMinutes = Number(slot?.durationMinutes);
       const endTime = startTime
-        ? addMinutes(startTime, Number.isFinite(durationMinutes) ? durationMinutes : 0)
+        ? addMinutes(
+            startTime,
+            Number.isFinite(durationMinutes) ? durationMinutes : 0,
+          )
         : "";
 
       if (!day || !startTime) return "";
@@ -244,26 +252,46 @@ function extractPlacementTestId(note?: string | null): string {
   return matched?.[1] || "";
 }
 
-function InfoCard({ icon, label, value, iconColor = "text-red-500" }: { icon?: React.ReactNode; label: string; value: string; iconColor?: string }) {
+function InfoCard({
+  icon,
+  label,
+  value,
+  iconColor = "text-red-500",
+}: {
+  icon?: React.ReactNode;
+  label: string;
+  value: string;
+  iconColor?: string;
+}) {
   return (
     <div className="rounded-xl bg-white p-3 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-center gap-2">
         {icon && <div className={cn("shrink-0", iconColor)}>{icon}</div>}
-        <div className="text-xs font-medium uppercase tracking-wide text-gray-500">
-          {label}
-        </div>
+        <div className="text-xs font-bold text-gray-500">{label}</div>
       </div>
-      <div className="mt-1 break-all text-sm font-semibold text-gray-900">{value || "-"}</div>
+      <div className="mt-1 break-all text-sm font-medium text-gray-900">
+        {value || "-"}
+      </div>
     </div>
   );
 }
 
-function Section({ title, icon, children, colorClass = "border-red-200 bg-red-50/40" }: { title: string; icon?: React.ReactNode; children: React.ReactNode; colorClass?: string }) {
+function Section({
+  title,
+  icon,
+  children,
+  colorClass = "border-red-200 bg-red-50/40",
+}: {
+  title: string;
+  icon?: React.ReactNode;
+  children: React.ReactNode;
+  colorClass?: string;
+}) {
   return (
     <div className={cn("space-y-3 rounded-xl border p-4", colorClass)}>
       <div className="flex items-center gap-2">
         {icon && <div className="shrink-0">{icon}</div>}
-        <h3 className="text-sm font-semibold text-gray-700">{title}</h3>
+        <h3 className="text-sm font-bold text-gray-700">{title}</h3>
       </div>
       {children}
     </div>
@@ -312,7 +340,9 @@ export default function RegistrationDetailModal({
   const handleOpenPlacementTest = useCallback(() => {
     if (!placementTestId || !placementTestDetailPath) return;
     const separator = placementTestDetailPath.includes("?") ? "&" : "?";
-    router.push(`${placementTestDetailPath}${separator}from=registration-detail&ts=${Date.now()}`);
+    router.push(
+      `${placementTestDetailPath}${separator}from=registration-detail&ts=${Date.now()}`,
+    );
   }, [placementTestDetailPath, placementTestId, router]);
 
   const handleExportPdf = useCallback(async () => {
@@ -320,7 +350,9 @@ export default function RegistrationDetailModal({
 
     try {
       setIsExportingPdf(true);
-      const fileName = await exportRegistrationEnrollmentConfirmationPdf(item.id);
+      const fileName = await exportRegistrationEnrollmentConfirmationPdf(
+        item.id,
+      );
       toast({
         title: "Thành công",
         description: `Đã xuất file PDF: ${fileName}`,
@@ -329,8 +361,7 @@ export default function RegistrationDetailModal({
     } catch (error: any) {
       toast({
         title: "Lỗi",
-        description:
-          error?.message || "Không thể xuất PDF xác nhận ghi danh.",
+        description: error?.message || "Không thể xuất PDF xác nhận ghi danh.",
         variant: "destructive",
       });
     } finally {
@@ -389,7 +420,10 @@ export default function RegistrationDetailModal({
 
   const firstStudySession = item?.firstStudySession;
   const noteDisplay = String(item?.note || "")
-    .replace(/\.?\s*Started\s+from\s+PlacementTest\s*[:=]\s*[0-9a-fA-F-]{32,36}\.?/gi, "")
+    .replace(
+      /\.?\s*Started\s+from\s+PlacementTest\s*[:=]\s*[0-9a-fA-F-]{32,36}\.?/gi,
+      "",
+    )
     .replace(/\s*\|\s*$/, "")
     .trim();
 
@@ -399,7 +433,7 @@ export default function RegistrationDetailModal({
       onClick={onClose}
     >
       <div
-        className="relative max-h-[85vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white shadow-2xl"
+        className="relative w-full max-w-3xl max-h-[90vh] rounded-2xl bg-white shadow-2xl overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header - Gradient đỏ như các modal khác */}
@@ -410,8 +444,12 @@ export default function RegistrationDetailModal({
                 <FileText size={20} className="text-white" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-white">Chi tiết đăng ký</h3>
-                <p className="text-xs text-red-100">Thông tin chi tiết về đăng ký học</p>
+                <h3 className="text-xl font-bold text-white">
+                  Chi tiết đăng ký
+                </h3>
+                <p className="text-xs text-red-100">
+                  Thông tin chi tiết về đăng ký học
+                </p>
               </div>
             </div>
             <button
@@ -425,343 +463,310 @@ export default function RegistrationDetailModal({
           </div>
         </div>
 
-        {isLoading ? (
-          <div className="flex items-center justify-center gap-2 py-16 text-sm text-gray-600">
-            <Loader2 size={20} className="animate-spin text-red-500" />
-            <span>Đang tải chi tiết...</span>
-          </div>
-        ) : item ? (
-          <div className="space-y-5 p-6">
-            {/* Student Info Card */}
-            <div className="rounded-xl border border-red-200 bg-linear-to-r from-red-50/50 to-white p-5">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-xl bg-linear-to-r from-red-600 to-red-700 shadow-md">
-                    <User size={20} className="text-white" />
-                  </div>
-                  <div>
-                    <div className="text-xs uppercase tracking-wide text-gray-500">Học viên</div>
-                    <div className="text-xl font-bold text-gray-900">
-                      {item.studentName || "Không có thông tin"}
+        {/* Modal Body - Scrollable */}
+        <div className="flex-1 overflow-y-auto p-6 text-sm">
+          {isLoading ? (
+            <div className="flex items-center justify-center gap-2 py-16 text-sm text-gray-600">
+              <Loader2 size={20} className="animate-spin text-red-500" />
+              <span>Đang tải chi tiết...</span>
+            </div>
+          ) : item ? (
+            <div className="space-y-5">
+              {/* Student Info Card */}
+              <div className="rounded-xl border border-red-200 bg-linear-to-r from-red-50/50 to-white p-5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 rounded-xl bg-linear-to-r from-red-600 to-red-700 shadow-md">
+                      <User size={20} className="text-white" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-gray-500">
+                        Học viên
+                      </div>
+                      <div className="text-xl font-bold text-gray-900">
+                        {item.studentName || "Không có thông tin"}
+                      </div>
                     </div>
                   </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={cn(
+                        "inline-flex items-center rounded-full px-3 py-1.5 text-sm font-semibold",
+                        statusBadgeClass(item.status),
+                      )}
+                    >
+                      {statusIcon(item.status)}
+                      {statusLabel(item.status)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleExportPdf}
+                      disabled={isExportingPdf}
+                      className="inline-flex items-center cursor-pointer gap-2 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-700 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isExportingPdf ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : (
+                        <Download size={14} />
+                      )}
+                      Xuất PDF
+                    </button>
+                  </div>
                 </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleExportPdf}
-                  disabled={isExportingPdf}
-                  className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-700 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {isExportingPdf ? (
-                    <Loader2 size={14} className="animate-spin" />
-                  ) : (
-                    <Download size={14} />
-                  )}
-                  Xuất PDF
-                </button>
-                  <span
-                    className={cn(
-                    "inline-flex items-center rounded-full px-3 py-1.5 text-sm font-semibold",
-                    statusBadgeClass(item.status)
-                  )}
-                  >
-                    {statusIcon(item.status)}
-                  {statusLabel(item.status)}
-                  </span>
               </div>
-              </div>
-            </div>
 
-            {/* Program Information Section */}
-            <Section 
-              title="Thông tin chương trình" 
-              icon={<GraduationCap size={16} className="text-blue-600" />}
-              colorClass="border-blue-200 bg-blue-50/40"
-            >
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <InfoCard
-                  icon={<BookOpen size={14} />}
-                  label="Chương trình"
-                  value={
-                    item.secondaryProgramName
-                      ? `${item.programName || "-"} • ${item.secondaryProgramName}`
-                      : item.programName || "-"
-                  }
-                />
-                <InfoCard
-                  icon={<Tag size={14} />}
-                  label="Gói học"
-                  value={item.tuitionPlanName || "-"}
-                />
-                <InfoCard
-                  icon={<Users size={14} />}
-                  label="Lớp"
-                  value={
-                    item.secondaryClassName
-                      ? `${item.className || "Chưa xếp lớp"} • ${item.secondaryClassName}`
-                      : item.className || "Chưa xếp lớp"
-                  }
-                />
-                {item.secondaryProgramId ? (
+              {/* Program Information Section */}
+              <Section
+                title="Thông tin chương trình"
+                icon={<GraduationCap size={16} className="text-blue-600" />}
+                colorClass="border-blue-200 bg-blue-50/40"
+              >
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                   <InfoCard
                     icon={<BookOpen size={14} />}
-                    label="Chú trọng kĩ năng"
-                    value={item.secondaryProgramSkillFocus || "Chưa có"}
+                    label="Chương trình"
+                    value={
+                      item.secondaryProgramName
+                        ? `${item.programName || "-"} • ${item.secondaryProgramName}`
+                        : item.programName || "-"
+                    }
                   />
-                ) : null}
-                <InfoCard
-                  icon={<Calendar size={14} />}
-                  label="Tổng số buổi"
-                  value={String(item.totalSessions ?? 0)}
-                />
-                <InfoCard
-                  icon={<CheckCircle size={14} />}
-                  label="Đã học"
-                  value={String(item.usedSessions ?? 0)}
-                />
-                <InfoCard
-                  icon={<Clock size={14} />}
-                  label="Buổi còn lại"
-                  value={String(item.remainingSessions ?? 0)}
-                />
-              </div>
-            </Section>
-            <Section
-              title="Vé học"
-              icon={<Wallet size={16} className="text-amber-600" />}
-              colorClass="border-amber-200 bg-amber-50/40"
-            >
-              {ticketLoading ? (
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Loader2 size={16} className="animate-spin text-amber-500" />
-                  <span>Đang tải thông tin vé học...</span>
+                  <InfoCard
+                    icon={<Tag size={14} />}
+                    label="Gói học"
+                    value={item.tuitionPlanName || "-"}
+                  />
+                  <InfoCard
+                    icon={<Users size={14} />}
+                    label="Lớp"
+                    value={
+                      item.secondaryClassName
+                        ? `${item.className || "Chưa xếp lớp"} • ${item.secondaryClassName}`
+                        : item.className || "Chưa xếp lớp"
+                    }
+                  />
+                  {item.secondaryProgramId ? (
+                    <InfoCard
+                      icon={<BookOpen size={14} />}
+                      label="Chú trọng kĩ năng"
+                      value={item.secondaryProgramSkillFocus || "Chưa có"}
+                    />
+                  ) : null}
+                  <InfoCard
+                    icon={<Calendar size={14} />}
+                    label="Tổng số buổi"
+                    value={String(item.totalSessions ?? 0)}
+                  />
+                  <InfoCard
+                    icon={<CheckCircle size={14} />}
+                    label="Đã học"
+                    value={String(item.usedSessions ?? 0)}
+                  />
+                  <InfoCard
+                    icon={<Clock size={14} />}
+                    label="Buổi còn lại"
+                    value={String(item.remainingSessions ?? 0)}
+                  />
                 </div>
-              ) : ticketError ? (
-                <div className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm text-amber-700">
-                  {ticketError}
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                    <InfoCard
-                      icon={<Wallet size={14} />}
-                      label="Vé còn lại"
-                      value={String(ticketBalance?.available ?? item.remainingSessions ?? 0)}
-                    />
-                    <InfoCard
-                      icon={<CheckCircle size={14} />}
-                      label="Vé đã dùng"
-                      value={String(ticketBalance?.consumed ?? item.usedSessions ?? 0)}
-                    />
-                    <InfoCard
-                      icon={<Calendar size={14} />}
-                      label="Tổng vé đã cấp"
-                      value={String(ticketBalance?.totalGranted ?? item.totalSessions ?? 0)}
-                    />
-                  </div>
+              </Section>
 
-                  <div className="rounded-xl border border-white bg-white p-4 shadow-sm">
-                    <div className="mb-3 flex items-center gap-2">
-                      <History size={14} className="text-amber-600" />
-                      <div className="text-xs font-medium uppercase tracking-wide text-gray-500">
-                        Lịch sử vé học
-                      </div>
+              {/* Schedule Information Section */}
+              <Section
+                title="Thông tin lịch học"
+                icon={<CalendarClock size={16} className="text-emerald-600" />}
+                colorClass="border-emerald-200 bg-emerald-50/40"
+              >
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <InfoCard
+                    icon={<Calendar size={14} />}
+                    label="Ngày dự kiến"
+                    value={toDate(item.expectedStartDate)}
+                  />
+                  <InfoCard
+                    icon={<Calendar size={14} />}
+                    label="Ngày bắt đầu thực tế"
+                    value={toDate(item.actualStartDate)}
+                  />
+                  <InfoCard
+                    icon={<Clock size={14} />}
+                    label="Lịch học mong muốn"
+                    value={
+                      normalizeVietnameseScheduleText(item.preferredSchedule) ||
+                      "-"
+                    }
+                  />
+                  <InfoCard
+                    label="Buổi học đầu tiên"
+                    value={
+                      firstStudySession
+                        ? [toDate(firstStudySession.studyDate)]
+                            .filter((part) => part && part !== "-")
+                            .join(" • ") || "-"
+                        : "-"
+                    }
+                  />
+                </div>
+
+                {!!item.actualStudySchedules?.length && (
+                  <div className="mt-3 space-y-2">
+                    <div className="text-xs font-bold text-emerald-700 flex items-center gap-1">
+                      <Clock size={12} />
+                      Lịch học thực tế theo tuần
                     </div>
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                      {item.actualStudySchedules.map((schedule, index) => {
+                        const typedSchedule = schedule as any;
+                        const studyDays =
+                          normalizeVietnameseScheduleText(
+                            schedule.studyDaysSummary,
+                          ) ||
+                          (Array.isArray(schedule.studyDayDisplayNames) &&
+                          schedule.studyDayDisplayNames.length > 0
+                            ? normalizeVietnameseScheduleText(
+                                schedule.studyDayDisplayNames.join(", "),
+                              )
+                            : "") ||
+                          (Array.isArray(schedule.studyDays) &&
+                          schedule.studyDays.length > 0
+                            ? normalizeVietnameseScheduleText(
+                                schedule.studyDays.join(", "),
+                              )
+                            : toStudyDayCodesLabel(schedule.studyDayCodes) ||
+                              "-");
+                        const timeRanges = getScheduleTimeRanges(typedSchedule);
+                        const timeRangesLabel =
+                          timeRanges.length > 0
+                            ? timeRanges.join(", ")
+                            : "Chưa có dữ liệu";
 
-                    {ticketLedger.length === 0 ? (
-                      <div className="rounded-lg border border-dashed border-gray-200 px-3 py-4 text-sm text-gray-500">
-                        Chưa có giao dịch vé học.
-                      </div>
-                    ) : (
-                      <div className="overflow-hidden rounded-xl border border-gray-100">
-                        <table className="w-full text-sm">
-                          <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
-                            <tr>
-                              <th className="px-3 py-2">Loại</th>
-                              <th className="px-3 py-2">Số lượng</th>
-                              <th className="px-3 py-2">Lý do</th>
-                              <th className="px-3 py-2">Thời gian</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-100 bg-white">
-                            {ticketLedger.map((entry) => (
-                              <tr key={entry.id} className="align-top">
-                                <td className="px-3 py-2">
-                                  <span className={cn("inline-flex rounded-full px-2.5 py-1 text-xs font-semibold", ticketTransactionBadgeClass(entry.transactionType))}>
-                                    {ticketTransactionLabel(entry.transactionType)}
+                        return (
+                          <div
+                            key={`${schedule.track || "track"}-${schedule.classId || index}`}
+                            className="rounded-xl border border-emerald-200 bg-white p-3 shadow-sm hover:shadow-md transition-shadow"
+                          >
+                            <div className="flex items-center gap-2">
+                              <div className="p-1.5 rounded-lg bg-emerald-100">
+                                {schedule.track === "secondary" ? (
+                                  <BookOpen
+                                    size={12}
+                                    className="text-emerald-600"
+                                  />
+                                ) : (
+                                  <GraduationCap
+                                    size={12}
+                                    className="text-emerald-600"
+                                  />
+                                )}
+                              </div>
+                              <div className="text-sm font-bold text-gray-900">
+                                {toTrackLabel(schedule.track)}
+                              </div>
+                            </div>
+                            <div className="mt-2 space-y-1.5 text-sm text-gray-700">
+                              <div className="flex items-start gap-1">
+                                <Users
+                                  size={12}
+                                  className="text-gray-400 mt-0.5 shrink-0"
+                                />
+                                <span>
+                                  <span className="font-bold">Tên Lớp:</span>{" "}
+                                  <span className="font-medium">
+                                    {schedule.className || "Chưa xếp lớp"}
                                   </span>
-                                </td>
-                                <td className="px-3 py-2 font-semibold text-gray-900">
-                                  {entry.quantity}
-                                </td>
-                                <td className="px-3 py-2 text-gray-700">
-                                  {entry.reason || "-"}
-                                </td>
-                                <td className="px-3 py-2 text-gray-500">
-                                  {toDateTimeOrRaw(entry.createdAt)}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </Section>
-
-            {/* Schedule Information Section */}
-            <Section 
-              title="Thông tin lịch học" 
-              icon={<CalendarClock size={16} className="text-emerald-600" />}
-              colorClass="border-emerald-200 bg-emerald-50/40"
-            >
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <InfoCard
-                  icon={<Calendar size={14} />}
-                  label="Ngày dự kiến"
-                  value={toDate(item.expectedStartDate)}
-                />
-                <InfoCard
-                  icon={<Calendar size={14} />}
-                  label="Ngày bắt đầu thực tế"
-                  value={toDate(item.actualStartDate)}
-                />
-                <InfoCard
-                  icon={<Clock size={14} />}
-                  label="Lịch học mong muốn"
-                  value={normalizeVietnameseScheduleText(item.preferredSchedule) || "-"}
-                />
-                <InfoCard
-                  label="Buổi học đầu tiên"
-                  value={
-                    firstStudySession
-                      ? [
-                          toDate(
-                            firstStudySession.studyDate 
-                          ),
-                        ]
-                          .filter((part) => part && part !== "-")
-                          .join(" • ") || "-"
-                      : "-"
-                  }
-                />
-              </div>
-
-              {!!item.actualStudySchedules?.length && (
-                <div className="mt-3 space-y-2">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-emerald-700 flex items-center gap-1">
-                    <Clock size={12} />
-                    Lịch học thực tế theo tuần
-                  </div>
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    {item.actualStudySchedules.map((schedule, index) => {
-                      const typedSchedule = schedule as any;
-                      const studyDays =
-                        normalizeVietnameseScheduleText(schedule.studyDaysSummary) ||
-                        (Array.isArray(schedule.studyDayDisplayNames) &&
-                        schedule.studyDayDisplayNames.length > 0
-                          ? normalizeVietnameseScheduleText(schedule.studyDayDisplayNames.join(", "))
-                          : "") ||
-                        (Array.isArray(schedule.studyDays) && schedule.studyDays.length > 0
-                          ? normalizeVietnameseScheduleText(schedule.studyDays.join(", "))
-                          : toStudyDayCodesLabel(schedule.studyDayCodes) || "-");
-                      const timeRanges = getScheduleTimeRanges(typedSchedule);
-                      const timeRangesLabel =
-                        timeRanges.length > 0 ? timeRanges.join(", ") : "Chưa có dữ liệu";
-
-                      return (
-                        <div
-                          key={`${schedule.track || "track"}-${schedule.classId || index}`}
-                          className="rounded-xl border border-emerald-200 bg-white p-3 shadow-sm hover:shadow-md transition-shadow"
-                        >
-                          <div className="flex items-center gap-2">
-                            <div className="p-1.5 rounded-lg bg-emerald-100">
-                              {schedule.track === "secondary" ? (
-                                <BookOpen size={12} className="text-emerald-600" />
-                              ) : (
-                                <GraduationCap size={12} className="text-emerald-600" />
-                              )}
-                            </div>
-                            <div className="text-sm font-semibold text-gray-900">
-                              {toTrackLabel(schedule.track)}
+                                </span>
+                              </div>
+                              <div className="flex items-start gap-1">
+                                <Calendar
+                                  size={12}
+                                  className="text-gray-400 mt-0.5 shrink-0"
+                                />
+                                <span>
+                                  <span className="font-bold">Ngày học:</span>{" "}
+                                  <span className="font-medium">
+                                    {studyDays} hàng tuần
+                                  </span>
+                                </span>
+                              </div>
+                              <div className="flex items-start gap-1">
+                                <Clock
+                                  size={12}
+                                  className="text-gray-400 mt-0.5 shrink-0"
+                                />
+                                <span>
+                                  <span className="font-bold">Khung giờ:</span>{" "}
+                                  <span className="font-medium">
+                                    {timeRangesLabel}
+                                  </span>
+                                </span>
+                              </div>
                             </div>
                           </div>
-                          <div className="mt-2 space-y-1.5 text-xs text-gray-700">
-                            <div className="flex items-start gap-1">
-                              <Users size={12} className="text-gray-400 mt-0.5 shrink-0" />
-                              <span>
-                                Tên Lớp: <span className="font-semibold">{schedule.className || "Chưa xếp lớp"}</span>
-                              </span>
-                            </div>
-                            <div className="flex items-start gap-1">
-                              <Calendar size={12} className="text-gray-400 mt-0.5 shrink-0" />
-                              <span>
-                                Ngày học: <span className="font-semibold">{studyDays} hàng tuần</span>
-                              </span>
-                            </div>
-                            <div className="flex items-start gap-1">
-                              <Clock size={12} className="text-gray-400 mt-0.5 shrink-0" />
-                              <span>
-                                Khung giờ: <span className="font-semibold">{timeRangesLabel}</span>
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              )}
-            </Section>
-
-            {/* System Information Section */}
-            <Section 
-              title="Thông tin hệ thống" 
-              icon={<FileText size={16} className="text-red-600" />}
-              colorClass="border-red-200 bg-red-50/40"
-            >
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <InfoCard
-                  icon={<Calendar size={14} />}
-                  label="Ngày tạo"
-                  value={toDateTime(item.createdAt)}
-                />
-                <InfoCard
-                  icon={<Calendar size={14} />}
-                  label="Cập nhật lần cuối"
-                  value={toDateTime(item.updatedAt)}
-                />
-              </div>
-
-              <div className="rounded-xl bg-white p-3 border border-gray-100 shadow-sm">
-                <div className="flex items-center gap-2">
-                  <FileText size={14} className="text-red-500" />
-                  <div className="text-xs font-medium uppercase tracking-wide text-gray-500">
-                    Ghi chú
-                  </div>
-                </div>
-                <div className="mt-1 break-all text-sm font-medium text-gray-900">
-                  {noteDisplay || "-"}
-                </div>
-
-                {!!placementTestId && !!placementTestDetailPath && (
-                  <button
-                    type="button"
-                    onClick={handleOpenPlacementTest}
-                    className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-red-600 hover:text-red-700 hover:underline transition-colors cursor-pointer"
-                    title="Ấn vào để xem bài kiểm tra đầu vào của bé này"
-                  >
-                    <ExternalLink size={12} />
-                    Xem bài kiểm tra đầu vào
-                  </button>
                 )}
-              </div>
-            </Section>
+              </Section>
+
+              {/* System Information Section */}
+              <Section
+                title="Thông tin hệ thống"
+                icon={<FileText size={16} className="text-red-600" />}
+                colorClass="border-red-200 bg-red-50/40"
+              >
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <InfoCard
+                    icon={<Calendar size={14} />}
+                    label="Ngày tạo"
+                    value={toDateTime(item.createdAt)}
+                  />
+                  <InfoCard
+                    icon={<Calendar size={14} />}
+                    label="Cập nhật lần cuối"
+                    value={toDateTime(item.updatedAt)}
+                  />
+                </div>
+
+                <div className="rounded-xl bg-white p-3 border border-gray-100 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <FileText size={14} className="text-red-500" />
+                    <div className="text-xs font-bold text-gray-500">
+                      Ghi chú
+                    </div>
+                  </div>
+                  <div className="mt-1 break-all text-sm font-medium text-gray-900">
+                    {noteDisplay || "-"}
+                  </div>
+
+                  {!!placementTestId && !!placementTestDetailPath && (
+                    <button
+                      type="button"
+                      onClick={handleOpenPlacementTest}
+                      className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-red-600 hover:text-red-700 hover:underline transition-colors cursor-pointer"
+                      title="Ấn vào để xem bài kiểm tra đầu vào của bé này"
+                    >
+                      <ExternalLink size={12} />
+                      Xem bài kiểm tra đầu vào
+                    </button>
+                  )}
+                </div>
+              </Section>
+            </div>
+          ) : null}
+        </div>
+
+        {/* Modal Footer */}
+        <div className="border-t border-gray-200 bg-linear-to-r from-red-500/5 to-red-700/5 px-6 py-4">
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-6 py-2.5 rounded-xl bg-linear-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer"
+            >
+              Đóng
+            </button>
           </div>
-        ) : null}
+        </div>
       </div>
     </div>,
     document.body,

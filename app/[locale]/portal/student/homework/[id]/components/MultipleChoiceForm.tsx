@@ -72,6 +72,7 @@ export default function MultipleChoiceForm({
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const timerStartTimeRef = useRef<number>(0);
   const remainingOnLeaveRef = useRef<number>(0);
+  const connectionLostRef = useRef(false);
 
   const router = useRouter();
 
@@ -371,12 +372,14 @@ export default function MultipleChoiceForm({
           submitQuizRef.current(true);
           return prev;
         }
-        if (prev <= 1) {
+        // Auto-submit immediately when time runs out (no modal, just submit)
+        if (prev <= 1 && !autoSubmitTriggeredRef.current && submitQuizRef.current) {
           if (timerRef.current) clearInterval(timerRef.current);
           timerRef.current = null;
+          autoSubmitTriggeredRef.current = true;
           setIsTimerActive(false);
-          setTimeUpModal(true);
-          localStorage.setItem(getStorageKey("_submitted"), "true");
+          // Auto-submit with whatever answers are selected
+          submitQuizRef.current(true);
           return 0;
         }
         const newTime = prev - 1;
@@ -388,6 +391,34 @@ export default function MultipleChoiceForm({
     }, 1000);
     return () => { if (timerRef.current) clearInterval(timerRef.current); timerRef.current = null; };
   }, [totalSeconds, isTimerActive, timeRemaining, countdownWarning, isInitialized, getStorageKey, showQuizStartModal]);
+
+  // Monitor connection status and retry submission if connection is restored
+  useEffect(() => {
+    if (!isInitialized || hasAutoSubmitted.current || isSubmitting || showQuizStartModal) return;
+    
+    const handleOnline = () => {
+      if (connectionLostRef.current && !autoSubmitTriggeredRef.current && !hasAutoSubmitted.current) {
+        connectionLostRef.current = false;
+        if (submitQuizRef.current) {
+          console.log("[DEBUG] Connection restored, auto-submitting...");
+          submitQuizRef.current(true);
+        }
+      }
+    };
+    
+    const handleOffline = () => {
+      connectionLostRef.current = true;
+      console.log("[DEBUG] Connection lost, waiting for restore...");
+    };
+    
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, [isInitialized, isSubmitting, showQuizStartModal]);
 
   useEffect(() => {
     if (!isInitialized || hasAutoSubmitted.current || isSubmitting || showQuizStartModal) return;
@@ -408,7 +439,7 @@ export default function MultipleChoiceForm({
 
   const handleSelectAnswer = (questionId: string, optionId: string) => { setSelectedAnswers((prev) => ({ ...prev, [questionId]: optionId })); isDirty.current = true; };
   const handleClearAnswer = (questionId: string) => { setSelectedAnswers((prev) => { const n = { ...prev }; delete n[questionId]; return n; }); };
-  const handleMarkQuestion = (questionId: string) => { setMarkedQuestions((prev) => { const n = new Set(prev); n.has(questionId) ? n.delete(questionId) : n.add(questionId); return n; }); };
+  const handleMarkQuestion = (questionId: string) => { setMarkedQuestions((prev) => { const n = new Set(prev); if (n.has(questionId)) { n.delete(questionId); } else { n.add(questionId); } return n; }); };
 
   if (totalQuestions === 0) return (<div className="rounded-2xl bg-white p-8 shadow-lg border border-gray-100"><div className="flex flex-col items-center justify-center text-center"><BookOpen className="h-16 w-16 text-amber-400 mb-4" /><h3 className="text-lg font-semibold text-gray-900 mb-2">Chưa có câu hỏi</h3><p className="text-gray-500">Bài trắc nghiệm này hiện chưa có câu hỏi nào.</p></div></div>);
   if (!isInitialized) return (<div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-blue-600" /></div>);

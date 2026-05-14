@@ -43,6 +43,13 @@ import { useBranchFilter } from "@/hooks/useBranchFilter";
 import { useToast } from "@/hooks/use-toast";
 import AdminBranchSelectField from "@/components/admin/common/AdminBranchSelectField";
 import SessionBulkChangeModal from "@/components/portal/schedule/SessionBulkChangeModal";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/lightswind/select";
 
 type SlotType = "CLASS" | "MAKEUP" | "EVENT";
 type Slot = {
@@ -268,6 +275,7 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
   const [roomOptions, setRoomOptions] = useState<SelectOption[]>([]);
   const [teacherOptions, setTeacherOptions] = useState<SelectOption[]>([]);
   const modalRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const findLabel = (options: SelectOption[], id: string) =>
     options.find((o) => o.id === id)?.label ?? "";
@@ -509,13 +517,25 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
     }
   };
 
+  const adjustTextareaHeight = () => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${Math.max(textareaRef.current.scrollHeight, 120)}px`;
+    }
+  };
+
+  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    handleChange("note", e.target.value);
+    adjustTextareaHeight();
+  };
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div
         ref={modalRef}
-        className="relative w-full max-w-4xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden"
+        className="relative w-full max-w-3xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden"
       >
         {/* Modal Header */}
         <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
@@ -525,7 +545,7 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
                 <CalendarDays size={24} className="text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-white">Tạo lịch mới</h2>
+                <h2 className="text-xl font-bold text-white">Tạo lịch mới</h2>
                 <p className="text-sm text-red-100">Thêm lịch học, buổi bù hoặc sự kiện mới</p>
               </div>
             </div>
@@ -540,7 +560,7 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
         </div>
 
         {/* Modal Body */}
-        <div className="p-6 max-h-[70vh] overflow-y-auto">
+        <div className="p-6 max-h-[70vh] overflow-y-auto ">
           <form onSubmit={handleSubmit} className="space-y-6">
             {submitError && (
               <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
@@ -548,7 +568,7 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
               </div>
             )}
 
-            {/* Row 0: Chi nhánh */}
+            {/* Row 0: Chi nhánh & Lớp học */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <AdminBranchSelectField
                 isOpen={isOpen}
@@ -559,36 +579,105 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
                 placeholder="Vui lòng chọn chi nhánh"
                 dataField="branchId"
               />
-            </div>
 
-            {/* Row 1: Lớp học & Loại */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
                   <Tag size={16} className="text-red-600" />
-                  Lớp học *
+                  Lớp học <span className="text-red-600">*</span>
+                </label>
+                <Select
+                  value={formData.classId}
+                  onValueChange={(value) => handleChange("classId", value)}
+                >
+                  <SelectTrigger className={`w-full rounded-xl border bg-white text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all ${errors.classId ? "border-red-500" : "border-gray-200"}`}>
+                    <SelectValue placeholder="Chọn lớp học" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Chọn lớp học</SelectItem>
+                    {classOptions.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.classId && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.classId}</p>}
+              </div>
+            </div>
+
+            {/* Row 1: Giáo viên & Phòng học */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                  <User size={16} className="text-red-600" />
+                  Giáo viên <span className="text-red-600">*</span>
+                </label>
+                <Select
+                  value={formData.teacherId}
+                  onValueChange={(value) => handleChange("teacherId", value)}
+                >
+                  <SelectTrigger className={`w-full rounded-xl border bg-white text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all ${errors.teacherId ? "border-red-500" : "border-gray-200"}`}>
+                    <SelectValue placeholder="Chọn giáo viên" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Chọn giáo viên</SelectItem>
+                    {teacherOptions.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.teacherId && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.teacherId}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                  <Building2 size={16} className="text-red-600" />
+                  Phòng học <span className="text-red-600">*</span>
+                </label>
+                <Select
+                  value={formData.roomId}
+                  onValueChange={(value) => handleChange("roomId", value)}
+                >
+                  <SelectTrigger className={`w-full rounded-xl border bg-white text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 ${errors.roomId ? "border-red-500" : "border-gray-200"}`}>
+                    <SelectValue placeholder="Chọn phòng học" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Chọn phòng học</SelectItem>
+                    {roomOptions.map((r) => (
+                      <SelectItem key={r.id} value={r.id}>
+                        {r.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.roomId && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.roomId}</p>}
+              </div>
+            </div>
+
+            {/* Row 2: Ngày & Loại lịch */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                  <Calendar size={16} className="text-red-600" />
+                  Ngày <span className="text-red-600">*</span>
                 </label>
                 <div className="relative">
-                  <select
-                    value={formData.classId}
-                    onChange={(e) => handleChange("classId", e.target.value)}
-                    className={`w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all ${errors.classId ? "border-red-500" : "border-gray-200"
+                  <input
+                    type="date"
+                    value={formData.date}
+                    onChange={(e) => handleChange("date", e.target.value)}
+                    className={`w-full px-4 py-3 rounded-xl border bg-white text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all ${errors.date ? "border-red-500" : "border-gray-200"
                       }`}
-                  >
-                    <option value="">Chọn lớp học</option>
-                    {classOptions.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.label}
-                      </option>
-                    ))}
-                  </select>
-                  {errors.classId && (
+                  />
+                  {errors.date && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
                       <AlertCircle size={18} className="text-red-500" />
                     </div>
                   )}
                 </div>
-                {errors.classId && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.classId}</p>}
+                {errors.date && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.date}</p>}
               </div>
 
               <div className="space-y-2">
@@ -606,7 +695,7 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
                       key={type.value}
                       type="button"
                       onClick={() => handleChange("type", type.value)}
-                      className={`px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all ${formData.type === type.value
+                      className={`px-3 py-2.5 cursor-pointer rounded-xl border text-sm font-semibold transition-all ${formData.type === type.value
                         ? `${type.color}`
                         : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
                         }`}
@@ -618,117 +707,34 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
               </div>
             </div>
 
-            {/* Row 2: Giáo viên & Phòng học */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
-                  <User size={16} className="text-red-600" />
-                  Giáo viên *
-                </label>
-                <div className="relative">
-                  <select
-                    value={formData.teacherId}
-                    onChange={(e) => handleChange("teacherId", e.target.value)}
-                    className={`w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all ${errors.teacherId ? "border-red-500" : "border-gray-200"
+            {/* Row 3: Ca học */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                <Clock3 size={16} className="text-red-600" />
+                Ca học
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {([
+                  { value: "MORNING" as const, label: "Sáng", time: PERIOD_TIME_RANGES.MORNING },
+                  { value: "AFTERNOON" as const, label: "Chiều", time: PERIOD_TIME_RANGES.AFTERNOON },
+                  { value: "EVENING" as const, label: "Tối", time: PERIOD_TIME_RANGES.EVENING },
+                ]).map((period) => (
+                  <button
+                    key={period.value}
+                    type="button"
+                    onClick={() => {
+                      handleChange("period", period.value);
+                      handleChange("time", period.time);
+                    }}
+                    className={`px-3 py-2.5 cursor-pointer rounded-xl border text-sm font-semibold transition-all flex flex-col items-center ${formData.period === period.value
+                      ? "bg-gradient-to-r from-red-50 to-red-100 border-red-300 text-red-700"
+                      : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
                       }`}
                   >
-                    <option value="">Chọn giáo viên</option>
-                    {teacherOptions.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.label}
-                      </option>
-                    ))}
-                  </select>
-                  {errors.teacherId && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <AlertCircle size={18} className="text-red-500" />
-                    </div>
-                  )}
-                </div>
-                {errors.teacherId && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.teacherId}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
-                  <Building2 size={16} className="text-red-600" />
-                  Phòng học *
-                </label>
-                <div className="relative">
-                  <select
-                    value={formData.roomId}
-                    onChange={(e) => handleChange("roomId", e.target.value)}
-                    className={`w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 ${errors.roomId ? "border-red-500" : "border-gray-200"
-                      }`}
-                  >
-                    <option value="">Chọn phòng học</option>
-                    {roomOptions.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.label}
-                      </option>
-                    ))}
-                  </select>
-                  {errors.roomId && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <AlertCircle size={18} className="text-red-500" />
-                    </div>
-                  )}
-                </div>
-                {errors.roomId && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.roomId}</p>}
-              </div>
-            </div>
-
-            {/* Row 3: Ngày & Ca học */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
-                  <Calendar size={16} className="text-red-600" />
-                  Ngày *
-                </label>
-                <div className="relative">
-                  <input
-                    type="date"
-                    value={formData.date}
-                    onChange={(e) => handleChange("date", e.target.value)}
-                    className={`w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all ${errors.date ? "border-red-500" : "border-gray-200"
-                      }`}
-                  />
-                  {errors.date && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <AlertCircle size={18} className="text-red-500" />
-                    </div>
-                  )}
-                </div>
-                {errors.date && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.date}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
-                  <Clock3 size={16} className="text-red-600" />
-                  Ca học
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {([
-                    { value: "MORNING" as const, label: "Sáng", time: PERIOD_TIME_RANGES.MORNING },
-                    { value: "AFTERNOON" as const, label: "Chiều", time: PERIOD_TIME_RANGES.AFTERNOON },
-                    { value: "EVENING" as const, label: "Tối", time: PERIOD_TIME_RANGES.EVENING },
-                  ]).map((period) => (
-                    <button
-                      key={period.value}
-                      type="button"
-                      onClick={() => {
-                        handleChange("period", period.value);
-                        handleChange("time", period.time);
-                      }}
-                      className={`px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all flex flex-col items-center ${formData.period === period.value
-                        ? "bg-gradient-to-r from-red-50 to-red-100 border-red-300 text-red-700"
-                        : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
-                        }`}
-                    >
-                      <span>{period.label}</span>
-                      <span className="text-xs font-normal mt-0.5">{period.time}</span>
-                    </button>
-                  ))}
-                </div>
+                    <span>{period.label}</span>
+                    <span className="text-xs font-normal mt-0.5">{period.time}</span>
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -736,14 +742,14 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
                 <Clock3 size={16} className="text-red-600" />
-                Thời gian chi tiết *
+                Thời gian chi tiết <span className="text-red-600">*</span>
               </label>
               <div className="relative">
                 <input
                   type="text"
                   value={formData.time}
                   onChange={(e) => handleChange("time", e.target.value)}
-                  className={`w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all ${errors.time ? "border-red-500" : "border-gray-200"
+                  className={`w-full px-4 py-3 rounded-xl border bg-white text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all ${errors.time ? "border-red-500" : "border-gray-200"
                     }`}
                   placeholder="VD: 18:30 - 20:00"
                 />
@@ -763,7 +769,7 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
                 <Palette size={16} className="text-red-600" />
                 Màu sắc hiển thị
               </label>
-              <div className="grid grid-cols-8">
+              <div className="grid grid-cols-10 gap-2">
                 {COLOR_OPTIONS.map((color) => (
                   <button
                     key={color.value}
@@ -828,11 +834,12 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
                 Ghi chú
               </label>
               <textarea
+                ref={textareaRef}
                 value={formData.note}
-                onChange={(e) => handleChange("note", e.target.value)}
-                rows={3}
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 resize-none"
+                onChange={handleTextareaChange}
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 resize-none overflow-hidden"
                 placeholder="VD: Bù cho 03/12, Mang theo tài liệu, Chủ đề hôm nay..."
+                style={{ minHeight: '120px' }}
               />
             </div>
 
@@ -868,9 +875,9 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
             <button
               type="button"
               onClick={onClose}
-              className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer"
+              className="px-6 py-2.5 text-sm rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer"
             >
-              Hủy bỏ
+              Hủy
             </button>
             <div className="flex items-center gap-3">
               <button
@@ -882,16 +889,16 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
                   setFormData(prev => ({ ...prev, date: formattedDate }));
                   setErrors({});
                 }}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer"
+                className="inline-flex text-sm items-center gap-2 px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer"
               >
-                <RotateCcw size={16} />
+                <RotateCcw size={14} />
                 Đặt lại
               </button>
               <button
                 type="button"
                 onClick={(e) => handleSubmit(e as any)}
                 disabled={isSubmitting}
-                className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer ${isSubmitting ? "opacity-60 cursor-not-allowed" : ""
+                className={`inline-flex text-sm items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer ${isSubmitting ? "opacity-60 cursor-not-allowed" : ""
                   }`}
               >
                 <Save size={16} />
@@ -1245,8 +1252,8 @@ function WeekTimetable({
             </div>
           </div>
           <div>
-            <div className="text-2xl font-bold text-gray-900">Lịch tuần</div>
-            <div className="text-gray-700">{rangeText}</div>
+            <div className="text-xl font-bold text-gray-900">Lịch tuần</div>
+            <div className="text-gray-700 text-sm font-medium ">{rangeText}</div>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -1744,7 +1751,7 @@ export default function AdminSchedulePage() {
 
   return (
     <>
-      <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 p-6 space-y-6">
+      <div className="min-h-screen bg-gray-50  p-2 space-y-6">
         {/* Header */}
         <div className={`flex flex-wrap items-center justify-between gap-3 mb-8 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
           <div className="flex items-center gap-4">
@@ -1752,7 +1759,7 @@ export default function AdminSchedulePage() {
               <CalendarDays size={28} className="text-white" />
             </div>
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+              <h1 className="text-2xl md:text-2xl font-bold text-gray-900">
                 Lịch chung toàn hệ thống
               </h1>
               <p className="text-sm text-gray-700 mt-1">
@@ -1784,29 +1791,30 @@ export default function AdminSchedulePage() {
         )}
 
         {/* Bộ lọc */}
-        <div className={`rounded-2xl border border-gray-200 bg-white p-4 flex flex-wrap gap-2 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div className={`rounded-2xl border border-gray-200 bg-white p-4 flex flex-nowrap gap-2 overflow-x-auto transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           {/* Filter Lớp học */}
           <div className="flex items-center gap-2">
             <BookOpen size={16} className="text-red-600" />
-            <select
-              value={classFilter}
-              onChange={(e) => setClassFilter(e.target.value)}
-              className="px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-300 cursor-pointer"
-            >
-              <option value="ALL">Tất cả lớp</option>
-              {classOptions.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+            <Select value={classFilter} onValueChange={(value) => setClassFilter(value)}>
+              <SelectTrigger className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm font-medium min-w-[180px]">
+                <SelectValue placeholder="Tất cả lớp" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Tất cả lớp</SelectItem>
+                {classOptions.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <button
               onClick={() => setIsBulkUpdateModalOpen(true)}
               disabled={classFilter === "ALL"}
-              className="px-3 py-2 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 text-sm font-semibold hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-3 py-2 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 text-sm font-semibold hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed min-w-[210px]"
               title={classFilter === "ALL" ? "Chọn 1 lớp để cập nhật hàng loạt" : "Cập nhật hàng loạt theo lớp"}
             >
-              Đổi GV/Phòng hàng loạt
+              Đổi gv, phòng hàng loạt
             </button>
           </div>
 
@@ -1823,7 +1831,7 @@ export default function AdminSchedulePage() {
                 key={item}
                 onClick={() => setFilter(item as typeof filter)}
                 className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer flex items-center gap-2 ${isActive
-                  ? `${meta.badge} text-white shadow-md`
+                  ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
                   : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-100"
                   }`}
               >

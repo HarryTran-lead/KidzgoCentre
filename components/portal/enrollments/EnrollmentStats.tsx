@@ -30,21 +30,21 @@ export default function EnrollmentStats({ enrollments, isLoading }: EnrollmentSt
       label: "Đang học",
       value: stats.active,
       icon: CheckCircle,
-      color: "from-gray-600 to-gray-700",
+      color: "from-emerald-600 to-teal-600",
       subtitle: "Đang theo lớp",
     },
     {
       label: "Tạm nghỉ",
       value: stats.paused,
       icon: PauseCircle,
-      color: "from-gray-700 to-gray-800",
+      color: "from-blue-600 to-cyan-600",
       subtitle: "Tạm dừng học",
     },
     {
       label: "Đã nghỉ",
       value: stats.dropped,
       icon: XCircle,
-      color: "from-red-500 to-red-600",
+      color: "from-amber-600 to-orange-600",
       subtitle: "Kết thúc ghi danh",
     },
   ];
@@ -53,7 +53,7 @@ export default function EnrollmentStats({ enrollments, isLoading }: EnrollmentSt
     return (
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="h-24 rounded-2xl border border-gray-200 bg-white animate-pulse" />
+          <div key={i} className="h-24 rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 animate-pulse" />
         ))}
       </div>
     );
@@ -66,11 +66,11 @@ export default function EnrollmentStats({ enrollments, isLoading }: EnrollmentSt
         return (
           <div
             key={stat.label}
-            className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-300 hover:border-red-300 hover:shadow-md"
+            className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102"
           >
-            <div className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-5 blur-xl bg-linear-to-r ${stat.color}`} />
+            <div className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r ${stat.color}`} />
             <div className="relative flex items-center justify-between gap-3">
-              <div className={`rounded-xl bg-linear-to-r ${stat.color} p-2 text-white shadow-sm`}>
+              <div className={`rounded-xl bg-gradient-to-br ${stat.color} p-2 text-white shadow-sm`}>
                 <Icon size={20} />
               </div>
               <div className="min-w-0 flex-1">

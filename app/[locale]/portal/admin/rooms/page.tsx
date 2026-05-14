@@ -5,7 +5,7 @@ import {
   Plus, Filter, Calendar, ChevronRight, MoreVertical, CheckCircle, 
   XCircle, ChevronLeft, ChevronsLeft, ChevronsRight, X, Tag, 
   MapPin,
-  AlertCircle, Save, RotateCcw, Power, PowerOff
+  AlertCircle, Save, RotateCcw, Power, PowerOff, Sparkles
 } from "lucide-react";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { fetchAdminRooms, createAdminRoom, updateAdminRoom, fetchAdminRoomDetail, toggleRoomStatus } from "@/app/api/admin/rooms";
@@ -69,21 +69,19 @@ function StatusPill({ status }: { status: Status }) {
   const map = {
     active: {
       text: "Hoạt động",
-      bg: "bg-gradient-to-r from-green-600 to-green-700",
+      className: "bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200",
       icon: <CheckCircle size={12} />,
-      textColor: "text-white"
     },
     inactive: {
       text: "Không hoạt động",
-      bg: "bg-gradient-to-r from-gray-600 to-gray-800",
+      className: "bg-gradient-to-r from-red-50 to-red-100 text-red-700 border border-red-200",
       icon: <XCircle size={12} />,
-      textColor: "text-white"
     },
   } as const;
 
   const cfg = map[status];
   return (
-    <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full ${cfg.bg} ${cfg.textColor} text-xs font-medium shadow-sm`}>
+    <div className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-full whitespace-nowrap text-xs font-medium ${cfg.className}`}>
       {cfg.icon}
       {cfg.text}
     </div>
@@ -150,55 +148,24 @@ function ModernStatCard({
   trend?: { value: number; isPositive: boolean };
   color?: "red" | "gray" | "black" | "green";
 }) {
-  const colorClasses = {
-    red: "from-red-600 to-red-700",
-    gray: "from-gray-600 to-gray-700",
-    black: "from-gray-800 to-gray-900",
-    green: "from-green-600 to-green-700",
-  };
-
-  const bgClasses = {
-    red: "bg-red-100",
-    gray: "bg-gray-100",
-    black: "bg-black/10",
-    green: "bg-green-100",
-  };
-
-  const textClasses = {
-    red: "text-red-600",
-    gray: "text-gray-600",
-    black: "text-gray-800",
-    green: "text-green-600",
+  const iconBgClasses = {
+    red: "from-emerald-600 to-teal-600",
+    gray: "from-blue-600 to-cyan-600",
+    black: "from-violet-600 to-purple-600",
+    green: "from-violet-600 to-purple-600",
   };
 
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 transition-all duration-300 hover:shadow-xl hover:shadow-red-100/50 cursor-pointer">
-      <div className={`absolute inset-0 bg-gradient-to-r ${colorClasses[color]} opacity-0 group-hover:opacity-5 transition-opacity`} />
+    <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+      <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r from-red-600 to-red-700"></div>
+      <div className="relative flex items-center gap-3">
+        <span className={`w-10 h-10 rounded-xl bg-gradient-to-br ${iconBgClasses[color]} grid place-items-center`}>
+          <span className="text-white">{icon}</span>
+        </span>
 
-      <div className="relative flex items-center gap-4">
-        <div className={`p-3 rounded-xl bg-gradient-to-r ${colorClasses[color]} text-white shadow-lg`}>
-          {icon}
-        </div>
-
-        <div className="flex-1">
-          <div className="text-sm text-gray-600 mb-1">{title}</div>
-          <div className="text-2xl font-bold text-gray-900">{value}</div>
-
-          <div className="flex items-center gap-3 mt-2">
-            {subtitle && (
-              <div className="text-xs text-gray-500">{subtitle}</div>
-            )}
-
-            {trend && (
-              <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${trend.isPositive
-                  ? 'bg-red-50 text-red-700'
-                  : 'bg-gray-100 text-gray-700'
-                }`}>
-                {trend.isPositive ? '↑' : '↓'}
-                <span>{trend.value}%</span>
-              </div>
-            )}
-          </div>
+        <div>
+          <div className="text-sm text-gray-600">{title}</div>
+          <div className="text-2xl font-extrabold text-gray-900">{value}</div>
         </div>
       </div>
     </div>
@@ -236,6 +203,7 @@ function CreateRoomModal({ isOpen, onClose, onSubmit, mode = "create", initialDa
   const [branchOptions, setBranchOptions] = useState<SelectOption[]>([]);
   const [loadingOptions, setLoadingOptions] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -276,8 +244,25 @@ function CreateRoomModal({ isOpen, onClose, onSubmit, mode = "create", initialDa
       }
       setErrors({});
       fetchSelectData();
+      
+      // Điều chỉnh chiều cao textarea sau khi render
+      setTimeout(() => {
+        adjustTextareaHeight();
+      }, 0);
     }
   }, [isOpen, mode, initialData]);
+
+  const adjustTextareaHeight = () => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${Math.max(textareaRef.current.scrollHeight, 120)}px`;
+    }
+  };
+
+  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    handleChange("note", e.target.value);
+    adjustTextareaHeight();
+  };
 
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof RoomFormData, string>> = {};
@@ -312,7 +297,7 @@ function CreateRoomModal({ isOpen, onClose, onSubmit, mode = "create", initialDa
     <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div 
         ref={modalRef}
-        className="relative w-full max-w-4xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden"
+        className="relative w-full max-w-3xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
       >
         {/* Modal Header */}
         <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
@@ -322,7 +307,7 @@ function CreateRoomModal({ isOpen, onClose, onSubmit, mode = "create", initialDa
                 <Building2 size={24} className="text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-white">
+                <h2 className="text-xl font-bold text-white">
                   {mode === "edit" ? "Cập nhật phòng học" : "Thêm phòng học mới"}
                 </h2>
                 <p className="text-sm text-red-100">
@@ -341,10 +326,10 @@ function CreateRoomModal({ isOpen, onClose, onSubmit, mode = "create", initialDa
         </div>
 
         {/* Modal Body */}
-        <div className="p-6 max-h-[70vh] overflow-y-auto">
+        <div className="flex-1 overflow-y-auto p-6 text-sm">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Row 1: Chi nhánh & Tên phòng */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Row 1: Chi nhánh & Tên phòng & Sức chứa */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <AdminBranchSelectField
                 isOpen={isOpen}
                 mode={mode}
@@ -357,10 +342,10 @@ function CreateRoomModal({ isOpen, onClose, onSubmit, mode = "create", initialDa
                 dataField="branchId"
               />
 
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+              <div className="space-y-2.5">
+                <label className="flex items-center gap-2 font-bold text-gray-800">
                   <Tag size={16} className="text-red-600" />
-                  Tên phòng *
+                  Tên phòng <span className="text-red-600">*</span>
                 </label>
                 <div className="relative">
                   <input
@@ -378,16 +363,13 @@ function CreateRoomModal({ isOpen, onClose, onSubmit, mode = "create", initialDa
                     </div>
                   )}
                 </div>
-                {errors.name && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.name}</p>}
+                {errors.name && <p className="text-xs text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.name}</p>}
               </div>
-            </div>
 
-            {/* Row 2: Sức chứa */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+              <div className="space-y-2.5">
+                <label className="flex items-center gap-2 font-bold text-gray-800">
                   <Users size={16} className="text-red-600" />
-                  Sức chứa *
+                  Sức chứa <span className="text-red-600">*</span>
                 </label>
                 <div className="relative">
                   <input
@@ -406,14 +388,14 @@ function CreateRoomModal({ isOpen, onClose, onSubmit, mode = "create", initialDa
                     </div>
                   )}
                 </div>
-                {errors.capacity && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.capacity}</p>}
+                {errors.capacity && <p className="text-xs text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.capacity}</p>}
               </div>
             </div>
 
-            {/* Row 3: Trạng thái (chỉ hiển thị khi edit) */}
+            {/* Row 2: Trạng thái (chỉ hiển thị khi edit) */}
             {mode === "edit" && (
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+              <div className="space-y-2.5">
+                <label className="flex items-center gap-2 font-bold text-gray-800">
                   <CheckCircle size={16} className="text-red-600" />
                   Trạng thái
                 </label>
@@ -438,30 +420,31 @@ function CreateRoomModal({ isOpen, onClose, onSubmit, mode = "create", initialDa
               </div>
             )}
 
-            {/* Row 4: Ghi chú */}
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+            {/* Row 3: Ghi chú */}
+            <div className="space-y-2.5">
+              <label className="flex items-center gap-2 font-bold text-gray-800">
                 <Building2 size={16} className="text-red-600" />
                 Ghi chú
               </label>
               <textarea
+                ref={textareaRef}
                 value={formData.note}
-                onChange={(e) => handleChange("note", e.target.value)}
-                rows={3}
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 resize-none"
+                onChange={handleTextareaChange}
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 resize-none overflow-hidden"
                 placeholder="Ghi chú về phòng học, thiết bị, đặc điểm..."
+                style={{ minHeight: '120px' }}
               />
             </div>
           </form>
         </div>
 
         {/* Modal Footer */}
-        <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-6">
+        <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-6 flex-shrink-0">
           <div className="flex items-center justify-between">
             <button
               type="button"
               onClick={onClose}
-              className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer"
+              className="px-6 py-2.5 text-sm rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer"
             >
               Hủy bỏ
             </button>
@@ -476,15 +459,15 @@ function CreateRoomModal({ isOpen, onClose, onSubmit, mode = "create", initialDa
                   }
                   setErrors({});
                 }}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer"
+                className="inline-flex text-sm items-center gap-2 px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer"
               >
-                <RotateCcw size={16} />
+                <RotateCcw size={14} />
                 {mode === "edit" ? "Khôi phục" : "Đặt lại"}
               </button>
               <button
                 type="button"
                 onClick={handleSubmit}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer"
+                className="inline-flex text-sm items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer"
               >
                 <Save size={16} />
                 {mode === "edit" ? "Lưu thay đổi" : "Tạo phòng học"}
@@ -510,7 +493,7 @@ export default function Page() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<Status | "all">("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(5);
+  const [itemsPerPage] = useState(10);
   const [sort, setSort] = useState<SortState<Room>>({ key: null, direction: "asc" });
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -865,7 +848,7 @@ export default function Page() {
 
   return (
     <>
-      <div className="min-h-screen bg-gray-50 p-6 space-y-6">
+      <div className="min-h-screen bg-gray-50 p-2 space-y-6">
         {/* Header */}
         <div className={`flex flex-wrap items-center justify-between gap-4 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
           <div className="flex items-center gap-4">
@@ -873,19 +856,16 @@ export default function Page() {
               <Building2 size={28} className="text-white" />
             </div>
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+              <h1 className="text-2xl md:text-2xl font-extrabold text-gray-900">
                 Quản lý phòng học
               </h1>
-              <p className="text-sm text-gray-600 mt-1">
+              <p className="text-gray-600 mt-1 flex items-center gap-2">
+                <Sparkles size={14} className="text-red-600" />
                 Quản lý phòng học, lịch sử dụng và tài nguyên
               </p>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-gray-100 transition-colors cursor-pointer">
-              <Filter size={16} />
-              Lọc
-            </button>
             <button
               onClick={() => setIsCreateModalOpen(true)}
               className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer hover:scale-105 active:scale-95"
@@ -899,36 +879,31 @@ export default function Page() {
         {/* Stats Grid */}
         <div className={`grid gap-4 md:grid-cols-2 lg:grid-cols-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <ModernStatCard
-            icon={<Building2 size={20} />}
+            icon={<Building2 size={18} />}
             title="Tổng phòng học"
             value={`${rooms.length}`}
-            subtitle={`${rooms.filter(r => r.status === "active").length} phòng hoạt động`}
             color="red"
           />
 
           <ModernStatCard
-            icon={<CheckCircle size={20} />}
+            icon={<CheckCircle size={18} />}
             title="Hoạt động"
             value={`${rooms.filter(r => r.status === "active").length}`}
-            subtitle="Sẵn sàng sử dụng"
-            trend={{ value: 12, isPositive: true }}
-            color="green"
-          />
-
-          <ModernStatCard
-            icon={<Users size={20} />}
-            title="Tổng sức chứa"
-            value={`${rooms.reduce((acc, r) => acc + r.capacity, 0)}`}
-            subtitle="chỗ ngồi"
             color="gray"
           />
 
           <ModernStatCard
-            icon={<XCircle size={20} />}
+            icon={<Users size={18} />}
+            title="Tổng sức chứa"
+            value={`${rooms.reduce((acc, r) => acc + r.capacity, 0)}`}
+            color="black"
+          />
+
+          <ModernStatCard
+            icon={<XCircle size={18} />}
             title="Không hoạt động"
             value={`${rooms.filter(r => r.status === "inactive").length}`}
-            subtitle="Tạm dừng"
-            color="black"
+            color="green"
           />
         </div>
 
@@ -944,44 +919,64 @@ export default function Page() {
 
         {/* Search and Filter */}
         <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="relative flex-1 min-w-[250px]">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" size={16} />
-              <input
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
-                placeholder="Tìm kiếm phòng học, tầng, hoặc thiết bị..."
-                className="w-full h-10 pl-10 pr-4 rounded-xl border border-gray-200 bg-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200"
-              />
-            </div>
+          <div className="flex flex-wrap gap-2 pb-4 border-b border-red-200">
+            {(["all", "active", "inactive"] as const).map((status) => {
+              const count = status === "all" 
+                ? rooms.length 
+                : rooms.filter((r) => r.status === status).length;
+              const isActive = statusFilter === status;
+              const statusLabel = status === "all" ? "Tất cả trạng thái" : status === "active" ? "Hoạt động" : "Không hoạt động";
+              
+              return (
+                <button
+                  key={status}
+                  onClick={() => {
+                    setStatusFilter(status);
+                    setCurrentPage(1);
+                  }}
+                  className={cn(
+                    "inline-flex items-center gap-2 px-4 py-2 rounded-xl border transition-all cursor-pointer text-sm font-medium",
+                    isActive
+                      ? "bg-gradient-to-r from-red-600 to-red-700 text-white border-red-600 shadow-md"
+                      : "bg-white border-red-200 text-gray-700 hover:bg-red-50"
+                  )}
+                >
+                  {statusLabel}
+                  <span
+                    className={cn(
+                      "px-1.5 py-0.5 rounded-xl text-xs font-semibold",
+                      isActive
+                        ? "bg-white/30 text-white"
+                        : "bg-red-50 text-red-600"
+                    )}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
 
-            <div className="flex items-center gap-3">
-              <Select 
-                value={statusFilter} 
-                onValueChange={(val) => { setStatusFilter(val as typeof statusFilter); setCurrentPage(1); }}
-              >
-                <SelectTrigger className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200">
-                  <SelectValue placeholder="Chọn trạng thái" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tất cả trạng thái</SelectItem>
-                  <SelectItem value="active">Hoạt động</SelectItem>
-                  <SelectItem value="inactive">Không hoạt động</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="relative flex-1 mt-4">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" size={16} />
+            <input
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+              placeholder="Tìm kiếm phòng học, tầng, hoặc thiết bị..."
+              className="w-full h-10 pl-10 pr-4 rounded-xl border border-gray-200 bg-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200"
+            />
           </div>
         </div>
 
         {/* Main Content */}
-        <div className={`grid xl:grid-cols-[1fr_320px] gap-6 transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div className={`grid xl:grid-cols-[1fr_280px] gap-6 transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           {/* Rooms Table */}
           <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden flex flex-col">
             {/* Table Header */}
             <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-gray-200 px-6 py-4 flex-shrink-0">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <h2 className="text-lg font-semibold text-gray-900">Danh sách phòng học</h2>
+                  <h2 className=" font-semibold text-gray-900">Danh sách phòng học</h2>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <span className="font-medium">{filteredRooms.length} phòng học</span>
@@ -996,7 +991,7 @@ export default function Page() {
                   <tr>
                     <th className="py-3 px-6 text-left"><SortHeader label="Phòng học" sortKey="id" /></th>
                     <th className="py-3 px-6 text-left"><SortHeader label="Chi nhánh" sortKey="branch" /></th>
-                    <th className="py-3 px-6 text-left"><SortHeader label="Sức chứa" sortKey="capacity" /></th>
+                    <th className="py-3 px-6 text-left whitespace-nowrap"><SortHeader label="Sức chứa" sortKey="capacity" /></th>
                     <th className="py-3 px-6 text-left"><span className="text-sm font-semibold text-gray-700">Thiết bị</span></th>
                     <th className="py-3 px-6 text-left"><SortHeader label="Trạng thái" sortKey="status" /></th>
                     <th className="py-3 px-6 text-right"><span className="text-sm font-semibold text-gray-700">Thao tác</span></th>
@@ -1011,26 +1006,26 @@ export default function Page() {
                       >
                         <td className="py-4 px-6">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-red-600 to-red-700 flex items-center justify-center">
+                            <div className="w-8 h-8 rounded-xl bg-gradient-to-r from-red-600 to-red-700 flex items-center justify-center flex-shrink-0">
                               <Building2 size={18} className="text-white" />
                             </div>
                             <div>
-                              <div className="font-bold text-gray-900">{room.name}</div>
+                              <div className="text-sm font-semibold text-gray-900">{room.name}</div>
                             </div>
                           </div>
                         </td>
                         <td className="py-4 px-6 whitespace-nowrap">
-                          <div className="inline-flex items-center gap-2 text-gray-900 text-sm">
-                            <MapPin size={16} className="text-gray-400" />
+                          <div className="inline-flex items-center gap-2 text-gray-900 text-sm font-medium">
+                            <MapPin size={16} className="text-red-600" />
                             <span className="truncate">{room.branch}</span>
                           </div>
                         </td>
-                        <td className="py-4 px-6">
+                        <td className="py-4 px-6 whitespace-nowrap">
                           <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-red-50 to-red-100 flex items-center justify-center border border-red-200">
-                              <span className="text-lg font-bold text-red-700">{room.capacity}</span>
+                            <div className="w-6 h-6 rounded-xl bg-gradient-to-r from-red-50 to-red-100 flex items-center justify-center border border-red-200">
+                              <span className="text-xs font-bold text-red-700">{room.capacity}</span>
                             </div>
-                            <span className="text-sm text-gray-600">người</span>
+                            <span className="text-sm font-medium text-gray-600">người</span>
                           </div>
                         </td>
                         <td className="py-4 px-6">
@@ -1245,7 +1240,7 @@ export default function Page() {
 
                           <div className="flex items-center justify-between pt-1.5 border-t border-gray-100">
                             <div className="flex items-center gap-1.5 text-[10px] text-gray-600">
-                              <MapPin size={12} />
+                              <MapPin size={12} className="text-red-600" />
                               <span className="truncate">{roomName}</span>
                             </div>
                             <ChevronRight size={12} className="text-gray-400 group-hover:text-red-600 transition-colors" />
@@ -1326,7 +1321,7 @@ export default function Page() {
       {/* Detail Modal */}
       {showDetailModal && (
         <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="relative w-full max-w-3xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
+          <div className="relative w-full max-w-3xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             {/* Modal Header */}
             <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
               <div className="flex items-center justify-between">
@@ -1353,7 +1348,7 @@ export default function Page() {
             </div>
 
             {/* Modal Body */}
-            <div className="p-6 max-h-[70vh] overflow-y-auto">
+            <div className="flex-1 overflow-y-auto p-6 text-sm">
               {loadingDetail ? (
                 <div className="flex items-center justify-center py-12">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500"></div>
@@ -1362,22 +1357,22 @@ export default function Page() {
                 <div className="space-y-6">
                   {/* Tên phòng và Chi nhánh */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <div className="space-y-2.5">
+                      <label className="flex items-center gap-2 font-bold text-gray-800">
                         <Tag size={16} className="text-red-600" />
                         Tên phòng học
                       </label>
-                      <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
+                      <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm">
                         {selectedRoomDetail.name || "Chưa có thông tin"}
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <div className="space-y-2.5">
+                      <label className="flex items-center gap-2 font-bold text-gray-800">
                         <MapPin size={16} className="text-red-600" />
                         Chi nhánh
                       </label>
-                      <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
+                      <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm">
                         {selectedRoomDetail.branchName || selectedRoomDetail.branch?.name || "Chưa có chi nhánh"}
                       </div>
                     </div>
@@ -1385,18 +1380,18 @@ export default function Page() {
 
                   {/* Sức chứa và Trạng thái */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <div className="space-y-2.5">
+                      <label className="flex items-center gap-2 font-bold text-gray-800">
                         <Users size={16} className="text-red-600" />
                         Sức chứa
                       </label>
-                      <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
+                      <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm">
                         {selectedRoomDetail.capacity ? `${selectedRoomDetail.capacity} người` : "Chưa có thông tin"}
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <div className="space-y-2.5">
+                      <label className="flex items-center gap-2 font-bold text-gray-800">
                         <CheckCircle size={16} className="text-red-600" />
                         Trạng thái
                       </label>
@@ -1407,15 +1402,15 @@ export default function Page() {
                   </div>
 
                   {/* Ghi chú / Thiết bị */}
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <div className="space-y-2.5">
+                    <label className="flex items-center gap-2 font-bold text-gray-800">
                       <Building2 size={16} className="text-red-600" />
                       Ghi chú / Thiết bị
                     </label>
-                    <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 min-h-[80px]">
+                    <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 min-h-[80px] text-sm">
                       {selectedRoomDetail.note ? (
-                        <div className="space-y-2">
-                          <p>{selectedRoomDetail.note}</p>
+                        <div className="space-y-2.5">
+                          <p className="text-sm">{selectedRoomDetail.note}</p>
                           {selectedRoomDetail.equipment && Array.isArray(selectedRoomDetail.equipment) && selectedRoomDetail.equipment.length > 0 && (
                             <div className="flex flex-wrap gap-2 mt-3">
                               {selectedRoomDetail.equipment.map((eq: string, i: number) => (
@@ -1425,7 +1420,7 @@ export default function Page() {
                           )}
                         </div>
                       ) : (
-                        <p className="text-gray-500">Chưa có ghi chú</p>
+                        <p className="text-gray-500 text-sm">Chưa có ghi chú</p>
                       )}
                     </div>
                   </div>
@@ -1438,7 +1433,7 @@ export default function Page() {
             </div>
 
             {/* Modal Footer */}
-            <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-6">
+            <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-6 flex-shrink-0">
               <div className="flex justify-end">
                 <button
                   onClick={() => {

@@ -1496,7 +1496,7 @@ export function StaffGamificationWorkspace({
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <MetricCard icon={<Target className="h-5 w-5" />} label="Nhiệm vụ hiện có" value={formatNumber(missions.length)} accent="from-red-600 to-red-700" theme="staff" />
-        <MetricCard icon={<Gift className="h-5 w-5" />} label="Đơn đổi quà mở" value={formatNumber(redemptions.filter((item) => item.status !== "Received" && item.status !== "Cancelled").length)} accent="from-violet-500 via-fuchsia-500 to-pink-500" theme="staff" />
+        <MetricCard icon={<Gift className="h-5 w-5" />} label="Đơn đổi quà mở" value={formatNumber(redemptions.filter((item) => item.status !== "Received" && item.status !== "Cancelled").length)} accent="from-violet-600 to-purple-600" theme="staff" />
       </div>
 
       <Tabs value={activeTab} onChange={setActiveTab} tabs={tabs} theme="staff" />
@@ -1609,10 +1609,10 @@ export function StaffGamificationWorkspace({
               {!studentLoading && selectedStudentId ? (
                 <>
                   <div className="grid gap-4 md:grid-cols-4">
-                    <MetricCard theme="staff" icon={<Star className="h-5 w-5" />} label="Số sao hiện tại" value={formatNumber(studentBalance)} accent="from-amber-500 via-orange-500 to-red-500" />
-                    <MetricCard theme="staff" icon={<Sparkles className="h-5 w-5" />} label="XP hiện tại" value={formatNumber(studentLevel?.xp)} hint={`Cần ${formatNumber(studentLevel?.xpRequiredForNextLevel)} XP để lên cấp`} accent="from-cyan-500 via-blue-500 to-indigo-500" />
-                    <MetricCard theme="staff" icon={<Trophy className="h-5 w-5" />} label="Cấp độ" value={studentLevel?.level != null && Number.isFinite(studentLevel.level) ? `Cấp ${studentLevel.level}` : "Chưa có"} hint={`XP: ${formatNumber(studentLevel?.xp)}`} accent="from-violet-500 via-fuchsia-500 to-pink-500" />
-                    <MetricCard theme="staff" icon={<CheckCheck className="h-5 w-5" />} label="Streak hiện tại" value={`${formatNumber(studentStreak?.currentStreak)} ngày`} hint={`Kỷ lục ${formatNumber(studentStreak?.maxStreak)} ngày`} accent="from-emerald-500 via-teal-500 to-cyan-500" />
+                    <MetricCard theme="staff" icon={<Star className="h-5 w-5" />} label="Số sao hiện tại" value={formatNumber(studentBalance)} accent="from-amber-600 to-orange-600" />
+                    <MetricCard theme="staff" icon={<Sparkles className="h-5 w-5" />} label="XP hiện tại" value={formatNumber(studentLevel?.xp)} hint={`Cần ${formatNumber(studentLevel?.xpRequiredForNextLevel)} XP để lên cấp`} accent="from-blue-600 to-cyan-600" />
+                    <MetricCard theme="staff" icon={<Trophy className="h-5 w-5" />} label="Cấp độ" value={studentLevel?.level != null && Number.isFinite(studentLevel.level) ? `Cấp ${studentLevel.level}` : "Chưa có"} hint={`XP: ${formatNumber(studentLevel?.xp)}`} accent="from-violet-600 to-purple-600" />
+                    <MetricCard theme="staff" icon={<CheckCheck className="h-5 w-5" />} label="Streak hiện tại" value={`${formatNumber(studentStreak?.currentStreak)} ngày`} hint={`Kỷ lục ${formatNumber(studentStreak?.maxStreak)} ngày`} accent="from-emerald-600 to-teal-600" />
                   </div>
                   <div className="grid gap-4 lg:grid-cols-2">
                     <div className="rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">

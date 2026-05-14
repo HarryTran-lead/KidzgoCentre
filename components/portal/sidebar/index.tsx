@@ -71,7 +71,7 @@ function NavLink({
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
-      className={`group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-300 ease-out ${
+      className={`group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-xs font-medium transition-all duration-300 ease-out ${
         isSpecial
           ? "border-2 border-red-500 bg-red-50 text-red-600 hover:bg-red-100"
           : active
@@ -283,7 +283,7 @@ function Group({
         onMouseLeave={() => {
           if (collapsed) onCollapsedLeave?.();
         }}
-        className={`relative w-full flex items-center justify-between px-4 py-2.5 rounded-r-lg text-sm font-semibold tracking-wide transition-all duration-300 ease-out group ${
+        className={`relative w-full flex items-center justify-between px-4 py-2.5 rounded-r-lg text-xs font-semibold tracking-wide transition-all duration-300 ease-out group ${
           collapsed ? "justify-center" : ""
         } ${
           open && !collapsed
@@ -697,7 +697,7 @@ export default function Sidebar({
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
               <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">
-                Hệ thống KidzGo
+                Hệ thống Anh Ngữ Rex
               </span>
             </div>
 
@@ -745,7 +745,7 @@ export default function Sidebar({
             ? "w-0 overflow-hidden border-r-0 shadow-none"
             : collapsed
               ? "w-[72px]"
-              : "w-[280px]"
+              : "w-[240px]"
         } fixed top-0 left-0 z-80 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         } lg:sticky lg:translate-x-0 lg:z-60`}

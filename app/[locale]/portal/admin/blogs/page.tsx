@@ -37,6 +37,11 @@ import {
   Calendar,
   User,
   Tag,
+  Sparkles,
+  Sparkle,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
 } from "lucide-react";
 
 type SortDirection = "asc" | "desc";
@@ -101,7 +106,7 @@ function StatCard({
   subtitle?: string;
 }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
+    <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
       <div className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl ${color}`}></div>
       <div className="relative flex items-center justify-between gap-3">
         <div className={`p-2 rounded-xl bg-gradient-to-r ${color} text-white shadow-sm flex-shrink-0`}>
@@ -386,17 +391,17 @@ export default function BlogManagementPage() {
       <button
         type="button"
         onClick={() => toggleSort(sortKey)}
-        className={`inline-flex items-center gap-1 text-sm font-semibold text-gray-700 hover:text-gray-900 cursor-pointer ${className ?? ""}`}
+        className={`inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-gray-900 cursor-pointer transition-colors ${className ?? ""}`}
       >
         <span>{label}</span>
         {active ? (
           sort.direction === "asc" ? (
-            <span aria-hidden>↑</span>
+            <ArrowUp size={16} className="text-red-600" />
           ) : (
-            <span aria-hidden>↓</span>
+            <ArrowDown size={16} className="text-red-600" />
           )
         ) : (
-          <span aria-hidden className="text-gray-300">↕</span>
+          <ArrowUpDown size={16} className="text-gray-300 hover:text-gray-400" />
         )}
       </button>
     );
@@ -467,18 +472,19 @@ export default function BlogManagementPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-6 space-y-6">
+    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-2 space-y-6">
       {/* Header */}
       <div className={`flex flex-wrap items-center justify-between gap-4 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
         <div className="flex items-center gap-4">
           <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
-            <FileText size={28} className="text-white" />
+            <FileText size={25} className="text-white" />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">
+            <h1 className="text-2xl md:text-2xl font-extrabold text-gray-900">
               Quản lý Bản tin
             </h1>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className=" text-gray-600 mt-1 flex items-center gap-2">
+              <Sparkles size={14} className="text-red-600" />
               Tạo, chỉnh sửa và xuất bản bài viết cho hệ thống
             </p>
           </div>
@@ -500,32 +506,57 @@ export default function BlogManagementPage() {
 
       {/* Filters */}
       <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
-        <div className="flex flex-col md:flex-row gap-4">
-          {/* Search */}
-          <div className="flex-1 relative">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+        <div className="space-y-4">
+          {/* Status Filter Tabs */}
+          <div className="flex flex-wrap gap-2 pb-4 border-b border-red-200">
+            {(['all', 'published', 'draft'] as const).map((type) => {
+              const counts: Record<typeof type, number> = {
+                'all': fixedCounts.total,
+                'published': fixedCounts.published,
+                'draft': fixedCounts.draft,
+              };
+              
+              const labels: Record<typeof type, string> = {
+                'all': 'Tất cả',
+                'published': 'Đã xuất bản',
+                'draft': 'Bản nháp',
+              };
+
+              const isActive = statusFilter === type;
+              return (
+                <button
+                  key={type}
+                  onClick={() => setStatusFilter(type)}
+                  className={`px-4 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+                    isActive
+                      ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md'
+                      : 'bg-white border border-red-200 text-gray-700 hover:bg-red-50'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <span>{labels[type]}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+                      isActive ? 'bg-white/20' : 'bg-red-100 text-red-700'
+                    }`}>
+                      {counts[type]}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Search Box */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input
               type="text"
               placeholder="Tìm kiếm bài viết..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-xl border border-red-200 bg-white focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
+              className="w-full h-10 rounded-xl border border-red-200 bg-white py-2 pl-10 pr-4 text-xs text-gray-700 placeholder-gray-400 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200"
             />
           </div>
-
-          {/* Status Filter */}
-          <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "all" | "published" | "draft")}>
-            <SelectTrigger className="w-auto min-w-max rounded-xl h-10">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tất cả trạng thái</SelectItem>
-              <SelectItem value="published">Đã xuất bản</SelectItem>
-              <SelectItem value="draft">Bản nháp</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
       </div>
 
@@ -535,7 +566,7 @@ export default function BlogManagementPage() {
         <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <h2 className="text-lg font-semibold text-gray-900">Danh sách bài viết</h2>
+              <h2 className="font-semibold text-gray-900">Danh sách bài viết</h2>
             </div>
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <span className="font-medium">{list.length} bài viết</span>
@@ -555,13 +586,13 @@ export default function BlogManagementPage() {
                   <SortHeader label="Tác giả" sortKey="createdByName" />
                 </th>
                 <th className="py-3 px-6 text-left">
-                  <SortHeader label="Trạng thái" sortKey="isPublished" />
-                </th>
-                <th className="py-3 px-6 text-left">
                   <SortHeader label="Ngày tạo" sortKey="createdAt" />
                 </th>
                 <th className="py-3 px-6 text-left">
                   <SortHeader label="Ngày xuất bản" sortKey="publishedAt" />
+                </th>
+                <th className="py-3 px-6 text-left">
+                  <SortHeader label="Trạng thái" sortKey="isPublished" />
                 </th>
                 <th className="py-3 px-6 text-left">
                   <span className="text-sm font-semibold text-gray-700">Thao tác</span>
@@ -576,8 +607,8 @@ export default function BlogManagementPage() {
                     className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200"
                   >
                     <td className="py-4 px-6">
-                      <div className="max-w-md">
-                        <div className="font-medium text-gray-900 line-clamp-2">{blog.title}</div>
+                      <div className="max-w-xs">
+                        <div className="text-sm font-medium text-gray-900 line-clamp-2">{blog.title}</div>
                         {blog.summary && (
                           <div className="text-xs text-gray-500 mt-1 line-clamp-1">{blog.summary}</div>
                         )}
@@ -598,23 +629,23 @@ export default function BlogManagementPage() {
                     </td>
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-2">
-                        <User size={14} className="text-gray-400" />
-                        <span className="text-sm text-gray-700">{blog.createdByName || 'Không có'}</span>
+                        <User size={14} className="text-red-600" />
+                        <span className="text-sm font-medium text-gray-700">{blog.createdByName || 'Không có'}</span>
                       </div>
                     </td>
                     <td className="py-4 px-6">
-                      <StatusBadge isPublished={blog.isPublished} />
-                    </td>
-                    <td className="py-4 px-6">
-                      <div className="flex items-center gap-2 text-sm text-gray-700">
-                        <Calendar size={12} className="text-gray-400" />
+                      <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                        <Calendar size={14} className="text-red-600" />
                         {formatDate(blog.createdAt)}
                       </div>
                     </td>
                     <td className="py-4 px-6">
-                      <div className="text-sm text-gray-700">
+                      <div className="text-sm font-medium text-gray-700">
                         {blog.publishedAt ? formatDateTime(blog.publishedAt) : '—'}
                       </div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <StatusBadge isPublished={blog.isPublished} />
                     </td>
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-1">
