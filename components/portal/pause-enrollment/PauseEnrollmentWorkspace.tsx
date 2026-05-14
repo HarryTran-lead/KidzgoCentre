@@ -4,24 +4,36 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   AlertCircle,
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
   BookOpen,
+  Check,
   CheckCircle2,
   Clock3,
+  Eye,
   Loader2,
   Plus,
   RefreshCw,
   Search,
   ShieldCheck,
+  Sparkles,
   X,
+  XCircle,
 } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/lightswind/select";
 import { getAllClasses } from "@/lib/api/classService";
 
 import { getProfiles } from "@/lib/api/authService";
 import {
   approvePauseEnrollmentRequest,
   approvePauseEnrollmentRequestsBulk,
-
   cancelPauseEnrollmentRequest,
   getPauseEnrollmentSettings,
   getPauseEnrollmentRequestsWithParams,
@@ -40,7 +52,6 @@ import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
 import PauseEnrollmentCreateModal from "@/components/portal/pause-enrollment/PauseEnrollmentCreateModal";
 import type { UserProfile } from "@/types/auth";
 import type {
-
   PauseEnrollmentOutcome,
   PauseEnrollmentSettings,
   PauseEnrollmentScope,
@@ -156,12 +167,48 @@ const REASSIGN_WEEK_DAYS = [
 ] as const;
 
 const REASSIGN_TIME_SLOTS = [
-  { value: "morning", label: "Sáng", timeRange: "08:00 - 10:00", startTime: "08:00", durationMinutes: 120 },
-  { value: "late-morning", label: "Trưa", timeRange: "10:00 - 12:00", startTime: "10:00", durationMinutes: 120 },
-  { value: "afternoon", label: "Chiều", timeRange: "14:00 - 16:00", startTime: "14:00", durationMinutes: 120 },
-  { value: "late-afternoon", label: "Chiều", timeRange: "16:00 - 18:00", startTime: "16:00", durationMinutes: 120 },
-  { value: "evening", label: "Tối", timeRange: "18:00 - 20:00", startTime: "18:00", durationMinutes: 120 },
-  { value: "late-evening", label: "Tối", timeRange: "19:30 - 21:30", startTime: "19:30", durationMinutes: 120 },
+  {
+    value: "morning",
+    label: "Sáng",
+    timeRange: "08:00 - 10:00",
+    startTime: "08:00",
+    durationMinutes: 120,
+  },
+  {
+    value: "late-morning",
+    label: "Trưa",
+    timeRange: "10:00 - 12:00",
+    startTime: "10:00",
+    durationMinutes: 120,
+  },
+  {
+    value: "afternoon",
+    label: "Chiều",
+    timeRange: "14:00 - 16:00",
+    startTime: "14:00",
+    durationMinutes: 120,
+  },
+  {
+    value: "late-afternoon",
+    label: "Chiều",
+    timeRange: "16:00 - 18:00",
+    startTime: "16:00",
+    durationMinutes: 120,
+  },
+  {
+    value: "evening",
+    label: "Tối",
+    timeRange: "18:00 - 20:00",
+    startTime: "18:00",
+    durationMinutes: 120,
+  },
+  {
+    value: "late-evening",
+    label: "Tối",
+    timeRange: "19:30 - 21:30",
+    startTime: "19:30",
+    durationMinutes: 120,
+  },
 ] as const;
 
 const scopeLabels: Record<PauseEnrollmentScope, string> = {
@@ -180,13 +227,14 @@ function normalizeStatus(value?: string | null): PauseEnrollmentRequestStatus {
   const normalized = value.replace(/\s+/g, "").toLowerCase();
   if (normalized === "approved") return "Approved";
   if (normalized === "rejected") return "Rejected";
-  if (normalized === "cancelled" || normalized === "canceled") return "Cancelled";
+  if (normalized === "cancelled" || normalized === "canceled")
+    return "Cancelled";
   return "Pending";
 }
 
 function normalizeScope(
   value?: string | null,
-  classId?: string | null
+  classId?: string | null,
 ): PauseEnrollmentScope {
   if (value === "SingleClass" || value === "AllEligible") return value;
   return classId ? "SingleClass" : "AllEligible";
@@ -220,11 +268,14 @@ function extractStudentItems(payload: unknown): StudentSummary[] {
   };
 
   if (Array.isArray(root.data?.items)) return root.data.items;
-  if (Array.isArray(root.data?.students?.items)) return root.data.students.items;
+  if (Array.isArray(root.data?.students?.items))
+    return root.data.students.items;
   return [];
 }
 
-function extractPauseRequestItems(payload: unknown): PauseEnrollmentRequestRecord[] {
+function extractPauseRequestItems(
+  payload: unknown,
+): PauseEnrollmentRequestRecord[] {
   if (!payload || typeof payload !== "object") return [];
 
   const root = payload as {
@@ -234,12 +285,15 @@ function extractPauseRequestItems(payload: unknown): PauseEnrollmentRequestRecor
   };
 
   if (Array.isArray(root.items)) return root.items;
-  if (Array.isArray(root.pauseEnrollmentRequests)) return root.pauseEnrollmentRequests;
+  if (Array.isArray(root.pauseEnrollmentRequests))
+    return root.pauseEnrollmentRequests;
 
   const data = root.data;
   if (Array.isArray(data?.items)) return data.items;
-  if (Array.isArray(data?.pauseEnrollmentRequests?.items)) return data.pauseEnrollmentRequests.items;
-  if (Array.isArray(data?.pauseEnrollmentRequests)) return data.pauseEnrollmentRequests;
+  if (Array.isArray(data?.pauseEnrollmentRequests?.items))
+    return data.pauseEnrollmentRequests.items;
+  if (Array.isArray(data?.pauseEnrollmentRequests))
+    return data.pauseEnrollmentRequests;
   if (Array.isArray(data)) return data;
 
   return [];
@@ -292,7 +346,9 @@ function toReassignClassOption(item: any): ReassignClassOption {
     classWeeklyScheduleSlots: Array.isArray(item?.classWeeklyScheduleSlots)
       ? item.classWeeklyScheduleSlots
       : undefined,
-    weeklyPattern: Array.isArray(item?.weeklyPattern) ? item.weeklyPattern : undefined,
+    weeklyPattern: Array.isArray(item?.weeklyPattern)
+      ? item.weeklyPattern
+      : undefined,
     effectiveWeeklyPattern: Array.isArray(item?.effectiveWeeklyPattern)
       ? item.effectiveWeeklyPattern
       : undefined,
@@ -308,14 +364,32 @@ function extractClassOptions(payload: unknown): ReassignClassOption[] {
     classes?: any[];
   };
 
-  if (Array.isArray(root.items)) return root.items.map(toReassignClassOption).filter((item) => Boolean(item.id));
-  if (Array.isArray(root.classes)) return root.classes.map(toReassignClassOption).filter((item) => Boolean(item.id));
+  if (Array.isArray(root.items))
+    return root.items
+      .map(toReassignClassOption)
+      .filter((item) => Boolean(item.id));
+  if (Array.isArray(root.classes))
+    return root.classes
+      .map(toReassignClassOption)
+      .filter((item) => Boolean(item.id));
 
   const data = root.data;
-  if (Array.isArray(data?.items)) return data.items.map(toReassignClassOption).filter((item: ReassignClassOption) => Boolean(item.id));
-  if (Array.isArray(data?.classes?.items)) return data.classes.items.map(toReassignClassOption).filter((item: ReassignClassOption) => Boolean(item.id));
-  if (Array.isArray(data?.classes)) return data.classes.map(toReassignClassOption).filter((item: ReassignClassOption) => Boolean(item.id));
-  if (Array.isArray(data)) return data.map(toReassignClassOption).filter((item: ReassignClassOption) => Boolean(item.id));
+  if (Array.isArray(data?.items))
+    return data.items
+      .map(toReassignClassOption)
+      .filter((item: ReassignClassOption) => Boolean(item.id));
+  if (Array.isArray(data?.classes?.items))
+    return data.classes.items
+      .map(toReassignClassOption)
+      .filter((item: ReassignClassOption) => Boolean(item.id));
+  if (Array.isArray(data?.classes))
+    return data.classes
+      .map(toReassignClassOption)
+      .filter((item: ReassignClassOption) => Boolean(item.id));
+  if (Array.isArray(data))
+    return data
+      .map(toReassignClassOption)
+      .filter((item: ReassignClassOption) => Boolean(item.id));
 
   return [];
 }
@@ -328,7 +402,9 @@ function ensureApiSuccess(payload: any, fallbackMessage: string) {
   return payload;
 }
 
-function extractPauseEnrollmentSettings(payload: any): PauseEnrollmentSettings | null {
+function extractPauseEnrollmentSettings(
+  payload: any,
+): PauseEnrollmentSettings | null {
   if (!payload || typeof payload !== "object") return null;
 
   const data = payload.data ?? payload;
@@ -413,7 +489,10 @@ function getClassLabels(request: PauseEnrollmentRequestRecord) {
   return [];
 }
 
-function summarizeText(value?: string | null, fallback = "Không có ghi chú bổ sung.") {
+function summarizeText(
+  value?: string | null,
+  fallback = "Không có ghi chú bổ sung.",
+) {
   const trimmed = value?.trim();
   if (!trimmed) return fallback;
   if (trimmed.length <= 140) return trimmed;
@@ -456,7 +535,9 @@ function getRequestAccent(status: PauseEnrollmentRequestStatus) {
   }
 }
 
-function toStudentOptionFromProfile(profile: UserProfile): PauseEnrollmentStudentOption | null {
+function toStudentOptionFromProfile(
+  profile: UserProfile,
+): PauseEnrollmentStudentOption | null {
   const id = profile.id ?? profile.studentId ?? "";
   if (!id) return null;
 
@@ -466,7 +547,9 @@ function toStudentOptionFromProfile(profile: UserProfile): PauseEnrollmentStuden
   };
 }
 
-function toStudentOptionFromSummary(student: StudentSummary): PauseEnrollmentStudentOption | null {
+function toStudentOptionFromSummary(
+  student: StudentSummary,
+): PauseEnrollmentStudentOption | null {
   const id =
     student.id ??
     student.profileId ??
@@ -482,7 +565,14 @@ function toStudentOptionFromSummary(student: StudentSummary): PauseEnrollmentStu
       ? student.classNames.filter(Boolean).join(", ")
       : Array.isArray(student.classes) && student.classes.length
         ? student.classes
-            .map((item) => item.name ?? item.className ?? item.title ?? item.code ?? item.id)
+            .map(
+              (item) =>
+                item.name ??
+                item.className ??
+                item.title ??
+                item.code ??
+                item.id,
+            )
             .filter(Boolean)
             .join(", ")
         : undefined;
@@ -613,12 +703,16 @@ function MiniMetric({
         </div>
         <div className="min-w-0 flex-1">
           <div
-            className={`truncate text-[11px] font-semibold uppercase tracking-[0.18em] ${tones[tone].label}`}
+            className={`truncate text-[11px] font-semibold  tracking-[0.18em] ${tones[tone].label}`}
           >
             {label}
           </div>
-          <div className="mt-1 text-2xl font-bold leading-tight text-gray-900">{value}</div>
-          <div className="mt-1 truncate text-xs leading-5 text-gray-500">{note}</div>
+          <div className="mt-1 text-2xl font-bold leading-tight text-gray-900">
+            {value}
+          </div>
+          <div className="mt-1 truncate text-xs leading-5 text-gray-500">
+            {note}
+          </div>
         </div>
       </div>
     </div>
@@ -683,7 +777,10 @@ function ConfirmDialog({
   if (!action) return null;
 
   return (
-    <div onClick={onClose} className="fixed inset-0 z-10000 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-10000 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+    >
       <div className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="bg-linear-to-r from-red-600 to-red-700 p-6">
@@ -777,7 +874,10 @@ function RequestDetailModal({
   onOutcomeChange: (value: PauseEnrollmentOutcome) => void;
   onOutcomeNoteChange: (value: string) => void;
   onSaveOutcome: () => void;
-  onReassignChange: <K extends keyof ReassignFormState>(key: K, value: ReassignFormState[K]) => void;
+  onReassignChange: <K extends keyof ReassignFormState>(
+    key: K,
+    value: ReassignFormState[K],
+  ) => void;
   onSubmitReassign: () => void;
 }) {
   if (!request) return null;
@@ -786,10 +886,14 @@ function RequestDetailModal({
   const canEditOutcome = isManagement && status === "Approved";
   const scope = normalizeScope(request.scope, request.classId);
   const selectedReassignRegistration =
-    reassignRegistrations.find((item) => item.id === reassignForm.registrationId) ?? null;
+    reassignRegistrations.find(
+      (item) => item.id === reassignForm.registrationId,
+    ) ?? null;
   const selectedReassignClass =
     reassignClasses.find((item) => item.id === reassignForm.newClassId) ?? null;
-  const [selectedScheduleKeys, setSelectedScheduleKeys] = useState<string[]>([]);
+  const [selectedScheduleKeys, setSelectedScheduleKeys] = useState<string[]>(
+    [],
+  );
   const selectedClassWeeklyPattern = useMemo(
     () => buildWeeklyPatternFromClassOption(selectedReassignClass),
     [selectedReassignClass],
@@ -810,8 +914,8 @@ function RequestDetailModal({
             if (!dayCode) return null;
 
             const dayLabel =
-              REASSIGN_WEEK_DAYS.find((item) => item.rrule === dayCode)?.label ||
-              dayCode;
+              REASSIGN_WEEK_DAYS.find((item) => item.rrule === dayCode)
+                ?.label || dayCode;
 
             return {
               key: `${dayCode}|${startTime}|${durationMinutes}`,
@@ -822,17 +926,22 @@ function RequestDetailModal({
             };
           });
         })
-        .filter((item): item is {
-          key: string;
-          dayCode: string;
-          startTime: string;
-          durationMinutes: number;
-          label: string;
-        } => Boolean(item)),
+        .filter(
+          (
+            item,
+          ): item is {
+            key: string;
+            dayCode: string;
+            startTime: string;
+            durationMinutes: number;
+            label: string;
+          } => Boolean(item),
+        ),
     [selectedClassWeeklyPattern],
   );
   const selectedWeeklyPattern = useMemo(() => {
-    if (!scheduleOptions.length || !selectedScheduleKeys.length) return [] as WeeklyPatternEntry[];
+    if (!scheduleOptions.length || !selectedScheduleKeys.length)
+      return [] as WeeklyPatternEntry[];
 
     const selected = scheduleOptions.filter((item) =>
       selectedScheduleKeys.includes(item.key),
@@ -862,7 +971,7 @@ function RequestDetailModal({
     );
   }, [scheduleOptions, selectedScheduleKeys]);
   const hasSecondaryProgram = Boolean(
-    selectedReassignRegistration?.secondaryProgramId
+    selectedReassignRegistration?.secondaryProgramId,
   );
 
   useEffect(() => {
@@ -885,11 +994,7 @@ function RequestDetailModal({
     if (nextValue !== reassignForm.weeklyPatternJson) {
       onReassignChange("weeklyPatternJson", nextValue);
     }
-  }, [
-    onReassignChange,
-    reassignForm.weeklyPatternJson,
-    selectedWeeklyPattern,
-  ]);
+  }, [onReassignChange, reassignForm.weeklyPatternJson, selectedWeeklyPattern]);
   const shouldShowReassignPanel =
     canEditOutcome &&
     (request.outcome === "ContinueWithTutoring" ||
@@ -900,18 +1005,28 @@ function RequestDetailModal({
     : "";
 
   return (
-    <div onClick={onClose} className="fixed inset-0 z-9990 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div onClick={(e) => e.stopPropagation()} className="relative w-full max-w-6xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-9990 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-4xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden"
+      >
         {/* Header */}
-        <div className="bg-linear-to-r from-red-600 to-red-700 p-6">
+        <div className="bg-linear-to-r from-red-600 to-red-700 px-6 py-4 sm:px-8">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex items-start gap-4">
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm text-base font-bold text-white shadow-lg">
                 {getInitials(studentLabel)}
               </div>
               <div>
-                <h2 className="text-xl font-bold text-white">Chi tiết yêu cầu bảo lưu</h2>
-                <p className="mt-1 text-sm font-medium text-red-100">{studentLabel}</p>
+                <h2 className="text-xl font-bold text-white">
+                  Chi tiết yêu cầu bảo lưu
+                </h2>
+                <p className="mt-1 text-sm font-medium text-red-100">
+                  {studentLabel}
+                </p>
                 <p className="mt-1 text-xs text-red-200">{studentSubtext}</p>
               </div>
             </div>
@@ -931,25 +1046,28 @@ function RequestDetailModal({
         </div>
 
         {/* Body */}
-        <div className="max-h-[calc(92vh-110px)] overflow-y-auto p-6">
+        <div className="max-h-[70vh] overflow-y-auto px-6 py-5 sm:px-8">
           <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
             <div className="space-y-6">
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Khoảng bảo lưu
+                  <div className="text-xs font-semibold  tracking-wide text-gray-500">
+                    <span className="text-sm font-bold">Khoảng bảo lưu </span>
                   </div>
                   <div className="mt-2 text-sm font-semibold text-gray-900">
-                    {formatDate(request.pauseFrom)} - {formatDate(request.pauseTo)}
+                    {formatDate(request.pauseFrom)} -{" "}
+                    {formatDate(request.pauseTo)}
                   </div>
-                  <div className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${scopeStyles[scope]}`}>
+                  <div
+                    className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold  tracking-[0.14em] ${scopeStyles[scope]}`}
+                  >
                     {scopeLabels[scope]}
                   </div>
                 </div>
 
                 <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Tạo lúc
+                  <div className="text-xs font-semibold  tracking-wide text-gray-500">
+                    <span className="text-sm font-bold">Tạo lúc </span>
                   </div>
                   <div className="mt-2 text-sm font-semibold text-gray-900">
                     {formatDateTime(request.requestedAt)}
@@ -957,8 +1075,8 @@ function RequestDetailModal({
                 </div>
 
                 <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Duyệt lúc
+                  <div className="text-xs font-semibold  tracking-wide text-gray-500">
+                    <span className="text-sm font-bold">Duyệt lúc</span>
                   </div>
                   <div className="mt-2 text-sm text-gray-700">
                     {formatDateTime(request.approvedAt)}
@@ -966,11 +1084,13 @@ function RequestDetailModal({
                 </div>
 
                 <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Kết quả sau bảo lưu
+                  <div className="text-xs font-semibold  tracking-wide text-gray-500">
+                    <span className="text-sm font-bold">Kết quả sau bảo lưu</span>
                   </div>
                   <div className="mt-2 text-sm text-gray-700">
-                    {request.outcome ? outcomeLabels[request.outcome] : "Chưa cập nhật"}
+                    {request.outcome
+                      ? outcomeLabels[request.outcome]
+                      : "Chưa cập nhật"}
                   </div>
                   {request.outcomeAt ? (
                     <div className="mt-1 text-xs text-gray-500">
@@ -980,8 +1100,8 @@ function RequestDetailModal({
                 </div>
 
                 <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Số buổi đã bảo lưu
+                  <div className="text-xs font-semibold  tracking-wide text-gray-500">
+                    <span className="text-sm font-bold">Số buổi đã bảo lưu</span>
                   </div>
                   <div className="mt-2 text-sm font-semibold text-gray-900">
                     {request.reservedSessionCount ?? 0}
@@ -993,14 +1113,14 @@ function RequestDetailModal({
                     Ảnh chụp: {formatDateTime(request.reservationSnapshotAt)}
                   </div>
                 </div>
-              </div>
 
-              <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Lý do
-                </div>
-                <div className="mt-2 text-sm leading-6 text-gray-700">
-                  {request.reason?.trim() || "Không có ghi chú."}
+                <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                  <div className="text-xs font-semibold  tracking-wide text-gray-500">
+                    <span className="text-sm font-bold">Lý do</span>
+                  </div>
+                  <div className="mt-2 text-sm leading-6 text-gray-700">
+                    {request.reason?.trim() || "Không có ghi chú."}
+                  </div>
                 </div>
               </div>
 
@@ -1044,30 +1164,46 @@ function RequestDetailModal({
             <div className="space-y-6 xl:sticky xl:top-0 xl:self-start">
               <div className="rounded-2xl border border-gray-200 bg-linear-to-br from-white to-red-50/30 shadow-sm overflow-hidden">
                 <div className="border-b border-gray-200 bg-linear-to-r from-red-500/5 to-red-700/5 px-6 py-4">
-                  <div className="text-lg font-bold text-gray-900">Xử lý yêu cầu</div>
+                  <div className="text-lg font-bold text-gray-900">
+                    Xử lý yêu cầu
+                  </div>
                 </div>
 
                 <div className="space-y-3 p-6">
                   {isManagement && status === "Pending" ? (
                     <>
-                      <ActionButton label="Duyệt yêu cầu" tone="primary" onClick={onApprove} />
-                      <ActionButton label="Từ chối yêu cầu" tone="danger" onClick={onReject} />
+                      <ActionButton
+                        label="Duyệt yêu cầu"
+                        tone="primary"
+                        onClick={onApprove}
+                      />
+                      <ActionButton
+                        label="Từ chối yêu cầu"
+                        tone="danger"
+                        onClick={onReject}
+                      />
                     </>
                   ) : null}
 
                   {canCancel ? (
-                    <ActionButton label="Hủy yêu cầu" tone="danger" onClick={onCancel} />
+                    <ActionButton
+                      label="Hủy yêu cầu"
+                      tone="danger"
+                      onClick={onCancel}
+                    />
                   ) : null}
 
                   {!isManagement && status !== "Pending" && !canCancel ? (
                     <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-500">
-                      Yêu cầu này không còn thao tác trực tiếp được từ phía phụ huynh.
+                      Yêu cầu này không còn thao tác trực tiếp được từ phía phụ
+                      huynh.
                     </div>
                   ) : null}
 
                   {isManagement && status !== "Pending" && !canEditOutcome ? (
                     <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-500">
-                      Outcome chỉ cập nhật được khi yêu cầu đã ở trạng thái đã duyệt.
+                      Outcome chỉ cập nhật được khi yêu cầu đã ở trạng thái đã
+                      duyệt.
                     </div>
                   ) : null}
                 </div>
@@ -1076,7 +1212,9 @@ function RequestDetailModal({
               {canEditOutcome ? (
                 <div className="rounded-2xl border border-gray-200 bg-linear-to-br from-white to-red-50/30 shadow-sm overflow-hidden">
                   <div className="border-b border-gray-200 bg-linear-to-r from-red-500/5 to-red-700/5 px-6 py-4">
-                    <div className="text-lg font-bold text-gray-900">Cập nhật kết quả sau bảo lưu</div>
+                    <div className="text-lg font-bold text-gray-900">
+                      Cập nhật kết quả sau bảo lưu
+                    </div>
                     <div className="mt-1 text-sm text-gray-500">
                       Ghi nhận hướng xử lý sau khi học sinh quay lại.
                     </div>
@@ -1084,7 +1222,9 @@ function RequestDetailModal({
 
                   <div className="space-y-4 p-6">
                     <label className="block">
-                      <div className="mb-2 text-sm font-semibold text-gray-700">Kết quả</div>
+                      <div className="mb-2 text-sm font-semibold text-gray-700">
+                        Kết quả
+                      </div>
                       <Select
                         value={outcomeForm.outcome}
                         onValueChange={(value) =>
@@ -1095,20 +1235,26 @@ function RequestDetailModal({
                           <SelectValue placeholder="Chọn kết quả" />
                         </SelectTrigger>
                         <SelectContent>
-                          {Object.entries(outcomeLabels).map(([value, label]) => (
-                            <SelectItem key={value} value={value}>
-                              {label}
-                            </SelectItem>
-                          ))}
+                          {Object.entries(outcomeLabels).map(
+                            ([value, label]) => (
+                              <SelectItem key={value} value={value}>
+                                {label}
+                              </SelectItem>
+                            ),
+                          )}
                         </SelectContent>
                       </Select>
                     </label>
 
                     <label className="block">
-                      <div className="mb-2 text-sm font-semibold text-gray-700">Ghi chú</div>
+                      <div className="mb-2 text-sm font-semibold text-gray-700">
+                        Ghi chú
+                      </div>
                       <textarea
                         value={outcomeForm.outcomeNote}
-                        onChange={(event) => onOutcomeNoteChange(event.target.value)}
+                        onChange={(event) =>
+                          onOutcomeNoteChange(event.target.value)
+                        }
                         rows={4}
                         placeholder="Ví dụ: học sinh quay lại lớp cũ từ tuần 2 tháng sau..."
                         className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-200"
@@ -1133,11 +1279,13 @@ function RequestDetailModal({
                           Chuyển lớp tương đương
                         </div>
                         <div className="text-xs leading-5 text-gray-600">
-                          Chỉ thao tác được sau khi đã lưu kết quả là "Tiếp tục theo kèm riêng".
+                          Chỉ thao tác được sau khi đã lưu kết quả là "Tiếp tục
+                          theo kèm riêng".
                         </div>
                         {selectedReassignProgramName ? (
                           <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800">
-                            Đang lọc lớp theo chương trình: {selectedReassignProgramName}
+                            Đang lọc lớp theo chương trình:{" "}
+                            {selectedReassignProgramName}
                           </div>
                         ) : null}
 
@@ -1148,7 +1296,7 @@ function RequestDetailModal({
                         ) : null}
 
                         <label className="block">
-                          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-600">
+                          <div className="mb-1 text-xs font-semibold tracking-wide text-gray-600">
                             Ghi danh
                           </div>
                           <Select
@@ -1159,7 +1307,9 @@ function RequestDetailModal({
                             onValueChange={(value) =>
                               onReassignChange(
                                 "registrationId",
-                                value === EMPTY_REASSIGN_REGISTRATION ? "" : value
+                                value === EMPTY_REASSIGN_REGISTRATION
+                                  ? ""
+                                  : value,
                               )
                             }
                             disabled={reassignOptionsLoading}
@@ -1189,15 +1339,17 @@ function RequestDetailModal({
                         </label>
 
                         <label className="block">
-                          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-600">
+                          <div className="mb-1 text-xs font-semibold tracking-wide text-gray-600">
                             Lớp mới
                           </div>
                           <Select
-                            value={reassignForm.newClassId || EMPTY_REASSIGN_CLASS}
+                            value={
+                              reassignForm.newClassId || EMPTY_REASSIGN_CLASS
+                            }
                             onValueChange={(value) =>
                               onReassignChange(
                                 "newClassId",
-                                value === EMPTY_REASSIGN_CLASS ? "" : value
+                                value === EMPTY_REASSIGN_CLASS ? "" : value,
                               )
                             }
                             disabled={reassignOptionsLoading}
@@ -1224,9 +1376,11 @@ function RequestDetailModal({
                               ))}
                             </SelectContent>
                           </Select>
-                          {!reassignOptionsLoading && !reassignClasses.length ? (
+                          {!reassignOptionsLoading &&
+                          !reassignClasses.length ? (
                             <div className="mt-1 text-xs text-amber-700">
-                              Không có lớp phù hợp với chương trình của ghi danh đã chọn.
+                              Không có lớp phù hợp với chương trình của ghi danh
+                              đã chọn.
                             </div>
                           ) : null}
                         </label>
@@ -1234,7 +1388,7 @@ function RequestDetailModal({
                         <div className="grid gap-3 sm:grid-cols-2">
                           {hasSecondaryProgram ? (
                             <label className="block">
-                              <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-600">
+                              <div className="mb-1 text-xs font-semibold tracking-wide text-gray-600">
                                 Chương trình
                               </div>
                               <Select
@@ -1242,7 +1396,7 @@ function RequestDetailModal({
                                 onValueChange={(value) =>
                                   onReassignChange(
                                     "track",
-                                    value as ReassignFormState["track"]
+                                    value as ReassignFormState["track"],
                                   )
                                 }
                               >
@@ -1258,14 +1412,17 @@ function RequestDetailModal({
                           ) : null}
 
                           <label className="block">
-                            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-600">
+                            <div className="mb-1 text-xs font-semibold tracking-wide text-gray-600">
                               Ngày hiệu lực
                             </div>
                             <input
                               type="date"
                               value={reassignForm.effectiveDate}
                               onChange={(event) =>
-                                onReassignChange("effectiveDate", event.target.value)
+                                onReassignChange(
+                                  "effectiveDate",
+                                  event.target.value,
+                                )
                               }
                               className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-200"
                             />
@@ -1273,7 +1430,9 @@ function RequestDetailModal({
                         </div>
 
                         <div className="rounded-2xl border border-red-100 p-3">
-                          <div className="mb-3 text-sm font-semibold text-gray-800">Lịch học mong muốn</div>
+                          <div className="mb-3 text-sm font-semibold text-gray-800">
+                            Lịch học mong muốn
+                          </div>
                           <div className="space-y-3 rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-3">
                             {!reassignForm.newClassId ? (
                               <div className="rounded-lg border border-dashed border-gray-200 bg-white px-3 py-2 text-xs text-gray-500">
@@ -1283,7 +1442,8 @@ function RequestDetailModal({
                               <>
                                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                                   {scheduleOptions.map((item) => {
-                                    const isSelected = selectedScheduleKeys.includes(item.key);
+                                    const isSelected =
+                                      selectedScheduleKeys.includes(item.key);
                                     return (
                                       <button
                                         key={item.key}
@@ -1291,7 +1451,9 @@ function RequestDetailModal({
                                         onClick={() =>
                                           setSelectedScheduleKeys((prev) =>
                                             prev.includes(item.key)
-                                              ? prev.filter((key) => key !== item.key)
+                                              ? prev.filter(
+                                                  (key) => key !== item.key,
+                                                )
                                               : [...prev, item.key],
                                           )
                                         }
@@ -1307,12 +1469,14 @@ function RequestDetailModal({
                                   })}
                                 </div>
                                 <div className="text-xs text-gray-500">
-                                  Đã chọn {selectedScheduleKeys.length}/{scheduleOptions.length} buổi.
+                                  Đã chọn {selectedScheduleKeys.length}/
+                                  {scheduleOptions.length} buổi.
                                 </div>
                               </>
                             ) : (
                               <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                                Lớp đã chọn chưa có dữ liệu lịch chuẩn. Vui lòng kiểm tra lịch lớp trước khi chuyển.
+                                Lớp đã chọn chưa có dữ liệu lịch chuẩn. Vui lòng
+                                kiểm tra lịch lớp trước khi chuyển.
                               </div>
                             )}
                           </div>
@@ -1321,7 +1485,9 @@ function RequestDetailModal({
                         <button
                           type="button"
                           onClick={onSubmitReassign}
-                          disabled={actionLoadingKey === `reassign:${request.id}`}
+                          disabled={
+                            actionLoadingKey === `reassign:${request.id}`
+                          }
                           className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 text-sm font-semibold text-red-700 transition cursor-pointer hover:bg-red-50 disabled:opacity-60"
                         >
                           {actionLoadingKey === `reassign:${request.id}` ? (
@@ -1335,6 +1501,19 @@ function RequestDetailModal({
                 </div>
               ) : null}
             </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="border-t border-gray-200 bg-linear-to-r from-red-500/5 to-red-700/5 px-6 py-4 sm:px-8">
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex h-11 items-center justify-center rounded-xl bg-linear-to-r from-red-600 to-red-700 px-5 text-sm font-semibold text-white transition cursor-pointer hover:shadow-lg"
+            >
+              Đóng
+            </button>
           </div>
         </div>
       </div>
@@ -1352,9 +1531,13 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
   const isStudentLocked = isStudentPage && !!selectedProfile?.id;
   const { selectedBranchId, isLoaded: isBranchLoaded } = useBranchFilter();
 
-  const [studentOptions, setStudentOptions] = useState<PauseEnrollmentStudentOption[]>([]);
+  const [studentOptions, setStudentOptions] = useState<
+    PauseEnrollmentStudentOption[]
+  >([]);
   const [studentOptionsLoading, setStudentOptionsLoading] = useState(false);
-  const [studentOptionsError, setStudentOptionsError] = useState<string | null>(null);
+  const [studentOptionsError, setStudentOptionsError] = useState<string | null>(
+    null,
+  );
   const [isPageLoaded, setIsPageLoaded] = useState(false);
 
   const [selectedStudentId, setSelectedStudentId] = useState("");
@@ -1367,8 +1550,12 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
   const [requestError, setRequestError] = useState<string | null>(null);
   const [requestMessage, setRequestMessage] = useState<string | null>(null);
   const [selectedRequestIds, setSelectedRequestIds] = useState<string[]>([]);
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
-  const [settings, setSettings] = useState<PauseEnrollmentSettings | null>(null);
+  const [settings, setSettings] = useState<PauseEnrollmentSettings | null>(
+    null,
+  );
   const [settingsDraft, setSettingsDraft] = useState("3");
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
@@ -1378,9 +1565,13 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
   const [filterClassesLoading, setFilterClassesLoading] = useState(false);
 
   const [createOpen, setCreateOpen] = useState(false);
-  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(
+    null,
+  );
 
-  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(
+    null,
+  );
   const [confirmLoading, setConfirmLoading] = useState(false);
   const [actionLoadingKey, setActionLoadingKey] = useState<string | null>(null);
 
@@ -1398,10 +1589,16 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
     weeklyPatternJson: "",
     effectiveDate: "",
   });
-  const [reassignRegistrations, setReassignRegistrations] = useState<Registration[]>([]);
-  const [reassignClasses, setReassignClasses] = useState<ReassignClassOption[]>([]);
+  const [reassignRegistrations, setReassignRegistrations] = useState<
+    Registration[]
+  >([]);
+  const [reassignClasses, setReassignClasses] = useState<ReassignClassOption[]>(
+    [],
+  );
   const [reassignOptionsLoading, setReassignOptionsLoading] = useState(false);
-  const [reassignOptionsError, setReassignOptionsError] = useState<string | null>(null);
+  const [reassignOptionsError, setReassignOptionsError] = useState<
+    string | null
+  >(null);
 
   const requestIdFromUrl = useMemo(() => {
     const raw = searchParams.get("requestId")?.trim();
@@ -1429,11 +1626,12 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
 
   const studentMap = useMemo(
     () => new Map(studentOptions.map((item) => [item.id, item])),
-    [studentOptions]
+    [studentOptions],
   );
   const lockedStudentOption = useMemo(
-    () => (selectedProfile ? toStudentOptionFromProfile(selectedProfile) : null),
-    [selectedProfile]
+    () =>
+      selectedProfile ? toStudentOptionFromProfile(selectedProfile) : null,
+    [selectedProfile],
   );
   const activeLockedStudent = useMemo(() => {
     if (!isStudentLocked || !lockedStudentOption?.id) return null;
@@ -1442,44 +1640,66 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
 
   const selectedRequest = useMemo(
     () => requests.find((item) => item.id === selectedRequestId) ?? null,
-    [requests, selectedRequestId]
+    [requests, selectedRequestId],
   );
 
   const selectedReassignRegistration = useMemo(
     () =>
-      reassignRegistrations.find((item) => item.id === reassignForm.registrationId) ?? null,
-    [reassignForm.registrationId, reassignRegistrations]
+      reassignRegistrations.find(
+        (item) => item.id === reassignForm.registrationId,
+      ) ?? null,
+    [reassignForm.registrationId, reassignRegistrations],
   );
 
   const selectedReassignHasSecondaryProgram = useMemo(
     () => Boolean(selectedReassignRegistration?.secondaryProgramId),
-    [selectedReassignRegistration?.secondaryProgramId]
+    [selectedReassignRegistration?.secondaryProgramId],
   );
 
   const selectedReassignProgramId = useMemo(() => {
     if (!selectedReassignRegistration) return null;
-    if (selectedReassignHasSecondaryProgram && reassignForm.track === "secondary") {
-      return selectedReassignRegistration.secondaryProgramId ?? selectedReassignRegistration.programId;
+    if (
+      selectedReassignHasSecondaryProgram &&
+      reassignForm.track === "secondary"
+    ) {
+      return (
+        selectedReassignRegistration.secondaryProgramId ??
+        selectedReassignRegistration.programId
+      );
     }
     return selectedReassignRegistration.programId;
-  }, [reassignForm.track, selectedReassignHasSecondaryProgram, selectedReassignRegistration]);
+  }, [
+    reassignForm.track,
+    selectedReassignHasSecondaryProgram,
+    selectedReassignRegistration,
+  ]);
 
   const selectedReassignProgramName = useMemo(() => {
     if (!selectedReassignRegistration) return null;
-    if (selectedReassignHasSecondaryProgram && reassignForm.track === "secondary") {
+    if (
+      selectedReassignHasSecondaryProgram &&
+      reassignForm.track === "secondary"
+    ) {
       return (
         selectedReassignRegistration.secondaryProgramName ??
         selectedReassignRegistration.programName
       );
     }
     return selectedReassignRegistration.programName;
-  }, [reassignForm.track, selectedReassignHasSecondaryProgram, selectedReassignRegistration]);
+  }, [
+    reassignForm.track,
+    selectedReassignHasSecondaryProgram,
+    selectedReassignRegistration,
+  ]);
 
   const selectedReassignCurrentClassId = useMemo(() => {
     if (!selectedReassignRegistration) {
       return String(selectedRequest?.classId || "");
     }
-    if (selectedReassignHasSecondaryProgram && reassignForm.track === "secondary") {
+    if (
+      selectedReassignHasSecondaryProgram &&
+      reassignForm.track === "secondary"
+    ) {
       return String(
         selectedReassignRegistration.secondaryClassId ||
           selectedReassignRegistration.classId ||
@@ -1488,7 +1708,9 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
       );
     }
 
-    return String(selectedReassignRegistration.classId || selectedRequest?.classId || "");
+    return String(
+      selectedReassignRegistration.classId || selectedRequest?.classId || "",
+    );
   }, [
     reassignForm.track,
     selectedRequest?.classId,
@@ -1498,29 +1720,66 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
 
   const filteredReassignClasses = useMemo(() => {
     return reassignClasses.filter((item) => {
-      if (selectedReassignProgramId && item.programId && item.programId !== selectedReassignProgramId) {
+      if (
+        selectedReassignProgramId &&
+        item.programId &&
+        item.programId !== selectedReassignProgramId
+      ) {
         return false;
       }
 
-      if (selectedReassignCurrentClassId && item.id === selectedReassignCurrentClassId) {
+      if (
+        selectedReassignCurrentClassId &&
+        item.id === selectedReassignCurrentClassId
+      ) {
         return false;
       }
 
       return true;
     });
-  }, [reassignClasses, selectedReassignCurrentClassId, selectedReassignProgramId]);
+  }, [
+    reassignClasses,
+    selectedReassignCurrentClassId,
+    selectedReassignProgramId,
+  ]);
 
   const stats = useMemo(() => {
     const total = requests.length;
-    const pending = requests.filter((item) => normalizeStatus(item.status) === "Pending").length;
-    const approved = requests.filter((item) => normalizeStatus(item.status) === "Approved").length;
-    const cancelled = requests.filter((item) => normalizeStatus(item.status) === "Cancelled").length;
+    const pending = requests.filter(
+      (item) => normalizeStatus(item.status) === "Pending",
+    ).length;
+    const approved = requests.filter(
+      (item) => normalizeStatus(item.status) === "Approved",
+    ).length;
+    const cancelled = requests.filter(
+      (item) => normalizeStatus(item.status) === "Cancelled",
+    ).length;
     const needsOutcome = requests.filter(
-      (item) => normalizeStatus(item.status) === "Approved" && !item.outcome
+      (item) => normalizeStatus(item.status) === "Approved" && !item.outcome,
     ).length;
 
     return { total, pending, approved, cancelled, needsOutcome };
   }, [requests]);
+
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(column);
+      setSortDirection("asc");
+    }
+  };
+
+  const getSortIcon = (column: string) => {
+    if (sortColumn !== column) {
+      return <ArrowUpDown size={14} className="text-gray-400" />;
+    }
+    return sortDirection === "asc" ? (
+      <ArrowUp size={14} className="text-red-600" />
+    ) : (
+      <ArrowDown size={14} className="text-red-600" />
+    );
+  };
 
   const filteredRequests = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -1545,7 +1804,43 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
     });
   }, [requests, searchQuery, studentMap]);
 
+  const filteredAndSortedRequests = useMemo(() => {
+    const sorted = [...filteredRequests];
 
+    if (sortColumn) {
+      sorted.sort((a, b) => {
+        let aVal: string | number = "";
+        let bVal: string | number = "";
+
+        switch (sortColumn) {
+          case "student":
+            aVal = studentMap.get(a.studentProfileId)?.label ?? "";
+            bVal = studentMap.get(b.studentProfileId)?.label ?? "";
+            break;
+          case "dateFrom":
+            aVal = a.pauseFrom ?? "";
+            bVal = b.pauseFrom ?? "";
+            break;
+          case "status":
+            aVal = normalizeStatus(a.status);
+            bVal = normalizeStatus(b.status);
+            break;
+          case "createdAt":
+            aVal = a.requestedAt ?? "";
+            bVal = b.requestedAt ?? "";
+            break;
+          default:
+            return 0;
+        }
+
+        if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
+        if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return sorted;
+  }, [filteredRequests, sortColumn, sortDirection, studentMap]);
 
   const loadStudentOptions = useCallback(async () => {
     setStudentOptionsLoading(true);
@@ -1553,14 +1848,20 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
 
     try {
       if (isStudentPage) {
-        const fallbackOptions = lockedStudentOption ? [lockedStudentOption] : [];
+        const fallbackOptions = lockedStudentOption
+          ? [lockedStudentOption]
+          : [];
         const response = await getProfiles({ profileType: "Student" });
         const fetchedOptions = extractProfileItems(response)
           .filter((item) => item.profileType === "Student")
           .map(toStudentOptionFromProfile)
-          .filter((item): item is PauseEnrollmentStudentOption => Boolean(item));
+          .filter((item): item is PauseEnrollmentStudentOption =>
+            Boolean(item),
+          );
 
-        setStudentOptions(mergeStudentOptions([fallbackOptions, fetchedOptions]));
+        setStudentOptions(
+          mergeStudentOptions([fallbackOptions, fetchedOptions]),
+        );
         return;
       }
 
@@ -1634,7 +1935,9 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
       setSettingsDraft(String(nextSettings.reservationLimitMonths));
     } catch (error: any) {
       setSettings(null);
-      setSettingsError(getDomainErrorMessage(error, "Không thể tải cấu hình bảo lưu."));
+      setSettingsError(
+        getDomainErrorMessage(error, "Không thể tải cấu hình bảo lưu."),
+      );
     } finally {
       setSettingsLoading(false);
     }
@@ -1650,7 +1953,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
           studentProfileId: selectedStudentId || undefined,
           classId: selectedClassId === ALL_CLASS ? undefined : selectedClassId,
           status: selectedStatus === ALL_STATUS ? undefined : selectedStatus,
-          branchId: isManagement ? selectedBranchId ?? undefined : undefined,
+          branchId: isManagement ? (selectedBranchId ?? undefined) : undefined,
           pageNumber: 1,
           pageSize: 200,
         });
@@ -1660,14 +1963,17 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
 
         setRequests(items);
         setSelectedRequestId((prev) => {
-          if (focusId && items.some((item) => item.id === focusId)) return focusId;
+          if (focusId && items.some((item) => item.id === focusId))
+            return focusId;
           if (prev && items.some((item) => item.id === prev)) return prev;
           return null;
         });
       } catch (error: any) {
         setRequests([]);
         setSelectedRequestId(null);
-        setRequestError(getDomainErrorMessage(error, "Không thể tải danh sách bảo lưu."));
+        setRequestError(
+          getDomainErrorMessage(error, "Không thể tải danh sách bảo lưu."),
+        );
       } finally {
         setRequestsLoading(false);
       }
@@ -1678,7 +1984,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
       selectedClassId,
       selectedStatus,
       selectedStudentId,
-    ]
+    ],
   );
 
   useEffect(() => {
@@ -1712,7 +2018,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
 
     if (isManagement) {
       setSelectedStudentId((prev) =>
-        prev && studentOptions.some((item) => item.id === prev) ? prev : ""
+        prev && studentOptions.some((item) => item.id === prev) ? prev : "",
       );
       return;
     }
@@ -1736,10 +2042,12 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
     const visiblePendingIds = new Set(
       filteredRequests
         .filter((item) => normalizeStatus(item.status) === "Pending")
-        .map((item) => item.id)
+        .map((item) => item.id),
     );
 
-    setSelectedRequestIds((prev) => prev.filter((id) => visiblePendingIds.has(id)));
+    setSelectedRequestIds((prev) =>
+      prev.filter((id) => visiblePendingIds.has(id)),
+    );
   }, [filteredRequests]);
 
   useEffect(() => {
@@ -1760,7 +2068,12 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
 
   useEffect(() => {
     if (!reassignForm.newClassId) return;
-    if (filteredReassignClasses.some((item) => item.id === reassignForm.newClassId)) return;
+    if (
+      filteredReassignClasses.some(
+        (item) => item.id === reassignForm.newClassId,
+      )
+    )
+      return;
 
     setReassignForm((prev) => ({
       ...prev,
@@ -1799,7 +2112,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
         getAllClasses({
           pageNumber: 1,
           pageSize: 500,
-          branchId: isManagement ? selectedBranchId ?? undefined : undefined,
+          branchId: isManagement ? (selectedBranchId ?? undefined) : undefined,
         }),
       ]);
 
@@ -1808,7 +2121,9 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
     } catch {
       setReassignRegistrations([]);
       setReassignClasses([]);
-      setReassignOptionsError("Không thể tải danh sách ghi danh/lớp để chuyển tương đương.");
+      setReassignOptionsError(
+        "Không thể tải danh sách ghi danh/lớp để chuyển tương đương.",
+      );
     } finally {
       setReassignOptionsLoading(false);
     }
@@ -1839,7 +2154,8 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
   useEffect(() => {
     if (isManagement && !isBranchLoaded) return;
     if (isStudentPage && studentOptionsLoading) return;
-    if (isStudentPage && !selectedStudentId && studentOptions.length > 0) return;
+    if (isStudentPage && !selectedStudentId && studentOptions.length > 0)
+      return;
 
     void loadRequests(requestIdFromUrl ?? undefined);
   }, [
@@ -1903,7 +2219,10 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
         type: "success",
       });
     } catch (error: any) {
-      const message = getDomainErrorMessage(error, "Không thể cập nhật cấu hình bảo lưu.");
+      const message = getDomainErrorMessage(
+        error,
+        "Không thể cập nhật cấu hình bảo lưu.",
+      );
       setSettingsError(message);
       toast({
         title: "Lỗi",
@@ -1916,11 +2235,13 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
   };
 
   const pendingVisibleRequests = filteredRequests.filter(
-    (item) => normalizeStatus(item.status) === "Pending"
+    (item) => normalizeStatus(item.status) === "Pending",
   );
   const allPendingSelected =
     pendingVisibleRequests.length > 0 &&
-    pendingVisibleRequests.every((item) => selectedRequestIds.includes(item.id));
+    pendingVisibleRequests.every((item) =>
+      selectedRequestIds.includes(item.id),
+    );
 
   const toggleBulkSelect = (requestId: string, checked: boolean) => {
     setSelectedRequestIds((prev) => {
@@ -1951,7 +2272,9 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
 
     try {
       if (confirmAction.kind === "approve") {
-        const response = await approvePauseEnrollmentRequest(confirmAction.requestId);
+        const response = await approvePauseEnrollmentRequest(
+          confirmAction.requestId,
+        );
         ensureApiSuccess(response, "Không thể duyệt yêu cầu bảo lưu.");
         setRequestMessage("Đã duyệt yêu cầu bảo lưu.");
         await loadRequests(confirmAction.requestId);
@@ -1959,7 +2282,9 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
       }
 
       if (confirmAction.kind === "reject") {
-        const response = await rejectPauseEnrollmentRequest(confirmAction.requestId);
+        const response = await rejectPauseEnrollmentRequest(
+          confirmAction.requestId,
+        );
         ensureApiSuccess(response, "Không thể từ chối yêu cầu bảo lưu.");
         setRequestMessage("Đã từ chối yêu cầu bảo lưu.");
         await loadRequests(confirmAction.requestId);
@@ -1967,7 +2292,9 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
       }
 
       if (confirmAction.kind === "cancel") {
-        const response = await cancelPauseEnrollmentRequest(confirmAction.requestId);
+        const response = await cancelPauseEnrollmentRequest(
+          confirmAction.requestId,
+        );
         ensureApiSuccess(response, "Không thể hủy yêu cầu bảo lưu.");
         setRequestMessage("Đã hủy yêu cầu bảo lưu.");
         await loadRequests(confirmAction.requestId);
@@ -1979,7 +2306,10 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
           ids: confirmAction.requestIds,
         });
 
-        ensureApiSuccess(response, "Không thể duyệt hàng loạt yêu cầu bảo lưu.");
+        ensureApiSuccess(
+          response,
+          "Không thể duyệt hàng loạt yêu cầu bảo lưu.",
+        );
 
         const approvedIds = response.data?.approvedIds ?? [];
         const errors = response.data?.errors ?? [];
@@ -2001,7 +2331,9 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
 
       setConfirmAction(null);
     } catch (error: any) {
-      setRequestError(getDomainErrorMessage(error, "Không thể thực hiện thao tác."));
+      setRequestError(
+        getDomainErrorMessage(error, "Không thể thực hiện thao tác."),
+      );
     } finally {
       setConfirmLoading(false);
     }
@@ -2030,7 +2362,10 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
       await loadRequests(selectedRequest.id);
       router.refresh();
     } catch (error: any) {
-      const message = getDomainErrorMessage(error, "Không thể cập nhật outcome.");
+      const message = getDomainErrorMessage(
+        error,
+        "Không thể cập nhật outcome.",
+      );
       setRequestError(message);
       toast({
         title: "Lỗi",
@@ -2070,9 +2405,12 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
       return;
     }
 
-    const weeklyPattern = parseWeeklyPatternJson(reassignForm.weeklyPatternJson);
+    const weeklyPattern = parseWeeklyPatternJson(
+      reassignForm.weeklyPatternJson,
+    );
     if (weeklyPattern === null) {
-      const message = "Dữ liệu lịch học không hợp lệ. Vui lòng chọn lại buổi học.";
+      const message =
+        "Dữ liệu lịch học không hợp lệ. Vui lòng chọn lại buổi học.";
       setRequestError(message);
       toast({
         title: "Dữ liệu không hợp lệ",
@@ -2108,7 +2446,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
 
       const response = await reassignPauseEnrollmentEquivalentClass(
         selectedRequest.id,
-        payload
+        payload,
       );
 
       ensureApiSuccess(response, "Không thể chuyển lớp tương đương.");
@@ -2121,7 +2459,10 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
       await loadRequests(selectedRequest.id);
       router.refresh();
     } catch (error: any) {
-      const message = getDomainErrorMessage(error, "Không thể chuyển lớp tương đương.");
+      const message = getDomainErrorMessage(
+        error,
+        "Không thể chuyển lớp tương đương.",
+      );
       setRequestError(message);
       toast({
         title: "Lỗi",
@@ -2134,23 +2475,30 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
   };
 
   return (
-    <div className="min-h-screen space-y-6 bg-linear-to-b from-red-50/30 to-white p-4 md:p-6">
+    <div className="min-h-screen space-y-6 bg-linear-to-b from-red-50/30 to-white p-4 md:p-2">
       <div
-        className={`flex flex-wrap items-center justify-between gap-4 transition-all duration-700 ${
-          isPageLoaded ? "translate-y-0 opacity-100" : "-translate-y-4 opacity-0"
+        className={`space-y-4 transition-all duration-700 ${
+          isPageLoaded
+            ? "translate-y-0 opacity-100"
+            : "-translate-y-4 opacity-0"
         }`}
       >
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-start gap-4">
             <div className="rounded-xl bg-linear-to-r from-red-600 to-red-700 p-3 text-white shadow-lg">
-              <Clock3 size={26} />
+              <Clock3 size={25} />
             </div>
             <div className="space-y-1">
-              <h1 className="text-2xl font-bold text-gray-900 md:text-3xl">
+              <h1 className="text-2xl font-bold text-gray-900 md:text-2xl">
                 {requestTitle.title}
               </h1>
-              <p className="max-w-3xl text-sm leading-6 text-gray-600">
-                {requestTitle.subtitle}
-              </p>
+              <div
+                className="text-gray-600 mt-1 flex items-center gap-2">
+                <Sparkles size={14} className="text-red-600" />
+                <p className="max-w-4xl text-sm leading-6 text-gray-600">
+                  {requestTitle.subtitle}
+                </p>
+              </div>
             </div>
           </div>
 
@@ -2177,85 +2525,84 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
               <Plus size={16} />
               Tạo yêu cầu
             </button>
-            {isManagement ? (
-              <button
-                type="button"
-                disabled={!selectedRequestIds.length || requestsLoading}
-                onClick={() =>
-                  setConfirmAction({
-                    kind: "approveBulk",
-                    requestIds: selectedRequestIds,
-                    title: "Duyệt hàng loạt yêu cầu bảo lưu",
-                    description: `Bạn sắp duyệt ${selectedRequestIds.length} yêu cầu đang ở trạng thái Pending.`,
-                    confirmText: "Duyệt đã chọn",
-                  })
-                }
-                className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700 transition cursor-pointer hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <CheckCircle2 size={16} />
-                Duyệt đã chọn ({selectedRequestIds.length})
-              </button>
-            ) : null}
-          </div>
-
-          <div className="grid w-full gap-4 pt-2 md:grid-cols-2 xl:grid-cols-4">
-            <MiniMetric
-              label={isManagement ? "Hiển thị" : "Tổng yêu cầu"}
-              value={isManagement ? filteredRequests.length : stats.total}
-              note={
-                isManagement
-                  ? `${requests.length} yêu cầu trong phạm vi hiện tại`
-                  : "Tất cả yêu cầu bảo lưu của học sinh đang chọn"
-              }
-              tone="blue"
-            />
-            <MiniMetric
-              label="Chờ duyệt"
-              value={stats.pending}
-              note={
-                isManagement
-                  ? "Những yêu cầu staff/admin cần xử lý"
-                  : "Đang chờ trung tâm xác nhận"
-              }
-              tone="amber"
-            />
-            <MiniMetric
-              label="Đã duyệt"
-              value={stats.approved}
-              note={
-                isManagement
-                  ? "Đã pause enrollment thành công"
-                  : "Các đợt bảo lưu đã được chấp nhận"
-              }
-              tone="emerald"
-            />
-            <MiniMetric
-              label={isManagement ? "Thiếu outcome" : "Đã hủy"}
-              value={isManagement ? stats.needsOutcome : stats.cancelled}
-              note={
-                isManagement
-                  ? "Cần cập nhật hướng xử lý sau khi quay lại"
-                  : `${requests.filter(canCancelRequest).length} yêu cầu vẫn còn trong hạn hủy`
-              }
-              tone="red"
-            />
           </div>
         </div>
 
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-linear-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+            <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-linear-to-r from-red-600 to-red-700"></div>
+            <div className="relative flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-linear-to-br from-blue-600 to-cyan-600 grid place-items-center">
+                <Clock3 className="text-white" size={18} />
+              </span>
+              <div>
+                <div className="text-sm text-gray-600">{isManagement ? "Hiển thị" : "Tổng yêu cầu"}</div>
+                <div className="text-2xl font-extrabold text-gray-900">{isManagement ? filteredRequests.length : stats.total}</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-linear-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+            <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-linear-to-r from-red-600 to-red-700"></div>
+            <div className="relative flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-linear-to-br from-amber-600 to-yellow-600 grid place-items-center">
+                <Clock3 className="text-white" size={18} />
+              </span>
+              <div>
+                <div className="text-sm text-gray-600">Chờ duyệt</div>
+                <div className="text-2xl font-extrabold text-gray-900">{stats.pending}</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-linear-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+            <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-linear-to-r from-red-600 to-red-700"></div>
+            <div className="relative flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-linear-to-br from-emerald-600 to-teal-600 grid place-items-center">
+                <Clock3 className="text-white" size={18} />
+              </span>
+              <div>
+                <div className="text-sm text-gray-600">Đã duyệt</div>
+                <div className="text-2xl font-extrabold text-gray-900">{stats.approved}</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-linear-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+            <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-linear-to-r from-red-600 to-red-700"></div>
+            <div className="relative flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-linear-to-br from-red-600 to-pink-600 grid place-items-center">
+                <Clock3 className="text-white" size={18} />
+              </span>
+              <div>
+                <div className="text-sm text-gray-600">{isManagement ? "Thiếu outcome" : "Đã hủy"}</div>
+                <div className="text-2xl font-extrabold text-gray-900">{isManagement ? stats.needsOutcome : stats.cancelled}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {requestError ? <Banner kind="error" text={requestError} /> : null}
       {requestMessage ? <Banner kind="success" text={requestMessage} /> : null}
-      {studentOptionsError ? <Banner kind="error" text={studentOptionsError} /> : null}
+      {studentOptionsError ? (
+        <Banner kind="error" text={studentOptionsError} />
+      ) : null}
       {settingsError ? <Banner kind="error" text={settingsError} /> : null}
 
       {isManagement ? (
         <div
           className={`rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50/20 p-4 transition-all duration-700 delay-100 ${
-            isPageLoaded ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
+            isPageLoaded
+              ? "translate-y-0 opacity-100"
+              : "translate-y-4 opacity-0"
           }`}
         >
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 className="text-sm font-semibold text-gray-900">Cấu hình bảo lưu học phí</h2>
+              <h2 className="text-sm font-semibold text-gray-900">
+                Cấu hình bảo lưu học phí
+              </h2>
               <p className="mt-1 text-xs text-gray-600">
                 Giới hạn số tháng tối đa học sinh được phép bảo lưu enrollment.
               </p>
@@ -2301,35 +2648,85 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
 
       {/* Filter Card */}
       <div
-        className={`rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50/30 p-4 transition-all duration-700 delay-150 ${
+        className={`rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50 p-4 transition-all duration-700 delay-150 ${
           isPageLoaded ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
         }`}
       >
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="relative flex-1 min-w-62.5">
-            <Search
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-              size={16}
-            />
-            <input
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder={
-                isManagement
-                  ? "Tìm kiếm học sinh, phụ huynh, lớp, lý do..."
-                  : "Tìm kiếm yêu cầu bảo lưu..."
-              }
-              className="w-full h-10 pl-10 pr-4 rounded-xl border border-red-200 bg-white text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200"
-            />
+        <div className="space-y-4">
+          {/* Status Filter Tabs */}
+          <div className="flex flex-wrap gap-2 pb-4 border-b border-red-200">
+            {(["all", "Pending", "Approved", "Rejected", "Cancelled"] as const).map((status) => {
+              const counts: Record<typeof status, number> = {
+                all: requests.length,
+                Pending: requests.filter((r) => normalizeStatus(r.status) === "Pending").length,
+                Approved: requests.filter((r) => normalizeStatus(r.status) === "Approved").length,
+                Rejected: requests.filter((r) => normalizeStatus(r.status) === "Rejected").length,
+                Cancelled: requests.filter((r) => normalizeStatus(r.status) === "Cancelled").length,
+              };
+
+              const labels: Record<typeof status, string> = {
+                all: "Tất cả trạng thái",
+                Pending: statusLabels.Pending,
+                Approved: statusLabels.Approved,
+                Rejected: statusLabels.Rejected,
+                Cancelled: statusLabels.Cancelled,
+              };
+
+              const isActive = selectedStatus === (status === "all" ? ALL_STATUS : status);
+              return (
+                <button
+                  key={status}
+                  onClick={() => {
+                    setSelectedStatus(status === "all" ? ALL_STATUS : status);
+                  }}
+                  className={`px-4 py-2 rounded-xl border text-sm font-medium transition-all cursor-pointer ${
+                    isActive
+                      ? "bg-linear-to-r from-red-600 to-red-700 text-white border-red-600 shadow-md"
+                      : "bg-white border-red-200 text-gray-700 hover:bg-red-50"
+                  }`}
+                >
+                  <span className="inline-flex items-center gap-2">
+                    {labels[status]}
+                    <span
+                      className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-semibold ${
+                        isActive
+                          ? "bg-white/30 text-white"
+                          : "bg-red-50 text-red-600"
+                      }`}
+                    >
+                      {counts[status]}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          {/* Search and Class Filter Row */}
+          <div className="flex items-center gap-3">
+            <div className="relative flex-1">
+              <Search
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500"
+                size={18}
+              />
+              <input
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder={
+                  isManagement
+                    ? "Tìm kiếm học sinh, phụ huynh, lớp, lý do..."
+                    : "Tìm kiếm yêu cầu bảo lưu..."
+                }
+                className="w-full pl-10 pr-3 py-2.5 rounded-xl text-sm border border-gray-200 bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-300"
+              />
+            </div>
+
             {isManagement ? (
               <Select
                 value={selectedClassId}
                 onValueChange={(val) => setSelectedClassId(val)}
               >
-                <SelectTrigger className="h-10 min-w-62.5 rounded-xl border border-red-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200">
+                <SelectTrigger className="h-10 w-35 rounded-xl border border-red-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200">
                   <SelectValue placeholder="Lọc theo lớp" />
                 </SelectTrigger>
                 <SelectContent>
@@ -2342,22 +2739,6 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
                 </SelectContent>
               </Select>
             ) : null}
-
-            <Select
-              value={selectedStatus}
-              onValueChange={(val) => setSelectedStatus(val)}
-            >
-              <SelectTrigger className="h-10 rounded-xl border border-red-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200">
-                <SelectValue placeholder="Chọn trạng thái" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL_STATUS}>Tất cả trạng thái</SelectItem>
-                <SelectItem value="Pending">{statusLabels.Pending}</SelectItem>
-                <SelectItem value="Approved">{statusLabels.Approved}</SelectItem>
-                <SelectItem value="Rejected">{statusLabels.Rejected}</SelectItem>
-                <SelectItem value="Cancelled">{statusLabels.Cancelled}</SelectItem>
-              </SelectContent>
-            </Select>
 
             {isManagement && filterClassesLoading ? (
               <div className="inline-flex items-center gap-2 text-xs text-gray-500">
@@ -2375,11 +2756,10 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
           isPageLoaded ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
         }`}
       >
-
         <div className="border-b border-red-200 bg-linear-to-r from-red-500/10 to-red-700/10 px-6 py-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">
+              <h2 className="font-semibold text-gray-900">
                 Danh sách yêu cầu bảo lưu
               </h2>
               <p className="mt-1 text-sm text-gray-600">
@@ -2388,11 +2768,31 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
                   : "Theo dõi trạng thái các yêu cầu bảo lưu của học sinh đang chọn."}
               </p>
             </div>
-            <div className="text-sm text-gray-600">
-              <span className="font-medium text-gray-900">
-                {filteredRequests.length} yêu cầu
-              </span>
-
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="text-sm text-gray-600">
+                <span className="font-medium text-gray-700">
+                  {filteredRequests.length} yêu cầu
+                </span>
+              </div>
+              {isManagement && selectedStatus === "Pending" ? (
+                <button
+                  type="button"
+                  disabled={!selectedRequestIds.length || requestsLoading}
+                  onClick={() =>
+                    setConfirmAction({
+                      kind: "approveBulk",
+                      requestIds: selectedRequestIds,
+                      title: "Duyệt hàng loạt yêu cầu bảo lưu",
+                      description: `Bạn sắp duyệt ${selectedRequestIds.length} yêu cầu đang ở trạng thái Pending.`,
+                      confirmText: "Duyệt đã chọn",
+                    })
+                  }
+                  className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700 transition cursor-pointer hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <CheckCircle2 size={16} />
+                  Duyệt ({selectedRequestIds.length})
+                </button>
+              ) : null}
             </div>
           </div>
         </div>
@@ -2401,13 +2801,15 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
           <table className="w-full min-w-190">
             <thead className="border-b border-red-200 bg-linear-to-r from-red-600/5 to-red-700/5">
               <tr className="text-left text-sm font-semibold text-gray-700">
-                {isManagement ? (
+                {isManagement && selectedStatus === "Pending" ? (
                   <th className="px-4 py-4 w-10">
                     {pendingVisibleRequests.length ? (
                       <input
                         type="checkbox"
                         checked={allPendingSelected}
-                        onChange={(event) => toggleSelectAllPending(event.target.checked)}
+                        onChange={(event) =>
+                          toggleSelectAllPending(event.target.checked)
+                        }
                         className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-400"
                         aria-label="Chọn tất cả request pending đang hiển thị"
                       />
@@ -2415,10 +2817,35 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
                   </th>
                 ) : null}
 
-                <th className="px-6 py-4">Học sinh</th>
-                <th className="px-6 py-4">Tổng quan</th>
-                <th className="px-6 py-4">Trạng thái</th>
-                <th className="px-6 py-4">Thao tác</th>
+                <th
+                  className="px-6 py-4 cursor-pointer hover:bg-red-50 transition-colors select-none"
+                  onClick={() => handleSort("student")}
+                >
+                  <span className="inline-flex items-center gap-2">
+                    Học sinh
+                    {getSortIcon("student")}
+                  </span>
+                </th>
+                <th
+                  className="px-6 py-4 cursor-pointer hover:bg-red-50 transition-colors select-none"
+                  onClick={() => handleSort("dateFrom")}
+                >
+                  <span className="inline-flex items-center gap-2">
+                    Ngày bảo lưu
+                    {getSortIcon("dateFrom")}
+                  </span>
+                </th>
+                <th className="px-6 py-4">Chi tiết</th>
+                <th
+                  className="px-6 py-4 cursor-pointer hover:bg-red-50 transition-colors select-none"
+                  onClick={() => handleSort("status")}
+                >
+                  <span className="inline-flex items-center gap-2">
+                    Trạng thái
+                    {getSortIcon("status")}
+                  </span>
+                </th>
+                <th className="px-6 py-4 text-right">Thao tác</th>
               </tr>
             </thead>
 
@@ -2426,7 +2853,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
               {!filteredRequests.length && !requestsLoading ? (
                 <tr>
                   <td
-                    colSpan={isManagement ? 5 : 4}
+                    colSpan={isManagement && selectedStatus === "Pending" ? 6 : 5}
                     className="px-6 py-12 text-center"
                   >
                     <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-50 text-red-400">
@@ -2442,7 +2869,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
                 </tr>
               ) : null}
 
-              {filteredRequests.map((item) => {
+              {filteredAndSortedRequests.map((item) => {
                 const status = normalizeStatus(item.status);
                 const scope = normalizeScope(item.scope, item.classId);
                 const student = studentMap.get(item.studentProfileId);
@@ -2451,7 +2878,10 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
                 const isApproved = status === "Approved";
                 const classLabels = getClassLabels(item);
                 const classPreview = classLabels.slice(0, 2);
-                const hiddenClassCount = Math.max(classLabels.length - classPreview.length, 0);
+                const hiddenClassCount = Math.max(
+                  classLabels.length - classPreview.length,
+                  0,
+                );
                 const isChecked = selectedRequestIds.includes(item.id);
 
                 return (
@@ -2463,7 +2893,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
                         : "hover:bg-linear-to-r hover:from-red-50/50 hover:to-white"
                     }`}
                   >
-                    {isManagement ? (
+                    {isManagement && selectedStatus === "Pending" ? (
                       <td className="px-4 py-4 align-top">
                         {isPending ? (
                           <input
@@ -2479,44 +2909,49 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
                       </td>
                     ) : null}
 
-
                     <td className="px-6 py-4 align-top">
                       <div className="flex items-start gap-3">
                         <div
-                          className={`mt-0.5 flex h-10 w-10 items-center justify-center rounded-2xl bg-linear-to-r ${getRequestAccent(
-                            status
+                          className={`mt-0.5 flex h-10 w-10 items-center justify-center rounded-full bg-linear-to-r ${getRequestAccent(
+                            status,
                           )} text-sm font-semibold text-white shadow-sm`}
                         >
                           {getInitials(student?.label ?? "HV")}
                         </div>
                         <div>
-                          <div className="font-semibold text-gray-900">
+                          <div className="font-semibold text-sm text-gray-900">
                             {student?.label ?? "Học viên"}
                           </div>
                           {student?.parentName ? (
-                          <div className="text-xs text-gray-500">
-                            {`Phụ huynh: ${student.parentName}`}
-                          </div>
+                            <div className="text-xs text-gray-500">
+                              {`Phụ huynh: ${student.parentName}`}
+                            </div>
                           ) : null}
                         </div>
                       </div>
-                     </td>
+                    </td>
+
+                    <td className="px-6 py-4 align-top text-sm text-gray-700">
+                      <div className="space-y-1">
+                        <div className="font-medium text-gray-900">
+                          {formatDate(item.pauseFrom)} -{" "}
+                          {formatDate(item.pauseTo)}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          Tạo lúc {formatDateTime(item.requestedAt)}
+                        </div>
+                      </div>
+                    </td>
 
                     <td className="px-6 py-4 align-top text-sm text-gray-700">
                       <div className="space-y-3">
-                        <div>
-                          <div className="font-medium text-gray-900">
-                            {formatDate(item.pauseFrom)} - {formatDate(item.pauseTo)}
-                          </div>
-                          <div className="mt-1 text-xs text-gray-500">
-                            Tạo lúc {formatDateTime(item.requestedAt)}
-                          </div>
-                        </div>
                         <div className="text-sm leading-6 text-gray-600">
                           {summarizeText(item.reason)}
                         </div>
                         <div className="flex max-w-90 flex-wrap gap-2">
-                          <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${scopeStyles[scope]}`}>
+                          <span
+                            className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${scopeStyles[scope]}`}
+                          >
                             {scopeLabels[scope]}
                           </span>
                           {classPreview.length ? (
@@ -2536,13 +2971,13 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
                               ) : null}
                             </>
                           ) : (
-                              <span className="text-xs text-gray-400">
+                            <span className="text-xs text-gray-400">
                               Chưa có lớp liên quan trong response
                             </span>
                           )}
                         </div>
                       </div>
-                     </td>
+                    </td>
 
                     <td className="px-6 py-4 align-top">
                       <div className="space-y-3">
@@ -2553,7 +2988,9 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
                               {outcomeLabels[item.outcome]}
                             </div>
                             <div className="mt-1 text-xs text-gray-500">
-                              {item.outcomeAt ? `Cập nhật ${formatDateTime(item.outcomeAt)}` : ""}
+                              {item.outcomeAt
+                                ? `Cập nhật ${formatDateTime(item.outcomeAt)}`
+                                : ""}
                             </div>
                           </div>
                         ) : isApproved ? (
@@ -2566,21 +3003,23 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
                           </div>
                         )}
                       </div>
-                     </td>
+                    </td>
 
-                    <td className="px-6 py-4 align-top">
-                      <div className="flex flex-wrap gap-2">
-                        <ActionButton
-                          label={isSelected ? "Đang xem" : "Chi tiết"}
-                          tone="muted"
-                          disabled={isSelected}
+                    <td className="px-6 py-4">
+                      <div className="flex items-center justify-end text-gray-700 gap-1">
+                        <button
+                          type="button"
                           onClick={() => setSelectedRequestId(item.id)}
-                        />
+                          disabled={isSelected}
+                          className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                          title={isSelected ? "Đang xem" : "Chi tiết"}
+                        >
+                          <Eye size={14} />
+                        </button>
 
                         {isManagement && isPending ? (
-                          <ActionButton
-                            label="Duyệt"
-                            tone="primary"
+                          <button
+                            type="button"
                             onClick={() =>
                               setConfirmAction({
                                 kind: "approve",
@@ -2589,18 +3028,21 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
                                 description: `Học sinh: ${
                                   student?.label ?? item.studentProfileId
                                 }\nKhoảng ngày: ${formatDate(item.pauseFrom)} - ${formatDate(
-                                  item.pauseTo
+                                  item.pauseTo,
                                 )}`,
                                 confirmText: "Duyệt yêu cầu",
                               })
                             }
-                          />
+                            className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-emerald-600 cursor-pointer"
+                            title="Duyệt"
+                          >
+                            <Check size={14} />
+                          </button>
                         ) : null}
 
                         {isManagement && isPending ? (
-                          <ActionButton
-                            label="Từ chối"
-                            tone="danger"
+                          <button
+                            type="button"
                             onClick={() =>
                               setConfirmAction({
                                 kind: "reject",
@@ -2612,33 +3054,40 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
                                 confirmText: "Từ chối yêu cầu",
                               })
                             }
-                          />
+                            className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-rose-600 cursor-pointer"
+                            title="Từ chối"
+                          >
+                            <XCircle size={14} />
+                          </button>
                         ) : null}
 
                         {canCancelRequest(item) ? (
-                          <ActionButton
-                            label="Hủy"
-                            tone="danger"
+                          <button
+                            type="button"
                             onClick={() =>
                               setConfirmAction({
                                 kind: "cancel",
                                 requestId: item.id,
                                 title: "Hủy yêu cầu bảo lưu",
                                 description: `Yêu cầu chỉ được hủy trước ngày bắt đầu bảo lưu.\nKhoảng ngày: ${formatDate(
-                                  item.pauseFrom
+                                  item.pauseFrom,
                                 )} - ${formatDate(item.pauseTo)}`,
                                 confirmText: "Hủy yêu cầu",
                               })
                             }
-                          />
+                            className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-800 cursor-pointer"
+                            title="Hủy"
+                          >
+                            <X size={14} />
+                          </button>
                         ) : null}
                       </div>
-                     </td>
-                     </tr>
+                    </td>
+                  </tr>
                 );
               })}
             </tbody>
-           </table>
+          </table>
         </div>
 
         {requestsLoading ? (
@@ -2656,21 +3105,15 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
                 {filteredRequests.length}
               </span>{" "}
               yêu cầu trong tổng số{" "}
-              <span className="font-semibold text-gray-900">{requests.length}</span>{" "}
+              <span className="font-semibold text-gray-900">
+                {requests.length}
+              </span>{" "}
               bản ghi hiện có
             </div>
-            {isManagement ? (
-              <div className="mt-2 text-xs text-gray-500">
-                {pendingVisibleRequests.length
-                  ? `Pending hiển thị: ${pendingVisibleRequests.length} • Đã chọn: ${selectedRequestIds.length}`
-                  : "Không có yêu cầu Pending trong bộ lọc hiện tại."}
-              </div>
-            ) : null}
+
           </div>
         ) : null}
       </div>
-
-     
 
       <RequestDetailModal
         request={selectedRequest}
@@ -2753,7 +3196,9 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
         studentOptions={studentOptions}
         studentOptionsLoading={studentOptionsLoading}
         studentOptionsError={studentOptionsError}
-        lockedStudentProfileId={isStudentLocked ? selectedProfile?.id ?? null : null}
+        lockedStudentProfileId={
+          isStudentLocked ? (selectedProfile?.id ?? null) : null
+        }
         lockedStudentLabel={activeLockedStudent?.label ?? null}
         lockedStudentClassText={activeLockedStudent?.classText ?? null}
         hideBusinessNote={isManagement}
@@ -2781,7 +3226,9 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
 }
 
 function normalizeWeeklyDayCode(value?: unknown): string {
-  const raw = String(value || "").trim().toUpperCase();
+  const raw = String(value || "")
+    .trim()
+    .toUpperCase();
   const map: Record<string, string> = {
     MO: "MO",
     MON: "MO",
@@ -2892,10 +3339,14 @@ function buildWeeklyPatternFromSlots(slots: unknown): WeeklyPatternEntry[] {
     }
   });
 
-  return Array.from(grouped.values()).filter((entry) => entry.dayOfWeeks.length > 0);
+  return Array.from(grouped.values()).filter(
+    (entry) => entry.dayOfWeeks.length > 0,
+  );
 }
 
-function buildWeeklyPatternFromRRule(value?: string | null): WeeklyPatternEntry[] {
+function buildWeeklyPatternFromRRule(
+  value?: string | null,
+): WeeklyPatternEntry[] {
   const raw = String(value || "").trim();
   if (!raw) return [];
 
@@ -2927,7 +3378,9 @@ function buildWeeklyPatternFromRRule(value?: string | null): WeeklyPatternEntry[
   ];
 }
 
-function buildWeeklyPatternFromClassOption(item?: ReassignClassOption | null): WeeklyPatternEntry[] {
+function buildWeeklyPatternFromClassOption(
+  item?: ReassignClassOption | null,
+): WeeklyPatternEntry[] {
   if (!item) return [];
 
   const fromWeeklyPattern = normalizeWeeklyPatternEntries(
@@ -2945,6 +3398,8 @@ function buildWeeklyPatternFromClassOption(item?: ReassignClassOption | null): W
   if (fromSlots.length > 0) return fromSlots;
 
   return buildWeeklyPatternFromRRule(
-    item.schedulePattern || item.classSchedulePattern || item.effectiveSchedulePattern,
+    item.schedulePattern ||
+      item.classSchedulePattern ||
+      item.effectiveSchedulePattern,
   );
 }

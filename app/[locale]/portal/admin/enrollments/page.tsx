@@ -234,7 +234,7 @@ export default function AdminEnrollmentsPage() {
       <div className={`flex flex-wrap items-center justify-between gap-4 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
         <div className="flex items-center gap-4">
           <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
-            <UserCheck size={28} className="text-white" />
+            <UserCheck size={25} className="text-white" />
           </div>
           <div>
             <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">

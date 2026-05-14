@@ -7,6 +7,8 @@ interface BranchDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   branch: Branch | null;
+  userStats?: Record<string, { students: number; teachers: number }>;
+  classStats?: Record<string, number>;
 }
 
 function StatusIndicator({ isActive }: { isActive: boolean }) {
@@ -35,13 +37,17 @@ function InfoRow({ label, value, icon }: { label: string; value: string; icon: R
   );
 }
 
-export default function BranchDetailModal({ isOpen, onClose, branch }: BranchDetailModalProps) {
+export default function BranchDetailModal({ isOpen, onClose, branch, userStats = {}, classStats = {} }: BranchDetailModalProps) {
   if (!isOpen || !branch) return null;
+
+  const studentCount = userStats[branch.id]?.students ?? branch.totalStudents ?? 0;
+  const teacherCount = userStats[branch.id]?.teachers ?? branch.totalTeachers ?? 0;
+  const classCount = classStats[branch.id] ?? branch.totalClasses ?? 0;
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="sticky top-0 bg-gradient-to-r from-red-600 to-red-700 p-6 flex items-center justify-between">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="flex-shrink-0 rounded-t-2xl sticky top-0 bg-gradient-to-r from-red-600 to-red-700 p-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Building2 className="w-6 h-6 text-white" />
             <h2 className="text-xl font-bold text-white">Chi tiết chi nhánh</h2>
@@ -51,7 +57,7 @@ export default function BranchDetailModal({ isOpen, onClose, branch }: BranchDet
           </button>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-2 mb-2">
@@ -73,15 +79,15 @@ export default function BranchDetailModal({ isOpen, onClose, branch }: BranchDet
 
           <div className="grid grid-cols-3 gap-4 pt-4 border-t border-red-100">
             <div className="text-center p-4 bg-red-50 rounded-xl border border-red-100">
-              <div className="text-2xl font-bold text-red-600">{branch.totalStudents || 0}</div>
+              <div className="text-2xl font-bold text-red-600">{studentCount}</div>
               <div className="text-xs text-gray-600 mt-1">Học viên</div>
             </div>
             <div className="text-center p-4 bg-red-50 rounded-xl border border-red-100">
-              <div className="text-2xl font-bold text-red-600">{branch.totalClasses || 0}</div>
+              <div className="text-2xl font-bold text-red-600">{classCount}</div>
               <div className="text-xs text-gray-600 mt-1">Lớp học</div>
             </div>
             <div className="text-center p-4 bg-red-50 rounded-xl border border-red-100">
-              <div className="text-2xl font-bold text-red-600">{branch.totalTeachers || 0}</div>
+              <div className="text-2xl font-bold text-red-600">{teacherCount}</div>
               <div className="text-xs text-gray-600 mt-1">Giáo viên</div>
             </div>
           </div>
@@ -93,10 +99,10 @@ export default function BranchDetailModal({ isOpen, onClose, branch }: BranchDet
         </div>
 
         {/* Footer */}
-        <div className="sticky bottom-0 bg-gray-50 px-6 py-4 border-t border-red-100 flex justify-end">
+        <div className="flex-shrink-0 rounded-b-2xl  sticky bottom-0 bg-gray-50 px-6 py-4 border-t border-red-100 flex justify-end">
           <button
             onClick={onClose}
-            className="px-6 py-2.5 rounded-xl border border-red-200 text-gray-700 font-medium hover:bg-red-50 transition-colors"
+            className="px-6 py-2.5 rounded-xl border border-red-200 text-gray-700 font-medium hover:bg-red-50 transition-colors cursor-pointer"
           >
             Đóng
           </button>

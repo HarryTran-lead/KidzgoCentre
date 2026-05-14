@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { X, Save, Loader2, Upload, ImageIcon, Trash2 } from "lucide-react";
+import { X, Save, Loader2, Upload, ImageIcon, Trash2, FileText } from "lucide-react";
 import type { Blog, CreateBlogRequest, UpdateBlogRequest } from "@/types/admin/blog";
 import { createBlog, updateBlog } from "@/lib/api/blogService";
 import { uploadFile, isUploadSuccess } from "@/lib/api/fileService";
@@ -145,24 +145,31 @@ export default function BlogFormModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/55 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="relative w-full max-w-2xl overflow-hidden rounded-3xl border border-red-200 bg-white shadow-2xl animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+        <div className="absolute inset-x-0  bg-linear-to-r from-red-600 via-red-500 to-red-700" />
+
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-red-600 to-red-700">
-          <h2 className="text-2xl font-bold text-white">
-            {mode === "create" ? "Tạo bài viết mới" : "Chỉnh sửa bài viết"}
-          </h2>
+        <div className="flex items-center justify-between p-6 border-b border-red-200 bg-gradient-to-r from-red-600 to-red-700">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center h-10 w-10 rounded-lg border-2 border-red-400 bg-gradient-to-br from-red-500 to-red-600">
+              <FileText size={20} className="text-white" />
+            </div>
+            <h2 className="text-xl font-bold text-white">
+              {mode === "create" ? "Tạo bài viết mới" : "Chỉnh sửa bài viết"}
+            </h2>
+          </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-white/20 transition-colors text-white"
             disabled={loading || imageUploading}
+            className="cursor-pointer rounded-xl border border-red-400 bg-red-500/20 p-2 text-white transition-colors hover:bg-red-500/40 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <X size={24} />
+            <X size={20} />
           </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6">
+        <form onSubmit={handleSubmit} className="max-h-[calc(90vh-180px)] overflow-y-auto p-6">
           <div className="space-y-6">
             {/* Title */}
             <div>
@@ -174,7 +181,7 @@ export default function BlogFormModal({
                 type="text"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition-all"
+                className="w-full px-4 py-3 border border-red-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 transition-all"
                 placeholder="Nhập tiêu đề bài viết..."
                 required
                 disabled={loading}
@@ -190,9 +197,9 @@ export default function BlogFormModal({
                 id="summary"
                 value={formData.summary}
                 onChange={(e) => setFormData({ ...formData, summary: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition-all resize-none"
+                className="w-full px-4 py-3 border border-red-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 transition-all resize-vertical"
                 placeholder="Nhập tóm tắt ngắn gọn..."
-                rows={3}
+                rows={2}
                 disabled={loading}
               />
             </div>
@@ -208,18 +215,18 @@ export default function BlogFormModal({
                 ref={fileInputRef}
                 type="file"
                 accept="image/jpeg,image/png,image/webp,image/gif"
-                className="hidden"
+                className="hidden "
                 onChange={handleImageChange}
                 disabled={loading || imageUploading}
               />
 
               {formData.featuredImageUrl ? (
                 /* Preview area when image is set */
-                <div className="relative rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
+                <div className="relative rounded-xl overflow-hidden border border-red-200 bg-gray-50">
                   <img
                     src={buildFileUrl(formData.featuredImageUrl)}
                     alt="Preview ảnh đại diện"
-                    className="w-full h-52 object-cover"
+                    className="w-full h-36 object-cover"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src =
                         "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23f0f0f0' width='100' height='100'/%3E%3Ctext fill='%23999' x='50%25' y='50%25' text-anchor='middle' dy='.3em'%3EImage Error%3C/text%3E%3C/svg%3E";
@@ -230,7 +237,7 @@ export default function BlogFormModal({
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={loading || imageUploading}
-                      className="flex items-center gap-1.5 px-3 py-2 bg-white rounded-lg text-sm font-medium text-gray-700 shadow hover:bg-gray-50 transition disabled:opacity-50"
+                      className="flex items-center cursor-pointer gap-1.5 px-3 py-2 bg-white rounded-lg text-sm font-medium text-gray-700 shadow hover:bg-gray-50 transition disabled:opacity-50"
                     >
                       <Upload size={15} />
                       Đổi ảnh
@@ -239,7 +246,7 @@ export default function BlogFormModal({
                       type="button"
                       onClick={() => setFormData((prev) => ({ ...prev, featuredImageUrl: "" }))}
                       disabled={loading || imageUploading}
-                      className="flex items-center gap-1.5 px-3 py-2 bg-red-600 rounded-lg text-sm font-medium text-white shadow hover:bg-red-700 transition disabled:opacity-50"
+                      className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-red-600 to-red-700 rounded-lg text-sm font-medium text-white shadow hover:shadow-md transition disabled:opacity-50"
                     >
                       <Trash2 size={15} />
                       Xóa
@@ -252,7 +259,7 @@ export default function BlogFormModal({
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={loading || imageUploading}
-                  className="w-full flex flex-col items-center justify-center gap-3 px-6 py-10 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 hover:border-red-400 hover:text-red-500 hover:bg-red-50/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full flex flex-col items-center cursor-pointer justify-center gap-2 px-6 py-6 border-2 border-dashed border-red-200 rounded-xl text-gray-500 hover:border-red-400 hover:text-red-500 hover:bg-red-50/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {imageUploading ? (
                     <>
@@ -261,12 +268,12 @@ export default function BlogFormModal({
                     </>
                   ) : (
                     <>
-                      <ImageIcon size={32} />
+                      <ImageIcon size={28} />
                       <div className="text-center">
                         <p className="text-sm font-medium">Nhấn để chọn ảnh</p>
                         <p className="text-xs text-gray-400 mt-0.5">JPG, PNG, WEBP, GIF · Tối đa 10MB</p>
                       </div>
-                      <span className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition">
+                      <span className="inline-flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white text-sm font-semibold rounded-lg hover:shadow-md transition">
                         <Upload size={15} />
                         Chọn ảnh
                       </span>
@@ -291,9 +298,9 @@ export default function BlogFormModal({
                 id="content"
                 value={formData.content}
                 onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition-all resize-none"
+                className="w-full px-4 py-3 border border-red-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 transition-all resize-vertical"
                 placeholder="Nhập nội dung chi tiết bài viết..."
-                rows={12}
+                rows={6}
                 required
                 disabled={loading}
               />
@@ -305,18 +312,18 @@ export default function BlogFormModal({
         </form>
 
         {/* Footer */}
-        <div className="flex-shrink-0 flex items-center justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
+        <div className="flex-shrink-0 flex items-center justify-end gap-3 p-6 border-t border-red-200 bg-gradient-to-r from-red-500/5 to-red-700/5">
           <button
             type="button"
             onClick={onClose}
-            className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-700 font-medium hover:bg-gray-100 transition-colors"
+            className="min-w-30 cursor-pointer rounded-xl border border-red-200 bg-white px-6 py-2.5 text-sm font-semibold text-gray-700 transition-all hover:border-red-300 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
             disabled={loading || imageUploading}
           >
             Hủy
           </button>
           <button
             onClick={handleSubmit}
-            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex min-w-30 cursor-pointer items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-6 py-2.5 text-sm font-semibold text-white transition-all hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
             disabled={loading || imageUploading}
           >
             {loading ? (

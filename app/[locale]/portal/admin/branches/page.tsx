@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useMemo, useState, useEffect } from 'react';
-import { 
+import { useMemo, useState, useEffect } from "react";
+import {
   MapPin,
   Users,
   PencilLine,
@@ -22,26 +22,44 @@ import {
   EyeIcon,
   ArrowUpDown,
   ArrowUp,
-  ArrowDown
-} from 'lucide-react';
-import { 
-  getAllBranches, 
+  ArrowDown,
+  Power,
+  Phone,
+  Mail,
+  XCircle,
+} from "lucide-react";
+import {
+  getAllBranches,
   getBranchById,
-  createBranch, 
-  updateBranch, 
-  updateBranchStatus 
-} from '@/lib/api/branchService';
-import type { Branch, CreateBranchRequest, UpdateBranchRequest } from '@/types/branch';
-import { toast } from '@/hooks/use-toast';
-import BranchFormModal from '@/components/portal/branches/BranchFormModal';
-import BranchDetailModal from '@/components/admin/branches/BranchDetailModal';
-import ConfirmModal from '@/components/ConfirmModal';
+  createBranch,
+  updateBranch,
+  updateBranchStatus,
+} from "@/lib/api/branchService";
+import { getAllUsers } from "@/lib/api/userService";
+import { getAllClasses } from "@/lib/api/classService";
+import type {
+  Branch,
+  CreateBranchRequest,
+  UpdateBranchRequest,
+} from "@/types/branch";
+import { toast } from "@/hooks/use-toast";
+import BranchFormModal from "@/components/portal/branches/BranchFormModal";
+import BranchDetailModal from "@/components/admin/branches/BranchDetailModal";
+import ConfirmModal from "@/components/ConfirmModal";
 
 function Badge({
   color = "gray",
-  children
+  children,
 }: {
-  color?: "gray" | "blue" | "red" | "green" | "purple" | "yellow" | "pink" | "orange";
+  color?:
+    | "gray"
+    | "blue"
+    | "red"
+    | "green"
+    | "purple"
+    | "yellow"
+    | "pink"
+    | "orange";
   children: React.ReactNode;
 }) {
   const colorClasses = {
@@ -52,85 +70,108 @@ function Badge({
     purple: "bg-purple-50 text-purple-700 border border-purple-200",
     yellow: "bg-amber-50 text-amber-700 border border-amber-200",
     pink: "bg-red-50 text-red-700 border border-red-200",
-    orange: "bg-orange-50 text-orange-700 border border-orange-200"
+    orange: "bg-orange-50 text-orange-700 border border-orange-200",
   };
 
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${colorClasses[color]}`}>
+    <span
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${colorClasses[color]}`}
+    >
       {children}
     </span>
   );
 }
 
 function StatusIndicator({ isActive }: { isActive: boolean }) {
-  const config = isActive 
+  const config = isActive
     ? {
-        color: 'text-emerald-500',
-        bgColor: 'bg-emerald-100',
-        text: 'Đang hoạt động',
-        icon: CheckCircle
+        className:
+          "bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200",
+        text: "Đang hoạt động",
+        icon: CheckCircle,
       }
     : {
-        color: 'text-gray-500',
-        bgColor: 'bg-gray-100',
-        text: 'Không hoạt động',
-        icon: AlertCircle
+        className:
+          "bg-gradient-to-r from-red-50 to-red-100 text-red-700 border border-red-200",
+        text: "Không hoạt động",
+        icon: XCircle,
       };
 
   const Icon = config.icon;
 
   return (
-    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg ${config.bgColor} ${config.color} text-xs font-medium`}>
+    <div
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${config.className}`}
+    >
       <Icon size={12} />
       {config.text}
     </div>
   );
 }
 
-function StatCard({ 
-  label, 
-  value, 
-  change, 
+function StatCard({
+  label,
+  value,
+  change,
   icon,
-  color = "from-red-600 to-red-700"
-}: { 
-  label: string; 
-  value: string | number; 
-  change?: number; 
+  color = "from-red-600 to-red-700",
+  iconBg = "from-emerald-600 to-teal-600",
+}: {
+  label: string;
+  value: string | number;
+  change?: number;
   icon: React.ReactNode;
   color?: string;
+  iconBg?: string;
 }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
-      <div className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r ${color}`}></div>
+    <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+      <div
+        className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r ${color}`}
+      ></div>
       <div className="relative flex items-center justify-between gap-3">
-        <div className={`p-2 rounded-xl bg-gradient-to-r ${color} text-white shadow-sm flex-shrink-0`}>
-          {icon}
+        <div
+          className={`w-10 h-10 rounded-xl bg-gradient-to-br ${iconBg} grid place-items-center flex-shrink-0`}
+        >
+          <span className="text-white">{icon}</span>
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
-            <div className="text-xs font-medium text-gray-600 truncate">{label}</div>
+            <div className="text-xs font-medium text-gray-600 truncate">
+              {label}
+            </div>
             {change !== undefined && (
-              <span className={`flex-shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full ${
-                change > 0 
-                  ? 'text-emerald-600 bg-emerald-50' 
-                  : change < 0 
-                    ? 'text-red-600 bg-red-50'
-                    : 'text-gray-600 bg-gray-50'
-              }`}>
-                {change > 0 ? '+' : ''}{change}%
+              <span
+                className={`flex-shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                  change > 0
+                    ? "text-emerald-600 bg-emerald-50"
+                    : change < 0
+                      ? "text-red-600 bg-red-50"
+                      : "text-gray-600 bg-gray-50"
+                }`}
+              >
+                {change > 0 ? "+" : ""}
+                {change}%
               </span>
             )}
           </div>
-          <div className="text-xl font-bold text-gray-900 leading-tight">{value}</div>
+          <div className="text-xl font-bold text-gray-900 leading-tight">
+            {value}
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-type BranchSortField = 'code' | 'name' | 'address' | 'totalStudents' | 'totalClasses' | 'totalTeachers';
-type BranchSortDirection = 'asc' | 'desc' | null;
+type BranchSortField =
+  | "code"
+  | "name"
+  | "address"
+  | "totalStudents"
+  | "totalClasses"
+  | "totalTeachers";
+type BranchSortDirection = "asc" | "desc" | null;
 
 function SortableHeader({
   field,
@@ -138,23 +179,31 @@ function SortableHeader({
   direction,
   onSort,
   children,
-  align = 'left',
+  align = "left",
 }: {
   field: BranchSortField;
   currentField: BranchSortField | null;
   direction: BranchSortDirection;
   onSort: (f: BranchSortField) => void;
   children: React.ReactNode;
-  align?: 'left' | 'center' | 'right';
+  align?: "left" | "center" | "right";
 }) {
   const isActive = currentField === field;
   const icon = isActive ? (
-    direction === 'asc' ? <ArrowUp size={14} className="text-red-600" /> : <ArrowDown size={14} className="text-red-600" />
+    direction === "asc" ? (
+      <ArrowUp size={14} className="text-red-600" />
+    ) : (
+      <ArrowDown size={14} className="text-red-600" />
+    )
   ) : (
     <ArrowUpDown size={14} className="text-gray-400" />
   );
   const alignClass =
-    align === 'center' ? 'text-center' : align === 'right' ? 'text-right' : 'text-left';
+    align === "center"
+      ? "text-center"
+      : align === "right"
+        ? "text-right"
+        : "text-left";
 
   return (
     <th
@@ -170,15 +219,17 @@ function SortableHeader({
 }
 
 export default function BranchesPage() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterStatus, setFilterStatus] = useState<
+    "all" | "active" | "inactive"
+  >("all");
   const [sortField, setSortField] = useState<BranchSortField | null>(null);
   const [sortDirection, setSortDirection] = useState<BranchSortDirection>(null);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  
+
   // Modal states
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -188,9 +239,93 @@ export default function BranchesPage() {
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPageLoaded, setIsPageLoaded] = useState(false);
+  const [userStats, setUserStats] = useState<
+    Record<string, { students: number; teachers: number }>
+  >({});
+  const [classStats, setClassStats] = useState<Record<string, number>>({});
 
   useEffect(() => {
     setIsPageLoaded(true);
+  }, []);
+
+  // Fetch users to calculate student and teacher counts by branch
+  useEffect(() => {
+    const fetchUsersData = async () => {
+      try {
+        const response = await getAllUsers({ pageSize: 500, isActive: true });
+        const responseData = response.data || response;
+
+        if ((response.success || response.isSuccess) && responseData?.items) {
+          const allUsers = responseData.items;
+
+          // Calculate student and teacher counts by branch
+          const stats: Record<string, { students: number; teachers: number }> =
+            {};
+
+          allUsers.forEach((user: any) => {
+            const branchId = user.branchId || "no-branch";
+
+            if (!stats[branchId]) {
+              stats[branchId] = { students: 0, teachers: 0 };
+            }
+
+            // Count teachers by role
+            if (user.role === "Teacher") {
+              stats[branchId].teachers += 1;
+            }
+
+            // Count students by checking profiles
+            if (user.profiles && Array.isArray(user.profiles)) {
+              const studentProfiles = user.profiles.filter(
+                (p: any) => p.profileType === "Student",
+              );
+              stats[branchId].students += studentProfiles.length;
+            }
+          });
+
+          setUserStats(stats);
+        }
+      } catch (error) {
+        console.error("Error fetching users data:", error);
+        // Silently fail - stats will show default values
+      }
+    };
+
+    fetchUsersData();
+  }, []);
+
+  // Fetch classes to calculate class counts by branch
+  useEffect(() => {
+    const fetchClassesData = async () => {
+      try {
+        const response = await getAllClasses({ pageSize: 500, pageNumber: 1 });
+        const responseData = response.data || response;
+
+        if (
+          (response.success || response.isSuccess) &&
+          responseData?.classes?.items
+        ) {
+          const allClasses = responseData.classes.items;
+
+          // Calculate class counts by branch
+          const stats: Record<string, number> = {};
+
+          allClasses.forEach((classItem: any) => {
+            const branchId = classItem.branchId;
+            if (branchId) {
+              stats[branchId] = (stats[branchId] || 0) + 1;
+            }
+          });
+
+          setClassStats(stats);
+        }
+      } catch (error) {
+        console.error("Error fetching classes data:", error);
+        // Silently fail - stats will show default values
+      }
+    };
+
+    fetchClassesData();
   }, []);
 
   // Fetch branches from API
@@ -203,27 +338,28 @@ export default function BranchesPage() {
           limit: 20,
           search: searchQuery || undefined,
           // Remove isActive filter to get all branches
-          sortBy: 'createdAt' as const,
-          sortOrder: 'desc' as const,
+          sortBy: "createdAt" as const,
+          sortOrder: "desc" as const,
         };
 
         const response = await getAllBranches(params);
-        
+
         // Check if response structure has nested data
         const responseData = response.data;
-        
+
         if ((response.success || response.isSuccess) && responseData) {
           setBranches(responseData.branches || []);
           setTotalPages(responseData.pagination?.totalPages || 1);
         } else {
           toast({
             title: "Lỗi",
-            description: response.message || "Không thể tải danh sách chi nhánh",
+            description:
+              response.message || "Không thể tải danh sách chi nhánh",
             variant: "destructive",
           });
         }
       } catch (error) {
-        console.error('Error fetching branches:', error);
+        console.error("Error fetching branches:", error);
         toast({
           title: "Lỗi",
           description: "Có lỗi xảy ra khi tải danh sách chi nhánh",
@@ -240,19 +376,19 @@ export default function BranchesPage() {
   // Handler: View Details
   const handleViewDetail = async (branchId: string) => {
     try {
-      console.log('Fetching branch details for ID:', branchId);
+      console.log("Fetching branch details for ID:", branchId);
       const response = await getBranchById(branchId);
-      console.log('Branch detail response:', response);
-      
+      console.log("Branch detail response:", response);
+
       if ((response.success || response.isSuccess) && response.data) {
         // API returns: { isSuccess: true, data: { id, code, name, ... } }
         const branchData = response.data.branch || response.data;
-        console.log('Branch data to display:', branchData);
+        console.log("Branch data to display:", branchData);
         setSelectedBranch(branchData);
         setShowDetailModal(true);
       } else {
         const errorMsg = response.message || "Không thể tải chi tiết chi nhánh";
-        console.error('Failed to load branch details:', response);
+        console.error("Failed to load branch details:", response);
         toast({
           title: "Lỗi",
           description: errorMsg,
@@ -260,8 +396,11 @@ export default function BranchesPage() {
         });
       }
     } catch (error: any) {
-      console.error('Error fetching branch details:', error);
-      const errorMsg = error?.response?.data?.message || error?.message || "Có lỗi xảy ra khi tải chi tiết";
+      console.error("Error fetching branch details:", error);
+      const errorMsg =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Có lỗi xảy ra khi tải chi tiết";
       toast({
         title: "Lỗi",
         description: errorMsg,
@@ -274,11 +413,11 @@ export default function BranchesPage() {
   const handleAddBranch = async (data: CreateBranchRequest) => {
     try {
       setIsSubmitting(true);
-      console.log('Creating branch with data:', data);
+      console.log("Creating branch with data:", data);
       const response = await createBranch(data);
-      console.log('Create branch response:', response);
-      
-      if ((response.success || response.isSuccess)) {
+      console.log("Create branch response:", response);
+
+      if (response.success || response.isSuccess) {
         toast({
           title: "Thành công",
           description: "Thêm chi nhánh mới thành công",
@@ -290,8 +429,8 @@ export default function BranchesPage() {
           page: currentPage,
           limit: 20,
           search: searchQuery || undefined,
-          sortBy: 'createdAt' as const,
-          sortOrder: 'desc' as const,
+          sortBy: "createdAt" as const,
+          sortOrder: "desc" as const,
         };
         const refreshResponse = await getAllBranches(params);
         const responseData = refreshResponse.data;
@@ -299,7 +438,10 @@ export default function BranchesPage() {
           setBranches(responseData.branches || []);
         }
       } else {
-        const errorMsg = response.message || response.data?.message || "Không thể thêm chi nhánh";
+        const errorMsg =
+          response.message ||
+          response.data?.message ||
+          "Không thể thêm chi nhánh";
         toast({
           title: "Lỗi",
           description: errorMsg,
@@ -307,8 +449,11 @@ export default function BranchesPage() {
         });
       }
     } catch (error: any) {
-      console.error('Error creating branch:', error);
-      const errorMsg = error?.response?.data?.message || error?.message || "Có lỗi xảy ra khi thêm chi nhánh";
+      console.error("Error creating branch:", error);
+      const errorMsg =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Có lỗi xảy ra khi thêm chi nhánh";
       toast({
         title: "Lỗi",
         description: errorMsg,
@@ -323,11 +468,11 @@ export default function BranchesPage() {
   const handleEditBranch = async (id: string, data: UpdateBranchRequest) => {
     try {
       setIsSubmitting(true);
-      console.log('Updating branch with ID:', id, 'Data:', data);
+      console.log("Updating branch with ID:", id, "Data:", data);
       const response = await updateBranch(id, data);
-      console.log('Update branch response:', response);
-      
-      if ((response.success || response.isSuccess)) {
+      console.log("Update branch response:", response);
+
+      if (response.success || response.isSuccess) {
         toast({
           title: "Thành công",
           description: "Cập nhật chi nhánh thành công",
@@ -340,8 +485,8 @@ export default function BranchesPage() {
           page: currentPage,
           limit: 20,
           search: searchQuery || undefined,
-          sortBy: 'createdAt' as const,
-          sortOrder: 'desc' as const,
+          sortBy: "createdAt" as const,
+          sortOrder: "desc" as const,
         };
         const refreshResponse = await getAllBranches(params);
         const responseData = refreshResponse.data;
@@ -349,7 +494,10 @@ export default function BranchesPage() {
           setBranches(responseData.branches || []);
         }
       } else {
-        const errorMsg = response.message || response.data?.message || "Không thể cập nhật chi nhánh";
+        const errorMsg =
+          response.message ||
+          response.data?.message ||
+          "Không thể cập nhật chi nhánh";
         toast({
           title: "Lỗi",
           description: errorMsg,
@@ -357,8 +505,11 @@ export default function BranchesPage() {
         });
       }
     } catch (error: any) {
-      console.error('Error updating branch:', error);
-      const errorMsg = error?.response?.data?.message || error?.message || "Có lỗi xảy ra khi cập nhật chi nhánh";
+      console.error("Error updating branch:", error);
+      const errorMsg =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Có lỗi xảy ra khi cập nhật chi nhánh";
       toast({
         title: "Lỗi",
         description: errorMsg,
@@ -380,12 +531,14 @@ export default function BranchesPage() {
   // Handler: Soft Delete (Deactivate)
   const handleDeactivateBranch = async () => {
     if (!selectedBranch) return;
-    
+
     try {
       setIsSubmitting(true);
-      const response = await updateBranchStatus(selectedBranch.id, { isActive: false });
-      
-      if ((response.success || response.isSuccess)) {
+      const response = await updateBranchStatus(selectedBranch.id, {
+        isActive: false,
+      });
+
+      if (response.success || response.isSuccess) {
         toast({
           title: "Thành công",
           description: "Đã vô hiệu hóa chi nhánh",
@@ -394,9 +547,11 @@ export default function BranchesPage() {
         setShowConfirmModal(false);
         setSelectedBranch(null);
         // Update local state
-        setBranches(prev => prev.map(b => 
-          b.id === selectedBranch.id ? { ...b, isActive: false } : b
-        ));
+        setBranches((prev) =>
+          prev.map((b) =>
+            b.id === selectedBranch.id ? { ...b, isActive: false } : b,
+          ),
+        );
       } else {
         toast({
           title: "Lỗi",
@@ -405,10 +560,11 @@ export default function BranchesPage() {
         });
       }
     } catch (error: any) {
-      console.error('Error deactivating branch:', error);
+      console.error("Error deactivating branch:", error);
       toast({
         title: "Lỗi",
-        description: error?.message || "Có lỗi xảy ra khi vô hiệu hóa chi nhánh",
+        description:
+          error?.message || "Có lỗi xảy ra khi vô hiệu hóa chi nhánh",
         variant: "destructive",
       });
     } finally {
@@ -426,9 +582,11 @@ export default function BranchesPage() {
     if (!selectedBranch) return;
     try {
       setIsSubmitting(true);
-      const response = await updateBranchStatus(selectedBranch.id, { isActive: true });
-      
-      if ((response.success || response.isSuccess)) {
+      const response = await updateBranchStatus(selectedBranch.id, {
+        isActive: true,
+      });
+
+      if (response.success || response.isSuccess) {
         toast({
           title: "Thành công",
           description: "Đã kích hoạt chi nhánh",
@@ -437,9 +595,11 @@ export default function BranchesPage() {
         setShowActivateModal(false);
         setSelectedBranch(null);
         // Update local state
-        setBranches(prev => prev.map(b => 
-          b.id === selectedBranch.id ? { ...b, isActive: true } : b
-        ));
+        setBranches((prev) =>
+          prev.map((b) =>
+            b.id === selectedBranch.id ? { ...b, isActive: true } : b,
+          ),
+        );
       } else {
         toast({
           title: "Lỗi",
@@ -448,7 +608,7 @@ export default function BranchesPage() {
         });
       }
     } catch (error: any) {
-      console.error('Error activating branch:', error);
+      console.error("Error activating branch:", error);
       toast({
         title: "Lỗi",
         description: error?.message || "Có lỗi xảy ra khi kích hoạt chi nhánh",
@@ -467,14 +627,14 @@ export default function BranchesPage() {
 
   const filteredBranches = useMemo(() => {
     let result = branches;
-    
+
     // Apply status filter
-    if (filterStatus === 'active') {
-      result = result.filter(b => b.isActive);
-    } else if (filterStatus === 'inactive') {
-      result = result.filter(b => !b.isActive);
+    if (filterStatus === "active") {
+      result = result.filter((b) => b.isActive);
+    } else if (filterStatus === "inactive") {
+      result = result.filter((b) => !b.isActive);
     }
-    
+
     return result;
   }, [branches, filterStatus]);
   const sortedBranches = useMemo(() => {
@@ -484,17 +644,17 @@ export default function BranchesPage() {
       result.sort((a, b) => {
         const getVal = (branch: Branch) => {
           switch (sortField) {
-            case 'code':
-              return branch.code ?? '';
-            case 'name':
-              return branch.name ?? '';
-            case 'address':
-              return branch.address ?? '';
-            case 'totalStudents':
+            case "code":
+              return branch.code ?? "";
+            case "name":
+              return branch.name ?? "";
+            case "address":
+              return branch.address ?? "";
+            case "totalStudents":
               return branch.totalStudents ?? 0;
-            case 'totalClasses':
+            case "totalClasses":
               return branch.totalClasses ?? 0;
-            case 'totalTeachers':
+            case "totalTeachers":
               return branch.totalTeachers ?? 0;
           }
         };
@@ -502,16 +662,22 @@ export default function BranchesPage() {
         const av = getVal(a);
         const bv = getVal(b);
 
-        if (typeof av === 'number' && typeof bv === 'number') {
-          return sortDirection === 'asc' ? av - bv : bv - av;
+        if (typeof av === "number" && typeof bv === "number") {
+          return sortDirection === "asc" ? av - bv : bv - av;
         }
 
-        const aStr = (av ?? '').toString();
-        const bStr = (bv ?? '').toString();
+        const aStr = (av ?? "").toString();
+        const bStr = (bv ?? "").toString();
 
-        return sortDirection === 'asc'
-          ? aStr.localeCompare(bStr, undefined, { numeric: true, sensitivity: 'base' })
-          : bStr.localeCompare(aStr, undefined, { numeric: true, sensitivity: 'base' });
+        return sortDirection === "asc"
+          ? aStr.localeCompare(bStr, undefined, {
+              numeric: true,
+              sensitivity: "base",
+            })
+          : bStr.localeCompare(aStr, undefined, {
+              numeric: true,
+              sensitivity: "base",
+            });
       });
     }
 
@@ -520,50 +686,90 @@ export default function BranchesPage() {
 
   const handleSort = (field: BranchSortField) => {
     if (sortField === field) {
-      if (sortDirection === 'asc') setSortDirection('desc');
-      else if (sortDirection === 'desc') {
+      if (sortDirection === "asc") setSortDirection("desc");
+      else if (sortDirection === "desc") {
         setSortField(null);
         setSortDirection(null);
-      } else setSortDirection('asc');
+      } else setSortDirection("asc");
     } else {
       setSortField(field);
-      setSortDirection('asc');
+      setSortDirection("asc");
     }
     setCurrentPage(1);
   };
 
   const stats = useMemo(() => {
     const total = branches.length;
-    const active = branches.filter(b => b.isActive).length;
-    const totalStudents = branches.reduce((sum, b) => sum + (b.totalStudents || 0), 0);
-    const totalClasses = branches.reduce((sum, b) => sum + (b.totalClasses || 0), 0);
-    
+    const active = branches.filter((b) => b.isActive).length;
+
+    // Calculate totals from user stats
+    let totalStudents = 0;
+    let totalTeachers = 0;
+    let totalClasses = 0;
+
+    branches.forEach((b) => {
+      const branchStats = userStats[b.id];
+      if (branchStats) {
+        totalStudents += branchStats.students;
+        totalTeachers += branchStats.teachers;
+      }
+
+      // Calculate classes from class stats
+      const classCount = classStats[b.id] || 0;
+      totalClasses += classCount;
+    });
+
+    // Fallback to branch data if available
+    if (totalStudents === 0) {
+      totalStudents = branches.reduce(
+        (sum, b) => sum + (b.totalStudents || 0),
+        0,
+      );
+    }
+    if (totalTeachers === 0) {
+      totalTeachers = branches.reduce(
+        (sum, b) => sum + (b.totalTeachers || 0),
+        0,
+      );
+    }
+    if (totalClasses === 0) {
+      totalClasses = branches.reduce(
+        (sum, b) => sum + (b.totalClasses || 0),
+        0,
+      );
+    }
+
     return {
       total,
       active,
       totalStudents,
+      totalTeachers,
       totalClasses,
     };
-  }, [branches]);
+  }, [branches, userStats, classStats]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-6 space-y-6">
+    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-2 space-y-6">
       {/* Header */}
-      <div className={`flex flex-wrap items-center justify-between gap-4 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
+      <div
+        className={`flex flex-wrap items-center justify-between gap-4 transition-all duration-700 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"}`}
+      >
         <div className="flex items-center gap-4">
           <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
-            <Building2 size={28} className="text-white" />
+            <Building2 size={25} className="text-white" />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">
+            <h1 className="text-2xl md:text-2xl font-extrabold text-gray-900">
               Quản lý chi nhánh
             </h1>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-gray-600 mt-1 flex items-center gap-2">
+              <Sparkles size={14} className="text-red-600" />
               Theo dõi và quản lý toàn bộ chi nhánh của hệ thống Rex
             </p>
           </div>
         </div>
-        <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all"
+        <button
+          className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r cursor-pointer from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all"
           onClick={() => setShowAddModal(true)}
         >
           <Plus size={16} />
@@ -572,84 +778,128 @@ export default function BranchesPage() {
       </div>
 
       {/* Stats Overview */}
-      <div className={`grid gap-4 md:grid-cols-2 lg:grid-cols-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-        <StatCard 
-          label="Tổng chi nhánh" 
-          value={stats.total} 
-          icon={<Building2 size={20} />}
+      <div
+        className={`grid gap-4 md:grid-cols-2 lg:grid-cols-4 transition-all duration-700 delay-100 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}
+      >
+        <StatCard
+          label="Tổng chi nhánh"
+          value={stats.total}
+          icon={<Building2 size={18} />}
           color="from-red-600 to-red-700"
+          iconBg="from-emerald-600 to-teal-600"
         />
-        <StatCard 
-          label="Đang hoạt động" 
-          value={stats.active} 
-          icon={<CheckCircle size={20} />}
+        <StatCard
+          label="Đang hoạt động"
+          value={stats.active}
+          icon={<CheckCircle size={18} />}
           color="from-emerald-500 to-teal-500"
+          iconBg="from-blue-600 to-cyan-600"
         />
-        <StatCard 
-          label="Tổng học viên" 
-          value={stats.totalStudents} 
-          change={12.5}
-          icon={<Users size={20} />}
+        <StatCard
+          label="Tổng học viên"
+          value={stats.totalStudents}
+          icon={<Users size={18} />}
           color="from-blue-500 to-cyan-500"
+          iconBg="from-violet-600 to-purple-600"
         />
-        <StatCard 
-          label="Lớp học" 
-          value={stats.totalClasses} 
-          change={8.3}
-          icon={<Globe size={20} />}
+        <StatCard
+          label="Tổng giáo viên"
+          value={stats.totalTeachers}
+          icon={<Globe size={18} />}
           color="from-purple-500 to-violet-500"
+          iconBg="from-violet-600 to-purple-600"
         />
       </div>
 
       {/* Filters and Search */}
-      <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="relative flex-1 min-w-[250px]">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-red-600" size={16} />
+      <div
+        className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}
+      >
+        <div className="space-y-4">
+          {/* Status Filter Tabs */}
+          <div className="flex flex-wrap gap-2 pb-4 border-b border-red-200">
+            {(["all", "active", "inactive"] as const).map((status) => {
+              const counts: Record<typeof status, number> = {
+                all: branches.length,
+                active: branches.filter((b) => b.isActive).length,
+                inactive: branches.filter((b) => !b.isActive).length,
+              };
+
+              const labels: Record<typeof status, string> = {
+                all: "Tất cả chi nhánh",
+                active: "Đang hoạt động",
+                inactive: "Không hoạt động",
+              };
+
+              const isActive = filterStatus === status;
+              return (
+                <button
+                  key={status}
+                  onClick={() => setFilterStatus(status)}
+                  className={`px-4 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+                    isActive
+                      ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                      : "bg-white border border-red-200 text-gray-700 hover:bg-red-50"
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <span>{labels[status]}</span>
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+                        isActive ? "bg-white/20" : "bg-red-100 text-red-700"
+                      }`}
+                    >
+                      {counts[status]}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Search Box */}
+          <div className="relative">
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              size={18}
+            />
             <input
               type="text"
               placeholder="Tìm kiếm chi nhánh theo tên, địa chỉ..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full h-10 pl-10 pr-4 rounded-xl border border-red-200 bg-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200"
+              className="w-full h-10 rounded-xl border border-red-200 bg-white py-2 pl-10 pr-4 text-xs text-gray-700 placeholder-gray-400 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200"
             />
-          </div>
-          
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-2 border border-red-200 rounded-xl bg-white">
-              <Filter size={16} className="text-red-600" />
-              <select 
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value as 'all' | 'active' | 'inactive')}
-                className="text-sm bg-transparent outline-none text-gray-700"
-              >
-                <option value="all">Tất cả trạng thái</option>
-                <option value="active">Đang hoạt động</option>
-                <option value="inactive">Không hoạt động</option>
-              </select>
-            </div>
           </div>
         </div>
       </div>
 
       {/* Loading State */}
       {isLoading && (
-        <div className={`flex items-center justify-center py-20 transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div
+          className={`flex items-center justify-center py-20 transition-all duration-700 delay-200 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}
+        >
           <Loader2 className="w-8 h-8 animate-spin text-red-600" />
         </div>
       )}
 
       {/* Branches Table */}
       {!isLoading && (
-        <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 shadow-sm overflow-hidden transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div
+          className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 shadow-sm overflow-hidden transition-all duration-700 delay-200 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}
+        >
           {/* Table Header */}
           <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-red-200 px-6 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <h2 className="text-lg font-semibold text-gray-900">Danh sách chi nhánh</h2>
+                <h2 className=" font-semibold text-gray-900">
+                  Danh sách chi nhánh
+                </h2>
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-600">
-                <span className="font-medium">{filteredBranches.length} chi nhánh</span>
+                <span className="font-medium">
+                  {filteredBranches.length} chi nhánh
+                </span>
               </div>
             </div>
           </div>
@@ -660,14 +910,6 @@ export default function BranchesPage() {
               <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-red-200">
                 <tr>
                   <SortableHeader
-                    field="code"
-                    currentField={sortField}
-                    direction={sortDirection}
-                    onSort={handleSort}
-                  >
-                    Mã chi nhánh
-                  </SortableHeader>
-                  <SortableHeader
                     field="name"
                     currentField={sortField}
                     direction={sortDirection}
@@ -675,15 +917,9 @@ export default function BranchesPage() {
                   >
                     Tên chi nhánh
                   </SortableHeader>
-                  <SortableHeader
-                    field="address"
-                    currentField={sortField}
-                    direction={sortDirection}
-                    onSort={handleSort}
-                  >
-                    Địa chỉ
-                  </SortableHeader>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Liên hệ</th>
+                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
+                    Liên hệ
+                  </th>
                   <SortableHeader
                     field="totalStudents"
                     currentField={sortField}
@@ -711,8 +947,12 @@ export default function BranchesPage() {
                   >
                     Giáo viên
                   </SortableHeader>
-                  <th className="py-3 px-6 text-center text-sm font-semibold text-gray-700">Trạng thái</th>
-                  <th className="py-3 px-6 text-right text-sm font-semibold text-gray-700">Thao tác</th>
+                  <th className="py-3 px-6 text-center text-sm font-semibold text-gray-700">
+                    Trạng thái
+                  </th>
+                  <th className="py-3 px-6 text-right text-sm font-semibold text-gray-700">
+                    Thao tác
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-red-100">
@@ -723,54 +963,92 @@ export default function BranchesPage() {
                       className="group hover:bg-red-50/50 transition-colors"
                     >
                       <td className="py-4 px-6">
-                        <span className="px-2.5 py-1 bg-red-50 text-red-700 text-xs font-medium rounded-full border border-red-200">
-                          {branch.code}
-                        </span>
-                      </td>
-                      <td className="py-4 px-6">
-                        <div className=" text-gray-900">{branch.name}</div>
-                      </td>
-                      <td className="py-4 px-6">
-                        <div className="flex items-start gap-2 text-sm text-gray-600 max-w-xs">
-                          <MapPin size={14} className="mt-0.5 text-red-600 flex-shrink-0" />
-                          <span className="line-clamp-2">{branch.address}</span>
+                        <div>
+                          <div className="flex items-center gap-2 text-sm text-gray-900 font-semibold mb-2">
+                            <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-red-600 text-white flex-shrink-0">
+                              <Building2 size={14} />
+                            </span>
+                            {branch.name}
+                            <span className="px-2.5 py-1 bg-red-50 text-red-700 text-xs font-medium rounded-full border border-red-200 inline-block">
+                              {branch.code}
+                            </span>
+                          </div>
                         </div>
                       </td>
                       <td className="py-4 px-6">
-                        <div className="space-y-1 text-sm text-gray-600">
+                        <div className="space-y-2 text-sm text-gray-600">
+                          {/* Address */}
+                          {branch.address && (
+                            <div className="flex items-start gap-2 mb-2">
+                              <MapPin
+                                size={14}
+                                className="mt-0.5 text-red-600 flex-shrink-0"
+                              />
+                              <span className="text-xs line-clamp-2">
+                                {branch.address}
+                              </span>
+                            </div>
+                          )}
+                          {/* Contact */}
                           {branch.contactPhone && (
-                            <div className="flex items-center gap-1">
-                              <span className="text-xs">{branch.contactPhone}</span>
+                            <div className="flex items-center gap-2">
+                              <Phone
+                                size={14}
+                                className="text-red-600 flex-shrink-0"
+                              />
+                              <span className="text-xs">
+                                {branch.contactPhone}
+                              </span>
                             </div>
                           )}
                           {branch.contactEmail && (
-                            <div className="flex items-center gap-1">
-                              <span className="text-xs truncate max-w-[200px]">{branch.contactEmail}</span>
+                            <div className="flex items-center gap-2">
+                              <Mail
+                                size={14}
+                                className="text-red-600 flex-shrink-0"
+                              />
+                              <span className="text-xs truncate max-w-[200px]">
+                                {branch.contactEmail}
+                              </span>
                             </div>
                           )}
-                          {!branch.contactPhone && !branch.contactEmail && (
-                            <span className="text-xs text-gray-400">Chưa có</span>
-                          )}
+                          {!branch.address &&
+                            !branch.contactPhone &&
+                            !branch.contactEmail && (
+                              <span className="text-xs text-gray-400">
+                                Chưa có
+                              </span>
+                            )}
                         </div>
-                       </td>
+                      </td>
                       <td className="py-4 px-6 text-center">
                         <div className="flex flex-col items-center">
-                          <span className="text-lg text-gray-900">{branch.totalStudents || 0}</span>
+                          <span className="text-sm text-gray-500">
+                            {userStats[branch.id]?.students ??
+                              branch.totalStudents ??
+                              0}
+                          </span>
                         </div>
-                       </td>
+                      </td>
                       <td className="py-4 px-6 text-center">
                         <div className="flex flex-col items-center">
-                          <span className="text-lg text-gray-900">{branch.totalClasses || 0}</span>
+                          <span className="text-sm text-gray-500">
+                            {classStats[branch.id] ?? branch.totalClasses ?? 0}
+                          </span>
                         </div>
-                       </td>
+                      </td>
                       <td className="py-4 px-6 text-center">
                         <div className="flex flex-col items-center">
-                          <span className="text-lg text-gray-900">{branch.totalTeachers || 0}</span>
+                          <span className="text-sm text-gray-500">
+                            {userStats[branch.id]?.teachers ??
+                              branch.totalTeachers ??
+                              0}
+                          </span>
                         </div>
-                       </td>
+                      </td>
                       <td className="py-4 px-6 text-center">
                         <StatusIndicator isActive={branch.isActive} />
-                       </td>
+                      </td>
                       <td className="py-4 px-6">
                         <div className="flex items-center justify-end gap-2">
                           <button
@@ -778,7 +1056,7 @@ export default function BranchesPage() {
                             className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                             title="Xem chi tiết"
                           >
-                            <EyeIcon size={16} />
+                            <EyeIcon size={12} />
                           </button>
                           <button
                             onClick={(e) => {
@@ -788,7 +1066,7 @@ export default function BranchesPage() {
                             className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                             title="Chỉnh sửa"
                           >
-                            <PencilLine size={16} />
+                            <PencilLine size={12} />
                           </button>
                           {branch.isActive ? (
                             <button
@@ -799,7 +1077,7 @@ export default function BranchesPage() {
                               className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                               title="Vô hiệu hóa"
                             >
-                              <Trash2 size={16} />
+                              <Power size={12} />
                             </button>
                           ) : (
                             <button
@@ -810,22 +1088,25 @@ export default function BranchesPage() {
                               className="p-2 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
                               title="Kích hoạt"
                             >
-                              <RefreshCw size={16} />
+                              <RefreshCw size={12} />
                             </button>
                           )}
-                        </div> 
-                       </td>
-                     </tr>
+                        </div>
+                      </td>
+                    </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={9} className="py-12 text-center">
+                    <td colSpan={7} className="py-12 text-center">
                       <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
                         <Building2 size={24} className="text-red-400" />
                       </div>
-                      <h3 className="text-lg font-bold text-gray-900 mb-2">Không tìm thấy chi nhánh</h3>
+                      <h3 className="text-lg font-bold text-gray-900 mb-2">
+                        Không tìm thấy chi nhánh
+                      </h3>
                       <p className="text-sm text-gray-600">
-                        Không có chi nhánh nào phù hợp với tiêu chí tìm kiếm của bạn
+                        Không có chi nhánh nào phù hợp với tiêu chí tìm kiếm của
+                        bạn
                       </p>
                     </td>
                   </tr>
@@ -839,18 +1120,29 @@ export default function BranchesPage() {
             <div className="border-t border-red-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
               <div className="flex items-center justify-between">
                 <div className="text-sm text-gray-600">
-                  Trang <span className="font-semibold text-gray-900">{currentPage}</span> / <span className="font-semibold text-gray-900">{totalPages}</span>
+                  Trang{" "}
+                  <span className="font-semibold text-gray-900">
+                    {currentPage}
+                  </span>{" "}
+                  /{" "}
+                  <span className="font-semibold text-gray-900">
+                    {totalPages}
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    onClick={() =>
+                      setCurrentPage((prev) => Math.max(1, prev - 1))
+                    }
                     disabled={currentPage === 1}
                     className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     Trước
                   </button>
                   <button
-                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    onClick={() =>
+                      setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                    }
                     disabled={currentPage === totalPages}
                     className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
@@ -864,18 +1156,20 @@ export default function BranchesPage() {
       )}
 
       {/* Modal: View Detail */}
-      <BranchDetailModal 
+      <BranchDetailModal
         isOpen={showDetailModal && !!selectedBranch}
-        branch={selectedBranch} 
+        branch={selectedBranch}
+        userStats={userStats}
+        classStats={classStats}
         onClose={() => {
           setShowDetailModal(false);
           setSelectedBranch(null);
-        }} 
+        }}
       />
 
       {/* Modal: Add/Edit Branch - Using unified component */}
       <BranchFormModal
-        mode={showAddModal ? 'add' : 'edit'}
+        mode={showAddModal ? "add" : "edit"}
         branch={selectedBranch || undefined}
         isOpen={showAddModal || showEditModal}
         onClose={() => {

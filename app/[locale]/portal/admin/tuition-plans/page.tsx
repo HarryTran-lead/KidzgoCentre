@@ -6,6 +6,7 @@ import {
   ArrowUp,
   ArrowUpDown,
   BookOpen,
+  CheckCircle,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -15,7 +16,9 @@ import {
   Power,
   PowerOff,
   Search,
+  Sparkles,
   Wallet,
+  XCircle,
 } from "lucide-react";
 import ConfirmModal from "@/components/ConfirmModal";
 import TuitionPlanModal, { type TuitionPlanFormData } from "@/components/admin/tuition-plans/TuitionPlanModal";
@@ -30,7 +33,6 @@ import {
   updateTuitionPlan,
 } from "@/lib/api/tuitionPlanService";
 import type { TuitionPlan } from "@/types/admin/tuition_plan";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
 
 function cn(...a: Array<string | false | null | undefined>) {
   return a.filter(Boolean).join(" ");
@@ -56,12 +58,14 @@ type TuitionPlanRow = {
 
 function StatusBadge({ value }: { value: "Đang hoạt động" | "Tạm dừng" }) {
   const map: Record<string, string> = {
-    "Đang hoạt động": "bg-green-100 text-green-700 border border-green-200",
-    "Tạm dừng": "bg-gray-100 text-gray-700 border border-gray-200",
+    "Đang hoạt động": "bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200",
+    "Tạm dừng": "bg-gradient-to-r from-red-50 to-red-100 text-red-700 border border-red-200",
   };
+  const icon = value === "Đang hoạt động" ? <CheckCircle size={14} /> : <XCircle size={14} />;
 
   return (
-    <span className={cn("px-2.5 py-1 rounded-full text-xs font-semibold", map[value])}>
+    <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold", map[value])}>
+      {icon}
       {value}
     </span>
   );
@@ -139,8 +143,13 @@ export default function TuitionPlansPage() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [detail, setDetail] = useState<TuitionPlan | null>(null);
+  const [isPageLoaded, setIsPageLoaded] = useState(false);
 
   const hasAnyModalOpen = isCreateModalOpen || isEditModalOpen || showDetailModal || showToggleStatusModal;
+
+  useEffect(() => {
+    setIsPageLoaded(true);
+  }, []);
 
   useEffect(() => {
     if (hasAnyModalOpen) {
@@ -379,31 +388,35 @@ export default function TuitionPlansPage() {
 
   return (
     <>
-      <div className="space-y-6 bg-gray-50 p-4 md:p-6 rounded-3xl">
+      <div className="space-y-6 bg-gray-50 p-4 md:p-2 rounded-3xl">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-3 rounded-xl bg-linear-to-r from-red-600 to-red-700 shadow-lg">
+            <div className="p-3 rounded-xl bg-gradient-to-r from-red-600 to-red-700 shadow-lg">
               <Wallet className="text-white" size={24} />
             </div>
             <div>
-              <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">Quản lý gói học</h1>
-              <p className="text-sm text-gray-600">Danh sách gói học và cấu hình học phí theo chương trình học</p>
+              <h1 className="text-2xl md:text-2xl font-extrabold text-gray-900">Quản lý gói học</h1>
+              <p className="text-gray-600 mt-1 flex items-center gap-2">
+                <Sparkles size={14} className="text-red-600" />
+                Danh sách gói học và cấu hình học phí theo chương trình học
+              </p>
             </div>
           </div>
           <button
             onClick={() => setIsCreateModalOpen(true)}
             type="button"
-            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 bg-linear-to-r from-red-600 to-red-700 hover:shadow-lg text-white font-semibold cursor-pointer transition-all hover:scale-105 active:scale-95"
+            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:shadow-lg text-white text-sm font-semibold cursor-pointer transition-all hover:scale-105 active:scale-95"
           >
-            <Plus size={18} /> Tạo gói học mới
+            <Plus size={14} /> Tạo gói học mới
           </button>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
-            <div className="flex items-center gap-3">
-              <span className="w-10 h-10 rounded-xl bg-red-100 grid place-items-center">
-                <Wallet className="text-red-600" size={18} />
+          <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+            <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r from-red-600 to-red-700"></div>
+            <div className="relative flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-600 grid place-items-center">
+                <Wallet className="text-white" size={18} />
               </span>
               <div>
                 <div className="text-sm text-gray-600">Tổng gói học</div>
@@ -412,10 +425,11 @@ export default function TuitionPlansPage() {
             </div>
           </div>
 
-          <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
-            <div className="flex items-center gap-3">
-              <span className="w-10 h-10 rounded-xl bg-red-100 grid place-items-center">
-                <BookOpen className="text-red-600" size={18} />
+          <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+            <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r from-red-600 to-red-700"></div>
+            <div className="relative flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 grid place-items-center">
+                <BookOpen className="text-white" size={18} />
               </span>
               <div>
                 <div className="text-sm text-gray-600">Đang hoạt động</div>
@@ -425,8 +439,55 @@ export default function TuitionPlansPage() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50 p-4">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+        <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4">
+          <div className="space-y-4">
+            {/* Status Filter Tabs */}
+            <div className="flex flex-wrap gap-2 pb-4 border-b border-red-200">
+              {(["ALL", "Đang hoạt động", "Tạm dừng"] as const).map((status) => {
+                const counts: Record<typeof status, number> = {
+                  ALL: plans.length,
+                  "Đang hoạt động": plans.filter((p) => p.status === "Đang hoạt động").length,
+                  "Tạm dừng": plans.filter((p) => p.status === "Tạm dừng").length,
+                };
+
+                const labels: Record<typeof status, string> = {
+                  ALL: "Tất cả trạng thái",
+                  "Đang hoạt động": "Đang hoạt động",
+                  "Tạm dừng": "Tạm dừng",
+                };
+
+                const isActive = statusFilter === status;
+                return (
+                  <button
+                    key={status}
+                    onClick={() => {
+                      setStatusFilter(status);
+                      setPage(1);
+                    }}
+                    className={`px-4 py-2 rounded-xl border text-sm font-medium transition-all cursor-pointer ${
+                      isActive
+                        ? "bg-gradient-to-r from-red-600 to-red-700 text-white border-red-600 shadow-md"
+                        : "bg-white border-red-200 text-gray-700 hover:bg-red-50"
+                    }`}
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      {labels[status]}
+                      <span
+                        className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-semibold ${
+                          isActive
+                            ? "bg-white/30 text-white"
+                            : "bg-red-50 text-red-600"
+                        }`}
+                      >
+                        {counts[status]}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Search Box */}
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
               <input
@@ -436,35 +497,16 @@ export default function TuitionPlansPage() {
                   setPage(1);
                 }}
                 placeholder="Tìm kiếm gói học..."
-                className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-300"
+                className="w-full pl-10 pr-3 py-2.5 rounded-xl text-sm border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-300"
               />
-            </div>
-
-            <div className="flex flex-wrap items-center gap-4 sm:flex-nowrap">
-              <Select 
-                value={statusFilter} 
-                onValueChange={(val) => {
-                  setStatusFilter(val as typeof statusFilter);
-                  setPage(1);
-                }}
-              >
-                <SelectTrigger className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200">
-                  <SelectValue placeholder="Chọn trạng thái" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">Tất cả trạng thái</SelectItem>
-                  <SelectItem value="Đang hoạt động">Đang hoạt động</SelectItem>
-                  <SelectItem value="Tạm dừng">Tạm dừng</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           </div>
         </div>
 
         <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-          <div className="bg-linear-to-r from-red-500/10 to-red-700/10 border-b border-gray-200 px-6 py-4">
+          <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-gray-200 px-6 py-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">Danh sách gói học</h2>
+              <h2 className="font-semibold text-gray-900">Danh sách gói học</h2>
               <div className="text-sm text-gray-600">
                 <span className="font-medium">{rows.length} gói học</span>
               </div>
@@ -473,30 +515,47 @@ export default function TuitionPlansPage() {
 
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-linear-to-r from-red-500/5 to-red-700/5 border-b border-gray-200">
+              <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-gray-200">
                 <tr>
                   <SortableHeader field="name" currentField={sortField} direction={sortDirection} onSort={handleSort}>Tên gói học</SortableHeader>
                   <SortableHeader field="programName" currentField={sortField} direction={sortDirection} onSort={handleSort}>Chương trình học</SortableHeader>
                   <SortableHeader field="totalSessions" currentField={sortField} direction={sortDirection} onSort={handleSort}>Số buổi</SortableHeader>
                   <SortableHeader field="tuitionAmount" currentField={sortField} direction={sortDirection} onSort={handleSort}>Học phí</SortableHeader>
                   <SortableHeader field="status" currentField={sortField} direction={sortDirection} onSort={handleSort} align="center">Trạng thái</SortableHeader>
-                  <th className="py-3 px-6 text-right text-xs font-medium tracking-wide text-gray-700 whitespace-nowrap">Thao tác</th>
+                  <th className="py-3 px-6 text-right text-sm font-medium tracking-wide text-gray-700 whitespace-nowrap">Thao tác</th>
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-gray-100">
                 {!loading && pagedRows.length > 0 ? (
                   pagedRows.map((r) => (
-                    <tr key={r.id} className="group hover:bg-linear-to-r hover:from-red-50/50 hover:to-white transition-all duration-200">
-                      <td className="py-3 px-6"><div className="text-sm text-gray-900 truncate">{r.name}</div></td>
-                      <td className="py-3 px-6"><div className="text-sm text-gray-900 truncate">{r.programName || "Chưa có"}</div></td>
+                    <tr key={r.id} className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200">
+                      <td className="py-3 px-6">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-gray-900 truncate">
+                          <div className="p-1.5 rounded-lg bg-red-600 border border-red-700">
+                            <Wallet size={18} className="text-white shrink-0" />
+                          </div>
+                          {r.name}
+                        </div>
+                      </td>
+                      <td className="py-3 px-6">
+                        <div className="flex items-center gap-2 text-sm text-gray-700 font-medium truncate">
+                          <BookOpen size={14} className="text-red-600"/>
+                          {r.programName || "Chưa có"}
+                        </div>
+                      </td>
                       <td className="py-3 px-6 whitespace-nowrap">
-                        <div className="inline-flex items-center gap-2 text-gray-900 text-sm">
-                          <Clock size={16} className="text-gray-400" />
+                        <div className="inline-flex items-center gap-2 text-gray-700 font-medium text-sm">
+                          <Clock size={14} className="text-red-600" />
                           <span className="truncate">{r.totalSessions}</span>
                         </div>
                       </td>
-                      <td className="py-3 px-6 text-gray-900 text-sm whitespace-nowrap">{r.tuitionAmount}</td>
+                      <td className="py-3 px-6 whitespace-nowrap">
+                        <div className="inline-flex items-center gap-2 text-gray-700 font-medium text-sm">
+                          <Wallet size={14} className="text-red-600" />
+                          <span className="truncate">{r.tuitionAmount}</span>
+                        </div>
+                      </td>
                       <td className="py-3 px-6 text-center whitespace-nowrap"><StatusBadge value={r.status} /></td>
                       <td className="py-3 px-6">
                         <div className="flex items-center justify-end text-gray-700 gap-1">
@@ -533,7 +592,7 @@ export default function TuitionPlansPage() {
                 ) : (
                   <tr>
                     <td colSpan={6} className="py-12 text-center">
-                      <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-linear-to-r from-gray-100 to-gray-200 flex items-center justify-center">
+                      <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center">
                         <Search size={24} className="text-gray-400" />
                       </div>
                       <div className="text-gray-600 font-medium">{loading ? "Đang tải dữ liệu..." : "Không tìm thấy gói học"}</div>
@@ -545,7 +604,7 @@ export default function TuitionPlansPage() {
           </div>
 
           {rows.length > 0 && (
-            <div className="border-t border-gray-200 bg-linear-to-r from-red-500/5 to-red-700/5 px-6 py-4">
+            <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="text-sm text-gray-600">
                   Hiển thị <span className="font-semibold text-gray-900">{(currentPage - 1) * PAGE_SIZE + 1}-{Math.min(currentPage * PAGE_SIZE, rows.length)}</span>
@@ -556,18 +615,62 @@ export default function TuitionPlansPage() {
                     onClick={() => goPage(currentPage - 1)}
                     disabled={currentPage === 1}
                     className="p-2 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                    aria-label="Previous page"
+                    aria-label="Trang trước"
                   >
                     <ChevronLeft size={18} />
                   </button>
-                  <span className="min-w-9 h-9 px-3 rounded-lg text-sm font-medium bg-white border border-red-200 grid place-items-center">
-                    {currentPage}/{totalPages}
-                  </span>
+
+                  <div className="flex items-center gap-1">
+                    {(() => {
+                      const pages: (number | string)[] = [];
+                      const maxVisible = 7;
+
+                      if (totalPages <= maxVisible) {
+                        for (let i = 1; i <= totalPages; i++) {
+                          pages.push(i);
+                        }
+                      } else {
+                        if (currentPage <= 3) {
+                          for (let i = 1; i <= 5; i++) pages.push(i);
+                          pages.push("...");
+                          pages.push(totalPages);
+                        } else if (currentPage >= totalPages - 2) {
+                          pages.push(1);
+                          pages.push("...");
+                          for (let i = totalPages - 4; i <= totalPages; i++) pages.push(i);
+                        } else {
+                          pages.push(1);
+                          pages.push("...");
+                          for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+                          pages.push("...");
+                          pages.push(totalPages);
+                        }
+                      }
+
+                      return pages.map((p, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => typeof p === "number" && goPage(p)}
+                          disabled={p === "..."}
+                          className={`min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+                            p === currentPage
+                              ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                              : p === "..."
+                                ? "cursor-default text-gray-400"
+                                : "border border-red-200 hover:bg-red-50 text-gray-700"
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      ));
+                    })()}
+                  </div>
+
                   <button
                     onClick={() => goPage(currentPage + 1)}
                     disabled={currentPage === totalPages}
                     className="p-2 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                    aria-label="Next page"
+                    aria-label="Trang sau"
                   >
                     <ChevronRight size={18} />
                   </button>

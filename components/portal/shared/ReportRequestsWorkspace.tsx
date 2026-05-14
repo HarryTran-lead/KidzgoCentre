@@ -851,19 +851,20 @@ export default function ReportRequestsWorkspace({ isAdmin = false }: { isAdmin?:
         {/* Stats */}
         <div className={cn("grid grid-cols-2 sm:grid-cols-4 gap-4 transition-all duration-700 delay-100", isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4")}>
           {[
-            { label: "Tổng", value: stats.total, icon: FileText, bg: "bg-red-100", fg: "text-red-600" },
-            { label: "Chờ xử lý", value: stats.requested, icon: Clock, bg: "bg-amber-100", fg: "text-amber-600" },
-            { label: "Đã gửi", value: stats.submitted, icon: Send, bg: "bg-indigo-100", fg: "text-indigo-600" },
-            { label: "Đã duyệt", value: stats.approved, icon: CheckCircle2, bg: "bg-green-100", fg: "text-green-600" },
+            { label: "Tổng", value: stats.total, icon: FileText, bg: "bg-gradient-to-br from-red-600 to-red-700" },
+            { label: "Chờ xử lý", value: stats.requested, icon: Clock, bg: "bg-gradient-to-br from-amber-600 to-orange-600" },
+            { label: "Đã gửi", value: stats.submitted, icon: Send, bg: "bg-gradient-to-br from-indigo-600 to-blue-600" },
+            { label: "Đã duyệt", value: stats.approved, icon: CheckCircle2, bg: "bg-gradient-to-br from-emerald-600 to-teal-600" },
           ].map((s) => (
-            <div key={s.label} className="rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-md transition">
-              <div className="flex items-center gap-3">
-                <span className={cn("w-10 h-10 rounded-xl grid place-items-center", s.bg)}>
-                  <s.icon className={s.fg} size={18} />
+            <div key={s.label} className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+              <div className="absolute right-0 top-0 h-12 w-12 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r from-red-600 to-red-700"></div>
+              <div className="relative flex items-center gap-3">
+                <span className={cn("w-10 h-10 rounded-xl grid place-items-center flex-shrink-0 shadow-sm text-white", s.bg)}>
+                  <s.icon size={18} />
                 </span>
                 <div>
                   <div className="text-sm text-gray-600">{s.label}</div>
-                  <div className="text-2xl font-extrabold text-gray-900">{s.value}</div>
+                  <div className="text-2xl font-bold text-gray-900">{s.value}</div>
                 </div>
               </div>
             </div>
