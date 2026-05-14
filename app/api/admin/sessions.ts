@@ -599,13 +599,13 @@ export async function changeSessionSectionType(
     throw new Error("Bạn chưa đăng nhập.");
   }
 
-  const res = await fetch(ADMIN_ENDPOINTS.SESSIONS_CHANGE_SECTION_TYPE, {
+  const res = await fetch(ADMIN_ENDPOINTS.SESSIONS_CHANGE_SECTION_TYPE(payload.sessionId), {
     method: "PATCH",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ sectionType: payload.sectionType }),
   });
 
   const text = await res.text();

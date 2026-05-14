@@ -761,6 +761,12 @@ export default function TeacherAttendancePage() {
     return mapSessionToLessonDetail(selectedSession);
   }, [selectedSession]);
 
+  const isSessionToday = useMemo(() => {
+    const sessionDate = getSessionIsoDate(selectedSession ?? null);
+    if (!sessionDate) return false;
+    return sessionDate === getLocalIsoDate();
+  }, [selectedSession]);
+
   const sessionCards = useMemo(() => {
     return sessions.map((session, index) => {
       const lesson = mapSessionToLessonDetail(session);
@@ -1967,9 +1973,10 @@ export default function TeacherAttendancePage() {
 
                   <button
                     onClick={handleSaveAll}
-                    disabled={isSaving}
-                    className={`px-5 py-2.5 rounded-xl font-semibold flex items-center gap-2 transition-all shadow-sm hover:shadow-md ${isSaving
-                      ? "bg-gray-400 text-white cursor-not-allowed"
+                    disabled={isSaving || !isSessionToday}
+                    title={!isSessionToday ? "Chỉ có thể điểm danh trong ngày học" : undefined}
+                    className={`px-5 py-2.5 rounded-xl font-semibold flex items-center gap-2 transition-all shadow-sm hover:shadow-md ${isSaving || !isSessionToday
+                      ? "bg-gray-400 text-white cursor-not-allowed opacity-60"
                       : "bg-gradient-to-r from-red-600 to-red-700 text-white hover:scale-[1.02] cursor-pointer"
                       }`}
                   >
@@ -1988,6 +1995,14 @@ export default function TeacherAttendancePage() {
                 </div>
               </div>
             </div>
+
+            {/* Not-today banner */}
+            {!isSessionToday && (
+              <div className="mb-4 flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                <span className="text-base">⚠️</span>
+                <span>Chỉ có thể điểm danh trong ngày học. Buổi này không phải hôm nay nên không thể chỉnh sửa.</span>
+              </div>
+            )}
 
             {/* Stats Cards */}
             <div className={`grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 transition-all duration-700 delay-100 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
@@ -2175,14 +2190,15 @@ export default function TeacherAttendancePage() {
                                     const isSuggestedMakeup =
                                       status === "makeup" && Boolean(record.hasMakeupCredit) && !isActive;
                                     const isLockedByMakeup = (Boolean(record.isMakeup) || record.status === "makeup") && status !== "makeup";
+                                    const isLocked = isLockedByMakeup || !isSessionToday;
 
                                     return (
                                       <button
                                         key={status}
-                                        onClick={() => !isLockedByMakeup && handleStatusChange(record.rowKey, status)}
-                                        disabled={isLockedByMakeup}
+                                        onClick={() => !isLocked && handleStatusChange(record.rowKey, status)}
+                                        disabled={isLocked}
                                         className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
-                                          isLockedByMakeup
+                                          isLocked
                                             ? "border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed"
                                             : isActive
                                               ? `cursor-pointer ${STATUS_STYLES[status].active}`

@@ -419,7 +419,7 @@ export default function AdminLessonDetailPage() {
 
       await changeSessionSectionType({ sessionId: lessonId, sectionType: pendingSectionType });
       setLesson((prev) => (prev ? { ...prev, sectionType: pendingSectionType } : prev));
-      toast({ title: "Cập nhật thành công", description: `Đã đổi loại buổi học sang "${SECTION_TYPE_LABELS[pendingSectionType]}".` });
+      toast({ title: "Cập nhật thành công", description: `Đã đổi loại buổi học sang "${SECTION_TYPE_LABELS[pendingSectionType]}".`, variant: "success" });
     } catch (err: any) {
       toast({
         title: "Không thể cập nhật",

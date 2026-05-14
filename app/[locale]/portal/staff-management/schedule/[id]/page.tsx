@@ -688,7 +688,7 @@ export default function StaffSessionDetailPage() {
 
       await changeSessionSectionType({ sessionId: lessonId, sectionType: pendingSectionType });
       setLesson((prev) => (prev ? { ...prev, sectionType: pendingSectionType } : prev));
-      toast({ title: "Cập nhật thành công", description: "Đã đổi loại buổi học." });
+      toast({ title: "Cập nhật thành công", description: "Đã đổi loại buổi học.", variant: "success" });
     } catch (err: any) {
       toast({
         title: "Không thể cập nhật",
@@ -798,7 +798,7 @@ export default function StaffSessionDetailPage() {
                         key={opt.value}
                         type="button"
                         disabled={isUpdatingSectionType}
-                        onClick={() => setPendingSectionType(opt.value)}
+                        onClick={() => setPendingSectionType(opt.value)}                        
                         className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
                           isActive
                             ? "border-red-300 bg-red-50 text-red-700"
