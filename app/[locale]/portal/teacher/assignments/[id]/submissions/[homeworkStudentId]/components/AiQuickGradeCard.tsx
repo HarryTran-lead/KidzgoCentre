@@ -41,6 +41,7 @@ export type HomeworkQuickGradeResult = {
 type Props = {
   homeworkStudentId: string;
   onApplied?: (result: HomeworkQuickGradeResult) => void;
+  defaultRubric?: string;
 };
 
 function toStringArray(value: unknown): string[] {
@@ -178,14 +179,14 @@ function ResultStatCard({
 export default function AiQuickGradeCard({
   homeworkStudentId,
   onApplied,
+  defaultRubric = "",
 }: Props) {
   const [loading, setLoading] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [language, setLanguage] = useState("vi");
   const [instructions, setInstructions] = useState("");
-  const [rubric, setRubric] = useState("");
-  const [expectedAnswerText, setExpectedAnswerText] = useState("");
+  const [rubric, setRubric] = useState(defaultRubric);
   const [result, setResult] = useState<HomeworkQuickGradeResult | null>(null);
 
   const hasSpeakingMetrics = useMemo(() => {
@@ -225,7 +226,6 @@ export default function AiQuickGradeCard({
           language,
           instructions: instructions.trim() || undefined,
           rubric: rubric.trim() || undefined,
-          expectedAnswerText: expectedAnswerText.trim() || undefined,
         }
       );
 
@@ -330,18 +330,6 @@ export default function AiQuickGradeCard({
               <option value="vi">Tiếng Việt</option>
               <option value="en">English</option>
             </select>
-          </div>
-          <div className="space-y-2 lg:col-span-2">
-            <label className="text-sm font-medium text-gray-700">
-              Đáp án mẫu / đoạn văn kỳ vọng
-            </label>
-            <textarea
-              value={expectedAnswerText}
-              onChange={(event) => setExpectedAnswerText(event.target.value)}
-              rows={2}
-              className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-indigo-300"
-              placeholder="Nhập đáp án mẫu nếu muốn AI chấm sát tiêu chí hơn."
-            />
           </div>
           <div className="space-y-2 lg:col-span-3">
             <label className="text-sm font-medium text-gray-700">Yêu cầu thêm cho AI</label>
