@@ -64,21 +64,21 @@ export default function TuitionPlanDetailModal({
             </div>
           ) : detail ? (
             <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  <Wallet size={16} className="text-red-600" />
-                  Tên gói học
-                </label>
-                <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">{detail.name}</div>
-              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <Wallet size={16} className="text-red-600" />
+                    Tên gói học
+                  </label>
+                  <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm text-gray-900">{detail.name}</div>
+                </div>
 
-              <div className="grid grid-cols-1 gap-4">
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                     <BookOpen size={16} className="text-red-600" />
                     Chương trình học
                   </label>
-                  <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">{detail.programName || "Chưa có"}</div>
+                  <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm text-gray-900">{detail.programName || "Chưa có"}</div>
                 </div>
               </div>
 
@@ -88,7 +88,7 @@ export default function TuitionPlanDetailModal({
                     <Clock size={16} className="text-red-600" />
                     Số buổi học
                   </label>
-                  <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">{detail.totalSessions} buổi</div>
+                  <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm text-gray-900">{detail.totalSessions} buổi</div>
                 </div>
 
                 <div className="space-y-2">
@@ -96,7 +96,7 @@ export default function TuitionPlanDetailModal({
                     <DollarSign size={16} className="text-red-600" />
                     Học phí
                   </label>
-                  <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
+                  <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm text-gray-900">
                     {detail.tuitionAmount.toLocaleString("vi-VN")} {detail.currency || "VND"}
                   </div>
                 </div>
@@ -108,7 +108,7 @@ export default function TuitionPlanDetailModal({
                     <DollarSign size={16} className="text-red-600" />
                     Giá mỗi buổi
                   </label>
-                  <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
+                  <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm text-gray-900">
                     {detail.unitPriceSession.toLocaleString("vi-VN")} {detail.currency || "VND"}
                   </div>
                 </div>
@@ -118,7 +118,7 @@ export default function TuitionPlanDetailModal({
                     <FileText size={16} className="text-red-600" />
                     Trạng thái
                   </label>
-                  <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white">
+                  <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm">
                     <StatusBadge value={detail.isActive ? "Đang hoạt động" : "Tạm dừng"} />
                   </div>
                 </div>

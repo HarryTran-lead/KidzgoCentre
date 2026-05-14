@@ -229,12 +229,12 @@ export default function LeadTable({
                 <td className="py-4 px-6 align-top min-w-55">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 text-sm text-gray-700">
-                      <Phone size={14} className="text-gray-400" />
+                      <Phone size={14} className="text-red-600" />
                       <span className="font-medium">{lead.phone}</span>
                     </div>
                     {lead.email ? (
                       <div className="flex items-center gap-2 text-sm text-gray-700">
-                        <Mail size={14} className="text-gray-400" />
+                        <Mail size={14} className="text-red-600" />
                         <span className="truncate max-w-65">{lead.email}</span>
                       </div>
                     ) : (

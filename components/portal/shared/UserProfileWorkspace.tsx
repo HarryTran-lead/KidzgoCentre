@@ -867,7 +867,7 @@ export default function UserProfileWorkspace() {
                 icon={<KeyRound size={16} />}
                 label="Đổi mật khẩu"
               />
-              {isParentRole ? (
+              {isParentRole && (
                 <TabButton
                   active={tab === "pin"}
                   onClick={() => {
@@ -877,13 +877,6 @@ export default function UserProfileWorkspace() {
                   }}
                   icon={<KeyRound size={16} />}
                   label="Mã PIN"
-                />
-              ) : (
-                <TabButton
-                  active={tab === "preferences"}
-                  onClick={() => setTab("preferences")}
-                  icon={<Bell size={16} />}
-                  label="Cài đặt"
                 />
               )}
             </div>
@@ -991,7 +984,7 @@ export default function UserProfileWorkspace() {
                   
                 </div>
 
-                <div className="pt-2">
+                <div className="pt-2 flex justify-end">
                   <button
                     onClick={handleSaveInfo}
                     disabled={isSavingInfo}
@@ -1074,7 +1067,7 @@ export default function UserProfileWorkspace() {
                   <span>Mật khẩu mạnh nên có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường và số.</span>
                 </div>
 
-                <div className="pt-2">
+                <div className="pt-2 flex justify-end">
                   <button
                     onClick={handleChangePassword}
                     disabled={isSavingPassword}
@@ -1272,132 +1265,7 @@ export default function UserProfileWorkspace() {
               </div>
             )}
 
-            {!isParentRole && tab === "preferences" && (
-              <div className="bg-white/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 shadow-xl p-6 md:p-8 space-y-6 transition-all duration-300 hover:shadow-2xl">
-                <div className="flex items-center gap-3 pb-4 border-b border-gray-100">
-                  <div className="p-2.5 bg-gradient-to-br from-red-50 to-red-100 rounded-xl">
-                    <Palette size={18} className="text-red-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Cài đặt</h3>
-                    <p className="text-sm text-gray-500">Tùy chỉnh trải nghiệm của bạn</p>
-                  </div>
-                </div>
 
-                {/* Theme Settings */}
-                <div className="space-y-4">
-                  <div>
-                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-3">
-                      <Palette size={14} className="text-red-500" />
-                      Giao diện
-                    </label>
-                    <div className="grid grid-cols-3 gap-3">
-                      <button
-                        onClick={() => setTheme("light")}
-                        className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all ${
-                          theme === "light" 
-                            ? "border-red-500 bg-red-50/50 shadow-sm" 
-                            : "border-gray-200 hover:border-gray-300"
-                        }`}
-                      >
-                        <Sun size={20} className={theme === "light" ? "text-red-500" : "text-gray-500"} />
-                        <span className={`text-xs ${theme === "light" ? "text-red-600 font-medium" : "text-gray-600"}`}>Sáng</span>
-                      </button>
-                      <button
-                        onClick={() => setTheme("dark")}
-                        className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all ${
-                          theme === "dark" 
-                            ? "border-red-500 bg-red-50/50 shadow-sm" 
-                            : "border-gray-200 hover:border-gray-300"
-                        }`}
-                      >
-                        <Moon size={20} className={theme === "dark" ? "text-red-500" : "text-gray-500"} />
-                        <span className={`text-xs ${theme === "dark" ? "text-red-600 font-medium" : "text-gray-600"}`}>Tối</span>
-                      </button>
-                      <button
-                        onClick={() => setTheme("system")}
-                        className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all ${
-                          theme === "system" 
-                            ? "border-red-500 bg-red-50/50 shadow-sm" 
-                            : "border-gray-200 hover:border-gray-300"
-                        }`}
-                      >
-                        <Smartphone size={20} className={theme === "system" ? "text-red-500" : "text-gray-500"} />
-                        <span className={`text-xs ${theme === "system" ? "text-red-600 font-medium" : "text-gray-600"}`}>Hệ thống</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Notification Settings */}
-                  <div className="pt-2">
-                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-3">
-                      <Bell size={14} className="text-red-500" />
-                      Thông báo
-                    </label>
-                    <div className="space-y-3">
-                      <label className="flex items-center justify-between p-3 bg-gray-50/50 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
-                        <div className="flex items-center gap-3">
-                          <Mail size={16} className="text-gray-500" />
-                          <span className="text-sm text-gray-700">Thông báo qua email</span>
-                        </div>
-                        <div className="relative">
-                          <input
-                            type="checkbox"
-                            checked={notifications.email}
-                            onChange={(e) => setNotifications(prev => ({ ...prev, email: e.target.checked }))}
-                            className="sr-only peer"
-                          />
-                          <div className="w-10 h-5 bg-gray-300 rounded-full peer peer-checked:bg-red-600 transition-colors"></div>
-                          <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
-                        </div>
-                      </label>
-                      <label className="flex items-center justify-between p-3 bg-gray-50/50 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
-                        <div className="flex items-center gap-3">
-                          <Bell size={16} className="text-gray-500" />
-                          <span className="text-sm text-gray-700">Thông báo đẩy</span>
-                        </div>
-                        <div className="relative">
-                          <input
-                            type="checkbox"
-                            checked={notifications.push}
-                            onChange={(e) => setNotifications(prev => ({ ...prev, push: e.target.checked }))}
-                            className="sr-only peer"
-                          />
-                          <div className="w-10 h-5 bg-gray-300 rounded-full peer peer-checked:bg-red-600 transition-colors"></div>
-                          <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
-                        </div>
-                      </label>
-                      <label className="flex items-center justify-between p-3 bg-gray-50/50 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
-                        <div className="flex items-center gap-3">
-                          <Smartphone size={16} className="text-gray-500" />
-                          <span className="text-sm text-gray-700">Thông báo SMS</span>
-                        </div>
-                        <div className="relative">
-                          <input
-                            type="checkbox"
-                            checked={notifications.sms}
-                            onChange={(e) => setNotifications(prev => ({ ...prev, sms: e.target.checked }))}
-                            className="sr-only peer"
-                          />
-                          <div className="w-10 h-5 bg-gray-300 rounded-full peer peer-checked:bg-red-600 transition-colors"></div>
-                          <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
-                        </div>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-2">
-                  <button className="group relative flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white text-sm font-semibold rounded-xl hover:shadow-lg transition-all duration-300 overflow-hidden cursor-pointer">
-                    <div className="absolute inset-0 bg-gradient-to-r from-red-700 to-red-800 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                    <span className="relative flex items-center gap-2">
-                      <Save size={16} />
-                      Lưu cài đặt
-                    </span>
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>

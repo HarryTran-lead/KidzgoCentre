@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BookOpenCheck,
   CalendarDays,
+  Check,
   CheckCircle2,
   ClipboardPen,
   Clock3,
@@ -22,6 +23,7 @@ import {
   Upload,
   Users,
   X,
+  XCircle,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -1292,12 +1294,12 @@ plannedContent: isTeacher ? (planModal.plan.plannedContent ?? null) : (payload.p
   }, [classSyllabus, templates]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-red-50/40 to-white p-6 space-y-6">
+    <div className="min-h-screen bg-gradient-to-b from-red-50/40 to-white p-2 space-y-6">
       <div className={cn("flex flex-col gap-4 transition-all duration-500", isLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2")}>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="rounded-2xl bg-gradient-to-r from-red-600 to-red-700 p-3 text-white shadow-lg">
-              <BookOpenCheck size={28} />
+              <BookOpenCheck size={25} />
             </div>
             <div>
               <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{scopeCopy.title}</h1>
@@ -1477,78 +1479,114 @@ function FilterBar({
   activeTab: ActiveTab;
 }) {
   return (
-    <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5 shadow-sm">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-          <input
-            value={searchQuery}
-            onChange={(event) => onSearchChange(event.target.value)}
-            placeholder={activeTab === "templates" ? "Tìm theo tên mẫu giáo án, chương trình..." : "Tìm theo buổi học, giáo viên..."}
-            className="w-full rounded-xl border border-red-200 bg-white py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-red-100"
-          />
-        </div>
+    <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4">
+      <div className="space-y-4">
+        {/* Status Filter Tabs - Templates */}
+        {activeTab === "templates" && templatesAvailable && (
+          <div className="flex text-sm flex-wrap gap-2 pb-4 border-b border-red-200">
+            {(["all", "active", "inactive", "withAttachment"] as const).map((status) => {
+              const labels: Record<typeof status, string> = {
+                all: "Tất cả trạng thái",
+                active: "Đang hoạt động",
+                inactive: "Tạm ẩn",
+                withAttachment: "Có file đính kèm",
+              };
 
-        <div className="flex flex-wrap items-center gap-2">
-          {activeTab === "templates" && templatesAvailable ? (
-            <>
-              <Select value={templateStatusFilter} onValueChange={(value) => onTemplateStatusFilterChange(value as TemplateStatusFilter)}>
-                <SelectTrigger className="w-auto min-w-[150px] rounded-xl h-10">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tất cả trạng thái</SelectItem>
-                  <SelectItem value="active">Đang hoạt động</SelectItem>
-                  <SelectItem value="inactive">Tạm ẩn</SelectItem>
-<SelectItem value="withAttachment">Có file đính kèm</SelectItem>
-                </SelectContent>
-              </Select>
+              const isActive = templateStatusFilter === status;
+              return (
+                <button
+                  key={status}
+                  onClick={() => onTemplateStatusFilterChange(status)}
+                  className={`px-4 py-2 rounded-xl border text-sm font-medium transition-all cursor-pointer ${
+                    isActive
+                      ? "bg-gradient-to-r from-red-600 to-red-700 text-white border-red-600 shadow-md"
+                      : "bg-white border-red-200 text-gray-700 hover:bg-red-50"
+                  }`}
+                >
+                  {labels[status]}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
-              <Select value={selectedProgramId} onValueChange={onProgramChange}>
-                <SelectTrigger className="w-auto min-w-[150px] rounded-xl h-10">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tất cả chương trình</SelectItem>
-                  {programOptions.map((item) => (
-                    <SelectItem key={item.id} value={item.id}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </>
-          ) : (
-            <>
-              <Select value={planStatusFilter} onValueChange={(value) => onPlanStatusFilterChange(value as PlanStatusFilter)}>
-                <SelectTrigger className="w-auto min-w-[170px] rounded-xl h-10">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tất cả buổi học</SelectItem>
-                  <SelectItem value="editable">Có thể chỉnh sửa</SelectItem>
-                  <SelectItem value="hasPlan">Đã có giáo án</SelectItem>
-                  <SelectItem value="missingPlan">Chưa có giáo án</SelectItem>
-                  <SelectItem value="withTemplate">Đã map template</SelectItem>
-                  <SelectItem value="reported">Đã báo cáo buổi dạy</SelectItem>
-                  <SelectItem value="notReported">Chưa báo cáo buổi dạy</SelectItem>
-                </SelectContent>
-              </Select>
+        {/* Status Filter Tabs - Plans */}
+        {activeTab === "plans" && (
+          <div className="flex text-sm flex-wrap gap-2 pb-4 border-b border-red-200">
+            {(["all", "editable", "hasPlan", "missingPlan", "reported", "notReported"] as const).map((status) => {
+              const labels: Record<typeof status, string> = {
+                all: "Tất cả buổi học",
+                editable: "Có thể chỉnh sửa",
+                hasPlan: "Đã có giáo án",
+                missingPlan: "Chưa có giáo án",
+                reported: "Đã báo cáo",
+                notReported: "Chưa báo cáo",
+              };
 
-              <Select value={selectedClassId} onValueChange={onClassChange}>
-                <SelectTrigger className="w-auto min-w-[170px] rounded-xl h-10">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {classOptions.map((item) => (
-                    <SelectItem key={item.id} value={item.id}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </>
-          )}
+              const isActive = planStatusFilter === status;
+              return (
+                <button
+                  key={status}
+                  onClick={() => onPlanStatusFilterChange(status)}
+                  className={`px-4 py-2 rounded-xl border text-sm font-medium transition-all cursor-pointer ${
+                    isActive
+                      ? "bg-gradient-to-r from-red-600 to-red-700 text-white border-red-600 shadow-md"
+                      : "bg-white border-red-200 text-gray-700 hover:bg-red-50"
+                  }`}
+                >
+                  {labels[status]}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Search Box */}
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+            <input
+              value={searchQuery}
+              onChange={(event) => onSearchChange(event.target.value)}
+              placeholder={activeTab === "templates" ? "Tìm theo tên mẫu giáo án, chương trình..." : "Tìm theo buổi học, giáo viên..."}
+              className="w-full pl-10 pr-3 py-2.5 text-sm rounded-xl border border-gray-200 bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-300"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {activeTab === "templates" && templatesAvailable ? (
+              <>
+                <Select value={selectedProgramId} onValueChange={onProgramChange}>
+                  <SelectTrigger className="w-auto min-w-[150px] rounded-xl h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tất cả chương trình</SelectItem>
+                    {programOptions.map((item) => (
+                      <SelectItem key={item.id} value={item.id}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </>
+            ) : (
+              <>
+                <Select value={selectedClassId} onValueChange={onClassChange}>
+                  <SelectTrigger className="w-auto min-w-[170px] rounded-xl h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {classOptions.map((item) => (
+                      <SelectItem key={item.id} value={item.id}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -1571,35 +1609,41 @@ function TemplateTable({
   }
 
   return (
-    <div>
-      <div className="border-b border-red-100 bg-gradient-to-r from-red-50/70 to-white px-5 py-4">
-        <h3 className="text-sm font-semibold text-gray-700">Danh sách {items.length} mẫu giáo án</h3>
+    <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+      {/* Table Header */}
+      <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-gray-200 px-6 py-4">
+        <div className="flex items-center justify-between">
+          <h2 className="font-semibold text-gray-900">Danh sách mẫu giáo án</h2>
+          <span className="text-sm text-gray-600">{items.length} mẫu</span>
+        </div>
       </div>
+
+      {/* Table */}
       <div className="overflow-x-auto">
-<table className="w-full">
-          <thead className="border-b border-red-200 bg-gradient-to-r from-red-50 to-red-50/50">
+        <table className="w-full">
+          <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-gray-200">
             <tr>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Mẫu giáo án</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Chương trình</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Buổi học</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Nguồn</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Trạng thái</th>
-              <th className="px-6 py-3 text-right text-sm font-semibold text-gray-700">Thao tác</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700 whitespace-nowrap">Tên mẫu</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700 whitespace-nowrap">Chương trình</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700 whitespace-nowrap">Buổi học</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700 whitespace-nowrap">Nguồn</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700 whitespace-nowrap">Trạng thái</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700 whitespace-nowrap">Thao tác</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-red-100">
+          <tbody className="divide-y divide-gray-100">
             {items.map((item) => (
-              <tr key={item.id} className="transition-colors hover:bg-red-50/60">
+              <tr key={item.id} className="transition-colors hover:bg-red-50/40">
                 <td className="px-6 py-4">
-                  <div className="font-semibold text-gray-900">{item.title}</div>
+                  <div className="text-sm font-semibold text-gray-900">{item.title}</div>
                   <div className="mt-1 text-sm text-gray-500">Cấp độ {item.level || "-"}</div>
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-700">
                   <div>{item.programName || item.programId}</div>
                   <div className="mt-1 text-xs text-gray-500">{item.createdByName || "Không rõ người tạo"}</div>
                 </td>
-                <td className="px-6 py-4 text-sm text-gray-700">{item.sessionIndex === 1 ? "Template chung (neo Buổi 1)" : `Buổi ${item.sessionIndex || "-"}`}</td>
-                <td className="px-6 py-4 text-sm text-gray-700">
+                <td className="px-6 py-4 text-sm text-gray-700 whitespace-nowrap">{item.sessionIndex === 1 ? "Template chung (neo Buổi 1)" : `Buổi ${item.sessionIndex || "-"}`}</td>
+                <td className="px-6 py-4 text-sm text-gray-700 whitespace-nowrap">
                   <div>{item.sourceFileName || "Tạo thủ công"}</div>
                   {item.attachment ? (
                     <button
@@ -1613,22 +1657,60 @@ function TemplateTable({
                   ) : null}
                 </td>
                 <td className="px-6 py-4">
-                  <div className="flex flex-wrap gap-2">
-                    <StatusBadge kind={getTemplateStatus(item) === "active" ? "success" : "muted"}>
-                      {getTemplateStatus(item) === "active" ? "Đang hoạt động" : "Tạm ẩn"}
-                    </StatusBadge>
-                    {item.attachment ? <StatusBadge kind="info">Có attachment</StatusBadge> : null}
-                    {(item.usedCount || 0) > 0 ? <StatusBadge kind="warning">Dùng {item.usedCount} lần</StatusBadge> : null}
+                  <div className="flex flex-col gap-1">
+                    <div className="flex flex-nowrap gap-1">
+                      <StatusBadge kind={getTemplateStatus(item) === "active" ? "success" : "muted"}>
+                        <div className="flex items-center gap-0.5">
+                          {getTemplateStatus(item) === "active" ? (
+                            <>
+                              <CheckCircle2 size={14} />
+                              <span>Đang hoạt động</span>
+                            </>
+                          ) : (
+                            <>
+                              <XCircle size={14} />
+                              <span>Tạm ẩn</span>
+                            </>
+                          )}
+                        </div>
+                      </StatusBadge>
+                      {item.attachment ? (
+                        <StatusBadge kind="info">
+                          <div className="flex items-center gap-0.5">
+                            <Paperclip size={14} />
+                            <span>Có attachment</span>
+                          </div>
+                        </StatusBadge>
+                      ) : null}
+                    </div>
+                    {(item.usedCount || 0) > 0 ? (
+                      <StatusBadge kind="warning">
+                        <div className="flex items-center gap-0.5">
+                          <ShieldCheck size={14} />
+                          <span>Dùng {item.usedCount} lần</span>
+                        </div>
+                      </StatusBadge>
+                    ) : null}
                   </div>
                 </td>
-                <td className="px-6 py-4 text-right">
-                  <div className="flex justify-end items-center gap-2">
-<IconButton label="Xem chi tiết" onClick={() => onOpenDetail(item)}>
+                <td className="px-6 py-4 text-right whitespace-nowrap">
+                  <div className="flex justify-end items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => onOpenDetail(item)}
+                      className="text-gray-500 hover:text-red-600 transition-colors cursor-pointer"
+                      title="Xem chi tiết"
+                    >
                       <Eye size={15} />
-                    </IconButton>
-                    <IconButton label="Chỉnh sửa" variant="warning" onClick={() => onEdit(item)}>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onEdit(item)}
+                      className="text-gray-500 hover:text-amber-600 transition-colors cursor-pointer"
+                      title="Chỉnh sửa"
+                    >
                       <Pencil size={15} />
-                    </IconButton>
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -4144,15 +4226,15 @@ function StatCard({
   color: string;
 }) {
   return (
-    <div className="rounded-2xl border border-red-200 bg-white p-5 shadow-sm">
-      <div className="flex items-start justify-between gap-4">
+    <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+      <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r from-red-600 to-red-700"></div>
+      <div className="relative flex items-center gap-3">
+        <span className={cn("w-10 h-10 rounded-xl bg-gradient-to-br grid place-items-center text-white", color)}>
+          <Icon size={18} />
+        </span>
         <div>
-          <div className="text-sm font-medium text-gray-500">{title}</div>
-          <div className="mt-2 text-3xl font-bold text-gray-900">{value}</div>
-          <div className="mt-2 text-sm text-gray-500">{subtitle}</div>
-        </div>
-        <div className={cn("rounded-2xl bg-gradient-to-r p-3 text-white shadow-lg", color)}>
-          <Icon size={22} />
+          <div className="text-sm text-gray-600">{title}</div>
+          <div className="text-2xl font-extrabold text-gray-900">{value}</div>
         </div>
       </div>
     </div>

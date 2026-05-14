@@ -297,7 +297,7 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
   return (
     <div className="space-y-7">
       {/* Updated header with red/gray theme */}
-      <div className="rounded-3xl border border-gray-200/80 bg-linear-to-br from-white via-white to-red-50 p-5 shadow-[0_10px_40px_-24px_rgba(15,23,42,0.5)] md:p-6">
+      {/* <div className="rounded-3xl border border-gray-200/80 bg-linear-to-br from-white via-white to-red-50 p-5 shadow-[0_10px_40px_-24px_rgba(15,23,42,0.5)] md:p-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-xl font-bold text-gray-900 md:text-2xl">{t.controlPanel.title}</h1>
@@ -334,7 +334,7 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
             ) : null}
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* Tab buttons with red gradient */}
       <div className="sticky top-2 z-10 flex w-full flex-wrap gap-2 rounded-2xl border border-gray-200/80 bg-white/95 p-2 shadow-sm backdrop-blur">
@@ -348,18 +348,11 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
         <div className="space-y-6">
           <section>
             <SectionTitle title={t.sections.kpiOverview} subtitle={t.sections.kpiSubtitle} />
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-              <KpiCard title={t.kpis.totalStudents} value={formatNumber(studentsTotal)} icon={<Users size={18} />} />
-              <KpiCard title={t.kpis.activeEnrollments} value={formatNumber(activeEnrollments)} icon={<GraduationCap size={18} />} />
-              <KpiCard title={t.kpis.totalLeads} value={formatNumber(totalLeads)} icon={<UserPlus size={18} />} />
-              <KpiCard title={t.kpis.attendanceRate} value={formatPercent(attendanceRate)} icon={<CircleCheckBig size={18} />} />
-              <KpiCard
-                title={t.kpis.conversionRate}
-                value={formatPercent(conversionRate)}
-                subValue={conversionRate >= 20 ? t.kpis.good : t.kpis.needsImprovement}
-                trend={conversionRate >= 20 ? "up" : "down"}
-                icon={<TrendingUp size={18} />}
-              />
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <KpiCard title={t.kpis.totalStudents} value={formatNumber(studentsTotal)} icon={<Users size={18} />} colorScheme="red" />
+              <KpiCard title={t.kpis.activeEnrollments} value={formatNumber(activeEnrollments)} icon={<GraduationCap size={18} />} colorScheme="emerald" />
+              <KpiCard title={t.kpis.totalLeads} value={formatNumber(totalLeads)} icon={<UserPlus size={18} />} colorScheme="blue" />
+              <KpiCard title={t.kpis.attendanceRate} value={formatPercent(attendanceRate)} icon={<CircleCheckBig size={18} />} colorScheme="violet" />
             </div>
           </section>
 
@@ -396,11 +389,10 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
         <div className="space-y-6">
           <section>
             <SectionTitle title={t.sections.leadsAndPlacement} subtitle={t.sections.leadsSubtitle} />
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <KpiCard title={t.kpis.totalLeads} value={formatNumber(num(leads?.total, leads?.totalLeads))} icon={<UserPlus size={18} />} />
-              <KpiCard title={t.kpis.newLeads} value={formatNumber(num(leads?.new, leads?.newLeads))} icon={<Activity size={18} />} />
-              <KpiCard title={t.kpis.enrolledLeads} value={formatNumber(num(leads?.enrolled, leads?.enrolledLeads))} icon={<GraduationCap size={18} />} />
-              <KpiCard title={t.kpis.conversionRate} value={formatPercent(leads?.conversionRate)} icon={<TrendingUp size={18} />} />
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <KpiCard title={t.kpis.totalLeads} value={formatNumber(num(leads?.total, leads?.totalLeads))} icon={<UserPlus size={18} />} colorScheme="red" />
+              <KpiCard title={t.kpis.newLeads} value={formatNumber(num(leads?.new, leads?.newLeads))} icon={<Activity size={18} />} colorScheme="emerald" />
+              <KpiCard title={t.kpis.enrolledLeads} value={formatNumber(num(leads?.enrolled, leads?.enrolledLeads))} icon={<GraduationCap size={18} />} colorScheme="blue" />
             </div>
           </section>
 
@@ -427,10 +419,10 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
           <section>
             <SectionTitle title={t.sections.academic} subtitle={t.sections.academicSubtitle} />
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <KpiCard title={t.kpis.attendanceRate} value={formatPercent(attendance?.attendanceRate)} icon={<ClipboardCheck size={18} />} />
-              <KpiCard title={t.kpis.submissionRate} value={formatPercent(homework?.submissionRate)} icon={<BookOpen size={18} />} />
-              <KpiCard title={t.kpis.gradedRate} value={formatPercent(homework?.gradedRate)} icon={<Activity size={18} />} />
-              <KpiCard title={t.kpis.leaveRequests} value={formatNumber(num(leave?.total, leave?.totalRequests))} icon={<CalendarDays size={18} />} />
+              <KpiCard title={t.kpis.attendanceRate} value={formatPercent(attendance?.attendanceRate)} icon={<ClipboardCheck size={18} />} colorScheme="red" />
+              <KpiCard title={t.kpis.submissionRate} value={formatPercent(homework?.submissionRate)} icon={<BookOpen size={18} />} colorScheme="emerald" />
+              <KpiCard title={t.kpis.gradedRate} value={formatPercent(homework?.gradedRate)} icon={<Activity size={18} />} colorScheme="blue" />
+              <KpiCard title={t.kpis.leaveRequests} value={formatNumber(num(leave?.total, leave?.totalRequests))} icon={<CalendarDays size={18} />} colorScheme="amber" />
             </div>
           </section>
 
@@ -456,10 +448,10 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
 
             <ChartCard title={t.charts.placementCompletion}>
               <div className="grid grid-cols-2 gap-3">
-                <KpiCard title={t.kpis.totalTests} value={formatNumber(num(placementTests?.total, placementTests?.totalTests))} icon={<ClipboardCheck size={16} />} />
-                <KpiCard title={t.kpis.completed} value={formatNumber(num(placementTests?.completed, placementTests?.completedTests))} icon={<GraduationCap size={16} />} />
-                <KpiCard title={t.kpis.noShow} value={formatNumber(num(placementTests?.noShow, placementTests?.noShowTests))} icon={<Users size={16} />} />
-                <KpiCard title={t.kpis.completionRate} value={formatPercent(placementTests?.completionRate)} icon={<TrendingUp size={16} />} />
+                <KpiCard title={t.kpis.totalTests} value={formatNumber(num(placementTests?.total, placementTests?.totalTests))} icon={<ClipboardCheck size={16} />} colorScheme="red" />
+                <KpiCard title={t.kpis.completed} value={formatNumber(num(placementTests?.completed, placementTests?.completedTests))} icon={<GraduationCap size={16} />} colorScheme="emerald" />
+                <KpiCard title={t.kpis.noShow} value={formatNumber(num(placementTests?.noShow, placementTests?.noShowTests))} icon={<Users size={16} />} colorScheme="blue" />
+                <KpiCard title={t.kpis.completionRate} value={formatPercent(placementTests?.completionRate)} icon={<TrendingUp size={16} />} colorScheme="amber" />
               </div>
             </ChartCard>
           </section>
@@ -471,11 +463,11 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
           <section>
             <SectionTitle title={t.sections.hr} subtitle={t.sections.hrSubtitle} />
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-              <KpiCard title={t.kpis.totalStaff} value={formatNumber(humanResources?.totalStaff)} icon={<Briefcase size={18} />} />
-              <KpiCard title={t.kpis.teachers} value={formatNumber(humanResources?.teacherCount)} icon={<Users size={18} />} />
-              <KpiCard title={t.kpis.management} value={formatNumber(humanResources?.managementStaffCount)} icon={<UserCog size={18} />} />
-              <KpiCard title={t.kpis.admin} value={formatNumber(humanResources?.adminCount)} icon={<UserCog size={18} />} />
-              <KpiCard title={t.kpis.totalPayroll} value={formatMoney(humanResources?.totalPayroll)} icon={<Wallet size={18} />} />
+              <KpiCard title={t.kpis.totalStaff} value={formatNumber(humanResources?.totalStaff)} icon={<Briefcase size={18} />} colorScheme="red" />
+              <KpiCard title={t.kpis.teachers} value={formatNumber(humanResources?.teacherCount)} icon={<Users size={18} />} colorScheme="emerald" />
+              <KpiCard title={t.kpis.management} value={formatNumber(humanResources?.managementStaffCount)} icon={<UserCog size={18} />} colorScheme="blue" />
+              <KpiCard title={t.kpis.admin} value={formatNumber(humanResources?.adminCount)} icon={<UserCog size={18} />} colorScheme="violet" />
+              <KpiCard title={t.kpis.totalPayroll} value={formatMoney(humanResources?.totalPayroll)} icon={<Wallet size={18} />} colorScheme="amber" />
             </div>
           </section>
 

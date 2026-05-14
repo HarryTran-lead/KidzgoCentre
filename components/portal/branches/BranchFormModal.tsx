@@ -68,9 +68,9 @@ export default function BranchFormModal({
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div className="sticky top-0 bg-gradient-to-r from-red-600 to-red-700 p-6 flex items-center justify-between">
+        <div className="flex-shrink-0 rounded-t-2xl sticky top-0 bg-gradient-to-r from-red-600 to-red-700 p-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
             {mode === 'add' ? (
               <Plus className="w-6 h-6 text-white" />
@@ -83,7 +83,7 @@ export default function BranchFormModal({
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+            className="p-2 hover:bg-white/20 rounded-lg transition-colors cursor-pointer"
             disabled={isSubmitting}
           >
             <X className="w-5 h-5 text-white" />
@@ -91,7 +91,7 @@ export default function BranchFormModal({
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form id="branchForm" onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
           {/* Code */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -102,10 +102,17 @@ export default function BranchFormModal({
               required
               value={formData.code}
               onChange={(e) => handleChange('code', e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+              className={`w-full px-4 py-3 rounded-xl border text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition-colors ${
+                mode === 'edit'
+                  ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
+                  : 'bg-white border-red-200 focus:ring-red-500'
+              }`}
               placeholder="VD: CN001"
-              disabled={mode === 'edit'} // Code không thể sửa
+              disabled={mode === 'edit'}
             />
+            {mode === 'edit' && (
+              <p className="text-xs text-gray-500 mt-2">Không thể chỉnh sửa mã chi nhánh</p>
+            )}
           </div>
 
           {/* Name */}
@@ -118,7 +125,7 @@ export default function BranchFormModal({
               required
               value={formData.name}
               onChange={(e) => handleChange('name', e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+              className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
               placeholder="VD: Rex Quận 1"
             />
           </div>
@@ -133,7 +140,7 @@ export default function BranchFormModal({
               required
               value={formData.address}
               onChange={(e) => handleChange('address', e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+              className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
               placeholder="Nhập địa chỉ đầy đủ"
             />
           </div>
@@ -148,7 +155,7 @@ export default function BranchFormModal({
               required
               value={formData.contactPhone}
               onChange={(e) => handleChange('contactPhone', e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+              className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
               placeholder="VD: 0909123456"
             />
           </div>
@@ -163,7 +170,7 @@ export default function BranchFormModal({
               required
               value={formData.contactEmail}
               onChange={(e) => handleChange('contactEmail', e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+              className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
               placeholder="email@example.com"
             />
           </div>
@@ -177,51 +184,52 @@ export default function BranchFormModal({
               value={formData.description}
               onChange={(e) => handleChange('description', e.target.value)}
               rows={3}
-              className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200 resize-none"
+              className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
               placeholder="Mô tả chi nhánh (tùy chọn)"
             />
           </div>
 
           {/* Active Status */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 p-4 bg-red-50/50 rounded-xl border border-red-100">
             <input
               type="checkbox"
               id="isActive"
               checked={formData.isActive}
               onChange={(e) => handleChange('isActive', e.target.checked)}
-              className="w-5 h-5 text-red-600 border-red-300 rounded focus:ring-red-200"
+              className="w-5 h-5 text-red-600 border-red-300 rounded focus:ring-red-500"
             />
             <label htmlFor="isActive" className="text-sm font-medium text-gray-700">
               {mode === 'add' ? 'Kích hoạt ngay' : 'Chi nhánh đang hoạt động'}
             </label>
           </div>
-
-          {/* Action Buttons */}
-          <div className="flex gap-3 pt-4 border-t border-red-100">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isSubmitting}
-              className="flex-1 px-4 py-3 rounded-xl border border-red-200 text-gray-700 font-medium hover:bg-red-50 transition-colors disabled:opacity-50"
-            >
-              Hủy
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="flex-1 px-4 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl font-medium hover:shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  {mode === 'add' ? 'Đang thêm...' : 'Đang lưu...'}
-                </>
-              ) : (
-                mode === 'add' ? 'Thêm chi nhánh' : 'Lưu thay đổi'
-              )}
-            </button>
-          </div>
         </form>
+
+        {/* Footer */}
+        <div className="flex-shrink-0 rounded-b-2xl sticky bottom-0 bg-gray-50 px-6 py-4 border-t border-red-100 flex gap-3 justify-end">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isSubmitting}
+            className="px-6 py-2.5 rounded-xl border border-red-200 text-gray-700 font-medium hover:bg-red-50 transition-colors disabled:opacity-50 cursor-pointer"
+          >
+            Hủy
+          </button>
+          <button
+            type="submit"
+            form="branchForm"
+            disabled={isSubmitting}
+            className="px-6 py-2.5 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl font-medium hover:shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                {mode === 'add' ? 'Đang thêm...' : 'Đang lưu...'}
+              </>
+            ) : (
+              mode === 'add' ? 'Thêm chi nhánh' : 'Lưu thay đổi'
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );

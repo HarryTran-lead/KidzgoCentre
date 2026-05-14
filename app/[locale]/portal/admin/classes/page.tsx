@@ -4,32 +4,73 @@ import { useDeferredValue, useMemo, useState, useEffect, useRef } from "react";
 import { todayDateOnly } from "@/lib/datetime";
 import { useRouter, useParams } from "next/navigation";
 import {
-  Plus, Search, Users, Clock, Eye, Pencil,
-  ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight,
-  BookOpen, X, Calendar, Tag, User, GraduationCap, AlertCircle, Building2,
-  Power, PowerOff, UserPlus, CalendarClock, RefreshCw, Check, Loader2,
-  CalendarDays, CheckCircle
+  Plus,
+  Search,
+  Users,
+  Clock,
+  Eye,
+  Pencil,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  ChevronLeft,
+  ChevronRight,
+  BookOpen,
+  X,
+  Calendar,
+  Tag,
+  User,
+  GraduationCap,
+  AlertCircle,
+  Building2,
+  Power,
+  PowerOff,
+  UserPlus,
+  CalendarClock,
+  RefreshCw,
+  Check,
+  Loader2,
+  CalendarDays,
+  CheckCircle,
+  Sparkles,
 } from "lucide-react";
 import clsx from "clsx";
-import { 
-  fetchAdminClasses, 
-  createAdminClass, 
+import {
+  fetchAdminClasses,
+  createAdminClass,
   fetchAdminClassStudents,
   fetchAdminUsersByIds,
   fetchAdminClassDetail,
   updateAdminClass,
   updateClassStatus,
-  addAdminClassScheduleSegment
+  addAdminClassScheduleSegment,
 } from "@/app/api/admin/classes";
 import { fetchAdminRooms } from "@/app/api/admin/rooms";
-import { generateSessionsFromPattern, updateClassColor } from "@/app/api/admin/sessions";
-import { fetchClassFormSelectData, fetchTeacherOptionsByBranch, fetchProgramOptionsByBranch } from "@/app/api/admin/classFormData";
-import type { ClassRow, CreateClassRequest, ScheduleSlot } from "@/types/admin/classes";
+import {
+  generateSessionsFromPattern,
+  updateClassColor,
+} from "@/app/api/admin/sessions";
+import {
+  fetchClassFormSelectData,
+  fetchTeacherOptionsByBranch,
+  fetchProgramOptionsByBranch,
+} from "@/app/api/admin/classFormData";
+import type {
+  ClassRow,
+  CreateClassRequest,
+  ScheduleSlot,
+} from "@/types/admin/classes";
 import type { SelectOption } from "@/types/admin/classFormData";
 import { useBranchFilter } from "@/hooks/useBranchFilter";
 import { useToast } from "@/hooks/use-toast";
 import { getAccessToken } from "@/lib/store/authToken";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/lightswind/select";
 import AdminBranchSelectField from "@/components/admin/common/AdminBranchSelectField";
 import {
   buildFutureStretchPayload,
@@ -45,19 +86,42 @@ function StatusBadge({ value }: { value: ClassRow["status"] }) {
     "Đã kết thúc": "bg-gray-100 text-gray-600 border border-gray-200",
   };
   return (
-    <span className={clsx("px-2.5 py-1 rounded-full text-xs font-semibold", map[value])}>
+    <span
+      className={clsx(
+        "px-2.5 py-1 rounded-full text-xs font-semibold",
+        map[value],
+      )}
+    >
       {value}
     </span>
   );
 }
 
-type SortField = "id" | "name" | "program" | "teacher" | "branch" | "capacity" | "schedule" | "status";
+type SortField =
+  | "id"
+  | "name"
+  | "program"
+  | "teacher"
+  | "branch"
+  | "capacity"
+  | "schedule"
+  | "status";
 type SortDirection = "asc" | "desc" | null;
 const PAGE_SIZE = 10;
 const DEFAULT_GENERATE_COLOR = "#FEE2E2";
 const GENERATE_COLOR_PRESETS = [
-  "#FEE2E2", "#DBEAFE", "#EDE9FE", "#FEF3C7", "#D1FAE5", "#FCE7F3",
-  "#C7D2FE", "#E0F2FE", "#DDD6FE", "#FDE68A", "#A7F3D0", "#FBCFE8",
+  "#FEE2E2",
+  "#DBEAFE",
+  "#EDE9FE",
+  "#FEF3C7",
+  "#D1FAE5",
+  "#FCE7F3",
+  "#C7D2FE",
+  "#E0F2FE",
+  "#DDD6FE",
+  "#FDE68A",
+  "#A7F3D0",
+  "#FBCFE8",
 ] as const;
 
 type ScheduleDisplayProps = {
@@ -78,7 +142,8 @@ function parseScheduleSegments(schedule: string): ParsedScheduleSegment[] {
     return [];
   }
 
-  const segmentRegex = /(Thứ\s*[2-7](?:\s*,\s*[2-7])*(?:\s*&\s*CN)?|CN)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/g;
+  const segmentRegex =
+    /(Thứ\s*[2-7](?:\s*,\s*[2-7])*(?:\s*&\s*CN)?|CN)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/g;
   const segments: ParsedScheduleSegment[] = [];
   let match: RegExpExecArray | null;
 
@@ -94,26 +159,34 @@ function parseScheduleSegments(schedule: string): ParsedScheduleSegment[] {
     return segments;
   }
 
-  const singleMatch = text.match(/(.+?)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/);
+  const singleMatch = text.match(
+    /(.+?)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/,
+  );
   if (!singleMatch) {
     return [];
   }
 
-  return [{
-    dayPart: singleMatch[1],
-    startTime: singleMatch[2],
-    endTime: singleMatch[3],
-  }];
+  return [
+    {
+      dayPart: singleMatch[1],
+      startTime: singleMatch[2],
+      endTime: singleMatch[3],
+    },
+  ];
 }
 
-function ScheduleDisplay({ schedule, classId, startDate }: ScheduleDisplayProps) {
+function ScheduleDisplay({
+  schedule,
+  classId,
+  startDate,
+}: ScheduleDisplayProps) {
   const router = useRouter();
   const params = useParams();
   const locale = params.locale as string;
-  
+
   // Format startDate to YYYY-MM-DD if it's in ISO format
   const formattedStartDate = startDate ? startDate.slice(0, 10) : undefined;
-  
+
   const segments = parseScheduleSegments(schedule);
 
   if (segments.length === 0) {
@@ -124,90 +197,113 @@ function ScheduleDisplay({ schedule, classId, startDate }: ScheduleDisplayProps)
       </div>
     );
   }
-  
+
   // Day display configuration with better colors
-  const dayConfig: Record<string, { label: string; bg: string; text: string; }> = {
-    "2": { label: "T2", bg: "bg-blue-100", text: "text-blue-700" },
-    "3": { label: "T3", bg: "bg-indigo-100", text: "text-indigo-700" },
-    "4": { label: "T4", bg: "bg-purple-100", text: "text-purple-700" },
-    "5": { label: "T5", bg: "bg-pink-100", text: "text-pink-700" },
-    "6": { label: "T6", bg: "bg-amber-100", text: "text-amber-700" },
-    "7": { label: "T7", bg: "bg-orange-100", text: "text-orange-700" },
-  };
-  
-  const sundayConfig = { label: "CN", bg: "bg-rose-100", text: "text-rose-700" };
-
-    const parseDays = (dayPart: string) => {
-      const dayNumbers: string[] = [];
-      const hasSunday = dayPart.includes("CN");
-      const thuMatch = dayPart.match(/Thứ\s*([\d,\s]+)/);
-      if (thuMatch) {
-        dayNumbers.push(...thuMatch[1].split(",").map((d) => d.trim()).filter(Boolean));
-      }
-
-      return [
-        ...dayNumbers.map((day) => ({
-          day,
-          ...(dayConfig[day] || { label: `T${day}`, bg: "bg-gray-100", text: "text-gray-700" }),
-        })),
-        ...(hasSunday ? [{ day: "CN", ...sundayConfig }] : []),
-      ];
+  const dayConfig: Record<string, { label: string; bg: string; text: string }> =
+    {
+      "2": { label: "T2", bg: "bg-blue-100", text: "text-blue-700" },
+      "3": { label: "T3", bg: "bg-indigo-100", text: "text-indigo-700" },
+      "4": { label: "T4", bg: "bg-purple-100", text: "text-purple-700" },
+      "5": { label: "T5", bg: "bg-pink-100", text: "text-pink-700" },
+      "6": { label: "T6", bg: "bg-amber-100", text: "text-amber-700" },
+      "7": { label: "T7", bg: "bg-orange-100", text: "text-orange-700" },
     };
+
+  const sundayConfig = {
+    label: "CN",
+    bg: "bg-rose-100",
+    text: "text-rose-700",
+  };
+
+  const parseDays = (dayPart: string) => {
+    const dayNumbers: string[] = [];
+    const hasSunday = dayPart.includes("CN");
+    const thuMatch = dayPart.match(/Thứ\s*([\d,\s]+)/);
+    if (thuMatch) {
+      dayNumbers.push(
+        ...thuMatch[1]
+          .split(",")
+          .map((d) => d.trim())
+          .filter(Boolean),
+      );
+    }
+
+    return [
+      ...dayNumbers.map((day) => ({
+        day,
+        ...(dayConfig[day] || {
+          label: `T${day}`,
+          bg: "bg-gray-100",
+          text: "text-gray-700",
+        }),
+      })),
+      ...(hasSunday ? [{ day: "CN", ...sundayConfig }] : []),
+    ];
+  };
 
   return (
     <div className="flex flex-col gap-1.5 min-w-[140px]">
-        {segments.map((segment, index) => {
-          const allDays = parseDays(segment.dayPart);
-          const timeRange = `${segment.startTime} - ${segment.endTime}`;
+      {segments.map((segment, index) => {
+        const allDays = parseDays(segment.dayPart);
+        const timeRange = `${segment.startTime} - ${segment.endTime}`;
 
-          const startHour = parseInt(segment.startTime.split(":")[0], 10);
-          const startMin = parseInt(segment.startTime.split(":")[1], 10);
-          const endHour = parseInt(segment.endTime.split(":")[0], 10);
-          const endMin = parseInt(segment.endTime.split(":")[1], 10);
-          const durationHours = ((endHour * 60 + endMin) - (startHour * 60 + startMin)) / 60;
-          const durationText = durationHours === Math.floor(durationHours)
+        const startHour = parseInt(segment.startTime.split(":")[0], 10);
+        const startMin = parseInt(segment.startTime.split(":")[1], 10);
+        const endHour = parseInt(segment.endTime.split(":")[0], 10);
+        const endMin = parseInt(segment.endTime.split(":")[1], 10);
+        const durationHours =
+          (endHour * 60 + endMin - (startHour * 60 + startMin)) / 60;
+        const durationText =
+          durationHours === Math.floor(durationHours)
             ? `${durationHours}h`
             : `${durationHours.toFixed(1)}h`;
 
-          return (
-            <div key={`${segment.dayPart}-${segment.startTime}-${segment.endTime}-${index}`} className="flex flex-col gap-1.5">
-              <div className="flex items-center gap-1 flex-wrap">
-                {allDays.map((dayInfo) => (
-                  <span
-                    key={`${dayInfo.day}-${index}`}
-                    className={`px-2 py-0.5 rounded-full text-xs font-semibold ${dayInfo.bg} ${dayInfo.text} shadow-sm`}
-                  >
-                    {dayInfo.label}
-                  </span>
-                ))}
-              </div>
+        return (
+          <div
+            key={`${segment.dayPart}-${segment.startTime}-${segment.endTime}-${index}`}
+            className="flex flex-col gap-1.5"
+          >
+            <div className="flex items-center gap-1 flex-wrap">
+              {allDays.map((dayInfo) => (
+                <span
+                  key={`${dayInfo.day}-${index}`}
+                  className={`px-2 py-0.5 rounded-full text-xs font-semibold ${dayInfo.bg} ${dayInfo.text} shadow-sm`}
+                >
+                  {dayInfo.label}
+                </span>
+              ))}
+            </div>
 
-              <div className="flex items-center gap-1.5">
-                <div className="flex items-center gap-1 bg-gray-50 px-2 py-0.5 rounded-md">
-                  <Clock size={12} className="text-gray-500" />
-                  <span className="text-xs font-medium text-gray-700 whitespace-nowrap">
-                    {timeRange}
-                  </span>
-                </div>
-                <span className="text-[10px] font-medium text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full">
-                  {durationText}
+            <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1 bg-gray-50 px-2 py-0.5 rounded-md">
+                <Clock size={12} className="text-gray-500" />
+                <span className="text-xs font-medium text-gray-700 whitespace-nowrap">
+                  {timeRange}
                 </span>
               </div>
+              <span className="text-[10px] font-medium text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full">
+                {durationText}
+              </span>
             </div>
-          );
-        })}
+          </div>
+        );
+      })}
 
-        {/* Icon button to go to schedule page */}
-        {classId && formattedStartDate && (
-          <button
-            onClick={() => router.push(`/${locale}/portal/admin/schedule?classId=${classId}&date=${formattedStartDate}`)}
-            className="mt-2 inline-flex items-center justify-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors cursor-pointer"
-            title="Xem lịch học"
-          >
-            <CalendarDays size={12} className=""/>
-            <span>Xem lịch</span>
-          </button>
-        )}
+      {/* Icon button to go to schedule page */}
+      {classId && formattedStartDate && (
+        <button
+          onClick={() =>
+            router.push(
+              `/${locale}/portal/admin/schedule?classId=${classId}&date=${formattedStartDate}`,
+            )
+          }
+          className="mt-2 inline-flex items-center justify-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors cursor-pointer"
+          title="Xem lịch học"
+        >
+          <CalendarDays size={12} className="" />
+          <span>Xem lịch</span>
+        </button>
+      )}
     </div>
   );
 }
@@ -224,7 +320,7 @@ function parseRRULEToSchedule(rrule: string): string {
     // Remove RRULE: prefix if present
     const rule = rrule.replace(/^RRULE:/i, "");
     const parts: Record<string, string> = {};
-    
+
     rule.split(";").forEach((part) => {
       const [key, value] = part.split("=");
       if (key && value) {
@@ -244,27 +340,29 @@ function parseRRULEToSchedule(rrule: string): string {
 
     // Map RRULE days to Vietnamese
     const dayMap: Record<string, string> = {
-      "MO": "Thứ 2",
-      "TU": "Thứ 3",
-      "WE": "Thứ 4",
-      "TH": "Thứ 5",
-      "FR": "Thứ 6",
-      "SA": "Thứ 7",
-      "SU": "CN",
+      MO: "Thứ 2",
+      TU: "Thứ 3",
+      WE: "Thứ 4",
+      TH: "Thứ 5",
+      FR: "Thứ 6",
+      SA: "Thứ 7",
+      SU: "CN",
     };
 
     // Parse days và sắp xếp theo thứ tự
     const days = byDay.split(",").map((d) => d.trim());
     const dayOrder = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
     days.sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b));
-    
+
     // Format days
-    const vietnameseDays = days.map(d => dayMap[d] || d);
-    
+    const vietnameseDays = days.map((d) => dayMap[d] || d);
+
     // Nhóm các ngày Thứ
-    const thuDays = vietnameseDays.filter(d => d.startsWith("Thứ")).map(d => d.replace("Thứ ", ""));
+    const thuDays = vietnameseDays
+      .filter((d) => d.startsWith("Thứ"))
+      .map((d) => d.replace("Thứ ", ""));
     const hasSunday = vietnameseDays.includes("CN");
-    
+
     let dayString = "";
     if (thuDays.length > 0) {
       dayString = `Thứ ${thuDays.join(",")}`;
@@ -276,12 +374,12 @@ function parseRRULEToSchedule(rrule: string): string {
     } else {
       dayString = vietnameseDays.join(", ");
     }
-    
+
     // Format time
     const hour = parseInt(byHour, 10);
     const minute = parseInt(byMinute, 10);
     const startTime = `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
-    
+
     // Calculate end time
     const endMinutes = hour * 60 + minute + duration;
     const endHour = Math.floor(endMinutes / 60);
@@ -310,21 +408,32 @@ function convertScheduleToWeeklySlots(schedule: string): Array<{
 
   try {
     // Parse schedule string format: "Thứ 2,4,6 (18:00 - 20:00)" or "CN (10:00 - 12:00)"
-    const match = schedule.match(/(.+?)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/);
+    const match = schedule.match(
+      /(.+?)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/,
+    );
     if (!match) {
       console.warn("Could not parse schedule:", schedule);
       return [];
     }
 
     const [, dayPart, startTime, endTime] = match;
-    
+
     // Map Vietnamese days to API day codes
-    const dayMap: Record<string, "MO" | "TU" | "WE" | "TH" | "FR" | "SA" | "SU"> = {
-      "2": "MO", "3": "TU", "4": "WE", "5": "TH", "6": "FR", "7": "SA", "CN": "SU",
+    const dayMap: Record<
+      string,
+      "MO" | "TU" | "WE" | "TH" | "FR" | "SA" | "SU"
+    > = {
+      "2": "MO",
+      "3": "TU",
+      "4": "WE",
+      "5": "TH",
+      "6": "FR",
+      "7": "SA",
+      CN: "SU",
     };
 
     const days: Array<"MO" | "TU" | "WE" | "TH" | "FR" | "SA" | "SU"> = [];
-    
+
     // Handle "Thứ 2,4,6" or "Thứ 2,4,6 & CN" format
     if (dayPart.includes("Thứ")) {
       const dayNumbers = dayPart.match(/\d+/g) || [];
@@ -334,7 +443,7 @@ function convertScheduleToWeeklySlots(schedule: string): Array<{
           days.push(mapped);
         }
       });
-      
+
       // Handle "& CN"
       if (dayPart.includes("CN")) {
         if (!days.includes("SU")) {
@@ -350,7 +459,8 @@ function convertScheduleToWeeklySlots(schedule: string): Array<{
     const [endHour, endMinute] = endTime.split(":").map(Number);
 
     // Calculate duration in minutes
-    const durationMinutes = (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
+    const durationMinutes =
+      endHour * 60 + endMinute - (startHour * 60 + startMinute);
 
     if (days.length === 0 || durationMinutes <= 0) {
       console.warn("Invalid days or duration from schedule:", schedule);
@@ -358,7 +468,7 @@ function convertScheduleToWeeklySlots(schedule: string): Array<{
     }
 
     // Create slots for each day
-    return days.map(dayOfWeek => ({
+    return days.map((dayOfWeek) => ({
       dayOfWeek,
       startTime: `${startHour.toString().padStart(2, "0")}:${startMinute.toString().padStart(2, "0")}`,
       durationMinutes,
@@ -383,10 +493,20 @@ function formatWeeklySlotsToScheduleText(slots: ScheduleSlot[]): string {
     SA: "Thứ 7",
     SU: "CN",
   };
-  const dayOrder: ScheduleSlot["dayOfWeek"][] = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
+  const dayOrder: ScheduleSlot["dayOfWeek"][] = [
+    "MO",
+    "TU",
+    "WE",
+    "TH",
+    "FR",
+    "SA",
+    "SU",
+  ];
 
   return [...slots]
-    .sort((a, b) => dayOrder.indexOf(a.dayOfWeek) - dayOrder.indexOf(b.dayOfWeek))
+    .sort(
+      (a, b) => dayOrder.indexOf(a.dayOfWeek) - dayOrder.indexOf(b.dayOfWeek),
+    )
     .map((slot) => {
       const [h, m] = slot.startTime.split(":").map(Number);
       const endTotal = h * 60 + m + slot.durationMinutes;
@@ -405,18 +525,23 @@ function mapApiClassToRow(item: any): ClassRow {
   const sub = item?.programName ?? "";
   const teacher = item?.mainTeacherName ?? "Chưa phân công";
   // Ensure branchName is properly extracted
-  const branch = String(item?.branchName ?? item?.branch?.name ?? "").trim() || "Chưa có chi nhánh";
+  const branch =
+    String(item?.branchName ?? item?.branch?.name ?? "").trim() ||
+    "Chưa có chi nhánh";
   const current = item?.currentEnrollmentCount ?? 0;
   const capacity = item?.capacity ?? 0;
   const schedulePattern = (item?.schedulePattern as string | undefined) ?? "";
   // Convert RRULE to human-readable format
-  const schedule = schedulePattern ? parseRRULEToSchedule(schedulePattern) : "Chưa có lịch";
-  
+  const schedule = schedulePattern
+    ? parseRRULEToSchedule(schedulePattern)
+    : "Chưa có lịch";
+
   const rawStatus: string = (item?.status as string | undefined) ?? "";
   let status: ClassRow["status"] = "Sắp khai giảng";
   const normalized = rawStatus.toLowerCase();
   if (normalized === "active" || normalized === "ongoing") status = "Đang học";
-  else if (normalized === "closed" || normalized === "completed") status = "Đã kết thúc";
+  else if (normalized === "closed" || normalized === "completed")
+    status = "Đã kết thúc";
 
   return {
     id,
@@ -449,15 +574,29 @@ function SortableHeader({
 }) {
   const isActive = currentField === field;
   const icon = isActive ? (
-    direction === "asc" ? <ArrowUp size={14} className="text-red-600" /> : <ArrowDown size={14} className="text-red-600" />
-  ) : <ArrowUpDown size={14} className="text-gray-400" />;
-  const alignClass = align === "center" ? "text-center" : align === "right" ? "text-right" : "text-left";
+    direction === "asc" ? (
+      <ArrowUp size={14} className="text-red-600" />
+    ) : (
+      <ArrowDown size={14} className="text-red-600" />
+    )
+  ) : (
+    <ArrowUpDown size={14} className="text-gray-400" />
+  );
+  const alignClass =
+    align === "center"
+      ? "text-center"
+      : align === "right"
+        ? "text-right"
+        : "text-left";
   return (
     <th
       onClick={() => onSort(field)}
       className={`py-3 px-6 ${alignClass} text-sm font-semibold text-gray-700 whitespace-nowrap cursor-pointer select-none hover:bg-red-50 transition-colors`}
     >
-      <span className="inline-flex items-center gap-2">{children}{icon}</span>
+      <span className="inline-flex items-center gap-2">
+        {children}
+        {icon}
+      </span>
     </th>
   );
 }
@@ -466,14 +605,24 @@ function SortableHeader({
  * Tính ngày kết thúc dựa trên ngày bắt đầu, lịch học và số buổi học
  * Sử dụng thuật toán chính xác hơn để đếm đúng số buổi
  */
-function calculateTotalSessionsFromDateRange(startDate: string, endDate: string, schedule: string): number {
+function calculateTotalSessionsFromDateRange(
+  startDate: string,
+  endDate: string,
+  schedule: string,
+): number {
   if (!startDate || !endDate || !schedule) {
     return 0;
   }
 
   try {
     const dayMap: Record<string, number> = {
-      "2": 1, "3": 2, "4": 3, "5": 4, "6": 5, "7": 6, "CN": 0,
+      "2": 1,
+      "3": 2,
+      "4": 3,
+      "5": 4,
+      "6": 5,
+      "7": 6,
+      CN: 0,
     };
 
     const dayParts: string[] = [];
@@ -483,7 +632,9 @@ function calculateTotalSessionsFromDateRange(startDate: string, endDate: string,
       dayParts.push(segmentMatch[1]);
     }
     if (dayParts.length === 0) {
-      const fallbackMatch = schedule.match(/(.+?)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/);
+      const fallbackMatch = schedule.match(
+        /(.+?)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/,
+      );
       if (fallbackMatch) {
         dayParts.push(fallbackMatch[1]);
       }
@@ -533,7 +684,11 @@ function calculateTotalSessionsFromDateRange(startDate: string, endDate: string,
   }
 }
 
-function calculateEndDate(startDate: string, schedule: string, totalSessions: number): string {
+function calculateEndDate(
+  startDate: string,
+  schedule: string,
+  totalSessions: number,
+): string {
   if (!startDate || !schedule || totalSessions <= 0) {
     return "";
   }
@@ -547,11 +702,13 @@ function calculateEndDate(startDate: string, schedule: string, totalSessions: nu
       "5": 4, // Thứ 5
       "6": 5, // Thứ 6
       "7": 6, // Thứ 7
-      "CN": 0, // Chủ nhật
+      CN: 0, // Chủ nhật
     };
 
     // Parse schedule
-    const match = schedule.match(/(.+?)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/);
+    const match = schedule.match(
+      /(.+?)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/,
+    );
     if (!match) return "";
 
     const dayPart = match[1];
@@ -564,7 +721,7 @@ function calculateEndDate(startDate: string, schedule: string, totalSessions: nu
       dayNumbers.forEach((d) => {
         if (dayMap[d] !== undefined) daysInWeek.push(dayMap[d]);
       });
-      
+
       // Kiểm tra có CN không
       if (dayPart.includes("CN")) {
         daysInWeek.push(0);
@@ -580,26 +737,29 @@ function calculateEndDate(startDate: string, schedule: string, totalSessions: nu
 
     const start = new Date(startDate);
     start.setHours(0, 0, 0, 0); // Đặt về đầu ngày để tránh lệch múi giờ
-    
+
     let sessionsRemaining = totalSessions;
     let currentDate = new Date(start);
-    
+
     // Nếu ngày bắt đầu không phải là ngày học, tìm ngày học đầu tiên
-    while (!daysInWeek.includes(currentDate.getDay()) && sessionsRemaining > 0) {
+    while (
+      !daysInWeek.includes(currentDate.getDay()) &&
+      sessionsRemaining > 0
+    ) {
       currentDate.setDate(currentDate.getDate() + 1);
     }
 
     // Đếm số buổi học
     while (sessionsRemaining > 0) {
       const currentDayOfWeek = currentDate.getDay();
-      
+
       if (daysInWeek.includes(currentDayOfWeek)) {
         sessionsRemaining--;
         if (sessionsRemaining > 0) {
           // Tìm ngày học tiếp theo
           let nextDate = new Date(currentDate);
           nextDate.setDate(nextDate.getDate() + 1);
-          
+
           while (!daysInWeek.includes(nextDate.getDay())) {
             nextDate.setDate(nextDate.getDate() + 1);
           }
@@ -614,7 +774,7 @@ function calculateEndDate(startDate: string, schedule: string, totalSessions: nu
     const year = currentDate.getFullYear();
     const month = String(currentDate.getMonth() + 1).padStart(2, "0");
     const day = String(currentDate.getDate()).padStart(2, "0");
-    
+
     return `${year}-${month}-${day}`;
   } catch (error) {
     console.error("Error calculating end date:", error);
@@ -623,17 +783,19 @@ function calculateEndDate(startDate: string, schedule: string, totalSessions: nu
 }
 
 /* ----------------------------- TIME PICKER COMPONENT ------------------------------ */
-function TimePicker({ 
-  value, 
-  onChange, 
-  label 
-}: { 
-  value: string; 
-  onChange: (value: string) => void; 
+function TimePicker({
+  value,
+  onChange,
+  label,
+}: {
+  value: string;
+  onChange: (value: string) => void;
   label: string;
 }) {
   const normalizedValue = (() => {
-    const match = String(value || "").trim().match(/^(\d{1,2}):(\d{1,2})$/);
+    const match = String(value || "")
+      .trim()
+      .match(/^(\d{1,2}):(\d{1,2})$/);
     if (!match) return "18:00";
     const hour = Math.min(23, Math.max(0, Number(match[1]) || 0));
     const minute = Math.min(59, Math.max(0, Number(match[2]) || 0));
@@ -643,22 +805,32 @@ function TimePicker({
   const [rawHour, rawMinute] = normalizedValue.split(":");
   const parsedHour = Number(rawHour);
   const parsedMinute = Number(rawMinute);
-  const hours = Number.isFinite(parsedHour) ? ((parsedHour % 24) + 24) % 24 : 18;
-  const minutes = Number.isFinite(parsedMinute) ? ((parsedMinute % 60) + 60) % 60 : 0;
+  const hours = Number.isFinite(parsedHour)
+    ? ((parsedHour % 24) + 24) % 24
+    : 18;
+  const minutes = Number.isFinite(parsedMinute)
+    ? ((parsedMinute % 60) + 60) % 60
+    : 0;
   const minuteStep = 5;
 
   const updateTime = (nextHours: number, nextMinutes: number) => {
     const normalizedHours = ((nextHours % 24) + 24) % 24;
     const normalizedMinutes = ((nextMinutes % 60) + 60) % 60;
-    onChange(`${normalizedHours.toString().padStart(2, "0")}:${normalizedMinutes.toString().padStart(2, "0")}`);
+    onChange(
+      `${normalizedHours.toString().padStart(2, "0")}:${normalizedMinutes.toString().padStart(2, "0")}`,
+    );
   };
 
   const handleManualInput = (nextValue: string) => {
-    const match = String(nextValue || "").trim().match(/^(\d{1,2}):(\d{1,2})$/);
+    const match = String(nextValue || "")
+      .trim()
+      .match(/^(\d{1,2}):(\d{1,2})$/);
     if (!match) return;
     const hour = Math.min(23, Math.max(0, Number(match[1]) || 0));
     const minute = Math.min(59, Math.max(0, Number(match[2]) || 0));
-    onChange(`${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`);
+    onChange(
+      `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`,
+    );
   };
 
   const incrementHours = () => updateTime(hours + 1, minutes);
@@ -680,7 +852,7 @@ function TimePicker({
             ▲
           </button>
           <div className="w-14 h-12 bg-white border-x border-gray-200 flex items-center justify-center font-mono text-lg font-semibold text-gray-900">
-            {hours.toString().padStart(2, '0')}
+            {hours.toString().padStart(2, "0")}
           </div>
           <button
             type="button"
@@ -703,7 +875,7 @@ function TimePicker({
             ▲
           </button>
           <div className="w-14 h-12 bg-white border-x border-gray-200 flex items-center justify-center font-mono text-lg font-semibold text-gray-900">
-            {minutes.toString().padStart(2, '0')}
+            {minutes.toString().padStart(2, "0")}
           </div>
           <button
             type="button"
@@ -723,7 +895,9 @@ function TimePicker({
           onChange={(e) => handleManualInput(e.target.value)}
           className="w-full h-9 rounded-lg border border-gray-200 bg-white px-2 text-sm text-gray-700"
         />
-        <p className="mt-1 text-[11px] text-gray-500">Nhập trực tiếp hoặc dùng nút tăng/giảm (bước 5 phút).</p>
+        <p className="mt-1 text-[11px] text-gray-500">
+          Nhập trực tiếp hoặc dùng nút tăng/giảm (bước 5 phút).
+        </p>
       </div>
     </div>
   );
@@ -757,12 +931,36 @@ const WEEK_DAYS: WeekDay[] = [
 
 // Các khung giờ mẫu
 const TIME_SLOTS: TimeSlot[] = [
-  { value: "08:00-10:00", label: "Sáng (08:00 - 10:00)", timeRange: "08:00 - 10:00" },
-  { value: "10:00-12:00", label: "Trưa (10:00 - 12:00)", timeRange: "10:00 - 12:00" },
-  { value: "14:00-16:00", label: "Chiều (14:00 - 16:00)", timeRange: "14:00 - 16:00" },
-  { value: "16:00-18:00", label: "Chiều tối (16:00 - 18:00)", timeRange: "16:00 - 18:00" },
-  { value: "18:00-20:00", label: "Tối (18:00 - 20:00)", timeRange: "18:00 - 20:00" },
-  { value: "19:30-21:30", label: "Tối muộn (19:30 - 21:30)", timeRange: "19:30 - 21:30" },
+  {
+    value: "08:00-10:00",
+    label: "Sáng (08:00 - 10:00)",
+    timeRange: "08:00 - 10:00",
+  },
+  {
+    value: "10:00-12:00",
+    label: "Trưa (10:00 - 12:00)",
+    timeRange: "10:00 - 12:00",
+  },
+  {
+    value: "14:00-16:00",
+    label: "Chiều (14:00 - 16:00)",
+    timeRange: "14:00 - 16:00",
+  },
+  {
+    value: "16:00-18:00",
+    label: "Chiều tối (16:00 - 18:00)",
+    timeRange: "16:00 - 18:00",
+  },
+  {
+    value: "18:00-20:00",
+    label: "Tối (18:00 - 20:00)",
+    timeRange: "18:00 - 20:00",
+  },
+  {
+    value: "19:30-21:30",
+    label: "Tối muộn (19:30 - 21:30)",
+    timeRange: "19:30 - 21:30",
+  },
 ];
 
 // Các tùy chọn số buổi/tuần
@@ -781,13 +979,15 @@ function convertScheduleToRRULE(schedule: string, startDate: string): string {
 
   try {
     // Parse schedule string format
-    const match = schedule.match(/(.+?)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/);
+    const match = schedule.match(
+      /(.+?)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/,
+    );
     if (!match) {
       return "RRULE:FREQ=WEEKLY;BYDAY=MO,WE,FR;BYHOUR=18;BYMINUTE=0;DURATION=120";
     }
 
     const [, dayPart, startTime, endTime] = match;
-    
+
     // Map ngày Việt Nam sang RRULE
     const dayMap: Record<string, string> = {
       "2": "MO",
@@ -796,18 +996,18 @@ function convertScheduleToRRULE(schedule: string, startDate: string): string {
       "5": "TH",
       "6": "FR",
       "7": "SA",
-      "CN": "SU",
+      CN: "SU",
     };
 
     const days: string[] = [];
-    
+
     // Xử lý định dạng "Thứ 2,4,6" hoặc "Thứ 2,4,6 & CN"
     if (dayPart.includes("Thứ")) {
       const dayNumbers = dayPart.match(/\d+/g) || [];
       dayNumbers.forEach((d) => {
         if (dayMap[d]) days.push(dayMap[d]);
       });
-      
+
       // Xử lý phần "& CN"
       if (dayPart.includes("CN")) {
         days.push("SU");
@@ -819,7 +1019,7 @@ function convertScheduleToRRULE(schedule: string, startDate: string): string {
     // Sắp xếp các ngày theo thứ tự (MO, TU, WE, TH, FR, SA, SU)
     const dayOrder = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
     days.sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b));
-    
+
     const byDay = days.length > 0 ? days.join(",") : "MO,WE,FR";
 
     // Parse thời gian
@@ -827,7 +1027,7 @@ function convertScheduleToRRULE(schedule: string, startDate: string): string {
     const [endHour, endMinute] = endTime.split(":").map(Number);
 
     // Tính duration
-    const duration = (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
+    const duration = endHour * 60 + endMinute - (startHour * 60 + startMinute);
     const durationMinutes = duration > 0 ? duration : 120;
 
     // Tạo RRULE
@@ -868,7 +1068,16 @@ interface StudentOption {
   profileId: string;
 }
 
-function AddStudentModal({ isOpen, onClose, classId, enrolledStudentIds, classCapacity, currentEnrolled, toast, onEnrollmentSuccess }: AddStudentModalProps) {
+function AddStudentModal({
+  isOpen,
+  onClose,
+  classId,
+  enrolledStudentIds,
+  classCapacity,
+  currentEnrolled,
+  toast,
+  onEnrollmentSuccess,
+}: AddStudentModalProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [students, setStudents] = useState<StudentOption[]>([]);
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
@@ -886,14 +1095,19 @@ function AddStudentModal({ isOpen, onClose, classId, enrolledStudentIds, classCa
       try {
         const token = getAccessToken();
         // Fetch all users from admin/users API — students are embedded in Parent profiles
-        const response = await fetch("/api/admin/users?pageNumber=1&pageSize=100", {
-          headers: {
-            Authorization: token ? `Bearer ${token}` : "",
+        const response = await fetch(
+          "/api/admin/users?pageNumber=1&pageSize=100",
+          {
+            headers: {
+              Authorization: token ? `Bearer ${token}` : "",
+            },
           },
-        });
+        );
 
         if (!response.ok) {
-          throw new Error(`API error: ${response.status} ${response.statusText}`);
+          throw new Error(
+            `API error: ${response.status} ${response.statusText}`,
+          );
         }
 
         const data = await response.json();
@@ -909,7 +1123,7 @@ function AddStudentModal({ isOpen, onClose, classId, enrolledStudentIds, classCa
               for (const profile of user.profiles) {
                 if (profile.profileType === "Student") {
                   studentList.push({
-                    id: String(profile.id),        // profile ID = student ID
+                    id: String(profile.id), // profile ID = student ID
                     name: String(profile.displayName || "Học viên"),
                     code: String(user.username || ""),
                     profileId: String(profile.id),
@@ -936,7 +1150,10 @@ function AddStudentModal({ isOpen, onClose, classId, enrolledStudentIds, classCa
   // Close on click outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+      if (
+        modalRef.current &&
+        !modalRef.current.contains(event.target as Node)
+      ) {
         onClose();
       }
     };
@@ -954,17 +1171,18 @@ function AddStudentModal({ isOpen, onClose, classId, enrolledStudentIds, classCa
 
   if (!isOpen) return null;
 
-  const filteredStudents = students.filter(s => 
-    (s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.code.toLowerCase().includes(searchQuery.toLowerCase())) &&
-    !enrolledStudentIds.includes(s.id) &&
-    !enrolledStudentIds.includes(s.profileId)
+  const filteredStudents = students.filter(
+    (s) =>
+      (s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        s.code.toLowerCase().includes(searchQuery.toLowerCase())) &&
+      !enrolledStudentIds.includes(s.id) &&
+      !enrolledStudentIds.includes(s.profileId),
   );
 
   const toggleStudent = (studentId: string) => {
-    setSelectedStudents(prev => {
+    setSelectedStudents((prev) => {
       if (prev.includes(studentId)) {
-        return prev.filter(id => id !== studentId);
+        return prev.filter((id) => id !== studentId);
       }
 
       if (prev.length >= remainingSlots) {
@@ -992,18 +1210,20 @@ function AddStudentModal({ isOpen, onClose, classId, enrolledStudentIds, classCa
     setIsSubmitting(true);
     try {
       const token = getAccessToken();
-      
+
       // Lấy danh sách profileId của các học viên được chọn
-      const selectedStudentProfiles = students.filter(s => selectedStudents.includes(s.id));
-      
+      const selectedStudentProfiles = students.filter((s) =>
+        selectedStudents.includes(s.id),
+      );
+
       // Gọi API cho mỗi học viên
       const enrollDate = todayDateOnly(); // Ngày hiện tại
       let successCount = 0;
       let failedStudents: string[] = [];
-      
+
       for (const student of selectedStudentProfiles) {
         if (!student.profileId) continue;
-        
+
         const response = await fetch("/api/enrollments", {
           method: "POST",
           headers: {
@@ -1032,21 +1252,21 @@ function AddStudentModal({ isOpen, onClose, classId, enrolledStudentIds, classCa
           title: "Thêm học viên thành công",
           description: `Đã thêm ${successCount} học viên vào lớp.`,
         });
-        
+
         // Cập nhật danh sách enrolled để lọc bỏ những student đã thêm
         const newEnrolledIds = selectedStudentProfiles
-          .filter(s => s.profileId)
-          .map(s => s.id);
-        
+          .filter((s) => s.profileId)
+          .map((s) => s.id);
+
         // Gọi callback để cập nhật danh sách enrolled ở parent
         if (onEnrollmentSuccess) {
           onEnrollmentSuccess(newEnrolledIds);
         }
-        
+
         // Clear selected students để admin có thể tiếp tục thêm
         setSelectedStudents([]);
       }
-      
+
       if (failedStudents.length > 0) {
         toast.destructive({
           title: "Thêm học viên thất bại",
@@ -1078,9 +1298,7 @@ function AddStudentModal({ isOpen, onClose, classId, enrolledStudentIds, classCa
                 <UserPlus size={24} className="text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-white">
-                  Thêm học viên
-                </h2>
+                <h2 className="text-2xl font-bold text-white">Thêm học viên</h2>
                 <p className="text-sm text-red-100">
                   Chọn học viên để thêm vào lớp
                 </p>
@@ -1100,7 +1318,10 @@ function AddStudentModal({ isOpen, onClose, classId, enrolledStudentIds, classCa
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center gap-3">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+              <Search
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                size={18}
+              />
               <input
                 type="text"
                 placeholder="Tìm kiếm học viên..."
@@ -1115,19 +1336,22 @@ function AddStudentModal({ isOpen, onClose, classId, enrolledStudentIds, classCa
                   if (selectedStudents.length === filteredStudents.length) {
                     setSelectedStudents([]);
                   } else {
-                    setSelectedStudents(filteredStudents.map(s => s.id));
+                    setSelectedStudents(filteredStudents.map((s) => s.id));
                   }
                 }}
                 className="px-3 py-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-sm font-medium text-gray-700 transition-colors cursor-pointer whitespace-nowrap"
               >
-                {selectedStudents.length === filteredStudents.length && filteredStudents.length > 0 ? "Bỏ chọn tất cả" : "Chọn tất cả"}
+                {selectedStudents.length === filteredStudents.length &&
+                filteredStudents.length > 0
+                  ? "Bỏ chọn tất cả"
+                  : "Chọn tất cả"}
               </button>
             )}
           </div>
         </div>
 
         {/* Student List */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto p-4 text-sm">
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="w-6 h-6 animate-spin text-red-500" />
@@ -1149,17 +1373,21 @@ function AddStudentModal({ isOpen, onClose, classId, enrolledStudentIds, classCa
                       : "border-gray-200 hover:border-red-300"
                   }`}
                 >
-                  <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
-                    selectedStudents.includes(student.id)
-                      ? "bg-red-500 border-red-500"
-                      : "border-gray-300"
-                  }`}>
+                  <div
+                    className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
+                      selectedStudents.includes(student.id)
+                        ? "bg-red-500 border-red-500"
+                        : "border-gray-300"
+                    }`}
+                  >
                     {selectedStudents.includes(student.id) && (
                       <Check size={14} className="text-white" />
                     )}
                   </div>
                   <div className="flex-1">
-                    <div className="font-medium text-gray-900">{student.name}</div>
+                    <div className="font-medium text-gray-900">
+                      {student.name}
+                    </div>
                     <div className="text-sm text-gray-500">{student.code}</div>
                   </div>
                 </div>
@@ -1175,10 +1403,15 @@ function AddStudentModal({ isOpen, onClose, classId, enrolledStudentIds, classCa
             <div className="mb-4 p-3 bg-white rounded-xl border border-gray-200">
               <div className="text-xs text-gray-500 mb-2">Đã chọn:</div>
               <div className="flex items-center gap-2 flex-wrap">
-                {selectedStudents.slice(0, 4).map(studentId => {
-                  const student = students.find(s => s.id === studentId);
+                {selectedStudents.slice(0, 4).map((studentId) => {
+                  const student = students.find((s) => s.id === studentId);
                   if (!student) return null;
-                  const initials = student.name.split(" ").map(w => w[0]).slice(-2).join("").toUpperCase();
+                  const initials = student.name
+                    .split(" ")
+                    .map((w) => w[0])
+                    .slice(-2)
+                    .join("")
+                    .toUpperCase();
                   return (
                     <div
                       key={student.id}
@@ -1187,7 +1420,9 @@ function AddStudentModal({ isOpen, onClose, classId, enrolledStudentIds, classCa
                       <div className="w-6 h-6 rounded-full bg-gradient-to-br from-red-500 to-red-600 text-white text-xs font-bold flex items-center justify-center">
                         {initials}
                       </div>
-                      <span className="text-xs font-medium text-gray-800 max-w-[100px] truncate">{student.name}</span>
+                      <span className="text-xs font-medium text-gray-800 max-w-[100px] truncate">
+                        {student.name}
+                      </span>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -1215,16 +1450,25 @@ function AddStudentModal({ isOpen, onClose, classId, enrolledStudentIds, classCa
               <div className="mb-4">
                 {isOverCapacity ? (
                   <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl">
-                    <AlertCircle size={18} className="text-red-600 flex-shrink-0" />
+                    <AlertCircle
+                      size={18}
+                      className="text-red-600 flex-shrink-0"
+                    />
                     <span className="text-sm text-red-700">
-                      Vượt quá sĩ số! Lớp sẽ có <strong>{totalAfterAdd}</strong> học viên (tối đa {classCapacity})
+                      Vượt quá sĩ số! Lớp sẽ có <strong>{totalAfterAdd}</strong>{" "}
+                      học viên (tối đa {classCapacity})
                     </span>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-xl">
-                    <CheckCircle size={18} className="text-green-600 flex-shrink-0" />
+                    <CheckCircle
+                      size={18}
+                      className="text-green-600 flex-shrink-0"
+                    />
                     <span className="text-sm text-green-700">
-                      Đã chọn <strong>{selectedStudents.length}</strong> / Sĩ số còn lại: <strong>{classCapacity - currentEnrolled}</strong> 
+                      Đã chọn <strong>{selectedStudents.length}</strong> / Sĩ số
+                      còn lại:{" "}
+                      <strong>{classCapacity - currentEnrolled}</strong>
                     </span>
                   </div>
                 )}
@@ -1233,7 +1477,9 @@ function AddStudentModal({ isOpen, onClose, classId, enrolledStudentIds, classCa
           })()}
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-600">
-              Tổng: <span className="font-semibold">{selectedStudents.length}</span> học viên
+              Tổng:{" "}
+              <span className="font-semibold">{selectedStudents.length}</span>{" "}
+              học viên
             </div>
             <div className="flex gap-2">
               <button
@@ -1244,7 +1490,11 @@ function AddStudentModal({ isOpen, onClose, classId, enrolledStudentIds, classCa
               </button>
               <button
                 onClick={handleSubmit}
-                disabled={selectedStudents.length === 0 || isSubmitting || selectedStudents.length > remainingSlots}
+                disabled={
+                  selectedStudents.length === 0 ||
+                  isSubmitting ||
+                  selectedStudents.length > remainingSlots
+                }
                 className="px-4 py-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-medium hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
               >
                 {isSubmitting ? (
@@ -1331,7 +1581,9 @@ const CLASS_FORM_FIELD_ORDER: ClassFormField[] = [
 ];
 
 function normalizeComparableText(value: string | number | null | undefined) {
-  return String(value ?? "").trim().toLowerCase();
+  return String(value ?? "")
+    .trim()
+    .toLowerCase();
 }
 
 function getTodayDateString() {
@@ -1381,7 +1633,12 @@ function getClassFormErrorMessage(error: unknown): string {
       }
     | undefined;
 
-  return err?.message || err?.detail || err?.title || "Không thể lưu lớp học. Vui lòng thử lại.";
+  return (
+    err?.message ||
+    err?.detail ||
+    err?.title ||
+    "Không thể lưu lớp học. Vui lòng thử lại."
+  );
 }
 
 function buildClassSubmissionError(
@@ -1397,12 +1654,18 @@ function buildClassSubmissionError(
         message?: string;
         detail?: string;
         title?: string;
-        raw?: { errors?: Record<string, string[] | string> | Array<{ description?: string; code?: string }> };
+        raw?: {
+          errors?:
+            | Record<string, string[] | string>
+            | Array<{ description?: string; code?: string }>;
+        };
       }
     | undefined;
 
   const rawMessage = getClassFormErrorMessage(error);
-  const normalized = normalizeComparableText(`${err?.title || ""} ${err?.detail || ""} ${rawMessage}`);
+  const normalized = normalizeComparableText(
+    `${err?.title || ""} ${err?.detail || ""} ${rawMessage}`,
+  );
   const fieldErrors: ClassFieldErrors = {};
 
   const rawErrors = err?.raw?.errors;
@@ -1411,9 +1674,17 @@ function buildClassSubmissionError(
       const msg = normalizeComparableText(item?.description || "");
       if (!msg) continue;
 
-      if (msg.includes("class code") || msg.includes("mã lớp") || msg.includes("code")) {
+      if (
+        msg.includes("class code") ||
+        msg.includes("mã lớp") ||
+        msg.includes("code")
+      ) {
         fieldErrors.code = item?.description || rawMessage;
-      } else if (msg.includes("class title") || msg.includes("tên lớp") || msg.includes("title")) {
+      } else if (
+        msg.includes("class title") ||
+        msg.includes("tên lớp") ||
+        msg.includes("title")
+      ) {
         fieldErrors.name = item?.description || rawMessage;
       } else if (msg.includes("branch id") || msg.includes("branch")) {
         fieldErrors.branchId = item?.description || rawMessage;
@@ -1435,17 +1706,25 @@ function buildClassSubmissionError(
     }
   }
 
-  if (normalized.includes("codeexists") || normalized.includes("mã lớp") || normalized.includes("class code")) {
+  if (
+    normalized.includes("codeexists") ||
+    normalized.includes("mã lớp") ||
+    normalized.includes("class code")
+  ) {
     fieldErrors.code = `mã lớp ${data.code.trim()} đã tồn tại`;
     return new ClassFormSubmitError(fieldErrors.code, fieldErrors);
   }
 
   if (
-    normalized.includes("already exists")
-    || normalized.includes("đã tồn tại")
-    || normalized.includes("duplicate")
+    normalized.includes("already exists") ||
+    normalized.includes("đã tồn tại") ||
+    normalized.includes("duplicate")
   ) {
-    if (normalized.includes("title") || normalized.includes("name") || normalized.includes("lớp")) {
+    if (
+      normalized.includes("title") ||
+      normalized.includes("name") ||
+      normalized.includes("lớp")
+    ) {
       fieldErrors.name = `lớp ${data.name.trim()} đã tồn tại`;
       fieldErrors.programId = `lớp ${data.name.trim()} đã tồn tại`;
       return new ClassFormSubmitError(fieldErrors.name, fieldErrors);
@@ -1453,20 +1732,27 @@ function buildClassSubmissionError(
   }
 
   if (normalized.includes("assistant") && normalized.includes("main")) {
-    fieldErrors.assistantTeacherId = "giáo viên phụ và giáo viên chính không được trùng nhau";
-    return new ClassFormSubmitError(fieldErrors.assistantTeacherId, fieldErrors);
+    fieldErrors.assistantTeacherId =
+      "giáo viên phụ và giáo viên chính không được trùng nhau";
+    return new ClassFormSubmitError(
+      fieldErrors.assistantTeacherId,
+      fieldErrors,
+    );
   }
 
   if (
-    normalized.includes("capacity")
-    || normalized.includes("sĩ số")
-    || normalized.includes("classfull")
+    normalized.includes("capacity") ||
+    normalized.includes("sĩ số") ||
+    normalized.includes("classfull")
   ) {
     fieldErrors.capacity = rawMessage;
     return new ClassFormSubmitError(rawMessage, fieldErrors);
   }
 
-  if (normalized.includes("start date") || normalized.includes("ngày bắt đầu")) {
+  if (
+    normalized.includes("start date") ||
+    normalized.includes("ngày bắt đầu")
+  ) {
     fieldErrors.startDate = rawMessage;
     return new ClassFormSubmitError(rawMessage, fieldErrors);
   }
@@ -1476,7 +1762,11 @@ function buildClassSubmissionError(
     return new ClassFormSubmitError(rawMessage, fieldErrors);
   }
 
-  if (normalized.includes("schedule") || normalized.includes("rrule") || normalized.includes("khung giờ")) {
+  if (
+    normalized.includes("schedule") ||
+    normalized.includes("rrule") ||
+    normalized.includes("khung giờ")
+  ) {
     fieldErrors.schedule = rawMessage;
     return new ClassFormSubmitError(rawMessage, fieldErrors);
   }
@@ -1492,9 +1782,9 @@ function buildClassStatusErrorMessage(
   const normalized = normalizeComparableText(rawMessage);
 
   if (
-    normalized.includes("invalid status transition")
-    || normalized.includes("statusunchanged")
-    || normalized.includes("không thể")
+    normalized.includes("invalid status transition") ||
+    normalized.includes("statusunchanged") ||
+    normalized.includes("không thể")
   ) {
     if (currentStatus === "Sắp khai giảng") {
       return "không thể chuyển trạng thái lớp từ sắp khai giảng sang đang học";
@@ -1523,7 +1813,9 @@ function FutureStretchModal({
   const [effectiveFrom, setEffectiveFrom] = useState(getFutureDateString(1));
   const [effectiveTo, setEffectiveTo] = useState("");
   const [targetSessions, setTargetSessions] = useState<number>(3);
-  const [selectedDays, setSelectedDays] = useState<WeekdayCode[]>(DEFAULT_DAYS_BY_TARGET[3]);
+  const [selectedDays, setSelectedDays] = useState<WeekdayCode[]>(
+    DEFAULT_DAYS_BY_TARGET[3],
+  );
   const [startTime, setStartTime] = useState("18:00");
   const [durationMinutes, setDurationMinutes] = useState<number>(120);
   const [generateSessions, setGenerateSessions] = useState(true);
@@ -1546,7 +1838,8 @@ function FutureStretchModal({
       .filter((day): day is WeekdayCode => day !== null);
 
     const suggestedTarget = currentSessionsPerWeek >= 3 ? 5 : 3;
-    const defaultDays = DEFAULT_DAYS_BY_TARGET[suggestedTarget] || DEFAULT_DAYS_BY_TARGET[3];
+    const defaultDays =
+      DEFAULT_DAYS_BY_TARGET[suggestedTarget] || DEFAULT_DAYS_BY_TARGET[3];
 
     setTargetSessions(suggestedTarget);
     setSelectedDays(defaultDays);
@@ -1613,7 +1906,8 @@ function FutureStretchModal({
     if (!confirmedImpact) {
       toast.destructive({
         title: "Thiếu xác nhận",
-        description: "Vui lòng xác nhận thay đổi chỉ áp dụng cho lịch tương lai trước khi lưu.",
+        description:
+          "Vui lòng xác nhận thay đổi chỉ áp dụng cho lịch tương lai trước khi lưu.",
       });
       return;
     }
@@ -1643,7 +1937,8 @@ function FutureStretchModal({
     } catch (err: any) {
       toast.destructive({
         title: "Giãn lịch lớp thất bại",
-        description: err?.message || "Không thể cập nhật lịch học trong tương lai.",
+        description:
+          err?.message || "Không thể cập nhật lịch học trong tương lai.",
       });
     } finally {
       setIsSubmitting(false);
@@ -1672,8 +1967,12 @@ function FutureStretchModal({
       <div className="w-full max-w-2xl rounded-2xl border border-red-200 bg-white shadow-2xl overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-red-500/10 to-red-700/10 flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-bold text-gray-900">Giãn buổi học tương lai</h3>
-            <p className="text-sm text-gray-600 mt-1">{classRow.name} ({classRow.code || classRow.id})</p>
+            <h3 className="text-lg font-bold text-gray-900">
+              Giãn buổi học tương lai
+            </h3>
+            <p className="text-sm text-gray-600 mt-1">
+              {classRow.name} ({classRow.code || classRow.id})
+            </p>
           </div>
           <button
             type="button"
@@ -1685,10 +1984,12 @@ function FutureStretchModal({
           </button>
         </div>
 
-        <div className="p-6 space-y-5 max-h-[75vh] overflow-auto">
+        <div className="p-6 space-y-5 max-h-[75vh] overflow-auto text-sm">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Ngày hiệu lực</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Ngày hiệu lực
+              </label>
               <input
                 type="date"
                 value={effectiveFrom}
@@ -1699,7 +2000,9 @@ function FutureStretchModal({
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Ngày kết thúc (tuỳ chọn)</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Ngày kết thúc (tuỳ chọn)
+              </label>
               <input
                 type="date"
                 value={effectiveTo}
@@ -1710,14 +2013,18 @@ function FutureStretchModal({
           </div>
 
           <div>
-            <div className="text-sm font-semibold text-gray-700 mb-2">Số buổi mỗi tuần</div>
+            <div className="text-sm font-semibold text-gray-700 mb-2">
+              Số buổi mỗi tuần
+            </div>
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={() => applyTargetPreset(3)}
                 className={clsx(
                   "px-3 py-1.5 rounded-lg text-sm border transition-colors",
-                  targetSessions === 3 ? "bg-red-600 text-white border-red-600" : "bg-white text-gray-700 border-gray-200 hover:bg-red-50"
+                  targetSessions === 3
+                    ? "bg-red-600 text-white border-red-600"
+                    : "bg-white text-gray-700 border-gray-200 hover:bg-red-50",
                 )}
               >
                 3 buổi/tuần
@@ -1727,7 +2034,9 @@ function FutureStretchModal({
                 onClick={() => applyTargetPreset(5)}
                 className={clsx(
                   "px-3 py-1.5 rounded-lg text-sm border transition-colors",
-                  targetSessions === 5 ? "bg-red-600 text-white border-red-600" : "bg-white text-gray-700 border-gray-200 hover:bg-red-50"
+                  targetSessions === 5
+                    ? "bg-red-600 text-white border-red-600"
+                    : "bg-white text-gray-700 border-gray-200 hover:bg-red-50",
                 )}
               >
                 5 buổi/tuần
@@ -1739,16 +2048,24 @@ function FutureStretchModal({
                   min={1}
                   max={7}
                   value={targetSessions}
-                  onChange={(e) => applyTargetPreset(Math.max(1, Math.min(7, Number(e.target.value) || 1)))}
+                  onChange={(e) =>
+                    applyTargetPreset(
+                      Math.max(1, Math.min(7, Number(e.target.value) || 1)),
+                    )
+                  }
                   className="w-16 h-8 rounded-md border border-gray-200 px-2 text-sm text-gray-800"
                 />
               </div>
-              <span className="text-xs text-gray-500">Hiện tại: {currentSessionsPerWeek} buổi/tuần</span>
+              <span className="text-xs text-gray-500">
+                Hiện tại: {currentSessionsPerWeek} buổi/tuần
+              </span>
             </div>
           </div>
 
           <div>
-            <div className="text-sm font-semibold text-gray-700 mb-2">Chọn ngày học ({selectedDays.length}/{targetSessions})</div>
+            <div className="text-sm font-semibold text-gray-700 mb-2">
+              Chọn ngày học ({selectedDays.length}/{targetSessions})
+            </div>
             <div className="flex flex-wrap gap-2">
               {FUTURE_STRETCH_DAY_OPTIONS.map((day) => {
                 const isActive = selectedSet.has(day.code);
@@ -1761,7 +2078,7 @@ function FutureStretchModal({
                       "min-w-12 px-3 py-2 rounded-lg text-sm border transition-colors",
                       isActive
                         ? "bg-red-600 text-white border-red-600"
-                        : "bg-white text-gray-700 border-gray-200 hover:bg-red-50"
+                        : "bg-white text-gray-700 border-gray-200 hover:bg-red-50",
                     )}
                   >
                     {day.label}
@@ -1773,7 +2090,9 @@ function FutureStretchModal({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Giờ bắt đầu</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Giờ bắt đầu
+              </label>
               <input
                 type="time"
                 value={startTime}
@@ -1782,13 +2101,17 @@ function FutureStretchModal({
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Thời lượng (phút)</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Thời lượng (phút)
+              </label>
               <input
                 type="number"
                 min={30}
                 step={15}
                 value={durationMinutes}
-                onChange={(e) => setDurationMinutes(Math.max(30, Number(e.target.value) || 30))}
+                onChange={(e) =>
+                  setDurationMinutes(Math.max(30, Number(e.target.value) || 30))
+                }
                 className="w-full h-10 rounded-xl border border-gray-200 px-3 text-sm text-gray-800"
               />
             </div>
@@ -1824,14 +2147,19 @@ function FutureStretchModal({
                 className="h-4 w-4 rounded border-amber-300 mt-0.5"
               />
               <span>
-                Tôi xác nhận thay đổi này sẽ ảnh hưởng đến lịch học tương lai của lớp và có thể tạo lại danh sách buổi học.
+                Tôi xác nhận thay đổi này sẽ ảnh hưởng đến lịch học tương lai
+                của lớp và có thể tạo lại danh sách buổi học.
               </span>
             </label>
           </div>
 
           <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-            <div className="text-sm font-semibold text-red-700">Preview RRULE</div>
-            <div className="text-xs text-red-700 mt-1 break-all">{previewPayload || "Chưa đủ dữ liệu để tạo RRULE"}</div>
+            <div className="text-sm font-semibold text-red-700">
+              Preview RRULE
+            </div>
+            <div className="text-xs text-red-700 mt-1 break-all">
+              {previewPayload || "Chưa đủ dữ liệu để tạo RRULE"}
+            </div>
           </div>
         </div>
 
@@ -1849,7 +2177,11 @@ function FutureStretchModal({
             disabled={isSubmitting || !confirmedImpact}
             className="px-4 py-2 rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
           >
-            {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+            {isSubmitting ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <Check size={16} />
+            )}
             {isSubmitting ? "Đang lưu..." : "Lưu giãn lịch"}
           </button>
         </div>
@@ -1858,7 +2190,7 @@ function FutureStretchModal({
   );
 }
 
-function CreateClassModal({
+function  CreateClassModal({
   isOpen,
   onClose,
   onSubmit,
@@ -1870,27 +2202,41 @@ function CreateClassModal({
 }: CreateClassModalProps) {
   const { toast } = useToast();
   const [formData, setFormData] = useState<ClassFormData>(initialFormData);
-  const [errors, setErrors] = useState<Partial<Record<keyof ClassFormData, string>>>({});
+  const [errors, setErrors] = useState<
+    Partial<Record<keyof ClassFormData, string>>
+  >({});
   const modalRef = useRef<HTMLDivElement>(null);
   const prevBranchIdRef = useRef<string>("");
   const [programOptions, setProgramOptions] = useState<SelectOption[]>([]);
   const [branchOptions, setBranchOptions] = useState<SelectOption[]>([]);
   const [teacherOptions, setTeacherOptions] = useState<SelectOption[]>([]);
   const [roomOptions, setRoomOptions] = useState<SelectOption[]>([]);
-  const [allRooms, setAllRooms] = useState<{ id: string; name: string; capacity: number }[]>([]);
-  const [existingClasses, setExistingClasses] = useState<{ id: string; name: string; schedule: string; roomId: string }[]>([]);
+  const [allRooms, setAllRooms] = useState<
+    { id: string; name: string; capacity: number }[]
+  >([]);
+  const [existingClasses, setExistingClasses] = useState<
+    { id: string; name: string; schedule: string; roomId: string }[]
+  >([]);
   const [roomConflictWarning, setRoomConflictWarning] = useState<string>("");
-  const [conflictRoomIds, setConflictRoomIds] = useState<Set<string>>(new Set());
+  const [conflictRoomIds, setConflictRoomIds] = useState<Set<string>>(
+    new Set(),
+  );
   const [loadingOptions, setLoadingOptions] = useState(false);
-  
+
   // States cho UI chọn lịch học theo từng ngày
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
-  const [daySchedules, setDaySchedules] = useState<Record<string, { startTime: string; endTime: string }>>({});
-  const [dayScheduleMode, setDayScheduleMode] = useState<Record<string, "preset" | "custom">>({});
+  const [daySchedules, setDaySchedules] = useState<
+    Record<string, { startTime: string; endTime: string }>
+  >({});
+  const [dayScheduleMode, setDayScheduleMode] = useState<
+    Record<string, "preset" | "custom">
+  >({});
   const [sessionsPerWeek, setSessionsPerWeek] = useState<number>(2);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const dayToWeekdayCode = (dayValue: string): ScheduleSlot["dayOfWeek"] | null => {
+  const dayToWeekdayCode = (
+    dayValue: string,
+  ): ScheduleSlot["dayOfWeek"] | null => {
     const map: Record<string, ScheduleSlot["dayOfWeek"]> = {
       "2": "MO",
       "3": "TU",
@@ -1946,9 +2292,11 @@ function CreateClassModal({
   // Helper function to format days string
   const formatDaysString = (days: string[]): string => {
     const dayOrder = ["2", "3", "4", "5", "6", "7", "CN"];
-    const sortedDays = [...days].sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b));
-    
-    const thuDays = sortedDays.filter(d => d !== "CN");
+    const sortedDays = [...days].sort(
+      (a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b),
+    );
+
+    const thuDays = sortedDays.filter((d) => d !== "CN");
     const hasSunday = sortedDays.includes("CN");
 
     if (thuDays.length > 0) {
@@ -1961,7 +2309,7 @@ function CreateClassModal({
 
   // Hàm xử lý chọn/bỏ chọn ngày
   const toggleDay = (dayValue: string) => {
-    setSelectedDays(prev => {
+    setSelectedDays((prev) => {
       if (prev.includes(dayValue)) {
         setDaySchedules((current) => {
           const next = { ...current };
@@ -1973,7 +2321,7 @@ function CreateClassModal({
           delete next[dayValue];
           return next;
         });
-        return prev.filter(d => d !== dayValue);
+        return prev.filter((d) => d !== dayValue);
       } else {
         // Nếu số ngày đã chọn >= sessionsPerWeek, không cho chọn thêm
         if (prev.length >= sessionsPerWeek) {
@@ -2001,7 +2349,8 @@ function CreateClassModal({
       setSelectedDays((prev) => {
         const nextDays = prev.slice(0, value);
         setDaySchedules((current) => {
-          const next: Record<string, { startTime: string; endTime: string }> = {};
+          const next: Record<string, { startTime: string; endTime: string }> =
+            {};
           for (const day of nextDays) {
             if (current[day]) {
               next[day] = current[day];
@@ -2040,7 +2389,9 @@ function CreateClassModal({
   useEffect(() => {
     if (selectedDays.length > 0) {
       const dayOrder = ["2", "3", "4", "5", "6", "7", "CN"];
-      const sortedDays = [...selectedDays].sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b));
+      const sortedDays = [...selectedDays].sort(
+        (a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b),
+      );
 
       const weeklyScheduleSlots: ScheduleSlot[] = [];
       const previewParts: string[] = [];
@@ -2054,7 +2405,8 @@ function CreateClassModal({
 
         const [startHour, startMinute] = slot.startTime.split(":").map(Number);
         const [endHour, endMinute] = slot.endTime.split(":").map(Number);
-        const durationMinutes = (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
+        const durationMinutes =
+          endHour * 60 + endMinute - (startHour * 60 + startMinute);
         if (durationMinutes <= 0) continue;
 
         weeklyScheduleSlots.push({
@@ -2063,7 +2415,9 @@ function CreateClassModal({
           durationMinutes,
         });
 
-        previewParts.push(`${formatSlotDayLabel(day)} (${slot.startTime} - ${slot.endTime})`);
+        previewParts.push(
+          `${formatSlotDayLabel(day)} (${slot.startTime} - ${slot.endTime})`,
+        );
       }
 
       handleChange("weeklyScheduleSlots", weeklyScheduleSlots);
@@ -2099,21 +2453,26 @@ function CreateClassModal({
     (async () => {
       try {
         setLoadingOptions(true);
-        const [programs, teachers, rooms, existingClassesData] = await Promise.all([
-          fetchProgramOptionsByBranch(branchId),
-          fetchTeacherOptionsByBranch(branchId),
-          fetchAdminRooms({ branchId }),
-          fetchAdminClasses({ branchId }),
-        ]);
-        
+        const [programs, teachers, rooms, existingClassesData] =
+          await Promise.all([
+            fetchProgramOptionsByBranch(branchId),
+            fetchTeacherOptionsByBranch(branchId),
+            fetchAdminRooms({ branchId }),
+            fetchAdminClasses({ branchId }),
+          ]);
+
         if (cancelled) return;
-        
+
         // Lọc chỉ lấy các chương trình đang hoạt động
-        const activePrograms = programs.filter((p: any) => p.status === "Đang hoạt động");
+        const activePrograms = programs.filter(
+          (p: any) => p.status === "Đang hoạt động",
+        );
         setProgramOptions(activePrograms);
         setTeacherOptions(teachers);
-        setAllRooms(rooms.map((r) => ({ id: r.id, name: r.name, capacity: r.capacity })));
-        
+        setAllRooms(
+          rooms.map((r) => ({ id: r.id, name: r.name, capacity: r.capacity })),
+        );
+
         // Lưu danh sách lớp hiện có để kiểm tra trùng lịch
         setExistingClasses(
           existingClassesData
@@ -2123,32 +2482,39 @@ function CreateClassModal({
               name: c.name || c.sub || "Lớp học",
               schedule: c.schedule,
               roomId: c.roomId || "",
-            }))
+            })),
         );
-        
+
         // Lọc phòng theo sĩ số hiện tại nếu có
         const currentCapacity = formData.capacity || 0;
-        const filteredRooms = rooms.filter((r) => r.capacity >= currentCapacity).map((r) => ({ id: r.id, name: r.name }));
+        const filteredRooms = rooms
+          .filter((r) => r.capacity >= currentCapacity)
+          .map((r) => ({ id: r.id, name: r.name }));
         setRoomOptions(filteredRooms);
 
         // Chỉ reset formData nếu branchId thực sự thay đổi (user chọn branch khác)
         // Không reset khi lần đầu load options từ initialData
-        const branchChanged = prevBranchIdRef.current && prevBranchIdRef.current !== branchId;
-        
+        const branchChanged =
+          prevBranchIdRef.current && prevBranchIdRef.current !== branchId;
+
         if (branchChanged) {
           const programIds = new Set(programs.map((p) => p.id));
           const teacherIds = new Set(teachers.map((t) => t.id));
           const roomIds = new Set(rooms.map((r) => r.id));
-          
+
           setFormData((prev) => ({
             ...prev,
             programId: programIds.has(prev.programId) ? prev.programId : "",
-            mainTeacherId: teacherIds.has(prev.mainTeacherId) ? prev.mainTeacherId : "",
-            assistantTeacherId: teacherIds.has(prev.assistantTeacherId) ? prev.assistantTeacherId : "",
+            mainTeacherId: teacherIds.has(prev.mainTeacherId)
+              ? prev.mainTeacherId
+              : "",
+            assistantTeacherId: teacherIds.has(prev.assistantTeacherId)
+              ? prev.assistantTeacherId
+              : "",
             roomId: roomIds.has(prev.roomId) ? prev.roomId : "",
           }));
         }
-        
+
         // Cập nhật ref để track branchId
         prevBranchIdRef.current = branchId;
       } catch (err) {
@@ -2173,9 +2539,11 @@ function CreateClassModal({
   useEffect(() => {
     if (allRooms.length > 0) {
       const currentCapacity = formData.capacity || 0;
-      const filteredRooms = allRooms.filter((r) => r.capacity >= currentCapacity).map((r) => ({ id: r.id, name: r.name }));
+      const filteredRooms = allRooms
+        .filter((r) => r.capacity >= currentCapacity)
+        .map((r) => ({ id: r.id, name: r.name }));
       setRoomOptions(filteredRooms);
-      
+
       // Nếu phòng đang chọn không còn phù hợp với sĩ số mới -> reset
       const selectedRoom = filteredRooms.find((r) => r.id === formData.roomId);
       if (!selectedRoom && formData.roomId) {
@@ -2186,7 +2554,10 @@ function CreateClassModal({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+      if (
+        modalRef.current &&
+        !modalRef.current.contains(event.target as Node)
+      ) {
         onClose();
       }
     };
@@ -2207,14 +2578,20 @@ function CreateClassModal({
     if (isOpen) {
       if (mode === "edit" && initialData) {
         setFormData(initialData);
-        if (Array.isArray(initialData.weeklyScheduleSlots) && initialData.weeklyScheduleSlots.length > 0) {
+        if (
+          Array.isArray(initialData.weeklyScheduleSlots) &&
+          initialData.weeklyScheduleSlots.length > 0
+        ) {
           const dayOrder = ["2", "3", "4", "5", "6", "7", "CN"];
           const parsedDays = initialData.weeklyScheduleSlots
             .map((slot) => {
               const dayValue = weekdayCodeToDay(slot.dayOfWeek);
               const [h, m] = slot.startTime.split(":").map(Number);
               const endTotal = h * 60 + m + slot.durationMinutes;
-              const endHour = String(Math.floor(endTotal / 60)).padStart(2, "0");
+              const endHour = String(Math.floor(endTotal / 60)).padStart(
+                2,
+                "0",
+              );
               const endMinute = String(endTotal % 60).padStart(2, "0");
 
               return {
@@ -2223,22 +2600,37 @@ function CreateClassModal({
                 endTime: `${endHour}:${endMinute}`,
               };
             })
-            .sort((a, b) => dayOrder.indexOf(a.dayValue) - dayOrder.indexOf(b.dayValue));
+            .sort(
+              (a, b) =>
+                dayOrder.indexOf(a.dayValue) - dayOrder.indexOf(b.dayValue),
+            );
 
           setSelectedDays(parsedDays.map((item) => item.dayValue));
           setSessionsPerWeek(parsedDays.length);
           setDaySchedules(
-            parsedDays.reduce<Record<string, { startTime: string; endTime: string }>>((acc, item) => {
-              acc[item.dayValue] = { startTime: item.startTime, endTime: item.endTime };
+            parsedDays.reduce<
+              Record<string, { startTime: string; endTime: string }>
+            >((acc, item) => {
+              acc[item.dayValue] = {
+                startTime: item.startTime,
+                endTime: item.endTime,
+              };
               return acc;
-            }, {})
+            }, {}),
           );
           setDayScheduleMode(
-            parsedDays.reduce<Record<string, "preset" | "custom">>((acc, item) => {
-              const presetValue = `${item.startTime}-${item.endTime}`;
-              acc[item.dayValue] = TIME_SLOTS.some((timeSlot) => timeSlot.value === presetValue) ? "preset" : "custom";
-              return acc;
-            }, {})
+            parsedDays.reduce<Record<string, "preset" | "custom">>(
+              (acc, item) => {
+                const presetValue = `${item.startTime}-${item.endTime}`;
+                acc[item.dayValue] = TIME_SLOTS.some(
+                  (timeSlot) => timeSlot.value === presetValue,
+                )
+                  ? "preset"
+                  : "custom";
+                return acc;
+              },
+              {},
+            ),
           );
           setErrors({});
           return;
@@ -2246,11 +2638,13 @@ function CreateClassModal({
 
         // Parse initial schedule để set selectedDays, time slot nếu có
         if (initialData.schedule) {
-          const match = initialData.schedule.match(/(.+?)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/);
+          const match = initialData.schedule.match(
+            /(.+?)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/,
+          );
           if (match) {
             const dayPart = match[1];
             const slotFromSchedule = { startTime: match[2], endTime: match[3] };
-            
+
             // Parse days
             const days: string[] = [];
             if (dayPart.includes("Thứ")) {
@@ -2262,22 +2656,28 @@ function CreateClassModal({
             } else if (dayPart === "CN") {
               days.push("CN");
             }
-            
+
             setSelectedDays(days);
             setSessionsPerWeek(days.length);
 
             setDaySchedules(
-              days.reduce<Record<string, { startTime: string; endTime: string }>>((acc, day) => {
+              days.reduce<
+                Record<string, { startTime: string; endTime: string }>
+              >((acc, day) => {
                 acc[day] = slotFromSchedule;
                 return acc;
-              }, {})
+              }, {}),
             );
             setDayScheduleMode(
               days.reduce<Record<string, "preset" | "custom">>((acc, day) => {
                 const presetValue = `${slotFromSchedule.startTime}-${slotFromSchedule.endTime}`;
-                acc[day] = TIME_SLOTS.some((timeSlot) => timeSlot.value === presetValue) ? "preset" : "custom";
+                acc[day] = TIME_SLOTS.some(
+                  (timeSlot) => timeSlot.value === presetValue,
+                )
+                  ? "preset"
+                  : "custom";
                 return acc;
-              }, {})
+              }, {}),
             );
           }
         }
@@ -2295,13 +2695,18 @@ function CreateClassModal({
   }, [isOpen, mode, initialData]);
 
   // Hàm kiểm tra trùng lịch phòng học
-  const checkRoomScheduleConflict = (roomId: string, schedule: string): string[] => {
+  const checkRoomScheduleConflict = (
+    roomId: string,
+    schedule: string,
+  ): string[] => {
     if (!roomId || !schedule || existingClasses.length === 0) return [];
 
     const conflicts: string[] = [];
-    
+
     // Parse schedule mới: "Thứ 2,4,6 (18:00 - 20:00)"
-    const newScheduleMatch = schedule.match(/(.+?)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/);
+    const newScheduleMatch = schedule.match(
+      /(.+?)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/,
+    );
     if (!newScheduleMatch) return [];
 
     const newDays = newScheduleMatch[1];
@@ -2322,7 +2727,9 @@ function CreateClassModal({
       // Chỉ kiểm tra các lớp cùng phòng
       if (cls.roomId !== roomId) continue;
 
-      const existingScheduleMatch = cls.schedule.match(/(.+?)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/);
+      const existingScheduleMatch = cls.schedule.match(
+        /(.+?)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/,
+      );
       if (!existingScheduleMatch) continue;
 
       const existingDays = existingScheduleMatch[1];
@@ -2340,7 +2747,9 @@ function CreateClassModal({
       }
 
       // Kiểm tra xem có ngày trùng nhau không
-      const commonDays = newDayValues.filter(d => existingDayValues.includes(d));
+      const commonDays = newDayValues.filter((d) =>
+        existingDayValues.includes(d),
+      );
       if (commonDays.length === 0) continue;
 
       // Kiểm tra xem có giờ trùng nhau không
@@ -2355,9 +2764,14 @@ function CreateClassModal({
   // Kiểm tra trùng lịch phòng khi roomId hoặc schedule thay đổi
   useEffect(() => {
     if (formData.roomId && formData.schedule) {
-      const conflicts = checkRoomScheduleConflict(formData.roomId, formData.schedule);
+      const conflicts = checkRoomScheduleConflict(
+        formData.roomId,
+        formData.schedule,
+      );
       if (conflicts.length > 0) {
-        setRoomConflictWarning(`Cảnh báo: Phòng đã có lớp học ${conflicts.join(", ")}`);
+        setRoomConflictWarning(
+          `Cảnh báo: Phòng đã có lớp học ${conflicts.join(", ")}`,
+        );
       } else {
         setRoomConflictWarning("");
       }
@@ -2365,7 +2779,10 @@ function CreateClassModal({
       // Tìm các phòng bị trùng lịch
       const conflicts2 = new Set<string>();
       for (const room of allRooms) {
-        const roomConflicts = checkRoomScheduleConflict(room.id, formData.schedule);
+        const roomConflicts = checkRoomScheduleConflict(
+          room.id,
+          formData.schedule,
+        );
         if (roomConflicts.length > 0) {
           conflicts2.add(room.id);
         }
@@ -2377,7 +2794,10 @@ function CreateClassModal({
       if (formData.schedule) {
         const conflicts2 = new Set<string>();
         for (const room of allRooms) {
-          const roomConflicts = checkRoomScheduleConflict(room.id, formData.schedule);
+          const roomConflicts = checkRoomScheduleConflict(
+            room.id,
+            formData.schedule,
+          );
           if (roomConflicts.length > 0) {
             conflicts2.add(room.id);
           }
@@ -2390,11 +2810,15 @@ function CreateClassModal({
   }, [formData.roomId, formData.schedule, existingClasses, allRooms]);
 
   const focusFirstInvalidField = (fieldErrors: ClassFieldErrors) => {
-    const firstField = CLASS_FORM_FIELD_ORDER.find((field) => fieldErrors[field]);
+    const firstField = CLASS_FORM_FIELD_ORDER.find(
+      (field) => fieldErrors[field],
+    );
     if (!firstField) return;
 
     window.setTimeout(() => {
-      const target = modalRef.current?.querySelector<HTMLElement>(`[data-field="${firstField}"]`);
+      const target = modalRef.current?.querySelector<HTMLElement>(
+        `[data-field="${firstField}"]`,
+      );
       if (!target) return;
       target.scrollIntoView({ behavior: "smooth", block: "center" });
       const focusable = target.matches("input, select, textarea, button")
@@ -2408,41 +2832,59 @@ function CreateClassModal({
     const newErrors: ClassFieldErrors = {};
     const today = getTodayDateString();
     const selectedProgramName =
-      programOptions.find((program) => program.id === formData.programId)?.name || "";
-    const initialScheduleMeta = extractScheduleMeta(initialData?.schedule || "");
+      programOptions.find((program) => program.id === formData.programId)
+        ?.name || "";
+    const initialScheduleMeta = extractScheduleMeta(
+      initialData?.schedule || "",
+    );
     const currentScheduleMeta = extractScheduleMeta(formData.schedule || "");
 
     if (!formData.code.trim()) newErrors.code = "mã lớp là bắt buộc";
     if (!formData.name.trim()) newErrors.name = "tên lớp là bắt buộc";
     if (!formData.programId) newErrors.programId = "chương trình là bắt buộc";
     if (!formData.branchId) newErrors.branchId = "chi nhánh là bắt buộc";
-    if (!formData.mainTeacherId) newErrors.mainTeacherId = "giáo viên chính là bắt buộc";
+    if (!formData.mainTeacherId)
+      newErrors.mainTeacherId = "giáo viên chính là bắt buộc";
 
     if (
-      formData.mainTeacherId
-      && formData.assistantTeacherId
-      && formData.mainTeacherId === formData.assistantTeacherId
+      formData.mainTeacherId &&
+      formData.assistantTeacherId &&
+      formData.mainTeacherId === formData.assistantTeacherId
     ) {
-      newErrors.assistantTeacherId = "giáo viên phụ và giáo viên chính không được trùng nhau";
+      newErrors.assistantTeacherId =
+        "giáo viên phụ và giáo viên chính không được trùng nhau";
     }
 
     if (formData.capacity <= 0) {
       newErrors.capacity = "sĩ số tối thiểu phải lớn hơn 0";
     }
 
-    if (mode === "edit" && currentEnrollmentCount > 0 && formData.capacity < currentEnrollmentCount) {
-      newErrors.capacity = "sỉ số mới không được nhỏ hơn sỉ số học sinh đã tham gia vào lớp";
+    if (
+      mode === "edit" &&
+      currentEnrollmentCount > 0 &&
+      formData.capacity < currentEnrollmentCount
+    ) {
+      newErrors.capacity =
+        "sỉ số mới không được nhỏ hơn sỉ số học sinh đã tham gia vào lớp";
     }
 
     if (!formData.startDate) {
       newErrors.startDate = "ngày bắt đầu là bắt buộc";
     }
 
-    if (formData.startDate && formData.endDate && formData.startDate > formData.endDate) {
+    if (
+      formData.startDate &&
+      formData.endDate &&
+      formData.startDate > formData.endDate
+    ) {
       newErrors.endDate = "ngày kết thúc phải sau ngày bắt đầu";
     }
 
-    if (formData.status === "Sắp khai giảng" && formData.startDate && formData.startDate < today) {
+    if (
+      formData.status === "Sắp khai giảng" &&
+      formData.startDate &&
+      formData.startDate < today
+    ) {
       newErrors.startDate = "không thể chọn ngày trong quá khứ";
     }
 
@@ -2466,8 +2908,9 @@ function CreateClassModal({
 
     const duplicatedCode = existingClassRows.some(
       (row) =>
-        row.id !== currentClassId
-        && normalizeComparableText(row.code) === normalizeComparableText(formData.code),
+        row.id !== currentClassId &&
+        normalizeComparableText(row.code) ===
+          normalizeComparableText(formData.code),
     );
     if (formData.code.trim() && duplicatedCode) {
       newErrors.code = `mã lớp ${formData.code.trim()} đã tồn tại`;
@@ -2475,11 +2918,17 @@ function CreateClassModal({
 
     const duplicatedNameInProgram = existingClassRows.some(
       (row) =>
-        row.id !== currentClassId
-        && normalizeComparableText(row.name) === normalizeComparableText(formData.name)
-        && normalizeComparableText(row.sub) === normalizeComparableText(selectedProgramName),
+        row.id !== currentClassId &&
+        normalizeComparableText(row.name) ===
+          normalizeComparableText(formData.name) &&
+        normalizeComparableText(row.sub) ===
+          normalizeComparableText(selectedProgramName),
     );
-    if (formData.name.trim() && selectedProgramName && duplicatedNameInProgram) {
+    if (
+      formData.name.trim() &&
+      selectedProgramName &&
+      duplicatedNameInProgram
+    ) {
       newErrors.name = `lớp ${formData.name.trim()} đã tồn tại`;
       newErrors.programId = `lớp ${formData.name.trim()} đã tồn tại`;
     }
@@ -2496,10 +2945,11 @@ function CreateClassModal({
       const initialDays = initialScheduleMeta.days.join(",");
       const currentDays = currentScheduleMeta.days.join(",");
       if (initialDays !== currentDays) {
-        newErrors.schedule = "không thể update số buổi học mỗi tuần khi lớp đang học";
+        newErrors.schedule =
+          "không thể update số buổi học mỗi tuần khi lớp đang học";
       } else if (
-        initialScheduleMeta.startTime !== currentScheduleMeta.startTime
-        || initialScheduleMeta.endTime !== currentScheduleMeta.endTime
+        initialScheduleMeta.startTime !== currentScheduleMeta.startTime ||
+        initialScheduleMeta.endTime !== currentScheduleMeta.endTime
       ) {
         newErrors.schedule = "không thể update khung giờ học khi lớp đang học";
       }
@@ -2520,10 +2970,15 @@ function CreateClassModal({
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
-      const firstErrorMessage = CLASS_FORM_FIELD_ORDER.map((field) => newErrors[field]).find(Boolean);
+      const firstErrorMessage = CLASS_FORM_FIELD_ORDER.map(
+        (field) => newErrors[field],
+      ).find(Boolean);
       if (firstErrorMessage) {
         toast.destructive({
-          title: mode === "edit" ? "Cập nhật lớp học thất bại" : "Tạo lớp học thất bại",
+          title:
+            mode === "edit"
+              ? "Cập nhật lớp học thất bại"
+              : "Tạo lớp học thất bại",
           description: firstErrorMessage,
         });
       }
@@ -2540,9 +2995,12 @@ function CreateClassModal({
           const weekdayCode = dayToWeekdayCode(day);
           if (!slot || !weekdayCode) return null;
 
-          const [startHour, startMinute] = slot.startTime.split(":").map(Number);
+          const [startHour, startMinute] = slot.startTime
+            .split(":")
+            .map(Number);
           const [endHour, endMinute] = slot.endTime.split(":").map(Number);
-          const durationMinutes = (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
+          const durationMinutes =
+            endHour * 60 + endMinute - (startHour * 60 + startMinute);
           if (durationMinutes <= 0) return null;
 
           return {
@@ -2559,7 +3017,10 @@ function CreateClassModal({
       });
       onClose();
     } catch (error) {
-      if (error instanceof ClassFormSubmitError && Object.keys(error.fieldErrors).length > 0) {
+      if (
+        error instanceof ClassFormSubmitError &&
+        Object.keys(error.fieldErrors).length > 0
+      ) {
         setErrors(error.fieldErrors);
         focusFirstInvalidField(error.fieldErrors);
       }
@@ -2568,21 +3029,24 @@ function CreateClassModal({
     }
   };
 
-
   const handleChange = (field: keyof ClassFormData, value: any) => {
-    setFormData(prev => {
+    setFormData((prev) => {
       const newData = { ...prev, [field]: value };
 
       // Khi thay đổi endDate hoặc schedule hoặc startDate -> tự tính totalSessions
       if (
-        (field === "endDate" || field === "schedule" || field === "startDate") &&
-        newData.startDate && newData.endDate && newData.schedule &&
+        (field === "endDate" ||
+          field === "schedule" ||
+          field === "startDate") &&
+        newData.startDate &&
+        newData.endDate &&
+        newData.schedule &&
         newData.endDate >= newData.startDate
       ) {
         const calculatedSessions = calculateTotalSessionsFromDateRange(
           newData.startDate,
           newData.endDate,
-          newData.schedule
+          newData.schedule,
         );
         if (calculatedSessions > 0) {
           newData.totalSessions = calculatedSessions;
@@ -2593,7 +3057,7 @@ function CreateClassModal({
     });
 
     if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: undefined }));
+      setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
   };
 
@@ -2601,7 +3065,7 @@ function CreateClassModal({
 
   return (
     <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div 
+      <div
         ref={modalRef}
         className="relative w-full max-w-4xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden"
       >
@@ -2613,11 +3077,13 @@ function CreateClassModal({
                 <GraduationCap size={24} className="text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-white">
+                <h2 className="text-xl font-bold text-white">
                   {mode === "edit" ? "Cập nhật lớp học" : "Tạo lớp học mới"}
                 </h2>
                 <p className="text-sm text-red-100">
-                  {mode === "edit" ? "Chỉnh sửa thông tin lớp học" : "Nhập thông tin chi tiết về lớp học mới"}
+                  {mode === "edit"
+                    ? "Chỉnh sửa thông tin lớp học"
+                    : "Nhập thông tin chi tiết về lớp học mới"}
                 </p>
               </div>
             </div>
@@ -2632,7 +3098,7 @@ function CreateClassModal({
         </div>
 
         {/* Modal Body */}
-        <div className="p-6 max-h-[70vh] overflow-y-auto">
+        <div className="p-6 max-h-[70vh] overflow-y-auto text-sm">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Row 1: Mã lớp & Tên lớp */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -2650,7 +3116,7 @@ function CreateClassModal({
                     className={clsx(
                       "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
                       "focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
-                      errors.code ? "border-red-500" : "border-gray-200"
+                      errors.code ? "border-red-500" : "border-gray-200",
                     )}
                     placeholder="VD: TS12, TS19..."
                   />
@@ -2660,7 +3126,11 @@ function CreateClassModal({
                     </div>
                   )}
                 </div>
-                {errors.code && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.code}</p>}
+                {errors.code && (
+                  <p className="text-sm text-red-600 flex items-center gap-1">
+                    <AlertCircle size={14} /> {errors.code}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -2677,7 +3147,7 @@ function CreateClassModal({
                     className={clsx(
                       "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
                       "focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
-                      errors.name ? "border-red-500" : "border-gray-200"
+                      errors.name ? "border-red-500" : "border-gray-200",
                     )}
                     placeholder="VD: Lập trình Python cơ bản"
                   />
@@ -2687,7 +3157,11 @@ function CreateClassModal({
                     </div>
                   )}
                 </div>
-                {errors.name && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.name}</p>}
+                {errors.name && (
+                  <p className="text-sm text-red-600 flex items-center gap-1">
+                    <AlertCircle size={14} /> {errors.name}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -2697,11 +3171,18 @@ function CreateClassModal({
                 isOpen={isOpen}
                 mode={mode}
                 value={formData.branchId}
-                options={branchOptions.map((branch) => ({ id: branch.id, label: branch.name }))}
+                options={branchOptions.map((branch) => ({
+                  id: branch.id,
+                  label: branch.name,
+                }))}
                 onValueChange={(value) => handleChange("branchId", value)}
                 error={errors.branchId}
                 disabled={loadingOptions}
-                placeholder={loadingOptions ? "Đang tải chi nhánh..." : "Vui lòng chọn chi nhánh"}
+                placeholder={
+                  loadingOptions
+                    ? "Đang tải chi nhánh..."
+                    : "Vui lòng chọn chi nhánh"
+                }
                 dataField="branchId"
               />
 
@@ -2719,18 +3200,28 @@ function CreateClassModal({
                     data-field="programId"
                     className={clsx(
                       "w-full",
-                      errors.programId ? "border-red-500" : "border-gray-200"
+                      errors.programId ? "border-red-500" : "border-gray-200",
                     )}
                   >
-                    <SelectValue placeholder={loadingOptions ? "Đang tải..." : "Chọn chương trình"} />
+                    <SelectValue
+                      placeholder={
+                        loadingOptions ? "Đang tải..." : "Chọn chương trình"
+                      }
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {programOptions.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                {errors.programId && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.programId}</p>}
+                {errors.programId && (
+                  <p className="text-sm text-red-600 flex items-center gap-1">
+                    <AlertCircle size={14} /> {errors.programId}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -2750,18 +3241,30 @@ function CreateClassModal({
                     data-field="mainTeacherId"
                     className={clsx(
                       "w-full",
-                      errors.mainTeacherId ? "border-red-500" : "border-gray-200"
+                      errors.mainTeacherId
+                        ? "border-red-500"
+                        : "border-gray-200",
                     )}
                   >
-                    <SelectValue placeholder={loadingOptions ? "Đang tải..." : "Chọn giáo viên chính"} />
+                    <SelectValue
+                      placeholder={
+                        loadingOptions ? "Đang tải..." : "Chọn giáo viên chính"
+                      }
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {teacherOptions.map((t) => (
-                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.name}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                {errors.mainTeacherId && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.mainTeacherId}</p>}
+                {errors.mainTeacherId && (
+                  <p className="text-sm text-red-600 flex items-center gap-1">
+                    <AlertCircle size={14} /> {errors.mainTeacherId}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -2771,25 +3274,41 @@ function CreateClassModal({
                 </label>
                 <Select
                   value={formData.assistantTeacherId}
-                  onValueChange={(val) => handleChange("assistantTeacherId", val)}
+                  onValueChange={(val) =>
+                    handleChange("assistantTeacherId", val)
+                  }
                   disabled={loadingOptions}
                 >
                   <SelectTrigger
                     data-field="assistantTeacherId"
                     className={clsx(
                       "w-full",
-                      errors.assistantTeacherId ? "border-red-500" : "border-gray-200"
+                      errors.assistantTeacherId
+                        ? "border-red-500"
+                        : "border-gray-200",
                     )}
                   >
-                    <SelectValue placeholder={loadingOptions ? "Đang tải..." : "Chọn giáo viên phụ (tùy chọn)"} />
+                    <SelectValue
+                      placeholder={
+                        loadingOptions
+                          ? "Đang tải..."
+                          : "Chọn giáo viên phụ (tùy chọn)"
+                      }
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {teacherOptions.map((t) => (
-                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.name}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                {errors.assistantTeacherId && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.assistantTeacherId}</p>}
+                {errors.assistantTeacherId && (
+                  <p className="text-sm text-red-600 flex items-center gap-1">
+                    <AlertCircle size={14} /> {errors.assistantTeacherId}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -2806,11 +3325,13 @@ function CreateClassModal({
                   min="1"
                   max="100"
                   value={formData.capacity}
-                  onChange={(e) => handleChange("capacity", parseInt(e.target.value) || 0)}
+                  onChange={(e) =>
+                    handleChange("capacity", parseInt(e.target.value) || 0)
+                  }
                   className={clsx(
                     "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
                     "focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
-                    errors.capacity ? "border-red-500" : "border-gray-200"
+                    errors.capacity ? "border-red-500" : "border-gray-200",
                   )}
                 />
                 {errors.capacity && (
@@ -2819,7 +3340,11 @@ function CreateClassModal({
                   </div>
                 )}
               </div>
-              {errors.capacity && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.capacity}</p>}
+              {errors.capacity && (
+                <p className="text-sm text-red-600 flex items-center gap-1">
+                  <AlertCircle size={14} /> {errors.capacity}
+                </p>
+              )}
             </div>
 
             {/* Row 4: Ngày bắt đầu & Kết thúc */}
@@ -2838,7 +3363,7 @@ function CreateClassModal({
                     className={clsx(
                       "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
                       "focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
-                      errors.startDate ? "border-red-500" : "border-gray-200"
+                      errors.startDate ? "border-red-500" : "border-gray-200",
                     )}
                   />
                   {errors.startDate && (
@@ -2847,7 +3372,11 @@ function CreateClassModal({
                     </div>
                   )}
                 </div>
-                {errors.startDate && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.startDate}</p>}
+                {errors.startDate && (
+                  <p className="text-sm text-red-600 flex items-center gap-1">
+                    <AlertCircle size={14} /> {errors.startDate}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -2865,7 +3394,7 @@ function CreateClassModal({
                     className={clsx(
                       "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
                       "focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
-                      errors.endDate ? "border-red-500" : "border-gray-200"
+                      errors.endDate ? "border-red-500" : "border-gray-200",
                     )}
                   />
                   {errors.endDate && (
@@ -2874,15 +3403,24 @@ function CreateClassModal({
                     </div>
                   )}
                 </div>
-                {errors.endDate && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.endDate}</p>}
+                {errors.endDate && (
+                  <p className="text-sm text-red-600 flex items-center gap-1">
+                    <AlertCircle size={14} /> {errors.endDate}
+                  </p>
+                )}
                 <p className="text-xs text-gray-500">
-                  {mode === "edit" ? "Chỉnh sửa ngày kết thúc để thay đổi số buổi học" : "Chọn ngày kết thúc để xác định số buổi học"}
+                  {mode === "edit"
+                    ? "Chỉnh sửa ngày kết thúc để thay đổi số buổi học"
+                    : "Chọn ngày kết thúc để xác định số buổi học"}
                 </p>
               </div>
             </div>
 
             {/* Row 5: Lịch học - UI MỚI */}
-            <div data-field="schedule" className="p-5 bg-gradient-to-br from-gray-50 to-red-50/30 rounded-xl border-2 border-dashed border-gray-200">
+            <div
+              data-field="schedule"
+              className="p-5 bg-gradient-to-br from-gray-50 to-red-50/30 rounded-xl border-2 border-dashed border-gray-200"
+            >
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-4">
                 <Clock size={16} className="text-red-600" />
                 Lịch học <span className="text-red-500">*</span>
@@ -2890,7 +3428,9 @@ function CreateClassModal({
 
               {/* Chọn số buổi/tuần */}
               <div className="space-y-2">
-                <label className="text-sm text-gray-600">Số buổi học mỗi tuần</label>
+                <label className="text-sm text-gray-600">
+                  Số buổi học mỗi tuần
+                </label>
                 <div className="flex flex-wrap gap-2">
                   {SESSIONS_PER_WEEK_OPTIONS.map((option) => (
                     <button
@@ -2901,7 +3441,7 @@ function CreateClassModal({
                         "px-4 py-2 rounded-xl border text-sm font-medium transition-all cursor-pointer",
                         sessionsPerWeek === option.value
                           ? "bg-gradient-to-r from-red-600 to-red-700 text-white border-red-600 shadow-md"
-                          : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
+                          : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50",
                       )}
                     >
                       {option.label}
@@ -2913,13 +3453,15 @@ function CreateClassModal({
               {/* Chọn các ngày trong tuần */}
               <div className="space-y-2 mt-4">
                 <label className="text-sm text-gray-600 ">
-                  Chọn ngày học (tối đa {sessionsPerWeek} ngày) <span className="text-red-500">*</span>
+                  Chọn ngày học (tối đa {sessionsPerWeek} ngày){" "}
+                  <span className="text-red-500">*</span>
                 </label>
                 <div className="flex flex-wrap gap-2">
                   {WEEK_DAYS.map((day) => {
                     const isSelected = selectedDays.includes(day.value);
-                    const isDisabled = !isSelected && selectedDays.length >= sessionsPerWeek;
-                    
+                    const isDisabled =
+                      !isSelected && selectedDays.length >= sessionsPerWeek;
+
                     return (
                       <button
                         key={day.value}
@@ -2934,12 +3476,14 @@ function CreateClassModal({
                               ? "bg-rose-100 border-rose-300 text-rose-700"
                               : "bg-blue-100 border-blue-300 text-blue-700"
                             : isDisabled
-                            ? "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"
-                            : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
+                              ? "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"
+                              : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50",
                         )}
                       >
                         <div className="flex flex-col items-center">
-                          <span className="font-semibold">{day.shortLabel}</span>
+                          <span className="font-semibold">
+                            {day.shortLabel}
+                          </span>
                           <span className="text-xs">{day.label}</span>
                         </div>
                       </button>
@@ -2948,15 +3492,18 @@ function CreateClassModal({
                 </div>
                 {selectedDays.length > 0 && (
                   <p className="text-xs text-green-600">
-                    ✓ Đã chọn {selectedDays.length}/{sessionsPerWeek} ngày: {formatDaysString(selectedDays)}
+                    ✓ Đã chọn {selectedDays.length}/{sessionsPerWeek} ngày:{" "}
+                    {formatDaysString(selectedDays)}
                   </p>
                 )}
-                {selectedDays.length > 0 && selectedDays.length < sessionsPerWeek && (
-                  <p className="text-xs text-amber-600 flex items-center gap-1">
-                    <AlertCircle size={12} />
-                    Chỉ chọn {selectedDays.length} ngày nhưng đã set {sessionsPerWeek} buổi/tuần. Lịch học sẽ bị gián đoạn.
-                  </p>
-                )}
+                {selectedDays.length > 0 &&
+                  selectedDays.length < sessionsPerWeek && (
+                    <p className="text-xs text-amber-600 flex items-center gap-1">
+                      <AlertCircle size={12} />
+                      Chỉ chọn {selectedDays.length} ngày nhưng đã set{" "}
+                      {sessionsPerWeek} buổi/tuần. Lịch học sẽ bị gián đoạn.
+                    </p>
+                  )}
                 {errors.schedule && (
                   <p className="text-sm text-red-600 flex items-center gap-1">
                     <AlertCircle size={14} /> {errors.schedule}
@@ -2971,22 +3518,38 @@ function CreateClassModal({
                 </label>
 
                 {selectedDays.length === 0 ? (
-                  <p className="text-xs text-gray-500">Chọn ngày học trước để cấu hình giờ cho từng ngày.</p>
+                  <p className="text-xs text-gray-500">
+                    Chọn ngày học trước để cấu hình giờ cho từng ngày.
+                  </p>
                 ) : (
                   <div className="space-y-3">
                     {[...selectedDays]
-                      .sort((a, b) => ["2", "3", "4", "5", "6", "7", "CN"].indexOf(a) - ["2", "3", "4", "5", "6", "7", "CN"].indexOf(b))
+                      .sort(
+                        (a, b) =>
+                          ["2", "3", "4", "5", "6", "7", "CN"].indexOf(a) -
+                          ["2", "3", "4", "5", "6", "7", "CN"].indexOf(b),
+                      )
                       .map((day) => {
-                        const slot = daySchedules[day] || { startTime: "18:00", endTime: "20:00" };
+                        const slot = daySchedules[day] || {
+                          startTime: "18:00",
+                          endTime: "20:00",
+                        };
                         const presetValue = `${slot.startTime}-${slot.endTime}`;
-                        const hasPresetValue = TIME_SLOTS.some((timeSlot) => timeSlot.value === presetValue);
+                        const hasPresetValue = TIME_SLOTS.some(
+                          (timeSlot) => timeSlot.value === presetValue,
+                        );
                         const isCustomMode = dayScheduleMode[day] === "custom";
                         const isPreset = !isCustomMode && hasPresetValue;
 
                         return (
-                          <div key={day} className="rounded-xl border border-gray-200 bg-white p-3">
+                          <div
+                            key={day}
+                            className="rounded-xl border border-gray-200 bg-white p-3"
+                          >
                             <div className="flex flex-col lg:flex-row lg:items-center gap-3">
-                              <div className="min-w-[88px] text-sm font-semibold text-gray-700">{formatSlotDayLabel(day)}</div>
+                              <div className="min-w-[88px] text-sm font-semibold text-gray-700">
+                                {formatSlotDayLabel(day)}
+                              </div>
                               <div className="flex-1">
                                 <select
                                   value={isPreset ? presetValue : "custom"}
@@ -3019,7 +3582,10 @@ function CreateClassModal({
                                   className="w-full h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700"
                                 >
                                   {TIME_SLOTS.map((timeSlot) => (
-                                    <option key={timeSlot.value} value={timeSlot.value}>
+                                    <option
+                                      key={timeSlot.value}
+                                      value={timeSlot.value}
+                                    >
                                       {timeSlot.label}
                                     </option>
                                   ))}
@@ -3077,7 +3643,12 @@ function CreateClassModal({
               <div data-field="roomId" className="space-y-2 mt-4">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                   <Building2 size={16} className="text-red-600" />
-                  Phòng học {formData.capacity > 0 && <span className="text-xs font-normal text-gray-500">(tối thiểu {formData.capacity} chỗ)</span>}
+                  Phòng học{" "}
+                  {formData.capacity > 0 && (
+                    <span className="text-xs font-normal text-gray-500">
+                      (tối thiểu {formData.capacity} chỗ)
+                    </span>
+                  )}
                 </label>
                 {formData.branchId ? (
                   allRooms.length > 0 ? (
@@ -3085,7 +3656,9 @@ function CreateClassModal({
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                         {roomOptions.map((room) => {
                           const hasConflict = conflictRoomIds.has(room.id);
-                          const roomData = allRooms.find(r => r.id === room.id);
+                          const roomData = allRooms.find(
+                            (r) => r.id === room.id,
+                          );
                           const capacity = roomData?.capacity || 0;
                           return (
                             <button
@@ -3097,17 +3670,21 @@ function CreateClassModal({
                                 formData.roomId === room.id
                                   ? "bg-gradient-to-r from-red-600 to-red-700 text-white border-red-600 shadow-md"
                                   : hasConflict
-                                  ? "bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100"
-                                  : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
+                                    ? "bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100"
+                                    : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50",
                               )}
                             >
                               <div className="flex flex-col items-center">
                                 <span className="font-medium">{room.name}</span>
-                                <span className={`text-xs mt-0.5 ${formData.roomId === room.id ? 'text-red-100' : 'text-gray-500'}`}>
+                                <span
+                                  className={`text-xs mt-0.5 ${formData.roomId === room.id ? "text-red-100" : "text-gray-500"}`}
+                                >
                                   {capacity} chỗ
                                 </span>
                                 {hasConflict && (
-                                  <span className="text-xs text-amber-600 mt-1">⚠️ Trùng lịch</span>
+                                  <span className="text-xs text-amber-600 mt-1">
+                                    ⚠️ Trùng lịch
+                                  </span>
                                 )}
                               </div>
                             </button>
@@ -3115,15 +3692,26 @@ function CreateClassModal({
                         })}
                       </div>
                     ) : (
-                      <p className="text-sm text-amber-600 italic">Không có phòng nào đủ sức chứa cho {formData.capacity} học viên</p>
+                      <p className="text-sm text-amber-600 italic">
+                        Không có phòng nào đủ sức chứa cho {formData.capacity}{" "}
+                        học viên
+                      </p>
                     )
                   ) : (
-                    <p className="text-sm text-gray-500 italic">Chi nhánh này chưa có phòng học nào</p>
+                    <p className="text-sm text-gray-500 italic">
+                      Chi nhánh này chưa có phòng học nào
+                    </p>
                   )
                 ) : (
-                  <p className="text-sm text-gray-500 italic">Vui lòng chọn chi nhánh trước</p>
+                  <p className="text-sm text-gray-500 italic">
+                    Vui lòng chọn chi nhánh trước
+                  </p>
                 )}
-                {errors.roomId && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.roomId}</p>}
+                {errors.roomId && (
+                  <p className="text-sm text-red-600 flex items-center gap-1">
+                    <AlertCircle size={14} /> {errors.roomId}
+                  </p>
+                )}
               </div>
 
               {/* Preview lịch học */}
@@ -3132,14 +3720,21 @@ function CreateClassModal({
                   <div className="flex items-center gap-2 text-sm text-gray-700">
                     <Calendar size={16} className="text-red-600" />
                     <span className="font-medium">Lịch học đã chọn:</span>
-                    <span className="text-red-700 font-semibold">{formData.schedule}</span>
+                    <span className="text-red-700 font-semibold">
+                      {formData.schedule}
+                    </span>
                   </div>
                   {formData.totalSessions > 0 && (
                     <div className="mt-2 text-xs text-gray-600">
                       ✓ Tổng số buổi: {formData.totalSessions} buổi
                       {formData.schedule && selectedDays.length > 0 && (
                         <span>
-                          {' '}(~{Math.ceil(formData.totalSessions / selectedDays.length)} tuần)
+                          {" "}
+                          (~
+                          {Math.ceil(
+                            formData.totalSessions / selectedDays.length,
+                          )}{" "}
+                          tuần)
                         </span>
                       )}
                     </div>
@@ -3214,7 +3809,11 @@ function CreateClassModal({
                 disabled={isSubmitting}
                 className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {isSubmitting ? "Đang lưu..." : mode === "edit" ? "Lưu thay đổi" : "Tạo lớp học"}
+                {isSubmitting
+                  ? "Đang lưu..."
+                  : mode === "edit"
+                    ? "Lưu thay đổi"
+                    : "Tạo lớp học"}
               </button>
             </div>
           </div>
@@ -3224,35 +3823,53 @@ function CreateClassModal({
   );
 }
 
+/* -------------------------------- HELPER FUNCTIONS --------------------------------- */
+function getTeacherInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].substring(0, 1).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
 /* -------------------------------- PAGE --------------------------------- */
 export default function Page() {
   const router = useRouter();
   const params = useParams();
   const locale = params.locale as string;
   const { toast } = useToast();
-  
+
   // Branch filter hook
   const { selectedBranchId, isLoaded, getBranchQueryParam } = useBranchFilter();
-  
+
   const [isPageLoaded, setIsPageLoaded] = useState(false);
   const [q, setQ] = useState("");
   const [classes, setClasses] = useState<ClassRow[]>([]);
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [page, setPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState<"ALL" | ClassRow["status"]>("ALL");
+  const [statusFilter, setStatusFilter] = useState<"ALL" | ClassRow["status"]>(
+    "ALL",
+  );
   const [teacherFilter, setTeacherFilter] = useState<"ALL" | string>("ALL");
   const [schedulePatternFilter, setSchedulePatternFilter] = useState("");
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isFutureStretchModalOpen, setIsFutureStretchModalOpen] = useState(false);
-  const [futureStretchClass, setFutureStretchClass] = useState<ClassRow | null>(null);
-  const [isGenerateSessionsModalOpen, setIsGenerateSessionsModalOpen] = useState(false);
-  const [generateTargetClass, setGenerateTargetClass] = useState<ClassRow | null>(null);
-  const [generateOnlyFutureSessions, setGenerateOnlyFutureSessions] = useState(true);
-  const [generateSessionColor, setGenerateSessionColor] = useState(DEFAULT_GENERATE_COLOR);
+  const [isFutureStretchModalOpen, setIsFutureStretchModalOpen] =
+    useState(false);
+  const [futureStretchClass, setFutureStretchClass] = useState<ClassRow | null>(
+    null,
+  );
+  const [isGenerateSessionsModalOpen, setIsGenerateSessionsModalOpen] =
+    useState(false);
+  const [generateTargetClass, setGenerateTargetClass] =
+    useState<ClassRow | null>(null);
+  const [generateOnlyFutureSessions, setGenerateOnlyFutureSessions] =
+    useState(true);
+  const [generateSessionColor, setGenerateSessionColor] = useState(
+    DEFAULT_GENERATE_COLOR,
+  );
   const [isGeneratingSessions, setIsGeneratingSessions] = useState(false);
   const [isAddStudentModalOpen, setIsAddStudentModalOpen] = useState(false);
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
@@ -3260,10 +3877,16 @@ export default function Page() {
   const [selectedClassCurrent, setSelectedClassCurrent] = useState<number>(0);
   const [enrolledStudentIds, setEnrolledStudentIds] = useState<string[]>([]);
   const [editingClassId, setEditingClassId] = useState<string | null>(null);
-  const [editingInitialData, setEditingInitialData] = useState<ClassFormData | null>(null);
-  const [editingCurrentEnrollmentCount, setEditingCurrentEnrollmentCount] = useState<number>(0);
-  const [originalStatus, setOriginalStatus] = useState<ClassFormData["status"] | null>(null);
-  const deferredSchedulePatternFilter = useDeferredValue(schedulePatternFilter.trim());
+  const [editingInitialData, setEditingInitialData] =
+    useState<ClassFormData | null>(null);
+  const [editingCurrentEnrollmentCount, setEditingCurrentEnrollmentCount] =
+    useState<number>(0);
+  const [originalStatus, setOriginalStatus] = useState<
+    ClassFormData["status"] | null
+  >(null);
+  const deferredSchedulePatternFilter = useDeferredValue(
+    schedulePatternFilter.trim(),
+  );
 
   useEffect(() => {
     setIsPageLoaded(true);
@@ -3279,7 +3902,10 @@ export default function Page() {
         setError(null);
 
         const branchId = getBranchQueryParam();
-        console.log("🎓 Fetching classes for branch:", branchId || "All branches");
+        console.log(
+          "🎓 Fetching classes for branch:",
+          branchId || "All branches",
+        );
 
         const mapped = await fetchAdminClasses({
           branchId,
@@ -3289,7 +3915,9 @@ export default function Page() {
         console.log("✅ Loaded", mapped.length, "classes");
       } catch (err) {
         console.error("Unexpected error when fetching admin classes:", err);
-        setError((err as Error)?.message || "Đã xảy ra lỗi khi tải danh sách lớp học.");
+        setError(
+          (err as Error)?.message || "Đã xảy ra lỗi khi tải danh sách lớp học.",
+        );
         setClasses([]);
       } finally {
         setLoading(false);
@@ -3302,8 +3930,10 @@ export default function Page() {
 
   const stats = useMemo(() => {
     const total = classes.length;
-    const active = classes.filter(c => c.status === "Đang học").length;
-    const upcoming = classes.filter(c => c.status === "Sắp khai giảng").length;
+    const active = classes.filter((c) => c.status === "Đang học").length;
+    const upcoming = classes.filter(
+      (c) => c.status === "Sắp khai giảng",
+    ).length;
     const students = classes.reduce((sum, c) => sum + c.current, 0);
     const occupancy = classes.reduce((sum, c) => sum + c.capacity, 0);
 
@@ -3312,7 +3942,8 @@ export default function Page() {
       active,
       upcoming,
       students,
-      occupancy: occupancy > 0 ? `${Math.round((students / occupancy) * 100)}%` : "0%",
+      occupancy:
+        occupancy > 0 ? `${Math.round((students / occupancy) * 100)}%` : "0%",
     };
   }, [classes]);
 
@@ -3322,8 +3953,8 @@ export default function Page() {
       ? classes
       : classes.filter((c) =>
           [c.id, c.name, c.sub, c.teacher, c.branch, c.schedule].some((x) =>
-            x.toLowerCase().includes(kw)
-          )
+            x.toLowerCase().includes(kw),
+          ),
         );
 
     if (statusFilter !== "ALL") {
@@ -3338,14 +3969,22 @@ export default function Page() {
       filtered = [...filtered].sort((a, b) => {
         const getVal = (c: ClassRow) => {
           switch (sortField) {
-            case "id": return c.id;
-            case "name": return c.name;
-            case "program": return c.sub;
-            case "teacher": return c.teacher;
-            case "branch": return c.branch;
-            case "capacity": return `${c.current}/${c.capacity}`;
-            case "schedule": return c.schedule;
-            case "status": return c.status;
+            case "id":
+              return c.id;
+            case "name":
+              return c.name;
+            case "program":
+              return c.sub;
+            case "teacher":
+              return c.teacher;
+            case "branch":
+              return c.branch;
+            case "capacity":
+              return `${c.current}/${c.capacity}`;
+            case "schedule":
+              return c.schedule;
+            case "status":
+              return c.status;
           }
         };
         const av = getVal(a);
@@ -3360,13 +3999,18 @@ export default function Page() {
 
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
-  const pagedRows = rows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const pagedRows = rows.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE,
+  );
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
       if (sortDirection === "asc") setSortDirection("desc");
-      else if (sortDirection === "desc") { setSortField(null); setSortDirection(null); }
-      else setSortDirection("asc");
+      else if (sortDirection === "desc") {
+        setSortField(null);
+        setSortDirection(null);
+      } else setSortDirection("asc");
     } else {
       setSortField(field);
       setSortDirection("asc");
@@ -3386,7 +4030,9 @@ export default function Page() {
     setPage(Math.min(totalPages, Math.max(1, nextPage)));
   };
 
-  const canGenerateSessionsForStatus = (status?: ClassRow["status"] | string | null) => {
+  const canGenerateSessionsForStatus = (
+    status?: ClassRow["status"] | string | null,
+  ) => {
     return status === "Sắp khai giảng" || status === "Đang học";
   };
 
@@ -3400,7 +4046,8 @@ export default function Page() {
     if (!canGenerateSessionsForStatus(targetClass?.status)) {
       toast.destructive({
         title: "Không thể tạo buổi học",
-        description: "Chỉ lớp ở trạng thái Sắp khai giảng hoặc Đang học mới được tạo buổi học.",
+        description:
+          "Chỉ lớp ở trạng thái Sắp khai giảng hoặc Đang học mới được tạo buổi học.",
       });
       return;
     }
@@ -3432,7 +4079,8 @@ export default function Page() {
     } catch (sessionErr: any) {
       toast.destructive({
         title: "Tạo buổi học thất bại",
-        description: sessionErr?.message || "Không thể tạo buổi học từ lịch học của lớp.",
+        description:
+          sessionErr?.message || "Không thể tạo buổi học từ lịch học của lớp.",
       });
     } finally {
       setIsGeneratingSessions(false);
@@ -3449,9 +4097,10 @@ export default function Page() {
         endDate: data.endDate,
       });
 
-      const weeklyScheduleSlots = data.weeklyScheduleSlots.length > 0
-        ? data.weeklyScheduleSlots
-        : convertScheduleToWeeklySlots(data.schedule);
+      const weeklyScheduleSlots =
+        data.weeklyScheduleSlots.length > 0
+          ? data.weeklyScheduleSlots
+          : convertScheduleToWeeklySlots(data.schedule);
       console.log("Generated weeklyScheduleSlots:", weeklyScheduleSlots);
 
       const payload: CreateClassRequest = {
@@ -3479,19 +4128,20 @@ export default function Page() {
       setClasses(updatedClasses);
 
       if (createdClassId) {
-        const createdClassRow =
-          updatedClasses.find((c) => c.id === createdClassId) ?? {
-            id: createdClassId,
-            code: data.code,
-            name: data.name,
-            sub: "",
-            teacher: "Chưa phân công",
-            branch: "",
-            current: 0,
-            capacity: data.capacity,
-            schedule: "Chưa có lịch",
-            status: "Sắp khai giảng" as const,
-          };
+        const createdClassRow = updatedClasses.find(
+          (c) => c.id === createdClassId,
+        ) ?? {
+          id: createdClassId,
+          code: data.code,
+          name: data.name,
+          sub: "",
+          teacher: "Chưa phân công",
+          branch: "",
+          current: 0,
+          capacity: data.capacity,
+          schedule: "Chưa có lịch",
+          status: "Sắp khai giảng" as const,
+        };
         setGenerateTargetClass(createdClassRow);
         setGenerateOnlyFutureSessions(true);
         setIsGenerateSessionsModalOpen(true);
@@ -3524,16 +4174,22 @@ export default function Page() {
       const weeklyScheduleSlots = Array.isArray(detail?.weeklyScheduleSlots)
         ? (detail.weeklyScheduleSlots as ScheduleSlot[])
         : [];
-      const schedulePattern = (detail?.schedulePattern as string | undefined) ?? "";
-      const schedule = weeklyScheduleSlots.length > 0
-        ? formatWeeklySlotsToScheduleText(weeklyScheduleSlots)
-        : (schedulePattern ? parseRRULEToSchedule(schedulePattern) : "");
+      const schedulePattern =
+        (detail?.schedulePattern as string | undefined) ?? "";
+      const schedule =
+        weeklyScheduleSlots.length > 0
+          ? formatWeeklySlotsToScheduleText(weeklyScheduleSlots)
+          : schedulePattern
+            ? parseRRULEToSchedule(schedulePattern)
+            : "";
 
       const rawStatus: string = (detail?.status as string | undefined) ?? "";
       const normalized = rawStatus.toLowerCase();
       let status: ClassFormData["status"] = "S\u1eafp khai gi\u1ea3ng";
-      if (normalized === "active" || normalized === "ongoing") status = "\u0110ang h\u1ecdc";
-      else if (normalized === "closed" || normalized === "completed") status = "\u0110\u00e3 k\u1ebft th\u00fac";
+      if (normalized === "active" || normalized === "ongoing")
+        status = "\u0110ang h\u1ecdc";
+      else if (normalized === "closed" || normalized === "completed")
+        status = "\u0110\u00e3 k\u1ebft th\u00fac";
 
       const formData: ClassFormData = {
         code: detail?.code ?? row.code ?? "",
@@ -3541,13 +4197,20 @@ export default function Page() {
         programId: String(detail?.programId ?? ""),
         branchId: String(detail?.branchId ?? ""),
         mainTeacherId: String(detail?.mainTeacherId ?? ""),
-        assistantTeacherId: detail?.assistantTeacherId ? String(detail.assistantTeacherId) : "",
+        assistantTeacherId: detail?.assistantTeacherId
+          ? String(detail.assistantTeacherId)
+          : "",
         roomId: String(detail?.roomId ?? ""),
-        capacity: typeof detail?.capacity === "number" ? detail.capacity : row.capacity,
+        capacity:
+          typeof detail?.capacity === "number" ? detail.capacity : row.capacity,
         schedule,
-        weeklyScheduleSlots: weeklyScheduleSlots.length > 0 ? weeklyScheduleSlots : convertScheduleToWeeklySlots(schedule),
+        weeklyScheduleSlots:
+          weeklyScheduleSlots.length > 0
+            ? weeklyScheduleSlots
+            : convertScheduleToWeeklySlots(schedule),
         status,
-        startDate: (detail?.startDate as string | undefined)?.slice(0, 10) ?? "",
+        startDate:
+          (detail?.startDate as string | undefined)?.slice(0, 10) ?? "",
         endDate: (detail?.endDate as string | undefined)?.slice(0, 10) ?? "",
         totalSessions: detail?.totalSessions ?? 0,
         description: detail?.description ?? "",
@@ -3557,14 +4220,16 @@ export default function Page() {
       setEditingCurrentEnrollmentCount(
         typeof detail?.currentEnrollmentCount === "number"
           ? detail.currentEnrollmentCount
-          : row.current ?? 0
+          : (row.current ?? 0),
       );
       setOriginalStatus(status);
     } catch (err: any) {
       console.error("Failed to load class detail for edit:", err);
       toast.destructive({
         title: "Kh\u00f4ng th\u1ec3 t\u1ea3i l\u1edbp h\u1ecdc",
-        description: err?.message || "Kh\u00f4ng th\u1ec3 t\u1ea3i th\u00f4ng tin l\u1edbp h\u1ecdc \u0111\u1ec3 ch\u1ec9nh s\u1eeda.",
+        description:
+          err?.message ||
+          "Kh\u00f4ng th\u1ec3 t\u1ea3i th\u00f4ng tin l\u1edbp h\u1ecdc \u0111\u1ec3 ch\u1ec9nh s\u1eeda.",
       });
       setIsEditModalOpen(false);
       setEditingClassId(null);
@@ -3584,9 +4249,10 @@ export default function Page() {
         !(editingInitialData?.schedule ?? "").trim();
       const currentClassStatus = classBeforeUpdate?.status;
 
-      const weeklyScheduleSlots = data.weeklyScheduleSlots.length > 0
-        ? data.weeklyScheduleSlots
-        : convertScheduleToWeeklySlots(data.schedule);
+      const weeklyScheduleSlots =
+        data.weeklyScheduleSlots.length > 0
+          ? data.weeklyScheduleSlots
+          : convertScheduleToWeeklySlots(data.schedule);
 
       const payload: CreateClassRequest = {
         branchId: data.branchId,
@@ -3607,7 +4273,10 @@ export default function Page() {
 
       await updateAdminClass(editingClassId, payload);
 
-      if (hadNoScheduleBeforeUpdate && canGenerateSessionsForStatus(currentClassStatus)) {
+      if (
+        hadNoScheduleBeforeUpdate &&
+        canGenerateSessionsForStatus(currentClassStatus)
+      ) {
         try {
           const result = await generateSessionsFromPattern({
             classId: editingClassId,
@@ -3621,13 +4290,16 @@ export default function Page() {
         } catch (sessionErr: any) {
           toast.destructive({
             title: "Lớp đã cập nhật nhưng tạo buổi học thất bại",
-            description: sessionErr?.message || "Vui lòng bấm Tạo buổi học thủ công trong danh sách lớp.",
+            description:
+              sessionErr?.message ||
+              "Vui lòng bấm Tạo buổi học thủ công trong danh sách lớp.",
           });
         }
       } else if (hadNoScheduleBeforeUpdate) {
         toast.destructive({
           title: "Lớp đã cập nhật nhưng chưa generate sessions",
-          description: "Lớp cần ở trạng thái Sắp khai giảng hoặc Đang học để tạo sessions.",
+          description:
+            "Lớp cần ở trạng thái Sắp khai giảng hoặc Đang học để tạo sessions.",
         });
       }
 
@@ -3671,9 +4343,9 @@ export default function Page() {
       setClasses(updatedClasses);
 
       const statusMap: Record<string, string> = {
-        "Active": "Đang học",
-        "Planned": "Sắp khai giảng",
-        "Closed": "Đã kết thúc",
+        Active: "Đang học",
+        Planned: "Sắp khai giảng",
+        Closed: "Đã kết thúc",
       };
       const newStatusText = statusMap[newStatus] || newStatus;
       toast.success({
@@ -3698,7 +4370,8 @@ export default function Page() {
     if (!canGenerateSessionsForStatus(row.status)) {
       toast.destructive({
         title: "Không thể tạo buổi học",
-        description: "Chỉ lớp ở trạng thái Sắp khai giảng hoặc Đang học mới được tạo buổi học.",
+        description:
+          "Chỉ lớp ở trạng thái Sắp khai giảng hoặc Đang học mới được tạo buổi học.",
       });
       return;
     }
@@ -3711,16 +4384,16 @@ export default function Page() {
 
   const handleAddStudent = async (classId: string) => {
     // Find the class to get capacity and current enrolled
-    const classItem = classes.find(c => c.id === classId);
+    const classItem = classes.find((c) => c.id === classId);
     const classCapacity = classItem?.capacity || 0;
     const currentEnrolled = classItem?.current || 0;
-    
+
     // Open modal to add students
     setSelectedClassId(classId);
     setIsAddStudentModalOpen(true);
     setSelectedClassCapacity(classCapacity);
     setSelectedClassCurrent(currentEnrolled);
-    
+
     try {
       const enrolledStudents = await fetchAdminClassStudents(classId);
       setEnrolledStudentIds(enrolledStudents.map((student) => student.id));
@@ -3732,21 +4405,28 @@ export default function Page() {
 
   return (
     <>
-      <div className="space-y-6 bg-gray-50 p-4 md:p-6 rounded-3xl">
+      <div className="space-y-6 bg-gray-50 p-4 md:p-2 rounded-3xl">
         {/* Header */}
-        <div className={`flex flex-wrap items-center gap-3 justify-between transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
-          <div className="flex items-center gap-3">
-            <div className="p-3 rounded-xl bg-gradient-to-r from-red-600 to-red-700 shadow-lg">
-              <Users size={24} className="text-white" />
+        <div
+          className={`flex flex-wrap items-center gap-4 justify-between transition-all duration-700 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"}`}
+        >
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
+              <Users size={25} className="text-white" />
             </div>
             <div>
-              <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">Quản lý lớp học</h1>
-              <p className="text-sm text-gray-600">Quản lý thông tin lớp học và học viên</p>
+              <h1 className="text-2xl md:text-2xl font-extrabold text-gray-900">
+                Quản lý lớp học
+              </h1>
+              <p className="text-gray-600 mt-1 flex items-center gap-2">
+                <Sparkles size={14} className="text-red-600" />
+                Quản lý thông tin lớp học và học viên
+              </p>
             </div>
           </div>
           <button
             onClick={() => setIsCreateModalOpen(true)}
-            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:shadow-lg text-white font-semibold cursor-pointer transition-all hover:scale-105 active:scale-95"
+            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:shadow-lg text-white text-sm font-semibold cursor-pointer transition-all hover:scale-105 active:scale-95"
             type="button"
           >
             <Plus size={18} /> Tạo lớp học mới
@@ -3754,51 +4434,65 @@ export default function Page() {
         </div>
 
         {/* Stats cards */}
-        <div className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          <div className="rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-md transition">
-            <div className="flex items-center gap-3">
-              <span className="w-10 h-10 rounded-xl bg-red-100 grid place-items-center">
-                <Users className="text-red-600" size={18} />
+        <div
+          className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 transition-all duration-700 delay-100 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}
+        >
+          <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+            <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r from-red-600 to-red-700"></div>
+            <div className="relative flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-600 to-red-700 text-white grid place-items-center flex-shrink-0 shadow-sm">
+                <Users size={18} />
               </span>
               <div>
-                <div className="text-sm text-gray-600">Tổng lớp học</div>
-                <div className="text-2xl font-extrabold text-gray-900">{stats.total}</div>
+                <div className="text-xs text-gray-600">Tổng lớp học</div>
+                <div className="text-2xl font-bold text-gray-900">
+                  {stats.total}
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-md transition">
-            <div className="flex items-center gap-3">
-              <span className="w-10 h-10 rounded-xl bg-red-100 grid place-items-center">
-                <BookOpen className="text-red-600" size={18} />
+          <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadowxs transition-all duration-300 hover:shadow-md hover:scale-102">
+            <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r from-emerald-600 to-teal-600"></div>
+            <div className="relative flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-600 text-white grid place-items-center flex-shrink-0 shadowxs">
+                <BookOpen size={18} />
               </span>
               <div>
-                <div className="text-sm text-gray-600">Đang học</div>
-                <div className="text-2xl font-extrabold text-gray-900">{stats.active}</div>
+                <div className="text-xs text-gray-600">Đang học</div>
+                <div className="text-2xl font-bold text-gray-900">
+                  {stats.active}
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-md transition">
-            <div className="flex items-center gap-3">
-              <span className="w-10 h-10 rounded-xl bg-amber-100 grid place-items-center">
-                <CalendarClock className="text-amber-600" size={18} />
+          <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+            <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r from-blue-600 to-cyan-600"></div>
+            <div className="relative flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 text-white grid place-items-center flex-shrink-0 shadow-sm">
+                <CalendarClock size={18} />
               </span>
               <div>
-                <div className="text-sm text-gray-600">Sắp khai giảng</div>
-                <div className="text-2xl font-extrabold text-gray-900">{stats.upcoming}</div>
+                <div className="text-xs text-gray-600">Sắp khai giảng</div>
+                <div className="text-2xl font-bold text-gray-900">
+                  {stats.upcoming}
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-md transition">
-            <div className="flex items-center gap-3">
-              <span className="w-10 h-10 rounded-xl bg-gray-100 grid place-items-center">
-                <Users className="text-gray-600" size={18} />
+          <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+            <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r from-amber-600 to-orange-600"></div>
+            <div className="relative flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-600 to-orange-600 text-white grid place-items-center flex-shrink-0 shadow-sm">
+                <Users size={18} />
               </span>
               <div>
-                <div className="text-sm text-gray-600">Tổng học viên</div>
-                <div className="text-2xl font-extrabold text-gray-900">{stats.students}</div>
+                <div className="text-xs text-gray-600">Tổng học viên</div>
+                <div className="text-2xl font-bold text-gray-900">
+                  {stats.students}
+                </div>
               </div>
             </div>
           </div>
@@ -3806,7 +4500,9 @@ export default function Page() {
 
         {/* Branch Filter Indicator */}
         {selectedBranchId && (
-          <div className={`flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-red-50 to-red-100 border border-red-200 rounded-xl transition-all duration-700 delay-150 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <div
+            className={`flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-red-50 to-red-100 border border-red-200 rounded-xl transition-all duration-700 delay-150 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}
+          >
             <Building2 size={16} className="text-red-600" />
             <span className="text-sm text-red-700 font-medium">
               Đang lọc theo chi nhánh đã chọn
@@ -3815,56 +4511,117 @@ export default function Page() {
         )}
 
         {/* Search & Filters */}
-        <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="relative flex-1 max-w-3xl min-w-[280px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 " size={18} />
-              <input
-                value={q}
-                onChange={(e) => { setQ(e.target.value); setPage(1); }}
-                placeholder="Tìm kiếm lớp học..."
-                className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-300"
-              />
+        <div
+          className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}
+        >
+          <div className="space-y-4">
+            {/* Status Filter Tabs */}
+            <div className="flex flex-wrap gap-2 pb-4 border-b border-red-200">
+              {(
+                ["ALL", "Đang học", "Sắp khai giảng", "Đã kết thúc"] as const
+              ).map((status) => {
+                const counts: Record<typeof status, number> = {
+                  ALL: classes.length,
+                  "Đang học": classes.filter((c) => c.status === "Đang học")
+                    .length,
+                  "Sắp khai giảng": classes.filter(
+                    (c) => c.status === "Sắp khai giảng",
+                  ).length,
+                  "Đã kết thúc": classes.filter(
+                    (c) => c.status === "Đã kết thúc",
+                  ).length,
+                };
+
+                const labels: Record<typeof status, string> = {
+                  ALL: "Tất cả trạng thái",
+                  "Đang học": "Đang học",
+                  "Sắp khai giảng": "Sắp khai giảng",
+                  "Đã kết thúc": "Đã kết thúc",
+                };
+
+                const isActive = statusFilter === status;
+                return (
+                  <button
+                    key={status}
+                    onClick={() => {
+                      setStatusFilter(status);
+                      setPage(1);
+                    }}
+                    className={`px-4 py-2 rounded-xl border text-sm font-medium transition-all cursor-pointer ${
+                      isActive
+                        ? "bg-gradient-to-r from-red-600 to-red-700 text-white border-red-600 shadow-md"
+                        : "bg-white border-red-200 text-gray-700 hover:bg-red-50"
+                    }`}
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      {labels[status]}
+                      <span
+                        className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-semibold ${
+                          isActive
+                            ? "bg-white/30 text-white"
+                            : "bg-red-50 text-red-600"
+                        }`}
+                      >
+                        {counts[status]}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
             </div>
 
+            {/* Search Box & Other Filters */}
             <div className="flex flex-wrap items-center gap-4">
-              <input
-                value={schedulePatternFilter}
-                onChange={(e) => { setSchedulePatternFilter(e.target.value); setPage(1); }}
-                placeholder="Lọc RRULE: BYDAY=MO, FREQ=WEEKLY..."
-                className="h-10 min-w-[260px] rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-              />
-              <select
-                value={statusFilter}
-                onChange={(e) => { setStatusFilter(e.target.value as typeof statusFilter); setPage(1); }}
-                className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-              >
-                <option value="ALL">Tất cả trạng thái</option>
-                <option value="Đang học">Đang học</option>
-                <option value="Sắp khai giảng">Sắp khai giảng</option>
-                <option value="Đã kết thúc">Đã kết thúc</option>
-              </select>
-              <select
+              <div className="relative flex-1 min-w-[200px]">
+                <Search
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                  size={18}
+                />
+                <input
+                  value={q}
+                  onChange={(e) => {
+                    setQ(e.target.value);
+                    setPage(1);
+                  }}
+                  placeholder="Tìm kiếm lớp học..."
+                  className="w-full h-10 rounded-xl border border-red-200 bg-white py-2 pl-10 pr-4 text-sm text-gray-700 placeholder-gray-400 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200"
+                />
+              </div>
+
+              <Select
                 value={teacherFilter}
-                onChange={(e) => { setTeacherFilter(e.target.value as typeof teacherFilter); setPage(1); }}
-                className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+                onValueChange={(val) => {
+                  setTeacherFilter(val);
+                  setPage(1);
+                }}
               >
-                <option value="ALL">Tất cả giáo viên</option>
-                {[...new Set(classes.map(c => c.teacher))].map((teacher) => (
-                  <option key={teacher} value={teacher}>{teacher}</option>
-                ))}
-              </select>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Tất cả giáo viên" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Tất cả giáo viên</SelectItem>
+                  {[...new Set(classes.map((c) => c.teacher))].map((teacher) => (
+                    <SelectItem key={teacher} value={teacher}>
+                      {teacher}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </div>
 
         {/* Table */}
-        <div className={`rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden transition-all duration-700 delay-300 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div
+          className={`rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden transition-all duration-700 delay-300 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}
+        >
           {/* Table Header */}
           <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-gray-200 px-6 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <h2 className="text-lg font-semibold text-gray-900">Danh sách lớp học</h2>
+                <h2 className="font-semibold text-gray-900">
+                  Danh sách lớp học
+                </h2>
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <span className="font-medium">{rows.length} lớp học</span>
@@ -3877,14 +4634,66 @@ export default function Page() {
             <table className="w-full">
               <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-gray-200">
                 <tr>
-                  <SortableHeader field="name" currentField={sortField} direction={sortDirection} onSort={handleSort}>Tên lớp</SortableHeader>
-                  <SortableHeader field="program" currentField={sortField} direction={sortDirection} onSort={handleSort}>Chương trình</SortableHeader>
-                  <SortableHeader field="teacher" currentField={sortField} direction={sortDirection} onSort={handleSort}>Giáo viên</SortableHeader>
-                  <SortableHeader field="branch" currentField={sortField} direction={sortDirection} onSort={handleSort}>Chi nhánh</SortableHeader>
-                  <SortableHeader field="capacity" currentField={sortField} direction={sortDirection} onSort={handleSort}>Sĩ số</SortableHeader>
-                  <SortableHeader field="schedule" currentField={sortField} direction={sortDirection} onSort={handleSort}>Lịch học</SortableHeader>
-                  <SortableHeader field="status" currentField={sortField} direction={sortDirection} onSort={handleSort} align="center">Trạng thái</SortableHeader>
-                  <th className="py-3 px-6 text-right text-xs font-medium text-gray-700 whitespace-nowrap">Thao tác</th>
+                  <SortableHeader
+                    field="name"
+                    currentField={sortField}
+                    direction={sortDirection}
+                    onSort={handleSort}
+                  >
+                    Tên lớp
+                  </SortableHeader>
+                  <SortableHeader
+                    field="program"
+                    currentField={sortField}
+                    direction={sortDirection}
+                    onSort={handleSort}
+                  >
+                    Chương trình
+                  </SortableHeader>
+                  <SortableHeader
+                    field="teacher"
+                    currentField={sortField}
+                    direction={sortDirection}
+                    onSort={handleSort}
+                  >
+                    Giáo viên
+                  </SortableHeader>
+                  <SortableHeader
+                    field="branch"
+                    currentField={sortField}
+                    direction={sortDirection}
+                    onSort={handleSort}
+                  >
+                    Chi nhánh
+                  </SortableHeader>
+                  <SortableHeader
+                    field="capacity"
+                    currentField={sortField}
+                    direction={sortDirection}
+                    onSort={handleSort}
+                  >
+                    Sĩ số
+                  </SortableHeader>
+                  <SortableHeader
+                    field="schedule"
+                    currentField={sortField}
+                    direction={sortDirection}
+                    onSort={handleSort}
+                  >
+                    Lịch học
+                  </SortableHeader>
+                  <SortableHeader
+                    field="status"
+                    currentField={sortField}
+                    direction={sortDirection}
+                    onSort={handleSort}
+                    align="center"
+                  >
+                    Trạng thái
+                  </SortableHeader>
+                  <th className="py-3 px-6 text-right text-xs font-medium text-gray-700 whitespace-nowrap">
+                    Thao tác
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -3895,18 +4704,24 @@ export default function Page() {
                       className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200"
                     >
                       <td className="py-4 px-6">
-                        <div className="text-sm text-gray-900 font-medium truncate">{c.name}</div>
-                        <div className="text-xs text-gray-500 truncate">{c.code || c.id}</div>
+                        <div className="text-sm text-gray-900 font-medium truncate">
+                          {c.name}
+                        </div>
+                        <div className="text-xs text-gray-500 truncate">
+                          {c.code || c.id}
+                        </div>
                       </td>
 
                       <td className="py-4 px-6">
-                        <div className="text-sm text-gray-900 truncate">{c.sub}</div>
+                        <div className="text-sm text-gray-900 truncate">
+                          {c.sub}
+                        </div>
                       </td>
 
                       <td className="py-4 px-6 whitespace-nowrap">
                         <div className="inline-flex items-center gap-2 text-gray-900 text-sm">
-                          <span className="inline-block w-5 h-5 rounded-full bg-red-100 grid place-items-center">
-                            <User size={13} className="text-red-600" />
+                          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gradient-to-r from-red-600 to-red-700 text-white text-[10px] font-bold flex-shrink-0">
+                            {getTeacherInitials(c.teacher)}
                           </span>
                           <span className="truncate">{c.teacher}</span>
                         </div>
@@ -3914,7 +4729,7 @@ export default function Page() {
 
                       <td className="py-4 px-6 whitespace-nowrap">
                         <div className="inline-flex items-center gap-2 text-gray-900 text-sm">
-                          <Building2 size={16} className="text-gray-400" />
+                          <Building2 size={14} className="text-red-600" />
                           <span className="truncate">{c.branch}</span>
                         </div>
                       </td>
@@ -3922,13 +4737,22 @@ export default function Page() {
                       <td className="py-4 px-6 whitespace-nowrap">
                         <div className="flex items-center gap-2">
                           <div className="inline-flex items-center gap-2 text-sm bg-gray-50 px-3 py-1.5 rounded-lg">
-                            <Users size={16} className={clsx(
-                              c.current === c.capacity ? "text-red-400" : "text-gray-400"
-                            )} />
-                            <span className={clsx(
-                              "font-medium",
-                              c.current === c.capacity ? "text-red-600" : "text-gray-900"
-                            )}>
+                            <Users
+                              size={14}
+                              className={clsx(
+                                c.current === c.capacity
+                                  ? "text-red-400"
+                                  : "text-gray-400",
+                              )}
+                            />
+                            <span
+                              className={clsx(
+                                "font-medium",
+                                c.current === c.capacity
+                                  ? "text-red-600"
+                                  : "text-gray-900",
+                              )}
+                            >
                               {c.current}/{c.capacity}
                             </span>
                           </div>
@@ -3946,7 +4770,11 @@ export default function Page() {
                       </td>
 
                       <td className="py-4 px-6 whitespace-nowrap">
-                        <ScheduleDisplay schedule={c.schedule} classId={c.id} startDate={c.startDate} />
+                        <ScheduleDisplay
+                          schedule={c.schedule}
+                          classId={c.id}
+                          startDate={c.startDate}
+                        />
                       </td>
 
                       <td className="py-4 px-6 whitespace-nowrap">
@@ -3955,16 +4783,20 @@ export default function Page() {
 
                       <td className="py-4 px-6">
                         <div className="flex items-center justify-end text-gray-700 gap-1 transition-opacity duration-200">
-                          <button 
-                            onClick={() => router.push(`/${locale}/portal/admin/classes/${c.id}`)}
-                            className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600 cursor-pointer" 
+                          <button
+                            onClick={() =>
+                              router.push(
+                                `/${locale}/portal/admin/classes/${c.id}`,
+                              )
+                            }
+                            className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600 cursor-pointer"
                             title="Xem chi tiết"
                           >
                             <Eye size={14} />
                           </button>
-                          <button 
+                          <button
                             onClick={() => handleOpenEditClass(c)}
-                            className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-800 cursor-pointer" 
+                            className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-800 cursor-pointer"
                             title="Chỉnh sửa"
                           >
                             <Pencil size={14} />
@@ -3975,9 +4807,13 @@ export default function Page() {
                               "p-1.5 rounded-lg transition-colors",
                               c.status === "Đã kết thúc"
                                 ? "cursor-not-allowed text-gray-300"
-                                : "cursor-pointer hover:bg-blue-50 text-gray-400 hover:text-blue-600"
+                                : "cursor-pointer hover:bg-blue-50 text-gray-400 hover:text-blue-600",
                             )}
-                            title={c.status === "Đã kết thúc" ? "Lớp đã kết thúc, không thể giãn lịch" : "Giãn buổi tương lai"}
+                            title={
+                              c.status === "Đã kết thúc"
+                                ? "Lớp đã kết thúc, không thể giãn lịch"
+                                : "Giãn buổi tương lai"
+                            }
                             disabled={c.status === "Đã kết thúc"}
                           >
                             <CalendarClock size={14} />
@@ -3988,27 +4824,33 @@ export default function Page() {
                               "p-1.5 rounded-lg transition-colors",
                               !canGenerateSessionsForStatus(c.status)
                                 ? "cursor-not-allowed text-gray-300"
-                                : "cursor-pointer hover:bg-emerald-50 text-gray-400 hover:text-emerald-600"
+                                : "cursor-pointer hover:bg-emerald-50 text-gray-400 hover:text-emerald-600",
                             )}
-                            title={!canGenerateSessionsForStatus(c.status) ? "Chỉ lớp Sắp khai giảng/Đang học mới tạo được buổi học" : "Tạo buổi học"}
+                            title={
+                              !canGenerateSessionsForStatus(c.status)
+                                ? "Chỉ lớp Sắp khai giảng/Đang học mới tạo được buổi học"
+                                : "Tạo buổi học"
+                            }
                             disabled={!canGenerateSessionsForStatus(c.status)}
                           >
                             <CalendarDays size={14} />
                           </button>
-                          <button 
+                          <button
                             onClick={() => handleToggleStatus(c)}
                             className={clsx(
                               "p-1.5 rounded-lg transition-colors cursor-pointer",
                               c.status === "Đang học"
                                 ? "hover:bg-red-50 text-gray-400 hover:text-red-600"
                                 : c.status === "Sắp khai giảng"
-                                ? "hover:bg-amber-50 text-gray-400 hover:text-amber-600"
-                                : "hover:bg-gray-100 text-gray-400 hover:text-gray-600"
+                                  ? "hover:bg-amber-50 text-gray-400 hover:text-amber-600"
+                                  : "hover:bg-gray-100 text-gray-400 hover:text-gray-600",
                             )}
                             title={
-                              c.status === "Đang học" ? "Kết thúc lớp học" : 
-                              c.status === "Sắp khai giảng" ? "Bắt đầu lớp học" : 
-                              "Mở lại lớp học"
+                              c.status === "Đang học"
+                                ? "Kết thúc lớp học"
+                                : c.status === "Sắp khai giảng"
+                                  ? "Bắt đầu lớp học"
+                                  : "Mở lại lớp học"
                             }
                           >
                             {c.status === "Đang học" ? (
@@ -4029,8 +4871,12 @@ export default function Page() {
                       <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center">
                         <Search size={24} className="text-gray-400" />
                       </div>
-                      <div className="text-gray-600 font-medium">Không tìm thấy lớp học</div>
-                      <div className="text-sm text-gray-500 mt-1">Thử thay đổi bộ lọc hoặc tạo lớp học mới</div>
+                      <div className="text-gray-600 font-medium">
+                        Không tìm thấy lớp học
+                      </div>
+                      <div className="text-sm text-gray-500 mt-1">
+                        Thử thay đổi bộ lọc hoặc tạo lớp học mới
+                      </div>
                     </td>
                   </tr>
                 )}
@@ -4043,8 +4889,16 @@ export default function Page() {
             <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="text-sm text-gray-600">
-                  Hiển thị <span className="font-semibold text-gray-900">{(currentPage - 1) * PAGE_SIZE + 1}-{Math.min(currentPage * PAGE_SIZE, rows.length)}</span>
-                  {' '}trong tổng số <span className="font-semibold text-gray-900">{rows.length}</span> lớp học
+                  Hiển thị{" "}
+                  <span className="font-semibold text-gray-900">
+                    {(currentPage - 1) * PAGE_SIZE + 1}-
+                    {Math.min(currentPage * PAGE_SIZE, rows.length)}
+                  </span>{" "}
+                  trong tổng số{" "}
+                  <span className="font-semibold text-gray-900">
+                    {rows.length}
+                  </span>{" "}
+                  lớp học
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -4073,11 +4927,17 @@ export default function Page() {
                         } else if (currentPage >= totalPages - 2) {
                           pages.push(1);
                           pages.push("...");
-                          for (let i = totalPages - 4; i <= totalPages; i++) pages.push(i);
+                          for (let i = totalPages - 4; i <= totalPages; i++)
+                            pages.push(i);
                         } else {
                           pages.push(1);
                           pages.push("...");
-                          for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+                          for (
+                            let i = currentPage - 1;
+                            i <= currentPage + 1;
+                            i++
+                          )
+                            pages.push(i);
                           pages.push("...");
                           pages.push(totalPages);
                         }
@@ -4092,8 +4952,8 @@ export default function Page() {
                             p === currentPage
                               ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
                               : p === "..."
-                              ? "cursor-default text-gray-400"
-                              : "border border-red-200 hover:bg-red-50 text-gray-700"
+                                ? "cursor-default text-gray-400"
+                                : "border border-red-200 hover:bg-red-50 text-gray-700"
                           }`}
                         >
                           {p}
@@ -4122,8 +4982,13 @@ export default function Page() {
           <div className="w-full max-w-md rounded-2xl border border-emerald-200 bg-white shadow-2xl overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-200 bg-gradient-to-r from-emerald-500/10 to-emerald-700/10 flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-bold text-gray-900">Tạo buổi học</h3>
-                <p className="text-sm text-gray-600 mt-1">{generateTargetClass.name} ({generateTargetClass.code || generateTargetClass.id})</p>
+                <h3 className="text-lg font-bold text-gray-900">
+                  Tạo buổi học
+                </h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  {generateTargetClass.name} (
+                  {generateTargetClass.code || generateTargetClass.id})
+                </p>
               </div>
               <button
                 type="button"
@@ -4140,7 +5005,7 @@ export default function Page() {
               </button>
             </div>
 
-            <div className="px-5 py-4 space-y-4">
+            <div className="px-5 py-4 space-y-4 text-sm">
               <p className="text-sm text-gray-700">
                 Chọn phạm vi tạo buổi học từ schedule pattern của lớp.
               </p>
@@ -4149,19 +5014,23 @@ export default function Page() {
                 <input
                   type="checkbox"
                   checked={generateOnlyFutureSessions}
-                  onChange={(e) => setGenerateOnlyFutureSessions(e.target.checked)}
+                  onChange={(e) =>
+                    setGenerateOnlyFutureSessions(e.target.checked)
+                  }
                   className="h-4 w-4 rounded border-gray-300 mt-0.5"
                 />
-                <span>
-                  Chỉ tạo buổi học tương lai.
-                </span>
+                <span>Chỉ tạo buổi học tương lai.</span>
               </label>
 
               <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 space-y-2">
-                <label className="block text-sm font-semibold text-gray-700">Màu buổi học trên lịch</label>
+                <label className="block text-sm font-semibold text-gray-700">
+                  Màu buổi học trên lịch
+                </label>
                 <div className="flex flex-wrap gap-2">
                   {GENERATE_COLOR_PRESETS.map((color) => {
-                    const active = generateSessionColor.toLowerCase() === color.toLowerCase();
+                    const active =
+                      generateSessionColor.toLowerCase() ===
+                      color.toLowerCase();
                     return (
                       <button
                         key={color}
@@ -4169,7 +5038,9 @@ export default function Page() {
                         onClick={() => setGenerateSessionColor(color)}
                         className={clsx(
                           "h-7 w-7 rounded-md border transition-all",
-                          active ? "ring-2 ring-red-400 border-red-300" : "border-gray-300 hover:border-red-300"
+                          active
+                            ? "ring-2 ring-red-400 border-red-300"
+                            : "border-gray-300 hover:border-red-300",
                         )}
                         style={{ backgroundColor: color }}
                         aria-label={`Chọn màu ${color}`}
@@ -4222,7 +5093,11 @@ export default function Page() {
                 }}
                 className="px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-600 to-emerald-700 text-white hover:shadow-lg disabled:opacity-60 inline-flex items-center gap-2"
               >
-                {isGeneratingSessions ? <Loader2 size={16} className="animate-spin" /> : <CalendarDays size={16} />}
+                {isGeneratingSessions ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <CalendarDays size={16} />
+                )}
                 {isGeneratingSessions ? "Đang tạo..." : "Tạo buổi học"}
               </button>
             </div>
@@ -4282,7 +5157,7 @@ export default function Page() {
           toast={toast}
           onEnrollmentSuccess={(newEnrolledIds) => {
             // Cập nhật danh sách enrolled để lọc bỏ những student đã thêm
-            setEnrolledStudentIds(prev => [...prev, ...newEnrolledIds]);
+            setEnrolledStudentIds((prev) => [...prev, ...newEnrolledIds]);
           }}
         />
       )}
@@ -4290,15 +5165,16 @@ export default function Page() {
   );
 }
 
-const FUTURE_STRETCH_DAY_OPTIONS: Array<{ code: WeekdayCode; label: string }> = [
-  { code: "MO", label: "T2" },
-  { code: "TU", label: "T3" },
-  { code: "WE", label: "T4" },
-  { code: "TH", label: "T5" },
-  { code: "FR", label: "T6" },
-  { code: "SA", label: "T7" },
-  { code: "SU", label: "CN" },
-];
+const FUTURE_STRETCH_DAY_OPTIONS: Array<{ code: WeekdayCode; label: string }> =
+  [
+    { code: "MO", label: "T2" },
+    { code: "TU", label: "T3" },
+    { code: "WE", label: "T4" },
+    { code: "TH", label: "T5" },
+    { code: "FR", label: "T6" },
+    { code: "SA", label: "T7" },
+    { code: "SU", label: "CN" },
+  ];
 
 const DEFAULT_DAYS_BY_TARGET: Record<number, WeekdayCode[]> = {
   3: ["MO", "WE", "FR"],
@@ -4314,7 +5190,7 @@ function toWeekdayCodeFromScheduleDay(day: string): WeekdayCode | null {
     "5": "TH",
     "6": "FR",
     "7": "SA",
-    "CN": "SU",
+    CN: "SU",
   };
 
   return map[normalized] ?? null;
@@ -4323,7 +5199,9 @@ function toWeekdayCodeFromScheduleDay(day: string): WeekdayCode | null {
 function calculateDurationMinutes(startTime: string, endTime: string): number {
   if (!startTime || !endTime) return 120;
 
-  const [startHour, startMinute] = startTime.split(":").map((v) => Number(v) || 0);
+  const [startHour, startMinute] = startTime
+    .split(":")
+    .map((v) => Number(v) || 0);
   const [endHour, endMinute] = endTime.split(":").map((v) => Number(v) || 0);
   const start = startHour * 60 + startMinute;
   const end = endHour * 60 + endMinute;

@@ -679,26 +679,27 @@ function StatisticsCards({ branchId, isPageLoaded }: { branchId?: string | null;
   if (!stats) return null;
 
   const cards = [
-    { label: "Tổng", value: stats.total, icon: FileText, bg: "bg-gray-100", fg: "text-gray-600" },
-    { label: "Mở", value: stats.open, icon: AlertTriangle, bg: "bg-red-100", fg: "text-red-600" },
-    { label: "Đang xử lý", value: stats.inProgress, icon: ArrowRightCircle, bg: "bg-blue-100", fg: "text-blue-600" },
-    { label: "Đã giải quyết", value: stats.resolved, icon: CheckCircle2, bg: "bg-green-100", fg: "text-green-600" },
-    { label: "Đã đóng", value: stats.closed, icon: XCircle, bg: "bg-gray-100", fg: "text-gray-500" },
-    { label: "Từ chối", value: stats.rejected, icon: XCircle, bg: "bg-red-100", fg: "text-red-600" },
-    { label: "Chưa gán", value: stats.unassigned, icon: UserCheck, bg: "bg-red-100", fg: "text-red-600" },
+    { label: "Tổng", value: stats.total, icon: FileText, gradient: "from-red-600 to-red-700" },
+    { label: "Mở", value: stats.open, icon: AlertTriangle, gradient: "from-red-600 to-red-700" },
+    { label: "Đang xử lý", value: stats.inProgress, icon: ArrowRightCircle, gradient: "from-blue-600 to-cyan-600" },
+    { label: "Đã giải quyết", value: stats.resolved, icon: CheckCircle2, gradient: "from-emerald-600 to-teal-600" },
+    { label: "Đã đóng", value: stats.closed, icon: XCircle, gradient: "from-gray-600 to-gray-700" },
+    { label: "Từ chối", value: stats.rejected, icon: XCircle, gradient: "from-red-600 to-red-700" },
+    { label: "Chưa gán", value: stats.unassigned, icon: UserCheck, gradient: "from-amber-600 to-orange-600" },
   ];
 
   return (
     <div className={cn("grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4 transition-all duration-700 delay-100", isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4")}>
       {cards.map(c => (
-        <div key={c.label} className="rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-md transition-all">
-          <div className="flex items-center gap-3">
-            <span className={cn("w-10 h-10 rounded-xl grid place-items-center", c.bg)}>
-              <c.icon className={c.fg} size={18} />
+        <div key={c.label} className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+          <div className="absolute right-0 top-0 h-12 w-12 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r from-red-600 to-red-700"></div>
+          <div className="relative flex items-center gap-3">
+            <span className={cn("w-10 h-10 rounded-xl bg-gradient-to-br grid place-items-center flex-shrink-0 shadow-sm text-white", `${c.gradient}`)}>
+              <c.icon size={18} />
             </span>
             <div>
               <div className="text-sm text-gray-600">{c.label}</div>
-              <div className="text-2xl font-extrabold text-gray-900">{c.value}</div>
+              <div className="text-2xl font-bold text-gray-900">{c.value}</div>
             </div>
           </div>
         </div>
