@@ -12,29 +12,58 @@ import type {
   SessionChangeResult,
   SessionChangeRoomRequest,
   SessionChangeTeacherRequest,
+  SessionChangeSectionTypeRequest,
   UpdateSessionsByClassRequest,
   UpdateSessionsByClassResult,
 } from "@/types/admin/sessions";
 
-function extractApiErrorMessage(json: any, text: string, fallback: string): string {
+function extractApiErrorMessage(json: any, text: string, fallback: string, status?: number): string {
+  // errors as array: [{code, description, message}]
   if (Array.isArray(json?.errors) && json.errors.length > 0) {
     const messages = json.errors
       .map((entry: any) => entry?.description || entry?.message || entry?.code)
       .filter(Boolean);
-
-    if (messages.length > 0) {
-      return messages.join("\n");
-    }
+    if (messages.length > 0) return messages.join("; ");
   }
 
-  return (
-    json?.detail ||
-    json?.message ||
-    json?.error ||
-    json?.title ||
-    (typeof text === "string" && text.trim() ? text : null) ||
-    fallback
-  );
+  // errors as object: {field: ["msg1", "msg2"]}
+  if (json?.errors && typeof json.errors === "object" && !Array.isArray(json.errors)) {
+    const messages: string[] = [];
+    for (const key of Object.keys(json.errors)) {
+      const val = json.errors[key];
+      if (Array.isArray(val)) messages.push(...val.filter(Boolean));
+      else if (typeof val === "string" && val) messages.push(val);
+    }
+    if (messages.length > 0) return messages.join("; ");
+  }
+
+  const msg = json?.detail || json?.message || json?.error || json?.title;
+  if (msg) return msg;
+
+  // Don't show raw HTML responses
+  const trimmed = typeof text === "string" ? text.trim() : "";
+  if (trimmed && !trimmed.startsWith("<")) return trimmed;
+
+  if (status === 404) return `${fallback} (Endpoint chưa tồn tại trên máy chủ — mã 404)`;
+  if (status != null && status >= 500) return `${fallback} (Lỗi máy chủ — mã ${status})`;
+
+  return fallback;
+}
+
+function pickFirstString(...values: any[]): string | undefined {
+  for (const value of values) {
+    const text = String(value ?? "").trim();
+    if (text) return text;
+  }
+  return undefined;
+}
+
+function pickPositiveNumber(...values: any[]): number | undefined {
+  for (const value of values) {
+    const num = Number(value);
+    if (Number.isFinite(num) && num > 0) return num;
+  }
+  return undefined;
 }
 
 /**
@@ -135,6 +164,7 @@ export async function createAdminSession(
     plannedTeacherName: data?.plannedTeacherName ?? null,
     teacherName: data?.teacherName ?? null,
     participationType: data?.participationType ?? null,
+    sectionType: data?.sectionType ?? payload.sectionType ?? null,
     color: data?.color ?? data?.Color ?? null,
   };
 
@@ -175,6 +205,7 @@ function mapApiSession(item: any): Session {
     actualAssistantName: item?.actualAssistantName ?? null,
     assistantName: item?.assistantName ?? null,
     participationType: item?.participationType ?? null,
+    sectionType: item?.sectionType ?? null,
     status: item?.status ?? null,
     color: item?.color ?? item?.Color ?? null,
   };
@@ -346,11 +377,17 @@ async function fetchRawSessionForUpdate(sessionId: string, token: string): Promi
   }
 
   if (!res.ok) {
-    const msg = json?.message || json?.error || json?.title || "Không thể tải session hiện tại.";
+    const msg = json?.message || json?.error || json?.title || "Không thể tải thông tin buổi học hiện tại.";
     throw new Error(msg);
   }
 
-  return json?.data ?? json;
+  // Unwrap: { data: { session: {...} } } | { data: {...} } | { session: {...} } | raw
+  const data = json?.data ?? json;
+  const unwrapped =
+    data && typeof data === "object" && !Array.isArray(data) && "session" in data
+      ? data.session
+      : data;
+  return unwrapped;
 }
 
 /**
@@ -366,6 +403,7 @@ export async function updateAdminSession(
     plannedDatetime?: string;
     durationMinutes?: number;
     participationType?: string;
+    sectionType?: string;
   }
 ): Promise<{ isSuccess: boolean; data?: any; message?: string }> {
   const token = getAccessToken();
@@ -375,12 +413,27 @@ export async function updateAdminSession(
 
   const currentSession = await fetchRawSessionForUpdate(sessionId, token);
 
+  const currentPlannedDatetime = pickFirstString(
+    currentSession?.plannedDatetime,
+    currentSession?.plannedDateTime,
+    currentSession?.plannedAt,
+    currentSession?.scheduledAt,
+    currentSession?.startTime,
+    currentSession?.dateTime,
+  );
+
+  const currentDurationMinutes = pickPositiveNumber(
+    currentSession?.durationMinutes,
+    currentSession?.durationInMinutes,
+    currentSession?.duration,
+  );
+
   const mergedPayload = {
-    plannedDatetime: payload.plannedDatetime ?? currentSession?.plannedDatetime,
+    plannedDatetime: payload.plannedDatetime ?? currentPlannedDatetime,
     durationMinutes:
       typeof payload.durationMinutes === "number"
         ? payload.durationMinutes
-        : currentSession?.durationMinutes,
+        : currentDurationMinutes ?? 60,
     plannedRoomId:
       payload.plannedRoomId !== undefined
         ? payload.plannedRoomId
@@ -397,14 +450,18 @@ export async function updateAdminSession(
       payload.participationType
       ?? currentSession?.participationType
       ?? "Main",
+    sectionType:
+      payload.sectionType
+      ?? currentSession?.sectionType
+      ?? "Normal",
   };
 
   if (!mergedPayload.plannedDatetime) {
-    throw new Error("Không thể cập nhật session vì thiếu plannedDatetime.");
+    throw new Error("Không thể cập nhật buổi học vì không tìm thấy thời gian trong hệ thống. Vui lòng thử lại hoặc liên hệ quản trị viên.");
   }
 
   if (!mergedPayload.durationMinutes || mergedPayload.durationMinutes <= 0) {
-    throw new Error("Không thể cập nhật session vì thiếu durationMinutes hợp lệ.");
+    throw new Error("Không thể cập nhật buổi học vì thời lượng không hợp lệ.");
   }
 
   const res = await fetch(`${ADMIN_ENDPOINTS.SESSIONS}/${sessionId}`, {
@@ -491,7 +548,7 @@ export async function changeSessionRoom(
   }
 
   if (!res.ok) {
-    throw new Error(extractApiErrorMessage(json, text, "Không thể đổi phòng học."));
+    throw new Error(extractApiErrorMessage(json, text, "Không thể đổi phòng học.", res.status));
   }
 
   return { isSuccess: json?.isSuccess ?? true, data: json?.data ?? json, message: json?.message };
@@ -528,9 +585,40 @@ export async function changeSessionTeacher(
   }
 
   if (!res.ok) {
-    throw new Error(extractApiErrorMessage(json, text, "Không thể đổi giáo viên."));
+    throw new Error(extractApiErrorMessage(json, text, "Không thể đổi giáo viên.", res.status));
   }
 
   return { isSuccess: json?.isSuccess ?? true, data: json?.data ?? json, message: json?.message };
 }
 
+export async function changeSessionSectionType(
+  payload: SessionChangeSectionTypeRequest
+): Promise<{ isSuccess: boolean; data?: any; message?: string }> {
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error("Bạn chưa đăng nhập.");
+  }
+
+  const res = await fetch(ADMIN_ENDPOINTS.SESSIONS_CHANGE_SECTION_TYPE(payload.sessionId), {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ sectionType: payload.sectionType }),
+  });
+
+  const text = await res.text();
+  let json: any = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    json = null;
+  }
+
+  if (!res.ok) {
+    throw new Error(extractApiErrorMessage(json, text, "Không thể đổi loại buổi học.", res.status));
+  }
+
+  return { isSuccess: json?.isSuccess ?? true, data: json?.data ?? json, message: json?.message };
+}

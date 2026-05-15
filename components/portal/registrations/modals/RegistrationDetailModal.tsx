@@ -708,6 +708,90 @@ export default function RegistrationDetailModal({
                   </div>
                 )}
               </Section>
+               <Section
+              title="Vé học"
+              icon={<Wallet size={16} className="text-amber-600" />}
+              colorClass="border-amber-200 bg-amber-50/40"
+            >
+              {ticketLoading ? (
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Loader2 size={16} className="animate-spin text-amber-500" />
+                  <span>Đang tải thông tin vé học...</span>
+                </div>
+              ) : ticketError ? (
+                <div className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm text-amber-700">
+                  {ticketError}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                    <InfoCard
+                      icon={<Wallet size={14} />}
+                      label="Vé còn lại"
+                      value={String(ticketBalance?.available ?? item.remainingSessions ?? 0)}
+                    />
+                    <InfoCard
+                      icon={<CheckCircle size={14} />}
+                      label="Vé đã dùng"
+                      value={String(ticketBalance?.consumed ?? item.usedSessions ?? 0)}
+                    />
+                    <InfoCard
+                      icon={<Calendar size={14} />}
+                      label="Tổng vé đã cấp"
+                      value={String(ticketBalance?.totalGranted ?? item.totalSessions ?? 0)}
+                    />
+                  </div>
+
+                  <div className="rounded-xl border border-white bg-white p-4 shadow-sm">
+                    <div className="mb-3 flex items-center gap-2">
+                      <History size={14} className="text-amber-600" />
+                      <div className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                        Lịch sử vé học
+                      </div>
+                    </div>
+
+                    {ticketLedger.length === 0 ? (
+                      <div className="rounded-lg border border-dashed border-gray-200 px-3 py-4 text-sm text-gray-500">
+                        Chưa có giao dịch vé học.
+                      </div>
+                    ) : (
+                      <div className="overflow-hidden rounded-xl border border-gray-100">
+                        <table className="w-full text-sm">
+                          <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+                            <tr>
+                              <th className="px-3 py-2">Loại</th>
+                              <th className="px-3 py-2">Số lượng</th>
+                              <th className="px-3 py-2">Lý do</th>
+                              <th className="px-3 py-2">Thời gian</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100 bg-white">
+                            {ticketLedger.map((entry) => (
+                              <tr key={entry.id} className="align-top">
+                                <td className="px-3 py-2">
+                                  <span className={cn("inline-flex rounded-full px-2.5 py-1 text-xs font-semibold", ticketTransactionBadgeClass(entry.transactionType))}>
+                                    {ticketTransactionLabel(entry.transactionType)}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2 font-semibold text-gray-900">
+                                  {entry.quantity}
+                                </td>
+                                <td className="px-3 py-2 text-gray-700">
+                                  {entry.reason || "-"}
+                                </td>
+                                <td className="px-3 py-2 text-gray-500">
+                                  {toDateTimeOrRaw(entry.createdAt)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </Section>
 
               {/* System Information Section */}
               <Section
