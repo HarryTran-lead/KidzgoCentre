@@ -37,12 +37,12 @@ export default function TeacherFeedbackWorkspace() {
   const activeConfig = tabs.find((tab) => tab.id === activeTab) ?? tabs[0];
 
   return (
-    <div className="space-y-4 bg-gradient-to-b from-red-50/30 to-white p-4 md:p-6">
+    <div className="space-y-4 bg-gradient-to-b from-red-50/30 to-white p-4 md:p-2">
       <div className="rounded-[24px] border border-red-100 bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.05)] md:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="rounded-2xl bg-gradient-to-r from-red-600 to-red-700 p-3 text-white shadow-lg">
-              <GraduationCap size={24} />
+              <GraduationCap size={25} />
             </div>
             <div>
               <h1 className="text-xl font-bold text-gray-900 md:text-2xl">

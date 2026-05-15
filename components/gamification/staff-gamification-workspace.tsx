@@ -106,7 +106,12 @@ import {
 } from "./shared";
 
 type StaffRole = "Admin" | "ManagementStaff" | "Teacher";
-type StaffTab = "missions" | "students" | "rewardStore" | "redemptions" | "settings";
+type StaffTab =
+  | "missions"
+  | "students"
+  | "rewardStore"
+  | "redemptions"
+  | "settings";
 
 type MissionFormState = {
   id?: string;
@@ -158,15 +163,18 @@ type StudentActionState = {
 
 type StudentActionErrors = Partial<Record<"starAmount" | "xpAmount", string>>;
 
-type ExportedDeliveredRow = Record<string, string | number | boolean | null | undefined>;
+type ExportedDeliveredRow = Record<
+  string,
+  string | number | boolean | null | undefined
+>;
 
 type PurchaseExportRow = {
-  "STT": number;
+  STT: number;
   "Tên quà": string;
   "Số lượng": number | "";
   "Học sinh": string;
   "Chi nhánh": string;
-  "Lớp": string;
+  Lớp: string;
 };
 
 const inputClass =
@@ -234,7 +242,7 @@ function getFieldClass(baseClass: string, hasError?: boolean) {
     baseClass,
     hasError
       ? "border-rose-300 bg-rose-50/70 text-rose-900 placeholder:text-rose-300 focus:border-rose-400 focus:ring-rose-100"
-      : undefined
+      : undefined,
   );
 }
 
@@ -258,11 +266,11 @@ async function loadXlsxModule() {
 
 function getExportRowValue(
   row: ExportedDeliveredRow,
-  candidateKeys: string[]
+  candidateKeys: string[],
 ): string {
   for (const key of candidateKeys) {
     const matchedKey = Object.keys(row).find(
-      (item) => item.trim().toLowerCase() === key.trim().toLowerCase()
+      (item) => item.trim().toLowerCase() === key.trim().toLowerCase(),
     );
     if (!matchedKey) continue;
 
@@ -294,9 +302,15 @@ export function StaffGamificationWorkspace({
   const tabs = [
     { id: "missions" as const, label: "Nhiệm vụ" },
     { id: "students" as const, label: "Sao / XP" },
-    ...(canManageStore ? ([{ id: "rewardStore" as const, label: "Kho quà" }] as const) : []),
-    ...(canViewRedemptions ? ([{ id: "redemptions" as const, label: "Đổi thưởng" }] as const) : []),
-    ...(canViewRules || canManageGamificationSettings ? ([{ id: "settings" as const, label: "Cài đặt" }] as const) : []),
+    ...(canManageStore
+      ? ([{ id: "rewardStore" as const, label: "Kho quà" }] as const)
+      : []),
+    ...(canViewRedemptions
+      ? ([{ id: "redemptions" as const, label: "Đổi thưởng" }] as const)
+      : []),
+    ...(canViewRules || canManageGamificationSettings
+      ? ([{ id: "settings" as const, label: "Cài đặt" }] as const)
+      : []),
   ];
   const [activeTab, setActiveTab] = useState<StaffTab>("missions");
   const [loading, setLoading] = useState(true);
@@ -311,23 +325,36 @@ export function StaffGamificationWorkspace({
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [studentBalance, setStudentBalance] = useState(0);
   const [studentLevel, setStudentLevel] = useState<LevelInfo | null>(null);
-  const [studentStreak, setStudentStreak] = useState<AttendanceStreakInfo | null>(null);
-  const [transactions, setTransactions] = useState<Awaited<ReturnType<typeof getStarTransactions>>["transactions"]>([]);
+  const [studentStreak, setStudentStreak] =
+    useState<AttendanceStreakInfo | null>(null);
+  const [transactions, setTransactions] = useState<
+    Awaited<ReturnType<typeof getStarTransactions>>["transactions"]
+  >([]);
   const [missionForm, setMissionForm] = useState<MissionFormState>(missionSeed);
   const [missionErrors, setMissionErrors] = useState<MissionFormErrors>({});
   const [rewardForm, setRewardForm] = useState<RewardFormState>(rewardSeed);
   const [rewardErrors, setRewardErrors] = useState<RewardFormErrors>({});
   const [missionDialogOpen, setMissionDialogOpen] = useState(false);
   const [rewardDialogOpen, setRewardDialogOpen] = useState(false);
-  const [progressDialog, setProgressDialog] = useState<{ mission: Mission | null; items: MissionProgress[]; open: boolean }>({ mission: null, items: [], open: false });
-  const [redemptionDetail, setRedemptionDetail] = useState<RewardRedemption | null>(null);
-  const [cancelRedemptionId, setCancelRedemptionId] = useState<string | null>(null);
+  const [progressDialog, setProgressDialog] = useState<{
+    mission: Mission | null;
+    items: MissionProgress[];
+    open: boolean;
+  }>({ mission: null, items: [], open: false });
+  const [redemptionDetail, setRedemptionDetail] =
+    useState<RewardRedemption | null>(null);
+  const [cancelRedemptionId, setCancelRedemptionId] = useState<string | null>(
+    null,
+  );
   const [cancelReason, setCancelReason] = useState("");
   const [groupClassFilter, setGroupClassFilter] = useState("");
   const [studentClassFilter, setStudentClassFilter] = useState("");
-  const [missionStudentClassFilter, setMissionStudentClassFilter] = useState("");
-  const [studentAction, setStudentAction] = useState<StudentActionState>(studentActionSeed);
-  const [studentActionErrors, setStudentActionErrors] = useState<StudentActionErrors>({});
+  const [missionStudentClassFilter, setMissionStudentClassFilter] =
+    useState("");
+  const [studentAction, setStudentAction] =
+    useState<StudentActionState>(studentActionSeed);
+  const [studentActionErrors, setStudentActionErrors] =
+    useState<StudentActionErrors>({});
   const [batchYear, setBatchYear] = useState("");
   const [batchMonth, setBatchMonth] = useState("");
   const [exportBranchId, setExportBranchId] = useState("");
@@ -336,7 +363,15 @@ export function StaffGamificationWorkspace({
   const [redemptionTotalPages, setRedemptionTotalPages] = useState(1);
   const [branchOptions, setBranchOptions] = useState<Branch[]>([]);
   const [rewardRules, setRewardRules] = useState<MissionRewardRule[]>([]);
-  const [ruleForm, setRuleForm] = useState<MissionRewardRuleRequest & { id?: string }>({ missionType: "", progressMode: "Count", totalRequired: 0, rewardStars: 0, rewardExp: 0 });
+  const [ruleForm, setRuleForm] = useState<
+    MissionRewardRuleRequest & { id?: string }
+  >({
+    missionType: "",
+    progressMode: "Count",
+    totalRequired: 0,
+    rewardStars: 0,
+    rewardExp: 0,
+  });
   const [ruleDialogOpen, setRuleDialogOpen] = useState(false);
   const [gamificationSettings, setGamificationSettings] = useState({
     checkInRewardStars: 0,
@@ -345,24 +380,28 @@ export function StaffGamificationWorkspace({
   const [imageUploading, setImageUploading] = useState(false);
   const rewardImageInputRef = useRef<HTMLInputElement>(null);
   const rewardImagePreviewUrl = buildFileUrl(rewardForm.imageUrl);
-  const { selectedBranchId, isLoaded: isBranchFilterLoaded } = useBranchFilter();
+  const { selectedBranchId, isLoaded: isBranchFilterLoaded } =
+    useBranchFilter();
 
   const selectedStudent = useMemo(
     () => students.find((item) => item.id === selectedStudentId) ?? null,
-    [selectedStudentId, students]
+    [selectedStudentId, students],
   );
 
   const selectedMissionTargetStudent = useMemo(
-    () => students.find((item) => item.id === missionForm.targetStudentId) ?? null,
-    [missionForm.targetStudentId, students]
+    () =>
+      students.find((item) => item.id === missionForm.targetStudentId) ?? null,
+    [missionForm.targetStudentId, students],
   );
 
   const selectedMissionGroupStudents = useMemo(
     () =>
       missionForm.targetGroupIds
-        .map((studentId) => students.find((item) => item.id === studentId) ?? null)
+        .map(
+          (studentId) => students.find((item) => item.id === studentId) ?? null,
+        )
         .filter((item): item is StudentOption => Boolean(item)),
-    [missionForm.targetGroupIds, students]
+    [missionForm.targetGroupIds, students],
   );
 
   const visibleMissions = useMemo(() => {
@@ -375,23 +414,31 @@ export function StaffGamificationWorkspace({
 
     return missions.filter((mission) => {
       if (mission.scope === "Class") {
-        return mission.targetClassId ? teacherClassIds.has(mission.targetClassId) : false;
+        return mission.targetClassId
+          ? teacherClassIds.has(mission.targetClassId)
+          : false;
       }
 
       if (mission.scope === "Student") {
-        return mission.targetStudentId ? teacherStudentIds.has(mission.targetStudentId) : false;
+        return mission.targetStudentId
+          ? teacherStudentIds.has(mission.targetStudentId)
+          : false;
       }
 
       if (mission.scope === "Group") {
         const targetGroup = normalizeMissionTargetGroup(mission.targetGroup);
-        return targetGroup.some((studentId) => teacherStudentIds.has(studentId));
+        return targetGroup.some((studentId) =>
+          teacherStudentIds.has(studentId),
+        );
       }
 
       return true;
     });
   }, [classOptions, missions, role, students]);
 
-  function normalizeMissionTargetGroup(value: Mission["targetGroup"]): string[] {
+  function normalizeMissionTargetGroup(
+    value: Mission["targetGroup"],
+  ): string[] {
     if (Array.isArray(value)) {
       return value.map((item) => String(item).trim()).filter(Boolean);
     }
@@ -473,7 +520,9 @@ export function StaffGamificationWorkspace({
     });
   }
 
-  function inferMissionErrorsFromMessages(messages: string[]): MissionFormErrors {
+  function inferMissionErrorsFromMessages(
+    messages: string[],
+  ): MissionFormErrors {
     const nextErrors: MissionFormErrors = {};
 
     for (const message of messages) {
@@ -483,32 +532,50 @@ export function StaffGamificationWorkspace({
         nextErrors.title = "Vui lòng nhập tiêu đề nhiệm vụ.";
       }
 
-      if (normalized.includes("loại nhiệm vụ") || normalized.includes("mission type")) {
+      if (
+        normalized.includes("loại nhiệm vụ") ||
+        normalized.includes("mission type")
+      ) {
         nextErrors.missionType = "Vui lòng chọn loại nhiệm vụ.";
       }
 
-      if (normalized.includes("lớp áp dụng") || normalized.includes("targetclass") || normalized.includes("class")) {
+      if (
+        normalized.includes("lớp áp dụng") ||
+        normalized.includes("targetclass") ||
+        normalized.includes("class")
+      ) {
         nextErrors.targetClassId = "Vui lòng chọn lớp áp dụng.";
       }
 
-      if (normalized.includes("học sinh áp dụng") || normalized.includes("targetstudent")) {
+      if (
+        normalized.includes("học sinh áp dụng") ||
+        normalized.includes("targetstudent")
+      ) {
         nextErrors.targetStudentId = "Vui lòng chọn học sinh áp dụng.";
       }
 
-      if (normalized.includes("nhóm áp dụng") || normalized.includes("targetgroup") || normalized.includes("group")) {
-        nextErrors.targetGroupIds = "Vui lòng chọn ít nhất một học sinh cho nhóm áp dụng.";
+      if (
+        normalized.includes("nhóm áp dụng") ||
+        normalized.includes("targetgroup") ||
+        normalized.includes("group")
+      ) {
+        nextErrors.targetGroupIds =
+          "Vui lòng chọn ít nhất một học sinh cho nhóm áp dụng.";
       }
 
       if (normalized.includes("ngày bắt đầu") || normalized.includes("start")) {
-        nextErrors.startAt = normalized.includes("quá khứ") || normalized.includes("past")
-          ? "Ngày bắt đầu không được ở trong quá khứ."
-          : "Vui lòng kiểm tra lại ngày bắt đầu.";
+        nextErrors.startAt =
+          normalized.includes("quá khứ") || normalized.includes("past")
+            ? "Ngày bắt đầu không được ở trong quá khứ."
+            : "Vui lòng kiểm tra lại ngày bắt đầu.";
       }
 
       if (normalized.includes("ngày kết thúc") || normalized.includes("end")) {
-        nextErrors.endAt = normalized.includes("sau ngày bắt đầu") || normalized.includes("after")
-          ? "Ngày kết thúc phải sau ngày bắt đầu."
-          : "Vui lòng kiểm tra lại ngày kết thúc.";
+        nextErrors.endAt =
+          normalized.includes("sau ngày bắt đầu") ||
+          normalized.includes("after")
+            ? "Ngày kết thúc phải sau ngày bắt đầu."
+            : "Vui lòng kiểm tra lại ngày kết thúc.";
       }
 
       if (
@@ -518,7 +585,8 @@ export function StaffGamificationWorkspace({
         normalized.includes("missionrewardrule")
       ) {
         nextErrors.totalRequired =
-          normalized.includes("not configured") || normalized.includes("không cấu hình")
+          normalized.includes("not configured") ||
+          normalized.includes("không cấu hình")
             ? "Chưa có rule phần thưởng phù hợp với loại nhiệm vụ, cách tính và mục tiêu này."
             : "Mục tiêu hoàn thành phải lớn hơn 0.";
       }
@@ -537,10 +605,13 @@ export function StaffGamificationWorkspace({
         nextErrors.title = "Vui lòng nhập tên vật phẩm.";
       }
 
-      if (normalized.includes("số sao đổi") || normalized.includes("coststars") || normalized.includes("cost stars")) {
+      if (
+        normalized.includes("số sao đổi") ||
+        normalized.includes("coststars") ||
+        normalized.includes("cost stars")
+      ) {
         nextErrors.costStars = "Số sao đổi phải lớn hơn 0.";
       }
-
     }
 
     return nextErrors;
@@ -548,7 +619,9 @@ export function StaffGamificationWorkspace({
 
   function validateMissionForm() {
     const nextErrors: MissionFormErrors = {};
-    const startDate = missionForm.startAt ? new Date(missionForm.startAt) : null;
+    const startDate = missionForm.startAt
+      ? new Date(missionForm.startAt)
+      : null;
     const endDate = missionForm.endAt ? new Date(missionForm.endAt) : null;
     const totalRequired = parseNumericInput(missionForm.totalRequired);
     const currentMinute = getCurrentMinute();
@@ -573,8 +646,12 @@ export function StaffGamificationWorkspace({
       nextErrors.targetClassId = "Vui lòng chọn lớp áp dụng.";
     }
 
-    if (missionForm.scope === "Group" && missionForm.targetGroupIds.length === 0) {
-      nextErrors.targetGroupIds = "Vui lòng chọn ít nhất một học sinh cho nhóm áp dụng.";
+    if (
+      missionForm.scope === "Group" &&
+      missionForm.targetGroupIds.length === 0
+    ) {
+      nextErrors.targetGroupIds =
+        "Vui lòng chọn ít nhất một học sinh cho nhóm áp dụng.";
     }
 
     // startAt is optional - if empty, mission starts immediately
@@ -635,19 +712,22 @@ export function StaffGamificationWorkspace({
   }
 
   function validateStudentAction(
-    action: "addStars" | "deductStars" | "addXp" | "deductXp"
+    action: "addStars" | "deductStars" | "addXp" | "deductXp",
   ) {
     const field = action.includes("Stars") ? "starAmount" : "xpAmount";
     const label = field === "starAmount" ? "số sao" : "số XP";
     const amount = parseNumericInput(
-      field === "starAmount" ? studentAction.starAmount : studentAction.xpAmount
+      field === "starAmount"
+        ? studentAction.starAmount
+        : studentAction.xpAmount,
     );
     const nextErrors: StudentActionErrors = {};
 
     if (amount === null) {
       nextErrors[field] = `Vui lòng nhập ${label}.`;
     } else if (Number.isNaN(amount) || amount <= 0) {
-      nextErrors[field] = `${label === "số sao" ? "Số sao" : "Số XP"} phải lớn hơn 0.`;
+      nextErrors[field] =
+        `${label === "số sao" ? "Số sao" : "Số XP"} phải lớn hơn 0.`;
     }
 
     return nextErrors;
@@ -658,45 +738,91 @@ export function StaffGamificationWorkspace({
     setPageError(null);
 
     // Teacher: load classes from teacher API, then derive students from those classes
-    const classOptionsPromise = role === "Teacher"
-      ? getTeacherClasses({ pageNumber: 1, pageSize: 200 }).then((res) => {
-          const items = res?.data?.classes?.items ?? [];
-          return items.map((c: any) => ({ id: c.id, code: c.code, title: c.title ?? c.name, name: c.name ?? c.title })) as ClassOptionLite[];
-        }).catch(() => [] as ClassOptionLite[])
-      : getMissionClassOptions();
+    const classOptionsPromise =
+      role === "Teacher"
+        ? getTeacherClasses({ pageNumber: 1, pageSize: 200 })
+            .then((res) => {
+              const items = res?.data?.classes?.items ?? [];
+              return items.map((c: any) => ({
+                id: c.id,
+                code: c.code,
+                title: c.title ?? c.name,
+                name: c.name ?? c.title,
+              })) as ClassOptionLite[];
+            })
+            .catch(() => [] as ClassOptionLite[])
+        : getMissionClassOptions();
 
     const studentsPromise = (async (): Promise<StudentOption[]> => {
       try {
-        let classItems: { id: string; code?: string; title?: string; name?: string }[] = [];
+        let classItems: {
+          id: string;
+          code?: string;
+          title?: string;
+          name?: string;
+        }[] = [];
         if (role === "Teacher") {
           const res = await getTeacherClasses({ pageNumber: 1, pageSize: 200 });
-          classItems = (res?.data?.classes?.items ?? []).map((c: any) => ({ id: c.id, code: c.code, title: c.title ?? c.name, name: c.name ?? c.title }));
+          classItems = (res?.data?.classes?.items ?? []).map((c: any) => ({
+            id: c.id,
+            code: c.code,
+            title: c.title ?? c.name,
+            name: c.name ?? c.title,
+          }));
         } else {
-          const res = await get<any>("/api/classes", { params: { status: "Active", pageNumber: 1, pageSize: 200 } });
-          classItems = (res?.data?.classes?.items ?? []).map((c: any) => ({ id: c.id, code: c.code, title: c.title ?? c.name, name: c.name ?? c.title }));
+          const res = await get<any>("/api/classes", {
+            params: { status: "Active", pageNumber: 1, pageSize: 200 },
+          });
+          classItems = (res?.data?.classes?.items ?? []).map((c: any) => ({
+            id: c.id,
+            code: c.code,
+            title: c.title ?? c.name,
+            name: c.name ?? c.title,
+          }));
         }
         const allStudents: StudentOption[] = [];
         const seenKeys = new Set<string>();
         for (const cls of classItems) {
           try {
-            const resp = await get<any>(`/api/classes/${cls.id}/students`, { params: { pageNumber: 1, pageSize: 200 } });
+            const resp = await get<any>(`/api/classes/${cls.id}/students`, {
+              params: { pageNumber: 1, pageSize: 200 },
+            });
             const items: any[] = resp?.data?.students?.items ?? [];
             for (const s of items) {
-              const id = String(s.studentProfileId ?? s.id ?? s.profileId ?? "").trim();
+              const id = String(
+                s.studentProfileId ?? s.id ?? s.profileId ?? "",
+              ).trim();
               if (!id) continue;
-              const enrollmentStatus = String(s.enrollmentStatus ?? s.status ?? "");
+              const enrollmentStatus = String(
+                s.enrollmentStatus ?? s.status ?? "",
+              );
               if (enrollmentStatus && enrollmentStatus !== "Active") continue;
               const compositeKey = `${id}::${cls.id}`;
               if (seenKeys.has(compositeKey)) continue;
               seenKeys.add(compositeKey);
-              const label = s.fullName || s.name || s.displayName || s.userName || id;
-              const classText = cls.code ? `${cls.code} - ${cls.title ?? cls.name ?? ""}`.trim() : (cls.title ?? cls.name ?? "");
-              allStudents.push({ id, label, studentId: s.studentId, classId: cls.id, classText, helperText: classText, dropdownLabel: classText ? `${label} • ${classText}` : label });
+              const label =
+                s.fullName || s.name || s.displayName || s.userName || id;
+              const classText = cls.code
+                ? `${cls.code} - ${cls.title ?? cls.name ?? ""}`.trim()
+                : (cls.title ?? cls.name ?? "");
+              allStudents.push({
+                id,
+                label,
+                studentId: s.studentId,
+                classId: cls.id,
+                classText,
+                helperText: classText,
+                dropdownLabel: classText ? `${label} • ${classText}` : label,
+              });
             }
-          } catch { /* skip classes with errors */ }
+          } catch {
+            /* skip classes with errors */
+          }
         }
         return allStudents;
-      } catch { return []; }
+      } catch {
+        return [];
+      }
     })();
 
     const results = await Promise.allSettled([
@@ -705,7 +831,12 @@ export function StaffGamificationWorkspace({
       studentsPromise,
       canManageStore
         ? listRewardStoreItems({ page: 1, pageSize: 50 })
-        : Promise.resolve({ items: [], pageNumber: 1, totalPages: 1, totalCount: 0 }),
+        : Promise.resolve({
+            items: [],
+            pageNumber: 1,
+            totalPages: 1,
+            totalCount: 0,
+          }),
       listRewardRedemptions({ page: redemptionPage, pageSize: 10 }),
       canViewRules
         ? listMissionRewardRules()
@@ -718,22 +849,40 @@ export function StaffGamificationWorkspace({
         : Promise.resolve({ data: { branches: [] } } as any),
     ]);
 
-    const [missionResult, classResult, studentResult, rewardResult, redemptionResult, ruleResult, settingsResult, branchResult] = results;
-    if (missionResult.status === "fulfilled") setMissions(missionResult.value.items);
-    if (classResult.status === "fulfilled") setClassOptions(classResult.value as ClassOptionLite[]);
+    const [
+      missionResult,
+      classResult,
+      studentResult,
+      rewardResult,
+      redemptionResult,
+      ruleResult,
+      settingsResult,
+      branchResult,
+    ] = results;
+    if (missionResult.status === "fulfilled")
+      setMissions(missionResult.value.items);
+    if (classResult.status === "fulfilled")
+      setClassOptions(classResult.value as ClassOptionLite[]);
     if (studentResult.status === "fulfilled") {
       const options = studentResult.value as StudentOption[];
       setStudents(options);
       setSelectedStudentId((current) => current || options[0]?.id || "");
     }
-    if (rewardResult.status === "fulfilled") setRewardItems((rewardResult.value as any).items);
+    if (rewardResult.status === "fulfilled")
+      setRewardItems((rewardResult.value as any).items);
     if (redemptionResult.status === "fulfilled") {
       setRedemptions(redemptionResult.value.items);
       setRedemptionTotalPages(redemptionResult.value.totalPages);
     }
-    if (ruleResult.status === "fulfilled") setRewardRules(ruleResult.value as MissionRewardRule[]);
+    if (ruleResult.status === "fulfilled")
+      setRewardRules(ruleResult.value as MissionRewardRule[]);
     if (settingsResult.status === "fulfilled") {
-      setGamificationSettings(settingsResult.value as { checkInRewardStars: number; checkInRewardExp: number });
+      setGamificationSettings(
+        settingsResult.value as {
+          checkInRewardStars: number;
+          checkInRewardExp: number;
+        },
+      );
     }
     if (branchResult.status === "fulfilled") {
       const payload = branchResult.value as any;
@@ -759,11 +908,15 @@ export function StaffGamificationWorkspace({
       getAttendanceStreak(studentProfileId),
       getStarTransactions({ studentProfileId, page: 1, pageSize: 10 }),
     ]);
-    const [balanceResult, levelResult, streakResult, transactionResult] = results;
-    if (balanceResult.status === "fulfilled") setStudentBalance(balanceResult.value.balance);
+    const [balanceResult, levelResult, streakResult, transactionResult] =
+      results;
+    if (balanceResult.status === "fulfilled")
+      setStudentBalance(balanceResult.value.balance);
     if (levelResult.status === "fulfilled") setStudentLevel(levelResult.value);
-    if (streakResult.status === "fulfilled") setStudentStreak(streakResult.value);
-    if (transactionResult.status === "fulfilled") setTransactions(transactionResult.value.transactions);
+    if (streakResult.status === "fulfilled")
+      setStudentStreak(streakResult.value);
+    if (transactionResult.status === "fulfilled")
+      setTransactions(transactionResult.value.transactions);
     setStudentLoading(false);
   }
 
@@ -804,8 +957,17 @@ export function StaffGamificationWorkspace({
       exportItemId,
     };
 
-    window.localStorage.setItem(exportFilterStorageKey, JSON.stringify(payload));
-  }, [batchMonth, batchYear, exportBranchId, exportFilterStorageKey, exportItemId]);
+    window.localStorage.setItem(
+      exportFilterStorageKey,
+      JSON.stringify(payload),
+    );
+  }, [
+    batchMonth,
+    batchYear,
+    exportBranchId,
+    exportFilterStorageKey,
+    exportItemId,
+  ]);
 
   useEffect(() => {
     if (!isBranchFilterLoaded) return;
@@ -896,7 +1058,10 @@ export function StaffGamificationWorkspace({
       return;
     }
 
-    if (missionForm.scope === "Group" && missionForm.targetGroupIds.length === 0) {
+    if (
+      missionForm.scope === "Group" &&
+      missionForm.targetGroupIds.length === 0
+    ) {
       toast.destructive({
         title: "Thiếu nhóm áp dụng",
         description: "Vui lòng chọn ít nhất một học sinh cho nhiệm vụ nhóm.",
@@ -925,7 +1090,9 @@ export function StaffGamificationWorkspace({
             : undefined,
         missionType: missionForm.missionType as MissionType,
         progressMode: missionForm.progressMode,
-        startAt: missionForm.startAt ? toIsoString(missionForm.startAt) : undefined,
+        startAt: missionForm.startAt
+          ? toIsoString(missionForm.startAt)
+          : undefined,
         endAt: missionForm.endAt ? toIsoString(missionForm.endAt) : undefined,
         totalRequired: Number(missionForm.totalRequired),
       };
@@ -1105,7 +1272,7 @@ export function StaffGamificationWorkspace({
   }
 
   async function runStudentAction(
-    action: "addStars" | "deductStars" | "addXp" | "deductXp"
+    action: "addStars" | "deductStars" | "addXp" | "deductXp",
   ) {
     if (!selectedStudentId) return;
 
@@ -1126,7 +1293,7 @@ export function StaffGamificationWorkspace({
       const amount = Number(
         action.includes("Stars")
           ? studentAction.starAmount
-          : studentAction.xpAmount
+          : studentAction.xpAmount,
       );
       const reason = action.includes("Stars")
         ? studentAction.starReason
@@ -1175,7 +1342,7 @@ export function StaffGamificationWorkspace({
 
   async function transitionRedemption(
     id: string,
-    action: "approve" | "cancel" | "deliver"
+    action: "approve" | "cancel" | "deliver",
   ) {
     try {
       setBusyAction(`${action}-${id}`);
@@ -1208,7 +1375,9 @@ export function StaffGamificationWorkspace({
     if (!cancelRedemptionId) return;
     try {
       setBusyAction(`cancel-${cancelRedemptionId}`);
-      await cancelRewardRedemption(cancelRedemptionId, { reason: cancelReason.trim() || undefined });
+      await cancelRewardRedemption(cancelRedemptionId, {
+        reason: cancelReason.trim() || undefined,
+      });
       toast.success({ title: "Đã hủy đổi thưởng" });
       setCancelRedemptionId(null);
       setCancelReason("");
@@ -1268,7 +1437,8 @@ export function StaffGamificationWorkspace({
       if (exportedRows.length === 0) {
         toast({
           title: "Không có dữ liệu để xuất",
-          description: "Không tìm thấy redemption đã giao trong bộ lọc hiện tại.",
+          description:
+            "Không tìm thấy redemption đã giao trong bộ lọc hiện tại.",
           variant: "destructive",
         });
         return;
@@ -1278,14 +1448,21 @@ export function StaffGamificationWorkspace({
         new Set(
           exportedRows
             .map((row) =>
-              getExportRowValue(row, ["RedemptionId", "Redemption ID", "redemptionId", "redemptionid"])
+              getExportRowValue(row, [
+                "RedemptionId",
+                "Redemption ID",
+                "redemptionId",
+                "redemptionid",
+              ]),
             )
-            .filter(Boolean)
-        )
+            .filter(Boolean),
+        ),
       );
 
       const detailResults = await Promise.allSettled(
-        redemptionIds.map(async (id) => [id, await getRewardRedemption(id)] as const)
+        redemptionIds.map(
+          async (id) => [id, await getRewardRedemption(id)] as const,
+        ),
       );
 
       const detailMap = new Map<string, RewardRedemption>();
@@ -1296,26 +1473,47 @@ export function StaffGamificationWorkspace({
         }
       }
 
-      const purchaseRows: PurchaseExportRow[] = exportedRows.map((row, index) => {
-        const redemptionId = getExportRowValue(row, [
-          "RedemptionId",
-          "Redemption ID",
-          "redemptionId",
-          "redemptionid",
-        ]);
-        const detail = redemptionId ? detailMap.get(redemptionId) : undefined;
-        const rawQuantity = getExportRowValue(row, ["Quantity", "quantity"]);
-        const quantity = detail?.quantity ?? (rawQuantity ? Number(rawQuantity) : Number.NaN);
+      const purchaseRows: PurchaseExportRow[] = exportedRows.map(
+        (row, index) => {
+          const redemptionId = getExportRowValue(row, [
+            "RedemptionId",
+            "Redemption ID",
+            "redemptionId",
+            "redemptionid",
+          ]);
+          const detail = redemptionId ? detailMap.get(redemptionId) : undefined;
+          const rawQuantity = getExportRowValue(row, ["Quantity", "quantity"]);
+          const quantity =
+            detail?.quantity ??
+            (rawQuantity ? Number(rawQuantity) : Number.NaN);
 
-        return {
-          "STT": index + 1,
-          "Tên quà": detail?.itemName?.trim() || getExportRowValue(row, ["ItemName", "Item Name", "Tên quà"]),
-          "Số lượng": Number.isFinite(quantity) && quantity > 0 ? quantity : "",
-          "Học sinh": detail?.studentName?.trim() || getExportRowValue(row, ["StudentName", "Student Name", "Học sinh"]),
-          "Chi nhánh": detail?.branchName?.trim() || getExportRowValue(row, ["Branch", "BranchName", "Chi nhánh"]),
-          "Lớp": getExportRowValue(row, ["Class", "ClassName", "class", "className", "Lớp"]),
-        };
-      });
+          return {
+            STT: index + 1,
+            "Tên quà":
+              detail?.itemName?.trim() ||
+              getExportRowValue(row, ["ItemName", "Item Name", "Tên quà"]),
+            "Số lượng":
+              Number.isFinite(quantity) && quantity > 0 ? quantity : "",
+            "Học sinh":
+              detail?.studentName?.trim() ||
+              getExportRowValue(row, [
+                "StudentName",
+                "Student Name",
+                "Học sinh",
+              ]),
+            "Chi nhánh":
+              detail?.branchName?.trim() ||
+              getExportRowValue(row, ["Branch", "BranchName", "Chi nhánh"]),
+            Lớp: getExportRowValue(row, [
+              "Class",
+              "ClassName",
+              "class",
+              "className",
+              "Lớp",
+            ]),
+          };
+        },
+      );
 
       const purchaseSheet = XLSX.utils.json_to_sheet(purchaseRows);
       purchaseSheet["!cols"] = [
@@ -1327,13 +1525,19 @@ export function StaffGamificationWorkspace({
         { wch: 20 },
       ];
 
-      const monthSegment = (batchMonth.trim() || String(new Date().getMonth() + 1)).padStart(2, "0");
+      const monthSegment = (
+        batchMonth.trim() || String(new Date().getMonth() + 1)
+      ).padStart(2, "0");
       const yearSegment = batchYear.trim() || String(new Date().getFullYear());
       const purchaseBook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(purchaseBook, purchaseSheet, "Danh sach mua qua");
+      XLSX.utils.book_append_sheet(
+        purchaseBook,
+        purchaseSheet,
+        "Danh sach mua qua",
+      );
       XLSX.writeFile(
         purchaseBook,
-        `reward-redemptions-purchase-${yearSegment}-${monthSegment}.xlsx`
+        `reward-redemptions-purchase-${yearSegment}-${monthSegment}.xlsx`,
       );
 
       toast.success({ title: "Đã xuất file Excel" });
@@ -1352,8 +1556,14 @@ export function StaffGamificationWorkspace({
     try {
       setBusyAction("save-settings");
       const payload = {
-        checkInRewardStars: Math.max(0, Number(gamificationSettings.checkInRewardStars) || 0),
-        checkInRewardExp: Math.max(0, Number(gamificationSettings.checkInRewardExp) || 0),
+        checkInRewardStars: Math.max(
+          0,
+          Number(gamificationSettings.checkInRewardStars) || 0,
+        ),
+        checkInRewardExp: Math.max(
+          0,
+          Number(gamificationSettings.checkInRewardExp) || 0,
+        ),
       };
       const updated = await updateGamificationSettings(payload);
       setGamificationSettings(updated);
@@ -1370,12 +1580,25 @@ export function StaffGamificationWorkspace({
   }
 
   function openCreateRule() {
-    setRuleForm({ missionType: "", progressMode: "Count", totalRequired: 0, rewardStars: 0, rewardExp: 0 });
+    setRuleForm({
+      missionType: "",
+      progressMode: "Count",
+      totalRequired: 0,
+      rewardStars: 0,
+      rewardExp: 0,
+    });
     setRuleDialogOpen(true);
   }
 
   function openEditRule(rule: MissionRewardRule) {
-    setRuleForm({ id: rule.id, missionType: rule.missionType, progressMode: rule.progressMode, totalRequired: rule.totalRequired, rewardStars: rule.rewardStars, rewardExp: rule.rewardExp });
+    setRuleForm({
+      id: rule.id,
+      missionType: rule.missionType,
+      progressMode: rule.progressMode,
+      totalRequired: rule.totalRequired,
+      rewardStars: rule.rewardStars,
+      rewardExp: rule.rewardExp,
+    });
     setRuleDialogOpen(true);
   }
 
@@ -1391,15 +1614,25 @@ export function StaffGamificationWorkspace({
       setBusyAction("submit-rule");
       if (ruleForm.id) {
         const updated = await updateMissionRewardRule(ruleForm.id, payload);
-        setRewardRules((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+        setRewardRules((prev) =>
+          prev.map((r) => (r.id === updated.id ? updated : r)),
+        );
       } else {
         const created = await createMissionRewardRule(payload);
         setRewardRules((prev) => [...prev, created]);
       }
-      toast.success({ title: ruleForm.id ? "Đã cập nhật quy tắc thưởng" : "Đã tạo quy tắc thưởng" });
+      toast.success({
+        title: ruleForm.id
+          ? "Đã cập nhật quy tắc thưởng"
+          : "Đã tạo quy tắc thưởng",
+      });
       setRuleDialogOpen(false);
     } catch (error) {
-      toast({ title: "Lỗi khi lưu quy tắc thưởng", description: normalizeProblemMessage(error), variant: "destructive" });
+      toast({
+        title: "Lỗi khi lưu quy tắc thưởng",
+        description: normalizeProblemMessage(error),
+        variant: "destructive",
+      });
     } finally {
       setBusyAction(null);
     }
@@ -1409,26 +1642,27 @@ export function StaffGamificationWorkspace({
     try {
       setBusyAction(`toggle-rule-${id}`);
       const updated = await toggleMissionRewardRuleStatus(id);
-      setRewardRules((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+      setRewardRules((prev) =>
+        prev.map((r) => (r.id === updated.id ? updated : r)),
+      );
     } catch (error) {
-      toast({ title: "Không thể đổi trạng thái", description: normalizeProblemMessage(error), variant: "destructive" });
+      toast({
+        title: "Không thể đổi trạng thái",
+        description: normalizeProblemMessage(error),
+        variant: "destructive",
+      });
     } finally {
       setBusyAction(null);
     }
   }
 
   async function handleRewardImageChange(
-    event: React.ChangeEvent<HTMLInputElement>
+    event: React.ChangeEvent<HTMLInputElement>,
   ) {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const allowedTypes = [
-      "image/jpeg",
-      "image/png",
-      "image/webp",
-      "image/gif",
-    ];
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
     if (!allowedTypes.includes(file.type)) {
       toast({
@@ -1455,7 +1689,10 @@ export function StaffGamificationWorkspace({
       const result = await uploadFile(file, "gamification");
       if (!isUploadSuccess(result)) {
         throw new Error(
-          result.detail || result.error || result.title || "Upload ảnh thất bại."
+          result.detail ||
+            result.error ||
+            result.title ||
+            "Upload ảnh thất bại.",
         );
       }
 
@@ -1479,30 +1716,75 @@ export function StaffGamificationWorkspace({
   }
 
   return (
-    <div className="space-y-6 bg-gray-50 p-4 md:p-6 rounded-3xl">
+    <div className="space-y-6 bg-gray-50 p-4 md:p-2 rounded-3xl">
       {/* Title */}
       <div className="flex items-center gap-3">
         <div className="p-3 rounded-xl bg-gradient-to-r from-red-600 to-red-700 shadow-lg">
           <Sparkles className="text-white" size={24} />
         </div>
         <div>
-          <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">
+          <h1 className="text-2xl md:text-2xl font-extrabold text-gray-900">
             Nhiệm vụ và đổi thưởng cho {title.toLowerCase()}
           </h1>
-          <p className="text-sm text-gray-600">Quản lý nhiệm vụ, sao, XP và đổi thưởng trong một không gian</p>
+          <p
+            className="text-gray-600 mt-1 flex items-center gap-2
+"
+          >
+            <Sparkles size={14} className="text-red-600" />
+            Quản lý nhiệm vụ, sao, XP và đổi thưởng trong một không gian
+          </p>
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <MetricCard icon={<Target className="h-5 w-5" />} label="Nhiệm vụ hiện có" value={formatNumber(missions.length)} accent="from-red-600 to-red-700" theme="staff" />
-        <MetricCard icon={<Gift className="h-5 w-5" />} label="Đơn đổi quà mở" value={formatNumber(redemptions.filter((item) => item.status !== "Received" && item.status !== "Cancelled").length)} accent="from-violet-600 to-purple-600" theme="staff" />
+        <MetricCard
+          icon={<Target className="h-5 w-5" />}
+          label="Nhiệm vụ hiện có"
+          value={formatNumber(missions.length)}
+          accent="from-red-600 to-red-700"
+          theme="staff"
+        />
+        <MetricCard
+          icon={<Gift className="h-5 w-5" />}
+          label="Đơn đổi quà mở"
+          value={formatNumber(
+            redemptions.filter(
+              (item) =>
+                item.status !== "Received" && item.status !== "Cancelled",
+            ).length,
+          )}
+          accent="from-violet-600 to-purple-600"
+          theme="staff"
+        />
       </div>
 
-      <Tabs value={activeTab} onChange={setActiveTab} tabs={tabs} theme="staff" />
+      <Tabs
+        value={activeTab}
+        onChange={setActiveTab}
+        tabs={tabs}
+        theme="staff"
+      />
 
-      {loading ? <Panel theme="staff" className="py-14"><div className="flex items-center justify-center gap-3 text-gray-500"><Loader2 className="h-5 w-5 animate-spin" /><span>Đang tải dữ liệu nhiệm vụ và đổi thưởng...</span></div></Panel> : null}
-      {!loading && pageError ? <Panel theme="staff" className="border-rose-200 bg-rose-50"><div className="flex items-start gap-3 text-rose-700"><AlertCircle className="mt-0.5 h-5 w-5" /><div><h2 className="text-lg font-semibold">Không thể tải dữ liệu</h2><p className="mt-1 text-sm">{pageError}</p></div></div></Panel> : null}
+      {loading ? (
+        <Panel theme="staff" className="py-14">
+          <div className="flex items-center justify-center gap-3 text-gray-500">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            <span>Đang tải dữ liệu nhiệm vụ và đổi thưởng...</span>
+          </div>
+        </Panel>
+      ) : null}
+      {!loading && pageError ? (
+        <Panel theme="staff" className="border-rose-200 bg-rose-50">
+          <div className="flex items-start gap-3 text-rose-700">
+            <AlertCircle className="mt-0.5 h-5 w-5" />
+            <div>
+              <h2 className="text-lg font-semibold">Không thể tải dữ liệu</h2>
+              <p className="mt-1 text-sm">{pageError}</p>
+            </div>
+          </div>
+        </Panel>
+      ) : null}
 
       {!loading && !pageError && activeTab === "missions" ? (
         <Panel theme="staff">
@@ -1511,48 +1793,101 @@ export function StaffGamificationWorkspace({
             description="Tạo nhiệm vụ mới, cập nhật phạm vi áp dụng, xem tiến độ và theo dõi các luồng backend tự cộng progress."
             theme="staff"
             action={
-              <button type="button" onClick={openCreateMission} className={primaryButton}>
-                  <Plus className="h-4 w-4" />
-                  Tạo nhiệm vụ
-                </button>
+              <button
+                type="button"
+                onClick={openCreateMission}
+                className={primaryButton}
+              >
+                <Plus className="h-4 w-4" />
+                Tạo nhiệm vụ
+              </button>
             }
           />
           <div className="space-y-4">
             {visibleMissions.map((mission) => (
-              <div key={mission.id} className="rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
+              <div
+                key={mission.id}
+                className="rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5"
+              >
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div>
-                    <h3 className="text-lg font-bold text-gray-900">{mission.title}</h3>
+                    <h3 className="text-lg font-bold text-gray-900">
+                      {mission.title}
+                    </h3>
                     <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold">
-                      <StatusPill label={mapMissionTypeLabel(mission.missionType)} className="border-red-200 bg-white text-gray-700" />
-                      <StatusPill label={mapMissionProgressModeLabel(mission.progressMode)} className="border-indigo-200 bg-indigo-50 text-indigo-700" />
-                      <StatusPill label={mapMissionScopeLabel(mission.scope)} className="border-amber-200 bg-amber-50 text-amber-700" />
-                      {mission.scope === "Class" && (mission.targetClassCode || mission.targetClassTitle) ? (
+                      <StatusPill
+                        label={mapMissionTypeLabel(mission.missionType)}
+                        className="border-red-200 bg-white text-gray-700"
+                      />
+                      <StatusPill
+                        label={mapMissionProgressModeLabel(
+                          mission.progressMode,
+                        )}
+                        className="border-indigo-200 bg-indigo-50 text-indigo-700"
+                      />
+                      <StatusPill
+                        label={mapMissionScopeLabel(mission.scope)}
+                        className="border-amber-200 bg-amber-50 text-amber-700"
+                      />
+                      {mission.scope === "Class" &&
+                      (mission.targetClassCode || mission.targetClassTitle) ? (
                         <StatusPill
-                          label={mission.targetClassCode ? `${mission.targetClassCode}${mission.targetClassTitle ? ` - ${mission.targetClassTitle}` : ""}` : (mission.targetClassTitle ?? "")}
+                          label={
+                            mission.targetClassCode
+                              ? `${mission.targetClassCode}${mission.targetClassTitle ? ` - ${mission.targetClassTitle}` : ""}`
+                              : (mission.targetClassTitle ?? "")
+                          }
                           className="border-blue-200 bg-blue-50 text-blue-700"
                         />
                       ) : null}
                     </div>
-                    {mission.description ? <p className="mt-3 max-w-3xl text-sm leading-6 text-gray-600">{mission.description}</p> : null}
+                    {mission.description ? (
+                      <p className="mt-3 max-w-3xl text-sm leading-6 text-gray-600">
+                        {mission.description}
+                      </p>
+                    ) : null}
                     <div className="mt-4 flex flex-wrap gap-5 text-sm text-gray-500">
                       <span>Bắt đầu: {formatDateTime(mission.startAt)}</span>
                       <span>Kết thúc: {formatDateTime(mission.endAt)}</span>
-                      <span>Thưởng: {formatNumber(mission.rewardStars)} sao • {formatNumber(mission.rewardExp)} XP</span>
-                      <span>Mục tiêu: {mission.totalRequired ? `${formatNumber(mission.totalRequired)} lần` : "Chưa đặt"}</span>
+                      <span>
+                        Thưởng: {formatNumber(mission.rewardStars)} sao •{" "}
+                        {formatNumber(mission.rewardExp)} XP
+                      </span>
+                      <span>
+                        Mục tiêu:{" "}
+                        {mission.totalRequired
+                          ? `${formatNumber(mission.totalRequired)} lần`
+                          : "Chưa đặt"}
+                      </span>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <button type="button" onClick={() => void showProgress(mission)} disabled={busyAction === `progress-${mission.id}`} className={ghostButton}>
-                      {busyAction === `progress-${mission.id}` ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    <button
+                      type="button"
+                      onClick={() => void showProgress(mission)}
+                      disabled={busyAction === `progress-${mission.id}`}
+                      className={ghostButton}
+                    >
+                      {busyAction === `progress-${mission.id}` ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : null}
                       Tiến độ
                     </button>
-                    <button type="button" onClick={() => openEditMission(mission)} className={ghostButton}>
+                    <button
+                      type="button"
+                      onClick={() => openEditMission(mission)}
+                      className={ghostButton}
+                    >
                       <Pencil className="h-4 w-4" />
                       Sửa
                     </button>
                     {canDeleteMission ? (
-                      <button type="button" onClick={() => void removeMission(mission.id)} disabled={busyAction === `delete-mission-${mission.id}`} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60">
+                      <button
+                        type="button"
+                        onClick={() => void removeMission(mission.id)}
+                        disabled={busyAction === `delete-mission-${mission.id}`}
+                        className="inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                      >
                         <Trash2 className="h-4 w-4" />
                         Xóa
                       </button>
@@ -1561,62 +1896,152 @@ export function StaffGamificationWorkspace({
                 </div>
               </div>
             ))}
-            {visibleMissions.length === 0 ? <EmptyState title="Chưa có nhiệm vụ" description="Tạo nhiệm vụ đầu tiên để bắt đầu các luồng nhiệm vụ cho học sinh." icon={<Target className="h-5 w-5" />} theme="staff" /> : null}
+            {visibleMissions.length === 0 ? (
+              <EmptyState
+                title="Chưa có nhiệm vụ"
+                description="Tạo nhiệm vụ đầu tiên để bắt đầu các luồng nhiệm vụ cho học sinh."
+                icon={<Target className="h-5 w-5" />}
+                theme="staff"
+              />
+            ) : null}
           </div>
         </Panel>
       ) : null}
 
       {!loading && !pageError && activeTab === "students" ? (
         <Panel theme="staff">
-          <SectionTitle title="Sao, XP và streak theo học sinh" description="Chọn học sinh để xem số sao, cấp độ, streak điểm danh và lịch sử giao dịch sao." theme="staff" />
+          <SectionTitle
+            title="Sao, XP và streak theo học sinh"
+            description="Chọn học sinh để xem số sao, cấp độ, streak điểm danh và lịch sử giao dịch sao."
+            theme="staff"
+          />
           <div className="grid gap-6 xl:grid-cols-[320px_1fr]">
             <div className="rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
-              <label className="mb-2 block text-sm font-semibold text-gray-700">Lớp</label>
+              <label className="mb-2 block text-sm font-semibold text-gray-700">
+                Lớp
+              </label>
               <select
                 value={studentClassFilter}
                 onChange={(event) => {
                   const nextClassId = event.target.value;
                   setStudentClassFilter(nextClassId);
                   const filteredStudents = nextClassId
-                    ? students.filter((student) => student.classId === nextClassId)
+                    ? students.filter(
+                        (student) => student.classId === nextClassId,
+                      )
                     : students;
                   setSelectedStudentId(filteredStudents[0]?.id || "");
                 }}
                 className={inputClass}
               >
                 <option value="">Tất cả lớp</option>
-                {classOptions.map((cls) => <option key={cls.id} value={cls.id}>{cls.code ? `${cls.code} - ${cls.title ?? cls.name ?? ""}`.trim() : (cls.title ?? cls.name ?? cls.id)}</option>)}
+                {classOptions.map((cls) => (
+                  <option key={cls.id} value={cls.id}>
+                    {cls.code
+                      ? `${cls.code} - ${cls.title ?? cls.name ?? ""}`.trim()
+                      : (cls.title ?? cls.name ?? cls.id)}
+                  </option>
+                ))}
               </select>
-              <label className="mb-2 mt-3 block text-sm font-semibold text-gray-700">Học sinh</label>
-              <select value={selectedStudentId} onChange={(event) => setSelectedStudentId(event.target.value)} className={inputClass}>
+              <label className="mb-2 mt-3 block text-sm font-semibold text-gray-700">
+                Học sinh
+              </label>
+              <select
+                value={selectedStudentId}
+                onChange={(event) => setSelectedStudentId(event.target.value)}
+                className={inputClass}
+              >
                 <option value="">Chọn học sinh</option>
-                {(studentClassFilter ? students.filter((s) => s.classId === studentClassFilter) : students).map((student) => <option key={student.id} value={student.id}>{student.label}</option>)}
+                {(studentClassFilter
+                  ? students.filter((s) => s.classId === studentClassFilter)
+                  : students
+                ).map((student) => (
+                  <option key={student.id} value={student.id}>
+                    {student.label}
+                  </option>
+                ))}
               </select>
-              <button type="button" onClick={() => selectedStudentId && void loadStudentSnapshot(selectedStudentId)} className={`${ghostButton} mt-3 w-full`}>Làm mới dữ liệu</button>
+              <button
+                type="button"
+                onClick={() =>
+                  selectedStudentId &&
+                  void loadStudentSnapshot(selectedStudentId)
+                }
+                className={`${ghostButton} mt-3 w-full`}
+              >
+                Làm mới dữ liệu
+              </button>
               <div className="mt-5 rounded-3xl border border-white bg-white p-4">
                 <div className="flex items-center gap-3">
-                  <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-r from-red-600 to-red-700 text-white"><UserRound className="h-5 w-5" /></div>
+                  <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-r from-red-600 to-red-700 text-white">
+                    <UserRound className="h-5 w-5" />
+                  </div>
                   <div>
-                    <p className="font-semibold text-gray-900">{selectedStudent?.label ?? "Chưa chọn học sinh"}</p>
-                    <p className="text-sm text-gray-500">{selectedStudent?.helperText || selectedStudent?.studentId || "Hãy chọn một học sinh để thao tác"}</p>
+                    <p className="font-semibold text-gray-900">
+                      {selectedStudent?.label ?? "Chưa chọn học sinh"}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {selectedStudent?.helperText ||
+                        selectedStudent?.studentId ||
+                        "Hãy chọn một học sinh để thao tác"}
+                    </p>
                   </div>
                 </div>
               </div>
             </div>
 
             <div className="space-y-4">
-              {studentLoading ? <div className="rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-8 text-center text-sm text-gray-500"><Loader2 className="mx-auto mb-3 h-5 w-5 animate-spin" />Đang tải snapshot học sinh...</div> : null}
+              {studentLoading ? (
+                <div className="rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-8 text-center text-sm text-gray-500">
+                  <Loader2 className="mx-auto mb-3 h-5 w-5 animate-spin" />
+                  Đang tải snapshot học sinh...
+                </div>
+              ) : null}
               {!studentLoading && selectedStudentId ? (
                 <>
                   <div className="grid gap-4 md:grid-cols-4">
-                    <MetricCard theme="staff" icon={<Star className="h-5 w-5" />} label="Số sao hiện tại" value={formatNumber(studentBalance)} accent="from-amber-600 to-orange-600" />
-                    <MetricCard theme="staff" icon={<Sparkles className="h-5 w-5" />} label="XP hiện tại" value={formatNumber(studentLevel?.xp)} hint={`Cần ${formatNumber(studentLevel?.xpRequiredForNextLevel)} XP để lên cấp`} accent="from-blue-600 to-cyan-600" />
-                    <MetricCard theme="staff" icon={<Trophy className="h-5 w-5" />} label="Cấp độ" value={studentLevel?.level != null && Number.isFinite(studentLevel.level) ? `Cấp ${studentLevel.level}` : "Chưa có"} hint={`XP: ${formatNumber(studentLevel?.xp)}`} accent="from-violet-600 to-purple-600" />
-                    <MetricCard theme="staff" icon={<CheckCheck className="h-5 w-5" />} label="Streak hiện tại" value={`${formatNumber(studentStreak?.currentStreak)} ngày`} hint={`Kỷ lục ${formatNumber(studentStreak?.maxStreak)} ngày`} accent="from-emerald-600 to-teal-600" />
+                    <MetricCard
+                      theme="staff"
+                      icon={<Star className="h-5 w-5" />}
+                      label="Số sao hiện tại"
+                      value={formatNumber(studentBalance)}
+                      accent="from-amber-600 to-orange-600"
+                    />
+                    <MetricCard
+                      theme="staff"
+                      icon={<Sparkles className="h-5 w-5" />}
+                      label="XP hiện tại"
+                      value={formatNumber(studentLevel?.xp)}
+                      hint={`Cần ${formatNumber(studentLevel?.xpRequiredForNextLevel)} XP để lên cấp`}
+                      accent="from-blue-600 to-cyan-600"
+                    />
+                    <MetricCard
+                      theme="staff"
+                      icon={<Trophy className="h-5 w-5" />}
+                      label="Cấp độ"
+                      value={
+                        studentLevel?.level != null &&
+                        Number.isFinite(studentLevel.level)
+                          ? `Cấp ${studentLevel.level}`
+                          : "Chưa có"
+                      }
+                      hint={`XP: ${formatNumber(studentLevel?.xp)}`}
+                      accent="from-violet-600 to-purple-600"
+                    />
+                    <MetricCard
+                      theme="staff"
+                      icon={<CheckCheck className="h-5 w-5" />}
+                      label="Streak hiện tại"
+                      value={`${formatNumber(studentStreak?.currentStreak)} ngày`}
+                      hint={`Kỷ lục ${formatNumber(studentStreak?.maxStreak)} ngày`}
+                      accent="from-emerald-600 to-teal-600"
+                    />
                   </div>
                   <div className="grid gap-4 lg:grid-cols-2">
                     <div className="rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
-                      <h3 className="text-lg font-bold text-gray-900">Điều chỉnh sao</h3>
+                      <h3 className="text-lg font-bold text-gray-900">
+                        Điều chỉnh sao
+                      </h3>
                       <div className="mt-4 space-y-3">
                         <input
                           value={studentAction.starAmount}
@@ -1627,20 +2052,51 @@ export function StaffGamificationWorkspace({
                               starAmount: event.target.value,
                             }));
                           }}
-                          className={getFieldClass(inputClass, Boolean(studentActionErrors.starAmount))}
+                          className={getFieldClass(
+                            inputClass,
+                            Boolean(studentActionErrors.starAmount),
+                          )}
                           inputMode="numeric"
                           placeholder="Số sao"
                         />
                         <FieldError message={studentActionErrors.starAmount} />
-                        <input value={studentAction.starReason} onChange={(event) => setStudentAction((current) => ({ ...current, starReason: event.target.value }))} className={inputClass} placeholder="Lý do" />
+                        <input
+                          value={studentAction.starReason}
+                          onChange={(event) =>
+                            setStudentAction((current) => ({
+                              ...current,
+                              starReason: event.target.value,
+                            }))
+                          }
+                          className={inputClass}
+                          placeholder="Lý do"
+                        />
                         <div className="flex flex-wrap gap-2">
-                          <button type="button" onClick={() => void runStudentAction("addStars")} disabled={busyAction === "addStars"} className={primaryButton}><Plus className="h-4 w-4" />Cộng sao</button>
-                          <button type="button" onClick={() => void runStudentAction("deductStars")} disabled={busyAction === "deductStars"} className={ghostButton}><Coins className="h-4 w-4" />Trừ sao</button>
+                          <button
+                            type="button"
+                            onClick={() => void runStudentAction("addStars")}
+                            disabled={busyAction === "addStars"}
+                            className={primaryButton}
+                          >
+                            <Plus className="h-4 w-4" />
+                            Cộng sao
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void runStudentAction("deductStars")}
+                            disabled={busyAction === "deductStars"}
+                            className={ghostButton}
+                          >
+                            <Coins className="h-4 w-4" />
+                            Trừ sao
+                          </button>
                         </div>
                       </div>
                     </div>
                     <div className="rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
-                      <h3 className="text-lg font-bold text-gray-900">Điều chỉnh XP</h3>
+                      <h3 className="text-lg font-bold text-gray-900">
+                        Điều chỉnh XP
+                      </h3>
                       <div className="mt-4 space-y-3">
                         <input
                           value={studentAction.xpAmount}
@@ -1651,60 +2107,141 @@ export function StaffGamificationWorkspace({
                               xpAmount: event.target.value,
                             }));
                           }}
-                          className={getFieldClass(inputClass, Boolean(studentActionErrors.xpAmount))}
+                          className={getFieldClass(
+                            inputClass,
+                            Boolean(studentActionErrors.xpAmount),
+                          )}
                           inputMode="numeric"
                           placeholder="Số XP"
                         />
                         <FieldError message={studentActionErrors.xpAmount} />
-                        <input value={studentAction.xpReason} onChange={(event) => setStudentAction((current) => ({ ...current, xpReason: event.target.value }))} className={inputClass} placeholder="Lý do" />
+                        <input
+                          value={studentAction.xpReason}
+                          onChange={(event) =>
+                            setStudentAction((current) => ({
+                              ...current,
+                              xpReason: event.target.value,
+                            }))
+                          }
+                          className={inputClass}
+                          placeholder="Lý do"
+                        />
                         <div className="flex flex-wrap gap-2">
-                          <button type="button" onClick={() => void runStudentAction("addXp")} disabled={busyAction === "addXp"} className={primaryButton}><Plus className="h-4 w-4" />Cộng XP</button>
-                          <button type="button" onClick={() => void runStudentAction("deductXp")} disabled={busyAction === "deductXp"} className={ghostButton}><Coins className="h-4 w-4" />Trừ XP</button>
+                          <button
+                            type="button"
+                            onClick={() => void runStudentAction("addXp")}
+                            disabled={busyAction === "addXp"}
+                            className={primaryButton}
+                          >
+                            <Plus className="h-4 w-4" />
+                            Cộng XP
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void runStudentAction("deductXp")}
+                            disabled={busyAction === "deductXp"}
+                            className={ghostButton}
+                          >
+                            <Coins className="h-4 w-4" />
+                            Trừ XP
+                          </button>
                         </div>
                       </div>
                     </div>
                   </div>
                   <div className="grid gap-4 lg:grid-cols-2">
                     <div className="rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
-                      <h3 className="text-lg font-bold text-gray-900">Giao dịch sao gần nhất</h3>
+                      <h3 className="text-lg font-bold text-gray-900">
+                        Giao dịch sao gần nhất
+                      </h3>
                       <div className="mt-4 space-y-3">
                         {transactions.map((item) => (
-                          <div key={item.id} className="rounded-2xl border border-white bg-white p-4">
+                          <div
+                            key={item.id}
+                            className="rounded-2xl border border-white bg-white p-4"
+                          >
                             <div className="flex items-center justify-between gap-3">
-                              <p className="font-semibold text-gray-900">{item.reason || "Không có lý do"}</p>
-                              <p className={`text-sm font-bold ${item.amount >= 0 ? "text-emerald-600" : "text-rose-600"}`}>{item.amount >= 0 ? "+" : ""}{formatNumber(item.amount)}</p>
+                              <p className="font-semibold text-gray-900">
+                                {item.reason || "Không có lý do"}
+                              </p>
+                              <p
+                                className={`text-sm font-bold ${item.amount >= 0 ? "text-emerald-600" : "text-rose-600"}`}
+                              >
+                                {item.amount >= 0 ? "+" : ""}
+                                {formatNumber(item.amount)}
+                              </p>
                             </div>
-                            <p className="mt-1 text-sm text-gray-500">Balance sau giao dịch: {formatNumber(item.balanceAfter)} • {formatDateTime(item.createdAt)}</p>
+                            <p className="mt-1 text-sm text-gray-500">
+                              Balance sau giao dịch:{" "}
+                              {formatNumber(item.balanceAfter)} •{" "}
+                              {formatDateTime(item.createdAt)}
+                            </p>
                           </div>
                         ))}
-                        {transactions.length === 0 ? <EmptyState title="Chưa có giao dịch sao" description="Sau khi cộng hoặc trừ sao, lịch sử sẽ hiển thị tại đây." icon={<Star className="h-5 w-5" />} theme="staff" /> : null}
+                        {transactions.length === 0 ? (
+                          <EmptyState
+                            title="Chưa có giao dịch sao"
+                            description="Sau khi cộng hoặc trừ sao, lịch sử sẽ hiển thị tại đây."
+                            icon={<Star className="h-5 w-5" />}
+                            theme="staff"
+                          />
+                        ) : null}
                       </div>
                     </div>
                     <div className="rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
-                      <h3 className="text-lg font-bold text-gray-900">Điểm danh gần nhất</h3>
+                      <h3 className="text-lg font-bold text-gray-900">
+                        Điểm danh gần nhất
+                      </h3>
                       <div className="mt-4 space-y-3">
                         {(studentStreak?.recentStreaks ?? []).map((item) => (
-                          <div key={item.id} className="rounded-2xl border border-white bg-white p-4">
+                          <div
+                            key={item.id}
+                            className="rounded-2xl border border-white bg-white p-4"
+                          >
                             <div className="flex items-center justify-between gap-3">
-                              <p className="font-semibold text-gray-900">{formatDate(item.attendanceDate)}</p>
-                              <p className="text-sm font-semibold text-amber-600">+{formatNumber(item.rewardStars)} sao</p>
+                              <p className="font-semibold text-gray-900">
+                                {formatDate(item.attendanceDate)}
+                              </p>
+                              <p className="text-sm font-semibold text-amber-600">
+                                +{formatNumber(item.rewardStars)} sao
+                              </p>
                             </div>
-                            <p className="mt-1 text-sm text-gray-500">Streak {formatNumber(item.currentStreak)} ngày • +{formatNumber(item.rewardExp)} XP</p>
+                            <p className="mt-1 text-sm text-gray-500">
+                              Streak {formatNumber(item.currentStreak)} ngày • +
+                              {formatNumber(item.rewardExp)} XP
+                            </p>
                           </div>
                         ))}
-                        {(studentStreak?.recentStreaks ?? []).length === 0 ? <EmptyState title="Chưa có lịch sử streak" description="Dữ liệu điểm danh của học sinh sẽ hiển thị tại đây." icon={<CheckCheck className="h-5 w-5" />} theme="staff" /> : null}
+                        {(studentStreak?.recentStreaks ?? []).length === 0 ? (
+                          <EmptyState
+                            title="Chưa có lịch sử streak"
+                            description="Dữ liệu điểm danh của học sinh sẽ hiển thị tại đây."
+                            icon={<CheckCheck className="h-5 w-5" />}
+                            theme="staff"
+                          />
+                        ) : null}
                       </div>
                     </div>
                   </div>
                 </>
               ) : null}
-              {!studentLoading && !selectedStudentId ? <EmptyState title="Chưa chọn học sinh" description="Chọn một học sinh ở cột bên trái để thao tác sao, XP và streak." icon={<UserRound className="h-5 w-5" />} theme="staff" /> : null}
+              {!studentLoading && !selectedStudentId ? (
+                <EmptyState
+                  title="Chưa chọn học sinh"
+                  description="Chọn một học sinh ở cột bên trái để thao tác sao, XP và streak."
+                  icon={<UserRound className="h-5 w-5" />}
+                  theme="staff"
+                />
+              ) : null}
             </div>
           </div>
         </Panel>
       ) : null}
 
-      {!loading && !pageError && (canViewRules || canManageGamificationSettings) && activeTab === "settings" ? (
+      {!loading &&
+      !pageError &&
+      (canViewRules || canManageGamificationSettings) &&
+      activeTab === "settings" ? (
         <Panel theme="staff">
           <SectionTitle
             title="Cài đặt nhiệm vụ và thưởng"
@@ -1712,7 +2249,11 @@ export function StaffGamificationWorkspace({
             theme="staff"
             action={
               canEditRules ? (
-                <button type="button" onClick={openCreateRule} className={primaryButton}>
+                <button
+                  type="button"
+                  onClick={openCreateRule}
+                  className={primaryButton}
+                >
                   <Plus className="h-4 w-4" />
                   Tạo quy tắc
                 </button>
@@ -1721,8 +2262,12 @@ export function StaffGamificationWorkspace({
           />
           {canManageGamificationSettings ? (
             <div className="mb-5 rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
-              <h3 className="text-base font-bold text-gray-900">Thưởng điểm danh tự động</h3>
-              <p className="mt-1 text-sm text-gray-500">Áp dụng cho check-in hàng ngày của học sinh.</p>
+              <h3 className="text-base font-bold text-gray-900">
+                Thưởng điểm danh tự động
+              </h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Áp dụng cho check-in hàng ngày của học sinh.
+              </p>
               <div className="mt-4 grid gap-3 md:grid-cols-2">
                 <div>
                   <FormLabel label="Sao thưởng check-in" />
@@ -1760,7 +2305,9 @@ export function StaffGamificationWorkspace({
                   disabled={busyAction === "save-settings"}
                   className={primaryButton}
                 >
-                  {busyAction === "save-settings" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  {busyAction === "save-settings" ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : null}
                   Lưu cài đặt điểm danh
                 </button>
               </div>
@@ -1768,27 +2315,52 @@ export function StaffGamificationWorkspace({
           ) : null}
           <div className="grid gap-4 lg:grid-cols-2">
             {rewardRules.map((rule) => (
-              <div key={rule.id} className="rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
+              <div
+                key={rule.id}
+                className="rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5"
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="font-bold text-gray-900">{mapMissionTypeLabel(rule.missionType as MissionType)}</h3>
+                      <h3 className="font-bold text-gray-900">
+                        {mapMissionTypeLabel(rule.missionType as MissionType)}
+                      </h3>
                       <StatusPill
                         label={rule.isActive ? "Đang bật" : "Đã tắt"}
-                        className={rule.isActive ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-gray-200 bg-white text-gray-500"}
+                        className={
+                          rule.isActive
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                            : "border-gray-200 bg-white text-gray-500"
+                        }
                       />
                     </div>
-                    <p className="mt-1 text-sm text-gray-500">Cách tính: {mapMissionProgressModeLabel(rule.progressMode)} • Mục tiêu: {formatNumber(rule.totalRequired)} lần</p>
-                    <p className="mt-1 text-sm text-gray-500">Phần thưởng: {formatNumber(rule.rewardStars)} sao • {formatNumber(rule.rewardExp)} XP</p>
+                    <p className="mt-1 text-sm text-gray-500">
+                      Cách tính:{" "}
+                      {mapMissionProgressModeLabel(rule.progressMode)} • Mục
+                      tiêu: {formatNumber(rule.totalRequired)} lần
+                    </p>
+                    <p className="mt-1 text-sm text-gray-500">
+                      Phần thưởng: {formatNumber(rule.rewardStars)} sao •{" "}
+                      {formatNumber(rule.rewardExp)} XP
+                    </p>
                   </div>
                 </div>
                 {canEditRules ? (
                   <div className="mt-4 flex flex-wrap gap-2">
-                    <button type="button" onClick={() => openEditRule(rule)} className={ghostButton}>
+                    <button
+                      type="button"
+                      onClick={() => openEditRule(rule)}
+                      className={ghostButton}
+                    >
                       <Pencil className="h-4 w-4" />
                       Sửa
                     </button>
-                    <button type="button" onClick={() => void handleToggleRule(rule.id)} disabled={busyAction === `toggle-rule-${rule.id}`} className={ghostButton}>
+                    <button
+                      type="button"
+                      onClick={() => void handleToggleRule(rule.id)}
+                      disabled={busyAction === `toggle-rule-${rule.id}`}
+                      className={ghostButton}
+                    >
                       {rule.isActive ? "Tắt quy tắc" : "Bật quy tắc"}
                     </button>
                   </div>
@@ -1796,20 +2368,32 @@ export function StaffGamificationWorkspace({
               </div>
             ))}
             {rewardRules.length === 0 ? (
-              <EmptyState title="Chưa có quy tắc thưởng" description="Tạo quy tắc đầu tiên để backend tự động tính phần thưởng khi học sinh hoàn thành nhiệm vụ." icon={<Trophy className="h-5 w-5" />} theme="staff" />
+              <EmptyState
+                title="Chưa có quy tắc thưởng"
+                description="Tạo quy tắc đầu tiên để backend tự động tính phần thưởng khi học sinh hoàn thành nhiệm vụ."
+                icon={<Trophy className="h-5 w-5" />}
+                theme="staff"
+              />
             ) : null}
           </div>
         </Panel>
       ) : null}
 
-      {!loading && !pageError && canManageStore && activeTab === "rewardStore" ? (
+      {!loading &&
+      !pageError &&
+      canManageStore &&
+      activeTab === "rewardStore" ? (
         <Panel theme="staff">
           <SectionTitle
             title="Kho quà thưởng"
             description="Quản lý vật phẩm đổi thưởng, giá sao và trạng thái hiển thị trên cửa hàng learner."
             theme="staff"
             action={
-              <button type="button" onClick={openCreateReward} className={primaryButton}>
+              <button
+                type="button"
+                onClick={openCreateReward}
+                className={primaryButton}
+              >
                 <Plus className="h-4 w-4" />
                 Tạo vật phẩm
               </button>
@@ -1820,7 +2404,10 @@ export function StaffGamificationWorkspace({
               const itemImageUrl = buildFileUrl(item.imageUrl);
 
               return (
-                <div key={item.id} className="rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
+                <div
+                  key={item.id}
+                  className="rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5"
+                >
                   <div className="flex flex-col gap-4 sm:flex-row">
                     <div className="h-24 w-full shrink-0 overflow-hidden rounded-2xl border border-red-200 bg-red-50 sm:w-24">
                       {itemImageUrl ? (
@@ -1828,7 +2415,10 @@ export function StaffGamificationWorkspace({
                           src={itemImageUrl}
                           alt={item.title}
                           className="h-full w-full object-cover"
-                          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display =
+                              "none";
+                          }}
                         />
                       ) : (
                         <div className="flex h-full w-full items-center justify-center text-red-300">
@@ -1839,12 +2429,20 @@ export function StaffGamificationWorkspace({
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <h3 className="truncate text-lg font-bold text-gray-900">{item.title}</h3>
-                          <p className="mt-1 line-clamp-2 text-sm text-gray-500">{item.description || "Chưa có mô tả"}</p>
+                          <h3 className="truncate text-lg font-bold text-gray-900">
+                            {item.title}
+                          </h3>
+                          <p className="mt-1 line-clamp-2 text-sm text-gray-500">
+                            {item.description || "Chưa có mô tả"}
+                          </p>
                         </div>
                         <StatusPill
                           label={item.isActive ? "Đang mở" : "Đang ẩn"}
-                          className={item.isActive ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-white text-gray-700"}
+                          className={
+                            item.isActive
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                              : "border-red-200 bg-white text-gray-700"
+                          }
                         />
                       </div>
                       <div className="mt-4 flex flex-wrap gap-5 text-sm text-gray-500">
@@ -1852,23 +2450,37 @@ export function StaffGamificationWorkspace({
                         <span>Tạo lúc: {formatDateTime(item.createdAt)}</span>
                       </div>
                       <div className="mt-4 flex flex-wrap gap-2">
-                        <button type="button" onClick={() => openEditReward(item)} className={ghostButton}>
+                        <button
+                          type="button"
+                          onClick={() => openEditReward(item)}
+                          className={ghostButton}
+                        >
                           <Pencil className="h-4 w-4" />
                           Sửa
                         </button>
-                        <button type="button" onClick={() => void toggleRewardStatus(item.id)} disabled={busyAction === `toggle-reward-${item.id}`} className={ghostButton}>
+                        <button
+                          type="button"
+                          onClick={() => void toggleRewardStatus(item.id)}
+                          disabled={busyAction === `toggle-reward-${item.id}`}
+                          className={ghostButton}
+                        >
                           {item.isActive ? "Ẩn vật phẩm" : "Mở vật phẩm"}
                         </button>
-                        <button type="button" onClick={() => void removeRewardItem(item.id)} disabled={busyAction === `delete-reward-${item.id}`} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:opacity-60">
+                        <button
+                          type="button"
+                          onClick={() => void removeRewardItem(item.id)}
+                          disabled={busyAction === `delete-reward-${item.id}`}
+                          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:opacity-60"
+                        >
                           <Trash2 className="h-4 w-4" />
                           Xóa
                         </button>
                       </div>
                     </div>
                   </div>
-                </div> 
-        );
-      })}
+                </div>
+              );
+            })}
             {rewardItems.length === 0 ? (
               <EmptyState
                 title="Chưa có vật phẩm"
@@ -1877,11 +2489,15 @@ export function StaffGamificationWorkspace({
                 theme="staff"
               />
             ) : null}
-          </div> {/* Đóng grid ở đúng vị trí */}
+          </div>{" "}
+          {/* Đóng grid ở đúng vị trí */}
         </Panel>
       ) : null}
 
-      {!loading && !pageError && canViewRedemptions && activeTab === "redemptions" ? (
+      {!loading &&
+      !pageError &&
+      canViewRedemptions &&
+      activeTab === "redemptions" ? (
         <Panel theme="staff">
           <SectionTitle
             title="Yêu cầu đổi thưởng"
@@ -1890,55 +2506,154 @@ export function StaffGamificationWorkspace({
             action={
               canManageStore ? (
                 <div className="flex flex-wrap gap-2">
-                  <input value={batchYear} onChange={(event) => setBatchYear(event.target.value)} className="w-28 rounded-2xl border border-red-200 bg-white px-3 py-2 text-sm" inputMode="numeric" placeholder="Năm" />
-                  <input value={batchMonth} onChange={(event) => setBatchMonth(event.target.value)} className="w-24 rounded-2xl border border-red-200 bg-white px-3 py-2 text-sm" inputMode="numeric" placeholder="Tháng" />
-                  <select value={exportBranchId} onChange={(event) => setExportBranchId(event.target.value)} className="w-52 rounded-2xl border border-red-200 bg-white px-3 py-2 text-sm">
+                  <input
+                    value={batchYear}
+                    onChange={(event) => setBatchYear(event.target.value)}
+                    className="w-28 rounded-2xl border border-red-200 bg-white px-3 py-2 text-sm"
+                    inputMode="numeric"
+                    placeholder="Năm"
+                  />
+                  <input
+                    value={batchMonth}
+                    onChange={(event) => setBatchMonth(event.target.value)}
+                    className="w-24 rounded-2xl border border-red-200 bg-white px-3 py-2 text-sm"
+                    inputMode="numeric"
+                    placeholder="Tháng"
+                  />
+                  <select
+                    value={exportBranchId}
+                    onChange={(event) => setExportBranchId(event.target.value)}
+                    className="w-52 rounded-2xl border border-red-200 bg-white px-3 py-2 text-sm"
+                  >
                     <option value="">Tất cả chi nhánh</option>
                     {branchOptions.map((branch) => (
                       <option key={branch.id} value={branch.id}>
-                        {branch.code ? `${branch.code} - ${branch.name}` : branch.name}
+                        {branch.code
+                          ? `${branch.code} - ${branch.name}`
+                          : branch.name}
                       </option>
                     ))}
                   </select>
-                  <select value={exportItemId} onChange={(event) => setExportItemId(event.target.value)} className="w-52 rounded-2xl border border-red-200 bg-white px-3 py-2 text-sm">
+                  <select
+                    value={exportItemId}
+                    onChange={(event) => setExportItemId(event.target.value)}
+                    className="w-52 rounded-2xl border border-red-200 bg-white px-3 py-2 text-sm"
+                  >
                     <option value="">Tất cả vật phẩm</option>
                     {rewardItems.map((item) => (
-                      <option key={item.id} value={item.id}>{item.title}</option>
+                      <option key={item.id} value={item.id}>
+                        {item.title}
+                      </option>
                     ))}
                   </select>
-                  <button type="button" onClick={() => void runExportDelivered()} disabled={busyAction === "export-delivered"} className={ghostButton}><Download className="h-4 w-4" />Xuất Excel</button>
-                  <button type="button" onClick={() => void runBatchDeliver()} disabled={busyAction === "batch-deliver"} className={primaryButton}>Giao hàng loạt</button>
+                  <button
+                    type="button"
+                    onClick={() => void runExportDelivered()}
+                    disabled={busyAction === "export-delivered"}
+                    className={ghostButton}
+                  >
+                    <Download className="h-4 w-4" />
+                    Xuất Excel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void runBatchDeliver()}
+                    disabled={busyAction === "batch-deliver"}
+                    className={primaryButton}
+                  >
+                    Giao hàng loạt
+                  </button>
                 </div>
               ) : undefined
             }
           />
           <div className="space-y-4">
             {redemptions.map((item) => (
-              <div key={item.id} className="rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
+              <div
+                key={item.id}
+                className="rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5"
+              >
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-lg font-bold text-gray-900">{item.itemName}</h3>
-                      <StatusPill label={mapRedemptionStatusLabel(item.status)} className={getRedemptionStatusClasses(item.status)} />
+                      <h3 className="text-lg font-bold text-gray-900">
+                        {item.itemName}
+                      </h3>
+                      <StatusPill
+                        label={mapRedemptionStatusLabel(item.status)}
+                        className={getRedemptionStatusClasses(item.status)}
+                      />
                     </div>
                     <div className="mt-3 flex flex-wrap gap-5 text-sm text-gray-500">
-                      <span>Học sinh: {item.studentName || item.studentProfileId}</span>
+                      <span>
+                        Học sinh: {item.studentName || item.studentProfileId}
+                      </span>
                       <span>Số lượng: {formatNumber(item.quantity)}</span>
                       <span>Chi nhánh: {item.branchName || "Chưa có"}</span>
-                      <span>Sao đã trừ: {formatNumber(item.starsDeducted)}</span>
+                      <span>
+                        Sao đã trừ: {formatNumber(item.starsDeducted)}
+                      </span>
                       <span>Tạo lúc: {formatDateTime(item.createdAt)}</span>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <button type="button" onClick={() => void openRedemptionDetail(item.id)} className={ghostButton}>Chi tiết</button>
-                    {canManageStore && item.status === "Requested" ? <button type="button" onClick={() => void transitionRedemption(item.id, "approve")} disabled={busyAction === `approve-${item.id}`} className={primaryButton}>Duyệt</button> : null}
-                    {canManageStore && (item.status === "Requested" || item.status === "Approved") ? <button type="button" onClick={() => void transitionRedemption(item.id, "cancel")} disabled={busyAction === `cancel-${item.id}`} className={ghostButton}>Hủy</button> : null}
-                    {canManageStore && item.status === "Approved" ? <button type="button" onClick={() => void transitionRedemption(item.id, "deliver")} disabled={busyAction === `deliver-${item.id}`} className={ghostButton}>Đánh dấu đã giao</button> : null}
+                    <button
+                      type="button"
+                      onClick={() => void openRedemptionDetail(item.id)}
+                      className={ghostButton}
+                    >
+                      Chi tiết
+                    </button>
+                    {canManageStore && item.status === "Requested" ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void transitionRedemption(item.id, "approve")
+                        }
+                        disabled={busyAction === `approve-${item.id}`}
+                        className={primaryButton}
+                      >
+                        Duyệt
+                      </button>
+                    ) : null}
+                    {canManageStore &&
+                    (item.status === "Requested" ||
+                      item.status === "Approved") ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void transitionRedemption(item.id, "cancel")
+                        }
+                        disabled={busyAction === `cancel-${item.id}`}
+                        className={ghostButton}
+                      >
+                        Hủy
+                      </button>
+                    ) : null}
+                    {canManageStore && item.status === "Approved" ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void transitionRedemption(item.id, "deliver")
+                        }
+                        disabled={busyAction === `deliver-${item.id}`}
+                        className={ghostButton}
+                      >
+                        Đánh dấu đã giao
+                      </button>
+                    ) : null}
                   </div>
                 </div>
               </div>
             ))}
-            {redemptions.length === 0 ? <EmptyState title="Chưa có đơn đổi thưởng" description="Khi học sinh gửi yêu cầu đổi quà, danh sách sẽ hiển thị tại đây." icon={<Gift className="h-5 w-5" />} theme="staff" /> : null}
+            {redemptions.length === 0 ? (
+              <EmptyState
+                title="Chưa có đơn đổi thưởng"
+                description="Khi học sinh gửi yêu cầu đổi quà, danh sách sẽ hiển thị tại đây."
+                icon={<Gift className="h-5 w-5" />}
+                theme="staff"
+              />
+            ) : null}
             {redemptionTotalPages > 1 ? (
               <div className="mt-4 flex items-center justify-center gap-2">
                 <button
@@ -1954,7 +2669,11 @@ export function StaffGamificationWorkspace({
                 </span>
                 <button
                   type="button"
-                  onClick={() => setRedemptionPage((p) => Math.min(redemptionTotalPages, p + 1))}
+                  onClick={() =>
+                    setRedemptionPage((p) =>
+                      Math.min(redemptionTotalPages, p + 1),
+                    )
+                  }
                   disabled={redemptionPage >= redemptionTotalPages}
                   className={ghostButton}
                 >
@@ -1983,9 +2702,15 @@ export function StaffGamificationWorkspace({
               value={missionForm.title}
               onChange={(event) => {
                 clearMissionErrors(["title"]);
-                setMissionForm((current) => ({ ...current, title: event.target.value }));
+                setMissionForm((current) => ({
+                  ...current,
+                  title: event.target.value,
+                }));
               }}
-              className={getFieldClass(inputClass, Boolean(missionErrors.title))}
+              className={getFieldClass(
+                inputClass,
+                Boolean(missionErrors.title),
+              )}
             />
             <FieldError message={missionErrors.title} />
           </div>
@@ -1995,7 +2720,10 @@ export function StaffGamificationWorkspace({
             <textarea
               value={missionForm.description}
               onChange={(event) =>
-                setMissionForm((current) => ({ ...current, description: event.target.value }))
+                setMissionForm((current) => ({
+                  ...current,
+                  description: event.target.value,
+                }))
               }
               className={textareaClass}
             />
@@ -2006,7 +2734,11 @@ export function StaffGamificationWorkspace({
             <select
               value={missionForm.scope}
               onChange={(event) => {
-                clearMissionErrors(["targetClassId", "targetStudentId", "targetGroupIds"]);
+                clearMissionErrors([
+                  "targetClassId",
+                  "targetStudentId",
+                  "targetGroupIds",
+                ]);
                 setMissionStudentClassFilter("");
                 setMissionForm((current) => ({
                   ...current,
@@ -2035,7 +2767,10 @@ export function StaffGamificationWorkspace({
                   missionType: event.target.value as MissionType | "",
                 }));
               }}
-              className={getFieldClass(inputClass, Boolean(missionErrors.missionType))}
+              className={getFieldClass(
+                inputClass,
+                Boolean(missionErrors.missionType),
+              )}
             >
               <option value="">Chọn loại nhiệm vụ</option>
               <option value="HomeworkStreak">Chuỗi bài tập</option>
@@ -2056,7 +2791,10 @@ export function StaffGamificationWorkspace({
                   progressMode: event.target.value as MissionProgressMode,
                 }));
               }}
-              className={getFieldClass(inputClass, Boolean(missionErrors.progressMode))}
+              className={getFieldClass(
+                inputClass,
+                Boolean(missionErrors.progressMode),
+              )}
             >
               <option value="Count">Theo số lần</option>
               <option value="Streak">Theo chuỗi</option>
@@ -2073,7 +2811,10 @@ export function StaffGamificationWorkspace({
                   onChange={(event) => {
                     setMissionStudentClassFilter(event.target.value);
                     clearMissionErrors(["targetStudentId"]);
-                    setMissionForm((current) => ({ ...current, targetStudentId: "" }));
+                    setMissionForm((current) => ({
+                      ...current,
+                      targetStudentId: "",
+                    }));
                   }}
                   className={inputClass}
                 >
@@ -2097,14 +2838,21 @@ export function StaffGamificationWorkspace({
                       targetStudentId: event.target.value,
                     }));
                   }}
-                  className={getFieldClass(inputClass, Boolean(missionErrors.targetStudentId))}
+                  className={getFieldClass(
+                    inputClass,
+                    Boolean(missionErrors.targetStudentId),
+                  )}
                   disabled={!missionStudentClassFilter}
                 >
                   <option value="">
-                    {missionStudentClassFilter ? "Chọn học sinh" : "Chọn lớp trước"}
+                    {missionStudentClassFilter
+                      ? "Chọn học sinh"
+                      : "Chọn lớp trước"}
                   </option>
                   {(missionStudentClassFilter
-                    ? students.filter((s) => s.classId === missionStudentClassFilter)
+                    ? students.filter(
+                        (s) => s.classId === missionStudentClassFilter,
+                      )
                     : []
                   ).map((student) => (
                     <option key={student.id} value={student.id}>
@@ -2136,7 +2884,10 @@ export function StaffGamificationWorkspace({
                     targetClassId: event.target.value,
                   }));
                 }}
-                className={getFieldClass(inputClass, Boolean(missionErrors.targetClassId))}
+                className={getFieldClass(
+                  inputClass,
+                  Boolean(missionErrors.targetClassId),
+                )}
               >
                 <option value="">Chọn lớp</option>
                 {classOptions.map((item) => (
@@ -2154,7 +2905,9 @@ export function StaffGamificationWorkspace({
             <div className="md:col-span-2">
               <FormLabel label="Nhóm áp dụng" required />
               <div className="mb-3">
-                <label className="mb-1 block text-xs font-medium text-gray-500">Lọc theo lớp</label>
+                <label className="mb-1 block text-xs font-medium text-gray-500">
+                  Lọc theo lớp
+                </label>
                 <select
                   value={groupClassFilter}
                   onChange={(event) => setGroupClassFilter(event.target.value)}
@@ -2174,48 +2927,70 @@ export function StaffGamificationWorkspace({
                   "max-h-64 space-y-2 overflow-y-auto rounded-2xl border p-3",
                   missionErrors.targetGroupIds
                     ? "border-rose-300 bg-rose-50/70"
-                    : "border-red-200 bg-red-50/40"
+                    : "border-red-200 bg-red-50/40",
                 )}
               >
-                {students.filter((student) => {
-                  if (!groupClassFilter) return true;
-                  // Filter students by class: check classText for matching class
-                  const classOpt = classOptions.find((c) => c.id === groupClassFilter);
-                  if (!classOpt) return true;
-                  const classLabel = (classOpt.code || classOpt.title || classOpt.name || classOpt.id).toLowerCase();
-                  return (student.classText || "").toLowerCase().includes(classLabel) || (student.helperText || "").toLowerCase().includes(classLabel);
-                }).map((student) => {
-                  const checked = missionForm.targetGroupIds.includes(student.id);
+                {students
+                  .filter((student) => {
+                    if (!groupClassFilter) return true;
+                    // Filter students by class: check classText for matching class
+                    const classOpt = classOptions.find(
+                      (c) => c.id === groupClassFilter,
+                    );
+                    if (!classOpt) return true;
+                    const classLabel = (
+                      classOpt.code ||
+                      classOpt.title ||
+                      classOpt.name ||
+                      classOpt.id
+                    ).toLowerCase();
+                    return (
+                      (student.classText || "")
+                        .toLowerCase()
+                        .includes(classLabel) ||
+                      (student.helperText || "")
+                        .toLowerCase()
+                        .includes(classLabel)
+                    );
+                  })
+                  .map((student) => {
+                    const checked = missionForm.targetGroupIds.includes(
+                      student.id,
+                    );
 
-                  return (
-                    <label
-                      key={student.id}
-                      className={cx(
-                        "flex cursor-pointer items-start gap-3 rounded-2xl border px-3 py-3 transition",
-                        checked
-                          ? "border-red-300 bg-white"
-                          : "border-transparent bg-white/70 hover:border-red-200"
-                      )}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => toggleMissionGroupStudent(student.id)}
-                        className="mt-1 h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200"
-                      />
-                      <span className="min-w-0">
-                        <span className="block text-sm font-semibold text-gray-900">
-                          {student.label}
+                    return (
+                      <label
+                        key={student.id}
+                        className={cx(
+                          "flex cursor-pointer items-start gap-3 rounded-2xl border px-3 py-3 transition",
+                          checked
+                            ? "border-red-300 bg-white"
+                            : "border-transparent bg-white/70 hover:border-red-200",
+                        )}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleMissionGroupStudent(student.id)}
+                          className="mt-1 h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200"
+                        />
+                        <span className="min-w-0">
+                          <span className="block text-sm font-semibold text-gray-900">
+                            {student.label}
+                          </span>
+                          <span className="mt-0.5 block text-xs text-gray-500">
+                            {student.helperText ||
+                              student.studentId ||
+                              student.id}
+                          </span>
                         </span>
-                        <span className="mt-0.5 block text-xs text-gray-500">
-                          {student.helperText || student.studentId || student.id}
-                        </span>
-                      </span>
-                    </label>
-                  );
-                })}
+                      </label>
+                    );
+                  })}
                 {students.length === 0 ? (
-                  <p className="text-sm text-gray-500">Chưa có danh sách học sinh để chọn.</p>
+                  <p className="text-sm text-gray-500">
+                    Chưa có danh sách học sinh để chọn.
+                  </p>
                 ) : null}
               </div>
               <FieldError message={missionErrors.targetGroupIds} />
@@ -2234,12 +3009,20 @@ export function StaffGamificationWorkspace({
               value={missionForm.startAt}
               onChange={(event) => {
                 clearMissionErrors(["startAt"]);
-                setMissionForm((current) => ({ ...current, startAt: event.target.value }));
+                setMissionForm((current) => ({
+                  ...current,
+                  startAt: event.target.value,
+                }));
               }}
-              className={getFieldClass(inputClass, Boolean(missionErrors.startAt))}
+              className={getFieldClass(
+                inputClass,
+                Boolean(missionErrors.startAt),
+              )}
             />
             <FieldError message={missionErrors.startAt} />
-            <p className="mt-1 text-xs text-gray-400">Để trống nếu muốn bắt đầu ngay lập tức.</p>
+            <p className="mt-1 text-xs text-gray-400">
+              Để trống nếu muốn bắt đầu ngay lập tức.
+            </p>
           </div>
 
           <div>
@@ -2249,12 +3032,20 @@ export function StaffGamificationWorkspace({
               value={missionForm.endAt}
               onChange={(event) => {
                 clearMissionErrors(["endAt"]);
-                setMissionForm((current) => ({ ...current, endAt: event.target.value }));
+                setMissionForm((current) => ({
+                  ...current,
+                  endAt: event.target.value,
+                }));
               }}
-              className={getFieldClass(inputClass, Boolean(missionErrors.endAt))}
+              className={getFieldClass(
+                inputClass,
+                Boolean(missionErrors.endAt),
+              )}
             />
             <FieldError message={missionErrors.endAt} />
-            <p className="mt-1 text-xs text-gray-400">Có thể để trống nếu mission không giới hạn ngày kết thúc.</p>
+            <p className="mt-1 text-xs text-gray-400">
+              Có thể để trống nếu mission không giới hạn ngày kết thúc.
+            </p>
           </div>
 
           <div className="md:col-span-2">
@@ -2263,22 +3054,42 @@ export function StaffGamificationWorkspace({
               value={missionForm.totalRequired}
               onChange={(event) => {
                 clearMissionErrors(["totalRequired"]);
-                setMissionForm((current) => ({ ...current, totalRequired: event.target.value }));
+                setMissionForm((current) => ({
+                  ...current,
+                  totalRequired: event.target.value,
+                }));
               }}
               inputMode="numeric"
-              className={getFieldClass(inputClass, Boolean(missionErrors.totalRequired))}
+              className={getFieldClass(
+                inputClass,
+                Boolean(missionErrors.totalRequired),
+              )}
               placeholder="Ví dụ: 5 (hoàn thành 5 lần bài tập để đạt mục tiêu)"
             />
             <FieldError message={missionErrors.totalRequired} />
             {missionForm.id && (
               <p className="mt-1 text-xs text-gray-500">
-                Phần thưởng hiện tại: {formatNumber(missions.find((item) => item.id === missionForm.id)?.rewardStars)} sao • {formatNumber(missions.find((item) => item.id === missionForm.id)?.rewardExp)} XP
+                Phần thưởng hiện tại:{" "}
+                {formatNumber(
+                  missions.find((item) => item.id === missionForm.id)
+                    ?.rewardStars,
+                )}{" "}
+                sao •{" "}
+                {formatNumber(
+                  missions.find((item) => item.id === missionForm.id)
+                    ?.rewardExp,
+                )}{" "}
+                XP
               </p>
             )}
           </div>
         </div>
         <div className="mt-5 flex flex-wrap justify-end gap-2">
-          <button type="button" onClick={closeMissionDialog} className={ghostButton}>
+          <button
+            type="button"
+            onClick={closeMissionDialog}
+            className={ghostButton}
+          >
             Đóng
           </button>
           <button
@@ -2287,7 +3098,9 @@ export function StaffGamificationWorkspace({
             disabled={busyAction === "submit-mission"}
             className={primaryButton}
           >
-            {busyAction === "submit-mission" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            {busyAction === "submit-mission" ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : null}
             Lưu nhiệm vụ
           </button>
         </div>
@@ -2310,7 +3123,10 @@ export function StaffGamificationWorkspace({
               value={rewardForm.title}
               onChange={(event) => {
                 clearRewardErrors(["title"]);
-                setRewardForm((current) => ({ ...current, title: event.target.value }));
+                setRewardForm((current) => ({
+                  ...current,
+                  title: event.target.value,
+                }));
               }}
               className={getFieldClass(inputClass, Boolean(rewardErrors.title))}
             />
@@ -2322,7 +3138,10 @@ export function StaffGamificationWorkspace({
             <textarea
               value={rewardForm.description}
               onChange={(event) =>
-                setRewardForm((current) => ({ ...current, description: event.target.value }))
+                setRewardForm((current) => ({
+                  ...current,
+                  description: event.target.value,
+                }))
               }
               className={textareaClass}
             />
@@ -2349,7 +3168,9 @@ export function StaffGamificationWorkspace({
                 <div className="flex flex-wrap items-center justify-between gap-3 border-t border-red-200 px-4 py-3">
                   <div className="flex items-center gap-2 text-sm text-gray-500">
                     <ImageIcon className="h-4 w-4" />
-                    <span className="max-w-[420px] truncate">{rewardForm.imageUrl}</span>
+                    <span className="max-w-[420px] truncate">
+                      {rewardForm.imageUrl}
+                    </span>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <button
@@ -2358,12 +3179,21 @@ export function StaffGamificationWorkspace({
                       disabled={imageUploading}
                       className={ghostButton}
                     >
-                      {imageUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                      {imageUploading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Upload className="h-4 w-4" />
+                      )}
                       Đổi ảnh
                     </button>
                     <button
                       type="button"
-                      onClick={() => setRewardForm((current) => ({ ...current, imageUrl: "" }))}
+                      onClick={() =>
+                        setRewardForm((current) => ({
+                          ...current,
+                          imageUrl: "",
+                        }))
+                      }
                       disabled={imageUploading}
                       className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
                     >
@@ -2380,12 +3210,18 @@ export function StaffGamificationWorkspace({
                 disabled={imageUploading}
                 className="flex w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-red-200 bg-gradient-to-br from-white to-red-50/30 px-6 py-10 text-center transition hover:border-red-400 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {imageUploading ? <Loader2 className="h-8 w-8 animate-spin text-gray-500" /> : <Upload className="h-8 w-8 text-gray-500" />}
+                {imageUploading ? (
+                  <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+                ) : (
+                  <Upload className="h-8 w-8 text-gray-500" />
+                )}
                 <div>
                   <p className="text-sm font-semibold text-gray-900">
                     {imageUploading ? "Đang tải ảnh lên..." : "Chọn ảnh từ máy"}
                   </p>
-                  <p className="mt-1 text-xs text-gray-500">Hỗ trợ JPG, PNG, WEBP, GIF. Tối đa 10MB.</p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Hỗ trợ JPG, PNG, WEBP, GIF. Tối đa 10MB.
+                  </p>
                 </div>
               </button>
             )}
@@ -2397,10 +3233,16 @@ export function StaffGamificationWorkspace({
               value={rewardForm.costStars}
               onChange={(event) => {
                 clearRewardErrors(["costStars"]);
-                setRewardForm((current) => ({ ...current, costStars: event.target.value }));
+                setRewardForm((current) => ({
+                  ...current,
+                  costStars: event.target.value,
+                }));
               }}
               inputMode="numeric"
-              className={getFieldClass(inputClass, Boolean(rewardErrors.costStars))}
+              className={getFieldClass(
+                inputClass,
+                Boolean(rewardErrors.costStars),
+              )}
             />
             <FieldError message={rewardErrors.costStars} />
           </div>
@@ -2410,7 +3252,10 @@ export function StaffGamificationWorkspace({
               type="checkbox"
               checked={rewardForm.isActive}
               onChange={(event) =>
-                setRewardForm((current) => ({ ...current, isActive: event.target.checked }))
+                setRewardForm((current) => ({
+                  ...current,
+                  isActive: event.target.checked,
+                }))
               }
             />
             Hiển thị trên cửa hàng
@@ -2431,13 +3276,23 @@ export function StaffGamificationWorkspace({
             disabled={busyAction === "submit-reward" || imageUploading}
             className={primaryButton}
           >
-            {busyAction === "submit-reward" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            {busyAction === "submit-reward" ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : null}
             Lưu vật phẩm
           </button>
         </div>
       </DialogShell>
 
-      <DialogShell open={progressDialog.open} onClose={() => setProgressDialog({ mission: null, items: [], open: false })} title={progressDialog.mission?.title || "Tiến độ nhiệm vụ"} description="Danh sách tiến độ hiện có theo nhiệm vụ được chọn." theme="staff">
+      <DialogShell
+        open={progressDialog.open}
+        onClose={() =>
+          setProgressDialog({ mission: null, items: [], open: false })
+        }
+        title={progressDialog.mission?.title || "Tiến độ nhiệm vụ"}
+        description="Danh sách tiến độ hiện có theo nhiệm vụ được chọn."
+        theme="staff"
+      >
         <div className="space-y-3">
           {progressDialog.items.map((item) => {
             const pct = getMissionProgressPercent({
@@ -2447,63 +3302,153 @@ export function StaffGamificationWorkspace({
               fallback: item.progressPercentage,
             });
             return (
-              <div key={item.id} className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-4">
+              <div
+                key={item.id}
+                className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-4"
+              >
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-gray-900">{item.studentName || item.studentProfileId}</p>
+                    <p className="font-semibold text-gray-900">
+                      {item.studentName || item.studentProfileId}
+                    </p>
                     <div className="mt-2">
                       <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-                        <span>Tiến độ: {formatNumber(item.progressValue)}{(item.totalRequired ?? progressDialog.mission?.totalRequired) ? ` / ${formatNumber(item.totalRequired ?? progressDialog.mission?.totalRequired)}` : ""}</span>
-                        <span className="font-semibold text-gray-700">{pct}%</span>
+                        <span>
+                          Tiến độ: {formatNumber(item.progressValue)}
+                          {(item.totalRequired ??
+                          progressDialog.mission?.totalRequired)
+                            ? ` / ${formatNumber(item.totalRequired ?? progressDialog.mission?.totalRequired)}`
+                            : ""}
+                        </span>
+                        <span className="font-semibold text-gray-700">
+                          {pct}%
+                        </span>
                       </div>
                       <div className="h-2.5 w-full rounded-full bg-gray-200 overflow-hidden">
-                        <div className={cx("h-full rounded-full transition-all duration-500", pct >= 100 ? "bg-emerald-500" : pct > 0 ? "bg-blue-500" : "bg-gray-300")} style={{ width: `${pct}%` }} />
+                        <div
+                          className={cx(
+                            "h-full rounded-full transition-all duration-500",
+                            pct >= 100
+                              ? "bg-emerald-500"
+                              : pct > 0
+                                ? "bg-blue-500"
+                                : "bg-gray-300",
+                          )}
+                          style={{ width: `${pct}%` }}
+                        />
                       </div>
                     </div>
                   </div>
-                  <StatusPill label={mapProgressStatusLabel(item.status)} className={getMissionProgressClasses(item.status)} />
+                  <StatusPill
+                    label={mapProgressStatusLabel(item.status)}
+                    className={getMissionProgressClasses(item.status)}
+                  />
                 </div>
               </div>
             );
           })}
-          {progressDialog.items.length === 0 ? <EmptyState title="Chưa có tiến độ nhiệm vụ" description="Nhiệm vụ này chưa phát sinh tiến độ hoặc backend chưa ghi nhận dữ liệu." icon={<Target className="h-5 w-5" />} theme="staff" /> : null}
+          {progressDialog.items.length === 0 ? (
+            <EmptyState
+              title="Chưa có tiến độ nhiệm vụ"
+              description="Nhiệm vụ này chưa phát sinh tiến độ hoặc backend chưa ghi nhận dữ liệu."
+              icon={<Target className="h-5 w-5" />}
+              theme="staff"
+            />
+          ) : null}
         </div>
       </DialogShell>
 
-      <DialogShell open={Boolean(redemptionDetail)} onClose={() => setRedemptionDetail(null)} title={redemptionDetail?.itemName || "Chi tiết yêu cầu đổi thưởng"} description="Thông tin chi tiết của yêu cầu đổi quà để staff và người học tiện theo dõi." theme="staff">
+      <DialogShell
+        open={Boolean(redemptionDetail)}
+        onClose={() => setRedemptionDetail(null)}
+        title={redemptionDetail?.itemName || "Chi tiết yêu cầu đổi thưởng"}
+        description="Thông tin chi tiết của yêu cầu đổi quà để staff và người học tiện theo dõi."
+        theme="staff"
+      >
         {redemptionDetail ? (
           <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <StatusPill label={mapRedemptionStatusLabel(redemptionDetail.status)} className={getRedemptionStatusClasses(redemptionDetail.status)} />
+              <StatusPill
+                label={mapRedemptionStatusLabel(redemptionDetail.status)}
+                className={getRedemptionStatusClasses(redemptionDetail.status)}
+              />
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-2xl border border-red-200 bg-white p-4">
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Học sinh</p>
-                <p className="mt-1 font-semibold text-gray-900">{redemptionDetail.studentName || redemptionDetail.studentProfileId}</p>
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  Học sinh
+                </p>
+                <p className="mt-1 font-semibold text-gray-900">
+                  {redemptionDetail.studentName ||
+                    redemptionDetail.studentProfileId}
+                </p>
               </div>
               <div className="rounded-2xl border border-red-200 bg-white p-4">
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Chi nhánh</p>
-                <p className="mt-1 font-semibold text-gray-900">{redemptionDetail.branchName || "Chưa có"}</p>
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  Chi nhánh
+                </p>
+                <p className="mt-1 font-semibold text-gray-900">
+                  {redemptionDetail.branchName || "Chưa có"}
+                </p>
               </div>
               <div className="rounded-2xl border border-red-200 bg-white p-4">
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Số lượng</p>
-                <p className="mt-1 font-semibold text-gray-900">{formatNumber(redemptionDetail.quantity)}</p>
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  Số lượng
+                </p>
+                <p className="mt-1 font-semibold text-gray-900">
+                  {formatNumber(redemptionDetail.quantity)}
+                </p>
               </div>
               <div className="rounded-2xl border border-red-200 bg-white p-4">
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Sao đã trừ</p>
-                <p className="mt-1 font-semibold text-gray-900">{formatNumber(redemptionDetail.starsDeducted)}</p>
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  Sao đã trừ
+                </p>
+                <p className="mt-1 font-semibold text-gray-900">
+                  {formatNumber(redemptionDetail.starsDeducted)}
+                </p>
               </div>
             </div>
             <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-4 space-y-2 text-sm text-gray-600">
-              <div className="flex justify-between"><span className="text-gray-500">Tạo lúc</span><span className="font-medium text-gray-900">{formatDateTime(redemptionDetail.createdAt)}</span></div>
-              {redemptionDetail.handledAt ? <div className="flex justify-between"><span className="text-gray-500">Xử lý lúc</span><span className="font-medium text-gray-900">{formatDateTime(redemptionDetail.handledAt)}</span></div> : null}
-              {redemptionDetail.deliveredAt ? <div className="flex justify-between"><span className="text-gray-500">Giao lúc</span><span className="font-medium text-gray-900">{formatDateTime(redemptionDetail.deliveredAt)}</span></div> : null}
-              {redemptionDetail.receivedAt ? <div className="flex justify-between"><span className="text-gray-500">Nhận lúc</span><span className="font-medium text-gray-900">{formatDateTime(redemptionDetail.receivedAt)}</span></div> : null}
+              <div className="flex justify-between">
+                <span className="text-gray-500">Tạo lúc</span>
+                <span className="font-medium text-gray-900">
+                  {formatDateTime(redemptionDetail.createdAt)}
+                </span>
+              </div>
+              {redemptionDetail.handledAt ? (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Xử lý lúc</span>
+                  <span className="font-medium text-gray-900">
+                    {formatDateTime(redemptionDetail.handledAt)}
+                  </span>
+                </div>
+              ) : null}
+              {redemptionDetail.deliveredAt ? (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Giao lúc</span>
+                  <span className="font-medium text-gray-900">
+                    {formatDateTime(redemptionDetail.deliveredAt)}
+                  </span>
+                </div>
+              ) : null}
+              {redemptionDetail.receivedAt ? (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Nhận lúc</span>
+                  <span className="font-medium text-gray-900">
+                    {formatDateTime(redemptionDetail.receivedAt)}
+                  </span>
+                </div>
+              ) : null}
             </div>
-            {redemptionDetail.status === "Cancelled" && redemptionDetail.cancellationReason ? (
+            {redemptionDetail.status === "Cancelled" &&
+            redemptionDetail.cancellationReason ? (
               <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4">
-                <p className="text-xs font-medium text-rose-500 uppercase tracking-wide">Lý do hủy</p>
-                <p className="mt-1 text-sm text-rose-700">{redemptionDetail.cancellationReason}</p>
+                <p className="text-xs font-medium text-rose-500 uppercase tracking-wide">
+                  Lý do hủy
+                </p>
+                <p className="mt-1 text-sm text-rose-700">
+                  {redemptionDetail.cancellationReason}
+                </p>
               </div>
             ) : null}
           </div>
@@ -2513,7 +3458,10 @@ export function StaffGamificationWorkspace({
       {/* Cancel Redemption Dialog */}
       <DialogShell
         open={Boolean(cancelRedemptionId)}
-        onClose={() => { setCancelRedemptionId(null); setCancelReason(""); }}
+        onClose={() => {
+          setCancelRedemptionId(null);
+          setCancelReason("");
+        }}
         title="Hủy yêu cầu đổi thưởng"
         description="Nhập lý do hủy (không bắt buộc). Sao sẽ được hoàn lại cho học sinh."
         theme="staff"
@@ -2532,7 +3480,10 @@ export function StaffGamificationWorkspace({
           <div className="flex flex-wrap justify-end gap-2">
             <button
               type="button"
-              onClick={() => { setCancelRedemptionId(null); setCancelReason(""); }}
+              onClick={() => {
+                setCancelRedemptionId(null);
+                setCancelReason("");
+              }}
               className={ghostButton}
             >
               Quay lại
@@ -2543,7 +3494,9 @@ export function StaffGamificationWorkspace({
               disabled={busyAction === `cancel-${cancelRedemptionId}`}
               className={dangerGhostButton}
             >
-              {busyAction === `cancel-${cancelRedemptionId}` ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {busyAction === `cancel-${cancelRedemptionId}` ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : null}
               Xác nhận hủy
             </button>
           </div>
@@ -2564,7 +3517,12 @@ export function StaffGamificationWorkspace({
             <FormLabel label="Loại nhiệm vụ" required />
             <select
               value={ruleForm.missionType}
-              onChange={(e) => setRuleForm((prev) => ({ ...prev, missionType: e.target.value }))}
+              onChange={(e) =>
+                setRuleForm((prev) => ({
+                  ...prev,
+                  missionType: e.target.value,
+                }))
+              }
               className={inputClass}
             >
               <option value="">Chọn loại nhiệm vụ</option>
@@ -2577,7 +3535,13 @@ export function StaffGamificationWorkspace({
             <FormLabel label="Cách tính tiến độ" required />
             <select
               value={ruleForm.progressMode}
-              onChange={(e) => setRuleForm((prev) => ({ ...prev, progressMode: e.target.value as MissionRewardRuleRequest["progressMode"] }))}
+              onChange={(e) =>
+                setRuleForm((prev) => ({
+                  ...prev,
+                  progressMode: e.target
+                    .value as MissionRewardRuleRequest["progressMode"],
+                }))
+              }
               className={inputClass}
             >
               <option value="Count">Theo số lần</option>
@@ -2588,7 +3552,12 @@ export function StaffGamificationWorkspace({
             <FormLabel label="Mục tiêu hoàn thành" required />
             <input
               value={ruleForm.totalRequired}
-              onChange={(e) => setRuleForm((prev) => ({ ...prev, totalRequired: Number(e.target.value) }))}
+              onChange={(e) =>
+                setRuleForm((prev) => ({
+                  ...prev,
+                  totalRequired: Number(e.target.value),
+                }))
+              }
               inputMode="numeric"
               className={inputClass}
               placeholder="Ví dụ: 5"
@@ -2599,7 +3568,12 @@ export function StaffGamificationWorkspace({
               <FormLabel label="Sao thưởng" required />
               <input
                 value={ruleForm.rewardStars}
-                onChange={(e) => setRuleForm((prev) => ({ ...prev, rewardStars: Number(e.target.value) }))}
+                onChange={(e) =>
+                  setRuleForm((prev) => ({
+                    ...prev,
+                    rewardStars: Number(e.target.value),
+                  }))
+                }
                 inputMode="numeric"
                 className={inputClass}
                 placeholder="0"
@@ -2609,7 +3583,12 @@ export function StaffGamificationWorkspace({
               <FormLabel label="XP thưởng" required />
               <input
                 value={ruleForm.rewardExp}
-                onChange={(e) => setRuleForm((prev) => ({ ...prev, rewardExp: Number(e.target.value) }))}
+                onChange={(e) =>
+                  setRuleForm((prev) => ({
+                    ...prev,
+                    rewardExp: Number(e.target.value),
+                  }))
+                }
                 inputMode="numeric"
                 className={inputClass}
                 placeholder="0"
@@ -2617,14 +3596,22 @@ export function StaffGamificationWorkspace({
             </div>
           </div>
           <div className="flex flex-wrap justify-end gap-2 pt-2">
-            <button type="button" onClick={() => setRuleDialogOpen(false)} className={ghostButton}>Đóng</button>
+            <button
+              type="button"
+              onClick={() => setRuleDialogOpen(false)}
+              className={ghostButton}
+            >
+              Đóng
+            </button>
             <button
               type="button"
               onClick={() => void submitRule()}
               disabled={busyAction === "submit-rule"}
               className={primaryButton}
             >
-              {busyAction === "submit-rule" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {busyAction === "submit-rule" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : null}
               {ruleForm.id ? "Cập nhật" : "Tạo mới"}
             </button>
           </div>

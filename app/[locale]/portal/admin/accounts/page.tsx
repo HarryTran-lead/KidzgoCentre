@@ -1421,7 +1421,7 @@ export default function AccountsPage() {
         >
           <div className="flex items-center gap-2">
             <ShieldCheck size={16} />
-            <span>{t.tabs.accounts}</span>
+            <span className="text-sm">{t.tabs.accounts}</span>
             <span className={`text-xs px-2 py-0.5 rounded-full ${
               activeTab === "accounts" ? "bg-white/20" : "bg-gray-100"
             }`}>
@@ -1493,7 +1493,7 @@ export default function AccountsPage() {
                   }`}
                 >
                   <span className="flex items-center gap-2">
-                    <span>{labels[r]}</span>
+                    <span className="text-sm">{labels[r]}</span>
                     <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
                       isActive ? 'bg-white/20' : 'bg-red-100 text-red-700'
                     }`}>
@@ -1513,7 +1513,7 @@ export default function AccountsPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={t.filters.search}
-                className="w-full h-10 rounded-xl border border-red-200 bg-white pl-10 pr-4 text-xs placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200"
+                className="w-full h-10 rounded-xl border border-red-200 bg-white pl-10 pr-4 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200"
               />
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             </div>
@@ -1875,7 +1875,7 @@ export default function AccountsPage() {
                       }`}
                     >
                       <span className="flex items-center gap-2">
-                        <span>{labels[type]}</span>
+                        <span className="text-sm">{labels[type]}</span>
                         <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
                           isActive ? 'bg-white/20' : 'bg-red-100 text-red-700'
                         }`}>
@@ -1897,7 +1897,7 @@ export default function AccountsPage() {
                     placeholder={tProfiles.filters.search}
                     value={profileSearchTerm}
                     onChange={(e) => setProfileSearchTerm(e.target.value)}
-                    className="w-full h-10 rounded-xl border border-red-200 bg-white py-2 pl-10 pr-4 text-xs text-gray-700 placeholder-gray-400 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200"
+                    className="w-full h-10 rounded-xl border border-red-200 bg-white py-2 pl-10 pr-4 text-sm text-gray-700 placeholder-gray-400 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200"
                   />
                 </div>
 

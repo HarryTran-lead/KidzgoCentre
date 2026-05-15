@@ -70,7 +70,7 @@ function StatCard({
           {icon}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-xs font-medium text-gray-600 truncate">{title}</div>
+          <div className="text-sm font-medium text-gray-600 truncate">{title}</div>
           <div className="text-xl font-bold text-gray-900 leading-tight">{value}</div>
           {subtitle && <div className="text-[11px] text-gray-500 truncate">{subtitle}</div>}
         </div>
@@ -680,7 +680,8 @@ export default function SessionReportsReviewWorkspace() {
 
       {/* Filter Bar */}
       <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-col gap-4">
+          {/* Filter Tabs */}
           <div className="flex flex-wrap items-center gap-3">
             {/* Status Filter */}
             <div className="inline-flex rounded-xl border border-red-200 bg-white p-1">
@@ -714,8 +715,11 @@ export default function SessionReportsReviewWorkspace() {
             )}
           </div>
 
+          {/* Divider */}
+          <div className="border-t border-red-200"></div>
+
           {/* Search */}
-          <div className="relative w-full sm:w-auto">
+          <div className="relative w-full">
             <div className="relative">
               <Search
                 size={16}
@@ -725,7 +729,7 @@ export default function SessionReportsReviewWorkspace() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Tìm kiếm theo học sinh, lớp, giáo viên..."
-                className="h-10 w-full sm:w-80 rounded-xl border border-red-200 bg-white pl-9 pr-9 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200"
+                className="h-10 w-full rounded-xl border border-red-200 bg-white pl-9 pr-9 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200"
               />
               {searchQuery.trim() !== "" && (
                 <button
@@ -764,7 +768,7 @@ export default function SessionReportsReviewWorkspace() {
         {/* Table Header */}
         <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-red-200 px-6 py-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Danh sách báo cáo buổi học</h2>
+            <h2 className="font-semibold text-gray-900">Danh sách báo cáo buổi học</h2>
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <span className="font-medium">{filteredReports.length} báo cáo</span>
               <button
@@ -1008,7 +1012,7 @@ export default function SessionReportsReviewWorkspace() {
                     <FileText size={24} className="text-white" />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-bold text-white">Chi tiết báo cáo buổi học</h2>
+                    <h2 className="text-xl font-bold text-white">Chi tiết báo cáo buổi học</h2>
                     <p className="text-sm text-red-100">Thông tin chi tiết về báo cáo của học sinh</p>
                   </div>
                 </div>
@@ -1027,7 +1031,7 @@ export default function SessionReportsReviewWorkspace() {
               <div className="space-y-6">
                 {/* Thông tin cơ bản */}
                 <div className="bg-gradient-to-r from-red-50 to-slate-50 rounded-xl p-5 border border-red-100">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <h3 className="text font-semibold text-gray-900 mb-4 flex items-center gap-2">
                     <div className="w-1 h-6 bg-red-500 rounded-full"></div>
                     Thông tin cơ bản
                   </h3>
@@ -1038,7 +1042,7 @@ export default function SessionReportsReviewWorkspace() {
                         <div className="w-2 h-2 rounded-full bg-red-500"></div>
                         Trạng thái
                       </label>
-                      <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white">
+                      <div className="px-4 py-3 text-sm rounded-xl border border-gray-200 bg-white">
                         <StatusBadge status={detailReport.status} />
                       </div>
                     </div>
@@ -1049,7 +1053,7 @@ export default function SessionReportsReviewWorkspace() {
                         <Clock size={16} className="text-red-600" />
                         Ngày báo cáo
                       </label>
-                      <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
+                      <div className="px-4 py-3 rounded-xl border border-gray-200 text-sm bg-white text-gray-900">
                         {formatDateTime(detailReport.reportDate || detailReport.createdAt)}
                       </div>
                     </div>
@@ -1058,7 +1062,7 @@ export default function SessionReportsReviewWorkspace() {
 
                 {/* Thông tin học sinh và lớp */}
                 <div className="bg-white rounded-xl border border-gray-200 p-5">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <h3 className=" font-semibold text-gray-900 mb-4 flex items-center gap-2">
                     <div className="w-1 h-6 bg-red-500 rounded-full"></div>
                     Thông tin học sinh & lớp
                   </h3>
@@ -1070,7 +1074,7 @@ export default function SessionReportsReviewWorkspace() {
                         Học sinh
                       </label>
                       <div className="px-4 py-3 rounded-xl border border-gray-200 bg-gradient-to-r from-gray-50 to-white text-gray-900">
-                        <div className="font-medium">
+                        <div className="font-medium text-sm">
                           {studentNameMap[String(detailReport.studentProfileId ?? "")] || "Đang tải..."}
                         </div>
                       </div>
@@ -1083,7 +1087,7 @@ export default function SessionReportsReviewWorkspace() {
                         Lớp học
                       </label>
                       <div className="px-4 py-3 rounded-xl border border-gray-200 bg-gradient-to-r from-gray-50 to-white text-gray-900">
-                        <div className="font-medium">
+                        <div className="font-medium text-sm">
                           {classNameMap[String(detailReport.classId ?? "")] || "Đang tải..."}
                         </div>
                       </div>
@@ -1096,7 +1100,7 @@ export default function SessionReportsReviewWorkspace() {
                         Giáo viên
                       </label>
                       <div className="px-4 py-3 rounded-xl border border-gray-200 bg-gradient-to-r from-gray-50 to-white text-gray-900">
-                        <div className="font-medium">
+                        <div className="font-medium text-sm">
                           {teacherNameMap[String(detailReport.teacherUserId ?? "")] || "Đang tải..."}
                         </div>
                       </div>
@@ -1117,13 +1121,13 @@ export default function SessionReportsReviewWorkspace() {
 
                 {/* Nội dung báo cáo */}
                 <div className="bg-white rounded-xl border border-gray-200 p-5">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <h3 className=" font-semibold text-gray-900 mb-4 flex items-center gap-2">
                     <div className="w-1 h-6 bg-red-500 rounded-full"></div>
                     Nội dung báo cáo
                   </h3>
-                  <div className="px-4 py-4 rounded-xl bg-gray-50 border border-gray-200 text-gray-700 min-h-[120px] leading-relaxed whitespace-pre-wrap">
+                  <div className="px-4 py-4 rounded-xl text-sm bg-gray-50 border border-gray-200 text-gray-700 min-h-[120px] leading-relaxed whitespace-pre-wrap">
                     {detailReport.feedback || (
-                      <span className="text-gray-400 italic">Không có nội dung báo cáo</span>
+                      <span className="text-gray-400 italic text-sm">Không có nội dung báo cáo</span>
                     )}
                   </div>
                 </div>
@@ -1165,58 +1169,61 @@ export default function SessionReportsReviewWorkspace() {
 
             {/* Modal Footer */}
             <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-6">
-              <div className="flex justify-end gap-3">
+              <div className="flex justify-between items-center gap-3">
                 <button
                   onClick={() => setDetailReport(null)}
-                  className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition-all cursor-pointer"
+                  className="px-6 py-2.5 rounded-xl text-sm border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition-all cursor-pointer"
                 >
                   Đóng
                 </button>
-                {String(detailReport.status ?? "").trim().toUpperCase() === "REVIEW" && (
-                  <div className="flex gap-3">
+                <div className="flex gap-3 text-sm">
+                  {String(detailReport.status ?? "").trim().toUpperCase() === "REVIEW" && (
+                    <>
+                    <button
+                        onClick={() => {
+                          setRejectTarget(detailReport);
+                          setDetailReport(null);
+                        }}
+                        disabled={!detailReport.id || actionLoading[`${detailReport.id}:reject`]}
+                        className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      >
+                        <ThumbsDown size={16} />
+                        Từ chối
+                      </button>
+                      <button
+                        onClick={() => {
+                          const reportId = String(detailReport.id ?? "");
+                          if (reportId) {
+                            runAction(reportId, "approve");
+                            setDetailReport(null);
+                          }
+                        }}
+                        disabled={!detailReport.id || actionLoading[`${detailReport.id}:approve`]}
+                        className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 text-white font-semibold hover:shadow-lg hover:shadow-emerald-500/25 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      >
+                        <ThumbsUp size={16} />
+                        Duyệt báo cáo
+                      </button>
+                      
+                    </>
+                  )}
+                  {String(detailReport.status ?? "").trim().toUpperCase() === "APPROVED" && (
                     <button
                       onClick={() => {
                         const reportId = String(detailReport.id ?? "");
                         if (reportId) {
-                          runAction(reportId, "approve");
+                          runAction(reportId, "publish");
                           setDetailReport(null);
                         }
                       }}
-                      disabled={!detailReport.id || actionLoading[`${detailReport.id}:approve`]}
-                      className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 text-white font-semibold hover:shadow-lg hover:shadow-emerald-500/25 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      disabled={!detailReport.id || actionLoading[`${detailReport.id}:publish`]}
+                      className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-slate-600 to-slate-700 text-white font-semibold hover:shadow-lg hover:shadow-slate-500/25 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                     >
-                      <ThumbsUp size={16} />
-                      Duyệt báo cáo
+                      <Send size={16} />
+                      Xuất bản
                     </button>
-                    <button
-                      onClick={() => {
-                        setRejectTarget(detailReport);
-                        setDetailReport(null);
-                      }}
-                      disabled={!detailReport.id || actionLoading[`${detailReport.id}:reject`]}
-                      className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                    >
-                      <ThumbsDown size={16} />
-                      Từ chối
-                    </button>
-                  </div>
-                )}
-                {String(detailReport.status ?? "").trim().toUpperCase() === "APPROVED" && (
-                  <button
-                    onClick={() => {
-                      const reportId = String(detailReport.id ?? "");
-                      if (reportId) {
-                        runAction(reportId, "publish");
-                        setDetailReport(null);
-                      }
-                    }}
-                    disabled={!detailReport.id || actionLoading[`${detailReport.id}:publish`]}
-                    className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-slate-600 to-slate-700 text-white font-semibold hover:shadow-lg hover:shadow-slate-500/25 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                  >
-                    <Send size={16} />
-                    Xuất bản
-                  </button>
-                )}
+                  )}
+                </div>
               </div>
             </div>
           </div>

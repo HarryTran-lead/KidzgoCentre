@@ -5,6 +5,7 @@ import {
   AlertCircle, BookOpen, Clock, Download, Eye, FileIcon, FileText, Film,
   Folder, HardDrive, ImageIcon, Info, Inbox, Layers, Loader2,
   Maximize2, Music, RefreshCw, Search, Upload, Wand2, X,
+  Sparkles,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 
@@ -290,18 +291,20 @@ export default function TeachingMaterialsWorkspace({ viewerRole }: { viewerRole:
   }), [materials]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-6 space-y-6">
+    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-2 space-y-6">
       {/* Header */}
       <div className={`flex flex-wrap items-center justify-between gap-4 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
         <div className="flex items-center gap-4">
           <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
-            <BookOpen size={28} className="text-white" />
+            <BookOpen size={25} className="text-white" />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">
+            <h1 className="text-2xl md:text-2xl font-extrabold text-gray-900">
               Quản lý Tài liệu giảng dạy
             </h1>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-gray-600 mt-1 flex items-center gap-2">
+              <Sparkles size={14} className="text-red-600" />
+
               Quản lý, tải lên và phân phối tài liệu giảng dạy cho các khóa học
             </p>
           </div>
@@ -346,7 +349,7 @@ export default function TeachingMaterialsWorkspace({ viewerRole }: { viewerRole:
                 <div className="absolute -inset-1 bg-red-500/20 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition-opacity -z-10" />
               </div>
               <div>
-                <div className="text-xs font-medium text-gray-500 mb-0.5">Tổng cộng</div>
+                <div className="text-sm font-medium text-gray-500 mb-0.5 ">Tổng cộng</div>
                 <div className="text-2xl font-bold text-gray-900 tabular-nums">{stats.total}</div>
               </div>
             </div>
@@ -358,9 +361,10 @@ export default function TeachingMaterialsWorkspace({ viewerRole }: { viewerRole:
                 <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-violet-100 to-violet-200/50 flex items-center justify-center shadow-sm">
                   <FileText className="text-violet-600" size={18} />
                 </div>
+                <div className="absolute -inset-1 bg-violet-500/20 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition-opacity -z-10" />
               </div>
               <div>
-                <div className="text-xs font-medium text-gray-500 mb-0.5">Slides</div>
+                <div className="text-sm font-medium text-gray-500 mb-0.5">Slides</div>
                 <div className="text-2xl font-bold text-gray-900 tabular-nums">{stats.presentations}</div>
               </div>
             </div>
@@ -372,9 +376,10 @@ export default function TeachingMaterialsWorkspace({ viewerRole }: { viewerRole:
                 <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-100 to-blue-200/50 flex items-center justify-center shadow-sm">
                   <Music className="text-blue-600" size={18} />
                 </div>
+                <div className="absolute -inset-1 bg-blue-500/20 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition-opacity -z-10" />
               </div>
               <div>
-                <div className="text-xs font-medium text-gray-500 mb-0.5">Audio</div>
+                <div className="text-sm font-medium text-gray-500 mb-0.5">Audio</div>
                 <div className="text-2xl font-bold text-gray-900 tabular-nums">{stats.audios}</div>
               </div>
             </div>
@@ -386,9 +391,10 @@ export default function TeachingMaterialsWorkspace({ viewerRole }: { viewerRole:
                 <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-rose-100 to-rose-200/50 flex items-center justify-center shadow-sm">
                   <Film className="text-rose-600" size={18} />
                 </div>
+                <div className="absolute -inset-1 bg-rose-500/20 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition-opacity -z-10" />
               </div>
               <div>
-                <div className="text-xs font-medium text-gray-500 mb-0.5">Video</div>
+                <div className="text-sm font-medium text-gray-500 mb-0.5">Video</div>
                 <div className="text-2xl font-bold text-gray-900 tabular-nums">{stats.videos}</div>
               </div>
             </div>
@@ -400,9 +406,10 @@ export default function TeachingMaterialsWorkspace({ viewerRole }: { viewerRole:
                 <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-100 to-emerald-200/50 flex items-center justify-center shadow-sm">
                   <ImageIcon className="text-emerald-600" size={18} />
                 </div>
+                <div className="absolute -inset-1 bg-emerald-500/20 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition-opacity -z-10" />
               </div>
               <div>
-                <div className="text-xs font-medium text-gray-500 mb-0.5">Hình ảnh</div>
+                <div className="text-sm font-medium text-gray-500 mb-0.5">Hình ảnh</div>
                 <div className="text-2xl font-bold text-gray-900 tabular-nums">{stats.images}</div>
               </div>
             </div>
@@ -414,9 +421,10 @@ export default function TeachingMaterialsWorkspace({ viewerRole }: { viewerRole:
                 <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-orange-100 to-orange-200/50 flex items-center justify-center shadow-sm">
                   <FileIcon className="text-orange-600" size={18} />
                 </div>
+                <div className="absolute -inset-1 bg-orange-500/20 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition-opacity -z-10" />
               </div>
               <div>
-                <div className="text-xs font-medium text-gray-500 mb-0.5">Tài liệu</div>
+                <div className="text-sm font-medium text-gray-500 mb-0.5">Tài liệu</div>
                 <div className="text-2xl font-bold text-gray-900 tabular-nums">{stats.documents}</div>
               </div>
             </div>
@@ -424,7 +432,29 @@ export default function TeachingMaterialsWorkspace({ viewerRole }: { viewerRole:
         </div>
 
         {/* Filters */}
-        <div className={`rounded-xl bg-gradient-to-br from-white to-red-50 transition-all duration-500 hover:shadow-xl hover:shadow-red-200/40 border border-red-100 p-5 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}>
+        <div className={`rounded-2xl bg-gradient-to-br from-white to-red-50 transition-all duration-500 hover:shadow-xl hover:shadow-red-200/40 border border-red-100 p-5 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}>
+          {/* Tab Navigation */}
+          <div className="flex flex-wrap items-center gap-2 pb-5 mb-5 border-b border-red-200">
+            {TABS.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-2 border ${
+                  activeTab === tab.id
+                    ? "bg-gradient-to-r from-red-600 to-red-700 text-white border-red-600 shadow-md hover:shadow-lg"
+                    : "bg-white border-red-200 text-gray-700 hover:bg-red-50/80 hover:border-red-300"
+                }`}
+              >
+                {tab.icon}
+                <span>{tab.label}</span>
+                <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
+                  activeTab === tab.id ? "bg-white/20" : "bg-gray-100"
+                }`}>
+                  {tabCounts[tab.id]}
+                </span>
+              </button>
+            ))}
+          </div>
           <div className="flex items-center gap-4">
             <div className="relative flex-1 min-w-[220px]">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 transition-colors" size={16} />
@@ -483,7 +513,7 @@ export default function TeachingMaterialsWorkspace({ viewerRole }: { viewerRole:
 
           {/* Active Filters */}
           {(filters.searchTerm || filters.programId || filters.unitNumber || filters.lessonNumber || filters.category) && (
-            <div className="flex flex-wrap items-center gap-2 mt-3.5 pt-3.5 border-t border-gray-100">
+            <div className="flex flex-wrap items-center gap-2 mt-3.5 pt-3.5 border-t border-gray-100 mb-4">
               <span className="text-xs text-gray-400 font-medium flex items-center gap-1">
                 <Inbox size={12} /> Đang lọc:
               </span>
@@ -519,29 +549,6 @@ export default function TeachingMaterialsWorkspace({ viewerRole }: { viewerRole:
               )}
             </div>
           )}
-        </div>
-
-        {/* Tab Navigation */}
-        <div className={`bg-white rounded-2xl border border-red-200 p-1 inline-flex gap-1 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer flex items-center gap-2 ${
-                activeTab === tab.id
-                  ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
-                  : "text-gray-600 hover:bg-red-50"
-              }`}
-            >
-              {tab.icon}
-              <span>{tab.label}</span>
-              <span className={`text-xs px-2 py-0.5 rounded-full ${
-                activeTab === tab.id ? "bg-white/20" : "bg-gray-100"
-              }`}>
-                {tabCounts[tab.id]}
-              </span>
-            </button>
-          ))}
         </div>
 
         {/* Upload Modal */}
