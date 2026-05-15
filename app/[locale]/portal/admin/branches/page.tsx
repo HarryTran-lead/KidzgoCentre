@@ -137,7 +137,7 @@ function StatCard({
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
-            <div className="text-xs font-medium text-gray-600 truncate">
+            <div className="text-sm font-medium text-gray-600 truncate">
               {label}
             </div>
             {change !== undefined && (
@@ -843,9 +843,9 @@ export default function BranchesPage() {
                   }`}
                 >
                   <span className="flex items-center gap-2">
-                    <span>{labels[status]}</span>
+                    <span className="text-sm">{labels[status]}</span>
                     <span
-                      className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+                      className={`text-sm px-2 py-0.5 rounded-full font-semibold ${
                         isActive ? "bg-white/20" : "bg-red-100 text-red-700"
                       }`}
                     >
@@ -868,7 +868,7 @@ export default function BranchesPage() {
               placeholder="Tìm kiếm chi nhánh theo tên, địa chỉ..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full h-10 rounded-xl border border-red-200 bg-white py-2 pl-10 pr-4 text-xs text-gray-700 placeholder-gray-400 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200"
+              className="w-full h-10 rounded-xl border border-red-200 bg-white py-2 pl-10 pr-4 text-sm text-gray-700 placeholder-gray-400 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200"
             />
           </div>
         </div>

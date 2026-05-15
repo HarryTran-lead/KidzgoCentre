@@ -1,11 +1,11 @@
 "use client";
 
-import { CalendarCheck } from "lucide-react";
+import { CalendarCheck, Sparkles } from "lucide-react";
 import SessionReportsReviewWorkspace from "@/components/reports/session-reports-review-workspace";
 
 export default function AdminFeedbackSessionReportPage() {
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-2">
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -13,11 +13,13 @@ export default function AdminFeedbackSessionReportPage() {
             <CalendarCheck className="text-white" size={24} />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900">
               Báo cáo theo buổi
             </h1>
-            <p className="text-sm text-gray-600">
-              Review nhanh feedback từng buổi học, phản hồi và kiểm soát chất lượng
+            <p className="text-gray-600 mt-1 flex items-center gap-2">
+              <Sparkles size={14} className="text-red-600" />
+              Review nhanh feedback từng buổi học, phản hồi và kiểm soát chất
+              lượng
             </p>
           </div>
         </div>

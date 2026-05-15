@@ -5,7 +5,8 @@ import { useRouter, useParams, useSearchParams } from "next/navigation";
 import {
   Plus, Search, FileText, Clock, CalendarClock, User, Users,
   BookOpen, X, ChevronLeft, ChevronRight, Send,
-  CheckCircle2, Loader2, ExternalLink,
+  CheckCircle2, Loader2, ExternalLink, ArrowUp, ArrowDown, RefreshCw,
+  Sparkles,
 } from "lucide-react";
 import {
   getReportRequests,
@@ -724,6 +725,9 @@ export default function ReportRequestsWorkspace({ isAdmin = false }: { isAdmin?:
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<string | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const requestIdFromQuery = String(searchParams.get("requestId") ?? "").trim();
 
   useEffect(() => { setIsPageLoaded(true); }, []);
@@ -773,13 +777,60 @@ export default function ReportRequestsWorkspace({ isAdmin = false }: { isAdmin?:
   }, [requestIdFromQuery]);
 
   const filteredItems = useMemo(() => {
-    if (!q.trim()) return items;
-    const kw = q.trim().toLowerCase();
-    return items.filter((r) =>
-      [r.assignedTeacherName, r.targetStudentName, r.targetClassTitle, r.targetClassCode, r.message, r.requestedByName]
-        .some((v) => v?.toLowerCase().includes(kw))
-    );
-  }, [items, q]);
+    let result = items;
+    
+    // Apply search filter
+    if (q.trim()) {
+      const kw = q.trim().toLowerCase();
+      result = result.filter((r) =>
+        [r.assignedTeacherName, r.targetStudentName, r.targetClassTitle, r.targetClassCode, r.message, r.requestedByName]
+          .some((v) => v?.toLowerCase().includes(kw))
+      );
+    }
+
+    // Apply sorting
+    if (sortColumn) {
+      result = [...result].sort((a, b) => {
+        let aVal: any = null;
+        let bVal: any = null;
+
+        switch (sortColumn) {
+          case "targetStudentName":
+            aVal = a.targetStudentName || a.targetClassTitle || "";
+            bVal = b.targetStudentName || b.targetClassTitle || "";
+            break;
+          case "reportType":
+            aVal = a.reportType;
+            bVal = b.reportType;
+            break;
+          case "priority":
+            const priorityOrder = { "Low": 1, "Normal": 2, "High": 3, "Urgent": 4 };
+            aVal = priorityOrder[a.priority] ?? 0;
+            bVal = priorityOrder[b.priority] ?? 0;
+            break;
+          case "status":
+            const statusOrder = { "Requested": 1, "InProgress": 2, "Submitted": 3, "Approved": 4, "Rejected": 5, "Cancelled": 6 };
+            aVal = statusOrder[a.status] ?? 0;
+            bVal = statusOrder[b.status] ?? 0;
+            break;
+          case "dueAt":
+            aVal = a.dueAt ? new Date(a.dueAt).getTime() : 0;
+            bVal = b.dueAt ? new Date(b.dueAt).getTime() : 0;
+            break;
+          case "createdAt":
+            aVal = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            bVal = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            break;
+        }
+
+        if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
+        if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return result;
+  }, [items, q, sortColumn, sortDirection]);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
@@ -825,27 +876,35 @@ export default function ReportRequestsWorkspace({ isAdmin = false }: { isAdmin?:
 
   return (
     <>
-      <div className="space-y-6 bg-gray-50 p-4 md:p-6 rounded-3xl">
+      <div className="space-y-6 bg-gray-50 p-4 md:p-2 rounded-3xl">
         {/* Header */}
         <div className={cn("flex flex-col md:flex-row md:items-center md:justify-between gap-4 transition-all duration-700", isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4")}>
           <div className="flex items-center gap-3">
             <div className="p-3 rounded-xl bg-gradient-to-r from-red-600 to-red-700 shadow-lg">
-              <FileText className="text-white" size={24} />
+              <FileText className="text-white" size={25} />
             </div>
             <div>
-              <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">
+              <h1 className="text-2xl md:text-2xl font-extrabold text-gray-900">
                 {isAdmin ? "Yêu cầu báo cáo" : "Yêu cầu báo cáo của tôi"}
               </h1>
-              <p className="text-sm text-gray-600">
+              <p className="text-gray-600 mt-1 flex items-center gap-2">
+                <Sparkles size={14} className="text-red-600" />
+
                 {isAdmin ? "Giao việc ưu tiên cho giáo viên" : "Danh sách yêu cầu từ Admin"}
               </p>
             </div>
           </div>
-          {isAdmin && (
-            <button onClick={() => setIsCreateOpen(true)} className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:shadow-lg text-white font-semibold cursor-pointer transition-all hover:scale-105 active:scale-95">
-              <Plus size={18} /> Tạo yêu cầu
+          <div className="flex items-center gap-2">
+            <button onClick={async () => { setIsRefreshing(true); await fetchData(); setIsRefreshing(false); }} disabled={isRefreshing} className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-red-50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+              <RefreshCw size={16} className={isRefreshing ? "animate-spin" : ""} /> Làm mới
             </button>
-          )}
+            {isAdmin && (
+              <button onClick={() => setIsCreateOpen(true)} className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:shadow-lg text-white text-sm font-semibold cursor-pointer transition-all hover:scale-105 active:scale-95">
+                <Plus size={14} /> Tạo yêu cầu
+              </button>
+            )}
+            
+          </div>
         </div>
 
         {/* Stats */}
@@ -872,38 +931,58 @@ export default function ReportRequestsWorkspace({ isAdmin = false }: { isAdmin?:
         </div>
 
         {/* Filters */}
-        <div className={cn("rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100", isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4")}>
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+        <div className={cn("rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 transition-all duration-700 delay-100", isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4")}>
+          {/* Type Filter Tabs */}
+          <div className="flex flex-wrap gap-2 p-4">
+            {[
+              { value: "ALL" as const, label: "Tất cả loại" },
+              { value: "Monthly" as const, label: "Báo cáo tháng" },
+              { value: "Session" as const, label: "Báo cáo buổi" },
+            ].map((tab) => {
+              const isActive = typeFilter === tab.value;
+              return (
+                <button
+                  key={tab.value}
+                  onClick={() => { setTypeFilter(tab.value); setPage(1); }}
+                  className={cn(
+                    "inline-flex items-center px-4 py-2 rounded-xl border transition-all duration-200 font-medium text-sm cursor-pointer",
+                    isActive
+                      ? "bg-gradient-to-r from-red-600 to-red-700 text-white border-red-600 shadow-md hover:shadow-lg"
+                      : "bg-white border-red-200 text-gray-700 hover:bg-red-50/80"
+                  )}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Divider */}
+          <div className="border-b border-red-200 mx-4"></div>
+
+          {/* Search Bar + Status Filter */}
+          <div className="flex flex-col sm:flex-row gap-3 p-4">
+            {/* Search Bar */}
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
               <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tìm theo tên GV, học sinh, lớp..." className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-300" />
             </div>
-            <div className="flex flex-wrap items-center gap-4 sm:flex-nowrap">
-              <Select value={statusFilter} onValueChange={(value) => { setStatusFilter(value as ReportRequestStatus | "ALL"); setPage(1); }}>
-                <SelectTrigger className="w-full sm:w-auto h-10 px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-700 transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 data-[state=open]:border-red-400 data-[state=open]:ring-2 data-[state=open]:ring-red-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">Tất cả trạng thái</SelectItem>
-                  <SelectItem value="Requested">Chờ xử lý</SelectItem>
-                  <SelectItem value="InProgress">Đang xử lý</SelectItem>
-                  <SelectItem value="Submitted">Đã gửi</SelectItem>
-                  <SelectItem value="Approved">Đã duyệt</SelectItem>
-                  <SelectItem value="Rejected">Từ chối</SelectItem>
-                  <SelectItem value="Cancelled">Đã hủy</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={typeFilter} onValueChange={(value) => { setTypeFilter(value as ReportRequestType | "ALL"); setPage(1); }}>
-                <SelectTrigger className="w-full sm:w-auto h-10 px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-700 transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 data-[state=open]:border-red-400 data-[state=open]:ring-2 data-[state=open]:ring-red-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">Tất cả loại</SelectItem>
-                  <SelectItem value="Monthly">Báo cáo tháng</SelectItem>
-                  <SelectItem value="Session">Báo cáo buổi</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+
+            {/* Status Filter Select */}
+            <Select value={statusFilter} onValueChange={(value) => { setStatusFilter(value as ReportRequestStatus | "ALL"); setPage(1); }}>
+              <SelectTrigger className="h-10 px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-700 transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 data-[state=open]:border-red-400 data-[state=open]:ring-2 data-[state=open]:ring-red-200 [&>span]:text-gray-500 [&>span]:line-clamp-1 sm:w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Tất cả trạng thái</SelectItem>
+                <SelectItem value="Requested">Chờ xử lý</SelectItem>
+                <SelectItem value="InProgress">Đang xử lý</SelectItem>
+                <SelectItem value="Submitted">Đã gửi</SelectItem>
+                <SelectItem value="Approved">Đã duyệt</SelectItem>
+                <SelectItem value="Rejected">Từ chối</SelectItem>
+                <SelectItem value="Cancelled">Đã hủy</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
@@ -911,7 +990,7 @@ export default function ReportRequestsWorkspace({ isAdmin = false }: { isAdmin?:
         <div className={cn("rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden transition-all duration-700 delay-300", isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4")}>
           <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-gray-200 px-6 py-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">Danh sách yêu cầu</h2>
+              <h2 className="font-semibold text-gray-900">Danh sách yêu cầu</h2>
               <span className="text-sm text-gray-600 font-medium">{totalCount} yêu cầu</span>
             </div>
           </div>
@@ -920,13 +999,103 @@ export default function ReportRequestsWorkspace({ isAdmin = false }: { isAdmin?:
             <table className="w-full">
               <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-gray-200">
                 <tr>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Loại</th>
                   {isAdmin && <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Giáo viên</th>}
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Mục tiêu</th>
-                  <th className="py-3 px-6 text-center text-sm font-semibold text-gray-700">Ưu tiên</th>
-                  <th className="py-3 px-6 text-center text-sm font-semibold text-gray-700">Trạng thái</th>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Deadline</th>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Tạo lúc</th>
+                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700 cursor-pointer hover:bg-red-100/50 transition-colors" onClick={() => {
+                    if (sortColumn === "targetStudentName") {
+                      if (sortDirection === "asc") setSortDirection("desc");
+                      else setSortColumn(null);
+                    } else {
+                      setSortColumn("targetStudentName");
+                      setSortDirection("asc");
+                    }
+                  }}>
+                    <div className="flex items-center gap-2">
+                      Mục tiêu
+                      {sortColumn === "targetStudentName" && (
+                        sortDirection === "asc" ? <ArrowUp size={14} className="text-red-600" /> : <ArrowDown size={14} className="text-red-600" />
+                      )}
+                    </div>
+                  </th>
+                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700 cursor-pointer hover:bg-red-100/50 transition-colors" onClick={() => {
+                    if (sortColumn === "reportType") {
+                      if (sortDirection === "asc") setSortDirection("desc");
+                      else setSortColumn(null);
+                    } else {
+                      setSortColumn("reportType");
+                      setSortDirection("asc");
+                    }
+                  }}>
+                    <div className="flex items-center gap-2">
+                      Loại
+                      {sortColumn === "reportType" && (
+                        sortDirection === "asc" ? <ArrowUp size={14} className="text-red-600" /> : <ArrowDown size={14} className="text-red-600" />
+                      )}
+                    </div>
+                  </th>
+                  <th className="py-3 px-6 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-red-100/50 transition-colors" onClick={() => {
+                    if (sortColumn === "priority") {
+                      if (sortDirection === "asc") setSortDirection("desc");
+                      else setSortColumn(null);
+                    } else {
+                      setSortColumn("priority");
+                      setSortDirection("asc");
+                    }
+                  }}>
+                    <div className="flex items-center justify-center gap-2">
+                      Ưu tiên
+                      {sortColumn === "priority" && (
+                        sortDirection === "asc" ? <ArrowUp size={14} className="text-red-600" /> : <ArrowDown size={14} className="text-red-600" />
+                      )}
+                    </div>
+                  </th>
+                  <th className="py-3 px-6 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-red-100/50 transition-colors" onClick={() => {
+                    if (sortColumn === "status") {
+                      if (sortDirection === "asc") setSortDirection("desc");
+                      else setSortColumn(null);
+                    } else {
+                      setSortColumn("status");
+                      setSortDirection("asc");
+                    }
+                  }}>
+                    <div className="flex items-center justify-center gap-2">
+                      Trạng thái
+                      {sortColumn === "status" && (
+                        sortDirection === "asc" ? <ArrowUp size={14} className="text-red-600" /> : <ArrowDown size={14} className="text-red-600" />
+                      )}
+                    </div>
+                  </th>
+                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700 cursor-pointer hover:bg-red-100/50 transition-colors" onClick={() => {
+                    if (sortColumn === "dueAt") {
+                      if (sortDirection === "asc") setSortDirection("desc");
+                      else setSortColumn(null);
+                    } else {
+                      setSortColumn("dueAt");
+                      setSortDirection("asc");
+                    }
+                  }}>
+                    <div className="flex items-center gap-2">
+                      Deadline
+                      {sortColumn === "dueAt" && (
+                        sortDirection === "asc" ? <ArrowUp size={14} className="text-red-600" /> : <ArrowDown size={14} className="text-red-600" />
+                      )}
+                    </div>
+                  </th>
+                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700 cursor-pointer hover:bg-red-100/50 transition-colors" onClick={() => {
+                    if (sortColumn === "createdAt") {
+                      if (sortDirection === "asc") setSortDirection("desc");
+                      else setSortColumn(null);
+                    } else {
+                      setSortColumn("createdAt");
+                      setSortDirection("asc");
+                    }
+                  }}>
+                    <div className="flex items-center gap-2">
+                      Tạo lúc
+                      {sortColumn === "createdAt" && (
+                        sortDirection === "asc" ? <ArrowUp size={14} className="text-red-600" /> : <ArrowDown size={14} className="text-red-600" />
+                      )}
+                    </div>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -939,25 +1108,50 @@ export default function ReportRequestsWorkspace({ isAdmin = false }: { isAdmin?:
                 ) : filteredItems.length > 0 ? (
                   filteredItems.map((r) => (
                     <tr key={r.id} onClick={() => setSelectedRequest(r)} className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200 cursor-pointer">
-                      <td className="py-3 px-6 text-sm">
-                        <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200">
-                          {TYPE_MAP[r.reportType]}
-                        </span>
-                        {r.reportType === "Monthly" && r.month && (
-                          <span className="ml-1 text-xs text-gray-500">{r.month}/{r.year}</span>
-                        )}
-                      </td>
                       {isAdmin && (
-                        <td className="py-3 px-6 text-sm text-gray-900">{r.assignedTeacherName || "—"}</td>
+                        <td className="py-3 px-6 text-sm">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-lg bg-red-600 flex items-center justify-center flex-shrink-0">
+                              <User size={14} className="text-white" />
+                            </div>
+                            <span className="text-gray-900 font-semibold">{r.assignedTeacherName || "—"}</span>
+                          </div>
+                        </td>
                       )}
                       <td className="py-3 px-6">
-                        <div className="text-sm text-gray-900">{r.targetStudentName || r.targetClassTitle || "—"}</div>
-                        {r.targetClassCode && <div className="text-xs text-gray-500">{r.targetClassCode}</div>}
+                        <div className="flex items-center gap-2">
+                          <Users size={14} className="text-red-600 flex-shrink-0" />
+                          <div>
+                            <div className="text-sm text-gray-900">{r.targetStudentName || r.targetClassTitle || "—"}</div>
+                            {r.targetClassCode && <div className="text-xs text-gray-500">{r.targetClassCode}</div>}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3 px-6 text-sm">
+                        <div className="flex items-center gap-2">
+                          <FileText size={14} className="text-red-600 flex-shrink-0" />
+                          <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200">
+                            {TYPE_MAP[r.reportType]}
+                          </span>
+                          {r.reportType === "Monthly" && r.month && (
+                            <span className="text-xs text-gray-500">{r.month}/{r.year}</span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3 px-6 text-center"><PriorityBadge priority={r.priority} /></td>
                       <td className="py-3 px-6 text-center"><StatusBadge status={r.status} /></td>
-                      <td className="py-3 px-6 text-sm text-gray-600">{formatDate(r.dueAt)}</td>
-                      <td className="py-3 px-6 text-sm text-gray-500">{formatDate(r.createdAt)}</td>
+                      <td className="py-3 px-6 text-sm">
+                        <div className="flex items-center gap-2">
+                          <CalendarClock size={14} className="text-red-600 flex-shrink-0" />
+                          <span className="text-gray-600">{formatDate(r.dueAt)}</span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-6 text-sm">
+                        <div className="flex items-center gap-2">
+                          <Clock size={14} className="text-red-600 flex-shrink-0" />
+                          <span className="text-gray-500">{formatDate(r.createdAt)}</span>
+                        </div>
+                      </td>
                     </tr>
                   ))
                 ) : (

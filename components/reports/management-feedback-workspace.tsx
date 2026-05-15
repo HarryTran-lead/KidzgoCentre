@@ -33,7 +33,7 @@ export default function ManagementFeedbackWorkspace() {
   const activeConfig = tabs.find((tab) => tab.id === activeTab) ?? tabs[0];
 
   return (
-    <div className="space-y-6 bg-gray-50 p-4 md:p-6 rounded-3xl">
+    <div className="space-y-6 bg-gray-50 p-4 md:p-2 rounded-3xl">
       {/* Header Section - Redesigned theo style mới */}
       <div className={`transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
