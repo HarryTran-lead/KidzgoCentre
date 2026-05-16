@@ -6,6 +6,7 @@ import {
   AlertTriangle, MessageSquare, UserCheck, Clock,
   FileText, Send, Building2, User, Paperclip,
   CheckCircle2, XCircle, ArrowRightCircle, ShieldAlert,
+  Sparkles,
 } from "lucide-react";
 import {
   getIncidentReports,
@@ -234,7 +235,7 @@ function CreateIncidentModal({
 
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
       <div ref={modalRef} className="relative w-full max-w-2xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
         {/* header */}
         <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
@@ -316,10 +317,10 @@ function CreateIncidentModal({
 
         {/* footer */}
         <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-4 flex justify-end gap-3">
-          <button onClick={onClose} disabled={loading} className="px-5 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer">Hủy</button>
+          <button onClick={onClose} disabled={loading} className="px-5 py-2.5 text-sm rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer">Hủy</button>
           <button
             onClick={handleSubmit} disabled={loading}
-            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg transition-all cursor-pointer disabled:opacity-70"
+            className="px-5 py-2.5 text-sm rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg transition-all cursor-pointer disabled:opacity-70"
           >
             {loading ? "Đang tạo..." : "Tạo báo cáo"}
           </button>
@@ -663,7 +664,6 @@ function DetailPanel({
 function StatisticsCards({ branchId, isPageLoaded }: { branchId?: string | null; isPageLoaded: boolean }) {
   const [stats, setStats] = useState<{
     total: number; open: number; inProgress: number; resolved: number;
-    closed: number; rejected: number; unassigned: number;
   } | null>(null);
 
   useEffect(() => {
@@ -683,13 +683,10 @@ function StatisticsCards({ branchId, isPageLoaded }: { branchId?: string | null;
     { label: "Mở", value: stats.open, icon: AlertTriangle, gradient: "from-red-600 to-red-700" },
     { label: "Đang xử lý", value: stats.inProgress, icon: ArrowRightCircle, gradient: "from-blue-600 to-cyan-600" },
     { label: "Đã giải quyết", value: stats.resolved, icon: CheckCircle2, gradient: "from-emerald-600 to-teal-600" },
-    { label: "Đã đóng", value: stats.closed, icon: XCircle, gradient: "from-gray-600 to-gray-700" },
-    { label: "Từ chối", value: stats.rejected, icon: XCircle, gradient: "from-red-600 to-red-700" },
-    { label: "Chưa gán", value: stats.unassigned, icon: UserCheck, gradient: "from-amber-600 to-orange-600" },
   ];
 
   return (
-    <div className={cn("grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4 transition-all duration-700 delay-100", isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4")}>
+    <div className={cn("grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-4 transition-all duration-700 delay-100", isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4")}>
       {cards.map(c => (
         <div key={c.label} className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
           <div className="absolute right-0 top-0 h-12 w-12 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r from-red-600 to-red-700"></div>
@@ -764,18 +761,19 @@ export default function IncidentReportWorkspace({ isAdmin = false }: { isAdmin?:
 
   return (
     <>
-      <div className="space-y-6 bg-gray-50 p-4 md:p-6 rounded-3xl">
+      <div className="space-y-6 bg-gray-50 p-4 md:p-2 rounded-3xl">
         {/* Header */}
         <div className={cn("flex flex-col md:flex-row md:items-center md:justify-between gap-4 transition-all duration-700", isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4")}>
           <div className="flex items-center gap-3">
             <div className="p-3 rounded-xl bg-gradient-to-r from-red-600 to-red-700 shadow-lg">
-              <AlertTriangle className="text-white" size={24} />
+              <AlertTriangle className="text-white" size={25} />
             </div>
             <div>
-              <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">
+              <h1 className="text-2xl md:text-2xl font-extrabold text-gray-900">
                 {isAdmin ? "Báo cáo sự cố" : "Báo cáo sự cố của tôi"}
               </h1>
-              <p className="text-sm text-gray-600">
+              <p className="text-gray-600 mt-1 flex items-center gap-2">
+                <Sparkles size={14} className="text-red-600" />
                 {isAdmin ? "Quản lý tất cả báo cáo sự cố" : "Theo dõi và báo cáo sự cố"}
                 {totalCount > 0 && ` · ${totalCount} báo cáo`}
               </p>
@@ -783,9 +781,9 @@ export default function IncidentReportWorkspace({ isAdmin = false }: { isAdmin?:
           </div>
           <button
             onClick={() => setShowCreate(true)}
-            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:shadow-lg text-white font-semibold cursor-pointer transition-all hover:scale-105 active:scale-95"
+            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:shadow-lg text-white text-sm font-semibold cursor-pointer transition-all hover:scale-105 active:scale-95"
           >
-            <Plus size={18} /> Tạo báo cáo
+            <Plus size={14} /> Tạo báo cáo
           </button>
         </div>
 
@@ -793,7 +791,29 @@ export default function IncidentReportWorkspace({ isAdmin = false }: { isAdmin?:
         {isAdmin && <StatisticsCards branchId={selectedBranchId} isPageLoaded={isPageLoaded} />}
 
         {/* Filters */}
-        <div className={cn("rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100", isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4")}>
+        <div className={cn("rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100 space-y-4", isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4")}>
+          {/* Status Filter Tabs */}
+          <div className="flex flex-wrap items-center gap-2">
+            {["ALL", ...STATUSES].map(s => (
+              <button
+                key={s}
+                onClick={() => { setStatusFilter(s as IncidentReportStatus | "ALL"); setPage(1); }}
+                className={cn(
+                  "px-4 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer",
+                  statusFilter === s
+                    ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                    : "border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:border-red-300"
+                )}
+              >
+                {s === "ALL" ? "Tất cả trạng thái" : STATUS_MAP[s as IncidentReportStatus].label}
+              </button>
+            ))}
+          </div>
+
+          {/* Divider */}
+          <div className="border-t border-red-200"></div>
+
+          {/* Search and Category Filter */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
@@ -804,26 +824,15 @@ export default function IncidentReportWorkspace({ isAdmin = false }: { isAdmin?:
                 className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-300"
               />
             </div>
-            <div className="flex flex-wrap items-center gap-4 sm:flex-nowrap">
-              <Select value={statusFilter} onValueChange={v => { setStatusFilter(v as IncidentReportStatus | "ALL"); setPage(1); }}>
-                <SelectTrigger className="w-full sm:w-auto h-10 px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-700 transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 data-[state=open]:border-red-400 data-[state=open]:ring-2 data-[state=open]:ring-red-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">Tất cả trạng thái</SelectItem>
-                  {STATUSES.map(s => <SelectItem key={s} value={s}>{STATUS_MAP[s].label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Select value={categoryFilter} onValueChange={v => { setCategoryFilter(v as IncidentReportCategory | "ALL"); setPage(1); }}>
-                <SelectTrigger className="w-full sm:w-auto h-10 px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-700 transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 data-[state=open]:border-red-400 data-[state=open]:ring-2 data-[state=open]:ring-red-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">Tất cả danh mục</SelectItem>
-                  {CATEGORIES.map(c => <SelectItem key={c} value={c}>{CATEGORY_LABEL[c]}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+            <Select value={categoryFilter} onValueChange={v => { setCategoryFilter(v as IncidentReportCategory | "ALL"); setPage(1); }}>
+              <SelectTrigger className="w-full sm:w-auto h-10 px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-700 transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 data-[state=open]:border-red-400 data-[state=open]:ring-2 data-[state=open]:ring-red-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Tất cả danh mục</SelectItem>
+                {CATEGORIES.map(c => <SelectItem key={c} value={c}>{CATEGORY_LABEL[c]}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
@@ -831,7 +840,7 @@ export default function IncidentReportWorkspace({ isAdmin = false }: { isAdmin?:
         <div className={cn("rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden transition-all duration-700 delay-300", isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4")}>
           <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-gray-200 px-6 py-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">Danh sách báo cáo sự cố</h2>
+              <h2 className="font-semibold text-gray-900">Danh sách báo cáo sự cố</h2>
               <span className="text-sm text-gray-600 font-medium">{totalCount} báo cáo</span>
             </div>
           </div>
@@ -847,7 +856,7 @@ export default function IncidentReportWorkspace({ isAdmin = false }: { isAdmin?:
                   {isAdmin && <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Người báo cáo</th>}
                   <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Người xử lý</th>
                   <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Ngày tạo</th>
-                  <th className="py-3 px-6 text-center text-sm font-semibold text-gray-700">💬</th>
+                  <th className="py-3 px-6 text-center text-sm font-semibold text-gray-700">Bình luận</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">

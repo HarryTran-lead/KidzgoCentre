@@ -30,7 +30,7 @@ function InfoRow({ label, value, icon }: { label: string; value: string; icon: R
     <div className="flex items-start gap-3 p-4 bg-red-50/50 rounded-xl border border-red-100">
       <div className="text-red-600 mt-0.5">{icon}</div>
       <div className="flex-1 min-w-0">
-        <div className="text-xs font-medium text-gray-500 mb-1">{label}</div>
+        <div className="text-sm font-medium text-gray-500 mb-1">{label}</div>
         <div className="text-sm text-gray-900">{value}</div>
       </div>
     </div>
@@ -46,15 +46,26 @@ export default function BranchDetailModal({ isOpen, onClose, branch, userStats =
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-        <div className="flex-shrink-0 rounded-t-2xl sticky top-0 bg-gradient-to-r from-red-600 to-red-700 p-6 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Building2 className="w-6 h-6 text-white" />
-            <h2 className="text-xl font-bold text-white">Chi tiết chi nhánh</h2>
+      <div className="bg-white shadow-2xl rounded-2xl  w-full max-w-2xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="bg-linear-to-r rounded-t-2xl  from-red-600 to-red-700 px-6 py-5 shrink-0">
+          <div className="flex items-start   justify-between gap-4">
+            <div className="flex items-start  gap-3">
+              <div className="rounded-xl bg-white/20 backdrop-blur-sm p-3 text-white">
+                <Building2 size={20} />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">Chi tiết chi nhánh</h2>
+                <p className="text-sm text-white/80 mt-0.5">Chi tiết đầy đủ thông tin chi nhánh và các thống kê liên quan</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-2 text-white transition hover:bg-white/20 cursor-pointer shrink-0"
+            >
+              <X size={18} />
+            </button>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-lg transition-colors cursor-pointer">
-            <X className="w-5 h-5 text-white" />
-          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
@@ -66,11 +77,11 @@ export default function BranchDetailModal({ isOpen, onClose, branch, userStats =
                 </span>
                 <StatusIndicator isActive={branch.isActive} />
               </div>
-              <h3 className="text-2xl font-bold text-gray-900">{branch.name}</h3>
+              <h3 className="text-xl font-bold text-gray-900">{branch.name}</h3>
             </div>
           </div>
 
-          <div className="grid gap-4">
+          <div className="grid gap-4 font-sm">
             <InfoRow label="Địa chỉ" value={branch.address} icon={<MapPin size={16} />} />
             <InfoRow label="Số liên hệ" value={branch.contactPhone || 'Chưa cập nhật'} icon={<Phone size={16} />} />
             <InfoRow label="Email liên hệ" value={branch.contactEmail || 'Chưa cập nhật'} icon={<Mail size={16} />} />
@@ -99,13 +110,15 @@ export default function BranchDetailModal({ isOpen, onClose, branch, userStats =
         </div>
 
         {/* Footer */}
-        <div className="flex-shrink-0 rounded-b-2xl  sticky bottom-0 bg-gray-50 px-6 py-4 border-t border-red-100 flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-6 py-2.5 rounded-xl border border-red-200 text-gray-700 font-medium hover:bg-red-50 transition-colors cursor-pointer"
-          >
-            Đóng
-          </button>
+        <div className="shrink-0 border-t border-gray-200 bg-linear-to-r from-red-500/5 to-red-700/5 p-6">
+          <div className="flex items-center justify-end">
+            <button
+              onClick={onClose}
+              className="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 font-semibold hover:bg-gray-50 transition-colors cursor-pointer"
+            >
+              Đóng
+            </button>
+          </div>
         </div>
       </div>
     </div>

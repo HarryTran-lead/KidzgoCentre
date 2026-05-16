@@ -6,6 +6,7 @@ import { type ChangeEvent, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import {
   AlertTriangle,
+  Banknote,
   Building2,
   CheckCircle2,
   CreditCard,
@@ -14,6 +15,7 @@ import {
   RefreshCw,
   Save,
   Trash2,
+  Sparkles,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
 import { Switch } from "@/components/lightswind/switch";
@@ -135,7 +137,6 @@ function toPersistLogoUrl(value?: string | null): string {
         );
       }
 
-      // Do not persist localhost origin to avoid backend PDF renderer resolving to wrong host.
       if (
         (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1") &&
         parsed.pathname.startsWith(FILE_ENDPOINTS.BLOB_VIEW)
@@ -176,12 +177,10 @@ async function resolvePersistLogoUrl(value?: string | null): Promise<string> {
   const persisted = toPersistLogoUrl(value);
   if (!persisted) return "";
 
-  // Keep already-embedded images as-is.
   if (/^data:image\//i.test(persisted)) {
     return persisted;
   }
 
-  // For local/proxy URLs, embed as data URL so backend PDF renderer does not depend on localhost reachability.
   const shouldEmbedAsDataUrl =
     /^https?:\/\/(localhost|127\.0\.0\.1)/i.test(persisted) ||
     persisted.startsWith(FILE_ENDPOINTS.BLOB_VIEW) ||
@@ -312,6 +311,44 @@ function pickErrorMessage(err: any, fallback: string): string {
   return toVietnameseMessage(raw, fallback);
 }
 
+// Modern Stat Card Component
+function ModernStatCard({
+  icon,
+  title,
+  value,
+  subtitle,
+  color = "red"
+}: {
+  icon: React.ReactNode;
+  title: string;
+  value: string;
+  subtitle?: string;
+  color?: "red" | "gray" | "black" | "green";
+}) {
+  const iconBgClasses = {
+    red: "from-red-600 to-red-700",
+    gray: "from-gray-600 to-gray-700",
+    black: "from-gray-800 to-gray-900",
+    green: "from-emerald-600 to-teal-600",
+  };
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
+      <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r from-red-600 to-red-700"></div>
+      <div className="relative flex items-center gap-3">
+        <span className={`w-10 h-10 rounded-xl bg-gradient-to-br ${iconBgClasses[color]} grid place-items-center`}>
+          <span className="text-white">{icon}</span>
+        </span>
+        <div>
+          <div className="text-sm text-gray-600">{title}</div>
+          <div className=" font-semibold text-gray-900">{value}</div>
+          {subtitle && <div className="text-xs text-gray-500 mt-0.5">{subtitle}</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function EnrollmentPaymentSettingWorkspace({ defaultScope }: Props) {
   const params = useParams();
   const localeParam = params?.locale;
@@ -336,6 +373,7 @@ export default function EnrollmentPaymentSettingWorkspace({ defaultScope }: Prop
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [logoPreviewFailed, setLogoPreviewFailed] = useState(false);
   const [qrPreviewFailed, setQrPreviewFailed] = useState(false);
+  const [isPageLoaded, setIsPageLoaded] = useState(false);
 
   const { setting, isLoading, isSaving, fetchSetting, saveSetting } = useEnrollmentPaymentSetting();
 
@@ -373,6 +411,10 @@ export default function EnrollmentPaymentSettingWorkspace({ defaultScope }: Prop
     }
     return Array.from(set);
   }, [watchedPaymentMethod]);
+
+  useEffect(() => {
+    setIsPageLoaded(true);
+  }, []);
 
   useEffect(() => {
     setLogoPreviewFailed(false);
@@ -563,7 +605,6 @@ export default function EnrollmentPaymentSettingWorkspace({ defaultScope }: Prop
         return;
       }
 
-      // Keep original uploaded URL for persistence; preview is normalized separately.
       setValue("logoUrl", result.url, { shouldDirty: true, shouldValidate: true });
       toast({
         title: "Upload logo thành công",
@@ -582,18 +623,20 @@ export default function EnrollmentPaymentSettingWorkspace({ defaultScope }: Prop
   };
 
   return (
-    <div className="space-y-6 rounded-3xl bg-gray-50 p-4 md:p-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="rounded-xl bg-linear-to-r from-red-600 to-red-700 p-3 shadow-lg">
-            <CreditCard size={24} className="text-white" />
+    <div className="min-h-screen bg-gray-50 p-4 md:p-2 space-y-6">
+      {/* Header */}
+      <div className={`flex flex-col gap-4 md:flex-row md:items-center md:justify-between transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
+            <CreditCard size={25} className="text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-extrabold text-gray-900 md:text-3xl">
-              Cấu hình chuyển khoản xác nhận ghi danh
+            <h1 className="text-2xl md:text-2xl font-extrabold text-gray-900">
+              Cấu hình chuyển khoản
             </h1>
-            <p className="mt-1 text-sm text-gray-600">
-              Quản lý thông tin tài khoản, logo và VietQR hiển thị trên PDF xác nhận.
+            <p className="text-gray-600 mt-1 flex items-center gap-2">
+              <Sparkles size={14} className="text-red-600" />
+              Quản lý thông tin tài khoản, logo và VietQR hiển thị trên PDF xác nhận ghi danh
             </p>
           </div>
         </div>
@@ -602,10 +645,10 @@ export default function EnrollmentPaymentSettingWorkspace({ defaultScope }: Prop
           <Link
             href={globalPath}
             className={cn(
-              "rounded-xl border px-3.5 py-2 text-sm font-semibold transition-colors",
+              "rounded-xl border px-4 py-2 text-sm font-semibold transition-all",
               scope === "global"
-                ? "border-red-300 bg-red-50 text-red-700"
-                : "border-gray-200 bg-white text-gray-600 hover:border-red-300 hover:text-red-600"
+                ? "border-red-300 bg-red-50 text-red-700 shadow-sm"
+                : "border-gray-200 bg-white text-gray-600 hover:border-red-300 hover:text-red-600 hover:shadow-sm"
             )}
           >
             Tất cả chi nhánh
@@ -613,10 +656,10 @@ export default function EnrollmentPaymentSettingWorkspace({ defaultScope }: Prop
           <Link
             href={branchPath}
             className={cn(
-              "rounded-xl border px-3.5 py-2 text-sm font-semibold transition-colors",
+              "rounded-xl border px-4 py-2 text-sm font-semibold transition-all",
               scope === "branch"
-                ? "border-red-300 bg-red-50 text-red-700"
-                : "border-gray-200 bg-white text-gray-600 hover:border-red-300 hover:text-red-600"
+                ? "border-red-300 bg-red-50 text-red-700 shadow-sm"
+                : "border-gray-200 bg-white text-gray-600 hover:border-red-300 hover:text-red-600 hover:shadow-sm"
             )}
           >
             Theo chi nhánh
@@ -625,7 +668,7 @@ export default function EnrollmentPaymentSettingWorkspace({ defaultScope }: Prop
             type="button"
             onClick={onReload}
             disabled={isLoading || isSaving}
-            className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-700 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-600 transition-all hover:border-red-300 hover:text-red-600 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isLoading ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
             Làm mới
@@ -633,8 +676,41 @@ export default function EnrollmentPaymentSettingWorkspace({ defaultScope }: Prop
         </div>
       </div>
 
-      {scope === "branch" ? (
-        <div className="rounded-2xl border border-red-200 bg-white p-4">
+      {/* Stats Cards */}
+      <div className={`grid gap-4 md:grid-cols-2 lg:grid-cols-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <ModernStatCard
+          icon={<Building2 size={18} />}
+          title="Phạm vi áp dụng"
+          value={scope === "global" ? "Toàn hệ thống" : `Theo chi nhánh`}
+          subtitle={scope === "branch" && selectedBranchId ? branchOptions.find(b => b.id === selectedBranchId)?.label : undefined}
+          color="red"
+        />
+        <ModernStatCard
+          icon={<Banknote size={18} />}
+          title="Trạng thái"
+          value={watchedIsActive ? "Đang kích hoạt" : "Đã tạm dừng"}
+          subtitle="Hiển thị trên PDF"
+          color={watchedIsActive ? "green" : "gray"}
+        />
+        <ModernStatCard
+          icon={<CreditCard size={18} />}
+          title="Phương thức"
+          value={watchedPaymentMethod || "Chưa cấu hình"}
+          subtitle="Thanh toán"
+          color="black"
+        />
+        <ModernStatCard
+          icon={<CheckCircle2 size={18} />}
+          title="Phiên bản cấu hình"
+          value={setting ? "Đã đồng bộ" : "Chưa có dữ liệu"}
+          subtitle={scope === "branch" && setting?.isFallbackToGlobal ? "Đang fallback" : "Sẵn sàng"}
+          color={setting ? "green" : "gray"}
+        />
+      </div>
+
+      {/* Branch Selector */}
+      {scope === "branch" && (
+        <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-5 shadow-sm transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-700">
             <Building2 size={16} className="text-red-600" /> Chi nhánh áp dụng
           </label>
@@ -658,38 +734,59 @@ export default function EnrollmentPaymentSettingWorkspace({ defaultScope }: Prop
               ))}
             </SelectContent>
           </Select>
-          {scope === "branch" && !selectedBranchId ? (
-            <p className="mt-2 text-xs text-amber-700">Vui lòng chọn chi nhánh để tải cấu hình.</p>
-          ) : null}
+          {!selectedBranchId && (
+            <p className="mt-2 text-xs text-amber-700 flex items-center gap-1">
+              <AlertTriangle size={12} /> Vui lòng chọn chi nhánh để tải cấu hình.
+            </p>
+          )}
         </div>
-      ) : null}
+      )}
 
-      {scope === "branch" && setting?.isFallbackToGlobal ? (
-        <div className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+      {/* Fallback Warning */}
+      {scope === "branch" && setting?.isFallbackToGlobal && (
+        <div className={`rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <div className="flex items-start gap-2">
-            <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+            <AlertTriangle size={18} className="mt-0.5 shrink-0 text-amber-600" />
             <div>
-              <p className="font-semibold">Đang dùng cấu hình tất cả chi nhánh</p>
-              <p className="mt-1">
-                Chi nhánh chưa có cấu hình riêng. Hệ thống đang fallback về cấu hình chung
-                toàn hệ thống.
+              <p className="font-semibold text-amber-800">Đang dùng cấu hình tất cả chi nhánh</p>
+              <p className="mt-1 text-sm text-amber-700">
+                Chi nhánh chưa có cấu hình riêng. Hệ thống đang fallback về cấu hình chung toàn hệ thống.
               </p>
             </div>
           </div>
         </div>
-      ) : null}
+      )}
 
-      {!isLoadingUser && !isAdmin ? (
-        <div className="rounded-2xl border border-gray-200 bg-gray-100 px-4 py-3 text-sm text-gray-700">
-          Chế độ chỉnh sửa chỉ dành cho Admin. Bạn chỉ có quyền xem cấu hình hiện tại.
+      {/* Permission Warning */}
+      {!isLoadingUser && !isAdmin && (
+        <div className={`rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <div className="flex items-start gap-2">
+            <AlertTriangle size={18} className="mt-0.5 shrink-0 text-gray-500" />
+            <p className="text-sm text-gray-700">
+              Chế độ chỉnh sửa chỉ dành cho Admin. Bạn chỉ có quyền xem cấu hình hiện tại.
+            </p>
+          </div>
         </div>
-      ) : null}
+      )}
 
-      <form onSubmit={onSubmit} className="space-y-6 rounded-2xl border border-gray-200 bg-white p-4 md:p-6">
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+      {/* Main Form */}
+      <form onSubmit={onSubmit} className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 shadow-sm transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div className="p-6 border-b rounded-t-2xl border-gray-200 bg-red-100">
+          <div className="flex items-center gap-2">
+            <div className="p-2 bg-gradient-to-r from-red-600 to-red-700 rounded-lg">
+              <CreditCard size={18} className="text-white" />
+            </div>
+            <div>
+              <h2 className="font-bold text-gray-900">Thông tin cấu hình</h2>
+              <p className="text-sm text-gray-600">Nhập thông tin tài khoản ngân hàng và chính sách</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px] p-6">
           <div className="space-y-6">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <label className="text-sm font-semibold text-gray-700">Phương thức thanh toán</label>
                 <input type="hidden" {...register("paymentMethod")} />
                 <Select
@@ -710,7 +807,7 @@ export default function EnrollmentPaymentSettingWorkspace({ defaultScope }: Prop
                 </Select>
               </div>
 
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <label className="text-sm font-semibold text-gray-700">Mẫu VietQR</label>
                 <input
                   {...register("vietQrTemplate")}
@@ -720,7 +817,7 @@ export default function EnrollmentPaymentSettingWorkspace({ defaultScope }: Prop
                 />
               </div>
 
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <label className="text-sm font-semibold text-gray-700">
                   Tên tài khoản <span className="text-red-500">*</span>
                 </label>
@@ -738,12 +835,14 @@ export default function EnrollmentPaymentSettingWorkspace({ defaultScope }: Prop
                   )}
                   placeholder="Nhập tên chủ tài khoản"
                 />
-                {errors.accountName ? (
-                  <p className="text-xs text-red-600">{errors.accountName.message}</p>
-                ) : null}
+                {errors.accountName && (
+                  <p className="text-xs text-red-600 flex items-center gap-1">
+                    <AlertTriangle size={12} /> {errors.accountName.message}
+                  </p>
+                )}
               </div>
 
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <label className="text-sm font-semibold text-gray-700">
                   Số tài khoản <span className="text-red-500">*</span>
                 </label>
@@ -761,12 +860,14 @@ export default function EnrollmentPaymentSettingWorkspace({ defaultScope }: Prop
                   )}
                   placeholder="Nhập số tài khoản"
                 />
-                {errors.accountNumber ? (
-                  <p className="text-xs text-red-600">{errors.accountNumber.message}</p>
-                ) : null}
+                {errors.accountNumber && (
+                  <p className="text-xs text-red-600 flex items-center gap-1">
+                    <AlertTriangle size={12} /> {errors.accountNumber.message}
+                  </p>
+                )}
               </div>
 
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <label className="text-sm font-semibold text-gray-700">Tên ngân hàng</label>
                 <input
                   {...register("bankName")}
@@ -776,7 +877,7 @@ export default function EnrollmentPaymentSettingWorkspace({ defaultScope }: Prop
                 />
               </div>
 
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <label className="text-sm font-semibold text-gray-700">Mã ngân hàng (bankCode)</label>
                 <input
                   {...register("bankCode")}
@@ -786,7 +887,7 @@ export default function EnrollmentPaymentSettingWorkspace({ defaultScope }: Prop
                 />
               </div>
 
-              <div className="space-y-1.5 md:col-span-2">
+              <div className="space-y-2 md:col-span-2">
                 <label className="text-sm font-semibold text-gray-700">BIN ngân hàng (bankBin)</label>
                 <input
                   {...register("bankBin")}
@@ -796,7 +897,7 @@ export default function EnrollmentPaymentSettingWorkspace({ defaultScope }: Prop
                 />
               </div>
 
-              <div className="space-y-1.5 md:col-span-2">
+              <div className="space-y-2 md:col-span-2">
                 <label className="text-sm font-semibold text-gray-700">
                   Chính sách học viên mới (mỗi dòng 1 ý)
                 </label>
@@ -809,7 +910,7 @@ export default function EnrollmentPaymentSettingWorkspace({ defaultScope }: Prop
                 />
               </div>
 
-              <div className="space-y-1.5 md:col-span-2">
+              <div className="space-y-2 md:col-span-2">
                 <label className="text-sm font-semibold text-gray-700">
                   Chính sách bảo lưu (mỗi dòng 1 ý)
                 </label>
@@ -823,7 +924,7 @@ export default function EnrollmentPaymentSettingWorkspace({ defaultScope }: Prop
               </div>
             </div>
 
-            <div className="flex items-start gap-3 rounded-2xl border border-gray-200 bg-white p-4">
+            <div className="flex items-start gap-3 rounded-2xl border border-gray-200 bg-gray-50/50 p-4">
               <Switch
                 checked={Boolean(watchedIsActive)}
                 onCheckedChange={(checked) => setValue("isActive", checked, { shouldDirty: true })}
@@ -833,45 +934,51 @@ export default function EnrollmentPaymentSettingWorkspace({ defaultScope }: Prop
               />
               <div>
                 <p className="text-sm font-semibold text-gray-800">Kích hoạt hiển thị thông tin chuyển khoản</p>
-                <p className="mt-1 text-sm text-gray-600">
+                <p className="mt-1 text-xs text-gray-600">
                   Nếu tắt cấu hình này, PDF xác nhận ghi danh sẽ không hiển thị thông tin chuyển khoản.
                 </p>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              {isLoading ? (
+            <div className="flex flex-wrap items-center justify-end gap-3">
+              {isLoading && (
                 <div className="inline-flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-2 text-sm text-gray-600">
                   <Loader2 size={15} className="animate-spin" /> Đang tải cấu hình...
                 </div>
-              ) : null}
+              )}
 
-              {canEdit ? (
+              {canEdit && (
                 <button
                   type="submit"
                   disabled={isSaving || isLoading || (scope === "branch" && !selectedBranchId)}
-                  className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:shadow-md hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                   Lưu cấu hình
                 </button>
-              ) : null}
+              )}
             </div>
           </div>
 
-          <div className="space-y-4 lg:sticky lg:top-4 lg:self-start">
-            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-              <label className="text-sm font-semibold text-gray-700">Logo</label>
+          {/* Right Sidebar - Logo & QR Preview */}
+          <div className="space-y-6 lg:sticky lg:top-6 lg:self-start">
+            <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="p-1.5 bg-gradient-to-r from-red-600 to-red-700 rounded-lg">
+                  <ImageUp size={14} className="text-white" />
+                </div>
+                <label className="text-sm font-semibold text-gray-700">Logo</label>
+              </div>
               <input type="hidden" {...register("logoUrl")} />
 
-              <div className="mt-3 flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <label
                   htmlFor="payment-logo-upload"
                   className={cn(
-                    "inline-flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition-colors",
+                    "inline-flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition-all",
                     !canEdit || isSaving || isLoading || isUploadingLogo
                       ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400"
-                      : "border-red-200 bg-white text-red-700 hover:bg-red-50"
+                      : "border-red-200 bg-white text-red-700 hover:bg-red-50 hover:shadow-sm"
                   )}
                 >
                   {isUploadingLogo ? <Loader2 size={15} className="animate-spin" /> : <ImageUp size={15} />}
@@ -886,20 +993,20 @@ export default function EnrollmentPaymentSettingWorkspace({ defaultScope }: Prop
                   onChange={onLogoFileChange}
                 />
 
-                {canEdit && watchedLogoUrl ? (
+                {canEdit && watchedLogoUrl && (
                   <button
                     type="button"
                     onClick={() => setValue("logoUrl", "", { shouldDirty: true, shouldValidate: true })}
                     disabled={isSaving || isLoading || isUploadingLogo}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-600 transition-all hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    <Trash2 size={14} /> Xóa logo
+                    <Trash2 size={14} /> Xóa
                   </button>
-                ) : null}
+                )}
               </div>
 
-              <div className="mt-3 rounded-xl border border-dashed border-gray-300 bg-white p-3">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+              <div className="mt-4 rounded-xl border border-dashed border-gray-300 bg-white p-4">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
                   Xem trước logo
                 </p>
                 {logoPreviewUrl && !logoPreviewFailed ? (
@@ -910,42 +1017,48 @@ export default function EnrollmentPaymentSettingWorkspace({ defaultScope }: Prop
                     onError={() => setLogoPreviewFailed(true)}
                   />
                 ) : (
-                  <p className="text-sm text-gray-500">
-                    {logoPreviewUrl
-                      ? "Không tải được logo. Vui lòng thử file khác."
-                      : "Chưa có logo để preview."}
-                  </p>
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <ImageUp size={16} className="text-gray-400" />
+                    {logoPreviewUrl ? "Không tải được logo" : "Chưa có logo để preview"}
+                  </div>
                 )}
               </div>
             </div>
 
-            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-              <p className="mb-2 text-sm font-semibold text-gray-700">Xem trước VietQR</p>
+            <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="p-1.5 bg-gradient-to-r from-red-600 to-red-700 rounded-lg">
+                  <CreditCard size={14} className="text-white" />
+                </div>
+                <p className="text-sm font-semibold text-gray-700">Xem trước VietQR</p>
+              </div>
               {qrPreviewUrl && !qrPreviewFailed ? (
-                <img
-                  src={qrPreviewUrl}
-                  alt="QR preview"
-                  className="h-56 w-56 rounded-xl border border-gray-200 bg-white p-2 object-contain"
-                  onError={() => setQrPreviewFailed(true)}
-                />
+                <div className="flex justify-center">
+                  <img
+                    src={qrPreviewUrl}
+                    alt="QR preview"
+                    className="h-48 w-48 rounded-xl border border-gray-200 bg-white p-2 object-contain shadow-sm"
+                    onError={() => setQrPreviewFailed(true)}
+                  />
+                </div>
               ) : (
-                <p className="text-sm text-gray-500">
-                  {qrPreviewUrl
-                    ? "Không tải được qrPreviewUrl. Kiểm tra lại thông tin tài khoản/ngân hàng."
-                    : "Backend chưa trả về qrPreviewUrl."}
-                </p>
+                <div className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white p-8 text-sm text-gray-500">
+                  <AlertTriangle size={16} className="text-amber-500" />
+                  {qrPreviewUrl ? "Không tải được QR" : "Chưa có QR để preview"}
+                </div>
               )}
             </div>
           </div>
         </div>
       </form>
 
-      {!isLoading && setting ? (
-        <div className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+      {/* Success Indicator */}
+      {!isLoading && setting && (
+        <div className={`inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-800 transition-all duration-700 delay-300 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <CheckCircle2 size={16} />
           Đã tải cấu hình {scope === "global" ? "tất cả chi nhánh" : "chi nhánh"} thành công.
         </div>
-      ) : null}
+      )}
     </div>
   );
 }

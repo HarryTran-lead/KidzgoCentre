@@ -72,119 +72,139 @@ export function FaqItemModal({ mode, initial, categories, onClose, onSaved }: Fa
   };
 
   return (
-    <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/50 p-4">
-      <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-2xl bg-white shadow-xl">
-        <div className="shrink-0 border-b border-gray-100 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="rounded-lg bg-linear-to-r from-red-600 to-red-700 p-1.5">
-                <HelpCircle size={16} className="text-white" />
+    <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-2xl bg-white shadow-xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="bg-linear-to-r from-red-600 to-red-700 px-6 py-5 shrink-0">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="rounded-xl bg-white/20 backdrop-blur-sm p-3 text-white">
+                <HelpCircle size={20} />
               </div>
-              <h3 className="text-base font-semibold text-gray-900">
-                {mode === "create" ? "Thêm câu hỏi FAQ" : "Chỉnh sửa câu hỏi FAQ"}
-              </h3>
+              <div>
+                <h2 className="text-xl font-bold text-white">
+                  {mode === "create" ? "Thêm câu hỏi FAQ" : "Chỉnh sửa câu hỏi FAQ"}
+                </h2>
+                <p className="text-sm text-white/80 mt-0.5">
+                  {mode === "create" 
+                    ? "Thêm câu hỏi và câu trả lời mới vào kho FAQ" 
+                    : "Cập nhật nội dung câu hỏi và câu trả lời"}
+                </p>
+              </div>
             </div>
-            <button onClick={onClose} className="cursor-pointer rounded-lg p-1 transition-colors hover:bg-gray-100">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full p-2 text-white transition hover:bg-white/20 cursor-pointer shrink-0"
+            >
               <X size={18} />
             </button>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex-1 space-y-4 overflow-y-auto p-6">
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
-              Danh mục <span className="text-red-500">*</span>
-            </label>
-            <Select value={categoryId} onValueChange={setCategoryId}>
-              <SelectTrigger className="h-10 w-full rounded-xl border border-gray-200 px-3 text-sm focus:border-red-300 focus:ring-2 focus:ring-red-200 data-[state=open]:border-red-400 data-[state=open]:ring-2 data-[state=open]:ring-red-200">
-                <SelectValue placeholder="-- Chọn danh mục --" />
-              </SelectTrigger>
-              <SelectContent>
-                {activeCategories.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    <span className="flex items-center gap-2">
-                      <CategoryIcon name={c.icon} size={14} className="text-red-500" />
-                      {c.name}
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
-              Câu hỏi <span className="text-red-500">*</span>
-            </label>
-            <textarea
-              className="w-full resize-none rounded-xl border border-gray-200 px-3 py-2 text-sm transition-colors focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200"
-              rows={3}
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              maxLength={500}
-              placeholder="Nhập câu hỏi..."
-            />
-            <p className="mt-0.5 text-right text-xs text-gray-400">{question.length}/500</p>
-          </div>
-
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
-              Câu trả lời <span className="text-red-500">*</span>
-            </label>
-            <textarea
-              className="w-full resize-y rounded-xl border border-gray-200 px-3 py-2 text-sm transition-colors focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200"
-              rows={6}
-              value={answer}
-              onChange={(e) => setAnswer(e.target.value)}
-              maxLength={10000}
-              placeholder="Nhập câu trả lời..."
-            />
-            <p className="mt-0.5 text-right text-xs text-gray-400">{answer.length}/10000</p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
+        {/* Content */}
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+          <div className="flex-1 overflow-y-auto space-y-4 p-6">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Thứ tự hiển thị</label>
-              <input
-                type="number"
-                min={0}
-                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm transition-colors focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200"
-                value={sortOrder}
-                onChange={(e) => setSortOrder(Number(e.target.value))}
-              />
-            </div>
-            <div className="flex items-end pb-2">
-              <label className="flex cursor-pointer items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={isPublished}
-                  onChange={(e) => setIsPublished(e.target.checked)}
-                  className="h-4 w-4 cursor-pointer rounded border-red-300 text-red-600 focus:ring-red-200"
-                />
-                <span className="text-sm font-medium text-gray-700">Xuất bản ngay</span>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Danh mục <span className="text-red-500">*</span>
               </label>
+              <Select value={categoryId} onValueChange={setCategoryId}>
+                <SelectTrigger className="h-10 w-full rounded-xl border border-gray-200 px-3 text-sm focus:border-red-300 focus:ring-2 focus:ring-red-200 data-[state=open]:border-red-400 data-[state=open]:ring-2 data-[state=open]:ring-red-200">
+                  <SelectValue placeholder="-- Chọn danh mục --" />
+                </SelectTrigger>
+                <SelectContent>
+                  {activeCategories.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      <span className="flex items-center gap-2">
+                        <CategoryIcon name={c.icon} size={14} className="text-red-500" />
+                        {c.name}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Câu hỏi <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                className="w-full resize-none rounded-xl border border-gray-200 px-3 py-2 text-sm transition-colors focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200"
+                rows={3}
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+                maxLength={500}
+                placeholder="Nhập câu hỏi..."
+              />
+              <p className="mt-0.5 text-right text-xs text-gray-400">{question.length}/500</p>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Câu trả lời <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                className="w-full resize-y rounded-xl border border-gray-200 px-3 py-2 text-sm transition-colors focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200"
+                rows={6}
+                value={answer}
+                onChange={(e) => setAnswer(e.target.value)}
+                maxLength={10000}
+                placeholder="Nhập câu trả lời..."
+              />
+              <p className="mt-0.5 text-right text-xs text-gray-400">{answer.length}/10000</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">Thứ tự hiển thị</label>
+                <input
+                  type="number"
+                  min={0}
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm transition-colors focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200"
+                  value={sortOrder}
+                  onChange={(e) => setSortOrder(Number(e.target.value))}
+                />
+              </div>
+              <div className="flex items-end pb-2">
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={isPublished}
+                    onChange={(e) => setIsPublished(e.target.checked)}
+                    className="h-4 w-4 cursor-pointer rounded border-red-300 text-red-600 focus:ring-red-200"
+                  />
+                  <span className="text-sm font-medium text-gray-700">Xuất bản ngay</span>
+                </label>
+              </div>
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="cursor-pointer rounded-xl border border-gray-200 px-4 py-2 text-sm transition-colors hover:bg-gray-50"
-            >
-              Hủy
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-linear-to-r from-red-600 to-red-700 px-4 py-2 text-sm font-semibold text-white transition-all hover:shadow-md disabled:opacity-60"
-            >
-              {saving && <Loader2 size={14} className="animate-spin" />}
-              {mode === "create" ? "Tạo câu hỏi" : "Lưu thay đổi"}
-            </button>
+          {/* Footer */}
+          <div className="shrink-0 border-t border-gray-200 bg-linear-to-r from-red-500/5 to-red-700/5 p-6">
+            <div className="flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={saving}
+                className="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 font-semibold hover:bg-gray-50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Hủy
+              </button>
+              <button
+                type="submit"
+                disabled={saving}
+                className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-linear-to-r from-red-600 to-red-700 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {saving && <Loader2 size={14} className="animate-spin" />}
+                {mode === "create" ? "Tạo câu hỏi" : "Lưu thay đổi"}
+              </button>
+            </div>
           </div>
         </form>
       </div>
     </div>
   );
 }
+
