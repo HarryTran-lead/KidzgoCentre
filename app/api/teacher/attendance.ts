@@ -597,6 +597,8 @@ export async function saveAttendance(
         consumedQuantity: item?.consumedQuantity ?? null,
         advanceLessonProgression: item?.advanceLessonProgression ?? null,
         ticketBalance: item?.ticketBalance ?? null,
+        ticketCompatibilityPassed: item?.ticketCompatibilityPassed ?? null,
+        ticketCompatibilityReason: item?.ticketCompatibilityReason ?? null,
       };
     }
     return ticketMap;

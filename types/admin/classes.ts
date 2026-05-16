@@ -1,4 +1,4 @@
-﻿export type ClassRow = {
+export type ClassRow = {
   id: string; 
   code: string; 
   name: string;
@@ -32,6 +32,7 @@ export interface CreateClassRequest {
   capacity: number;
   weeklyScheduleSlots: ScheduleSlot[]; // New format instead of schedulePattern
   status?: string; // Auto set to "Active" when creating new class
+  slotTypeId?: string | null;
 }
 
 export interface Class {
@@ -49,6 +50,9 @@ export interface Class {
   weeklyScheduleSlots?: ScheduleSlot[] | null;
   schedulePattern?: string | null; // Kept for backward compatibility
   status?: string | null;
+  slotTypeId?: string | null;
+  slotTypeCode?: string | null;
+  slotTypeName?: string | null;
 }
 
 export interface CreateClassResponse {
@@ -76,4 +80,7 @@ export interface ClassDetail {
   startDate: string;
   endDate: string;
   completedLessons: number;
+  slotTypeId?: string | null;
+  slotTypeCode?: string | null;
+  slotTypeName?: string | null;
 }

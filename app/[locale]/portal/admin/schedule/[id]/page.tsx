@@ -553,6 +553,11 @@ export default function AdminLessonDetailPage() {
                     {lesson.branch}
                   </span>
                 )}
+                {lesson.slotTypeCode && (
+                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 font-mono">
+                    Slot: {lesson.slotTypeCode}{lesson.slotTypeName ? ` — ${lesson.slotTypeName}` : ""}
+                  </span>
+                )}
               </div>
 
               <div className="mt-3 space-y-2">

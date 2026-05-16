@@ -9,15 +9,18 @@ import {
   CreditCard,
   FileText,
   Folder,
+  GitMerge,
   GraduationCap,
   HelpCircle,
   Image,
   Inbox,
+  Layers,
   LayoutDashboard,
   Route,
   Send,
   Settings,
   Sparkles,
+  Tag,
   UserCheck,
   Users,
 } from "lucide-react";
@@ -63,6 +66,9 @@ export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     [t.groups.system.notifications, Bell, "/notifications"],
     [t.groups.system.settings, Settings, "/settings"],
     ["Cấu hình thanh toán", CreditCard, "/payment-setting"],
+    ["Loại vé học", Tag, "/ticket-types"],
+    ["Loại slot buổi học", Layers, "/slot-types"],
+    ["Tương thích vé — slot", GitMerge, "/ticket-compatibility"],
   ];
 
   // Create feedback group item

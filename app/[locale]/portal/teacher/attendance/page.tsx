@@ -2228,6 +2228,26 @@ export default function TeacherAttendancePage() {
                                   ) : null}
                                 </div>
                               ) : null}
+
+                              {/* Phase 1.5: Ticket compatibility result after save */}
+                              {(() => {
+                                const profileId = record.studentProfileId ?? "";
+                                const result = profileId ? ticketResultMap[profileId] : null;
+                                if (!result) return null;
+                                return (
+                                  <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                    {result.ticketCompatibilityPassed === false ? (
+                                      <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-700">
+                                        ⚠ Vé không hợp lệ{result.ticketCompatibilityReason ? `: ${result.ticketCompatibilityReason}` : ""}
+                                      </span>
+                                    ) : result.ticketCompatibilityPassed === true ? (
+                                      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-700">
+                                        ✓ Vé hợp lệ{result.ticketBalance != null ? ` — Còn ${result.ticketBalance} buổi` : ""}
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                );
+                              })()}
                             </div>
                           </td>
 

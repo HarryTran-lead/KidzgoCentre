@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AlertCircle, BookOpen, Clock, DollarSign, Wallet, X } from "lucide-react";
+import { AlertCircle, BookOpen, Clock, DollarSign, Tag, Wallet, X } from "lucide-react";
 import { getProgramsForBranch, type ProgramOption } from "@/lib/api/tuitionPlanService";
+import { getLearningTicketTypes } from "@/lib/api/learningTicketTypeService";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
+import type { LearningTicketType } from "@/types/learning-ticket-type";
 
 function cn(...a: Array<string | false | null | undefined>) {
   return a.filter(Boolean).join(" ");
@@ -18,6 +20,7 @@ export type TuitionPlanFormData = {
   unitPriceSession: string;
   currency: string;
   status: "Đang hoạt động" | "Tạm dừng";
+  learningTicketTypeId: string;
 };
 
 const initialFormData: TuitionPlanFormData = {
@@ -29,6 +32,7 @@ const initialFormData: TuitionPlanFormData = {
   unitPriceSession: "",
   currency: "VND",
   status: "Đang hoạt động",
+  learningTicketTypeId: "",
 };
 
 export default function TuitionPlanModal({
@@ -50,6 +54,7 @@ export default function TuitionPlanModal({
   const [errors, setErrors] = useState<Partial<Record<keyof TuitionPlanFormData, string>>>({});
   const [programs, setPrograms] = useState<ProgramOption[]>([]);
   const [loadingPrograms, setLoadingPrograms] = useState(false);
+  const [ticketTypes, setTicketTypes] = useState<LearningTicketType[]>([]);
   const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -102,6 +107,21 @@ export default function TuitionPlanModal({
 
     loadPrograms();
   }, [isOpen, formData.branchId, defaultBranchId]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    async function loadTicketTypes() {
+      try {
+        const items = await getLearningTicketTypes({ isActive: true });
+        setTicketTypes(items);
+      } catch {
+        setTicketTypes([]);
+      }
+    }
+
+    loadTicketTypes();
+  }, [isOpen]);
 
   useEffect(() => {
     const sessions = Number(formData.totalSessions);
@@ -293,6 +313,37 @@ export default function TuitionPlanModal({
                 </Select>
                 {errors.currency && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.currency}</p>}
               </div>
+            </div>
+
+            {/* Phase 1.5 — Learning Ticket Type */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <Tag size={16} className="text-purple-600" />
+                Loại vé học (Ticket Type)
+                <span className="text-xs text-gray-400 font-normal">— tuỳ chọn</span>
+              </label>
+              <Select
+                value={formData.learningTicketTypeId || "__none__"}
+                onValueChange={(value) => handleChange("learningTicketTypeId", value === "__none__" ? "" : value)}
+              >
+                <SelectTrigger className="w-full rounded-xl border border-gray-200 bg-white text-sm text-gray-900 transition-all">
+                  <SelectValue placeholder="Không phân loại (default)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">
+                    <span className="text-gray-500">Không phân loại (default)</span>
+                  </SelectItem>
+                  {ticketTypes.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      <span className="font-mono font-bold text-purple-700 mr-2">{t.code}</span>
+                      {t.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-gray-400">
+                Gói học này sẽ sinh ra vé học loại nào. Để trống = default pass tất cả.
+              </p>
             </div>
 
             {mode === "edit" && (

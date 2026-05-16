@@ -1024,6 +1024,9 @@ export async function fetchAndMapAdminClassDetail(classId: string): Promise<Clas
     startDate: apiData?.startDate ?? "",
     endDate: apiData?.endDate ?? "",
     completedLessons: 0,
+    slotTypeId: apiData?.slotTypeId ?? null,
+    slotTypeCode: apiData?.slotTypeCode ?? null,
+    slotTypeName: apiData?.slotTypeName ?? null,
   };
 
   return classDetail;

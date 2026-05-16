@@ -404,6 +404,7 @@ export async function updateAdminSession(
     durationMinutes?: number;
     participationType?: string;
     sectionType?: string;
+    slotTypeId?: string | null;
   }
 ): Promise<{ isSuccess: boolean; data?: any; message?: string }> {
   const token = getAccessToken();
@@ -454,6 +455,10 @@ export async function updateAdminSession(
       payload.sectionType
       ?? currentSession?.sectionType
       ?? "Normal",
+    slotTypeId:
+      payload.slotTypeId !== undefined
+        ? payload.slotTypeId
+        : (currentSession?.slotTypeId ?? null),
   };
 
   if (!mergedPayload.plannedDatetime) {

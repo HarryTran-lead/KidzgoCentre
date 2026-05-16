@@ -1,4 +1,4 @@
-/** Learning Ticket types — Phase 1 */
+/** Learning Ticket types — Phase 1 + Phase 1.5 */
 
 export type LearningTicketItemStatus = "Available" | "Consumed" | "Expired" | "Voided";
 export type LearningTicketTransactionType = "Grant" | "Consume" | "Refund" | "Void" | "Adjustment";
@@ -19,8 +19,19 @@ export interface LearningTicketLedgerItem {
   sessionId: string | null;
   attendanceId: string | null;
   createdAt: string;
+  ticketTypeId?: string | null;
+  ticketTypeCode?: string | null;
 }
 
 export interface LearningTicketLedgerResponse {
   items: LearningTicketLedgerItem[];
+}
+
+/** Phase 1.5 — Compatible ticket check response */
+export interface CompatibleTicketCheckResponse {
+  compatible: boolean;
+  ticketItemId: string | null;
+  ticketTypeId: string | null;
+  ticketTypeCode: string | null;
+  reason: string;
 }
