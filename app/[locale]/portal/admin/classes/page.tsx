@@ -33,6 +33,7 @@ import {
   CalendarDays,
   CheckCircle,
   Sparkles,
+  Layers,
 } from "lucide-react";
 import clsx from "clsx";
 import {
@@ -79,6 +80,7 @@ import {
 import type { WeekdayCode } from "@/lib/schedulePattern";
 import { getSlotTypes } from "@/lib/api/slotTypeService";
 import type { SlotType } from "@/types/slot-type";
+import { getLevels } from "@/lib/api/academicProgressionService";
 
 /* ----------------------------- UI HELPERS ------------------------------ */
 function StatusBadge({ value }: { value: ClassRow["status"] }) {
@@ -1523,6 +1525,7 @@ interface ClassFormData {
   code: string;
   name: string;
   programId: string;
+  levelId: string;
   branchId: string;
   mainTeacherId: string;
   assistantTeacherId: string;
@@ -1542,6 +1545,7 @@ const initialFormData: ClassFormData = {
   code: "",
   name: "",
   programId: "",
+  levelId: "",
   branchId: "",
   mainTeacherId: "",
   assistantTeacherId: "",
@@ -2227,6 +2231,8 @@ function  CreateClassModal({
   );
   const [loadingOptions, setLoadingOptions] = useState(false);
   const [slotTypeOptions, setSlotTypeOptions] = useState<SlotType[]>([]);
+  const [levelOptions, setLevelOptions] = useState<{ id: string; name: string; code: string }[]>([]);
+  const [loadingLevels, setLoadingLevels] = useState(false);
 
   // States cho UI chọn lịch học theo từng ngày
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
@@ -2444,9 +2450,11 @@ function  CreateClassModal({
       setRoomOptions([]);
       setAllRooms([]);
       setExistingClasses([]);
+      setLevelOptions([]);
       setFormData((prev) => ({
         ...prev,
         programId: "",
+        levelId: "",
         mainTeacherId: "",
         assistantTeacherId: "",
         roomId: "",
@@ -2510,6 +2518,7 @@ function  CreateClassModal({
           setFormData((prev) => ({
             ...prev,
             programId: programIds.has(prev.programId) ? prev.programId : "",
+            levelId: programIds.has(prev.programId) ? (prev.levelId ?? "") : "",
             mainTeacherId: teacherIds.has(prev.mainTeacherId)
               ? prev.mainTeacherId
               : "",
@@ -2545,6 +2554,28 @@ function  CreateClassModal({
     if (!isOpen) return;
     getSlotTypes({ isActive: true }).then(setSlotTypeOptions).catch(() => setSlotTypeOptions([]));
   }, [isOpen]);
+
+  // Load levels khi programId thay đổi
+  useEffect(() => {
+    if (!formData.programId) {
+      setLevelOptions([]);
+      return;
+    }
+    let cancelled = false;
+    setLoadingLevels(true);
+    getLevels({ programId: formData.programId, isActive: true })
+      .then((res) => {
+        if (cancelled) return;
+        setLevelOptions(
+          res.isSuccess
+            ? res.data.items.map((l) => ({ id: l.id, name: l.name, code: l.code }))
+            : []
+        );
+      })
+      .catch(() => { if (!cancelled) setLevelOptions([]); })
+      .finally(() => { if (!cancelled) setLoadingLevels(false); });
+    return () => { cancelled = true; };
+  }, [formData.programId]);
 
   // Lọc lại phòng học khi sĩ số thay đổi
   useEffect(() => {
@@ -3233,6 +3264,46 @@ function  CreateClassModal({
                     <AlertCircle size={14} /> {errors.programId}
                   </p>
                 )}
+              </div>
+            </div>
+
+            {/* Row Level */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <Layers size={16} className="text-red-600" />
+                  Level <span className="text-xs font-normal text-gray-400">(tùy chọn)</span>
+                </label>
+                <Select
+                  value={formData.levelId || "__none__"}
+                  onValueChange={(val) => handleChange("levelId", val === "__none__" ? "" : val)}
+                  disabled={!formData.programId || loadingLevels}
+                >
+                  <SelectTrigger
+                    data-field="levelId"
+                    className="w-full border-gray-200"
+                  >
+                    <SelectValue
+                      placeholder={
+                        !formData.programId
+                          ? "Chọn chương trình trước"
+                          : loadingLevels
+                          ? "Đang tải..."
+                          : levelOptions.length === 0
+                          ? "Chưa có level nào"
+                          : "Chọn level (tùy chọn)"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">-- Không chọn --</SelectItem>
+                    {levelOptions.map((l) => (
+                      <SelectItem key={l.id} value={l.id}>
+                        {l.code ? `[${l.code}] ` : ""}{l.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -4238,6 +4309,7 @@ export default function Page() {
         code: detail?.code ?? row.code ?? "",
         name: detail?.title ?? row.name ?? "",
         programId: String(detail?.programId ?? ""),
+        levelId: String(detail?.levelId ?? ""),
         branchId: String(detail?.branchId ?? ""),
         mainTeacherId: String(detail?.mainTeacherId ?? ""),
         assistantTeacherId: detail?.assistantTeacherId

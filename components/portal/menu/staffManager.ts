@@ -5,6 +5,7 @@ import {
   Clock3,
   FileText,
   Folder,
+  GraduationCap,
   Image,
   LayoutDashboard,
   Megaphone,
@@ -34,6 +35,7 @@ export function staffManagerMenu(root: string, locale: Locale = "vi"): MenuItem[
     [t.makeup, RefreshCw, "/makeup"],
     [t.pauseEnrollments, Clock3, "/pause-enrollments"],
     [t.lessonPlans, BookOpenCheck, "/lesson-plans"],
+    ["Tiến trình học thuật", GraduationCap, "/academic-progression"],
     [t.materials, Folder, "/materials"],
     [t.gamification, Sparkles, "/gamification"],
     {

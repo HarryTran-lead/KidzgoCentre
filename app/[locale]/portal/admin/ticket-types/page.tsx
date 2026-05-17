@@ -402,7 +402,7 @@ export default function LearningTicketTypePage() {
         onConfirm={handleDelete}
         title="Xóa loại vé học"
         message={`Bạn có chắc muốn xóa loại vé học "${deleteTarget?.name}"? Hành động này không thể hoàn tác.`}
-        confirmLabel="Xóa"
+        confirmText="Xóa"
         isLoading={deleting}
       />
     </div>

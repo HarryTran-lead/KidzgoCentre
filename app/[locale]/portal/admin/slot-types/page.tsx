@@ -402,7 +402,7 @@ export default function SlotTypePage() {
         onConfirm={handleDelete}
         title="Xóa loại slot"
         message={`Bạn có chắc muốn xóa loại slot "${deleteTarget?.name}"? Hành động này không thể hoàn tác.`}
-        confirmLabel="Xóa"
+        confirmText="Xóa"
         isLoading={deleting}
       />
     </div>

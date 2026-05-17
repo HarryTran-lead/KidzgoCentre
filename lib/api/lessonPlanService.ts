@@ -43,6 +43,11 @@ export interface LessonPlanTemplate {
   level: string;
   title: string;
   sessionIndex: number;
+  // Phase 2 fields
+  moduleId?: string | null;
+  moduleCode?: string | null;
+  moduleName?: string | null;
+  sessionOrder?: number | null;
   syllabusMetadata?: string | null;
   syllabusContent?: string | null;
   sourceFileName?: string | null;
@@ -70,6 +75,9 @@ export interface CreateLessonPlanTemplateRequest {
   level: string;
   title: string;
   sessionIndex: number;
+  // Phase 2 fields
+  moduleId?: string | null;
+  sessionOrder?: number | null;
   syllabusMetadata?: string | null;
   syllabusContent?: string | null;
   sourceFileName?: string | null;
@@ -80,6 +88,9 @@ export interface UpdateLessonPlanTemplateRequest {
   level?: string | null;
   title?: string | null;
   sessionIndex?: number | null;
+  // Phase 2 fields
+  moduleId?: string | null;
+  sessionOrder?: number | null;
   syllabusMetadata?: string | null;
   syllabusContent?: string | null;
   sourceFileName?: string | null;
@@ -121,6 +132,9 @@ export interface LessonPlan {
   actualContent?: string | null;
   actualHomework?: string | null;
   teacherNotes?: string | null;
+  // Phase 2 fields
+  completionPercent?: number | null;
+  carryForwardContent?: string | null;
   submittedBy?: string | null;
   submittedByName?: string | null;
   submittedAt?: string | null;
@@ -136,6 +150,9 @@ export interface CreateLessonPlanRequest {
   actualContent?: string | null;
   actualHomework?: string | null;
   teacherNotes?: string | null;
+  // Phase 2 fields
+  completionPercent?: number | null;
+  carryForwardContent?: string | null;
 }
 
 export interface UpdateLessonPlanRequest {
@@ -144,6 +161,9 @@ export interface UpdateLessonPlanRequest {
   actualContent?: string | null;
   actualHomework?: string | null;
   teacherNotes?: string | null;
+  // Phase 2 fields
+  completionPercent?: number | null;
+  carryForwardContent?: string | null;
 }
 
 export interface ClassLessonPlanSyllabusSession {
@@ -162,6 +182,12 @@ export interface ClassLessonPlanSyllabusSession {
   actualContent?: string | null;
   actualHomework?: string | null;
   teacherNotes?: string | null;
+  // Phase 2 fields
+  completionPercent?: number | null;
+  carryForwardContent?: string | null;
+  moduleId?: string | null;
+  moduleCode?: string | null;
+  moduleName?: string | null;
   canEdit: boolean;
 }
 

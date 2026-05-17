@@ -446,6 +446,78 @@ export const BACKEND_TICKET_TYPE_COMPATIBILITY_ENDPOINTS = {
   BY_ID: (id: string) => `/ticket-type-compatibilities/${id}`,
 } as const;
 
+// Phase 2 — Academic Progression Endpoints (Client → Next.js API Routes)
+export const LEVEL_ENDPOINTS = {
+  BASE: '/api/levels',
+  BY_ID: (id: string) => `/api/levels/${id}`,
+} as const;
+
+export const MODULE_ENDPOINTS = {
+  BASE: '/api/modules',
+  BY_ID: (id: string) => `/api/modules/${id}`,
+} as const;
+
+export const STUDENT_PROGRESS_ENDPOINTS = {
+  BY_STUDENT: (studentId: string) => `/api/student-progress/${studentId}`,
+  UPDATE: '/api/student-progress/update',
+  DASHBOARD: '/api/student-progress/dashboard',
+} as const;
+
+export const ASSESSMENT_ENDPOINTS = {
+  BASE: '/api/assessments',
+  BY_STUDENT: (studentId: string) => `/api/assessments/${studentId}`,
+} as const;
+
+export const TEACHER_EVALUATION_ENDPOINTS = {
+  BASE: '/api/teacher-evaluations',
+  BY_STUDENT: (studentId: string) => `/api/teacher-evaluations/${studentId}`,
+} as const;
+
+export const PROMOTION_DECISION_ENDPOINTS = {
+  BASE: '/api/promotion-decisions',
+} as const;
+
+export const REMEDIAL_PLAN_ENDPOINTS = {
+  BASE: '/api/remedial-plans',
+  BY_STUDENT: (studentId: string) => `/api/remedial-plans/${studentId}`,
+} as const;
+
+// Phase 2 — Academic Progression Backend Endpoints (Next.js API Routes → Backend)
+export const BACKEND_LEVEL_ENDPOINTS = {
+  BASE: '/levels',
+  BY_ID: (id: string) => `/levels/${id}`,
+} as const;
+
+export const BACKEND_MODULE_ENDPOINTS = {
+  BASE: '/modules',
+  BY_ID: (id: string) => `/modules/${id}`,
+} as const;
+
+export const BACKEND_STUDENT_PROGRESS_ENDPOINTS = {
+  BY_STUDENT: (studentId: string) => `/student-progress/${studentId}`,
+  UPDATE: '/student-progress/update',
+  DASHBOARD: '/student-progress/dashboard',
+} as const;
+
+export const BACKEND_ASSESSMENT_ENDPOINTS = {
+  BASE: '/assessments',
+  BY_STUDENT: (studentId: string) => `/assessments/${studentId}`,
+} as const;
+
+export const BACKEND_TEACHER_EVALUATION_ENDPOINTS = {
+  BASE: '/teacher-evaluations',
+  BY_STUDENT: (studentId: string) => `/teacher-evaluations/${studentId}`,
+} as const;
+
+export const BACKEND_PROMOTION_DECISION_ENDPOINTS = {
+  BASE: '/promotion-decisions',
+} as const;
+
+export const BACKEND_REMEDIAL_PLAN_ENDPOINTS = {
+  BASE: '/remedial-plans',
+  BY_STUDENT: (studentId: string) => `/remedial-plans/${studentId}`,
+} as const;
+
 // Monthly Report Endpoints (Client-side → Next.js API Routes)
 export const MONTHLY_REPORT_ENDPOINTS = {
   BASE: '/api/monthly-reports',

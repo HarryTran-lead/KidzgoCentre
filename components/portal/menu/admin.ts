@@ -44,6 +44,7 @@ export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     [t.groups.learning.discountCampaigns.list, CreditCard, "/discount-campaigns"],
     [t.groups.learning.registrations.list, UserCheck, "/registrations"],
     [t.groups.learning.classes.list, BookOpen, "/classes"],
+    ["Tiến trình học thuật", Layers, "/academic-progression"],
   ];
   const opsItems: RawItem[] = [
     [t.groups.ops.rooms, Building2, "/rooms"],

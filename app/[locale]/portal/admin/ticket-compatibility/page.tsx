@@ -511,7 +511,7 @@ export default function TicketCompatibilityPage() {
         onConfirm={handleDelete}
         title="Xóa quy tắc tương thích"
         message="Bạn có chắc muốn xóa quy tắc này?"
-        confirmLabel="Xóa"
+        confirmText="Xóa"
         isLoading={deleting}
       />
     </div>
