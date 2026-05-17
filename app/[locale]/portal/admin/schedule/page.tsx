@@ -925,9 +925,6 @@ function ColorPicker({
   const [customColor, setCustomColor] = useState(normalizeSessionColor(currentColor));
   const [previewColor, setPreviewColor] = useState(normalizeSessionColor(currentColor));
   const pickerRef = useRef<HTMLDivElement>(null);
-  const committedRef = useRef(false);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const [pickerPos, setPickerPos] = useState({ top: 0, right: 0 });
 
   useEffect(() => {
     setCustomColor(normalizeSessionColor(currentColor));
@@ -944,7 +941,6 @@ function ColorPicker({
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (pickerRef.current && !pickerRef.current.contains(event.target as Node)) {
-        // Commit the preview color when closing by clicking outside
         if (previewColor !== normalizeSessionColor(currentColor)) {
           commitColor(previewColor);
         }
@@ -961,20 +957,9 @@ function ColorPicker({
     };
   }, [showPicker, previewColor, currentColor]);
 
-  useEffect(() => {
-    if (showPicker && buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect();
-      setPickerPos({
-        top: rect.bottom + 8,
-        right: window.innerWidth - rect.right
-      });
-    }
-  }, [showPicker]);
-
   return (
-    <div ref={pickerRef}>
+    <div className="relative" ref={pickerRef}>
       <button
-        ref={buttonRef}
         onClick={(e) => {
           e.stopPropagation();
           setShowPicker(!showPicker);
@@ -986,8 +971,7 @@ function ColorPicker({
       </button>
       {showPicker && (
         <div 
-          className="fixed bg-white rounded-xl shadow-2xl border border-gray-200 p-2 z-[9999] overflow-hidden w-[200px]"
-          style={{ top: pickerPos.top, right: pickerPos.right }}
+          className="absolute right-0 top-full mt-2 bg-white rounded-xl shadow-2xl border border-gray-200 p-2 z-[9999] w-[220px]"
         >
           <div className="text-[9px] font-semibold text-gray-800 mb-1 px-1">Chọn màu</div>
           <div className="grid grid-cols-5 gap-1">
@@ -996,7 +980,6 @@ function ColorPicker({
                 key={color.value}
                 onClick={(e) => {
                   e.stopPropagation();
-                  committedRef.current = true;
                   onColorChange(lessonId, normalizeSessionColor(color.value));
                   setShowPicker(false);
                 }}
@@ -1426,13 +1409,7 @@ export default function AdminSchedulePage() {
   const [isBulkUpdateModalOpen, setIsBulkUpdateModalOpen] = useState(false);
   const [refreshTick, setRefreshTick] = useState(0);
   const [isPageLoaded, setIsPageLoaded] = useState(false);
-  const [pendingColorChange, setPendingColorChange] = useState<{
-    lessonId: string;
-    classTitle: string;
-    classId: string;
-    newColor: string;
-    sessionCount: number;
-  } | null>(null);
+
 
   const list = useMemo(() => {
     let result = slots;
@@ -1507,57 +1484,31 @@ export default function AdminSchedulePage() {
     });
   }, [list]);
 
-  // Called when user picks a color — show confirm modal instead of applying immediately
-  const handleColorChange = (lessonId: string, newColor: string) => {
+  // Apply color directly — no confirmation needed
+  const handleColorChange = async (lessonId: string, newColor: string) => {
     const targetSlot = slots.find(s => s.id === lessonId);
     if (!targetSlot) return;
-    const targetClassId = targetSlot.classId;
-    const sessionCount = slots.filter(s => s.classId === targetClassId && targetClassId).length;
-    setPendingColorChange({
-      lessonId,
-      classTitle: targetSlot.title,
-      classId: targetClassId,
-      newColor,
-      sessionCount,
-    });
-  };
-
-  // Called when user confirms the modal
-  const applyColorChange = async () => {
-    if (!pendingColorChange) return;
-    const { classId, newColor } = pendingColorChange;
-    setPendingColorChange(null);
+    const classId = targetSlot.classId;
 
     const sameClassIds = slots
       .filter(s => s.classId === classId && !!classId)
       .map(s => s.id)
       .filter((id, i, arr) => arr.indexOf(id) === i);
-
     const originalColors = new Map<string, string | undefined>(slots.map(s => [s.id, s.color]));
 
-    // Update UI immediately
+    // Optimistic UI update
     setSlots(prev => prev.map(slot =>
       slot.classId === classId ? { ...slot, color: newColor } : slot
     ));
 
-    // Single API call updates ALL sessions of this class in DB (past + future)
     try {
       await updateClassColor(classId, newColor);
-      toast.success({
-        title: "Đã lưu màu",
-        description: "Màu đã được đồng bộ cho toàn bộ lịch của lớp.",
-      });
-    } catch (err) {
-      // Revert UI
+      toast.success({ title: "Đã lưu màu", description: "Màu đã đồng bộ cho toàn bộ lịch của lớp." });
+    } catch {
       setSlots(prev => prev.map(slot =>
-        sameClassIds.includes(slot.id)
-          ? { ...slot, color: originalColors.get(slot.id) }
-          : slot
+        sameClassIds.includes(slot.id) ? { ...slot, color: originalColors.get(slot.id) } : slot
       ));
-      toast.destructive({
-        title: "Lưu màu thất bại",
-        description: "Không thể cập nhật màu lên máy chủ. Vui lòng thử lại.",
-      });
+      toast.destructive({ title: "Lưu màu thất bại", description: "Không thể cập nhật màu. Vui lòng thử lại." });
     }
   };
 
@@ -1893,38 +1844,6 @@ export default function AdminSchedulePage() {
             : undefined
         }
       />
-
-      {/* Color Change Confirmation Modal */}
-      {pendingColorChange && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={() => setPendingColorChange(null)}>
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-5 w-[320px]" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-8 h-8 rounded-lg flex-shrink-0 border border-gray-200" style={{ backgroundColor: pendingColorChange.newColor }} />
-              <div>
-                <div className="font-semibold text-gray-900 text-sm">Đổi màu lớp học</div>
-                <div className="text-xs text-gray-500 mt-0.5">{pendingColorChange.classTitle}</div>
-              </div>
-            </div>
-            <p className="text-sm text-gray-600 mb-4">
-              Màu sẽ được áp dụng cho <span className="font-semibold text-gray-900">{pendingColorChange.sessionCount} buổi học</span> hiển thị trong tuần này của lớp này.
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setPendingColorChange(null)}
-                className="flex-1 px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer"
-              >
-                Huỷ
-              </button>
-              <button
-                onClick={applyColorChange}
-                className="flex-1 px-3 py-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white text-sm font-semibold hover:shadow-md transition-all cursor-pointer"
-              >
-                Xác nhận
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <BulkUpdateByClassModal
         isOpen={isBulkUpdateModalOpen && classFilter !== "ALL"}

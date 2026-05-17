@@ -6,6 +6,7 @@ export interface CreateTuitionPlan {
   tuitionAmount: number;
   unitPriceSession: number;
   currency: string;
+  learningTicketTypeId?: string | null;
 }
 
 export interface CreateTuitionPlanResponse {
@@ -22,6 +23,9 @@ export interface CreateTuitionPlanResponse {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  learningTicketTypeId?: string | null;
+  learningTicketTypeCode?: string | null;
+  learningTicketTypeName?: string | null;
 }
 
 export interface TuitionPlan {
@@ -38,6 +42,9 @@ export interface TuitionPlan {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  learningTicketTypeId?: string | null;
+  learningTicketTypeCode?: string | null;
+  learningTicketTypeName?: string | null;
 }
 
 export interface UpdateTuitionPlanRequest {
@@ -48,6 +55,7 @@ export interface UpdateTuitionPlanRequest {
   tuitionAmount?: number;
   unitPriceSession?: number;
   currency?: string;
+  learningTicketTypeId?: string | null;
 }
 
 export interface UpdateTuitionPlanResponse {
@@ -64,4 +72,7 @@ export interface UpdateTuitionPlanResponse {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  learningTicketTypeId?: string | null;
+  learningTicketTypeCode?: string | null;
+  learningTicketTypeName?: string | null;
 }

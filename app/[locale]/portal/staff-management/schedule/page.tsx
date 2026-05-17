@@ -1736,15 +1736,6 @@ export default function Page() {
   const [refreshTick, setRefreshTick] = useState(0);
   const [isPageLoaded, setIsPageLoaded] = useState(false);
 
-  // Color change confirmation
-  const [pendingColorChange, setPendingColorChange] = useState<{
-    lessonId: string;
-    classTitle: string;
-    classId: string;
-    newColor: string;
-    sessionCount: number;
-  } | null>(null);
-
   // Swap modals
   const [changeRoomSlot, setChangeRoomSlot] = useState<Slot | null>(null);
   const [changeTeacherSlot, setChangeTeacherSlot] = useState<Slot | null>(null);
@@ -1968,32 +1959,34 @@ export default function Page() {
     return { total, byType };
   }, [slots]);
 
-  // Color change handler (with confirmation)
-  const handleColorChange = (lessonId: string, newColor: string) => {
+  // Apply color directly — no confirmation needed
+  const handleColorChange = async (lessonId: string, newColor: string) => {
     const targetSlot = slots.find((s) => s.id === lessonId);
     if (!targetSlot) return;
-    const targetClassId = targetSlot.classId;
-    const sessionCount = slots.filter((s) => s.classId === targetClassId && targetClassId).length;
-    setPendingColorChange({ lessonId, classTitle: targetSlot.title, classId: targetClassId, newColor, sessionCount });
-  };
+    const classId = targetSlot.classId;
 
-  const applyColorChange = async () => {
-    if (!pendingColorChange) return;
-    const { classId, newColor } = pendingColorChange;
-    setPendingColorChange(null);
-    const sameClassIds = slots.filter((s) => s.classId === classId && classId).map((s) => s.id);
-    if (!sameClassIds.includes(pendingColorChange.lessonId)) sameClassIds.push(pendingColorChange.lessonId);
+    const sameClassIds = slots.filter((s) => s.classId === classId && !!classId).map((s) => s.id);
+    if (!sameClassIds.includes(lessonId)) sameClassIds.push(lessonId);
+    const originalColors = new Map<string, string | undefined>(slots.map(s => [s.id, s.color]));
+
     setSlots((prev) =>
       prev.map((slot) => (sameClassIds.includes(slot.id) ? { ...slot, color: newColor } : slot))
     );
+
     if (classId) {
       try {
         await updateClassColor(classId, newColor);
       } catch {
+        // Fallback: update per session
         for (const sid of sameClassIds) {
           updateSessionColor(sid, newColor).catch(() => {});
         }
       }
+    } else {
+      // Revert on failure if no classId
+      setSlots((prev) =>
+        prev.map((slot) => (sameClassIds.includes(slot.id) ? { ...slot, color: originalColors.get(slot.id) } : slot))
+      );
     }
   };
 
@@ -2207,19 +2200,6 @@ export default function Page() {
         prefillDate={prefillDate}
         prefillTime={prefillTime}
       />
-
-      {/* Color change confirmation */}
-      {pendingColorChange && (
-        <ConfirmModal
-          isOpen={!!pendingColorChange}
-          title="Xác nhận đổi màu"
-          message={`Đổi màu cho lớp "${pendingColorChange.classTitle}" (${pendingColorChange.sessionCount} buổi trong tuần)?`}
-          confirmText="Đổi màu"
-          cancelText="Hủy"
-          onConfirm={applyColorChange}
-          onClose={() => setPendingColorChange(null)}
-        />
-      )}
 
       {/* Swap Modals */}
       <ChangeRoomModal

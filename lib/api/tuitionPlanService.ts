@@ -75,6 +75,9 @@ function mapToTuitionPlan(item: any): TuitionPlan {
     isActive: Boolean(item?.isActive),
     createdAt: String(item?.createdAt ?? ""),
     updatedAt: String(item?.updatedAt ?? ""),
+    learningTicketTypeId: item?.learningTicketTypeId ?? null,
+    learningTicketTypeCode: item?.learningTicketTypeCode ?? null,
+    learningTicketTypeName: item?.learningTicketTypeName ?? null,
   };
 }
 

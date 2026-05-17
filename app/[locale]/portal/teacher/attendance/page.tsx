@@ -761,6 +761,12 @@ export default function TeacherAttendancePage() {
     return mapSessionToLessonDetail(selectedSession);
   }, [selectedSession]);
 
+  const isSessionToday = useMemo(() => {
+    const sessionDate = getSessionIsoDate(selectedSession ?? null);
+    if (!sessionDate) return false;
+    return sessionDate === getLocalIsoDate();
+  }, [selectedSession]);
+
   const sessionCards = useMemo(() => {
     return sessions.map((session, index) => {
       const lesson = mapSessionToLessonDetail(session);
@@ -1967,9 +1973,10 @@ export default function TeacherAttendancePage() {
 
                   <button
                     onClick={handleSaveAll}
-                    disabled={isSaving}
-                    className={`px-5 py-2.5 rounded-xl font-semibold flex items-center gap-2 transition-all shadow-sm hover:shadow-md ${isSaving
-                      ? "bg-gray-400 text-white cursor-not-allowed"
+                    disabled={isSaving || !isSessionToday}
+                    title={!isSessionToday ? "Chỉ có thể điểm danh trong ngày học" : undefined}
+                    className={`px-5 py-2.5 rounded-xl font-semibold flex items-center gap-2 transition-all shadow-sm hover:shadow-md ${isSaving || !isSessionToday
+                      ? "bg-gray-400 text-white cursor-not-allowed opacity-60"
                       : "bg-gradient-to-r from-red-600 to-red-700 text-white hover:scale-[1.02] cursor-pointer"
                       }`}
                   >
@@ -1988,6 +1995,14 @@ export default function TeacherAttendancePage() {
                 </div>
               </div>
             </div>
+
+            {/* Not-today banner */}
+            {!isSessionToday && (
+              <div className="mb-4 flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                <span className="text-base">⚠️</span>
+                <span>Chỉ có thể điểm danh trong ngày học. Buổi này không phải hôm nay nên không thể chỉnh sửa.</span>
+              </div>
+            )}
 
             {/* Stats Cards */}
             <div className={`grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 transition-all duration-700 delay-100 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
@@ -2108,7 +2123,7 @@ export default function TeacherAttendancePage() {
                         />
                       </th>
                       <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">Trạng thái</th>
-                      <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">Vé học</th>
+                      <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">Tiến độ</th>
                       <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">Ghi chú</th>
                       <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">Thao tác</th>
                     </tr>
@@ -2141,12 +2156,12 @@ export default function TeacherAttendancePage() {
                                   {record.phone ? <span>{record.phone}</span> : null}
                                   {record.track ? (
                                     <span className="rounded-full bg-gray-100 px-2 py-0.5 font-semibold text-gray-700">
-                                      {String(record.track).toLowerCase() === "secondary" ? "Secondary" : "Primary"}
+                                      {String(record.track).toLowerCase() === "secondary" ? "Học phụ" : "Chính thức"}
                                     </span>
                                   ) : null}
                                   {record.isMakeup ? (
                                     <span className="rounded-full bg-amber-100 px-2 py-0.5 font-semibold text-amber-700">
-                                      Makeup
+                                      Học bù
                                     </span>
                                   ) : null}
                                 </div>
@@ -2174,17 +2189,23 @@ export default function TeacherAttendancePage() {
                                     const isActive = record.status === status;
                                     const isSuggestedMakeup =
                                       status === "makeup" && Boolean(record.hasMakeupCredit) && !isActive;
+                                    const isLockedByMakeup = (Boolean(record.isMakeup) || record.status === "makeup") && status !== "makeup";
+                                    const isLocked = isLockedByMakeup || !isSessionToday;
 
                                     return (
                                       <button
                                         key={status}
-                                        onClick={() => handleStatusChange(record.rowKey, status)}
-                                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer ${isActive
-                                            ? STATUS_STYLES[status].active
-                                            : isSuggestedMakeup
-                                              ? "border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100"
-                                              : `border-gray-200 text-gray-600 ${STATUS_STYLES[status].hover}`
-                                          }`}
+                                        onClick={() => !isLocked && handleStatusChange(record.rowKey, status)}
+                                        disabled={isLocked}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
+                                          isLocked
+                                            ? "border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed"
+                                            : isActive
+                                              ? `cursor-pointer ${STATUS_STYLES[status].active}`
+                                              : isSuggestedMakeup
+                                                ? "border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100 cursor-pointer"
+                                                : `border-gray-200 text-gray-600 ${STATUS_STYLES[status].hover} cursor-pointer`
+                                        }`}
                                       >
                                         {STATUS_BUTTON_LABELS[status]}
                                       </button>
@@ -2207,38 +2228,42 @@ export default function TeacherAttendancePage() {
                                   ) : null}
                                 </div>
                               ) : null}
+
+                              {/* Phase 1.5: Ticket compatibility result after save */}
+                              {(() => {
+                                const profileId = record.studentProfileId ?? "";
+                                const result = profileId ? ticketResultMap[profileId] : null;
+                                if (!result) return null;
+                                return (
+                                  <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                    {result.ticketCompatibilityPassed === false ? (
+                                      <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-700">
+                                        ⚠ Vé không hợp lệ{result.ticketCompatibilityReason ? `: ${result.ticketCompatibilityReason}` : ""}
+                                      </span>
+                                    ) : result.ticketCompatibilityPassed === true ? (
+                                      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-700">
+                                        ✓ Vé hợp lệ{result.ticketBalance != null ? ` — Còn ${result.ticketBalance} buổi` : ""}
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                );
+                              })()}
                             </div>
                           </td>
 
                           <td className="px-4 py-4">
-                            {(() => {
-                              const studentId = record.studentProfileId || record.studentId;
-                              const ticketResult = studentId ? ticketResultMap[studentId] : undefined;
-                              if (!ticketResult || ticketResult.ticketConsumed === null || ticketResult.ticketConsumed === undefined) {
-                                return <span className="text-xs text-gray-400">–</span>;
-                              }
-                              return (
-                                <div className="flex flex-col gap-1">
-                                  {ticketResult.ticketConsumed ? (
-                                    <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 border border-orange-200 px-2.5 py-1 text-xs font-medium text-orange-700">
-                                      -{ticketResult.consumedQuantity ?? 1} vé
-                                    </span>
-                                  ) : (
-                                    <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-500">
-                                      Không trừ
-                                    </span>
-                                  )}
-                                  {ticketResult.ticketBalance !== null && ticketResult.ticketBalance !== undefined ? (
-                                    <span className="text-xs text-gray-500">Còn: {ticketResult.ticketBalance}</span>
-                                  ) : null}
-                                  {ticketResult.advanceLessonProgression ? (
-                                    <span className="text-xs text-emerald-600">↑ Tiến bài</span>
-                                  ) : ticketResult.advanceLessonProgression === false ? (
-                                    <span className="text-xs text-gray-400">Không tiến bài</span>
-                                  ) : null}
-                                </div>
-                              );
-                            })()}
+                            {record.studentProfileId ? (
+                              <button
+                                type="button"
+                                onClick={() => router.push(`/${locale}/portal/teacher/program-progressions`)}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 transition cursor-pointer"
+                              >
+                                <TrendingUp size={13} />
+                                Xem tiến độ
+                              </button>
+                            ) : (
+                              <span className="text-xs text-gray-400">–</span>
+                            )}
                           </td>
 
                           <td className="px-4 py-4 max-w-xs">

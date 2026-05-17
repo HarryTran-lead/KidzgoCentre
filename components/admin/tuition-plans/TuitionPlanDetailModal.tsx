@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Clock, DollarSign, FileText, Wallet, X } from "lucide-react";
+import { BookOpen, Clock, DollarSign, FileText, Tag, Wallet, X } from "lucide-react";
 import type { TuitionPlan } from "@/types/admin/tuition_plan";
 
 function cn(...a: Array<string | false | null | undefined>) {
@@ -120,6 +120,30 @@ export default function TuitionPlanDetailModal({
                   </label>
                   <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm">
                     <StatusBadge value={detail.isActive ? "Đang hoạt động" : "Tạm dừng"} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Loại vé học (Phase 1.5) */}
+              <div className="grid grid-cols-1 gap-4">
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <Tag size={16} className="text-purple-600" />
+                    Loại vé học
+                  </label>
+                  <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm">
+                    {detail.learningTicketTypeCode ? (
+                      <span className="inline-flex items-center gap-2">
+                        <span className="px-2 py-0.5 rounded-lg bg-purple-100 text-purple-700 font-mono font-bold text-xs">
+                          {detail.learningTicketTypeCode}
+                        </span>
+                        {detail.learningTicketTypeName && (
+                          <span className="text-gray-700">{detail.learningTicketTypeName}</span>
+                        )}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 italic">Không gán — mặc định pass tất cả vé</span>
+                    )}
                   </div>
                 </div>
               </div>

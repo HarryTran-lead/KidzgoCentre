@@ -306,6 +306,7 @@ function mapSessionToLesson(session: SessionApiItem): { lesson: LessonDetail; at
     time: startDate ? formatTimeRange(startDate, session?.durationMinutes ?? undefined) : "--:--",
     status: sessionLike.status ?? null,
     participationType: sessionLike.participationType ?? null,
+    sectionType: sessionLike.sectionType ?? session?.sectionType ?? null,
     branch: sessionLike.branchName ?? null,
     branchId: sessionLike.branchId != null ? String(sessionLike.branchId) : null,
     students:
@@ -596,6 +597,8 @@ export async function saveAttendance(
         consumedQuantity: item?.consumedQuantity ?? null,
         advanceLessonProgression: item?.advanceLessonProgression ?? null,
         ticketBalance: item?.ticketBalance ?? null,
+        ticketCompatibilityPassed: item?.ticketCompatibilityPassed ?? null,
+        ticketCompatibilityReason: item?.ticketCompatibilityReason ?? null,
       };
     }
     return ticketMap;

@@ -83,7 +83,7 @@ export default function ConfirmModal({
       onClick={handleCancel}
     >
       <div
-        className="relative w-full max-w-md overflow-hidden rounded-3xl border border-red-200 bg-white shadow-2xl animate-in zoom-in-95 duration-200"
+        className="relative w-full max-w-md overflow-hidden border border-red-200 bg-white shadow-2xl animate-in zoom-in-95 duration-200"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"

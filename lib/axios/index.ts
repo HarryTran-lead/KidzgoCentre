@@ -123,7 +123,7 @@ axiosInstance.interceptors.response.use(
 
     // Handle 500 Internal Server Error
     if (error.response?.status === 500) {
-      console.error('[API] Server error occurred');
+      console.warn('[API] Server error occurred', error.config?.url);
     }
 
     // Normalize backend validation/business errors into user-friendly messages.

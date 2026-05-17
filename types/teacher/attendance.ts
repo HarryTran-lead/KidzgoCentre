@@ -21,6 +21,11 @@ export type Student = {
   registrationId?: string | null;
   track?: string | null;
   isMakeup?: boolean | null;
+  ticketConsumed?: boolean | null;
+  consumedQuantity?: number | null;
+  ticketBalance?: number | null;
+  ticketCompatibilityPassed?: boolean | null;
+  ticketCompatibilityReason?: string | null;
 };
 
 export type LessonDetail = {
@@ -36,6 +41,10 @@ export type LessonDetail = {
   branchId?: string | null;
   status?: string | null;
   participationType?: string | null;
+  sectionType?: SectionType | string | null;
+  slotTypeId?: string | null;
+  slotTypeCode?: string | null;
+  slotTypeName?: string | null;
 };
 
 export type AttendanceSummaryApi = {
@@ -59,6 +68,12 @@ export type AttendanceItemApi = {
   hasMakeupCredit?: boolean | null;
   note?: string | null;
   markedAt?: string | null;
+  ticketConsumed?: boolean | null;
+  consumedQuantity?: number | null;
+  advanceLessonProgression?: boolean | null;
+  ticketBalance?: number | null;
+  ticketCompatibilityPassed?: boolean | null;
+  ticketCompatibilityReason?: string | null;
 };
 
 export type StudentAttendanceHistoryItem = {
@@ -169,6 +184,8 @@ export type AttendanceTicketResult = {
   consumedQuantity?: number | null;
   advanceLessonProgression?: boolean | null;
   ticketBalance?: number | null;
+  ticketCompatibilityPassed?: boolean | null;
+  ticketCompatibilityReason?: string | null;
 };
 
 /** Map studentProfileId → ticket result, populated after attendance save */

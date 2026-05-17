@@ -31,6 +31,8 @@ import {
   CalendarClock,
   CheckCircle,
   Clock,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import ConfirmModal from "@/components/ConfirmModal";
 import {
@@ -427,6 +429,8 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
   const [statusFilter, setStatusFilter] = useState<"ALL" | ApprovalStatus>(
     isAdminMode ? ApprovalStatus.Pending : "ALL",
   );
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   const [classOptions, setClassOptions] = useState<SelectOption[]>([]);
   const [studentOptions, setStudentOptions] = useState<SelectOption[]>([]);
@@ -666,7 +670,7 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
 
   const filteredRows = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return rows.filter((row) => {
+    let results = rows.filter((row) => {
       const matchStatus =
         statusFilter === "ALL" || row.approvalStatus === statusFilter;
       const matchQuery =
@@ -676,7 +680,62 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
         (row.uploaderName ?? "").toLowerCase().includes(query);
       return matchStatus && matchQuery;
     });
-  }, [rows, search, statusFilter]);
+
+    // Apply sorting
+    if (sortColumn) {
+      results.sort((a, b) => {
+        let aValue: any;
+        let bValue: any;
+
+        switch (sortColumn) {
+          case "caption":
+            aValue = a.caption?.toLowerCase() || "";
+            bValue = b.caption?.toLowerCase() || "";
+            break;
+          case "studentName":
+            aValue = (a.studentName || "").toLowerCase();
+            bValue = (b.studentName || "").toLowerCase();
+            break;
+          case "uploaderName":
+            aValue = (a.uploaderName || "").toLowerCase();
+            bValue = (b.uploaderName || "").toLowerCase();
+            break;
+          case "approvalStatus":
+            aValue = a.approvalStatus;
+            bValue = b.approvalStatus;
+            break;
+          case "visibility":
+            aValue = a.visibility;
+            bValue = b.visibility;
+            break;
+          case "type":
+            aValue = a.type;
+            bValue = b.type;
+            break;
+          case "createdAt":
+            aValue = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            bValue = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            break;
+          default:
+            return 0;
+        }
+
+        if (typeof aValue === "string" && typeof bValue === "string") {
+          return sortDirection === "asc"
+            ? aValue.localeCompare(bValue)
+            : bValue.localeCompare(aValue);
+        }
+
+        if (sortDirection === "asc") {
+          return aValue > bValue ? 1 : aValue < bValue ? -1 : 0;
+        } else {
+          return aValue < bValue ? 1 : aValue > bValue ? -1 : 0;
+        }
+      });
+    }
+
+    return results;
+  }, [rows, search, statusFilter, sortColumn, sortDirection]);
 
   const canEditRow = (row: MediaRow) => {
     if (!canManageCrud || canModerate) return false;
@@ -1137,7 +1196,7 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
     : "Tải ảnh/video hoạt động lớp. Bản ghi mới luôn ở trạng thái Chờ duyệt và chưa công khai.";
 
   return (
-    <div className="space-y-6 bg-gray-50 p-4 md:p-6 rounded-3xl">
+    <div className="space-y-6 bg-gray-50 p-4 md:p-2 rounded-3xl">
       {/* Header Section */}
       <div className="flex flex-wrap items-center gap-3 justify-between">
         <div className="flex items-center gap-3">
@@ -1145,14 +1204,17 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
             {isAdminMode ? (
               <ShieldCheck size={24} className="text-white" />
             ) : (
-              <Camera size={24} className="text-white" />
+              <Camera size={25} className="text-white" />
             )}
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">
+            <h1 className="text-2xl md:text-2xl font-extrabold text-gray-900">
               {title}
             </h1>
-            <p className="text-sm text-gray-600">{subtitle}</p>
+            <p className="text-gray-600 mt-1 flex items-center gap-2">
+              <Sparkles size={14} className="text-red-600" />
+              {subtitle}
+            </p>
           </div>
         </div>
         {canCreate && (
@@ -1169,10 +1231,12 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
       {/* Stats Cards - chỉ hiển thị cho management mode */}
       {isAdminMode && (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
-          <div className="rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-md transition">
-            <div className="flex items-center gap-3">
-              <span className="w-10 h-10 rounded-xl bg-red-100 grid place-items-center">
-                <ImageIcon className="text-red-600" size={18} />
+          {/* Tổng tư liệu */}
+          <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+            <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r from-red-600 to-red-700"></div>
+            <div className="relative flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-600 to-red-700 grid place-items-center">
+                <ImageIcon className="text-white" size={18} />
               </span>
               <div>
                 <div className="text-sm text-gray-600">Tổng tư liệu</div>
@@ -1183,56 +1247,64 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-amber-200 bg-white p-4 hover:shadow-md transition">
-            <div className="flex items-center gap-3">
-              <span className="w-10 h-10 rounded-xl bg-amber-100 grid place-items-center">
-                <Clock className="text-amber-600" size={18} />
+          {/* Chờ duyệt */}
+          <div className="relative overflow-hidden rounded-2xl border border-amber-100 bg-gradient-to-br from-white to-amber-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+            <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r from-amber-600 to-amber-700"></div>
+            <div className="relative flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-600 to-amber-700 grid place-items-center">
+                <Clock className="text-white" size={18} />
               </span>
               <div>
                 <div className="text-sm text-gray-600">Chờ duyệt</div>
-                <div className="text-2xl font-extrabold text-amber-700">
+                <div className="text-2xl font-extrabold text-gray-900">
                   {stats.pending}
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-green-200 bg-white p-4 hover:shadow-md transition">
-            <div className="flex items-center gap-3">
-              <span className="w-10 h-10 rounded-xl bg-green-100 grid place-items-center">
-                <CheckCircle className="text-green-600" size={18} />
+          {/* Đã duyệt */}
+          <div className="relative overflow-hidden rounded-2xl border border-green-100 bg-gradient-to-br from-white to-green-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+            <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r from-green-600 to-green-700"></div>
+            <div className="relative flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-600 to-green-700 grid place-items-center">
+                <CheckCircle className="text-white" size={18} />
               </span>
               <div>
                 <div className="text-sm text-gray-600">Đã duyệt</div>
-                <div className="text-2xl font-extrabold text-green-700">
+                <div className="text-2xl font-extrabold text-gray-900">
                   {stats.approved}
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-blue-200 bg-white p-4 hover:shadow-md transition">
-            <div className="flex items-center gap-3">
-              <span className="w-10 h-10 rounded-xl bg-blue-100 grid place-items-center">
-                <Globe className="text-blue-600" size={18} />
+          {/* Đã công khai */}
+          <div className="relative overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-br from-white to-blue-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+            <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r from-blue-600 to-blue-700"></div>
+            <div className="relative flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 grid place-items-center">
+                <Globe className="text-white" size={18} />
               </span>
               <div>
                 <div className="text-sm text-gray-600">Đã công khai</div>
-                <div className="text-2xl font-extrabold text-blue-700">
+                <div className="text-2xl font-extrabold text-gray-900">
                   {stats.published}
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-red-200 bg-white p-4 hover:shadow-md transition">
-            <div className="flex items-center gap-3">
-              <span className="w-10 h-10 rounded-xl bg-red-100 grid place-items-center">
-                <AlertCircle className="text-red-600" size={18} />
+          {/* Đã từ chối */}
+          <div className="relative overflow-hidden rounded-2xl border border-rose-100 bg-gradient-to-br from-white to-rose-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+            <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r from-rose-600 to-rose-700"></div>
+            <div className="relative flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-600 to-rose-700 grid place-items-center">
+                <AlertCircle className="text-white" size={18} />
               </span>
               <div>
                 <div className="text-sm text-gray-600">Đã từ chối</div>
-                <div className="text-2xl font-extrabold text-red-700">
+                <div className="text-2xl font-extrabold text-gray-900">
                   {stats.rejected}
                 </div>
               </div>
@@ -1242,9 +1314,58 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
       )}
 
       {/* Search & Filters Section */}
-      <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="relative flex-1 min-w-[280px]">
+      <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50">
+        {/* Status Filter Tabs */}
+        <div className="flex flex-wrap items-center gap-2 p-4">
+          {[
+            { value: "ALL" as const, label: "Tất cả" },
+            { value: ApprovalStatus.Pending as const, label: "Chờ duyệt" },
+            { value: ApprovalStatus.Approved as const, label: "Đã duyệt" },
+            { value: ApprovalStatus.Rejected as const, label: "Đã từ chối" },
+          ].map((tab) => {
+            const isActive = statusFilter === tab.value;
+            const count =
+              tab.value === "ALL"
+                ? stats.total
+                : tab.value === ApprovalStatus.Pending
+                  ? stats.pending
+                  : tab.value === ApprovalStatus.Approved
+                    ? stats.approved
+                    : stats.rejected;
+
+            return (
+              <button
+                key={tab.value}
+                onClick={() => setStatusFilter(tab.value)}
+                className={cn(
+                  "inline-flex items-center gap-2 px-4 py-2 rounded-xl border transition-all duration-200 font-medium text-sm cursor-pointer",
+                  isActive
+                    ? "bg-gradient-to-r from-red-600 to-red-700 text-white border-red-600 shadow-md hover:shadow-lg"
+                    : "bg-white border-red-200 text-gray-700 hover:bg-red-50/80"
+                )}
+              >
+                {tab.label}
+                <span
+                  className={cn(
+                    "ml-1 px-2 py-0.5 rounded-full text-xs font-semibold",
+                    isActive
+                      ? "bg-white/30 text-white"
+                      : "bg-red-100 text-red-700"
+                  )}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Tab Navigation Divider */}
+        <div className="border-t border-red-200 mx-4"></div>
+
+        {/* Search Bar */}
+        <div className="p-4">
+          <div className="relative flex-1">
             <svg
               className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
               width={18}
@@ -1264,16 +1385,6 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
               className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-300"
             />
           </div>
-          <div className="w-56">
-            <LightSelect
-              value={statusFilter}
-              onValueChange={(value) =>
-                setStatusFilter(value as "ALL" | ApprovalStatus)
-              }
-              options={statusOptions}
-              placeholder="Lọc trạng thái"
-            />
-          </div>
         </div>
       </div>
 
@@ -1282,7 +1393,7 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
         <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <h2 className="text-lg font-semibold text-gray-900">
+              <h2 className=" font-semibold text-gray-900">
                 Danh sách tư liệu
               </h2>
             </div>
@@ -1295,14 +1406,63 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-gray-200">
-              <tr className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                <th className="py-3 px-4">Tư liệu</th>
-                <th className="py-3 px-4">Học viên</th>
-                <th className="py-3 px-4">Người tải lên</th>
-                <th className="py-3 px-4">Trạng thái</th>
-                <th className="py-3 px-4">Hiển thị</th>
-                <th className="py-3 px-4">Loại tệp</th>
-                <th className="py-3 px-4">Ngày tạo</th>
+              <tr className="text-left font-medium text-gray-700 text-sm tracking-wider">
+                <th className="py-3 px-4 cursor-pointer hover:bg-red-100/50 transition-colors" onClick={() => { setSortColumn(sortColumn === "caption" ? null : "caption"); if (sortColumn === "caption") setSortDirection(sortDirection === "asc" ? "desc" : "asc"); }}>
+                  <div className="flex items-center gap-1.5">
+                    Tư liệu
+                    {sortColumn === "caption" && (
+                      sortDirection === "asc" ? <ArrowUp size={14} className="text-red-600" /> : <ArrowDown size={14} className="text-red-600" />
+                    )}
+                  </div>
+                </th>
+                <th className="py-3 px-4 cursor-pointer hover:bg-red-100/50 transition-colors" onClick={() => { setSortColumn(sortColumn === "studentName" ? null : "studentName"); if (sortColumn === "studentName") setSortDirection(sortDirection === "asc" ? "desc" : "asc"); }}>
+                  <div className="flex items-center gap-1.5">
+                    Học viên
+                    {sortColumn === "studentName" && (
+                      sortDirection === "asc" ? <ArrowUp size={14} className="text-red-600" /> : <ArrowDown size={14} className="text-red-600" />
+                    )}
+                  </div>
+                </th>
+                <th className="py-3 px-4 cursor-pointer hover:bg-red-100/50 transition-colors" onClick={() => { setSortColumn(sortColumn === "uploaderName" ? null : "uploaderName"); if (sortColumn === "uploaderName") setSortDirection(sortDirection === "asc" ? "desc" : "asc"); }}>
+                  <div className="flex items-center gap-1.5">
+                    Người tải lên
+                    {sortColumn === "uploaderName" && (
+                      sortDirection === "asc" ? <ArrowUp size={14} className="text-red-600" /> : <ArrowDown size={14} className="text-red-600" />
+                    )}
+                  </div>
+                </th>
+                <th className="py-3 px-4 cursor-pointer hover:bg-red-100/50 transition-colors" onClick={() => { setSortColumn(sortColumn === "approvalStatus" ? null : "approvalStatus"); if (sortColumn === "approvalStatus") setSortDirection(sortDirection === "asc" ? "desc" : "asc"); }}>
+                  <div className="flex items-center gap-1.5">
+                    Trạng thái
+                    {sortColumn === "approvalStatus" && (
+                      sortDirection === "asc" ? <ArrowUp size={14} className="text-red-600" /> : <ArrowDown size={14} className="text-red-600" />
+                    )}
+                  </div>
+                </th>
+                <th className="py-3 px-4 cursor-pointer hover:bg-red-100/50 transition-colors" onClick={() => { setSortColumn(sortColumn === "visibility" ? null : "visibility"); if (sortColumn === "visibility") setSortDirection(sortDirection === "asc" ? "desc" : "asc"); }}>
+                  <div className="flex items-center gap-1.5">
+                    Hiển thị
+                    {sortColumn === "visibility" && (
+                      sortDirection === "asc" ? <ArrowUp size={14} className="text-red-600" /> : <ArrowDown size={14} className="text-red-600" />
+                    )}
+                  </div>
+                </th>
+                <th className="py-3 px-4 cursor-pointer hover:bg-red-100/50 transition-colors" onClick={() => { setSortColumn(sortColumn === "type" ? null : "type"); if (sortColumn === "type") setSortDirection(sortDirection === "asc" ? "desc" : "asc"); }}>
+                  <div className="flex items-center gap-1.5">
+                    Loại tệp
+                    {sortColumn === "type" && (
+                      sortDirection === "asc" ? <ArrowUp size={14} className="text-red-600" /> : <ArrowDown size={14} className="text-red-600" />
+                    )}
+                  </div>
+                </th>
+                <th className="py-3 px-4 cursor-pointer hover:bg-red-100/50 transition-colors" onClick={() => { setSortColumn(sortColumn === "createdAt" ? null : "createdAt"); if (sortColumn === "createdAt") setSortDirection(sortDirection === "asc" ? "desc" : "asc"); }}>
+                  <div className="flex items-center gap-1.5">
+                    Ngày tạo
+                    {sortColumn === "createdAt" && (
+                      sortDirection === "asc" ? <ArrowUp size={14} className="text-red-600" /> : <ArrowDown size={14} className="text-red-600" />
+                    )}
+                  </div>
+                </th>
                 <th className="py-3 px-4 text-right">Thao tác</th>
               </tr>
             </thead>
@@ -1564,8 +1724,14 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
 
       {/* Edit Modal */}
       {editing && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setEditing(null)}>
-          <div className="relative w-full max-w-4xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={() => setEditing(null)}
+        >
+          <div
+            className="relative w-full max-w-4xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Modal Header */}
             <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
               <div className="flex items-center justify-between">
@@ -1768,8 +1934,14 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
 
       {/* Create Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setShowCreateModal(false)}>
-          <div className="relative w-full max-w-5xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={() => setShowCreateModal(false)}
+        >
+          <div
+            className="relative w-full max-w-5xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Modal Header */}
             <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
               <div className="flex items-center justify-between">
@@ -2053,8 +2225,14 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
 
       {/* Preview Modal */}
       {previewTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setPreviewTarget(null)}>
-          <div className="relative max-h-[85vh] w-full max-w-4xl overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={() => setPreviewTarget(null)}
+        >
+          <div
+            className="relative max-h-[85vh] w-full max-w-4xl overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Modal Header - giống với edit/create modal */}
             <div className="bg-gradient-to-r from-red-600 to-red-700 px-6 py-4">
               <div className="flex items-center justify-between">
@@ -2259,8 +2437,14 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
 
       {/* Reject Modal with Reason */}
       {Boolean(moderationTarget) && moderationAction === "reject" && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setModerationTarget(null)}>
-          <div className="w-full max-w-lg rounded-2xl border border-red-200 bg-white shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={() => setModerationTarget(null)}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl border border-red-200 bg-white shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { Download, ExternalLink, Loader2, X, User, Calendar, BookOpen, Clock, Tag, Users, GraduationCap, CalendarClock, FileText, CheckCircle, AlertCircle, Wallet, History } from "lucide-react";
@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { exportRegistrationEnrollmentConfirmationPdf } from "@/lib/api/registrationService";
 import { getTicketBalance, getTicketLedger } from "@/lib/api/learningTicketService";
 import type { Registration, RegistrationStatus } from "@/types/registration";
-import { LearningTicketBalance, LearningTicketLedgerItem } from "@/types/learning-ticket";
+import type { LearningTicketBalance, LearningTicketLedgerItem } from "@/types/learning-ticket";
 
 type RegistrationDetailModalProps = {
   isOpen: boolean;

@@ -250,6 +250,7 @@ export default function TuitionPlansPage() {
         tuitionAmount: Number(data.tuitionAmount.replace(/[^\d]/g, "")),
         unitPriceSession: Number(data.unitPriceSession),
         currency: data.currency,
+        learningTicketTypeId: data.learningTicketTypeId || null,
       });
 
       await loadData();
@@ -280,6 +281,7 @@ export default function TuitionPlansPage() {
         unitPriceSession: String(plan.unitPriceSession),
         currency: plan.currency || "VND",
         status: plan.isActive ? "Đang hoạt động" : "Tạm dừng",
+        learningTicketTypeId: plan.learningTicketTypeId ?? "",
       });
       setOriginalStatus(plan.isActive ? "Đang hoạt động" : "Tạm dừng");
       setIsEditModalOpen(true);
@@ -309,6 +311,7 @@ export default function TuitionPlansPage() {
         tuitionAmount: Number(data.tuitionAmount.replace(/[^\d]/g, "")),
         unitPriceSession: Number(data.unitPriceSession),
         currency: data.currency,
+        learningTicketTypeId: data.learningTicketTypeId || null,
       });
 
       if (originalStatus && data.status !== originalStatus) {

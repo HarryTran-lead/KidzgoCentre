@@ -31,7 +31,10 @@ import {
   fetchAdminClassStudents,
   type Student,
 } from "@/app/api/admin/classes";
+import { fetchAdminSessions } from "@/app/api/admin/sessions";
 import type { ClassDetail, Track } from "@/types/admin/classes";
+import type { Session } from "@/types/admin/sessions";
+import { SECTION_TYPE_LABELS } from "@/types/admin/sessions";
 import clsx from "clsx";
 
 type ParsedScheduleSegment = {
@@ -475,6 +478,7 @@ export default function ClassDetailPage() {
   >("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [isPageLoaded, setIsPageLoaded] = useState(false);
+  const [sessions, setSessions] = useState<Session[]>([]);
   const itemsPerPage = 10;
 
   useEffect(() => {
@@ -506,8 +510,17 @@ export default function ClassDetailPage() {
           students = [];
         }
 
+        // Fetch sessions for sectionType breakdown (non-blocking)
+        let sessionList: Session[] = [];
+        try {
+          sessionList = await fetchAdminSessions({ classId, pageSize: 200 });
+        } catch {
+          sessionList = [];
+        }
+
         setClassData(classDetail);
         setAllStudents(students);
+        setSessions(sessionList);
       } catch (err: any) {
         console.error("Unexpected error when fetching class detail:", err);
         setError(err.message || "Đã xảy ra lỗi khi tải thông tin lớp học.");
@@ -639,6 +652,16 @@ export default function ClassDetailPage() {
                         {classData.totalSessions} buổi
                       </span>
                     </span>
+                    {classData.slotTypeCode && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 rounded-lg text-gray-700">
+                        <Layers size={14} className="text-blue-500" />
+                        <span className="font-medium">Loại slot:</span>
+                        <span className="font-semibold font-mono text-blue-700">{classData.slotTypeCode}</span>
+                        {classData.slotTypeName && (
+                          <span className="text-gray-500">— {classData.slotTypeName}</span>
+                        )}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -776,6 +799,47 @@ export default function ClassDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Sessions SectionType Breakdown */}
+      {sessions.length > 0 && (() => {
+        const sectionCounts: Record<string, number> = {};
+        sessions.forEach((s) => {
+          const key = s.sectionType ?? "Normal";
+          sectionCounts[key] = (sectionCounts[key] ?? 0) + 1;
+        });
+        const sectionColorMap: Record<string, { bg: string; text: string; dot: string }> = {
+          Normal:     { bg: "bg-blue-50",   text: "text-blue-700",   dot: "bg-blue-400" },
+          Review:     { bg: "bg-amber-50",  text: "text-amber-700",  dot: "bg-amber-400" },
+          Makeup:     { bg: "bg-purple-50", text: "text-purple-700", dot: "bg-purple-400" },
+          Remedial:   { bg: "bg-red-50",    text: "text-red-700",    dot: "bg-red-400" },
+          Assessment: { bg: "bg-teal-50",   text: "text-teal-700",   dot: "bg-teal-400" },
+        };
+        return (
+          <div className={`bg-white rounded-2xl border border-gray-200 shadow-sm px-5 py-4 mb-4 transition-all duration-700 delay-150 ${
+            isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+          }`}>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <CalendarClock size={16} className="text-red-500" />
+                <span>Phân bổ loại buổi học</span>
+                <span className="text-xs font-normal text-gray-400">({sessions.length} buổi)</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(sectionCounts).map(([type, count]) => {
+                  const colors = sectionColorMap[type] ?? { bg: "bg-gray-50", text: "text-gray-700", dot: "bg-gray-400" };
+                  const label = SECTION_TYPE_LABELS[type as keyof typeof SECTION_TYPE_LABELS] ?? type;
+                  return (
+                    <span key={type} className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${colors.bg} ${colors.text}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${colors.dot}`} />
+                      {label}: <span className="font-bold">{count}</span>
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Stats Cards - Modern Design */}
       {/* <div

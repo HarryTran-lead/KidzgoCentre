@@ -405,6 +405,117 @@ export const TEACHER_ENDPOINTS = {
 export const LEARNING_TICKET_ENDPOINTS = {
   BALANCE: (studentProfileId: string) => `/api/students/${studentProfileId}/tickets/balance`,
   LEDGER: (studentProfileId: string) => `/api/students/${studentProfileId}/tickets/ledger`,
+  COMPATIBLE: (studentProfileId: string) => `/api/students/${studentProfileId}/tickets/compatible`,
+} as const;
+
+// Phase 1.5 — Learning Ticket Type Endpoints
+export const LEARNING_TICKET_TYPE_ENDPOINTS = {
+  BASE: '/api/learning-ticket-types',
+  BY_ID: (id: string) => `/api/learning-ticket-types/${id}`,
+} as const;
+
+// Phase 1.5 — Backend Learning Ticket Type Endpoints (Next.js API Routes → Backend)
+export const BACKEND_LEARNING_TICKET_TYPE_ENDPOINTS = {
+  BASE: '/learning-ticket-types',
+  BY_ID: (id: string) => `/learning-ticket-types/${id}`,
+  TOGGLE_STATUS: (id: string) => `/learning-ticket-types/${id}/toggle-status`,
+} as const;
+
+// Phase 1.5 — Slot Type Endpoints
+export const SLOT_TYPE_ENDPOINTS = {
+  BASE: '/api/slot-types',
+  BY_ID: (id: string) => `/api/slot-types/${id}`,
+} as const;
+
+// Phase 1.5 — Backend Slot Type Endpoints
+export const BACKEND_SLOT_TYPE_ENDPOINTS = {
+  BASE: '/slot-types',
+  BY_ID: (id: string) => `/slot-types/${id}`,
+  TOGGLE_STATUS: (id: string) => `/slot-types/${id}/toggle-status`,
+} as const;
+
+// Phase 1.5 — Ticket Type Compatibility Endpoints
+export const TICKET_TYPE_COMPATIBILITY_ENDPOINTS = {
+  BASE: '/api/ticket-type-compatibilities',
+  BY_ID: (id: string) => `/api/ticket-type-compatibilities/${id}`,
+} as const;
+
+// Phase 1.5 — Backend Ticket Type Compatibility Endpoints
+export const BACKEND_TICKET_TYPE_COMPATIBILITY_ENDPOINTS = {
+  BASE: '/ticket-type-compatibilities',
+  BY_ID: (id: string) => `/ticket-type-compatibilities/${id}`,
+} as const;
+
+// Phase 2 — Academic Progression Endpoints (Client → Next.js API Routes)
+export const LEVEL_ENDPOINTS = {
+  BASE: '/api/levels',
+  BY_ID: (id: string) => `/api/levels/${id}`,
+} as const;
+
+export const MODULE_ENDPOINTS = {
+  BASE: '/api/modules',
+  BY_ID: (id: string) => `/api/modules/${id}`,
+} as const;
+
+export const STUDENT_PROGRESS_ENDPOINTS = {
+  BY_STUDENT: (studentId: string) => `/api/student-progress/${studentId}`,
+  UPDATE: '/api/student-progress/update',
+  DASHBOARD: '/api/student-progress/dashboard',
+} as const;
+
+export const ASSESSMENT_ENDPOINTS = {
+  BASE: '/api/assessments',
+  BY_STUDENT: (studentId: string) => `/api/assessments/${studentId}`,
+} as const;
+
+export const TEACHER_EVALUATION_ENDPOINTS = {
+  BASE: '/api/teacher-evaluations',
+  BY_STUDENT: (studentId: string) => `/api/teacher-evaluations/${studentId}`,
+} as const;
+
+export const PROMOTION_DECISION_ENDPOINTS = {
+  BASE: '/api/promotion-decisions',
+} as const;
+
+export const REMEDIAL_PLAN_ENDPOINTS = {
+  BASE: '/api/remedial-plans',
+  BY_STUDENT: (studentId: string) => `/api/remedial-plans/${studentId}`,
+} as const;
+
+// Phase 2 — Academic Progression Backend Endpoints (Next.js API Routes → Backend)
+export const BACKEND_LEVEL_ENDPOINTS = {
+  BASE: '/levels',
+  BY_ID: (id: string) => `/levels/${id}`,
+} as const;
+
+export const BACKEND_MODULE_ENDPOINTS = {
+  BASE: '/modules',
+  BY_ID: (id: string) => `/modules/${id}`,
+} as const;
+
+export const BACKEND_STUDENT_PROGRESS_ENDPOINTS = {
+  BY_STUDENT: (studentId: string) => `/student-progress/${studentId}`,
+  UPDATE: '/student-progress/update',
+  DASHBOARD: '/student-progress/dashboard',
+} as const;
+
+export const BACKEND_ASSESSMENT_ENDPOINTS = {
+  BASE: '/assessments',
+  BY_STUDENT: (studentId: string) => `/assessments/${studentId}`,
+} as const;
+
+export const BACKEND_TEACHER_EVALUATION_ENDPOINTS = {
+  BASE: '/teacher-evaluations',
+  BY_STUDENT: (studentId: string) => `/teacher-evaluations/${studentId}`,
+} as const;
+
+export const BACKEND_PROMOTION_DECISION_ENDPOINTS = {
+  BASE: '/promotion-decisions',
+} as const;
+
+export const BACKEND_REMEDIAL_PLAN_ENDPOINTS = {
+  BASE: '/remedial-plans',
+  BY_STUDENT: (studentId: string) => `/remedial-plans/${studentId}`,
 } as const;
 
 // Monthly Report Endpoints (Client-side → Next.js API Routes)
@@ -448,6 +559,7 @@ export const ADMIN_ENDPOINTS = {
   SESSIONS_BY_CLASS: '/api/sessions/by-class',
   SESSIONS_CHANGE_ROOM: '/api/sessions/change-room',
   SESSIONS_CHANGE_TEACHER: '/api/sessions/change-teacher',
+  SESSIONS_CHANGE_SECTION_TYPE: (id: string) => `/api/sessions/${id}/section-type`,
   LESSON_PLAN_TEMPLATES: '/api/lesson-plan-templates',
   LESSON_PLAN_TEMPLATES_BY_ID: (id: string) => `/api/lesson-plan-templates/${id}`,
   LESSON_PLAN_TEMPLATES_IMPORT: '/api/lesson-plan-templates/import',
