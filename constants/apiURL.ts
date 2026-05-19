@@ -177,6 +177,15 @@ export const CLASS_ENDPOINTS = {
   GET_ALL: "/api/classes",
   GET_BY_ID: (id: string) => `/api/classes/${id}`,
   SCHEDULE_SEGMENTS: (id: string) => `/api/classes/${id}/schedule-segments`,
+  MODULE_PROGRESS: (classId: string) => `/api/classes/${classId}/module-progress`,
+  MODULE_PROGRESS_BY_MODULE: (classId: string, moduleId: string) => `/api/classes/${classId}/module-progress/${moduleId}`,
+} as const;
+
+export const SYLLABUS_ENDPOINTS = {
+  BASE: '/api/syllabuses',
+  BY_ID: (id: string) => `/api/syllabuses/${id}`,
+  IMPORT_WORD: '/api/syllabuses/import-word',
+  IMPORT_ARCHIVE: '/api/syllabuses/import-archive',
 } as const;
 
 export const MAKEUP_CREDIT_ENDPOINTS = {
@@ -224,6 +233,15 @@ export const BACKEND_SESSION_ENDPOINTS = {
 export const BACKEND_CLASS_ENDPOINTS = {
   GET_ALL: () => "/classes",
   GET_BY_ID: (id: string) => `/classes/${id}`,
+  MODULE_PROGRESS: (classId: string) => `/classes/${classId}/module-progress`,
+  MODULE_PROGRESS_BY_MODULE: (classId: string, moduleId: string) => `/classes/${classId}/module-progress/${moduleId}`,
+} as const;
+
+export const BACKEND_SYLLABUS_ENDPOINTS = {
+  BASE: '/syllabuses',
+  BY_ID: (id: string) => `/syllabuses/${id}`,
+  IMPORT_WORD: '/syllabuses/import-word',
+  IMPORT_ARCHIVE: '/syllabuses/import-archive',
 } as const;
 
 export const BACKEND_MAKEUP_CREDIT_ENDPOINTS = {
@@ -552,6 +570,7 @@ export const ADMIN_ENDPOINTS = {
   TUITION_PLANS_ACTIVE: '/api/tuition-plans/active',
   TUITION_PLANS_BY_ID: (id: string) => `/api/tuition-plans/${id}`,
   TUITION_PLANS_TOGGLE_STATUS: (id: string) => `/api/tuition-plans/${id}/toggle-status`,
+  TUITION_PLANS_DEACTIVATE: (id: string) => `/api/tuition-plans/${id}/deactivate`,
   CLASSROOMS: '/api/classrooms',
   CLASSROOMS_TOGGLE_STATUS: (id: string) => `/api/classrooms/${id}/toggle-status`,
   SESSIONS: '/api/sessions',
@@ -563,6 +582,7 @@ export const ADMIN_ENDPOINTS = {
   LESSON_PLAN_TEMPLATES: '/api/lesson-plan-templates',
   LESSON_PLAN_TEMPLATES_BY_ID: (id: string) => `/api/lesson-plan-templates/${id}`,
   LESSON_PLAN_TEMPLATES_IMPORT: '/api/lesson-plan-templates/import',
+  LESSON_PLAN_TEMPLATES_IMPORT_WORD: '/api/lesson-plan-templates/import-word',
   LESSON_PLANS: '/api/lesson-plans',
   LESSON_PLANS_BY_ID: (id: string) => `/api/lesson-plans/${id}`,
   LESSON_PLANS_CLASS_SYLLABUS: (classId: string) => `/api/lesson-plans/classes/${classId}/syllabus`,
@@ -795,6 +815,11 @@ export const BACKEND_ADMIN_ENDPOINTS = {
   TUITION_PLANS_ACTIVE: '/tuition-plans/active',
   TUITION_PLANS_BY_ID: (id: string) => `/tuition-plans/${id}`,
   TUITION_PLANS_TOGGLE_STATUS: (id: string) => `/tuition-plans/${id}/toggle-status`,
+  TUITION_PLANS_DEACTIVATE: (id: string) => `/tuition-plans/${id}/deactivate`,
+  LESSON_PLAN_TEMPLATES: '/lesson-plan-templates',
+  LESSON_PLAN_TEMPLATES_BY_ID: (id: string) => `/lesson-plan-templates/${id}`,
+  LESSON_PLAN_TEMPLATES_IMPORT: '/lesson-plan-templates/import',
+  LESSON_PLAN_TEMPLATES_IMPORT_WORD: '/lesson-plan-templates/import-word',
   CLASSROOMS: '/classrooms',
   CLASSROOMS_BY_ID: (id: string) => `/classrooms/${id}`,
   CLASSROOMS_TOGGLE_STATUS: (id: string) => `/classrooms/${id}/toggle-status`,

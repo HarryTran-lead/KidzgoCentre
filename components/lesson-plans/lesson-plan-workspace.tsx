@@ -51,6 +51,7 @@ import {
   getLessonPlanById,
   getLessonPlanTemplateById,
   importLessonPlanTemplates,
+  importLessonPlanTemplateWord,
   LessonPlan,
   LessonPlanTemplate,
   updateLessonPlan,
@@ -909,6 +910,9 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
   const [planModal, setPlanModal] = useState<PlanModalState>(null);
   const [detailState, setDetailState] = useState<DetailState>(null);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [importWordLoading, setImportWordLoading] = useState(false);
+  const [showImportWordModal, setShowImportWordModal] = useState(false);
+  const wordImportInputRef = useRef<HTMLInputElement>(null);
 
   const scopeCopy = COPY[scope];
   const isTeacher = scope === "teacher";
@@ -1297,8 +1301,20 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
       level: string;
       title: string;
       sessionIndex: number;
+      moduleId?: string | null;
       syllabusMetadata?: string | null;
       syllabusContent?: string | null;
+      objectives?: string | null;
+      languageContent?: string | null;
+      vocabulary?: string | null;
+      grammar?: string | null;
+      teachingMethodology?: string | null;
+      teacherMaterials?: string | null;
+      studentMaterials?: string | null;
+      procedure?: string | null;
+      evaluation?: string | null;
+      homework?: string | null;
+      teacherNote?: string | null;
       sourceFileName?: string | null;
       attachment?: string | null;
       isActive?: boolean;
@@ -1318,8 +1334,20 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
             level: payload.level,
             title: payload.title,
             sessionIndex: payload.sessionIndex,
+            moduleId: payload.moduleId ?? null,
             syllabusMetadata: payload.syllabusMetadata ?? null,
             syllabusContent: payload.syllabusContent ?? null,
+            objectives: payload.objectives ?? null,
+            languageContent: payload.languageContent ?? null,
+            vocabulary: payload.vocabulary ?? null,
+            grammar: payload.grammar ?? null,
+            teachingMethodology: payload.teachingMethodology ?? null,
+            teacherMaterials: payload.teacherMaterials ?? null,
+            studentMaterials: payload.studentMaterials ?? null,
+            procedure: payload.procedure ?? null,
+            evaluation: payload.evaluation ?? null,
+            homework: payload.homework ?? null,
+            teacherNote: payload.teacherNote ?? null,
             sourceFileName: payload.sourceFileName ?? null,
             attachment,
             isActive: payload.isActive ?? true,
@@ -1329,8 +1357,20 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
             level: payload.level,
             title: payload.title,
             sessionIndex: payload.sessionIndex,
+            moduleId: payload.moduleId ?? null,
             syllabusMetadata: payload.syllabusMetadata ?? null,
             syllabusContent: payload.syllabusContent ?? null,
+            objectives: payload.objectives ?? null,
+            languageContent: payload.languageContent ?? null,
+            vocabulary: payload.vocabulary ?? null,
+            grammar: payload.grammar ?? null,
+            teachingMethodology: payload.teachingMethodology ?? null,
+            teacherMaterials: payload.teacherMaterials ?? null,
+            studentMaterials: payload.studentMaterials ?? null,
+            procedure: payload.procedure ?? null,
+            evaluation: payload.evaluation ?? null,
+            homework: payload.homework ?? null,
+            teacherNote: payload.teacherNote ?? null,
             sourceFileName: payload.sourceFileName ?? null,
             attachment,
           });
@@ -1386,6 +1426,36 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
 
     setShowImportModal(false);
     await loadTemplates();
+  };
+
+  const handleWordImportFile = async (file: File, moduleId?: string) => {
+    setImportWordLoading(true);
+    try {
+      const response = await importLessonPlanTemplateWord(
+        moduleId ?? "",
+        file,
+      );
+      if (!response.isSuccess) {
+        throw new Error(
+          extractMessage(response, "Không thể nhập file Word."),
+        );
+      }
+      toast({
+        title: "Nhập Word thành công",
+        description: "Đã nhập template từ file Word.",
+        variant: "success",
+      });
+      await loadTemplates();
+    } catch (err: unknown) {
+      toast({
+        title: "Lỗi nhập Word",
+        description: toErrorMessage(err, "Không thể nhập file Word."),
+        variant: "destructive",
+      });
+    } finally {
+      setImportWordLoading(false);
+      if (wordImportInputRef.current) wordImportInputRef.current.value = "";
+    }
   };
 
   const handlePlanSubmit = async (payload: {
@@ -1506,6 +1576,29 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
                 </button>
                 <button
                   type="button"
+                  disabled={importWordLoading}
+                  onClick={() => setShowImportWordModal(true)}
+                  className="inline-flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-4 py-2.5 text-sm font-semibold text-green-700 transition-colors hover:bg-green-100 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {importWordLoading ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Upload size={16} />
+                  )}
+                  Nhập Word
+                </button>
+                <input
+                  ref={wordImportInputRef}
+                  type="file"
+                  accept=".doc,.docx"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleWordImportFile(file);
+                  }}
+                />
+                <button
+                  type="button"
                   onClick={() => setTemplateModal({ mode: "create" })}
                   className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:shadow-lg cursor-pointer"
                 >
@@ -1622,6 +1715,17 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
           programOptions={programOptions}
           onClose={() => setShowImportModal(false)}
           onSubmit={handleImportSubmit}
+        />
+      ) : null}
+
+      {showImportWordModal ? (
+        <ImportWordModal
+          loading={importWordLoading}
+          onClose={() => setShowImportWordModal(false)}
+          onSubmit={(moduleId, file) => {
+            setShowImportWordModal(false);
+            handleWordImportFile(file, moduleId);
+          }}
         />
       ) : null}
 
@@ -2588,8 +2692,20 @@ function TemplateFormModal({
       level: string;
       title: string;
       sessionIndex: number;
+      moduleId?: string | null;
       syllabusMetadata?: string | null;
       syllabusContent?: string | null;
+      objectives?: string | null;
+      languageContent?: string | null;
+      vocabulary?: string | null;
+      grammar?: string | null;
+      teachingMethodology?: string | null;
+      teacherMaterials?: string | null;
+      studentMaterials?: string | null;
+      procedure?: string | null;
+      evaluation?: string | null;
+      homework?: string | null;
+      teacherNote?: string | null;
       sourceFileName?: string | null;
       attachment?: string | null;
       isActive?: boolean;
@@ -2691,6 +2807,20 @@ function TemplateFormModal({
       ? [{ ...createEmptyTemplateActivity(), classwork: rawContent }]
       : activityDraftsFromUnknown(contentSeed?.activities),
   );
+
+  // Phase 2 content fields
+  const [moduleId, setModuleId] = useState(initialValue?.moduleId ?? "");
+  const [objectives, setObjectives] = useState(initialValue?.objectives ?? "");
+  const [languageContent, setLanguageContent] = useState(initialValue?.languageContent ?? "");
+  const [vocabulary, setVocabulary] = useState(initialValue?.vocabulary ?? "");
+  const [grammar, setGrammar] = useState(initialValue?.grammar ?? "");
+  const [teachingMethodology, setTeachingMethodology] = useState(initialValue?.teachingMethodology ?? "");
+  const [teacherMaterialsNew, setTeacherMaterialsNew] = useState(initialValue?.teacherMaterials ?? "");
+  const [studentMaterials, setStudentMaterials] = useState(initialValue?.studentMaterials ?? "");
+  const [procedure, setProcedure] = useState(initialValue?.procedure ?? "");
+  const [evaluation, setEvaluation] = useState(initialValue?.evaluation ?? "");
+  const [homeworkNew, setHomeworkNew] = useState(initialValue?.homework ?? "");
+  const [teacherNote, setTeacherNote] = useState(initialValue?.teacherNote ?? "");
 
   // File/meta
   const [sourceFileName, setSourceFileName] = useState(
@@ -2893,6 +3023,18 @@ function TemplateFormModal({
         ? [{ ...createEmptyTemplateActivity(), classwork: rawContent }]
         : activityDraftsFromUnknown(contentSeed?.activities),
     );
+    setModuleId(initialValue?.moduleId ?? "");
+    setObjectives(initialValue?.objectives ?? "");
+    setLanguageContent(initialValue?.languageContent ?? "");
+    setVocabulary(initialValue?.vocabulary ?? "");
+    setGrammar(initialValue?.grammar ?? "");
+    setTeachingMethodology(initialValue?.teachingMethodology ?? "");
+    setTeacherMaterialsNew(initialValue?.teacherMaterials ?? "");
+    setStudentMaterials(initialValue?.studentMaterials ?? "");
+    setProcedure(initialValue?.procedure ?? "");
+    setEvaluation(initialValue?.evaluation ?? "");
+    setHomeworkNew(initialValue?.homework ?? "");
+    setTeacherNote(initialValue?.teacherNote ?? "");
     setSourceFileName(initialValue?.sourceFileName || "");
     setAttachment(initialValue?.attachment || "");
     setIsActive(initialValue?.isActive ?? true);
@@ -2964,8 +3106,20 @@ function TemplateFormModal({
           level: level.trim(),
           title: title.trim(),
           sessionIndex: effectiveSessionIndex,
+          moduleId: moduleId.trim() || null,
           syllabusMetadata: metadataPayload || null,
           syllabusContent: contentPayload || null,
+          objectives: objectives.trim() || null,
+          languageContent: languageContent.trim() || null,
+          vocabulary: vocabulary.trim() || null,
+          grammar: grammar.trim() || null,
+          teachingMethodology: teachingMethodology.trim() || null,
+          teacherMaterials: teacherMaterialsNew.trim() || null,
+          studentMaterials: studentMaterials.trim() || null,
+          procedure: procedure.trim() || null,
+          evaluation: evaluation.trim() || null,
+          homework: homeworkNew.trim() || null,
+          teacherNote: teacherNote.trim() || null,
           sourceFileName: sourceFileName.trim() || null,
           attachment: attachment.trim() || null,
           isActive,
@@ -3500,6 +3654,137 @@ function TemplateFormModal({
           </Field>
         </div>
 
+        {/* ── Structured lesson plan content (Phase 2) ── */}
+        <details className="rounded-2xl border border-blue-200 bg-blue-50/40">
+          <summary className="cursor-pointer select-none px-5 py-3 text-sm font-semibold text-blue-700">
+            📖 Nội dung giáo án chi tiết (Phase 2) — tuỳ chọn
+          </summary>
+          <div className="space-y-4 border-t border-blue-100 px-5 py-4">
+            <Field label="Module ID">
+              <input
+                value={moduleId}
+                onChange={(e) => setModuleId(e.target.value)}
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                placeholder="ID của module (tuỳ chọn)"
+              />
+            </Field>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label="Objectives (Mục tiêu)">
+                <textarea
+                  value={objectives}
+                  onChange={(e) => setObjectives(e.target.value)}
+                  rows={3}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  placeholder="Mục tiêu bài học..."
+                />
+              </Field>
+
+              <Field label="Language Content (Nội dung ngôn ngữ)">
+                <textarea
+                  value={languageContent}
+                  onChange={(e) => setLanguageContent(e.target.value)}
+                  rows={3}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  placeholder="Language content text..."
+                />
+              </Field>
+
+              <Field label="Vocabulary (Từ vựng)">
+                <textarea
+                  value={vocabulary}
+                  onChange={(e) => setVocabulary(e.target.value)}
+                  rows={3}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  placeholder="Từ vựng trong bài..."
+                />
+              </Field>
+
+              <Field label="Grammar (Ngữ pháp)">
+                <textarea
+                  value={grammar}
+                  onChange={(e) => setGrammar(e.target.value)}
+                  rows={3}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  placeholder="Điểm ngữ pháp..."
+                />
+              </Field>
+
+              <Field label="Teaching Methodology (Phương pháp)">
+                <textarea
+                  value={teachingMethodology}
+                  onChange={(e) => setTeachingMethodology(e.target.value)}
+                  rows={3}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  placeholder="Phương pháp giảng dạy..."
+                />
+              </Field>
+
+              <Field label="Teacher Materials (Tài liệu GV)">
+                <textarea
+                  value={teacherMaterialsNew}
+                  onChange={(e) => setTeacherMaterialsNew(e.target.value)}
+                  rows={3}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  placeholder="Tài liệu giáo viên cần chuẩn bị..."
+                />
+              </Field>
+
+              <Field label="Student Materials (Tài liệu HS)">
+                <textarea
+                  value={studentMaterials}
+                  onChange={(e) => setStudentMaterials(e.target.value)}
+                  rows={3}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  placeholder="Tài liệu học sinh cần chuẩn bị..."
+                />
+              </Field>
+            </div>
+
+            <Field label="Procedure (Quy trình dạy)">
+              <textarea
+                value={procedure}
+                onChange={(e) => setProcedure(e.target.value)}
+                rows={5}
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                placeholder="Mô tả từng bước quy trình dạy học..."
+              />
+            </Field>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label="Evaluation (Đánh giá)">
+                <textarea
+                  value={evaluation}
+                  onChange={(e) => setEvaluation(e.target.value)}
+                  rows={3}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  placeholder="Phương pháp đánh giá..."
+                />
+              </Field>
+
+              <Field label="Homework (Bài tập về nhà)">
+                <textarea
+                  value={homeworkNew}
+                  onChange={(e) => setHomeworkNew(e.target.value)}
+                  rows={3}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  placeholder="Nội dung bài tập về nhà..."
+                />
+              </Field>
+            </div>
+
+            <Field label="Teacher Note (Ghi chú GV)">
+              <textarea
+                value={teacherNote}
+                onChange={(e) => setTeacherNote(e.target.value)}
+                rows={3}
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                placeholder="Ghi chú riêng cho giáo viên..."
+              />
+            </Field>
+          </div>
+        </details>
+
         <Field label="Tải file attachment">
           <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-red-200 bg-red-50/60 px-4 py-3 text-sm text-gray-600 hover:bg-red-50">
             <Upload size={16} className="text-red-600" />
@@ -3795,6 +4080,92 @@ function createEmptyPlannerActivity(): PlannerActivityDraft {
     homeworkRequiredMaterials: "",
     extra: "",
   };
+}
+
+function ImportWordModal({
+  loading,
+  onClose,
+  onSubmit,
+}: {
+  loading: boolean;
+  onClose: () => void;
+  onSubmit: (moduleId: string, file: File) => void;
+}) {
+  const [moduleId, setModuleId] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (!moduleId.trim()) {
+      setError("Module ID là bắt buộc.");
+      return;
+    }
+    if (!file) {
+      setError("Vui lòng chọn file .docx.");
+      return;
+    }
+    onSubmit(moduleId.trim(), file);
+  };
+
+  return (
+    <ModalFrame
+      title="Nhập lesson plan từ Word"
+      subtitle="Chọn module và file .docx để import"
+      icon={Upload}
+      onClose={onClose}
+      widthClass="max-w-lg"
+    >
+      <form onSubmit={handleSubmit} className="space-y-5 p-6">
+        <Field label="Module ID *">
+          <input
+            value={moduleId}
+            onChange={(e) => setModuleId(e.target.value)}
+            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-200"
+            placeholder="66666666-6666-6666-6666-666666666666"
+            autoFocus
+          />
+          <p className="mt-1 text-xs text-gray-400">GUID của module (UNIT n hoặc REVISION)</p>
+        </Field>
+
+        <Field label="File Word (.docx) *">
+          <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-green-200 bg-green-50/60 px-4 py-3 text-sm text-gray-600 hover:bg-green-50">
+            <Upload size={16} className="text-green-600" />
+            <span>{file ? file.name : "Chọn file .docx"}</span>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".doc,.docx"
+              className="hidden"
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
+            />
+          </label>
+        </Field>
+
+        {error ? <ErrorBox message={error} /> : null}
+
+        <div className="flex items-center justify-between gap-3 border-t border-gray-200 pt-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 cursor-pointer"
+          >
+            Hủy
+          </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-green-600 to-green-700 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+          >
+            {loading ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+            Import Word
+          </button>
+        </div>
+      </form>
+    </ModalFrame>
+  );
 }
 
 function PlanFormModal({

@@ -14,6 +14,7 @@ import {
 } from "@/lib/schedulePattern";
 import type { ApiResponse } from "@/types/apiResponse";
 import type { StudentClassResponse } from "@/types/student/class";
+import type { ClassModuleProgressDto, ClassModuleProgressDetailDto } from "@/types/academic-progression";
 
 export interface AddClassScheduleSegmentRequest {
   effectiveFrom: string;
@@ -58,12 +59,18 @@ export async function getAllClasses(params?: {
   pageNumber?: number;
   pageSize?: number;
   branchId?: string;
+  levelId?: string;
+  currentModuleId?: string;
+  status?: string;
   schedulePattern?: string;
 }): Promise<any> {
   const queryParams = new URLSearchParams();
   if (params?.pageNumber) queryParams.append("pageNumber", params.pageNumber.toString());
   if (params?.pageSize) queryParams.append("pageSize", params.pageSize.toString());
   if (params?.branchId) queryParams.append("branchId", params.branchId);
+  if (params?.levelId) queryParams.append("levelId", params.levelId);
+  if (params?.currentModuleId) queryParams.append("currentModuleId", params.currentModuleId);
+  if (params?.status) queryParams.append("status", params.status);
   if (params?.schedulePattern) queryParams.append("schedulePattern", params.schedulePattern);
 
   const url = queryParams.toString()
@@ -115,4 +122,21 @@ export function validateFutureStretchPayload(
     days: input.days,
     currentSessionsPerWeek: input.currentSessionsPerWeek,
   });
+}
+
+export async function getClassModuleProgress(classId: string): Promise<ClassModuleProgressDto[]> {
+  const response = await get<any>(CLASS_ENDPOINTS.MODULE_PROGRESS(classId));
+  const items = Array.isArray(response?.data) ? response.data
+    : Array.isArray(response?.data?.items) ? response.data.items
+    : Array.isArray(response) ? response
+    : [];
+  return items;
+}
+
+export async function getClassModuleProgressByModule(
+  classId: string,
+  moduleId: string
+): Promise<ClassModuleProgressDetailDto | null> {
+  const response = await get<any>(CLASS_ENDPOINTS.MODULE_PROGRESS_BY_MODULE(classId, moduleId));
+  return response?.data ?? response ?? null;
 }

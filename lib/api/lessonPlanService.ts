@@ -50,6 +50,18 @@ export interface LessonPlanTemplate {
   sessionOrder?: number | null;
   syllabusMetadata?: string | null;
   syllabusContent?: string | null;
+  // Full content fields
+  objectives?: string | null;
+  languageContent?: string | null;
+  vocabulary?: string | null;
+  grammar?: string | null;
+  teachingMethodology?: string | null;
+  teacherMaterials?: string | null;
+  studentMaterials?: string | null;
+  procedure?: string | null;
+  evaluation?: string | null;
+  homework?: string | null;
+  teacherNote?: string | null;
   sourceFileName?: string | null;
   attachment?: string | null;
   isActive?: boolean;
@@ -63,6 +75,7 @@ export interface LessonPlanTemplate {
 export interface GetLessonPlanTemplatesParams {
   programId?: string;
   level?: string;
+  moduleId?: string;
   title?: string;
   isActive?: boolean;
   includeDeleted?: boolean;
@@ -80,6 +93,18 @@ export interface CreateLessonPlanTemplateRequest {
   sessionOrder?: number | null;
   syllabusMetadata?: string | null;
   syllabusContent?: string | null;
+  // Full content fields
+  objectives?: string | null;
+  languageContent?: string | null;
+  vocabulary?: string | null;
+  grammar?: string | null;
+  teachingMethodology?: string | null;
+  teacherMaterials?: string | null;
+  studentMaterials?: string | null;
+  procedure?: string | null;
+  evaluation?: string | null;
+  homework?: string | null;
+  teacherNote?: string | null;
   sourceFileName?: string | null;
   attachment?: string | null;
 }
@@ -93,6 +118,18 @@ export interface UpdateLessonPlanTemplateRequest {
   sessionOrder?: number | null;
   syllabusMetadata?: string | null;
   syllabusContent?: string | null;
+  // Full content fields
+  objectives?: string | null;
+  languageContent?: string | null;
+  vocabulary?: string | null;
+  grammar?: string | null;
+  teachingMethodology?: string | null;
+  teacherMaterials?: string | null;
+  studentMaterials?: string | null;
+  procedure?: string | null;
+  evaluation?: string | null;
+  homework?: string | null;
+  teacherNote?: string | null;
   sourceFileName?: string | null;
   attachment?: string | null;
   isActive?: boolean | null;
@@ -351,6 +388,17 @@ function normalizeTemplate(item: any): LessonPlanTemplate {
     sessionIndex: numberOr(numberFromUnknown(item?.sessionIndex)),
     syllabusMetadata: normalizeNullableString(item?.syllabusMetadata),
     syllabusContent: normalizeNullableString(item?.syllabusContent),
+    objectives: normalizeNullableString(item?.objectives),
+    languageContent: normalizeNullableString(item?.languageContent),
+    vocabulary: normalizeNullableString(item?.vocabulary),
+    grammar: normalizeNullableString(item?.grammar),
+    teachingMethodology: normalizeNullableString(item?.teachingMethodology),
+    teacherMaterials: normalizeNullableString(item?.teacherMaterials),
+    studentMaterials: normalizeNullableString(item?.studentMaterials),
+    procedure: normalizeNullableString(item?.procedure),
+    evaluation: normalizeNullableString(item?.evaluation),
+    homework: normalizeNullableString(item?.homework),
+    teacherNote: normalizeNullableString(item?.teacherNote),
     sourceFileName: normalizeNullableString(item?.sourceFileName),
     attachment: normalizeNullableString(item?.attachment, item?.attachmentUrl, item?.fileUrl, item?.file?.url, item?.file?.path),
     isActive: typeof item?.isActive === "boolean" ? item.isActive : undefined,
@@ -715,6 +763,64 @@ export async function importLessonPlanTemplates(
         isSuccess: false,
         data: null,
         message: stringOr(importErrors, data?.detail, data?.error, data?.message, data?.title, "Import file that bai."),
+        status: typeof data?.status === "number" ? data.status : response.status,
+        title: stringOr(data?.title) || undefined,
+        detail: stringOr(data?.detail) || undefined,
+        raw: data,
+      };
+    }
+
+    const payloadData = data?.data ?? data;
+
+    return {
+      isSuccess: true,
+      data: {
+        importedCount: numberOr(numberFromUnknown(payloadData?.importedCount)),
+        programs: Array.isArray(payloadData?.programs) ? payloadData.programs.map(normalizeImportedProgram) : [],
+      },
+      message: data?.message,
+      raw: data,
+    };
+  } catch (error) {
+    return errorResponse(null, error);
+  }
+}
+
+export async function importLessonPlanTemplateWord(
+  moduleId: string,
+  file: File
+): Promise<ServiceResponse<ImportLessonPlanTemplatesResult | null>> {
+  const token = getAccessToken();
+
+  if (!token) {
+    return {
+      isSuccess: false,
+      data: null,
+      message: "Chua dang nhap.",
+    };
+  }
+
+  try {
+    const query = new URLSearchParams({ moduleId });
+    const url = `${ADMIN_ENDPOINTS.LESSON_PLAN_TEMPLATES_IMPORT_WORD}?${query.toString()}`;
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      return {
+        isSuccess: false,
+        data: null,
+        message: stringOr(data?.detail, data?.error, data?.message, data?.title, "Import Word that bai."),
         status: typeof data?.status === "number" ? data.status : response.status,
         title: stringOr(data?.title) || undefined,
         detail: stringOr(data?.detail) || undefined,

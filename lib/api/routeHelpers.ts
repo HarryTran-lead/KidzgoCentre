@@ -77,6 +77,7 @@ export async function handleBackendResponse(
         isSuccess: false,
         data: null,
         message: errorMessage,
+        errors: data?.errors ?? data?.Errors ?? null,
       },
       { status: response.status }
     );

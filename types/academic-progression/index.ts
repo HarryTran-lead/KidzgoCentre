@@ -52,6 +52,10 @@ export interface GetLevelsParams {
   searchTerm?: string;
 }
 
+export type ModuleType = 'core' | 'revision' | 'test' | 'placement' | 'trial';
+
+export type ClassModuleProgressStatus = 'skipped' | 'pending' | 'active' | 'completed';
+
 // ─── Module ──────────────────────────────────────────────────────────────────
 
 export interface ModuleDto {
@@ -62,8 +66,12 @@ export interface ModuleDto {
   code: string;
   name: string;
   order: number;
+  orderIndex?: number;
+  type?: ModuleType;
   description?: string | null;
   plannedSessionCount?: number;
+  totalSessions?: number;
+  lessonPlanCount?: number;
   isActive: boolean;
 }
 
@@ -72,8 +80,10 @@ export interface CreateModuleRequest {
   code: string;
   name: string;
   order: number;
+  type?: ModuleType;
   description?: string | null;
   plannedSessionCount?: number;
+  totalSessions?: number;
   isActive?: boolean;
 }
 
@@ -81,15 +91,35 @@ export interface UpdateModuleRequest {
   code?: string;
   name?: string;
   order?: number;
+  type?: ModuleType;
   description?: string | null;
   plannedSessionCount?: number;
+  totalSessions?: number;
   isActive?: boolean;
 }
 
 export interface GetModulesParams {
   levelId?: string;
+  type?: ModuleType;
   isActive?: boolean;
   searchTerm?: string;
+}
+
+// ─── Class Module Progress ───────────────────────────────────────────────────
+
+export interface ClassModuleProgressDto {
+  moduleId: string;
+  moduleCode: string;
+  moduleName: string;
+  orderIndex: number;
+  requiredSessions: number;
+  completedSessions: number;
+  status: ClassModuleProgressStatus;
+}
+
+export interface ClassModuleProgressDetailDto extends ClassModuleProgressDto {
+  classId: string;
+  className: string;
 }
 
 // ─── Student Progress ────────────────────────────────────────────────────────
