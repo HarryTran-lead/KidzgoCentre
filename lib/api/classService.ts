@@ -6,15 +6,23 @@
  */
 
 import { CLASS_ENDPOINTS } from "@/constants/apiURL";
-import { get, post } from "@/lib/axios";
+import { get, post, put } from "@/lib/axios";
 import {
   buildWeeklyRRule,
   type WeekdayCode,
   validateFutureStretchInput as validateFutureStretchInputCore,
 } from "@/lib/schedulePattern";
 import type { ApiResponse } from "@/types/apiResponse";
-import type { StudentClassResponse } from "@/types/student/class";
 import type { ClassModuleProgressDto, ClassModuleProgressDetailDto } from "@/types/academic-progression";
+import type {
+  CreateClassRequest,
+  UpdateClassRequest,
+  CreateClassResponse,
+  ClassApiDetail,
+  PreviewSessionsRequest,
+  PreviewSessionsResponse,
+  ResyncFutureLessonsResponse,
+} from "@/types/admin/classes";
 
 export interface AddClassScheduleSegmentRequest {
   effectiveFrom: string;
@@ -59,18 +67,26 @@ export async function getAllClasses(params?: {
   pageNumber?: number;
   pageSize?: number;
   branchId?: string;
+  programId?: string;
+  teacherId?: string;
+  studentId?: string;
   levelId?: string;
   currentModuleId?: string;
   status?: string;
+  searchTerm?: string;
   schedulePattern?: string;
 }): Promise<any> {
   const queryParams = new URLSearchParams();
   if (params?.pageNumber) queryParams.append("pageNumber", params.pageNumber.toString());
   if (params?.pageSize) queryParams.append("pageSize", params.pageSize.toString());
   if (params?.branchId) queryParams.append("branchId", params.branchId);
+  if (params?.programId) queryParams.append("programId", params.programId);
+  if (params?.teacherId) queryParams.append("teacherId", params.teacherId);
+  if (params?.studentId) queryParams.append("studentId", params.studentId);
   if (params?.levelId) queryParams.append("levelId", params.levelId);
   if (params?.currentModuleId) queryParams.append("currentModuleId", params.currentModuleId);
   if (params?.status) queryParams.append("status", params.status);
+  if (params?.searchTerm) queryParams.append("searchTerm", params.searchTerm);
   if (params?.schedulePattern) queryParams.append("schedulePattern", params.schedulePattern);
 
   const url = queryParams.toString()
@@ -80,12 +96,24 @@ export async function getAllClasses(params?: {
   return get<any>(url);
 }
 
-export async function getClassById(id: string): Promise<StudentClassResponse> {
-  const endpoint = CLASS_ENDPOINTS.GET_BY_ID
-    ? CLASS_ENDPOINTS.GET_BY_ID(id)
-    : `/api/classes/${id}`;
+export async function createClass(payload: CreateClassRequest): Promise<ApiResponse<CreateClassResponse>> {
+  return post<ApiResponse<CreateClassResponse>>(CLASS_ENDPOINTS.CREATE, payload);
+}
 
-  return get<StudentClassResponse>(endpoint);
+export async function previewSessions(payload: PreviewSessionsRequest): Promise<ApiResponse<PreviewSessionsResponse>> {
+  return post<ApiResponse<PreviewSessionsResponse>>(CLASS_ENDPOINTS.PREVIEW_SESSIONS, payload);
+}
+
+export async function updateClass(id: string, payload: UpdateClassRequest): Promise<ApiResponse<CreateClassResponse>> {
+  return put<ApiResponse<CreateClassResponse>>(CLASS_ENDPOINTS.UPDATE(id), payload);
+}
+
+export async function resyncFutureLessons(id: string): Promise<ApiResponse<ResyncFutureLessonsResponse>> {
+  return post<ApiResponse<ResyncFutureLessonsResponse>>(CLASS_ENDPOINTS.RESYNC_FUTURE_LESSONS(id), {});
+}
+
+export async function getClassById(id: string): Promise<ApiResponse<ClassApiDetail>> {
+  return get<ApiResponse<ClassApiDetail>>(CLASS_ENDPOINTS.GET_BY_ID(id));
 }
 
 export async function addClassScheduleSegment(

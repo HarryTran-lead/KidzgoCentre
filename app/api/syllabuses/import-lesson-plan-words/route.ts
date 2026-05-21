@@ -1,46 +1,52 @@
 import { NextResponse } from "next/server";
-import { buildApiUrl, BACKEND_ADMIN_ENDPOINTS } from "@/constants/apiURL";
+import { buildApiUrl, BACKEND_SYLLABUS_ENDPOINTS } from "@/constants/apiURL";
 
 export async function POST(req: Request) {
   try {
     const authHeader = req.headers.get("authorization");
     if (!authHeader) {
       return NextResponse.json(
-        { success: false, data: null, message: "Chưa đăng nhập" },
-        { status: 401 }
+        { isSuccess: false, data: null, message: "Chưa đăng nhập" },
+        { status: 401 },
       );
     }
 
     const { searchParams } = new URL(req.url);
+    const programId = searchParams.get("programId");
+    const levelId = searchParams.get("levelId");
+    const overwriteExisting = searchParams.get("overwriteExisting") ?? "true";
     const moduleId = searchParams.get("moduleId");
 
-    if (!moduleId) {
+    if (!programId || !levelId) {
       return NextResponse.json(
-        { success: false, data: null, message: "moduleId là bắt buộc" },
-        { status: 400 }
+        { isSuccess: false, data: null, message: "programId và levelId là bắt buộc" },
+        { status: 400 },
       );
     }
 
     const formData = await req.formData();
-    const file = formData.get("file");
-
-    if (!file || !(file instanceof Blob)) {
+    const files = formData.getAll("files");
+    if (!files.length) {
       return NextResponse.json(
-        { success: false, data: null, message: "Không tìm thấy file" },
-        { status: 400 }
+        { isSuccess: false, data: null, message: "Không tìm thấy file nào" },
+        { status: 400 },
       );
     }
 
     const backendFormData = new FormData();
-    backendFormData.append("file", file);
+    for (const file of files) {
+      if (file instanceof Blob) {
+        backendFormData.append("files", file);
+      }
+    }
 
-    const qs = new URLSearchParams(searchParams);
-    const backendUrl = buildApiUrl(
-      `${BACKEND_ADMIN_ENDPOINTS.LESSON_PLAN_TEMPLATES_IMPORT_WORD}?${qs.toString()}`
-    );
+    const query = new URLSearchParams({ programId, levelId, overwriteExisting });
+    if (moduleId) query.append("moduleId", moduleId);
+
+    const backendUrl = buildApiUrl(`${BACKEND_SYLLABUS_ENDPOINTS.IMPORT_LESSON_PLAN_WORDS}?${query}`);
 
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 60_000);
+    const timer = setTimeout(() => controller.abort(), 120_000);
     let upstream: Response;
     try {
       upstream = await fetch(backendUrl, {
@@ -64,19 +70,19 @@ export async function POST(req: Request) {
     if (isAbort) {
       return NextResponse.json(
         { isSuccess: false, data: null, message: "Backend không phản hồi (timeout)." },
-        { status: 504 }
+        { status: 504 },
       );
     }
     if (isReset) {
       return NextResponse.json(
         { isSuccess: false, data: null, message: "Mất kết nối tới server. Vui lòng thử lại." },
-        { status: 503 }
+        { status: 503 },
       );
     }
-    console.error("Lesson plan template import-word error:", error);
+    console.error("Syllabus import-lesson-plan-words error:", error);
     return NextResponse.json(
-      { success: false, data: null, message: "Đã xảy ra lỗi khi import file Word" },
-      { status: 500 }
+      { isSuccess: false, data: null, message: "Đã xảy ra lỗi khi import lesson plan files" },
+      { status: 500 },
     );
   }
 }

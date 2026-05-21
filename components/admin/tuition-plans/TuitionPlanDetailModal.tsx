@@ -107,7 +107,7 @@ export default function TuitionPlanDetailModal({
                     <Clock size={16} className="text-red-600" />
                     Số buổi học
                   </label>
-                  <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm text-gray-900">{detail.sessionCount} buổi</div>
+                  <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm text-gray-900">{detail.totalSessions} buổi</div>
                 </div>
 
                 <div className="space-y-2">

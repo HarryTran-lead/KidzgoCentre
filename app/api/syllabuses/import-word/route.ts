@@ -34,15 +34,34 @@ export async function POST(req: Request) {
     const query = new URLSearchParams({ programId, levelId, code, version, overwriteExisting });
     const backendUrl = buildApiUrl(`${BACKEND_SYLLABUS_ENDPOINTS.IMPORT_WORD}?${query}`);
 
-    const upstream = await fetch(backendUrl, {
-      method: "POST",
-      headers: { Authorization: authHeader },
-      body: backendFormData,
-    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 60_000);
+    let upstream: Response;
+    try {
+      upstream = await fetch(backendUrl, {
+        method: "POST",
+        headers: { Authorization: authHeader },
+        body: backendFormData,
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timer);
+    }
 
     const data = await upstream.json().catch(() => ({}));
     return NextResponse.json(data, { status: upstream.status });
   } catch (error) {
+    const isAbort = error instanceof Error && error.name === "AbortError";
+    const isReset = error instanceof Error && (
+      (error as NodeJS.ErrnoException).code === "ECONNRESET" ||
+      error.message.includes("socket hang up")
+    );
+    if (isAbort) {
+      return NextResponse.json({ isSuccess: false, data: null, message: "Backend không phản hồi (timeout)." }, { status: 504 });
+    }
+    if (isReset) {
+      return NextResponse.json({ isSuccess: false, data: null, message: "Mất kết nối tới server. Vui lòng thử lại." }, { status: 503 });
+    }
     console.error("Syllabus import-word error:", error);
     return NextResponse.json({ isSuccess: false, data: null, message: "Đã xảy ra lỗi khi import file Word" }, { status: 500 });
   }

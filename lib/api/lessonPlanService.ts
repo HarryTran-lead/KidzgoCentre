@@ -1,4 +1,4 @@
-import { ADMIN_ENDPOINTS } from "@/constants/apiURL";
+import { ADMIN_ENDPOINTS, MODULE_ENDPOINTS } from "@/constants/apiURL";
 import { get, post, put } from "@/lib/axios";
 import { uploadFile, isUploadSuccess } from "@/lib/api/fileService";
 import { getAccessToken } from "@/lib/store/authToken";
@@ -38,15 +38,21 @@ export interface ServiceResponse<T> {
 
 export interface LessonPlanTemplate {
   id: string;
-  programId: string;
+  programId?: string;
   programName?: string;
-  level: string;
+  levelId?: string;
+  levelName?: string;
+  /** @deprecated backend now returns levelId/levelName; kept for display fallback */
+  level?: string;
   title: string;
   sessionIndex: number;
-  // Phase 2 fields
   moduleId?: string | null;
   moduleCode?: string | null;
   moduleName?: string | null;
+  // Unit (real entity from BE — do NOT parse from title anymore)
+  lessonPlanUnitId?: string | null;
+  lessonPlanUnitName?: string | null;
+  orderIndexInUnit?: number | null;
   sessionOrder?: number | null;
   syllabusMetadata?: string | null;
   syllabusContent?: string | null;
@@ -73,8 +79,6 @@ export interface LessonPlanTemplate {
 }
 
 export interface GetLessonPlanTemplatesParams {
-  programId?: string;
-  level?: string;
   moduleId?: string;
   title?: string;
   isActive?: boolean;
@@ -84,12 +88,11 @@ export interface GetLessonPlanTemplatesParams {
 }
 
 export interface CreateLessonPlanTemplateRequest {
-  programId: string;
-  level: string;
+  programId?: string | null;
+  level?: string | null;
+  moduleId?: string | null;
   title: string;
   sessionIndex: number;
-  // Phase 2 fields
-  moduleId?: string | null;
   sessionOrder?: number | null;
   syllabusMetadata?: string | null;
   syllabusContent?: string | null;
@@ -110,11 +113,10 @@ export interface CreateLessonPlanTemplateRequest {
 }
 
 export interface UpdateLessonPlanTemplateRequest {
+  moduleId?: string | null;
   level?: string | null;
   title?: string | null;
   sessionIndex?: number | null;
-  // Phase 2 fields
-  moduleId?: string | null;
   sessionOrder?: number | null;
   syllabusMetadata?: string | null;
   syllabusContent?: string | null;
@@ -135,22 +137,42 @@ export interface UpdateLessonPlanTemplateRequest {
   isActive?: boolean | null;
 }
 
-export interface ImportedProgramSummary {
-  programId: string;
-  programName?: string;
+export interface ImportedModuleSummary {
+  moduleId: string;
+  moduleName?: string;
   importedSessions: number;
 }
 
+/** @deprecated Use ImportedModuleSummary */
+export type ImportedProgramSummary = ImportedModuleSummary;
+
 export interface ImportLessonPlanTemplatesRequest {
   file: File;
-  programId?: string;
-  level?: string;
+  moduleId?: string;
+  programId?: string | null;
+  level?: string | null;
   overwriteExisting?: boolean;
 }
 
 export interface ImportLessonPlanTemplatesResult {
   importedCount: number;
-  programs: ImportedProgramSummary[];
+  modules: ImportedModuleSummary[];
+  programs?: { programId: string; programName?: string; importedSessions: number }[];
+}
+
+export interface ImportLessonPlanTemplateWordResult {
+  lessonPlanTemplateId: string;
+  sessionTemplateId: string | null;
+  sessionIndex: number;
+  lessonPlanUnitId: string | null;
+  orderIndexInUnit: number | null;
+  created: boolean;
+  title: string;
+}
+
+export interface ReorderLessonPlanTemplateSessionOrderItem {
+  id: string;
+  sessionOrder: number;
 }
 
 export interface LessonPlan {
@@ -206,6 +228,7 @@ export interface UpdateLessonPlanRequest {
 export interface ClassLessonPlanSyllabusSession {
   sessionId: string;
   sessionIndex: number;
+  sessionIndexInModule?: number | null;
   sessionDate?: string | null;
   plannedTeacherId?: string | null;
   plannedTeacherName?: string | null;
@@ -219,7 +242,6 @@ export interface ClassLessonPlanSyllabusSession {
   actualContent?: string | null;
   actualHomework?: string | null;
   teacherNotes?: string | null;
-  // Phase 2 fields
   completionPercent?: number | null;
   carryForwardContent?: string | null;
   moduleId?: string | null;
@@ -381,9 +403,17 @@ function buildQuery<T extends object>(params?: T) {
 function normalizeTemplate(item: any): LessonPlanTemplate {
   return {
     id: stringOr(item?.id),
-    programId: stringOr(item?.programId),
+    programId: stringOr(item?.programId) || undefined,
     programName: stringOr(item?.programName) || undefined,
-    level: stringOr(item?.level),
+    levelId: stringOr(item?.levelId) || undefined,
+    levelName: stringOr(item?.levelName) || undefined,
+    level: stringOr(item?.levelName, item?.level) || undefined,
+    moduleCode: stringOr(item?.moduleCode) || undefined,
+    moduleName: stringOr(item?.moduleName) || undefined,
+    moduleId: stringOr(item?.moduleId) || undefined,
+    lessonPlanUnitId: normalizeNullableString(item?.lessonPlanUnitId),
+    lessonPlanUnitName: normalizeNullableString(item?.lessonPlanUnitName),
+    orderIndexInUnit: numberFromUnknown(item?.orderIndexInUnit) ?? null,
     title: stringOr(item?.title, item?.name, `Session ${numberOr(numberFromUnknown(item?.sessionIndex), 0)}`),
     sessionIndex: numberOr(numberFromUnknown(item?.sessionIndex)),
     syllabusMetadata: normalizeNullableString(item?.syllabusMetadata),
@@ -479,6 +509,7 @@ function normalizeSyllabusSession(item: any): ClassLessonPlanSyllabusSession {
   return {
     sessionId: stringOr(item?.sessionId, item?.id, item?.SessionId),
     sessionIndex: numberOr(numberFromUnknown(item?.sessionIndex, item?.SessionIndex, item?.index, item?.order)),
+    sessionIndexInModule: numberFromUnknown(item?.sessionIndexInModule, item?.SessionIndexInModule) ?? null,
     sessionDate: dateOr(item?.sessionDate, item?.SessionDate, item?.plannedDatetime, item?.plannedDateTime, item?.actualDatetime) || null,
     plannedTeacherId: normalizeNullableString(item?.plannedTeacherId, item?.PlannedTeacherId),
     plannedTeacherName: normalizeNullableString(item?.plannedTeacherName, item?.PlannedTeacherName),
@@ -530,6 +561,11 @@ function normalizeSyllabusSession(item: any): ClassLessonPlanSyllabusSession {
       lessonPlan?.note,
       lessonPlan?.notes
     ),
+    completionPercent: numberFromUnknown(item?.completionPercent, item?.CompletionPercent, lessonPlan?.completionPercent) ?? null,
+    carryForwardContent: normalizeNullableString(item?.carryForwardContent, item?.CarryForwardContent, lessonPlan?.carryForwardContent),
+    moduleId: normalizeNullableString(item?.moduleId, item?.ModuleId),
+    moduleCode: normalizeNullableString(item?.moduleCode, item?.ModuleCode),
+    moduleName: normalizeNullableString(item?.moduleName, item?.ModuleName),
     canEdit: booleanOr(item?.canEdit ?? item?.CanEdit, false),
   };
 }
@@ -571,10 +607,10 @@ function normalizeSyllabus(data: any): ClassLessonPlanSyllabus {
   };
 }
 
-function normalizeImportedProgram(item: any): ImportedProgramSummary {
+function normalizeImportedModule(item: any): ImportedModuleSummary {
   return {
-    programId: stringOr(item?.programId),
-    programName: stringOr(item?.programName) || undefined,
+    moduleId: stringOr(item?.moduleId, item?.programId),
+    moduleName: stringOr(item?.moduleName, item?.programName) || undefined,
     importedSessions: numberOr(numberFromUnknown(item?.importedSessions)),
   };
 }
@@ -721,6 +757,22 @@ export async function updateLessonPlanTemplate(
   }
 }
 
+export async function deleteLessonPlanTemplate(id: string): Promise<ServiceResponse<null>> {
+  const token = getAccessToken();
+  if (!token) return { isSuccess: false, data: null, message: "Chua dang nhap." };
+  try {
+    const res = await fetch(ADMIN_ENDPOINTS.LESSON_PLAN_TEMPLATES_BY_ID(id), {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) return { isSuccess: false, data: null, message: String(json?.message ?? res.status) };
+    return { isSuccess: true, data: null };
+  } catch (error) {
+    return { isSuccess: false, data: null, message: String(error) };
+  }
+}
+
 export async function importLessonPlanTemplates(
   payload: ImportLessonPlanTemplatesRequest
 ): Promise<ServiceResponse<ImportLessonPlanTemplatesResult | null>> {
@@ -737,8 +789,7 @@ export async function importLessonPlanTemplates(
   try {
     const query = new URLSearchParams();
 
-    if (payload.programId) query.append("programId", payload.programId);
-    if (payload.level) query.append("level", payload.level);
+    if (payload.moduleId) query.append("moduleId", payload.moduleId);
     if (payload.overwriteExisting !== undefined) {
       query.append("overwriteExisting", String(payload.overwriteExisting));
     }
@@ -776,7 +827,7 @@ export async function importLessonPlanTemplates(
       isSuccess: true,
       data: {
         importedCount: numberOr(numberFromUnknown(payloadData?.importedCount)),
-        programs: Array.isArray(payloadData?.programs) ? payloadData.programs.map(normalizeImportedProgram) : [],
+        modules: Array.isArray(payloadData?.modules) ? payloadData.modules.map(normalizeImportedModule) : [],
       },
       message: data?.message,
       raw: data,
@@ -788,8 +839,9 @@ export async function importLessonPlanTemplates(
 
 export async function importLessonPlanTemplateWord(
   moduleId: string,
-  file: File
-): Promise<ServiceResponse<ImportLessonPlanTemplatesResult | null>> {
+  file: File,
+  options?: { lessonPlanUnitId?: string | null; sessionIndexOverride?: number | null }
+): Promise<ServiceResponse<ImportLessonPlanTemplateWordResult | null>> {
   const token = getAccessToken();
 
   if (!token) {
@@ -802,6 +854,8 @@ export async function importLessonPlanTemplateWord(
 
   try {
     const query = new URLSearchParams({ moduleId });
+    if (options?.lessonPlanUnitId) query.append("lessonPlanUnitId", options.lessonPlanUnitId);
+    if (options?.sessionIndexOverride != null) query.append("sessionIndexOverride", String(options.sessionIndexOverride));
     const url = `${ADMIN_ENDPOINTS.LESSON_PLAN_TEMPLATES_IMPORT_WORD}?${query.toString()}`;
     const formData = new FormData();
     formData.append("file", file);
@@ -833,8 +887,13 @@ export async function importLessonPlanTemplateWord(
     return {
       isSuccess: true,
       data: {
-        importedCount: numberOr(numberFromUnknown(payloadData?.importedCount)),
-        programs: Array.isArray(payloadData?.programs) ? payloadData.programs.map(normalizeImportedProgram) : [],
+        lessonPlanTemplateId: stringOr(payloadData?.lessonPlanTemplateId),
+        sessionTemplateId: stringOr(payloadData?.sessionTemplateId) || null,
+        sessionIndex: numberOr(numberFromUnknown(payloadData?.sessionIndex)),
+        lessonPlanUnitId: stringOr(payloadData?.lessonPlanUnitId) || null,
+        orderIndexInUnit: typeof payloadData?.orderIndexInUnit === "number" ? payloadData.orderIndexInUnit : null,
+        created: payloadData?.created === true,
+        title: stringOr(payloadData?.title),
       },
       message: data?.message,
       raw: data,
@@ -921,4 +980,206 @@ export async function uploadLessonPlanFile(
     folder: stringOr(uploadResponse?.folder),
     resourceType,
   };
+}
+
+// ─── Lesson Plan Units ────────────────────────────────────────────────────────
+
+export interface LessonPlanUnit {
+  id: string;
+  moduleId: string;
+  name: string;
+  orderIndex: number;
+  lessonCount: number;
+  isActive: boolean;
+}
+
+export interface CreateLessonPlanUnitRequest {
+  name: string;
+}
+
+export interface UpdateLessonPlanUnitRequest {
+  name?: string;
+  isActive?: boolean;
+}
+
+export interface ReorderItem {
+  id: string;
+  orderIndex: number;
+}
+
+export interface ReorderLessonItem {
+  id: string;
+  orderIndexInUnit: number;
+}
+
+export interface MoveLessonToUnitRequest {
+  lessonPlanUnitId: string | null;
+  orderIndexInUnit?: number | null;
+}
+
+function normalizeLessonPlanUnit(item: any): LessonPlanUnit {
+  return {
+    id: stringOr(item?.id),
+    moduleId: stringOr(item?.moduleId),
+    name: stringOr(item?.name),
+    orderIndex: numberOr(numberFromUnknown(item?.orderIndex)),
+    lessonCount: numberOr(numberFromUnknown(item?.lessonCount)),
+    isActive: typeof item?.isActive === "boolean" ? item.isActive : true,
+  };
+}
+
+export async function getLessonPlanUnits(
+  moduleId: string,
+): Promise<ServiceResponse<LessonPlanUnit[]>> {
+  const token = getAccessToken();
+  if (!token) return { isSuccess: false, data: [], message: "Chua dang nhap." };
+  try {
+    const res = await fetch(MODULE_ENDPOINTS.LESSON_PLAN_UNITS(moduleId), {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) return { isSuccess: false, data: [], message: String(json?.message ?? res.status) };
+    const items: any[] = json?.data?.items ?? json?.data ?? json?.items ?? (Array.isArray(json) ? json : []);
+    return { isSuccess: true, data: items.map(normalizeLessonPlanUnit) };
+  } catch (error) {
+    return { isSuccess: false, data: [], message: String(error) };
+  }
+}
+
+export async function createLessonPlanUnit(
+  moduleId: string,
+  body: CreateLessonPlanUnitRequest,
+): Promise<ServiceResponse<LessonPlanUnit | null>> {
+  const token = getAccessToken();
+  if (!token) return { isSuccess: false, data: null, message: "Chua dang nhap." };
+  try {
+    const res = await fetch(MODULE_ENDPOINTS.LESSON_PLAN_UNITS(moduleId), {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) return { isSuccess: false, data: null, message: String(json?.message ?? res.status) };
+    return { isSuccess: true, data: normalizeLessonPlanUnit(json?.data ?? json) };
+  } catch (error) {
+    return { isSuccess: false, data: null, message: String(error) };
+  }
+}
+
+export async function updateLessonPlanUnit(
+  unitId: string,
+  body: UpdateLessonPlanUnitRequest,
+): Promise<ServiceResponse<LessonPlanUnit | null>> {
+  const token = getAccessToken();
+  if (!token) return { isSuccess: false, data: null, message: "Chua dang nhap." };
+  try {
+    const res = await fetch(ADMIN_ENDPOINTS.LESSON_PLAN_UNITS_BY_ID(unitId), {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) return { isSuccess: false, data: null, message: String(json?.message ?? res.status) };
+    return { isSuccess: true, data: normalizeLessonPlanUnit(json?.data ?? json) };
+  } catch (error) {
+    return { isSuccess: false, data: null, message: String(error) };
+  }
+}
+
+export async function deleteLessonPlanUnit(
+  unitId: string,
+): Promise<ServiceResponse<null>> {
+  const token = getAccessToken();
+  if (!token) return { isSuccess: false, data: null, message: "Chua dang nhap." };
+  try {
+    const res = await fetch(ADMIN_ENDPOINTS.LESSON_PLAN_UNITS_BY_ID(unitId), {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) return { isSuccess: false, data: null, message: String(json?.message ?? res.status) };
+    return { isSuccess: true, data: null };
+  } catch (error) {
+    return { isSuccess: false, data: null, message: String(error) };
+  }
+}
+
+export async function reorderLessonPlanUnits(
+  moduleId: string,
+  items: ReorderItem[],
+): Promise<ServiceResponse<null>> {
+  const token = getAccessToken();
+  if (!token) return { isSuccess: false, data: null, message: "Chua dang nhap." };
+  try {
+    const res = await fetch(MODULE_ENDPOINTS.LESSON_PLAN_UNITS_REORDER(moduleId), {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(items),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) return { isSuccess: false, data: null, message: String(json?.message ?? res.status) };
+    return { isSuccess: true, data: null };
+  } catch (error) {
+    return { isSuccess: false, data: null, message: String(error) };
+  }
+}
+
+export async function moveLessonToUnit(
+  templateId: string,
+  body: MoveLessonToUnitRequest,
+): Promise<ServiceResponse<null>> {
+  const token = getAccessToken();
+  if (!token) return { isSuccess: false, data: null, message: "Chua dang nhap." };
+  try {
+    const res = await fetch(ADMIN_ENDPOINTS.LESSON_PLAN_TEMPLATES_UNIT(templateId), {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) return { isSuccess: false, data: null, message: String(json?.message ?? res.status) };
+    return { isSuccess: true, data: null };
+  } catch (error) {
+    return { isSuccess: false, data: null, message: String(error) };
+  }
+}
+
+export async function reorderLessonPlanTemplateSessionOrders(
+  levelId: string,
+  items: ReorderLessonPlanTemplateSessionOrderItem[],
+): Promise<ServiceResponse<null>> {
+  const token = getAccessToken();
+  if (!token) return { isSuccess: false, data: null, message: "Chua dang nhap." };
+  try {
+    const res = await fetch(ADMIN_ENDPOINTS.LEVELS_LESSON_PLAN_TEMPLATES_SESSION_ORDERS(levelId), {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(items),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) return { isSuccess: false, data: null, message: String(json?.message ?? res.status) };
+    return { isSuccess: true, data: null };
+  } catch (error) {
+    return { isSuccess: false, data: null, message: String(error) };
+  }
+}
+
+export async function reorderLessonsInUnit(
+  unitId: string,
+  items: ReorderLessonItem[],
+): Promise<ServiceResponse<null>> {
+  const token = getAccessToken();
+  if (!token) return { isSuccess: false, data: null, message: "Chua dang nhap." };
+  try {
+    const res = await fetch(ADMIN_ENDPOINTS.LESSON_PLAN_UNITS_REORDER_LESSONS(unitId), {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(items),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) return { isSuccess: false, data: null, message: String(json?.message ?? res.status) };
+    return { isSuccess: true, data: null };
+  } catch (error) {
+    return { isSuccess: false, data: null, message: String(error) };
+  }
 }

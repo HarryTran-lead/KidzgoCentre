@@ -120,11 +120,79 @@ export interface ImportSyllabusWordResult {
   importedSessionTemplates: number;
 }
 
+export interface ImportedEntry {
+  entryName?: string | null;
+  fileName?: string | null;
+  moduleId: string;
+  lessonPlanTemplateId?: string | null;
+  sessionTemplateId?: string | null;
+  sessionIndex: number;
+  created?: boolean;
+  title?: string | null;
+}
+
 export interface ImportSyllabusArchiveResult {
   syllabusId: string;
   importedLessonPlans: number;
   skippedFiles: number;
+  importedEntries: ImportedEntry[];
   skippedEntries: string[];
+}
+
+export interface ImportLessonPlanWordsResult {
+  importedLessonPlans: number;
+  skippedFiles: number;
+  importedEntries: ImportedEntry[];
+  skippedEntries: string[];
+}
+
+export interface ImportLessonPlanWordsParams {
+  programId: string;
+  levelId: string;
+  overwriteExisting?: boolean;
+  moduleId?: string;
+}
+
+// ─── Import Configuration Types ───────────────────────────────────────────────
+
+export interface ImportConfigRule {
+  id?: string;
+  moduleId: string;
+  moduleCode?: string | null;
+  moduleName?: string | null;
+  moduleOrder?: number | null;
+  includeStarterUnit: boolean;
+  unitFrom?: number | null;
+  unitTo?: number | null;
+  revisionNumber?: number | null;
+  orderIndex: number;
+  expectedLessonPlanCount?: number | null;
+}
+
+export interface ImportConfiguration {
+  id: string;
+  programId: string;
+  levelId: string;
+  regularUnitLessonPlanCount: number;
+  starterUnitLessonPlanCount: number;
+  revisionLessonPlanCount: number;
+  isActive: boolean;
+  rules: ImportConfigRule[];
+}
+
+export interface UpsertImportConfigRequest {
+  regularUnitLessonPlanCount: number;
+  starterUnitLessonPlanCount: number;
+  revisionLessonPlanCount: number;
+  isActive: boolean;
+  rules: Array<{
+    moduleId: string;
+    includeStarterUnit: boolean;
+    unitFrom?: number | null;
+    unitTo?: number | null;
+    revisionNumber?: number | null;
+    orderIndex: number;
+  }>;
 }
 
 export interface ServiceResponse<T> {
@@ -225,6 +293,9 @@ function emptyPagination(): SyllabusPagination {
 export async function getSyllabuses(
   params?: GetSyllabusesParams,
 ): Promise<ServiceResponse<SyllabusPagination>> {
+  const token = getAccessToken();
+  if (!token) return { isSuccess: false, data: emptyPagination(), message: "Chưa đăng nhập." };
+
   const query = new URLSearchParams();
   if (params?.programId) query.append("programId", params.programId);
   if (params?.levelId) query.append("levelId", params.levelId);
@@ -236,7 +307,7 @@ export async function getSyllabuses(
 
   const url = `${SYLLABUS_ENDPOINTS.BASE}${query.toString() ? `?${query}` : ""}`;
   try {
-    const res = await fetch(url);
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) return errorResponse(emptyPagination(), json);
 
@@ -265,13 +336,17 @@ export async function getSyllabuses(
 export async function getSyllabusById(
   id: string,
 ): Promise<ServiceResponse<SyllabusDetail | null>> {
+  const token = getAccessToken();
+  if (!token) return { isSuccess: false, data: null, message: "Chưa đăng nhập." };
+
   try {
-    const res = await fetch(SYLLABUS_ENDPOINTS.BY_ID(id));
+    const res = await fetch(SYLLABUS_ENDPOINTS.BY_ID(id), { headers: { Authorization: `Bearer ${token}` } });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) return errorResponse(null, json);
 
     const item = json?.data ?? json;
-    return { isSuccess: true, data: item?.id ? normalizeSyllabusDetail(item) : null };
+    const normalized = item && (item.id || item.code) ? normalizeSyllabusDetail(item) : null;
+    return { isSuccess: true, data: normalized, message: normalized ? undefined : "Không tìm thấy dữ liệu." };
   } catch (error) {
     return errorResponse(null, error);
   }
@@ -280,10 +355,13 @@ export async function getSyllabusById(
 export async function createSyllabus(
   data: CreateSyllabusRequest,
 ): Promise<ServiceResponse<SyllabusListItem | null>> {
+  const token = getAccessToken();
+  if (!token) return { isSuccess: false, data: null, message: "Chưa đăng nhập." };
+
   try {
     const res = await fetch(SYLLABUS_ENDPOINTS.BASE, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify(data),
     });
     const json = await res.json().catch(() => ({}));
@@ -300,10 +378,13 @@ export async function updateSyllabus(
   id: string,
   data: UpdateSyllabusRequest,
 ): Promise<ServiceResponse<SyllabusListItem | null>> {
+  const token = getAccessToken();
+  if (!token) return { isSuccess: false, data: null, message: "Chưa đăng nhập." };
+
   try {
     const res = await fetch(SYLLABUS_ENDPOINTS.BY_ID(id), {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify(data),
     });
     const json = await res.json().catch(() => ({}));
@@ -413,9 +494,226 @@ export async function importSyllabusArchive(
         syllabusId: str(d?.syllabusId),
         importedLessonPlans: Number(d?.importedLessonPlans ?? 0),
         skippedFiles: Number(d?.skippedFiles ?? 0),
+        importedEntries: Array.isArray(d?.importedEntries) ? d.importedEntries : [],
         skippedEntries: Array.isArray(d?.skippedEntries) ? d.skippedEntries : [],
       },
     };
+  } catch (error) {
+    return errorResponse(null, error);
+  }
+}
+
+export async function importLessonPlanWords(
+  params: ImportLessonPlanWordsParams,
+  files: File[],
+): Promise<ServiceResponse<ImportLessonPlanWordsResult | null>> {
+  const token = getAccessToken();
+  if (!token) return { isSuccess: false, data: null, message: "Chưa đăng nhập." };
+
+  try {
+    const query = new URLSearchParams({
+      programId: params.programId,
+      levelId: params.levelId,
+      overwriteExisting: String(params.overwriteExisting ?? true),
+    });
+    if (params.moduleId) query.append("moduleId", params.moduleId);
+
+    const formData = new FormData();
+    for (const file of files) formData.append("files", file);
+
+    const res = await fetch(`${SYLLABUS_ENDPOINTS.IMPORT_LESSON_PLAN_WORDS}?${query}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        isSuccess: false,
+        data: null,
+        message: str(json?.detail) || str(json?.message) || str(json?.title) || "Import lesson plan thất bại.",
+        status: typeof json?.status === "number" ? json.status : res.status,
+        title: str(json?.title) || undefined,
+        detail: str(json?.detail) || undefined,
+        errors: Array.isArray(json?.errors) ? json.errors : undefined,
+        raw: json,
+      };
+    }
+    const d = json?.data ?? json;
+    return {
+      isSuccess: true,
+      data: {
+        importedLessonPlans: Number(d?.importedLessonPlans ?? 0),
+        skippedFiles: Number(d?.skippedFiles ?? 0),
+        importedEntries: Array.isArray(d?.importedEntries) ? d.importedEntries : [],
+        skippedEntries: Array.isArray(d?.skippedEntries) ? d.skippedEntries : [],
+      },
+    };
+  } catch (error) {
+    return errorResponse(null, error);
+  }
+}
+
+// ─── Import Configuration ──────────────────────────────────────────────────────
+
+function normalizeRule(r: any): ImportConfigRule {
+  return {
+    id: str(r?.id) || undefined,
+    moduleId: str(r?.moduleId),
+    moduleCode: str(r?.moduleCode) || null,
+    moduleName: str(r?.moduleName) || null,
+    moduleOrder: r?.moduleOrder != null ? Number(r.moduleOrder) : null,
+    includeStarterUnit: Boolean(r?.includeStarterUnit),
+    unitFrom: r?.unitFrom != null ? Number(r.unitFrom) : null,
+    unitTo: r?.unitTo != null ? Number(r.unitTo) : null,
+    revisionNumber: r?.revisionNumber != null ? Number(r.revisionNumber) : null,
+    orderIndex: Number(r?.orderIndex ?? 0),
+    expectedLessonPlanCount: r?.expectedLessonPlanCount != null ? Number(r.expectedLessonPlanCount) : null,
+  };
+}
+
+function normalizeImportConfig(d: any): ImportConfiguration {
+  return {
+    id: str(d?.id),
+    programId: str(d?.programId),
+    levelId: str(d?.levelId),
+    regularUnitLessonPlanCount: Number(d?.regularUnitLessonPlanCount ?? 0),
+    starterUnitLessonPlanCount: Number(d?.starterUnitLessonPlanCount ?? 0),
+    revisionLessonPlanCount: Number(d?.revisionLessonPlanCount ?? 0),
+    isActive: Boolean(d?.isActive ?? true),
+    rules: Array.isArray(d?.rules) ? d.rules.map(normalizeRule) : [],
+  };
+}
+
+export async function getImportConfiguration(
+  programId: string,
+  levelId: string,
+): Promise<ServiceResponse<ImportConfiguration | null>> {
+  const token = getAccessToken();
+  if (!token) return { isSuccess: false, data: null, message: "Chưa đăng nhập." };
+
+  const query = new URLSearchParams({ programId, levelId });
+  try {
+    const res = await fetch(`${SYLLABUS_ENDPOINTS.IMPORT_CONFIGURATION}?${query}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) return errorResponse(null, { response: res, data: json });
+
+    const d = json?.data ?? json;
+    return { isSuccess: true, data: d?.id ? normalizeImportConfig(d) : null };
+  } catch (error) {
+    return errorResponse(null, error);
+  }
+}
+
+// ─── Unit Lesson Plans ────────────────────────────────────────────────────────
+
+export interface LessonPlanTemplateInUnit {
+  lessonPlanTemplateId: string;
+  lessonPlanUnitId: string | null;
+  sessionTemplateId: string | null;
+  title: string | null;
+  lessonNumber: number | null;
+  sessionIndex: number;
+  sessionOrder: number;
+  sessionIndexInModule: number | null;
+  sessionTitle: string | null;
+  sessionTopic: string | null;
+  sourceFileName: string | null;
+  orderIndexInUnit: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LessonPlanUnitGroup {
+  unitId: string;
+  unitName: string;
+  orderIndex: number;
+  lessonPlanCount: number;
+  lessons: LessonPlanTemplateInUnit[];
+}
+
+export interface ModuleUnitLessonPlanGroup {
+  moduleId: string;
+  moduleCode: string;
+  moduleName: string;
+  moduleOrder: number;
+  unitCount: number;
+  lessonPlanCount: number;
+  units: LessonPlanUnitGroup[];
+}
+
+export interface UnitLessonPlansResult {
+  syllabusId: string;
+  programId: string;
+  programName?: string | null;
+  levelId: string;
+  levelName?: string | null;
+  totalModules: number;
+  totalUnits: number;
+  totalGroups: number;
+  totalLessonPlans: number;
+  groups: ModuleUnitLessonPlanGroup[];
+  orphanLessons: LessonPlanTemplateInUnit[];
+}
+
+// Legacy aliases kept for backward compatibility
+/** @deprecated Use ModuleUnitLessonPlanGroup */
+export type UnitLessonPlanGroup = ModuleUnitLessonPlanGroup;
+/** @deprecated Use LessonPlanTemplateInUnit */
+export type UnitLessonPlanItem = LessonPlanTemplateInUnit;
+
+export async function getUnitLessonPlans(
+  syllabusId: string,
+): Promise<ServiceResponse<UnitLessonPlansResult | null>> {
+  const token = getAccessToken();
+  if (!token) return { isSuccess: false, data: null, message: "Chưa đăng nhập." };
+
+  try {
+    const res = await fetch(SYLLABUS_ENDPOINTS.UNIT_LESSON_PLANS(syllabusId), {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) return errorResponse(null, { response: res, data: json });
+    const d = json?.data ?? json;
+    return { isSuccess: true, data: d as UnitLessonPlansResult };
+  } catch (error) {
+    return errorResponse(null, error);
+  }
+}
+
+export async function upsertImportConfiguration(
+  programId: string,
+  levelId: string,
+  body: UpsertImportConfigRequest,
+): Promise<ServiceResponse<ImportConfiguration | null>> {
+  const token = getAccessToken();
+  if (!token) return { isSuccess: false, data: null, message: "Chưa đăng nhập." };
+
+  const query = new URLSearchParams({ programId, levelId });
+  try {
+    const res = await fetch(`${SYLLABUS_ENDPOINTS.IMPORT_CONFIGURATION}?${query}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        isSuccess: false,
+        data: null,
+        message: str(json?.detail) || str(json?.message) || str(json?.title) || "Lưu cấu hình thất bại.",
+        status: typeof json?.status === "number" ? json.status : res.status,
+        title: str(json?.title) || undefined,
+        detail: str(json?.detail) || undefined,
+        errors: Array.isArray(json?.errors) ? json.errors : undefined,
+        raw: json,
+      };
+    }
+    const d = json?.data ?? json;
+    return { isSuccess: true, data: d?.id ? normalizeImportConfig(d) : null };
   } catch (error) {
     return errorResponse(null, error);
   }

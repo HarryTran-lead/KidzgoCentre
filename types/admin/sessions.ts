@@ -39,9 +39,13 @@ export interface Session {
   id: string;
   classId?: string | null;
   classTitle?: string | null;
+  classCode?: string | null;
   className?: string | null;
   branchId?: string | null;
   branchName?: string | null;
+  moduleId?: string | null;
+  lessonPlanTemplateId?: string | null;
+  sessionIndexInModule?: number | null;
   plannedDatetime: string;
   durationMinutes: number;
   actualDatetime?: string | null;
@@ -67,6 +71,10 @@ export interface Session {
   slotTypeId?: string | null;
   slotTypeCode?: string | null;
   slotTypeName?: string | null;
+  teachingLogId?: string | null;
+  teachingLogStatus?: string | null;
+  teachingProgressStatus?: string | null;
+  actualTeachingType?: string | null;
 }
 
 export interface SessionChangeRoomRequest {
@@ -120,5 +128,67 @@ export interface UpdateSessionsByClassResult {
   updatedSessionIds: string[];
   skippedSessionIds: string[];
   errors: string[];
+}
+
+export type TeachingType = "normal" | "review" | "test" | "makeup" | "event" | "other";
+export type TeachingProgressStatus = "completed" | "partial" | "not_started" | "skipped";
+
+export interface AttendanceSummary {
+  totalStudents: number;
+  presentCount: number;
+  absentCount: number;
+  makeupCount: number;
+  notMarkedCount: number;
+}
+
+export interface SessionDetail extends Session {
+  plannedLessonTitle?: string | null;
+  actualLessonPlanTemplateId?: string | null;
+  actualLessonTitle?: string | null;
+  actualContent?: string | null;
+  actualHomework?: string | null;
+  teacherNote?: string | null;
+  attendanceSummary?: AttendanceSummary | null;
+}
+
+export interface SubmitTeachingLogRequest {
+  actualLessonPlanTemplateId?: string | null;
+  actualTeachingType?: TeachingType | null;
+  progressStatus: TeachingProgressStatus;
+  actualContent?: string | null;
+  actualHomework?: string | null;
+  teacherNote?: string | null;
+}
+
+export interface TeachingLog {
+  teachingLogId: string;
+  sessionId: string;
+  plannedLessonPlanTemplateId?: string | null;
+  plannedLessonTitle?: string | null;
+  actualLessonPlanTemplateId?: string | null;
+  actualLessonTitle?: string | null;
+  teachingLogStatus?: string | null;
+  progressStatus?: string | null;
+  actualTeachingType?: string | null;
+  actualContent?: string | null;
+  actualHomework?: string | null;
+  teacherNote?: string | null;
+  submittedBy?: string | null;
+  submittedAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface SubmitTeachingLogResponse {
+  teachingLogId: string;
+  sessionId: string;
+  plannedLessonPlanTemplateId?: string | null;
+  actualLessonPlanTemplateId?: string | null;
+  actualTeachingType?: string | null;
+  progressStatus?: string | null;
+  classId: string;
+  currentModuleId?: string | null;
+  currentSessionIndex: number;
+  currentLessonPlanTemplateId?: string | null;
+  updatedFutureSessionCount: number;
 }
 

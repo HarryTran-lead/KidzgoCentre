@@ -45,6 +45,15 @@ export type LessonDetail = {
   slotTypeId?: string | null;
   slotTypeCode?: string | null;
   slotTypeName?: string | null;
+  // Curriculum runtime fields
+  plannedLessonTitle?: string | null;
+  actualLessonTitle?: string | null;
+  sessionIndexInModule?: number | null;
+  moduleName?: string | null;
+  moduleId?: string | null;
+  lessonPlanTemplateId?: string | null;
+  teachingLogStatus?: string | null;
+  teachingProgressStatus?: string | null;
 };
 
 export type AttendanceSummaryApi = {
@@ -113,6 +122,17 @@ export type SessionApiItem = {
   track?: string | null;
   isMakeup?: boolean | null;
   attendanceSummary?: AttendanceSummaryApi;
+  // Curriculum runtime fields (class-curriculum-runtime-api-fe-doc-2026-05-21)
+  moduleId?: string | null;
+  moduleName?: string | null;
+  lessonPlanTemplateId?: string | null;
+  sessionIndexInModule?: number | null;
+  plannedLessonTitle?: string | null;
+  actualLessonTitle?: string | null;
+  teachingLogId?: string | null;
+  teachingLogStatus?: string | null;
+  teachingProgressStatus?: string | null;
+  actualTeachingType?: string | null;
 };
 
 export type AttendanceApiResponse = {

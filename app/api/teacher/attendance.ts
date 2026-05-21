@@ -293,7 +293,14 @@ function mapSessionToLesson(session: SessionApiItem): { lesson: LessonDetail; at
 
   const lesson: LessonDetail = {
     id: String(session?.id ?? session?.sessionId ?? ""),
-    lesson: sessionLike.lessonName ?? sessionLike.lesson?.name ?? session?.classTitle ?? "Buoi hoc",
+    // Prefer curriculum lesson title over class title
+    lesson:
+      session?.actualLessonTitle ??
+      session?.plannedLessonTitle ??
+      sessionLike.lessonName ??
+      sessionLike.lesson?.name ??
+      session?.classTitle ??
+      "Buoi hoc",
     course:
       sessionLike.courseName ??
       sessionLike.course?.name ??
@@ -317,6 +324,15 @@ function mapSessionToLesson(session: SessionApiItem): { lesson: LessonDetail; at
           : typeof sessionLike.studentCount === "number"
             ? sessionLike.studentCount
             : 0,
+    // Curriculum runtime fields
+    plannedLessonTitle: session?.plannedLessonTitle ?? null,
+    actualLessonTitle: session?.actualLessonTitle ?? null,
+    sessionIndexInModule: session?.sessionIndexInModule ?? null,
+    moduleName: session?.moduleName ?? null,
+    moduleId: session?.moduleId ?? null,
+    lessonPlanTemplateId: session?.lessonPlanTemplateId ?? null,
+    teachingLogStatus: session?.teachingLogStatus ?? null,
+    teachingProgressStatus: session?.teachingProgressStatus ?? null,
   };
 
   return {

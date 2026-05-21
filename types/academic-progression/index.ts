@@ -69,6 +69,7 @@ export interface ModuleDto {
   orderIndex?: number;
   type?: ModuleType;
   description?: string | null;
+  requiredSessions?: number;
   plannedSessionCount?: number;
   totalSessions?: number;
   lessonPlanCount?: number;
