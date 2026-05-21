@@ -1,10 +1,10 @@
 export interface CreateTuitionPlan {
-  branchId: string;
   programId: string;
+  levelId?: string | null;
+  moduleId?: string | null;
   name: string;
   totalSessions: number;
   tuitionAmount: number;
-  unitPriceSession: number;
   currency: string;
   learningTicketTypeId?: string | null;
 }
@@ -15,11 +15,16 @@ export interface CreateTuitionPlanResponse {
   branchName: string;
   programId: string;
   programName: string;
+  levelId: string;
+  levelName: string;
+  moduleId?: string | null;
+  moduleName?: string | null;
   name: string;
   totalSessions: number;
   tuitionAmount: number;
   unitPriceSession: number;
   currency: string;
+  status: 'active' | 'inactive';
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -34,11 +39,16 @@ export interface TuitionPlan {
   branchName: string;
   programId: string;
   programName: string;
+  levelId: string;
+  levelName: string;
+  moduleId?: string | null;
+  moduleName?: string | null;
   name: string;
   totalSessions: number;
   tuitionAmount: number;
   unitPriceSession: number;
   currency: string;
+  status: 'active' | 'inactive';
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -48,12 +58,12 @@ export interface TuitionPlan {
 }
 
 export interface UpdateTuitionPlanRequest {
-  branchId?: string;
   programId?: string;
+  levelId?: string | null;
+  moduleId?: string | null;
   name?: string;
   totalSessions?: number;
   tuitionAmount?: number;
-  unitPriceSession?: number;
   currency?: string;
   learningTicketTypeId?: string | null;
 }
@@ -64,11 +74,16 @@ export interface UpdateTuitionPlanResponse {
   branchName: string;
   programId: string;
   programName: string;
+  levelId: string;
+  levelName: string;
+  moduleId?: string | null;
+  moduleName?: string | null;
   name: string;
   totalSessions: number;
   tuitionAmount: number;
   unitPriceSession: number;
   currency: string;
+  status: 'active' | 'inactive';
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

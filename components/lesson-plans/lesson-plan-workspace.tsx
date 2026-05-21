@@ -1,6 +1,23 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import {
+  DndContext,
+  DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   ArrowDown,
   ArrowUp,
@@ -8,6 +25,7 @@ import {
   CalendarDays,
   Check,
   CheckCircle2,
+  ChevronRight,
   ClipboardPen,
   Clock3,
   Eye,
@@ -15,6 +33,7 @@ import {
   FileText,
   FolderOpen,
   GraduationCap,
+  GripVertical,
   Layers,
   Loader2,
   Paperclip,
@@ -22,8 +41,10 @@ import {
   Plus,
   RefreshCw,
   Search,
+  Settings2,
   ShieldCheck,
   Sparkles,
+  Trash2,
   Upload,
   Users,
   X,
@@ -53,9 +74,19 @@ import {
   importLessonPlanTemplates,
   LessonPlan,
   LessonPlanTemplate,
+  LessonPlanUnit,
   updateLessonPlan,
   updateLessonPlanTemplate,
   uploadLessonPlanFile,
+  getLessonPlanUnits,
+  createLessonPlanUnit,
+  updateLessonPlanUnit,
+  deleteLessonPlanUnit,
+  reorderLessonPlanUnits,
+  reorderLessonsInUnit,
+  deleteLessonPlanTemplate,
+  importLessonPlanTemplateWord,
+  reorderLessonPlanTemplateSessionOrders,
 } from "@/lib/api/lessonPlanService";
 import { getAllProgramsForDropdown } from "@/lib/api/programService";
 import { getTeacherClasses } from "@/lib/api/teacherService";
@@ -1320,6 +1351,20 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
             sessionIndex: payload.sessionIndex,
             syllabusMetadata: payload.syllabusMetadata ?? null,
             syllabusContent: payload.syllabusContent ?? null,
+            // Preserve new content fields — the edit form doesn't have
+            // inputs for these yet, so we pass through the original values
+            // to prevent them from being wiped on a full PUT.
+            objectives: templateModal.item.objectives ?? null,
+            languageContent: templateModal.item.languageContent ?? null,
+            vocabulary: templateModal.item.vocabulary ?? null,
+            grammar: templateModal.item.grammar ?? null,
+            teachingMethodology: templateModal.item.teachingMethodology ?? null,
+            teacherMaterials: templateModal.item.teacherMaterials ?? null,
+            studentMaterials: templateModal.item.studentMaterials ?? null,
+            procedure: templateModal.item.procedure ?? null,
+            evaluation: templateModal.item.evaluation ?? null,
+            homework: templateModal.item.homework ?? null,
+            teacherNote: templateModal.item.teacherNote ?? null,
             sourceFileName: payload.sourceFileName ?? null,
             attachment,
             isActive: payload.isActive ?? true,
@@ -1369,7 +1414,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
       throw new Error(extractMessage(response, "Không thể import syllabus."));
     }
 
-    const importedPrograms = response.data.programs
+    const importedPrograms = (response.data.programs ?? [])
       .map(
         (item) =>
           `${item.programName || item.programId}: ${item.importedSessions}`,
@@ -1582,6 +1627,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
             onOpenAttachment={openAttachment}
             onOpenDetail={(item) => openTemplateDetail(item.id)}
             onEdit={openTemplateEditor}
+            onRefresh={() => refreshWorkspace(true)}
           />
         ) : (
           <SyllabusView
@@ -1821,81 +1867,936 @@ function FilterBar({
   );
 }
 
+// ─── SortableUnitRow ──────────────────────────────────────────────────────────
+
+function SortableUnitRow({
+  unit,
+  onRename,
+  onDelete,
+  saving,
+}: {
+  unit: LessonPlanUnit;
+  onRename: (unitId: string, name: string) => void;
+  onDelete: (unit: LessonPlanUnit) => void;
+  saving: string | null;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: unit.id });
+  const [editing, setEditing] = useState(false);
+  const [draftName, setDraftName] = useState(unit.name);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { setDraftName(unit.name); }, [unit.name]);
+  useEffect(() => { if (editing) inputRef.current?.focus(); }, [editing]);
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 50 : undefined,
+  };
+
+  function commit() {
+    const trimmed = draftName.trim();
+    if (trimmed && trimmed !== unit.name) onRename(unit.id, trimmed);
+    setEditing(false);
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-2 rounded-lg border border-gray-100 bg-white px-3 py-2.5 shadow-sm"
+    >
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 flex-shrink-0 touch-none"
+        title="Kéo để sắp xếp"
+      >
+        <GripVertical size={15} />
+      </button>
+
+      {editing ? (
+        <input
+          ref={inputRef}
+          value={draftName}
+          onChange={(e) => setDraftName(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commit();
+            if (e.key === "Escape") { setDraftName(unit.name); setEditing(false); }
+          }}
+          className="flex-1 text-sm border-b border-red-400 outline-none bg-transparent py-0.5"
+        />
+      ) : (
+        <span className="flex-1 text-sm text-gray-800 truncate">{unit.name}</span>
+      )}
+
+      <span className="text-[11px] text-gray-400 whitespace-nowrap flex-shrink-0">
+        {unit.lessonCount} bài
+      </span>
+
+      {saving === unit.id ? (
+        <Loader2 size={13} className="animate-spin text-gray-400 flex-shrink-0" />
+      ) : (
+        <>
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="text-gray-400 hover:text-amber-600 transition-colors flex-shrink-0 cursor-pointer"
+            title="Đổi tên"
+          >
+            <Pencil size={13} />
+          </button>
+          <button
+            type="button"
+            onClick={() => onDelete(unit)}
+            disabled={unit.lessonCount > 0}
+            className="text-gray-300 hover:text-red-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex-shrink-0 cursor-pointer"
+            title={unit.lessonCount > 0 ? `Không thể xóa: còn ${unit.lessonCount} bài` : "Xóa unit"}
+          >
+            <Trash2 size={13} />
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── UnitManagerPanel ─────────────────────────────────────────────────────────
+
+function UnitManagerPanel({
+  moduleId,
+  moduleName,
+  isOpen,
+  onClose,
+  onChanged,
+}: {
+  moduleId: string;
+  moduleName: string;
+  isOpen: boolean;
+  onClose: () => void;
+  onChanged: () => void;
+}) {
+  const [units, setUnits] = useState<LessonPlanUnit[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState<string | null>(null);
+  const [newName, setNewName] = useState("");
+  const [creating, setCreating] = useState(false);
+  const newInputRef = useRef<HTMLInputElement>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const res = await getLessonPlanUnits(moduleId);
+    if (res.isSuccess) setUnits(res.data ?? []);
+    setLoading(false);
+  }, [moduleId]);
+
+  useEffect(() => { if (isOpen) load(); }, [isOpen, load]);
+
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = units.findIndex((u) => u.id === active.id);
+    const newIndex = units.findIndex((u) => u.id === over.id);
+    const reordered = arrayMove(units, oldIndex, newIndex).map((u, i) => ({ ...u, orderIndex: i }));
+    setUnits(reordered);
+    await reorderLessonPlanUnits(moduleId, reordered.map((u) => ({ id: u.id, orderIndex: u.orderIndex })));
+    onChanged();
+  }
+
+  async function handleRename(unitId: string, name: string) {
+    setSaving(unitId);
+    const res = await updateLessonPlanUnit(unitId, { name });
+    if (res.isSuccess) {
+      setUnits((prev) => prev.map((u) => u.id === unitId ? { ...u, name } : u));
+      onChanged();
+    } else {
+      toast({ variant: "destructive", title: "Lỗi", description: res.message ?? "Không thể đổi tên." });
+    }
+    setSaving(null);
+  }
+
+  async function handleDelete(unit: LessonPlanUnit) {
+    setSaving(unit.id);
+    const res = await deleteLessonPlanUnit(unit.id);
+    if (res.isSuccess) {
+      setUnits((prev) => prev.filter((u) => u.id !== unit.id));
+      onChanged();
+    } else {
+      toast({ variant: "destructive", title: "Lỗi", description: res.message ?? "Không thể xóa unit." });
+    }
+    setSaving(null);
+  }
+
+  async function handleCreate() {
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    setCreating(true);
+    const res = await createLessonPlanUnit(moduleId, { name: trimmed });
+    if (res.isSuccess && res.data) {
+      setUnits((prev) => [...prev, res.data!]);
+      setNewName("");
+      onChanged();
+      newInputRef.current?.focus();
+    } else {
+      toast({ variant: "destructive", title: "Lỗi", description: res.message ?? "Không thể tạo unit." });
+    }
+    setCreating(false);
+  }
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
+      <div
+        className="h-full w-full max-w-md bg-white shadow-2xl flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-red-50 to-orange-50">
+          <Settings2 size={17} className="text-red-600 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-gray-400 font-medium">Quản lý Unit</p>
+            <p className="text-sm font-bold text-gray-900 truncate">{moduleName}</p>
+          </div>
+          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-700 cursor-pointer">
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-4 py-4">
+          {loading ? (
+            <div className="flex items-center justify-center py-12 text-gray-400">
+              <Loader2 size={20} className="animate-spin mr-2" />
+              <span className="text-sm">Đang tải...</span>
+            </div>
+          ) : units.length === 0 ? (
+            <p className="text-center text-sm text-gray-400 py-8">Chưa có unit nào.</p>
+          ) : (
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={units.map((u) => u.id)} strategy={verticalListSortingStrategy}>
+                <div className="flex flex-col gap-2">
+                  {units.map((unit) => (
+                    <SortableUnitRow
+                      key={unit.id}
+                      unit={unit}
+                      onRename={handleRename}
+                      onDelete={handleDelete}
+                      saving={saving}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+          )}
+        </div>
+
+        {/* Footer — create new unit */}
+        <div className="border-t border-gray-100 px-4 py-3 flex gap-2">
+          <input
+            ref={newInputRef}
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); }}
+            placeholder="Tên unit mới (vd: UNIT 5: NATURE)"
+            className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-red-400"
+          />
+          <button
+            type="button"
+            onClick={handleCreate}
+            disabled={creating || !newName.trim()}
+            className="flex items-center gap-1.5 px-3 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
+          >
+            {creating ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+            Tạo
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── SortableLessonRow ────────────────────────────────────────────────────────
+
+function SortableLessonRow({
+  item,
+  onOpenAttachment,
+  onOpenDetail,
+  onEdit,
+  onDelete,
+  isReal,
+  onSessionOrderChange,
+}: {
+  item: LessonPlanTemplate;
+  onOpenAttachment: (url?: string | null) => void;
+  onOpenDetail: (item: LessonPlanTemplate) => void;
+  onEdit: (item: LessonPlanTemplate) => void;
+  onDelete: (item: LessonPlanTemplate) => void;
+  isReal: boolean;
+  onSessionOrderChange: (item: LessonPlanTemplate, newOrder: number) => Promise<void>;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: item.id });
+
+  const [editingSession, setEditingSession] = useState(false);
+  const [sessionInput, setSessionInput] = useState("");
+  const sessionInputRef = useRef<HTMLInputElement>(null);
+
+  function startEditSession() {
+    setSessionInput(String(item.sessionOrder ?? item.sessionIndex ?? ""));
+    setEditingSession(true);
+    setTimeout(() => sessionInputRef.current?.select(), 0);
+  }
+
+  async function commitSessionEdit() {
+    setEditingSession(false);
+    const newOrder = parseInt(sessionInput, 10);
+    const current = item.sessionOrder ?? item.sessionIndex;
+    if (!isNaN(newOrder) && newOrder > 0 && newOrder !== current) {
+      await onSessionOrderChange(item, newOrder);
+    }
+  }
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  };
+
+  return (
+    <tr ref={setNodeRef} style={style} className="hover:bg-red-50/30 transition-colors">
+      <td className="pl-16 pr-4 py-3">
+        <div className="flex items-center gap-2">
+          {isReal && (
+            <button
+              type="button"
+              {...attributes}
+              {...listeners}
+              className="cursor-grab active:cursor-grabbing text-gray-200 hover:text-gray-400 flex-shrink-0 touch-none"
+              title="Kéo để sắp xếp"
+            >
+              <GripVertical size={13} />
+            </button>
+          )}
+          <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-red-600 flex items-center justify-center">
+            <BookOpenCheck size={13} className="text-white" />
+          </div>
+          <div>
+            <div className="text-sm font-semibold text-gray-900">{item.title}</div>
+            <div className="mt-0.5 text-xs text-gray-400">{item.sourceFileName || "Tạo thủ công"}</div>
+          </div>
+        </div>
+      </td>
+      <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
+        <div className="flex items-center gap-1.5">
+          <CalendarDays size={13} className="text-red-500" />
+          {editingSession ? (
+            <input
+              ref={sessionInputRef}
+              type="number"
+              min={1}
+              value={sessionInput}
+              onChange={(e) => setSessionInput(e.target.value)}
+              onBlur={commitSessionEdit}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") e.currentTarget.blur();
+                if (e.key === "Escape") setEditingSession(false);
+              }}
+              className="w-12 text-sm text-center border border-blue-400 rounded px-1 py-0 focus:outline-none focus:ring-1 focus:ring-blue-400"
+              autoFocus
+            />
+          ) : (
+            <span
+              className="cursor-pointer hover:text-blue-600 hover:underline decoration-dashed underline-offset-2"
+              title="Click để đổi số buổi"
+              onClick={startEditSession}
+            >
+              Buổi {item.sessionOrder ?? item.sessionIndex ?? "-"}
+            </span>
+          )}
+        </div>
+      </td>
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <StatusBadge kind={getTemplateStatus(item) === "active" ? "success" : "muted"}>
+            <div className="flex items-center gap-0.5">
+              {getTemplateStatus(item) === "active" ? (
+                <><CheckCircle2 size={12} /><span>Hoạt động</span></>
+              ) : (
+                <><XCircle size={12} /><span>Tạm ẩn</span></>
+              )}
+            </div>
+          </StatusBadge>
+          {item.attachment && (
+            <StatusBadge kind="info">
+              <div className="flex items-center gap-0.5">
+                <Paperclip size={12} /><span>File</span>
+              </div>
+            </StatusBadge>
+          )}
+        </div>
+      </td>
+      <td className="px-4 py-3 text-right whitespace-nowrap">
+        <div className="flex justify-end items-center gap-2.5">
+          {item.attachment && (
+            <button
+              type="button"
+              onClick={() => onOpenAttachment(item.attachment)}
+              className="text-blue-500 hover:text-blue-700 transition-colors cursor-pointer"
+              title="Mở file"
+            >
+              <Paperclip size={14} />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => onOpenDetail(item)}
+            className="text-gray-400 hover:text-red-600 transition-colors cursor-pointer"
+            title="Xem chi tiết"
+          >
+            <Eye size={14} />
+          </button>
+          <button
+            type="button"
+            onClick={() => onEdit(item)}
+            className="text-gray-400 hover:text-amber-600 transition-colors cursor-pointer"
+            title="Chỉnh sửa"
+          >
+            <Pencil size={14} />
+          </button>
+          <button
+            type="button"
+            onClick={() => onDelete(item)}
+            className="text-gray-300 hover:text-red-500 transition-colors cursor-pointer"
+            title="Xóa lesson"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+// ─── SortableModuleAccordionItem ────────────────────────────────────
+function SortableModuleAccordionItem({
+  moduleKey,
+  moduleName,
+  moduleCode,
+  totalItems,
+  unitCount,
+  orphanCount,
+  modIdx,
+  isOpen,
+  onToggle,
+  children,
+}: {
+  moduleKey: string;
+  moduleName: string;
+  moduleCode: string | null;
+  totalItems: number;
+  unitCount: number;
+  orphanCount: number;
+  modIdx: number;
+  isOpen: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: moduleKey });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+  return (
+    <div ref={setNodeRef} style={style}>
+      <div className="flex items-stretch bg-red-50/40 hover:bg-red-50 transition-colors border-l-2 border-red-200">
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          onClick={(e) => e.stopPropagation()}
+          className="px-2 flex items-center cursor-grab active:cursor-grabbing text-red-200 hover:text-red-400 flex-shrink-0 touch-none"
+          title="Kéo để sắp xếp module"
+        >
+          <GripVertical size={14} />
+        </button>
+        <button
+          type="button"
+          onClick={onToggle}
+          className="flex-1 flex items-center gap-3 pr-5 py-3 text-left cursor-pointer"
+        >
+          <ChevronRight
+            size={14}
+            className={cn(
+              "flex-shrink-0 transition-transform text-red-400",
+              isOpen && "rotate-90",
+            )}
+          />
+          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-600 text-white text-[10px] font-bold flex-shrink-0">
+            {modIdx + 1}
+          </span>
+          <span className="text-sm font-semibold text-gray-800">{moduleName}</span>
+          {moduleCode && (
+            <span className="text-xs text-gray-400 font-mono">({moduleCode})</span>
+          )}
+          <span className="ml-auto text-xs text-gray-400 whitespace-nowrap">
+            {totalItems} mẫu · {unitCount} unit
+            {orphanCount > 0 && (
+              <> · <span className="text-orange-400">{orphanCount} chưa phân unit</span></>
+            )}
+          </span>
+        </button>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// ─── SortableUnitAccordionItem ─────────────────────────────────────────────
+function SortableUnitAccordionItem({
+  unitGroup,
+  moduleKey,
+  isOpen,
+  onToggle,
+  onChanged,
+  onImportWord,
+  importing,
+  children,
+}: {
+  unitGroup: { unitKey: string; displayName: string; isLegacy: boolean; items: { id: string }[] };
+  moduleKey: string;
+  isOpen: boolean;
+  onToggle: () => void;
+  onChanged: () => Promise<void>;
+  onImportWord: (unitKey: string, moduleKey: string) => void;
+  importing: boolean;
+  children: React.ReactNode;
+}) {
+  const isReal = !unitGroup.isLegacy;
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: unitGroup.unitKey,
+    disabled: !isReal,
+  });
+  const [editing, setEditing] = useState(false);
+  const [draftName, setDraftName] = useState(unitGroup.displayName);
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { setDraftName(unitGroup.displayName); }, [unitGroup.displayName]);
+  useEffect(() => { if (editing) inputRef.current?.focus(); }, [editing]);
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  };
+
+  async function commitRename() {
+    const trimmed = draftName.trim();
+    setEditing(false);
+    if (!trimmed || trimmed === unitGroup.displayName) return;
+    setSaving(true);
+    try {
+      await updateLessonPlanUnit(unitGroup.unitKey, { name: trimmed });
+      await onChanged();
+    } catch { /* ignore */ } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (unitGroup.items.length > 0) return;
+    setSaving(true);
+    try {
+      await deleteLessonPlanUnit(unitGroup.unitKey);
+      await onChanged();
+    } catch { /* ignore */ } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <div className="flex items-center gap-2 pl-14 pr-4 py-2.5 bg-white hover:bg-orange-50/40 transition-colors border-l-2 border-orange-200">
+        {isReal ? (
+          <button
+            type="button"
+            {...attributes}
+            {...listeners}
+            onClick={(e) => e.stopPropagation()}
+            className="cursor-grab active:cursor-grabbing text-gray-200 hover:text-gray-400 flex-shrink-0 touch-none"
+            title="Kéo để sắp xếp"
+          >
+            <GripVertical size={13} />
+          </button>
+        ) : (
+          <div className="w-[13px] flex-shrink-0" />
+        )}
+        <button
+          type="button"
+          onClick={onToggle}
+          className="flex-1 flex items-center gap-2 text-left min-w-0"
+        >
+          <ChevronRight
+            size={12}
+            className={cn(
+              "flex-shrink-0 transition-transform text-orange-400",
+              isOpen && "rotate-90",
+            )}
+          />
+          <BookOpenCheck size={14} className="text-orange-500 flex-shrink-0" />
+          {editing ? (
+            <input
+              ref={inputRef}
+              value={draftName}
+              onChange={(e) => setDraftName(e.target.value)}
+              onBlur={commitRename}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") { e.preventDefault(); commitRename(); }
+                if (e.key === "Escape") { setDraftName(unitGroup.displayName); setEditing(false); }
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="flex-1 text-sm border-b border-red-400 outline-none bg-transparent py-0.5"
+            />
+          ) : (
+            <>
+              <span className="text-sm font-medium text-gray-700 truncate">{unitGroup.displayName}</span>
+              {unitGroup.isLegacy && (
+                <span className="text-[10px] text-orange-400 italic whitespace-nowrap ml-1">(chưa đồng bộ)</span>
+              )}
+            </>
+          )}
+        </button>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <span className="text-xs text-gray-400 whitespace-nowrap">{unitGroup.items.length} bài</span>
+          {saving ? (
+            <Loader2 size={12} className="animate-spin text-gray-400" />
+          ) : isReal ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                className="text-gray-300 hover:text-amber-600 transition-colors cursor-pointer"
+                title="Đổi tên"
+              >
+                <Pencil size={12} />
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={unitGroup.items.length > 0}
+                className="text-gray-200 hover:text-red-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                title={unitGroup.items.length > 0 ? `Còn ${unitGroup.items.length} bài, không thể xóa` : "Xóa unit"}
+              >
+                <Trash2 size={12} />
+              </button>
+              <button
+                type="button"
+                onClick={() => onImportWord(unitGroup.unitKey, moduleKey)}
+                disabled={importing}
+                className="text-gray-200 hover:text-blue-500 disabled:opacity-40 transition-colors cursor-pointer"
+                title="Import Word vào unit này"
+              >
+                {importing ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+              </button>
+            </>
+          ) : null}
+        </div>
+      </div>
+      {children}
+    </div>
+  );
+}
+
 function TemplateTable({
   items,
   onOpenAttachment,
   onOpenDetail,
   onEdit,
+  onRefresh,
 }: {
   items: LessonPlanTemplate[];
   onOpenAttachment: (url?: string | null) => void;
   onOpenDetail: (item: LessonPlanTemplate) => void;
   onEdit: (item: LessonPlanTemplate) => void;
+  onRefresh: () => void;
 }) {
-  const [sortField, setSortField] = useState<
-    "title" | "programName" | "sessionIndex" | null
-  >(null);
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [expandedLevels, setExpandedLevels] = useState<Set<string>>(new Set());
+  const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
+  const [expandedUnits, setExpandedUnits] = useState<Set<string>>(new Set());
 
-  const handleSort = (field: "title" | "programName" | "sessionIndex") => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+  // Delete / Import-Word state
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [importTarget, setImportTarget] = useState<{ unitKey: string; moduleKey: string } | null>(null);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Session order reorder state (keyed by levelKey)
+  const [reorderingLevelId, setReorderingLevelId] = useState<string | null>(null);
+
+  async function handleDeleteLesson(item: LessonPlanTemplate) {
+    setDeletingId(item.id);
+    const res = await deleteLessonPlanTemplate(item.id);
+    setDeletingId(null);
+    if (res.isSuccess) {
+      toast({ title: "Đã xóa", description: item.title });
+      onRefresh();
     } else {
-      setSortField(field);
-      setSortDirection("asc");
+      toast({ variant: "destructive", title: "Xóa thất bại", description: res.message ?? "Không thể xóa lesson." });
     }
-  };
+  }
 
-  const sortedItems = useMemo(() => {
-    if (!sortField) return items;
-
-    const sorted = [...items].sort((a, b) => {
-      let aVal: any = a[sortField];
-      let bVal: any = b[sortField];
-
-      if (aVal == null) aVal = "";
-      if (bVal == null) bVal = "";
-
-      if (typeof aVal === "string") {
-        aVal = aVal.toLowerCase();
-        bVal = (bVal as string).toLowerCase();
+  async function handleSessionOrderChange(item: LessonPlanTemplate, newOrder: number) {
+    // Find the level this lesson belongs to so we can reorder the full level batch
+    const levelGroup = levelGroups.find((lg) => lg.levelId === item.levelId);
+    if (!levelGroup?.levelId) {
+      // No level context — fall back to individual update
+      await updateLessonPlanTemplate(item.id, { sessionOrder: newOrder });
+      onRefresh();
+      return;
+    }
+    // Collect all lessons in current display order for this level
+    const modKeys = localModuleOrder[levelGroup.levelKey];
+    const orderedMods = modKeys
+      ? modKeys.map((k) => levelGroup.modules.find((m) => m.moduleKey === k)).filter(Boolean) as ModuleGroup[]
+      : levelGroup.modules;
+    const allLessons: LessonPlanTemplate[] = [];
+    for (const mod of orderedMods) {
+      const uKeys = localUnitOrder[mod.moduleKey];
+      const orderedUnits = uKeys
+        ? uKeys.map((k) => mod.units.find((u) => u.unitKey === k)).filter(Boolean) as UnitGroup[]
+        : mod.units;
+      for (const unit of orderedUnits) {
+        const overrideIds = localLessonOrder[unit.unitKey];
+        const unitItems = overrideIds
+          ? overrideIds.map((id) => unit.items.find((it) => it.id === id)).filter(Boolean) as LessonPlanTemplate[]
+          : unit.items;
+        allLessons.push(...unitItems);
       }
+      allLessons.push(...mod.orphans);
+    }
+    // Remove item from current position, insert at target slot, renumber 1…N
+    const withoutItem = allLessons.filter((l) => l.id !== item.id);
+    const clampedOrder = Math.max(1, Math.min(newOrder, withoutItem.length + 1));
+    withoutItem.splice(clampedOrder - 1, 0, item);
+    const sessionItems = withoutItem.map((l, i) => ({ id: l.id, sessionOrder: i + 1 }));
+    await reorderLessonPlanTemplateSessionOrders(levelGroup.levelId, sessionItems);
+    onRefresh();
+  }
 
-      if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
-      if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
-      return 0;
-    });
+  function handleImportWordClick(unitKey: string, moduleKey: string) {
+    setImportTarget({ unitKey, moduleKey });
+    fileInputRef.current?.click();
+  }
 
-    return sorted;
-  }, [items, sortField, sortDirection]);
+  async function handleReorderSessionOrders(levelGroup: LevelGroup) {
+    if (!levelGroup.levelId) {
+      toast({ variant: "destructive", title: "Lỗi", description: "Không tìm thấy levelId để cập nhật thứ tự." });
+      return;
+    }
+    setReorderingLevelId(levelGroup.levelKey);
+    // Collect all lessons in current display order (module → unit → lesson)
+    const overrideModuleKeys = localModuleOrder[levelGroup.levelKey];
+    const displayedModules = overrideModuleKeys
+      ? overrideModuleKeys.map((k) => levelGroup.modules.find((m) => m.moduleKey === k)).filter(Boolean) as ModuleGroup[]
+      : levelGroup.modules;
+    const items: { id: string; sessionOrder: number }[] = [];
+    let order = 1;
+    for (const mod of displayedModules) {
+      const overrideUnitKeys = localUnitOrder[mod.moduleKey];
+      const displayedUnits = overrideUnitKeys
+        ? overrideUnitKeys.map((k) => mod.units.find((u) => u.unitKey === k)).filter(Boolean) as UnitGroup[]
+        : mod.units;
+      for (const unit of displayedUnits) {
+        const overrideIds = localLessonOrder[unit.unitKey];
+        const displayedItems = overrideIds
+          ? overrideIds.map((id) => unit.items.find((it) => it.id === id)).filter(Boolean) as LessonPlanTemplate[]
+          : unit.items;
+        for (const lesson of displayedItems) {
+          items.push({ id: lesson.id, sessionOrder: order++ });
+        }
+      }
+      for (const orphan of mod.orphans) {
+        items.push({ id: orphan.id, sessionOrder: order++ });
+      }
+    }
+    const res = await reorderLessonPlanTemplateSessionOrders(levelGroup.levelId, items);
+    setReorderingLevelId(null);
+    if (res.isSuccess) {
+      toast({ title: "Đã cập nhật thứ tự buổi", description: `${items.length} mẫu trong cấp độ ${levelGroup.levelName}` });
+      onRefresh();
+    } else {
+      toast({ variant: "destructive", title: "Lỗi cập nhật thứ tự", description: res.message ?? "Không thể cập nhật thứ tự buổi." });
+    }
+  }
 
-  const SortHeader = ({
-    label,
-    field,
-  }: {
-    label: string;
-    field: "title" | "programName" | "sessionIndex";
-  }) => (
-    <th
-      className="px-6 py-3 text-left text-sm font-semibold text-gray-700 whitespace-nowrap cursor-pointer hover:bg-red-100/30 transition-colors"
-      onClick={() => handleSort(field)}
-    >
-      <div className="flex items-center gap-1">
-        <span>{label}</span>
-        {sortField === field && (
-          <span className="flex-shrink-0">
-            {sortDirection === "asc" ? (
-              <ArrowUp size={14} className="text-red-600" />
-            ) : (
-              <ArrowDown size={14} className="text-red-600" />
-            )}
-          </span>
-        )}
-      </div>
-    </th>
+  // Local module order overrides keyed by levelKey → ordered moduleKeys (optimistic DnD)
+  const [localModuleOrder, setLocalModuleOrder] = useState<Record<string, string[]>>({});
+  // Local unit order overrides keyed by moduleKey → ordered unitKeys (optimistic DnD)
+  const [localUnitOrder, setLocalUnitOrder] = useState<Record<string, string[]>>({});
+  // Local lesson order overrides keyed by unitKey → ordered item IDs
+  const [localLessonOrder, setLocalLessonOrder] = useState<Record<string, string[]>>({});
+  // Real BE unit order map: moduleId → LessonPlanUnit[] (sorted by orderIndex)
+  const [moduleUnitsMap, setModuleUnitsMap] = useState<Record<string, LessonPlanUnit[]>>({});
+
+  // Load real unit orderIndex from BE for every module in items
+  useEffect(() => {
+    const moduleIds = [...new Set(items.filter((i) => i.moduleId).map((i) => i.moduleId!))];
+    if (moduleIds.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const results = await Promise.allSettled(
+        moduleIds.map(async (id) => ({ id, units: (await getLessonPlanUnits(id)).data }))
+      );
+      if (cancelled) return;
+      const map: Record<string, LessonPlanUnit[]> = {};
+      for (const r of results) {
+        if (r.status === "fulfilled") map[r.value.id] = r.value.units;
+      }
+      setModuleUnitsMap(map);
+    })();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items]);
+
+  const lessonSensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  if (!sortedItems.length) {
+  const toggleSet = (
+    set: Set<string>,
+    setter: React.Dispatch<React.SetStateAction<Set<string>>>,
+    key: string,
+  ) => {
+    setter((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  // Extract "UNIT X: NAME" from "UNIT X: NAME - Lesson Y" (fallback for orphan display)
+  const extractUnitGroup = (title: string): string => {
+    const match = title.match(/^(.+?)\s*[-\u2013]\s*Lesson\s+\d+/i);
+    return match ? match[1].trim() : title;
+  };
+
+  type UnitGroup = { unitKey: string; displayName: string; isLegacy: boolean; items: LessonPlanTemplate[] };
+  type ModuleGroup = {
+    moduleKey: string;
+    moduleName: string;
+    moduleCode: string | null;
+    units: UnitGroup[];
+    orphans: LessonPlanTemplate[];
+    totalItems: number;
+  };
+  type LevelGroup = {
+    levelKey: string;
+    levelId: string | null;
+    levelName: string;
+    programName: string;
+    modules: ModuleGroup[];
+    totalItems: number;
+  };
+
+  const levelGroups = useMemo<LevelGroup[]>(() => {
+    const sorted = [...items].sort((a, b) => {
+      const aOrd = a.orderIndexInUnit ?? Number.MAX_SAFE_INTEGER;
+      const bOrd = b.orderIndexInUnit ?? Number.MAX_SAFE_INTEGER;
+      if (aOrd !== bOrd) return aOrd - bOrd;
+      const aIdx = a.sessionIndex ?? Number.MAX_SAFE_INTEGER;
+      const bIdx = b.sessionIndex ?? Number.MAX_SAFE_INTEGER;
+      return aIdx - bIdx;
+    });
+    const levelMap = new Map<string, LevelGroup>();
+    for (const item of sorted) {
+      const levelKey = `${item.programId ?? ""}${item.levelId ?? item.level ?? ""}`;
+      const moduleKey = item.moduleId ?? `${levelKey}__nomod`;
+      // Prefer real unit data from BE; fall back to title-parsing for legacy data
+      // (data imported before unit migration has lessonPlanUnitId = null)
+      const realUnitId = item.lessonPlanUnitId;
+      const parsedUnitName = extractUnitGroup(item.title ?? "");
+      const unitKey = realUnitId ?? `${moduleKey}__title__${parsedUnitName}`;
+      const unitName = item.lessonPlanUnitName ?? (parsedUnitName || null);
+      // isLegacy: unit is title-derived, not a real BE unit
+      const isLegacy = !realUnitId && !!unitName;
+      if (!levelMap.has(levelKey)) {
+        levelMap.set(levelKey, {
+          levelKey,
+          levelId: item.levelId ?? null,
+          levelName: item.levelName || item.level || "Chưa xác định cấp độ",
+          programName: item.programName || "",
+          modules: [],
+          totalItems: 0,
+        });
+      }
+      const level = levelMap.get(levelKey)!;
+      let mod = level.modules.find((m) => m.moduleKey === moduleKey);
+      if (!mod) {
+        mod = {
+          moduleKey,
+          moduleName: item.moduleName || "Chưa phân module",
+          moduleCode: item.moduleCode ?? null,
+          units: [],
+          orphans: [],
+          totalItems: 0,
+        };
+        level.modules.push(mod);
+      }
+      if (!unitName) {
+        // Truly no unit info at all — show as orphan inside module
+        mod.orphans.push(item);
+      } else {
+        let unit = mod.units.find((u) => u.unitKey === unitKey);
+        if (!unit) {
+          unit = { unitKey, displayName: unitName, isLegacy, items: [] };
+          mod.units.push(unit);
+        }
+        unit.items.push(item);
+      }
+      mod.totalItems += 1;
+      level.totalItems += 1;
+    }
+    // Sort modules within each level alphabetically by moduleCode (then moduleName)
+    for (const level of levelMap.values()) {
+      level.modules.sort((a, b) => {
+        const aKey = (a.moduleCode ?? a.moduleName).toUpperCase();
+        const bKey = (b.moduleCode ?? b.moduleName).toUpperCase();
+        return aKey.localeCompare(bKey);
+      });
+    }
+    // Sort unit groups within each module by real BE orderIndex
+    for (const level of levelMap.values()) {
+      for (const mod of level.modules) {
+        const beUnits = moduleUnitsMap[mod.moduleKey] ?? [];
+        if (beUnits.length > 0) {
+          mod.units.sort((a, b) => {
+            const findOrder = (ug: UnitGroup) => {
+              // Real units: match by ID; legacy units: match by normalized name
+              let bu = beUnits.find((u) => u.id === ug.unitKey);
+              if (!bu) bu = beUnits.find((u) => u.name.toUpperCase() === ug.displayName.toUpperCase());
+              return bu?.orderIndex ?? Number.MAX_SAFE_INTEGER;
+            };
+            return findOrder(a) - findOrder(b);
+          });
+        }
+      }
+    }
+    return Array.from(levelMap.values());
+  }, [items, moduleUnitsMap]);
+
+  if (!items.length) {
     return (
       <EmptyState
         title="Chưa có mẫu giáo án phù hợp"
@@ -1905,171 +2806,367 @@ function TemplateTable({
   }
 
   return (
+    <>
+    <input
+      ref={fileInputRef}
+      type="file"
+      accept=".doc,.docx"
+      className="hidden"
+      onChange={async (e) => {
+        const file = e.target.files?.[0];
+        e.target.value = "";
+        if (!file || !importTarget) return;
+        setImporting(true);
+        const res = await importLessonPlanTemplateWord(importTarget.moduleKey, file, { lessonPlanUnitId: importTarget.unitKey });
+        if (res.isSuccess && res.data?.lessonPlanTemplateId) {
+          toast({ title: "Import thành công", description: res.data.title ?? "Đã thêm bài vào unit." });
+          onRefresh();
+        } else {
+          toast({ variant: "destructive", title: "Lỗi import Word", description: res.message ?? "Import thất bại." });
+        }
+        setImporting(false);
+        setImportTarget(null);
+      }}
+    />
     <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-      {/* Table Header */}
-      <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <h2 className="font-semibold text-gray-900">Danh sách mẫu giáo án</h2>
-          <span className="text-sm text-gray-600">
-            {sortedItems.length} mẫu
-          </span>
-        </div>
+      {/* Header */}
+      <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+        <h2 className="font-semibold text-gray-900">Danh sách mẫu giáo án</h2>
+        <span className="text-sm text-gray-500">
+          {items.length} mẫu · {levelGroups.length} cấp độ
+        </span>
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-gray-200">
-            <tr>
-              <SortHeader label="Tên mẫu" field="title" />
-              <SortHeader label="Chương trình" field="programName" />
-              <SortHeader label="Buổi học" field="sessionIndex" />
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700 whitespace-nowrap">
-                Nguồn
-              </th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700 whitespace-nowrap">
-                Trạng thái
-              </th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700 whitespace-nowrap">
-                Thao tác
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {sortedItems.map((item) => (
-              <tr
-                key={item.id}
-                className="transition-colors hover:bg-red-50/40"
+      {/* Accordion */}
+      <div className="divide-y divide-gray-100">
+        {levelGroups.map((levelGroup) => {
+          const isLevelOpen = expandedLevels.has(levelGroup.levelKey);
+          return (
+            <div key={levelGroup.levelKey}>
+              {/* Level row */}
+              <button
+                type="button"
+                onClick={() => toggleSet(expandedLevels, setExpandedLevels, levelGroup.levelKey)}
+                className="w-full flex items-center gap-3 px-5 py-3.5 bg-gray-50 hover:bg-gray-100 transition-colors text-left cursor-pointer"
               >
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-2">
-                    <div className="flex-shrink-0 w-8 h-8 rounded-xl bg-red-600 flex items-center justify-center">
-                      <BookOpenCheck size={16} className="text-white" />
-                    </div>
-                    <div>
-                      <div className="text-sm font-semibold text-gray-900">
-                        {item.title}
-                      </div>
-                      <div className="mt-1 text-sm text-gray-500">
-                        Cấp độ {item.level || "-"}
-                      </div>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-700">
-                  <div className="flex items-center gap-2">
-                    <Layers size={16} className="text-red-600 flex-shrink-0" />
-                    <div>
-                      <div>{item.programName || item.programId}</div>
-                      <div className="mt-1 text-xs text-gray-500">
-                        {item.createdByName || "Không rõ người tạo"}
-                      </div>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-700 whitespace-nowrap">
-                  <div className="flex items-center gap-2">
-                    <CalendarDays
-                      size={16}
-                      className="text-red-600 flex-shrink-0"
-                    />
-                    <span>
-                      {item.sessionIndex === 1
-                        ? "Template chung (neo Buổi 1)"
-                        : `Buổi ${item.sessionIndex || "-"}`}
+                <ChevronRight
+                  size={16}
+                  className={cn(
+                    "flex-shrink-0 transition-transform text-gray-400",
+                    isLevelOpen && "rotate-90",
+                  )}
+                />
+                <GraduationCap size={17} className="text-red-600 flex-shrink-0" />
+                <span className="font-semibold text-gray-800 text-sm">
+                  {levelGroup.levelName}
+                </span>
+                {levelGroup.programName && (
+                  <span className="text-xs text-gray-400 font-normal">
+                    · {levelGroup.programName}
+                  </span>
+                )}
+                <span className="ml-auto flex items-center gap-3 text-xs text-gray-400 font-medium whitespace-nowrap">
+                  {levelGroup.levelId && (
+                    <span
+                      role="button"
+                      onClick={(e) => { e.stopPropagation(); handleReorderSessionOrders(levelGroup); }}
+                      className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 transition-colors ${reorderingLevelId === levelGroup.levelKey ? "opacity-50 pointer-events-none" : ""}`}
+                      title="Cập nhật số thứ tự buổi cố định theo thứ tự hiện tại"
+                    >
+                      {reorderingLevelId === levelGroup.levelKey
+                        ? <Loader2 size={12} className="animate-spin" />
+                        : <RefreshCw size={12} />}
+                      Cập nhật thứ tự buổi
                     </span>
-                  </div>
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-700 whitespace-nowrap">
-                  <div className="flex items-center gap-2">
-                    <FileText
-                      size={16}
-                      className="text-red-600 flex-shrink-0"
-                    />
-                    <div>
-                      <div>{item.sourceFileName || "Tạo thủ công"}</div>
-                      {item.attachment ? (
-                        <button
-                          type="button"
-                          onClick={() => onOpenAttachment(item.attachment)}
-                          className="mt-2 inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 cursor-pointer"
-                        >
-                          <Paperclip size={11} />
-                          Mở file
-                        </button>
-                      ) : null}
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex flex-col gap-1">
-                    <div className="flex flex-nowrap gap-1">
-                      <StatusBadge
-                        kind={
-                          getTemplateStatus(item) === "active"
-                            ? "success"
-                            : "muted"
-                        }
-                      >
-                        <div className="flex items-center gap-0.5">
-                          {getTemplateStatus(item) === "active" ? (
-                            <>
-                              <CheckCircle2 size={14} />
-                              <span>Đang hoạt động</span>
-                            </>
-                          ) : (
-                            <>
-                              <XCircle size={14} />
-                              <span>Tạm ẩn</span>
-                            </>
-                          )}
-                        </div>
-                      </StatusBadge>
-                      {item.attachment ? (
-                        <StatusBadge kind="info">
-                          <div className="flex items-center gap-0.5">
-                            <Paperclip size={14} />
-                            <span>Có attachment</span>
+                  )}
+                  {levelGroup.totalItems} mẫu · {levelGroup.modules.length} module
+                </span>
+              </button>
+
+              {isLevelOpen && (
+                <div className="divide-y divide-gray-100">
+                  <DndContext
+                    sensors={lessonSensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={(event) => {
+                      const { active, over } = event;
+                      if (!over || active.id === over.id) return;
+                      const overrideKeys = localModuleOrder[levelGroup.levelKey];
+                      const currentKeys = overrideKeys ?? levelGroup.modules.map((m) => m.moduleKey);
+                      const oldIdx = currentKeys.indexOf(String(active.id));
+                      const newIdx = currentKeys.indexOf(String(over.id));
+                      if (oldIdx < 0 || newIdx < 0) return;
+                      setLocalModuleOrder((prev) => ({
+                        ...prev,
+                        [levelGroup.levelKey]: arrayMove(currentKeys, oldIdx, newIdx),
+                      }));
+                    }}
+                  >
+                    <SortableContext
+                      items={levelGroup.modules.map((m) => m.moduleKey)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {(() => {
+                        const overrideKeys = localModuleOrder[levelGroup.levelKey];
+                        const displayedModules = overrideKeys
+                          ? overrideKeys.map((k) => levelGroup.modules.find((m) => m.moduleKey === k)).filter(Boolean) as typeof levelGroup.modules
+                          : levelGroup.modules;
+                        return displayedModules.map((mod, modIdx) => {
+                          const isModOpen = expandedModules.has(mod.moduleKey);
+                          return (
+                            <SortableModuleAccordionItem
+                              key={mod.moduleKey}
+                              moduleKey={mod.moduleKey}
+                              moduleName={mod.moduleName}
+                              moduleCode={mod.moduleCode}
+                              totalItems={mod.totalItems}
+                              unitCount={mod.units.length}
+                              orphanCount={mod.orphans.length}
+                              modIdx={modIdx}
+                              isOpen={isModOpen}
+                              onToggle={() => toggleSet(expandedModules, setExpandedModules, mod.moduleKey)}
+                            >
+
+                        {isModOpen && (
+                          <div className="divide-y divide-gray-50 border-l-2 border-red-100">
+                            <DndContext
+                              sensors={lessonSensors}
+                              collisionDetection={closestCenter}
+                              onDragEnd={async (event) => {
+                                const { active, over } = event;
+                                if (!over || active.id === over.id) return;
+                                const overrideKeys = localUnitOrder[mod.moduleKey];
+                                const currentKeys = overrideKeys ?? mod.units.map((u) => u.unitKey);
+                                const oldIdx = currentKeys.indexOf(String(active.id));
+                                const newIdx = currentKeys.indexOf(String(over.id));
+                                if (oldIdx < 0 || newIdx < 0) return;
+                                const reorderedKeys = arrayMove(currentKeys, oldIdx, newIdx);
+                                setLocalUnitOrder((prev) => ({ ...prev, [mod.moduleKey]: reorderedKeys }));
+                                const realItems = reorderedKeys
+                                  .filter((k) => !k.includes("__title__"))
+                                  .map((k, i) => ({ id: k, orderIndex: i }));
+                                if (realItems.length > 0) {
+                                  await reorderLessonPlanUnits(mod.moduleKey, realItems);
+                                  const res = await getLessonPlanUnits(mod.moduleKey);
+                                  if (res.isSuccess) setModuleUnitsMap((prev) => ({ ...prev, [mod.moduleKey]: res.data }));
+                                }
+                              }}
+                            >
+                              <SortableContext
+                                items={mod.units.map((u) => u.unitKey)}
+                                strategy={verticalListSortingStrategy}
+                              >
+                                {(() => {
+                                  const overrideKeys = localUnitOrder[mod.moduleKey];
+                                  const displayedUnits = overrideKeys
+                                    ? overrideKeys.map((k) => mod.units.find((u) => u.unitKey === k)).filter(Boolean) as typeof mod.units
+                                    : mod.units;
+                                  return displayedUnits.map((unitGroup) => {
+                                    const isUnitOpen = expandedUnits.has(unitGroup.unitKey);
+                                    return (
+                                      <SortableUnitAccordionItem
+                                        key={unitGroup.unitKey}
+                                        unitGroup={unitGroup}
+                                        moduleKey={mod.moduleKey}
+                                        isOpen={isUnitOpen}
+                                        onToggle={() => toggleSet(expandedUnits, setExpandedUnits, unitGroup.unitKey)}
+                                        onChanged={async () => {
+                                          const res = await getLessonPlanUnits(mod.moduleKey);
+                                          if (res.isSuccess) setModuleUnitsMap((prev) => ({ ...prev, [mod.moduleKey]: res.data }));
+                                        }}
+                                        onImportWord={handleImportWordClick}
+                                        importing={importTarget?.unitKey === unitGroup.unitKey && importing}
+                                      >
+                                        {isUnitOpen && (() => {
+                                          const overrideIds = localLessonOrder[unitGroup.unitKey];
+                                          const displayItems = overrideIds
+                                            ? overrideIds.map((id) => unitGroup.items.find((it) => it.id === id)).filter(Boolean) as typeof unitGroup.items
+                                            : unitGroup.items;
+                                          const isReal = !unitGroup.isLegacy;
+
+                                          async function handleLessonDragEnd(event: DragEndEvent) {
+                                            const { active, over } = event;
+                                            if (!over || active.id === over.id) return;
+                                            const oldIdx = displayItems.findIndex((it) => it.id === active.id);
+                                            const newIdx = displayItems.findIndex((it) => it.id === over.id);
+                                            const reordered = arrayMove(displayItems, oldIdx, newIdx);
+                                            setLocalLessonOrder((prev) => ({
+                                              ...prev,
+                                              [unitGroup.unitKey]: reordered.map((it) => it.id),
+                                            }));
+                                            await reorderLessonsInUnit(
+                                              unitGroup.unitKey,
+                                              reordered.map((it, i) => ({ id: it.id, orderIndexInUnit: i })),
+                                            );
+                                            // Auto-update sessionOrder across entire level (silent)
+                                            if (levelGroup.levelId) {
+                                              const modKeys = localModuleOrder[levelGroup.levelKey];
+                                              const orderedMods = modKeys
+                                                ? modKeys.map((k) => levelGroup.modules.find((m) => m.moduleKey === k)).filter(Boolean) as typeof levelGroup.modules
+                                                : levelGroup.modules;
+                                              const sessionItems: { id: string; sessionOrder: number }[] = [];
+                                              let order = 1;
+                                              for (const m of orderedMods) {
+                                                const uKeys = localUnitOrder[m.moduleKey];
+                                                const orderedUnits = uKeys
+                                                  ? uKeys.map((k) => m.units.find((u) => u.unitKey === k)).filter(Boolean) as typeof m.units
+                                                  : m.units;
+                                                for (const u of orderedUnits) {
+                                                  const isThisUnit = u.unitKey === unitGroup.unitKey;
+                                                  const unitItems = isThisUnit
+                                                    ? reordered
+                                                    : (localLessonOrder[u.unitKey]
+                                                        ? localLessonOrder[u.unitKey].map((id) => u.items.find((it) => it.id === id)).filter(Boolean) as typeof u.items
+                                                        : u.items);
+                                                  for (const lesson of unitItems) {
+                                                    sessionItems.push({ id: lesson.id, sessionOrder: order++ });
+                                                  }
+                                                }
+                                                for (const orphan of m.orphans) {
+                                                  sessionItems.push({ id: orphan.id, sessionOrder: order++ });
+                                                }
+                                              }
+                                              await reorderLessonPlanTemplateSessionOrders(levelGroup.levelId, sessionItems);
+                                              onRefresh();
+                                            }
+                                          }
+
+                                          return (
+                                            <div className="overflow-x-auto border-l-2 border-orange-100">
+                                              <DndContext
+                                                sensors={lessonSensors}
+                                                collisionDetection={closestCenter}
+                                                onDragEnd={handleLessonDragEnd}
+                                              >
+                                                <SortableContext
+                                                  items={displayItems.map((it) => it.id)}
+                                                  strategy={verticalListSortingStrategy}
+                                                >
+                                                  <table className="w-full">
+                                                    <tbody className="divide-y divide-gray-50">
+                                                      {displayItems.map((item) => (
+                                                        <SortableLessonRow
+                                                          key={item.id}
+                                                          item={item}
+                                                          onOpenAttachment={onOpenAttachment}
+                                                          onOpenDetail={onOpenDetail}
+                                                          onEdit={onEdit}
+                                                          onDelete={handleDeleteLesson}
+                                                          isReal={isReal}
+                                                          onSessionOrderChange={handleSessionOrderChange}
+                                                        />
+                                                      ))}
+                                                    </tbody>
+                                                  </table>
+                                                </SortableContext>
+                                              </DndContext>
+                                            </div>
+                                          );
+                                        })()}
+                                      </SortableUnitAccordionItem>
+                                    );
+                                  });
+                                })()}
+                              </SortableContext>
+                            </DndContext>
+                            {/* Orphan lessons — not yet assigned to a unit */}
+                            {mod.orphans.length > 0 && (
+                              <div>
+                                <div className="flex items-center gap-2 pl-14 pr-5 py-2 bg-orange-50/50 border-l-2 border-orange-300 text-xs text-orange-600 font-medium">
+                                  <BookOpenCheck size={12} className="flex-shrink-0" />
+                                  Chưa phân unit ({mod.orphans.length} bài)
+                                </div>
+                                <div className="overflow-x-auto border-l-2 border-orange-100">
+                                  <table className="w-full">
+                                    <tbody className="divide-y divide-gray-50">
+                                      {mod.orphans.map((item) => (
+                                        <tr
+                                          key={item.id}
+                                          className="hover:bg-orange-50/30 transition-colors"
+                                        >
+                                          <td className="pl-16 pr-4 py-3">
+                                            <div className="flex items-center gap-2">
+                                              <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-orange-400 flex items-center justify-center">
+                                                <BookOpenCheck size={13} className="text-white" />
+                                              </div>
+                                              <div>
+                                                <div className="text-sm font-semibold text-gray-900">
+                                                  {item.title}
+                                                </div>
+                                                <div className="mt-0.5 text-xs text-gray-400">
+                                                  {item.sourceFileName || "Tạo thủ công"}
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </td>
+                                          <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
+                                            <div className="flex items-center gap-1.5">
+                                              <CalendarDays size={13} className="text-orange-400" />
+                                              <span>Buổi {item.sessionOrder ?? item.sessionIndex ?? "-"}</span>
+                                            </div>
+                                          </td>
+                                          <td className="px-4 py-3 text-right whitespace-nowrap">
+                                            <div className="flex justify-end items-center gap-2.5">
+                                              {item.attachment && (
+                                                <button
+                                                  type="button"
+                                                  onClick={() => onOpenAttachment(item.attachment)}
+                                                  className="text-blue-500 hover:text-blue-700 transition-colors cursor-pointer"
+                                                  title="Mở file"
+                                                >
+                                                  <Paperclip size={14} />
+                                                </button>
+                                              )}
+                                              <button
+                                                type="button"
+                                                onClick={() => onOpenDetail(item)}
+                                                className="text-gray-400 hover:text-red-600 transition-colors cursor-pointer"
+                                                title="Xem chi tiết"
+                                              >
+                                                <Eye size={14} />
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() => onEdit(item)}
+                                                className="text-gray-400 hover:text-amber-600 transition-colors cursor-pointer"
+                                                title="Chỉnh sửa"
+                                              >
+                                                <Pencil size={14} />
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() => handleDeleteLesson(item)}
+                                                className="text-gray-300 hover:text-red-500 transition-colors cursor-pointer"
+                                                title="Xóa lesson"
+                                              >
+                                                <Trash2 size={14} />
+                                              </button>
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        </StatusBadge>
-                      ) : null}
-                    </div>
-                    {(item.usedCount || 0) > 0 ? (
-                      <StatusBadge kind="warning">
-                        <div className="flex items-center gap-0.5">
-                          <ShieldCheck size={14} />
-                          <span>Dùng {item.usedCount} lần</span>
-                        </div>
-                      </StatusBadge>
-                    ) : null}
-                  </div>
-                </td>
-                <td className="px-6 py-4 text-right whitespace-nowrap">
-                  <div className="flex justify-end items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => onOpenDetail(item)}
-                      className="text-gray-500 hover:text-red-600 transition-colors cursor-pointer"
-                      title="Xem chi tiết"
-                    >
-                      <Eye size={15} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onEdit(item)}
-                      className="text-gray-500 hover:text-amber-600 transition-colors cursor-pointer"
-                      title="Chỉnh sửa"
-                    >
-                      <Pencil size={15} />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                        )}
+                            </SortableModuleAccordionItem>
+                          );
+                        });
+                      })()}
+                    </SortableContext>
+                  </DndContext>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
+
+    </>
   );
 }
 
@@ -2928,12 +4025,19 @@ function TemplateFormModal({
       return;
     }
 
-    const duplicated = existingTemplates.find(
-      (item) =>
-        item.programId === programId &&
-        item.sessionIndex === effectiveSessionIndex &&
-        item.id !== initialValue?.id,
-    );
+    // Duplicate check only applies to "shared" (non-unit) templates.
+    // Unit-based templates can legitimately share (programId, sessionIndex)
+    // across different units, so we skip the check for them.
+    const isUnitTemplate = Boolean(initialValue?.lessonPlanUnitId);
+    const duplicated = isUnitTemplate
+      ? null
+      : existingTemplates.find(
+          (item) =>
+            !item.lessonPlanUnitId &&
+            item.programId === programId &&
+            item.sessionIndex === effectiveSessionIndex &&
+            item.id !== initialValue?.id,
+        );
 
     if (duplicated) {
       setError(
@@ -4933,6 +6037,31 @@ function PlanFormModal({
   );
 }
 
+function parseProcedureRows(text: string): { stage: string; step: string; details: string }[] {
+  if (!text?.trim()) return [];
+  // Strip the "Stages | Step | Details" header row emitted by Word export
+  const cleaned = text.replace(/^\s*Stages\s*\|\s*Step\s*\|\s*Details\s*/i, "").trim();
+  const rows: { stage: string; step: string; details: string }[] = [];
+  // Each row: {N} | {step text} | {details text until next N |}
+  const rowRegex = /(\d+)\s*\|\s*([^|]+?)\s*\|\s*([\s\S]*?)(?=\s+\d+\s*\||\s*$)/g;
+  let m: RegExpExecArray | null;
+  while ((m = rowRegex.exec(cleaned)) !== null) {
+    rows.push({ stage: m[1].trim(), step: m[2].trim(), details: m[3].trim() });
+  }
+  return rows;
+}
+
+/** Insert line breaks before Roman-numeral section markers (I., II., III. …) and numbered items */
+function formatDetailsText(text: string): string {
+  if (!text?.trim()) return text;
+  return text
+    // newline before Roman numerals: I. II. III. IV. V. VI. VII. VIII. IX. X.
+    .replace(/[ \t]+((?:I{1,3}|IV|VI{0,3}|IX|X{1,3}I{0,3}|X))\s*\.\s+/g, "\n$1. ")
+    // newline before numbered sub-items followed by uppercase or * or -
+    .replace(/[ \t]+(\d+)\.\s+([A-Z*\-])/g, "\n$1. $2")
+    .trim();
+}
+
 function DetailModal({
   state,
   linkedTemplate,
@@ -4954,6 +6083,23 @@ function DetailModal({
     state.type === "template" && state.item
       ? hasDisplayablePayload(state.item.syllabusContent)
       : false;
+  const structuredContentFields: { label: string; value: string; accent: string }[] =
+    state.type === "template" && state.item
+      ? [
+          { label: "Mục tiêu", value: state.item.objectives ?? "", accent: "text-emerald-700" },
+          { label: "Nội dung ngôn ngữ", value: state.item.languageContent ?? "", accent: "text-blue-700" },
+          { label: "Từ vựng", value: state.item.vocabulary ?? "", accent: "text-violet-700" },
+          { label: "Ngữ pháp", value: state.item.grammar ?? "", accent: "text-indigo-700" },
+          { label: "Phương pháp giảng dạy", value: state.item.teachingMethodology ?? "", accent: "text-orange-700" },
+          { label: "Tài liệu giáo viên", value: state.item.teacherMaterials ?? "", accent: "text-amber-700" },
+          { label: "Tài liệu học sinh", value: state.item.studentMaterials ?? "", accent: "text-yellow-700" },
+          { label: "Quy trình dạy học", value: state.item.procedure ?? "", accent: "text-teal-700" },
+          { label: "Đánh giá", value: state.item.evaluation ?? "", accent: "text-red-700" },
+          { label: "Bài tập về nhà", value: state.item.homework ?? "", accent: "text-pink-700" },
+          { label: "Ghi chú giáo viên", value: state.item.teacherNote ?? "", accent: "text-gray-600" },
+        ].filter((f) => f.value.trim())
+      : [];
+  const hasStructuredFields = structuredContentFields.length > 0;
 
   if (state.loading) {
     return (
@@ -5026,83 +6172,308 @@ function DetailModal({
         <div className="flex-1 overflow-y-auto space-y-5 p-6">
         {state.type === "template" && state.item ? (
           <>
-            <div className="grid gap-4 md:grid-cols-2">
-              <InfoCard
-                icon={BookOpenCheck}
-                label="Chương trình"
-                value={state.item.programName || state.item.programId || "-"}
-              />
-              <InfoCard
-                icon={GraduationCap}
-                label="Cấp độ / Buổi"
-                value={`Cấp độ ${state.item.level || "-"} • Buổi ${state.item.sessionIndex || "-"}`}
-              />
-              <InfoCard
-                icon={Users}
-                label="Người tạo"
-                value={state.item.createdByName || "-"}
-              />
-              <InfoCard
-                icon={Clock3}
-                label="Thời gian"
-                value={formatDate(
-                  state.item.updatedAt || state.item.createdAt,
-                  true,
-                )}
-              />
-            </div>
+            {/* Document-style lesson plan */}
+            <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm">
 
-            <ContentPanel
-              title="Tiêu đề"
-              value={state.item.title}
-              accent="text-red-700"
-            />
-            {hasTemplateMetadata ? (
-              <ContentPanel
-                title="Thông tin chung của syllabus"
-                subtitle="Áp dụng cho toàn bộ buổi học: Ngày học, Thời lượng, Thông tin chung, Tài liệu giảng dạy, Ghi chú"
-                value={state.item.syllabusMetadata}
-                accent="text-blue-700"
-              />
-            ) : null}
-            {hasTemplateContent ? (
-              <ContentPanel
-                title="Nội dung buổi học mẫu"
-                subtitle="Khung nội dung cho buổi này: activities, homework, teacher block"
-                value={state.item.syllabusContent}
-                accent="text-emerald-700"
-              />
-            ) : null}
-            {!hasTemplateMetadata && !hasTemplateContent ? (
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                Mẫu giáo án này chưa có dữ liệu syllabus chi tiết.
-              </div>
-            ) : null}
-            <ContentPanel
-              title="File nguồn import"
-              value={state.item.sourceFileName}
-              accent="text-amber-700"
-            />
-
-            <div className="rounded-2xl border border-gray-200 bg-white p-5">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <div className="text-sm font-semibold text-red-600">
-                  Attachment
+              {/* Document header */}
+              <div className="px-8 pt-5 pb-5 bg-gradient-to-b from-gray-50 to-white border-b border-gray-200">
+                <div className="flex justify-between text-[11px] text-gray-400 font-mono mb-4 pb-3 border-b border-dashed border-gray-300">
+                  <div className="space-y-1">
+                    <div>Date of preparation: ......./......../20......</div>
+                    <div>Date of teaching:&nbsp;&nbsp;&nbsp;&nbsp;......./......../20......</div>
+                  </div>
+                  <div className="space-y-1 text-right">
+                    <div>Teacher: <span className="font-sans font-medium text-gray-600">{state.item.createdByName || "............"}</span></div>
+                    <div>Class: .............</div>
+                  </div>
                 </div>
-                {state.item.attachment ? (
-                  <button
-                    type="button"
-                    onClick={() => onOpenAttachment(state.item!.attachment)}
-                    className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 cursor-pointer"
-                  >
-                    <Paperclip size={12} />
-                    Mở file
-                  </button>
-                ) : null}
+                <div className="text-center space-y-1.5 py-1">
+                  {(state.item.moduleName || state.item.moduleCode) && (
+                    <div className="text-xs font-bold uppercase tracking-[0.18em] text-red-600">
+                      {state.item.moduleName || state.item.moduleCode}
+                    </div>
+                  )}
+                  <h2 className="text-base font-bold text-gray-900">{state.item.title}</h2>
+                  <div className="text-sm text-gray-500 flex items-center justify-center gap-3 flex-wrap">
+                    <span>Lesson {state.item.sessionOrder ?? state.item.sessionIndex ?? "-"}</span>
+                    {state.item.levelName && <span>• {state.item.levelName}</span>}
+                    {state.item.programName && <span className="text-gray-400">• {state.item.programName}</span>}
+                  </div>
+                  <div className="pt-1 flex items-center justify-center gap-3 text-xs text-gray-400">
+                    <span>Tạo bởi {state.item.createdByName || "-"}</span>
+                    <span>•</span>
+                    <span>{formatDate(state.item.updatedAt || state.item.createdAt, true)}</span>
+                  </div>
+                </div>
               </div>
-              <div className="text-sm text-gray-700">
-                {state.item.attachment || "Chưa có file đính kèm"}
+
+              {/* Sections A–H */}
+              <div className="divide-y divide-gray-100">
+
+                {/* 0. Thông tin chung của Syllabus (mirrors the edit form section) */}
+                {(() => {
+                  const rawMeta = state.item.syllabusMetadata;
+                  if (!rawMeta?.trim()) return null;
+                  // Try JSON first (saved by the edit form), then plain text
+                  const jsonParsed = parseJsonContent(rawMeta) as Record<string, unknown> | null;
+                  const day: string = (jsonParsed?.day as string) || "";
+                  const duration: string = (jsonParsed?.duration as string) || "";
+                  const generalInfo: string = (jsonParsed?.generalInformation as string) || "";
+                  const materials: string[] = Array.isArray(jsonParsed?.teachingMaterials)
+                    ? (jsonParsed!.teachingMaterials as unknown[]).map(String).filter(Boolean)
+                    : [];
+                  const note: string = (jsonParsed?.note as string) || "";
+                  // Fallback: parse plain text
+                  const plain = !jsonParsed ? parsePlainMetadataText(rawMeta) : null;
+                  const pDay = day || plain?.day || "";
+                  const pDuration = duration || plain?.duration || "";
+                  const pInfo = generalInfo || plain?.generalInformation || "";
+                  const pMaterials = materials.length
+                    ? materials
+                    : plain?.teachingMaterialsText
+                      ? plain.teachingMaterialsText.split("\n").filter(Boolean)
+                      : [];
+                  const pNote = note || plain?.note || "";
+                  const hasMeta = pDay || pDuration || pInfo || pMaterials.length || pNote;
+                  if (!hasMeta) return null;
+                  const materialItems = pMaterials.map((line) => parseTeachingMaterialLine(line, 0));
+                  return (
+                    <div className="px-8 py-5 bg-blue-50/40 border-b border-blue-100">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-blue-700 mb-4">Thông tin chung của Syllabus</div>
+                      {(pDay || pDuration) && (
+                        <div className="grid grid-cols-2 gap-4 mb-3">
+                          {pDay && (
+                            <div>
+                              <div className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Ngày học</div>
+                              <div className="text-sm text-gray-700">{pDay}</div>
+                            </div>
+                          )}
+                          {pDuration && (
+                            <div>
+                              <div className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Thời lượng</div>
+                              <div className="text-sm text-gray-700">{pDuration}</div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {pInfo && (
+                        <div className="mb-3">
+                          <div className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Thông tin chung</div>
+                          <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{pInfo}</div>
+                        </div>
+                      )}
+                      {materialItems.length > 0 && (
+                        <div className="mb-3">
+                          <div className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Tài liệu giảng dạy</div>
+                          <div className="rounded-xl border border-blue-200 overflow-hidden">
+                            <div className="grid grid-cols-[1fr_1fr] bg-blue-50 border-b border-blue-200 text-[11px] font-semibold text-blue-700">
+                              <div className="px-3 py-2 border-r border-blue-200">Tên tài liệu</div>
+                              <div className="px-3 py-2">Link hoặc file</div>
+                            </div>
+                            <div className="divide-y divide-gray-100">
+                              {materialItems.map((mat, i) => (
+                                <div key={i} className="grid grid-cols-[1fr_1fr]">
+                                  <div className="px-3 py-2 text-sm text-gray-700 border-r border-gray-100 font-medium">{mat.title || `Tài liệu ${i + 1}`}</div>
+                                  <div className="px-3 py-2 text-sm text-gray-600 break-all">{renderLinkifiedText(mat.resource)}</div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      {pNote && (
+                        <div>
+                          <div className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Ghi chú</div>
+                          <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{pNote}</div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* A. Objectives */}
+                {state.item.objectives && (
+                  <div className="flex">
+                    <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-emerald-50/70 border-r border-emerald-100">
+                      <span className="text-sm font-extrabold text-emerald-700">A</span>
+                    </div>
+                    <div className="flex-1 px-6 py-4">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-emerald-700 mb-2">Objectives</div>
+                      <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{state.item.objectives}</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* B. Language content */}
+                {(state.item.languageContent || state.item.vocabulary || state.item.grammar) && (
+                  <div className="flex">
+                    <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-blue-50/70 border-r border-blue-100">
+                      <span className="text-sm font-extrabold text-blue-700">B</span>
+                    </div>
+                    <div className="flex-1 px-6 py-4">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-blue-700 mb-2">Language content</div>
+                      {state.item.languageContent && (
+                        <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6 mb-2">{state.item.languageContent}</div>
+                      )}
+                      {state.item.vocabulary && (
+                        <div className="text-sm text-gray-700 mb-1">
+                          <span className="font-semibold text-blue-600">Vocabulary: </span>{state.item.vocabulary}
+                        </div>
+                      )}
+                      {state.item.grammar && (
+                        <div className="text-sm text-gray-700">
+                          <span className="font-semibold text-blue-600">Grammar: </span>{state.item.grammar}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* C. Teaching methodology */}
+                {state.item.teachingMethodology && (
+                  <div className="flex">
+                    <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-orange-50/70 border-r border-orange-100">
+                      <span className="text-sm font-extrabold text-orange-700">C</span>
+                    </div>
+                    <div className="flex-1 px-6 py-4">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-orange-700 mb-2">Teaching methodology</div>
+                      <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{state.item.teachingMethodology}</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* D. Materials for teacher */}
+                {state.item.teacherMaterials && (
+                  <div className="flex">
+                    <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-amber-50/70 border-r border-amber-100">
+                      <span className="text-sm font-extrabold text-amber-700">D</span>
+                    </div>
+                    <div className="flex-1 px-6 py-4">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-amber-700 mb-2">Materials for teacher</div>
+                      <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{state.item.teacherMaterials}</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* E. Materials for students */}
+                {state.item.studentMaterials && (
+                  <div className="flex">
+                    <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-yellow-50/70 border-r border-yellow-100">
+                      <span className="text-sm font-extrabold text-yellow-600">E</span>
+                    </div>
+                    <div className="flex-1 px-6 py-4">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-yellow-700 mb-2">Materials for students</div>
+                      <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{state.item.studentMaterials}</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* F. Procedure */}
+                {state.item.procedure && (
+                  <div className="flex">
+                    <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-teal-50/70 border-r border-teal-100">
+                      <span className="text-sm font-extrabold text-teal-700">F</span>
+                    </div>
+                    <div className="flex-1 px-6 py-4">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-teal-700 mb-3">Procedure</div>
+                      {(() => {
+                        const rows = parseProcedureRows(state.item!.procedure!);
+                        if (rows.length === 0) {
+                          return <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{state.item.procedure}</div>;
+                        }
+                        return (
+                          <div className="rounded-xl border border-teal-200 overflow-hidden">
+                            <div className="grid grid-cols-[3rem_10rem_1fr] bg-teal-50 border-b border-teal-200 text-[11px] font-semibold text-teal-700">
+                              <div className="px-2 py-2 text-center border-r border-teal-200">Stages</div>
+                              <div className="px-3 py-2 text-center border-r border-teal-200">Step</div>
+                              <div className="px-3 py-2 text-left">Details</div>
+                            </div>
+                            <div className="divide-y divide-gray-100">
+                              {rows.map((row, i) => (
+                                <div key={i} className={cn("grid grid-cols-[3rem_10rem_1fr]", i % 2 === 0 ? "bg-white" : "bg-gray-50/50")}>
+                                  <div className="px-2 py-3 text-center text-sm font-bold text-gray-600 border-r border-gray-100 flex items-start justify-center pt-3">{row.stage}</div>
+                                  <div className="px-3 py-3 text-sm font-semibold text-gray-700 border-r border-gray-100 leading-5">{row.step}</div>
+                                  <div className="px-3 py-3 text-sm text-gray-700 leading-6 whitespace-pre-wrap">{formatDetailsText(row.details)}</div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                )}
+
+                {/* G. Evaluation */}
+                {state.item.evaluation && (
+                  <div className="flex">
+                    <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-red-50/70 border-r border-red-100">
+                      <span className="text-sm font-extrabold text-red-700">G</span>
+                    </div>
+                    <div className="flex-1 px-6 py-4">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-red-700 mb-2">Evaluation</div>
+                      <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{state.item.evaluation}</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* H. Homework */}
+                {state.item.homework && (
+                  <div className="flex">
+                    <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-pink-50/70 border-r border-pink-100">
+                      <span className="text-sm font-extrabold text-pink-700">H</span>
+                    </div>
+                    <div className="flex-1 px-6 py-4">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-pink-700 mb-2">Homework</div>
+                      <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{state.item.homework}</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Teacher note */}
+                {state.item.teacherNote && (
+                  <div className="px-8 py-4 bg-yellow-50/50 border-t border-yellow-100">
+                    <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-yellow-700 mb-2">Teacher Note</div>
+                    <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{state.item.teacherNote}</div>
+                  </div>
+                )}
+
+                {/* Fallback: raw syllabusContent if no structured fields */}
+                {!hasStructuredFields && hasTemplateContent && (
+                  <div className="px-8 py-4">
+                    <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-gray-600 mb-2">Nội dung</div>
+                    <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{state.item.syllabusContent}</div>
+                  </div>
+                )}
+                {!hasStructuredFields && !hasTemplateMetadata && !hasTemplateContent && (
+                  <div className="px-8 py-4">
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                      Mẫu giáo án này chưa có dữ liệu syllabus chi tiết.
+                    </div>
+                  </div>
+                )}
               </div>
+
+              {/* Footer */}
+              {(state.item.sourceFileName || state.item.attachment) && (
+                <div className="px-8 py-3 bg-gray-50 border-t border-gray-200 flex items-center gap-4">
+                  {state.item.sourceFileName && (
+                    <div className="text-xs text-gray-500 flex-1 truncate">
+                      <span className="font-medium">Nguồn:</span> {state.item.sourceFileName}
+                    </div>
+                  )}
+                  {state.item.attachment && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenAttachment(state.item!.attachment)}
+                      className="ml-auto inline-flex flex-shrink-0 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 cursor-pointer"
+                    >
+                      <Paperclip size={12} />
+                      Mở file đính kèm
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </>
         ) : state.type === "plan" && state.item ? (

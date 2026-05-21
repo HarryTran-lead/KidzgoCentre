@@ -34,6 +34,7 @@ import {
   CheckCircle,
   Sparkles,
   Layers,
+  Hash,
 } from "lucide-react";
 import clsx from "clsx";
 import {
@@ -80,7 +81,7 @@ import {
 import type { WeekdayCode } from "@/lib/schedulePattern";
 import { getSlotTypes } from "@/lib/api/slotTypeService";
 import type { SlotType } from "@/types/slot-type";
-import { getLevels } from "@/lib/api/academicProgressionService";
+import { getLevels, getModules } from "@/lib/api/academicProgressionService";
 
 /* ----------------------------- UI HELPERS ------------------------------ */
 function StatusBadge({ value }: { value: ClassRow["status"] }) {
@@ -1526,6 +1527,8 @@ interface ClassFormData {
   name: string;
   programId: string;
   levelId: string;
+  startModuleId: string;
+  startSessionIndex: number;
   branchId: string;
   mainTeacherId: string;
   assistantTeacherId: string;
@@ -1537,6 +1540,8 @@ interface ClassFormData {
   startDate: string;
   endDate: string;
   totalSessions: number;
+  sessionsToGenerate: number;
+  skipHolidays: boolean;
   description: string;
   slotTypeId: string;
 }
@@ -1546,6 +1551,8 @@ const initialFormData: ClassFormData = {
   name: "",
   programId: "",
   levelId: "",
+  startModuleId: "",
+  startSessionIndex: 1,
   branchId: "",
   mainTeacherId: "",
   assistantTeacherId: "",
@@ -1557,6 +1564,8 @@ const initialFormData: ClassFormData = {
   startDate: "",
   endDate: "",
   totalSessions: 0,
+  sessionsToGenerate: 24,
+  skipHolidays: true,
   description: "",
   slotTypeId: "",
 };
@@ -1682,6 +1691,54 @@ function buildClassSubmissionError(
       const msg = normalizeComparableText(item?.description || "");
       if (!msg) continue;
 
+      // ── Curriculum / lesson plan errors ──────────────────────────────────
+      if (
+        item?.code === "Class.MissingLessonPlanTemplate" ||
+        msg.includes("missing lesson plan template")
+      ) {
+        // Parse highest failing session index from message, e.g. "session index(es): 19"
+        const indexMatch = (item?.description || "").match(/:\s*([\d,\s]+)\.?\s*$/);
+        const indices = indexMatch
+          ? indexMatch[1].split(",").map((s) => parseInt(s.trim(), 10)).filter(Boolean)
+          : [];
+        const maxFailing = indices.length > 0 ? Math.max(...indices) : null;
+        const safeCount = maxFailing != null ? maxFailing - 1 : null;
+        const hint = safeCount != null
+          ? ` Giảm số buổi tạo xuống ≤ ${safeCount} để tránh lỗi.`
+          : " Liên hệ admin để bổ sung lesson plan còn thiếu.";
+        const desc = item?.description || rawMessage;
+        fieldErrors.startModuleId = `Curriculum chưa đủ lesson plan.${hint}`;
+        return new ClassFormSubmitError(`${desc}${hint}`, fieldErrors);
+      }
+
+      if (
+        item?.code === "Class.ModuleNotInLevel" ||
+        msg.includes("module_not_in_level") ||
+        msg.includes("not in level")
+      ) {
+        fieldErrors.startModuleId = "Module không thuộc level đã chọn.";
+        return new ClassFormSubmitError(fieldErrors.startModuleId, fieldErrors);
+      }
+
+      if (
+        item?.code === "Class.InvalidStartSessionIndex" ||
+        msg.includes("invalid_start_session_index") ||
+        msg.includes("invalid start session")
+      ) {
+        fieldErrors.startSessionIndex = item?.description || "Buổi bắt đầu không hợp lệ.";
+        return new ClassFormSubmitError(fieldErrors.startSessionIndex, fieldErrors);
+      }
+
+      if (
+        item?.code === "Class.NotEnoughCurriculumSessions" ||
+        msg.includes("not_enough_curriculum") ||
+        msg.includes("not enough curriculum")
+      ) {
+        fieldErrors.startModuleId = item?.description || "Curriculum không đủ buổi.";
+        return new ClassFormSubmitError(fieldErrors.startModuleId, fieldErrors);
+      }
+
+      // ── Basic field errors ────────────────────────────────────────────────
       if (
         msg.includes("class code") ||
         msg.includes("mã lớp") ||
@@ -2233,6 +2290,8 @@ function  CreateClassModal({
   const [slotTypeOptions, setSlotTypeOptions] = useState<SlotType[]>([]);
   const [levelOptions, setLevelOptions] = useState<{ id: string; name: string; code: string }[]>([]);
   const [loadingLevels, setLoadingLevels] = useState(false);
+  const [moduleOptions, setModuleOptions] = useState<{ id: string; name: string; orderIndex: number; requiredSessions: number; lessonPlanCount: number }[]>([]);
+  const [loadingModules, setLoadingModules] = useState(false);
 
   // States cho UI chọn lịch học theo từng ngày
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
@@ -2577,6 +2636,35 @@ function  CreateClassModal({
     return () => { cancelled = true; };
   }, [formData.programId]);
 
+  // Load modules when levelId changes
+  useEffect(() => {
+    if (!formData.levelId) {
+      setModuleOptions([]);
+      return;
+    }
+    let cancelled = false;
+    setLoadingModules(true);
+    getModules({ levelId: formData.levelId, isActive: true })
+      .then((res) => {
+        if (cancelled) return;
+        const items = res.data?.items ?? [];
+        setModuleOptions(
+          items
+            .sort((a, b) => (a.orderIndex ?? a.order ?? 0) - (b.orderIndex ?? b.order ?? 0))
+            .map((m) => ({
+              id: m.id,
+              name: m.name,
+              orderIndex: m.orderIndex ?? m.order ?? 0,
+              requiredSessions: m.requiredSessions ?? m.totalSessions ?? m.plannedSessionCount ?? m.lessonPlanCount ?? 0,
+              lessonPlanCount: m.lessonPlanCount ?? 0,
+            }))
+        );
+      })
+      .catch(() => { if (!cancelled) setModuleOptions([]); })
+      .finally(() => { if (!cancelled) setLoadingModules(false); });
+    return () => { cancelled = true; };
+  }, [formData.levelId]);
+
   // Lọc lại phòng học khi sĩ số thay đổi
   useEffect(() => {
     if (allRooms.length > 0) {
@@ -2884,6 +2972,8 @@ function  CreateClassModal({
     if (!formData.code.trim()) newErrors.code = "mã lớp là bắt buộc";
     if (!formData.name.trim()) newErrors.name = "tên lớp là bắt buộc";
     if (!formData.programId) newErrors.programId = "chương trình là bắt buộc";
+    if (!formData.levelId) newErrors.levelId = "level là bắt buộc";
+    if (!formData.startModuleId) newErrors.startModuleId = "module bắt đầu là bắt buộc";
     if (!formData.branchId) newErrors.branchId = "chi nhánh là bắt buộc";
     if (!formData.mainTeacherId)
       newErrors.mainTeacherId = "giáo viên chính là bắt buộc";
@@ -3074,6 +3164,12 @@ function  CreateClassModal({
   const handleChange = (field: keyof ClassFormData, value: any) => {
     setFormData((prev) => {
       const newData = { ...prev, [field]: value };
+
+      // Reset startModuleId khi đổi levelId
+      if (field === "levelId") {
+        newData.startModuleId = "";
+        newData.startSessionIndex = 1;
+      }
 
       // Khi thay đổi endDate hoặc schedule hoặc startDate -> tự tính totalSessions
       if (
@@ -3267,12 +3363,12 @@ function  CreateClassModal({
               </div>
             </div>
 
-            {/* Row Level */}
+            {/* Row Level + Module */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                   <Layers size={16} className="text-red-600" />
-                  Level <span className="text-xs font-normal text-gray-400">(tùy chọn)</span>
+                  Level <span className="text-red-500">*</span>
                 </label>
                 <Select
                   value={formData.levelId || "__none__"}
@@ -3281,7 +3377,10 @@ function  CreateClassModal({
                 >
                   <SelectTrigger
                     data-field="levelId"
-                    className="w-full border-gray-200"
+                    className={clsx(
+                      "w-full border-gray-200",
+                      errors.levelId ? "border-red-400 ring-1 ring-red-300" : ""
+                    )}
                   >
                     <SelectValue
                       placeholder={
@@ -3291,12 +3390,11 @@ function  CreateClassModal({
                           ? "Đang tải..."
                           : levelOptions.length === 0
                           ? "Chưa có level nào"
-                          : "Chọn level (tùy chọn)"
+                          : "Chọn level"
                       }
                     />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__none__">-- Không chọn --</SelectItem>
                     {levelOptions.map((l) => (
                       <SelectItem key={l.id} value={l.id}>
                         {l.code ? `[${l.code}] ` : ""}{l.name}
@@ -3304,6 +3402,185 @@ function  CreateClassModal({
                     ))}
                   </SelectContent>
                 </Select>
+                {errors.levelId && (
+                  <p className="text-sm text-red-600 flex items-center gap-1">
+                    <AlertCircle size={14} /> {errors.levelId}
+                  </p>
+                )}
+              </div>
+
+              {/* Module bắt đầu */}
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <BookOpen size={16} className="text-red-600" />
+                  Module bắt đầu <span className="text-red-500">*</span>
+                </label>
+                <Select
+                  value={formData.startModuleId || "__none__"}
+                  onValueChange={(val) => {
+                    const moduleId = val === "__none__" ? "" : val;
+                    handleChange("startModuleId", moduleId);
+                    const selected = moduleOptions.find((m) => m.id === moduleId);
+                    if (selected) {
+                      // Cap sessionsToGenerate at lessonPlanCount (actual templates available) to avoid
+                      // MISSING_LESSON_PLAN_TEMPLATE error. Fall back to requiredSessions if no templates counted.
+                      const safeSessions = selected.lessonPlanCount > 0
+                        ? Math.min(selected.requiredSessions, selected.lessonPlanCount)
+                        : selected.requiredSessions;
+                      handleChange("sessionsToGenerate", safeSessions);
+                    } else {
+                      handleChange("sessionsToGenerate", 0);
+                    }
+                    handleChange("startSessionIndex", 1);
+                  }}
+                  disabled={!formData.levelId || loadingModules}
+                >
+                  <SelectTrigger
+                    data-field="startModuleId"
+                    className={clsx(
+                      "w-full border-gray-200",
+                      errors.startModuleId ? "border-red-400 ring-1 ring-red-300" : ""
+                    )}
+                  >
+                    <SelectValue
+                      placeholder={
+                        !formData.levelId
+                          ? "Chọn level trước"
+                          : loadingModules
+                          ? "Đang tải..."
+                          : moduleOptions.length === 0
+                          ? "Chưa có module nào"
+                          : "Chọn module bắt đầu"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {moduleOptions.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        Module {m.orderIndex}: {m.name}
+                        {m.requiredSessions > 0 && (
+                          <span className="text-gray-400 text-xs ml-1">({m.requiredSessions} buổi)</span>
+                        )}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.startModuleId && (
+                  <p className="text-sm text-red-600 flex items-center gap-1">
+                    <AlertCircle size={14} /> {errors.startModuleId}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Row startSessionIndex + sessionsToGenerate + skipHolidays */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <Hash size={16} className="text-red-600" />
+                  Buổi bắt đầu trong module
+                </label>
+                {(() => {
+                  const selMod = moduleOptions.find((m) => m.id === formData.startModuleId);
+                  const maxIdx = selMod?.requiredSessions ?? 1;
+                  return (
+                    <>
+                      <input
+                        type="number"
+                        min={1}
+                        max={maxIdx}
+                        value={formData.startSessionIndex}
+                        onChange={(e) =>
+                          handleChange(
+                            "startSessionIndex",
+                            Math.min(maxIdx, Math.max(1, Number(e.target.value)))
+                          )
+                        }
+                        disabled={!formData.startModuleId}
+                        className="w-full h-10 px-3 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 disabled:bg-gray-50 disabled:text-gray-400"
+                        placeholder="1"
+                      />
+                      <p className="text-xs text-gray-400">
+                        {selMod
+                          ? `Buổi 1 – ${maxIdx} (module có ${maxIdx} buổi)`
+                          : "Chọn module trước"}
+                      </p>
+                    </>
+                  );
+                })()}
+              </div>
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <CalendarDays size={16} className="text-red-600" />
+                  Số buổi của module
+                </label>
+                {(() => {
+                  const selMod = moduleOptions.find((m) => m.id === formData.startModuleId);
+                  if (!selMod) return (
+                    <div className="flex items-center h-10 px-3 rounded-xl border border-dashed border-gray-200 bg-gray-50 text-sm text-gray-400">
+                      Chọn module để xem số buổi
+                    </div>
+                  );
+                  const isIncomplete = selMod.lessonPlanCount > 0 && selMod.lessonPlanCount < selMod.requiredSessions;
+                  const effective = selMod.lessonPlanCount > 0
+                    ? Math.min(selMod.requiredSessions, selMod.lessonPlanCount)
+                    : selMod.requiredSessions;
+                  return (
+                    <>
+                      <div className={clsx(
+                        "flex items-center h-10 px-3 rounded-xl border text-sm",
+                        isIncomplete
+                          ? "border-amber-300 bg-amber-50"
+                          : "border-gray-200 bg-gray-50"
+                      )}>
+                        <CalendarDays size={14} className={clsx("mr-2 flex-shrink-0", isIncomplete ? "text-amber-500" : "text-red-500")} />
+                        <span className="font-semibold text-gray-800">{effective}</span>
+                        <span className="text-gray-500 ml-1">buổi sẽ tạo</span>
+                        {isIncomplete && (
+                          <span className="ml-2 text-xs text-amber-600">
+                            ({selMod.lessonPlanCount}/{selMod.requiredSessions} lesson plan)
+                          </span>
+                        )}
+                      </div>
+                      {isIncomplete && (
+                        <p className="text-xs text-amber-600 flex items-center gap-1">
+                          <AlertCircle size={12} />
+                          Module chỉ có {selMod.lessonPlanCount} lesson plan — BE sẽ lỗi nếu tạo quá số này
+                        </p>
+                      )}
+                    </>
+                  );
+                })()}
+                <p className="text-xs text-gray-400">Tự động từ curriculum — không chỉnh tay được</p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <CalendarDays size={16} className="text-red-600" />
+                  Bỏ qua ngày lễ
+                </label>
+                <div className="flex items-center h-10">
+                  <button
+                    type="button"
+                    onClick={() => handleChange("skipHolidays", !formData.skipHolidays)}
+                    className={clsx(
+                      "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none",
+                      formData.skipHolidays ? "bg-red-600" : "bg-gray-300"
+                    )}
+                  >
+                    <span
+                      className={clsx(
+                        "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                        formData.skipHolidays ? "translate-x-6" : "translate-x-1"
+                      )}
+                    />
+                  </button>
+                  <span className="ml-3 text-sm text-gray-600">
+                    {formData.skipHolidays ? "Có (bỏ qua ngày lễ)" : "Không"}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-400">Tự động bỏ qua các ngày nghỉ lễ khi tạo lịch</p>
               </div>
             </div>
 
@@ -4219,17 +4496,21 @@ export default function Page() {
       const payload: CreateClassRequest = {
         branchId: data.branchId,
         programId: data.programId.trim(),
+        levelId: data.levelId,
+        startModuleId: data.startModuleId,
+        startSessionIndex: data.startSessionIndex,
         code: data.code,
-        title: data.name,
-        description: data.description || undefined,
-        mainTeacherId: data.mainTeacherId,
-        assistantTeacherId: data.assistantTeacherId || undefined,
-        roomId: data.roomId || undefined,
+        name: data.name,
+        description: data.description || null,
+        mainTeacherId: data.mainTeacherId || null,
+        assistantTeacherId: data.assistantTeacherId || null,
+        roomId: data.roomId || null,
         startDate: data.startDate,
-        endDate: data.endDate,
+        endDate: data.endDate || null,
         capacity: data.capacity,
+        sessionsToGenerate: data.sessionsToGenerate || 24,
+        skipHolidays: data.skipHolidays,
         weeklyScheduleSlots,
-        status: "Active",
         slotTypeId: data.slotTypeId || null,
       };
 
@@ -4328,6 +4609,10 @@ export default function Page() {
           (detail?.startDate as string | undefined)?.slice(0, 10) ?? "",
         endDate: (detail?.endDate as string | undefined)?.slice(0, 10) ?? "",
         totalSessions: detail?.totalSessions ?? 0,
+        startModuleId: String(detail?.startModuleId ?? detail?.currentModuleId ?? ""),
+        startSessionIndex: typeof detail?.startSessionIndex === "number" ? detail.startSessionIndex : 1,
+        sessionsToGenerate: 24,
+        skipHolidays: true,
         description: detail?.description ?? "",
         slotTypeId: detail?.slotTypeId ?? "",
       };
@@ -4373,14 +4658,17 @@ export default function Page() {
       const payload: CreateClassRequest = {
         branchId: data.branchId,
         programId: data.programId.trim(),
+        levelId: data.levelId,
+        startModuleId: data.startModuleId,
+        startSessionIndex: data.startSessionIndex,
         code: data.code,
-        title: data.name,
-        description: data.description || undefined,
-        mainTeacherId: data.mainTeacherId,
-        assistantTeacherId: data.assistantTeacherId || undefined,
-        roomId: data.roomId || undefined,
+        name: data.name,
+        description: data.description || null,
+        mainTeacherId: data.mainTeacherId || null,
+        assistantTeacherId: data.assistantTeacherId || null,
+        roomId: data.roomId || null,
         startDate: data.startDate,
-        endDate: data.endDate,
+        endDate: data.endDate || null,
         capacity: data.capacity,
         weeklyScheduleSlots,
         slotTypeId: data.slotTypeId || null,

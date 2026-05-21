@@ -1,21 +1,20 @@
 "use client";
 
-import { BookOpen, Clock, DollarSign, FileText, Tag, Wallet, X } from "lucide-react";
+import { BookOpen, Clock, DollarSign, FileText, Layers, Tag, Wallet, X } from "lucide-react";
 import type { TuitionPlan } from "@/types/admin/tuition_plan";
 
 function cn(...a: Array<string | false | null | undefined>) {
   return a.filter(Boolean).join(" ");
 }
 
-function StatusBadge({ value }: { value: "Đang hoạt động" | "Tạm dừng" }) {
-  const map: Record<string, string> = {
-    "Đang hoạt động": "bg-green-100 text-green-700 border border-green-200",
-    "Tạm dừng": "bg-gray-100 text-gray-700 border border-gray-200",
-  };
-
+function StatusBadge({ status, isActive }: { status?: 'active' | 'inactive'; isActive: boolean }) {
+  const active = status === 'active' || (status === undefined && isActive);
   return (
-    <span className={cn("px-2.5 py-1 rounded-full text-xs font-semibold", map[value])}>
-      {value}
+    <span className={cn(
+      "px-2.5 py-1 rounded-full text-xs font-semibold",
+      active ? "bg-green-100 text-green-700 border border-green-200" : "bg-gray-100 text-gray-700 border border-gray-200"
+    )}>
+      {active ? "Đang hoạt động" : "Tạm dừng"}
     </span>
   );
 }
@@ -85,6 +84,26 @@ export default function TuitionPlanDetailModal({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <Layers size={16} className="text-red-600" />
+                    Level
+                  </label>
+                  <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm text-gray-900">{detail.levelName || "Chưa có"}</div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <BookOpen size={16} className="text-blue-600" />
+                    Module
+                  </label>
+                  <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm text-gray-900">
+                    {detail.moduleName ? detail.moduleName : <span className="text-gray-400 italic">Không giới hạn module</span>}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                     <Clock size={16} className="text-red-600" />
                     Số buổi học
                   </label>
@@ -119,7 +138,7 @@ export default function TuitionPlanDetailModal({
                     Trạng thái
                   </label>
                   <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm">
-                    <StatusBadge value={detail.isActive ? "Đang hoạt động" : "Tạm dừng"} />
+                    <StatusBadge status={detail.status} isActive={detail.isActive} />
                   </div>
                 </div>
               </div>

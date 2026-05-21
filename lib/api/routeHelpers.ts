@@ -77,6 +77,7 @@ export async function handleBackendResponse(
         isSuccess: false,
         data: null,
         message: errorMessage,
+        errors: data?.errors ?? data?.Errors ?? null,
       },
       { status: response.status }
     );
@@ -102,14 +103,18 @@ export async function forwardToBackend(
     method?: string;
     body?: any;
     context?: { method: string; endpoint: string; id?: string };
+    timeoutMs?: number;
   } = {}
 ): Promise<NextResponse> {
-  const { method = "GET", body, context } = options;
+  const { method = "GET", body, context, timeoutMs = 30_000 } = options;
   const authHeader = getAuthHeader(req);
 
   if (!authHeader) {
     return unauthorizedResponse();
   }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const fetchOptions: RequestInit = {
@@ -118,6 +123,7 @@ export async function forwardToBackend(
         "Authorization": authHeader,
         "Content-Type": "application/json",
       },
+      signal: controller.signal,
     };
 
     if (body && (method === "POST" || method === "PUT" || method === "PATCH")) {
@@ -129,10 +135,36 @@ export async function forwardToBackend(
   } catch (error) {
     const endpoint = context?.endpoint || backendUrl;
     const id = context?.id ? `/${context.id}` : "";
+    const isAbort = error instanceof Error && error.name === "AbortError";
+    const isReset =
+      error instanceof Error &&
+      ("code" in error
+        ? (error as NodeJS.ErrnoException).code === "ECONNRESET"
+        : error.message.includes("socket hang up") ||
+          error.message.includes("ECONNRESET"));
+
+    if (isAbort) {
+      console.error(`[${method}] ${endpoint}${id} - Timeout after ${timeoutMs}ms`);
+      return NextResponse.json(
+        { isSuccess: false, data: null, message: "Backend không phản hồi (timeout). Vui lòng thử lại." },
+        { status: 504 }
+      );
+    }
+
+    if (isReset) {
+      console.error(`[${method}] ${endpoint}${id} - Connection reset by backend`);
+      return NextResponse.json(
+        { isSuccess: false, data: null, message: "Mất kết nối tới server. Vui lòng thử lại." },
+        { status: 503 }
+      );
+    }
+
     console.error(`[${method}] ${endpoint}${id} - Request failed:`, error);
     return serverErrorResponse(
       `Đã xảy ra lỗi khi gọi API: ${error instanceof Error ? error.message : "Unknown error"}`
     );
+  } finally {
+    clearTimeout(timer);
   }
 }
 

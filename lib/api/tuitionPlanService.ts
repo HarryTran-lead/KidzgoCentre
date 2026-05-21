@@ -67,11 +67,16 @@ function mapToTuitionPlan(item: any): TuitionPlan {
     branchName: resolveBranchName(item),
     programId: String(item?.programId ?? ""),
     programName: String(item?.programName ?? item?.program?.name ?? ""),
+    levelId: String(item?.levelId ?? ""),
+    levelName: String(item?.levelName ?? item?.level?.name ?? ""),
+    moduleId: item?.moduleId ?? null,
+    moduleName: item?.moduleName ?? item?.module?.name ?? null,
     name: String(item?.name ?? ""),
-    totalSessions: Number(item?.totalSessions ?? 0),
+    totalSessions: Number(item?.totalSessions ?? item?.sessionCount ?? 0),
     tuitionAmount: Number(item?.tuitionAmount ?? 0),
     unitPriceSession: Number(item?.unitPriceSession ?? 0),
     currency: String(item?.currency ?? "VND"),
+    status: (item?.status === 'inactive' ? 'inactive' : 'active') as 'active' | 'inactive',
     isActive: Boolean(item?.isActive),
     createdAt: String(item?.createdAt ?? ""),
     updatedAt: String(item?.updatedAt ?? ""),
@@ -85,18 +90,33 @@ export async function getTuitionPlans(options?: {
   pageNumber?: number;
   pageSize?: number;
   branchId?: string;
+  levelId?: string;
+  moduleId?: string;
+  status?: 'active' | 'inactive';
 }): Promise<TuitionPlan[]> {
   const params = new URLSearchParams({
     pageNumber: String(options?.pageNumber ?? 1),
     pageSize: String(options?.pageSize ?? 100),
   });
 
-  if (options?.branchId) {
-    params.append("branchId", options.branchId);
-  }
+  if (options?.branchId) params.append("branchId", options.branchId);
+  if (options?.levelId) params.append("levelId", options.levelId);
+  if (options?.moduleId) params.append("moduleId", options.moduleId);
+  if (options?.status) params.append("status", options.status);
 
   const response = await get<any>(`${ADMIN_ENDPOINTS.TUITION_PLANS}?${params.toString()}`);
   return pickItems(response).map(mapToTuitionPlan).filter((x) => x.id);
+}
+
+export async function getTuitionPlanById(id: string): Promise<TuitionPlan | null> {
+  const response = await get<any>(ADMIN_ENDPOINTS.TUITION_PLANS_BY_ID(id));
+  const item = pickDetail(response);
+  if (!item?.id) return null;
+  return mapToTuitionPlan(item);
+}
+
+export async function deactivateTuitionPlan(id: string): Promise<{ isSuccess: boolean; message?: string }> {
+  return patch<{ isSuccess: boolean; message?: string }>(ADMIN_ENDPOINTS.TUITION_PLANS_DEACTIVATE(id), {});
 }
 
 export async function getActiveTuitionPlans(branchId?: string): Promise<TuitionPlan[]> {

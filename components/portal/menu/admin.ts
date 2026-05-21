@@ -2,6 +2,7 @@ import {
   BarChart3,
   Bell,
   BookOpen,
+  BookOpenCheck,
   Building2,
   CalendarClock,
   CalendarRange,
@@ -44,6 +45,8 @@ export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     [t.groups.learning.discountCampaigns.list, CreditCard, "/discount-campaigns"],
     [t.groups.learning.registrations.list, UserCheck, "/registrations"],
     [t.groups.learning.classes.list, BookOpen, "/classes"],
+    ["Giáo trình (Syllabus)", BookOpen, "/syllabuses"],
+    ["Mẫu giáo án", BookOpenCheck, "/documents"],
     ["Tiến trình học thuật", Layers, "/academic-progression"],
   ];
   const opsItems: RawItem[] = [
@@ -51,7 +54,6 @@ export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     [t.groups.ops.schedule, CalendarRange, "/schedule"],
     ["Tiến trình chuyển chương trình", Route, "/program-progressions"],
     [t.groups.ops.pauseEnrollments, CalendarClock, "/pause-enrollments"],
-    [t.groups.ops.documents, FileText, "/documents"],
     [t.groups.ops.teachingMaterials, Folder, "/materials"],
     [t.groups.ops.media, Image, "/media"],
     [t.groups.ops.reportRequests, Send, "/report-requests"],

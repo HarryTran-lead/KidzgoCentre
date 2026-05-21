@@ -19,6 +19,7 @@ import type {
   UpdateLevelRequest,
   CreateModuleRequest,
   UpdateModuleRequest,
+  ModuleType,
 } from "@/types/academic-progression";
 
 export type LevelModuleRoleMode = "admin" | "staff";
@@ -44,6 +45,7 @@ const EMPTY_MODULE_FORM: Omit<CreateModuleRequest, "levelId"> = {
   description: "",
   plannedSessionCount: 6,
   isActive: true,
+  type: "core",
 };
 
 interface ProgramOption { id: string; name: string; }
@@ -193,6 +195,7 @@ export default function LevelModuleWorkspace({ roleMode, programId }: Props) {
       description: mod.description ?? "",
       plannedSessionCount: mod.plannedSessionCount ?? 6,
       isActive: mod.isActive,
+      type: mod.type ?? "core",
     });
     setModuleFormError(null);
     setModuleFormOpen(true);
@@ -347,9 +350,20 @@ export default function LevelModuleWorkspace({ roleMode, programId }: Props) {
                                   {mod.code}
                                 </span>
                                 <span className="text-sm font-medium text-gray-700">{mod.name}</span>
-                                {mod.plannedSessionCount && (
+                              {mod.plannedSessionCount && (
                                   <span className="text-xs text-gray-400">
                                     · {mod.plannedSessionCount} buổi
+                                  </span>
+                                )}
+                                {mod.type && (
+                                  <span className={`ml-1 px-1.5 py-0.5 rounded text-xs font-medium ${
+                                    mod.type === 'core' ? 'bg-blue-50 text-blue-600' :
+                                    mod.type === 'revision' ? 'bg-yellow-50 text-yellow-700' :
+                                    mod.type === 'test' ? 'bg-red-50 text-red-600' :
+                                    mod.type === 'placement' ? 'bg-purple-50 text-purple-600' :
+                                    'bg-gray-100 text-gray-600'
+                                  }`}>
+                                    {mod.type}
                                   </span>
                                 )}
                                 <span className={`ml-auto text-xs ${mod.isActive ? "text-green-600" : "text-gray-400"}`}>
@@ -528,6 +542,20 @@ export default function LevelModuleWorkspace({ roleMode, programId }: Props) {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-600">Loại Module</label>
+                  <select
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-red-400 focus:outline-none"
+                    value={moduleForm.type ?? "core"}
+                    onChange={(e) => setModuleForm((p) => ({ ...p, type: e.target.value as ModuleType }))}
+                  >
+                    <option value="core">Core</option>
+                    <option value="revision">Revision</option>
+                    <option value="test">Test</option>
+                    <option value="placement">Placement</option>
+                    <option value="trial">Trial</option>
+                  </select>
+                </div>
+                <div>
                   <label className="mb-1 block text-xs font-medium text-gray-600">Thứ tự</label>
                   <input
                     type="number"
@@ -537,16 +565,16 @@ export default function LevelModuleWorkspace({ roleMode, programId }: Props) {
                     onChange={(e) => setModuleForm((p) => ({ ...p, order: Number(e.target.value) }))}
                   />
                 </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-600">Số buổi kế hoạch</label>
-                  <input
-                    type="number"
-                    min={1}
-                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-red-400 focus:outline-none"
-                    value={moduleForm.plannedSessionCount ?? 6}
-                    onChange={(e) => setModuleForm((p) => ({ ...p, plannedSessionCount: Number(e.target.value) }))}
-                  />
-                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-600">Số buổi kế hoạch</label>
+                <input
+                  type="number"
+                  min={1}
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-red-400 focus:outline-none"
+                  value={moduleForm.plannedSessionCount ?? 6}
+                  onChange={(e) => setModuleForm((p) => ({ ...p, plannedSessionCount: Number(e.target.value) }))}
+                />
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-600">Mô tả</label>

@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AlertCircle, BookOpen, Clock, DollarSign, Tag, Wallet, X } from "lucide-react";
+import { AlertCircle, BookOpen, Clock, DollarSign, Layers, Tag, Wallet, X } from "lucide-react";
 import { getProgramsForBranch, type ProgramOption } from "@/lib/api/tuitionPlanService";
+import { getLevels, getModules } from "@/lib/api/academicProgressionService";
 import { getLearningTicketTypes } from "@/lib/api/learningTicketTypeService";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
 import type { LearningTicketType } from "@/types/learning-ticket-type";
+import type { LevelDto, ModuleDto } from "@/types/academic-progression";
 
 function cn(...a: Array<string | false | null | undefined>) {
   return a.filter(Boolean).join(" ");
@@ -14,24 +16,28 @@ function cn(...a: Array<string | false | null | undefined>) {
 export type TuitionPlanFormData = {
   branchId: string;
   programId: string;
+  levelId: string;
+  moduleId: string;
   name: string;
-  totalSessions: string;
+  sessionCount: string;
   tuitionAmount: string;
   unitPriceSession: string;
   currency: string;
-  status: "Đang hoạt động" | "Tạm dừng";
+  status: "active" | "inactive";
   learningTicketTypeId: string;
 };
 
 const initialFormData: TuitionPlanFormData = {
   branchId: "",
   programId: "",
+  levelId: "",
+  moduleId: "",
   name: "",
-  totalSessions: "",
+  sessionCount: "",
   tuitionAmount: "",
   unitPriceSession: "",
   currency: "VND",
-  status: "Đang hoạt động",
+  status: "active",
   learningTicketTypeId: "",
 };
 
@@ -54,6 +60,10 @@ export default function TuitionPlanModal({
   const [errors, setErrors] = useState<Partial<Record<keyof TuitionPlanFormData, string>>>({});
   const [programs, setPrograms] = useState<ProgramOption[]>([]);
   const [loadingPrograms, setLoadingPrograms] = useState(false);
+  const [levels, setLevels] = useState<LevelDto[]>([]);
+  const [loadingLevels, setLoadingLevels] = useState(false);
+  const [modules, setModules] = useState<ModuleDto[]>([]);
+  const [loadingModules, setLoadingModules] = useState(false);
   const [ticketTypes, setTicketTypes] = useState<LearningTicketType[]>([]);
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -89,6 +99,7 @@ export default function TuitionPlanModal({
     setErrors({});
   }, [isOpen, mode, initialData, defaultBranchId]);
 
+  // Load programs
   useEffect(() => {
     if (!isOpen) return;
 
@@ -108,6 +119,51 @@ export default function TuitionPlanModal({
     loadPrograms();
   }, [isOpen, formData.branchId, defaultBranchId]);
 
+  // Load levels when programId changes
+  useEffect(() => {
+    if (!isOpen || !formData.programId) {
+      setLevels([]);
+      return;
+    }
+
+    async function loadLevels() {
+      try {
+        setLoadingLevels(true);
+        const res = await getLevels({ programId: formData.programId, isActive: true });
+        setLevels(res.isSuccess ? res.data.items : []);
+      } catch {
+        setLevels([]);
+      } finally {
+        setLoadingLevels(false);
+      }
+    }
+
+    loadLevels();
+  }, [isOpen, formData.programId]);
+
+  // Load modules when levelId changes
+  useEffect(() => {
+    if (!isOpen || !formData.levelId) {
+      setModules([]);
+      return;
+    }
+
+    async function loadModules() {
+      try {
+        setLoadingModules(true);
+        const res = await getModules({ levelId: formData.levelId, isActive: true });
+        setModules(res.isSuccess ? res.data.items : []);
+      } catch {
+        setModules([]);
+      } finally {
+        setLoadingModules(false);
+      }
+    }
+
+    loadModules();
+  }, [isOpen, formData.levelId]);
+
+  // Load ticket types
   useEffect(() => {
     if (!isOpen) return;
 
@@ -123,21 +179,29 @@ export default function TuitionPlanModal({
     loadTicketTypes();
   }, [isOpen]);
 
+  // Auto-calculate unit price per session
   useEffect(() => {
-    const sessions = Number(formData.totalSessions);
+    const sessions = Number(formData.sessionCount);
     const tuition = Number(formData.tuitionAmount.replace(/[^\d]/g, ""));
 
     if (sessions > 0 && tuition > 0 && !isNaN(sessions) && !isNaN(tuition)) {
       const pricePerSession = Math.round(tuition / sessions);
       const next = String(pricePerSession);
       setFormData((prev: TuitionPlanFormData) => (prev.unitPriceSession === next ? prev : { ...prev, unitPriceSession: next }));
-    } else if (!formData.totalSessions || !formData.tuitionAmount) {
+    } else if (!formData.sessionCount || !formData.tuitionAmount) {
       setFormData((prev: TuitionPlanFormData) => (prev.unitPriceSession ? { ...prev, unitPriceSession: "" } : prev));
     }
-  }, [formData.totalSessions, formData.tuitionAmount]);
+  }, [formData.sessionCount, formData.tuitionAmount]);
 
   const handleChange = (field: keyof TuitionPlanFormData, value: string) => {
-    setFormData((prev: TuitionPlanFormData) => ({ ...prev, [field]: value }));
+    setFormData((prev: TuitionPlanFormData) => {
+      const next = { ...prev, [field]: value };
+      // Reset module when level changes
+      if (field === "levelId") next.moduleId = "";
+      // Reset level & module when program changes
+      if (field === "programId") { next.levelId = ""; next.moduleId = ""; }
+      return next;
+    });
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
@@ -148,9 +212,8 @@ export default function TuitionPlanModal({
 
     if (!formData.programId) next.programId = "Chương trình học là bắt buộc";
     if (!formData.name.trim()) next.name = "Tên gói học là bắt buộc";
-    if (!formData.totalSessions || Number(formData.totalSessions) <= 0) next.totalSessions = "Số buổi học phải lớn hơn 0";
+    if (!formData.sessionCount || Number(formData.sessionCount) <= 0) next.sessionCount = "Số buổi học phải lớn hơn 0";
     if (!formData.tuitionAmount || Number(formData.tuitionAmount.replace(/[^\d]/g, "")) <= 0) next.tuitionAmount = "Học phí phải lớn hơn 0";
-    if (!formData.unitPriceSession || Number(formData.unitPriceSession) <= 0) next.unitPriceSession = "Giá mỗi buổi không hợp lệ";
     if (!formData.currency.trim()) next.currency = "Loại tiền tệ là bắt buộc";
 
     setErrors(next);
@@ -194,6 +257,7 @@ export default function TuitionPlanModal({
 
         <div className="p-6 max-h-[80vh] overflow-y-auto">
           <form onSubmit={submit} className="space-y-4">
+            {/* Row 1: Program + Name */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
@@ -236,6 +300,73 @@ export default function TuitionPlanModal({
               </div>
             </div>
 
+            {/* Row 2: Level + Module */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <Layers size={16} className="text-red-600" />
+                  Level
+                  <span className="text-xs text-gray-400 font-normal">– tuỳ chọn</span>
+                </label>
+                <Select
+                  value={formData.levelId || "__none__"}
+                  onValueChange={(value) => handleChange("levelId", value === "__none__" ? "" : value)}
+                  disabled={!formData.programId || loadingLevels}
+                >
+                  <SelectTrigger className={cn(
+                    "w-full rounded-xl border bg-white text-sm text-gray-900 transition-all",
+                    errors.levelId ? "border-red-500" : "border-gray-200",
+                    (!formData.programId || loadingLevels) ? "opacity-50 cursor-not-allowed" : ""
+                  )}>
+                    <SelectValue placeholder={loadingLevels ? "Đang tải..." : "Tất cả level"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">
+                      <span className="text-gray-500">Gói chung (tất cả level)</span>
+                    </SelectItem>
+                    {levels.map((l) => (
+                      <SelectItem key={l.id} value={l.id}>
+                        <span className="font-mono font-bold text-red-700 mr-2">{l.code}</span>{l.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.levelId && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.levelId}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <BookOpen size={16} className="text-blue-600" />
+                  Module
+                  <span className="text-xs text-gray-400 font-normal">– tuỳ chọn</span>
+                </label>
+                <Select
+                  value={formData.moduleId || "__none__"}
+                  onValueChange={(value) => handleChange("moduleId", value === "__none__" ? "" : value)}
+                  disabled={!formData.levelId || loadingModules}
+                >
+                  <SelectTrigger className={cn(
+                    "w-full rounded-xl border bg-white text-sm text-gray-900 transition-all",
+                    "border-gray-200",
+                    (!formData.levelId || loadingModules) ? "opacity-50 cursor-not-allowed" : ""
+                  )}>
+                    <SelectValue placeholder={loadingModules ? "Đang tải..." : "Không giới hạn module"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">
+                      <span className="text-gray-500">Không giới hạn module</span>
+                    </SelectItem>
+                    {modules.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        <span className="font-mono font-bold text-blue-700 mr-2">{m.code}</span>{m.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Row 3: Session count + Tuition */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
@@ -245,15 +376,15 @@ export default function TuitionPlanModal({
                 <input
                   type="number"
                   min="1"
-                  value={formData.totalSessions}
-                  onChange={(e) => handleChange("totalSessions", e.target.value)}
+                  value={formData.sessionCount}
+                  onChange={(e) => handleChange("sessionCount", e.target.value)}
                   className={cn(
                     "w-full px-4 py-3 rounded-xl border bg-white text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
-                    errors.totalSessions ? "border-red-500" : "border-gray-200"
+                    errors.sessionCount ? "border-red-500" : "border-gray-200"
                   )}
                   placeholder="VD: 24"
                 />
-                {errors.totalSessions && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.totalSessions}</p>}
+                {errors.sessionCount && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.sessionCount}</p>}
               </div>
 
               <div className="space-y-2">
@@ -275,6 +406,7 @@ export default function TuitionPlanModal({
               </div>
             </div>
 
+            {/* Row 4: Unit price + Currency */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
@@ -315,12 +447,12 @@ export default function TuitionPlanModal({
               </div>
             </div>
 
-            {/* Phase 1.5 — Learning Ticket Type */}
+            {/* Learning Ticket Type */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                 <Tag size={16} className="text-purple-600" />
                 Loại vé học (Ticket Type)
-                <span className="text-xs text-gray-400 font-normal">— tuỳ chọn</span>
+                <span className="text-xs text-gray-400 font-normal">– tuỳ chọn</span>
               </label>
               <Select
                 value={formData.learningTicketTypeId || "__none__"}
@@ -346,25 +478,25 @@ export default function TuitionPlanModal({
               </p>
             </div>
 
+            {/* Status toggle (edit only) */}
             {mode === "edit" && (
               <div className="space-y-3">
                 <label className="block text-sm font-semibold text-gray-700">Trạng thái</label>
                 <div className="flex items-center gap-3">
-                  
                   <span className={cn(
                     "px-3 py-1 rounded-full text-xs font-semibold",
-                    formData.status === "Đang hoạt động"
+                    formData.status === "active"
                       ? "bg-green-100 text-green-700 border border-green-200"
                       : "bg-gray-100 text-gray-700 border border-gray-200"
                   )}>
-                    {formData.status === "Đang hoạt động" ? "Đang hoạt động" : "Tạm dừng"}
+                    {formData.status === "active" ? "Đang hoạt động" : "Tạm dừng"}
                   </span>
                   <button
                     type="button"
-                    onClick={() => handleChange("status", formData.status === "Đang hoạt động" ? "Tạm dừng" : "Đang hoạt động")}
+                    onClick={() => handleChange("status", formData.status === "active" ? "inactive" : "active")}
                     className={cn(
                       "relative inline-flex h-8 w-16 items-center rounded-full transition-colors cursor-pointer",
-                      formData.status === "Đang hoạt động"
+                      formData.status === "active"
                         ? "bg-gradient-to-r from-red-600 to-red-700"
                         : "bg-gray-300"
                     )}
@@ -372,7 +504,7 @@ export default function TuitionPlanModal({
                     <span
                       className={cn(
                         "inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition-transform",
-                        formData.status === "Đang hoạt động" ? "translate-x-9" : "translate-x-1"
+                        formData.status === "active" ? "translate-x-9" : "translate-x-1"
                       )}
                     />
                   </button>
@@ -392,7 +524,6 @@ export default function TuitionPlanModal({
               Hủy bỏ
             </button>
             <div className="flex items-center gap-3">
-
               <button
                 type="button"
                 onClick={submit}

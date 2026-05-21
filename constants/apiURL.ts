@@ -175,9 +175,25 @@ export const BACKEND_STUDENT_ENDPOINTS = {
 
 export const CLASS_ENDPOINTS = {
   GET_ALL: "/api/classes",
+  CREATE: "/api/classes",
+  PREVIEW_SESSIONS: "/api/classes/preview-sessions",
   GET_BY_ID: (id: string) => `/api/classes/${id}`,
+  UPDATE: (id: string) => `/api/classes/${id}`,
+  RESYNC_FUTURE_LESSONS: (id: string) => `/api/classes/${id}/resync-future-lessons`,
   GET_STUDENTS: (id: string) => `/api/classes/${id}/students`,
   SCHEDULE_SEGMENTS: (id: string) => `/api/classes/${id}/schedule-segments`,
+  MODULE_PROGRESS: (classId: string) => `/api/classes/${classId}/module-progress`,
+  MODULE_PROGRESS_BY_MODULE: (classId: string, moduleId: string) => `/api/classes/${classId}/module-progress/${moduleId}`,
+} as const;
+
+export const SYLLABUS_ENDPOINTS = {
+  BASE: '/api/syllabuses',
+  BY_ID: (id: string) => `/api/syllabuses/${id}`,
+  UNIT_LESSON_PLANS: (id: string) => `/api/syllabuses/${id}/unit-lesson-plans`,
+  IMPORT_WORD: '/api/syllabuses/import-word',
+  IMPORT_ARCHIVE: '/api/syllabuses/import-archive',
+  IMPORT_CONFIGURATION: '/api/syllabuses/import-configuration',
+  IMPORT_LESSON_PLAN_WORDS: '/api/syllabuses/import-lesson-plan-words',
 } as const;
 
 export const MAKEUP_CREDIT_ENDPOINTS = {
@@ -204,7 +220,9 @@ export const HOLIDAY_ENDPOINTS = {
 } as const;
 
 export const SESSION_ENDPOINTS = {
+  GET_ALL: "/api/sessions",
   GET_BY_ID: (id: string) => `/api/sessions/${id}`,
+  TEACHING_LOG: (sessionId: string) => `/api/sessions/${sessionId}/teaching-log`,
   AVAILABILITY: '/api/sessions/availability',
 } as const;
 
@@ -220,11 +238,28 @@ export const BACKEND_SESSION_ENDPOINTS = {
   CHANGE_ROOM: '/sessions/change-room',
   CHANGE_TEACHER: '/sessions/change-teacher',
   AVAILABILITY: '/sessions/availability',
+  TEACHING_LOG: (sessionId: string) => `/sessions/${sessionId}/teaching-log`,
 } as const;
 
 export const BACKEND_CLASS_ENDPOINTS = {
   GET_ALL: () => "/classes",
   GET_BY_ID: (id: string) => `/classes/${id}`,
+  UPDATE: (id: string) => `/classes/${id}`,
+  GET_STUDENTS: (id: string) => `/classes/${id}/students`,
+  PREVIEW_SESSIONS: "/classes/preview-sessions",
+  RESYNC_FUTURE_LESSONS: (id: string) => `/classes/${id}/resync-future-lessons`,
+  MODULE_PROGRESS: (classId: string) => `/classes/${classId}/module-progress`,
+  MODULE_PROGRESS_BY_MODULE: (classId: string, moduleId: string) => `/classes/${classId}/module-progress/${moduleId}`,
+} as const;
+
+export const BACKEND_SYLLABUS_ENDPOINTS = {
+  BASE: '/syllabuses',
+  BY_ID: (id: string) => `/syllabuses/${id}`,
+  UNIT_LESSON_PLANS: (id: string) => `/syllabuses/${id}/unit-lesson-plans`,
+  IMPORT_WORD: '/syllabuses/import-word',
+  IMPORT_ARCHIVE: '/syllabuses/import-archive',
+  IMPORT_CONFIGURATION: '/syllabuses/import-configuration',
+  IMPORT_LESSON_PLAN_WORDS: '/syllabuses/import-lesson-plan-words',
   GET_STUDENTS: (id: string) => `/classes/${id}/students`,
 } as const;
 
@@ -457,6 +492,8 @@ export const LEVEL_ENDPOINTS = {
 export const MODULE_ENDPOINTS = {
   BASE: '/api/modules',
   BY_ID: (id: string) => `/api/modules/${id}`,
+  LESSON_PLAN_UNITS: (moduleId: string) => `/api/modules/${moduleId}/lesson-plan-units`,
+  LESSON_PLAN_UNITS_REORDER: (moduleId: string) => `/api/modules/${moduleId}/lesson-plan-units/reorder`,
 } as const;
 
 export const STUDENT_PROGRESS_ENDPOINTS = {
@@ -554,6 +591,7 @@ export const ADMIN_ENDPOINTS = {
   TUITION_PLANS_ACTIVE: '/api/tuition-plans/active',
   TUITION_PLANS_BY_ID: (id: string) => `/api/tuition-plans/${id}`,
   TUITION_PLANS_TOGGLE_STATUS: (id: string) => `/api/tuition-plans/${id}/toggle-status`,
+  TUITION_PLANS_DEACTIVATE: (id: string) => `/api/tuition-plans/${id}/deactivate`,
   CLASSROOMS: '/api/classrooms',
   CLASSROOMS_TOGGLE_STATUS: (id: string) => `/api/classrooms/${id}/toggle-status`,
   SESSIONS: '/api/sessions',
@@ -564,7 +602,13 @@ export const ADMIN_ENDPOINTS = {
   SESSIONS_CHANGE_SECTION_TYPE: (id: string) => `/api/sessions/${id}/section-type`,
   LESSON_PLAN_TEMPLATES: '/api/lesson-plan-templates',
   LESSON_PLAN_TEMPLATES_BY_ID: (id: string) => `/api/lesson-plan-templates/${id}`,
+  LESSON_PLAN_TEMPLATES_UNIT: (id: string) => `/api/lesson-plan-templates/${id}/unit`,
   LESSON_PLAN_TEMPLATES_IMPORT: '/api/lesson-plan-templates/import',
+  LESSON_PLAN_TEMPLATES_IMPORT_WORD: '/api/lesson-plan-templates/import-word',
+  LESSON_PLAN_UNITS_BY_ID: (unitId: string) => `/api/lesson-plan-units/${unitId}`,
+  LESSON_PLAN_UNITS_REORDER_LESSONS: (unitId: string) => `/api/lesson-plan-units/${unitId}/lessons/reorder`,
+  LESSON_PLAN_UNITS_IMPORT_WORD: (unitId: string) => `/api/lesson-plan-units/${unitId}/lesson-plan-templates/import-word`,
+  LEVELS_LESSON_PLAN_TEMPLATES_SESSION_ORDERS: (levelId: string) => `/api/levels/${levelId}/lesson-plan-templates/session-orders`,
   LESSON_PLANS: '/api/lesson-plans',
   LESSON_PLANS_BY_ID: (id: string) => `/api/lesson-plans/${id}`,
   LESSON_PLANS_CLASS_SYLLABUS: (classId: string) => `/api/lesson-plans/classes/${classId}/syllabus`,
@@ -785,6 +829,8 @@ export const BACKEND_ADMIN_ENDPOINTS = {
   CLASSES: '/classes',
   CLASSES_BY_ID: (id: string) => `/classes/${id}`,
   CLASSES_STATUS: (id: string) => `/classes/${id}/status`,
+  CLASSES_PREVIEW_SESSIONS: '/classes/preview-sessions',
+  CLASSES_RESYNC_FUTURE_LESSONS: (id: string) => `/classes/${id}/resync-future-lessons`,
   CLASSES_SCHEDULE_SEGMENTS: (id: string) => `/classes/${id}/schedule-segments`,
   CLASSES_ASSIGN_TEACHER: (id: string) => `/classes/${id}/assign-teacher`,
   PROGRAMS: '/programs',
@@ -797,11 +843,17 @@ export const BACKEND_ADMIN_ENDPOINTS = {
   TUITION_PLANS_ACTIVE: '/tuition-plans/active',
   TUITION_PLANS_BY_ID: (id: string) => `/tuition-plans/${id}`,
   TUITION_PLANS_TOGGLE_STATUS: (id: string) => `/tuition-plans/${id}/toggle-status`,
+  TUITION_PLANS_DEACTIVATE: (id: string) => `/tuition-plans/${id}/deactivate`,
+  LESSON_PLAN_TEMPLATES: '/lesson-plan-templates',
+  LESSON_PLAN_TEMPLATES_BY_ID: (id: string) => `/lesson-plan-templates/${id}`,
+  LESSON_PLAN_TEMPLATES_IMPORT: '/lesson-plan-templates/import',
+  LESSON_PLAN_TEMPLATES_IMPORT_WORD: '/lesson-plan-templates/import-word',
   CLASSROOMS: '/classrooms',
   CLASSROOMS_BY_ID: (id: string) => `/classrooms/${id}`,
   CLASSROOMS_TOGGLE_STATUS: (id: string) => `/classrooms/${id}/toggle-status`,
   SESSIONS: '/sessions',
   SESSIONS_BY_CLASS: '/sessions/by-class',
+  SESSIONS_TEACHING_LOG: (sessionId: string) => `/sessions/${sessionId}/teaching-log`,
 } as const;
 
 // Blog Endpoints (Client-side → Next.js API Routes)

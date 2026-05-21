@@ -17,6 +17,9 @@
     "prepare": "husky install"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@headlessui/react": "^2.2.9",
@@ -73,16 +76,16 @@
     "vitest": "^2.1.8"
   },
   "optionalDependencies": {
-    "lightningcss-linux-x64-gnu": "1.32.0",
-    "lightningcss-linux-arm64-gnu": "1.32.0",
-    "lightningcss-linux-x64-musl": "1.32.0",
-    "lightningcss-darwin-x64": "1.32.0",
-    "lightningcss-darwin-arm64": "1.32.0",
-    "@tailwindcss/oxide-linux-x64-gnu": "4.1.18",
-    "@tailwindcss/oxide-linux-arm64-gnu": "4.1.18",
-    "@tailwindcss/oxide-linux-x64-musl": "4.1.18",
-    "@tailwindcss/oxide-linux-arm64-musl": "4.1.18",
+    "@tailwindcss/oxide-darwin-arm64": "4.1.18",
     "@tailwindcss/oxide-darwin-x64": "4.1.18",
-    "@tailwindcss/oxide-darwin-arm64": "4.1.18"
+    "@tailwindcss/oxide-linux-arm64-gnu": "4.1.18",
+    "@tailwindcss/oxide-linux-arm64-musl": "4.1.18",
+    "@tailwindcss/oxide-linux-x64-gnu": "4.1.18",
+    "@tailwindcss/oxide-linux-x64-musl": "4.1.18",
+    "lightningcss-darwin-arm64": "1.32.0",
+    "lightningcss-darwin-x64": "1.32.0",
+    "lightningcss-linux-arm64-gnu": "1.32.0",
+    "lightningcss-linux-x64-gnu": "1.32.0",
+    "lightningcss-linux-x64-musl": "1.32.0"
   }
 }

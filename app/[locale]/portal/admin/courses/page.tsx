@@ -25,6 +25,7 @@ import {
   XCircle,
   CheckCircle,
   Sparkles,
+  BookOpenCheck,
 } from "lucide-react";
 import {
   fetchAdminPrograms,
@@ -45,6 +46,8 @@ import { useBranchFilter } from "@/hooks/useBranchFilter";
 import { usePageI18n } from "@/hooks/usePageI18n";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
 import AdminBranchSelectField from "@/components/admin/common/AdminBranchSelectField";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 /* -------------------------- helpers -------------------------- */
 function cn(...a: Array<string | false | null | undefined>) {
@@ -816,6 +819,8 @@ export function ProgramsManagementPage({
   const { selectedBranchId, isLoaded, getBranchQueryParam } = useBranchFilter();
   const { messages } = usePageI18n();
   const t = messages.adminPages.courses;
+  const pathname = usePathname() ?? "";
+  const locale = pathname.split("/").filter(Boolean)[0] ?? "vi";
   const [isPageLoaded, setIsPageLoaded] = useState(false);
   const [q, setQ] = useState("");
   const [courses, setCourses] = useState<CourseRow[]>([]);
@@ -1614,6 +1619,13 @@ export function ProgramsManagementPage({
 
                       <td className="py-3 px-6">
                         <div className="flex items-center justify-end text-gray-700 gap-1 transition-opacity duration-200">
+                          <Link
+                            href={`/${locale}/portal/admin/syllabuses?programId=${c.id}`}
+                            className="p-1.5 rounded-lg hover:bg-teal-50 transition-colors text-gray-400 hover:text-teal-600 cursor-pointer"
+                            title="Xem giáo trình (Syllabus)"
+                          >
+                            <BookOpenCheck size={14} />
+                          </Link>
                           <button
                             onClick={() => handleViewDetail(c)}
                             className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600 cursor-pointer"

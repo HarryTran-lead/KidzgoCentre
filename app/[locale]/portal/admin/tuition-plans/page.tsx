@@ -41,7 +41,7 @@ function cn(...a: Array<string | false | null | undefined>) {
 type SortField =
   | "name"
   | "programName"
-  | "totalSessions"
+  | "sessionCount"
   | "tuitionAmount"
   | "status";
 
@@ -51,7 +51,9 @@ type TuitionPlanRow = {
   id: string;
   name: string;
   programName: string;
-  totalSessions: string;
+  levelName: string;
+  moduleName: string | null;
+  sessionCount: string;
   tuitionAmount: string;
   status: "Đang hoạt động" | "Tạm dừng";
 };
@@ -112,7 +114,9 @@ function toRow(plan: TuitionPlan): TuitionPlanRow {
     id: plan.id,
     name: plan.name,
     programName: plan.programName,
-    totalSessions: `${plan.totalSessions} buổi`,
+    levelName: plan.levelName,
+    moduleName: plan.moduleName ?? null,
+    sessionCount: `${plan.totalSessions} buổi`,
     tuitionAmount: `${plan.tuitionAmount.toLocaleString("vi-VN")} ${plan.currency || "VND"}`,
     status: plan.isActive ? "Đang hoạt động" : "Tạm dừng",
   };
@@ -134,7 +138,7 @@ export default function TuitionPlansPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
   const [editingInitialData, setEditingInitialData] = useState<TuitionPlanFormData | null>(null);
-  const [originalStatus, setOriginalStatus] = useState<"Đang hoạt động" | "Tạm dừng" | null>(null);
+  const [originalStatus, setOriginalStatus] = useState<'active' | 'inactive' | null>(null);
 
   const [showToggleStatusModal, setShowToggleStatusModal] = useState(false);
   const [selectedRow, setSelectedRow] = useState<TuitionPlanRow | null>(null);
@@ -237,18 +241,13 @@ export default function TuitionPlansPage() {
 
   const handleCreate = async (data: TuitionPlanFormData) => {
     try {
-      const effectiveBranchId = data.branchId || selectedBranchId || getBranchQueryParam();
-      if (!effectiveBranchId) {
-        throw new Error("Vui lòng chọn chi nhánh ở bộ lọc chung trước khi tạo gói học.");
-      }
-
       await createTuitionPlan({
-        branchId: effectiveBranchId,
         programId: data.programId,
+        levelId: data.levelId || null,
+        moduleId: data.moduleId || null,
         name: data.name,
-        totalSessions: Number(data.totalSessions),
+        totalSessions: Number(data.sessionCount),
         tuitionAmount: Number(data.tuitionAmount.replace(/[^\d]/g, "")),
-        unitPriceSession: Number(data.unitPriceSession),
         currency: data.currency,
         learningTicketTypeId: data.learningTicketTypeId || null,
       });
@@ -275,15 +274,17 @@ export default function TuitionPlansPage() {
       setEditingInitialData({
         branchId: plan.branchId,
         programId: plan.programId,
+        levelId: plan.levelId,
+        moduleId: plan.moduleId ?? "",
         name: plan.name,
-        totalSessions: String(plan.totalSessions),
+        sessionCount: String(plan.totalSessions),
         tuitionAmount: String(plan.tuitionAmount),
         unitPriceSession: String(plan.unitPriceSession),
         currency: plan.currency || "VND",
-        status: plan.isActive ? "Đang hoạt động" : "Tạm dừng",
+        status: plan.status === 'inactive' ? 'inactive' : 'active',
         learningTicketTypeId: plan.learningTicketTypeId ?? "",
       });
-      setOriginalStatus(plan.isActive ? "Đang hoạt động" : "Tạm dừng");
+      setOriginalStatus(plan.status === 'inactive' ? 'inactive' : 'active');
       setIsEditModalOpen(true);
     } catch (err: any) {
       toast({
@@ -298,18 +299,13 @@ export default function TuitionPlansPage() {
     if (!editingPlanId) return;
 
     try {
-      const effectiveBranchId = data.branchId || selectedBranchId || getBranchQueryParam();
-      if (!effectiveBranchId) {
-        throw new Error("Không xác định được chi nhánh để cập nhật gói học.");
-      }
-
       await updateTuitionPlan(editingPlanId, {
-        branchId: effectiveBranchId,
         programId: data.programId,
+        levelId: data.levelId || null,
+        moduleId: data.moduleId || null,
         name: data.name,
-        totalSessions: Number(data.totalSessions),
+        totalSessions: Number(data.sessionCount),
         tuitionAmount: Number(data.tuitionAmount.replace(/[^\d]/g, "")),
-        unitPriceSession: Number(data.unitPriceSession),
         currency: data.currency,
         learningTicketTypeId: data.learningTicketTypeId || null,
       });
@@ -522,7 +518,8 @@ export default function TuitionPlansPage() {
                 <tr>
                   <SortableHeader field="name" currentField={sortField} direction={sortDirection} onSort={handleSort}>Tên gói học</SortableHeader>
                   <SortableHeader field="programName" currentField={sortField} direction={sortDirection} onSort={handleSort}>Chương trình học</SortableHeader>
-                  <SortableHeader field="totalSessions" currentField={sortField} direction={sortDirection} onSort={handleSort}>Số buổi</SortableHeader>
+                  <th className="py-3 px-6 text-left text-sm font-semibold tracking-wide text-gray-700 whitespace-nowrap">Level / Module</th>
+                  <SortableHeader field="sessionCount" currentField={sortField} direction={sortDirection} onSort={handleSort}>Số buổi</SortableHeader>
                   <SortableHeader field="tuitionAmount" currentField={sortField} direction={sortDirection} onSort={handleSort}>Học phí</SortableHeader>
                   <SortableHeader field="status" currentField={sortField} direction={sortDirection} onSort={handleSort} align="center">Trạng thái</SortableHeader>
                   <th className="py-3 px-6 text-right text-sm font-medium tracking-wide text-gray-700 whitespace-nowrap">Thao tác</th>
@@ -547,10 +544,16 @@ export default function TuitionPlansPage() {
                           {r.programName || "Chưa có"}
                         </div>
                       </td>
-                      <td className="py-3 px-6 whitespace-nowrap">
-                        <div className="inline-flex items-center gap-2 text-gray-700 font-medium text-sm">
-                          <Clock size={14} className="text-red-600" />
-                          <span className="truncate">{r.totalSessions}</span>
+                        <td className="py-3 px-6">
+                          <div className="text-xs text-gray-500">
+                            <div className="font-medium text-gray-700">{r.levelName || "—"}</div>
+                            {r.moduleName && <div className="text-xs text-blue-600">{r.moduleName}</div>}
+                          </div>
+                        </td>
+                        <td className="py-3 px-6 whitespace-nowrap">
+                          <div className="inline-flex items-center gap-2 text-gray-700 font-medium text-sm">
+                            <Clock size={14} className="text-red-600" />
+                            <span className="truncate">{r.sessionCount}</span>
                         </div>
                       </td>
                       <td className="py-3 px-6 whitespace-nowrap">
@@ -594,7 +597,7 @@ export default function TuitionPlansPage() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={6} className="py-12 text-center">
+                    <td colSpan={7} className="py-12 text-center">
                       <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center">
                         <Search size={24} className="text-gray-400" />
                       </div>
