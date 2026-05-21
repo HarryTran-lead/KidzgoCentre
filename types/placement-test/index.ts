@@ -27,10 +27,11 @@ export interface PlacementTest {
   writingScore?: number;
   programRecommendationId?: string | null;
   programRecommendationName?: string | null;
-  secondaryProgramRecommendationId?: string | null;
-  secondaryProgramRecommendationName?: string | null;
-  isSecondaryProgramSupplementary?: boolean;
-  secondaryProgramSkillFocus?: string;
+  primaryLevelRecommendationId?: string | null;
+  primaryLevelRecommendationName?: string | null;
+  secondaryLevelRecommendationId?: string | null;
+  secondaryLevelRecommendationName?: string | null;
+  secondaryLevelSkillFocus?: string;
   attachmentUrl?: string;
   attachmentUrls?: string[];
   isAccountProfileCreated?: boolean;
@@ -49,9 +50,11 @@ export interface PlacementTestResultResponse {
   resultScore: number;
   programRecommendationId: string | null;
   programRecommendationName: string | null;
-  secondaryProgramRecommendationId?: string | null;
-  secondaryProgramRecommendationName?: string | null;
-  secondaryProgramSkillFocus?: string | null;
+  primaryLevelRecommendationId?: string | null;
+  primaryLevelRecommendationName?: string | null;
+  secondaryLevelRecommendationId?: string | null;
+  secondaryLevelRecommendationName?: string | null;
+  secondaryLevelSkillFocus?: string | null;
   attachmentUrl?: string;
   attachmentUrls?: string[];
   status: "Scheduled" | "Completed" | "Cancelled" | "NoShow";
@@ -67,10 +70,11 @@ export interface PlacementTestResultRequest {
   resultScore: number;
   programRecommendationId: string | null;
   programRecommendationName: string | null;
-  secondaryProgramRecommendationId?: string | null;
-  secondaryProgramRecommendationName?: string | null;
-  isSecondaryProgramSupplementary?: boolean | null;
-  secondaryProgramSkillFocus?: string | null;
+  primaryLevelRecommendationId?: string | null;
+  primaryLevelRecommendationName?: string | null;
+  secondaryLevelRecommendationId?: string | null;
+  secondaryLevelRecommendationName?: string | null;
+  secondaryLevelSkillFocus?: string | null;
   attachmentUrl?: string | string[] | null;
   attachmentUrls?: string[] | null;
 }
@@ -84,9 +88,11 @@ export interface PlacementTestResult {
   resultScore?: number;
   programRecommendationId?: string | null;
   programRecommendationName?: string | null;
-  secondaryProgramRecommendationId?: string | null;
-  secondaryProgramRecommendationName?: string | null;
-  secondaryProgramSkillFocus?: string | null;
+  primaryLevelRecommendationId?: string | null;
+  primaryLevelRecommendationName?: string | null;
+  secondaryLevelRecommendationId?: string | null;
+  secondaryLevelRecommendationName?: string | null;
+  secondaryLevelSkillFocus?: string | null;
   attachmentUrl?: string | string[] | null;
   attachmentUrls?: string[];
 }

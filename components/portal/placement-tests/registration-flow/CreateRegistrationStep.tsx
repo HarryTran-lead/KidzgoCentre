@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Clock3, Loader2, School, Calendar, Tag, FileText, Sparkles } from "lucide-react";
 import type { TuitionPlan } from "@/types/admin/tuition_plan";
+import type { LevelDto } from "@/types/academic-progression";
 import { SelectContent, Select, SelectTrigger, SelectValue, SelectItem } from "@/components/lightswind/select";
 
 type ProgramOption = {
@@ -28,6 +29,8 @@ interface CreateRegistrationStepProps {
   studentName: string;
   programId: string;
   setProgramId: (value: string) => void;
+  levelId: string;
+  setLevelId: (value: string) => void;
   tuitionPlanId: string;
   setTuitionPlanId: (value: string) => void;
   isSecondaryEnabled: boolean;
@@ -35,6 +38,8 @@ interface CreateRegistrationStepProps {
   secondaryAllowed: boolean;
   secondaryProgramId: string;
   setSecondaryProgramId: (value: string) => void;
+  secondaryLevelId: string;
+  setSecondaryLevelId: (value: string) => void;
   secondaryProgramSkillFocus: string;
   setSecondaryProgramSkillFocus: (value: string) => void;
   expectedStartDate: string;
@@ -59,6 +64,7 @@ interface CreateRegistrationStepProps {
   programs: ProgramOption[];
   filteredTuitionPlans: TuitionPlan[];
   secondaryPrograms: ProgramOption[];
+  levels: LevelDto[];
   weekDays: WeekDayOption[];
   timeSlots: TimeSlotOption[];
   suggestedPanel?: ReactNode;
@@ -70,6 +76,8 @@ export default function CreateRegistrationStep({
   studentName,
   programId,
   setProgramId,
+  levelId,
+  setLevelId,
   tuitionPlanId,
   setTuitionPlanId,
   isSecondaryEnabled,
@@ -77,6 +85,8 @@ export default function CreateRegistrationStep({
   secondaryAllowed,
   secondaryProgramId,
   setSecondaryProgramId,
+  secondaryLevelId,
+  setSecondaryLevelId,
   secondaryProgramSkillFocus,
   setSecondaryProgramSkillFocus,
   expectedStartDate,
@@ -100,6 +110,7 @@ export default function CreateRegistrationStep({
   programs,
   filteredTuitionPlans,
   secondaryPrograms,
+  levels,
   weekDays,
   timeSlots,
   suggestedPanel,
@@ -168,6 +179,21 @@ export default function CreateRegistrationStep({
                       </Select>
                     </div>
 
+                  {/* Trình độ (Level) */}
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 block mb-1">Trình độ</label>
+                    <Select value={levelId} onValueChange={(val) => setLevelId(val)}>
+                      <SelectTrigger className="w-full rounded-xl border border-gray-200 bg-white text-sm transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-100">
+                        <SelectValue placeholder="Chọn trình độ" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {levels.map((l) => (
+                          <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
                     {/* Gói học */}
                     <div>
                       <label className="text-xs font-medium text-gray-600 block mb-1">Gói học</label>
@@ -223,16 +249,18 @@ export default function CreateRegistrationStep({
                     {isSecondaryEnabled && (
                       <div className="space-y-3 pt-1">
                         <div>
-                          <label className="text-xs font-medium text-gray-600 block mb-1">Chương trình</label>
-                          <Select value={secondaryProgramId} onValueChange={setSecondaryProgramId}>
+                          <label className="text-xs font-medium text-gray-600 block mb-1">Trình độ phụ</label>
+                          <Select value={secondaryLevelId} onValueChange={setSecondaryLevelId}>
                             <SelectTrigger className="w-full rounded-xl border border-gray-200 bg-white text-sm">
-                              <SelectValue placeholder="Chọn chương trình" />
+                              <SelectValue placeholder="Chọn trình độ phụ" />
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="">Không chọn</SelectItem>
-                              {secondaryPrograms.map((p) => (
-                                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                              ))}
+                              {levels
+                                .filter((l) => l.id !== levelId)
+                                .map((l) => (
+                                  <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                                ))}
                             </SelectContent>
                           </Select>
                         </div>
@@ -241,7 +269,7 @@ export default function CreateRegistrationStep({
                           <input
                             value={secondaryProgramSkillFocus}
                             onChange={(e) => setSecondaryProgramSkillFocus(e.target.value)}
-                            disabled={!secondaryProgramId}
+                            disabled={!secondaryLevelId}
                             placeholder="VD: Speaking, Writing, ..."
                             className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 disabled:bg-gray-50 disabled:text-gray-400"
                           />

@@ -305,19 +305,19 @@ export default function PlacementTestDetailModal({
                     </div>
                   )}
 
-                  {(test.secondaryProgramRecommendationName || test.secondaryProgramRecommendationId) && (
+                  {(test.secondaryLevelRecommendationName || test.secondaryLevelRecommendationId) && (
                     <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-3">
                       <p className="text-sm text-gray-500 mb-1 flex items-center gap-2">
                         <BookOpen size={14} className="text-red-500" />
                         Chương trình đề xuất thứ cấp
                       </p>
                       <p className="text-lg font-semibold text-red-700">
-                        {test.secondaryProgramRecommendationName || test.secondaryProgramRecommendationId || 'N/A'}
+                        {test.secondaryLevelRecommendationName || test.secondaryLevelRecommendationId || 'N/A'}
                       </p>
                       <div className="mt-2 flex flex-wrap gap-2">
-                        {test.secondaryProgramSkillFocus && (
+                        {test.secondaryLevelSkillFocus && (
                           <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">
-                            Kỹ năng: {test.secondaryProgramSkillFocus}
+                            Kỹ năng: {test.secondaryLevelSkillFocus}
                           </span>
                         )}
                       </div>

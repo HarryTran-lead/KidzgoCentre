@@ -45,7 +45,7 @@ import {
 import { buildFileUrl } from "@/constants/apiURL";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useToast } from "@/hooks/use-toast";
-import { getAllClasses } from "@/lib/api/classService";
+import { getAllClasses, getClassStudents } from "@/lib/api/classService";
 import {
   approveMediaRecord,
   createMediaRecord,
@@ -58,11 +58,9 @@ import {
   updateMediaRecord,
   uploadMediaFile,
 } from "@/lib/api/mediaService";
+import { getStaffStudents } from "@/lib/api/staffPortalService";
 import { normalizeRole } from "@/lib/role";
-import {
-  getTeacherClasses,
-  getTeacherClassStudents,
-} from "@/lib/api/teacherService";
+import { getTeacherClasses } from "@/lib/api/teacherService";
 import {
   ApprovalStatus,
   MediaContentType,
@@ -73,7 +71,7 @@ import {
   type UpdateMediaRequest,
 } from "@/types/media";
 
-type WorkspaceMode = "management" | "teacher";
+type WorkspaceMode = "admin" | "staff" | "teacher";
 
 type SelectOption = {
   id: string;
@@ -85,6 +83,7 @@ type MediaRow = {
   caption: string;
   type: MediaType;
   contentType: MediaContentType;
+  ownershipScope?: MediaOwnershipScope;
   visibility: Visibility;
   approvalStatus: ApprovalStatus;
   isPublished: boolean;
@@ -259,6 +258,38 @@ function extractNestedItems(payload: any, key: string): any[] {
   return extractItems(payload);
 }
 
+function normalizeStudentOptionsFromClassPayload(payload: any): SelectOption[] {
+  const raw = extractNestedItems(payload, "students");
+  return (Array.isArray(raw) ? raw : [])
+    .map((item: any) => {
+      const id = String(item.studentProfileId ?? item.id ?? item.studentId ?? "");
+      const name = String(
+        item.fullName ?? item.studentName ?? item.name ?? "Học viên",
+      );
+      return { id, label: name };
+    })
+    .filter((item: SelectOption) => item.id);
+}
+
+function normalizeStudentOptionsFromStaffPayload(payload: any): SelectOption[] {
+  const raw =
+    payload?.data?.data ??
+    payload?.data?.items ??
+    payload?.data ??
+    payload;
+
+  const items = Array.isArray(raw) ? raw : [];
+  return items
+    .map((item: any) => {
+      const id = String(item.studentProfileId ?? item.studentId ?? item.id ?? "");
+      const name = String(
+        item.fullName ?? item.studentName ?? item.name ?? "Học viên",
+      );
+      return { id, label: name };
+    })
+    .filter((item: SelectOption) => item.id);
+}
+
 function normalizeStatus(value: unknown, isPublished: boolean): ApprovalStatus {
   if (typeof value === "number") {
     if (value === 1) return ApprovalStatus.Approved;
@@ -321,14 +352,10 @@ function normalizeVisibility(value: unknown): Visibility {
 function normalizeMediaUrl(value: unknown) {
   const url = String(value ?? "").trim();
   if (!url) return "";
-  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+
+  // Use shared resolver so private Vercel Blob URLs are proxied via /api/files/blob/view.
   if (url.startsWith("/api/files/serve")) return url;
   return buildFileUrl(url);
-}
-
-function isVideoAssetUrl(url?: string) {
-  if (!url) return false;
-  return /\.(mp4|mov|webm|avi|m4v|mkv)(\?|$)/i.test(url);
 }
 
 function normalizeRows(payload: any): MediaRow[] {
@@ -337,6 +364,10 @@ function normalizeRows(payload: any): MediaRow[] {
     caption: String(item.caption ?? item.title ?? ""),
     type: normalizeType(item.type ?? item.mediaType),
     contentType: normalizeContentType(item.contentType),
+    ownershipScope:
+      Object.values(MediaOwnershipScope).find(
+        (option) => option === item.ownershipScope,
+      ) ?? undefined,
     visibility: normalizeVisibility(item.visibility),
     approvalStatus: normalizeStatus(
       item.approvalStatus ?? item.status,
@@ -387,7 +418,17 @@ function buildMonthTag(year: string, month: string) {
   return `${year}-${month}`;
 }
 
-const MA_MAC_DINH = "";
+function mapScopeToVisibility(scope: MediaOwnershipScope): Visibility {
+  if (scope === MediaOwnershipScope.Personal) return Visibility.Personal;
+  if (scope === MediaOwnershipScope.Branch) return Visibility.PublicParent;
+  return Visibility.ClassOnly;
+}
+
+function mapVisibilityToScope(visibility: Visibility): MediaOwnershipScope {
+  if (visibility === Visibility.Personal) return MediaOwnershipScope.Personal;
+  if (visibility === Visibility.PublicParent) return MediaOwnershipScope.Branch;
+  return MediaOwnershipScope.Class;
+}
 
 // Helper function để format date
 function formatDate(dateString?: string) {
@@ -401,8 +442,20 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
   const { toast } = useToast();
 
   const role = normalizeRole(user?.role);
-  const isManagementRole = role === "Admin" || role === "Staff_Manager";
-  const canModerate = mode === "management" && isManagementRole;
+  const isAdminRole = role === "Admin";
+  const isStaffManagementRole = role === "Staff_Manager";
+  const isTeacherRole = role === "Teacher";
+
+  const isAdminMode = mode === "admin";
+  const isStaffMode = mode === "staff";
+  const isTeacherMode = mode === "teacher";
+
+  const canModerate = isAdminMode && isAdminRole;
+  const canManageCrud =
+    (isTeacherMode && isTeacherRole) ||
+    (isStaffMode && isStaffManagementRole);
+  const showStudentColumn = isTeacherMode;
+  const canCreate = canManageCrud;
   const canDeleteStorage = false;
 
   const [rows, setRows] = useState<MediaRow[]>([]);
@@ -411,7 +464,7 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | ApprovalStatus>(
-    mode === "management" ? ApprovalStatus.Pending : "ALL",
+    isAdminMode ? ApprovalStatus.Pending : "ALL",
   );
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
@@ -487,7 +540,7 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
     let alive = true;
 
     const loadTeacherClasses = async () => {
-      if (mode !== "teacher") return;
+      if (!isTeacherMode) return;
       try {
         const res = await getTeacherClasses({ pageNumber: 1, pageSize: 200 });
         const raw =
@@ -524,10 +577,10 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
     return () => {
       alive = false;
     };
-  }, [mode, toast]);
+  }, [isTeacherMode, toast]);
 
   useEffect(() => {
-    if (mode !== "management") return;
+    if (!isStaffMode) return;
     if (!createForm.branchId) {
       setClassOptions([]);
       return;
@@ -563,40 +616,19 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
     return () => {
       alive = false;
     };
-  }, [mode, createForm.branchId]);
+  }, [createForm.branchId, isStaffMode]);
 
   useEffect(() => {
-    if (!createForm.classId) {
-      setStudentOptions([]);
-      setCreateForm((prev) => ({ ...prev, studentProfileId: MA_MAC_DINH }));
-      return;
-    }
-
-    if (mode !== "teacher") {
+    if (!canManageCrud || createForm.ownershipScope !== MediaOwnershipScope.Personal) {
       setStudentOptions([]);
       return;
     }
 
     let alive = true;
-    getTeacherClassStudents(createForm.classId, {
-      pageNumber: 1,
-      pageSize: 200,
-    })
+    getStaffStudents()
       .then((res: any) => {
         if (!alive) return;
-        const raw = extractNestedItems(res, "students");
-
-        const options = (Array.isArray(raw) ? raw : [])
-          .map((item: any) => {
-            const id = String(item.studentProfileId ?? item.id ?? "");
-            const name = String(
-              item.fullName ?? item.studentName ?? item.name ?? "Học viên",
-            );
-            return { id, label: name };
-          })
-          .filter((item: SelectOption) => item.id);
-
-        setStudentOptions(options);
+        setStudentOptions(normalizeStudentOptionsFromStaffPayload(res));
       })
       .catch(() => {
         if (!alive) return;
@@ -606,41 +638,45 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
     return () => {
       alive = false;
     };
-  }, [mode, createForm.classId]);
+  }, [canManageCrud, createForm.ownershipScope]);
 
   useEffect(() => {
     const classId = updateForm.classId ?? editing?.classId;
-    if (!editing || !classId || mode !== "teacher") {
+    const scope = editing?.ownershipScope ?? MediaOwnershipScope.Class;
+
+    if (!editing || !canManageCrud || scope !== MediaOwnershipScope.Personal) {
       setEditStudentOptions([]);
       return;
     }
 
     let alive = true;
-    getTeacherClassStudents(classId, { pageNumber: 1, pageSize: 200 })
-      .then((res: any) => {
-        if (!alive) return;
-        const raw = extractNestedItems(res, "students");
-        const options = (Array.isArray(raw) ? raw : [])
-          .map((item: any) => {
-            const id = String(item.studentProfileId ?? item.id ?? "");
-            const name = String(
-              item.fullName ?? item.studentName ?? item.name ?? "Học viên",
-            );
-            return { id, label: name };
-          })
-          .filter((item: SelectOption) => item.id);
 
-        setEditStudentOptions(options);
-      })
-      .catch(() => {
-        if (!alive) return;
-        setEditStudentOptions([]);
-      });
+    if (classId) {
+      getClassStudents(classId, { pageNumber: 1, pageSize: 200 })
+        .then((res: any) => {
+          if (!alive) return;
+          setEditStudentOptions(normalizeStudentOptionsFromClassPayload(res));
+        })
+        .catch(() => {
+          if (!alive) return;
+          setEditStudentOptions([]);
+        });
+    } else {
+      getStaffStudents()
+        .then((res: any) => {
+          if (!alive) return;
+          setEditStudentOptions(normalizeStudentOptionsFromStaffPayload(res));
+        })
+        .catch(() => {
+          if (!alive) return;
+          setEditStudentOptions([]);
+        });
+    }
 
     return () => {
       alive = false;
     };
-  }, [editing, mode, updateForm.classId]);
+  }, [canManageCrud, editing, updateForm.classId]);
 
   useEffect(() => {
     if (!createForm.branchId && user?.branchId) {
@@ -649,8 +685,8 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
   }, [createForm.branchId, user?.branchId]);
 
   useEffect(() => {
-    setStatusFilter(mode === "management" ? ApprovalStatus.Pending : "ALL");
-  }, [mode]);
+    setStatusFilter(isAdminMode ? ApprovalStatus.Pending : "ALL");
+  }, [isAdminMode]);
 
   const filteredRows = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -722,16 +758,12 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
   }, [rows, search, statusFilter, sortColumn, sortDirection]);
 
   const canEditRow = (row: MediaRow) => {
-    if (canModerate) return false;
-    if (mode === "teacher") {
-      if (
-        row.approvalStatus !== ApprovalStatus.Pending &&
-        row.approvalStatus !== ApprovalStatus.Rejected
-      ) {
-        return false;
-      }
-      if (!row.uploaderId || !user?.id) return false;
-      return row.uploaderId === user.id;
+    if (!canManageCrud || canModerate) return false;
+    if (
+      row.approvalStatus !== ApprovalStatus.Pending &&
+      row.approvalStatus !== ApprovalStatus.Rejected
+    ) {
+      return false;
     }
     if (!row.uploaderId || !user?.id) return false;
     return row.uploaderId === user.id;
@@ -845,6 +877,44 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
     [updateForm.monthTag],
   );
 
+  const createScope = createForm.ownershipScope;
+  const showCreateClassField = createScope === MediaOwnershipScope.Class;
+  const showCreateStudentField = createScope === MediaOwnershipScope.Personal;
+  const requireCreateClass = showCreateClassField;
+  const requireCreateStudent = showCreateStudentField;
+  const createVisibilityOptions = Object.values(Visibility);
+
+  const editScope = editing?.ownershipScope ?? MediaOwnershipScope.Class;
+  const showEditClassField = editScope === MediaOwnershipScope.Class;
+  const showEditStudentField = editScope === MediaOwnershipScope.Personal;
+  const requireEditClass = showEditClassField;
+  const requireEditStudent = showEditStudentField;
+  const editVisibilityOptions = Object.values(Visibility);
+
+  useEffect(() => {
+    if (!showCreateClassField && createForm.classId) {
+      setCreateForm((prev) => ({ ...prev, classId: "" }));
+    }
+  }, [createForm.classId, showCreateClassField]);
+
+  useEffect(() => {
+    if (!showCreateStudentField && createForm.studentProfileId) {
+      setCreateForm((prev) => ({ ...prev, studentProfileId: "" }));
+    }
+  }, [createForm.studentProfileId, showCreateStudentField]);
+
+  useEffect(() => {
+    if (!showEditClassField && updateForm.classId) {
+      setUpdateForm((prev) => ({ ...prev, classId: undefined }));
+    }
+  }, [showEditClassField, updateForm.classId]);
+
+  useEffect(() => {
+    if (!showEditStudentField && updateForm.studentProfileId) {
+      setUpdateForm((prev) => ({ ...prev, studentProfileId: undefined }));
+    }
+  }, [showEditStudentField, updateForm.studentProfileId]);
+
   const resetCreateForm = () => {
     setCreateForm({
       branchId: user?.branchId ?? "",
@@ -872,19 +942,12 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
       return;
     }
 
-    const selectedScope = createForm.ownershipScope;
-    if (
-      selectedScope === MediaOwnershipScope.Class &&
-      !createForm.classId.trim()
-    ) {
+    if (requireCreateClass && !createForm.classId.trim()) {
       toast.warning({ title: "Phạm vi Lớp học yêu cầu chọn lớp học" });
       return;
     }
 
-    if (
-      selectedScope === MediaOwnershipScope.Personal &&
-      !createForm.studentProfileId.trim()
-    ) {
+    if (requireCreateStudent && !createForm.studentProfileId.trim()) {
       toast.warning({ title: "Phạm vi Cá nhân yêu cầu chọn học viên" });
       return;
     }
@@ -900,8 +963,12 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
         uploadResult?.data?.data ?? uploadResult?.data ?? uploadResult;
       const payload: CreateMediaRequest = {
         branchId: createForm.branchId.trim(),
-        classId: createForm.classId.trim() || undefined,
-        studentProfileId: createForm.studentProfileId.trim() || undefined,
+        classId: showCreateClassField
+          ? createForm.classId.trim() || undefined
+          : undefined,
+        studentProfileId: showCreateStudentField
+          ? createForm.studentProfileId.trim() || undefined
+          : undefined,
         monthTag: createForm.monthTag.trim() || undefined,
         type: createForm.type,
         contentType: createForm.contentType,
@@ -952,9 +1019,32 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
 
   const handleSaveEdit = async () => {
     if (!editing) return;
+
+    if (requireEditClass && !(updateForm.classId ?? "").trim()) {
+      toast.warning({ title: "Phạm vi hiện tại yêu cầu chọn lớp học" });
+      return;
+    }
+
+    if (requireEditStudent && !(updateForm.studentProfileId ?? "").trim()) {
+      toast.warning({ title: "Phạm vi hiện tại yêu cầu chọn học viên" });
+      return;
+    }
+
+    const payload: UpdateMediaRequest = {
+      ...updateForm,
+      classId: showEditClassField
+        ? (updateForm.classId ?? "").trim() || undefined
+        : undefined,
+      studentProfileId: showEditStudentField
+        ? (updateForm.studentProfileId ?? "").trim() || undefined
+        : undefined,
+      monthTag: (updateForm.monthTag ?? "").trim() || undefined,
+      caption: (updateForm.caption ?? "").trim() || undefined,
+    };
+
     setSavingEdit(true);
     try {
-      await updateMediaRecord(editing.id, updateForm);
+      await updateMediaRecord(editing.id, payload);
       toast.success({ title: "Cập nhật tư liệu thành công" });
       setEditing(null);
       setRefreshSeed((seed) => seed + 1);
@@ -1074,11 +1164,14 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
   };
 
   const title =
-    mode === "management" ? "Kiểm duyệt tư liệu lớp học" : "Tư liệu giáo viên";
-  const subtitle =
-    mode === "management"
-      ? "Quản lý/Admin rà soát media chờ duyệt, thực hiện Duyệt → Công khai hoặc Từ chối theo quy trình chuẩn."
-      : "Giáo viên tải ảnh/video hoạt động lớp. Bản ghi mới luôn ở trạng thái Chờ duyệt và chưa công khai.";
+    isAdminMode
+      ? "Kiểm duyệt tư liệu lớp học"
+      : isStaffMode
+        ? "Tư liệu Staff Management"
+        : "Tư liệu giáo viên";
+  const subtitle = isAdminMode
+    ? "Admin rà soát media chờ duyệt, thực hiện Duyệt → Công khai hoặc Từ chối theo quy trình chuẩn."
+    : "Tải ảnh/video hoạt động lớp. Bản ghi mới luôn ở trạng thái Chờ duyệt và chưa công khai.";
 
   return (
     <div className="space-y-6 bg-gray-50 p-4 md:p-2 rounded-3xl">
@@ -1086,8 +1179,8 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
       <div className="flex flex-wrap items-center gap-3 justify-between">
         <div className="flex items-center gap-3">
           <div className="p-3 rounded-xl bg-gradient-to-r from-red-600 to-red-700 shadow-lg">
-            {mode === "management" ? (
-              <ShieldCheck size={25} className="text-white" />
+            {isAdminMode ? (
+              <ShieldCheck size={24} className="text-white" />
             ) : (
               <Camera size={25} className="text-white" />
             )}
@@ -1102,7 +1195,7 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
             </p>
           </div>
         </div>
-        {mode === "teacher" && (
+        {canCreate && (
           <button
             type="button"
             onClick={() => setShowCreateModal(true)}
@@ -1114,7 +1207,7 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
       </div>
 
       {/* Stats Cards - chỉ hiển thị cho management mode */}
-      {mode === "management" && (
+      {isAdminMode && (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
           {/* Tổng tư liệu */}
           <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
@@ -1266,7 +1359,11 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Tìm theo tên tư liệu, học viên, người tải..."
+              placeholder={
+                showStudentColumn
+                  ? "Tìm theo tên tư liệu, học viên, người tải..."
+                  : "Tìm theo tên tư liệu, người tải..."
+              }
               className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-300"
             />
           </div>
@@ -1300,14 +1397,16 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
                     )}
                   </div>
                 </th>
-                <th className="py-3 px-4 cursor-pointer hover:bg-red-100/50 transition-colors" onClick={() => { setSortColumn(sortColumn === "studentName" ? null : "studentName"); if (sortColumn === "studentName") setSortDirection(sortDirection === "asc" ? "desc" : "asc"); }}>
-                  <div className="flex items-center gap-1.5">
-                    Học viên
-                    {sortColumn === "studentName" && (
-                      sortDirection === "asc" ? <ArrowUp size={14} className="text-red-600" /> : <ArrowDown size={14} className="text-red-600" />
-                    )}
-                  </div>
-                </th>
+                {showStudentColumn && (
+                  <th className="py-3 px-4 cursor-pointer hover:bg-red-100/50 transition-colors" onClick={() => { setSortColumn(sortColumn === "studentName" ? null : "studentName"); if (sortColumn === "studentName") setSortDirection(sortDirection === "asc" ? "desc" : "asc"); }}>
+                    <div className="flex items-center gap-1.5">
+                      Học viên
+                      {sortColumn === "studentName" && (
+                        sortDirection === "asc" ? <ArrowUp size={14} className="text-red-600" /> : <ArrowDown size={14} className="text-red-600" />
+                      )}
+                    </div>
+                  </th>
+                )}
                 <th className="py-3 px-4 cursor-pointer hover:bg-red-100/50 transition-colors" onClick={() => { setSortColumn(sortColumn === "uploaderName" ? null : "uploaderName"); if (sortColumn === "uploaderName") setSortDirection(sortDirection === "asc" ? "desc" : "asc"); }}>
                   <div className="flex items-center gap-1.5">
                     Người tải lên
@@ -1354,7 +1453,7 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td className="py-12 text-center" colSpan={8}>
+                  <td className="py-12 text-center" colSpan={showStudentColumn ? 8 : 7}>
                     <div className="flex items-center justify-center gap-2 text-gray-500">
                       <Loader2
                         size={20}
@@ -1366,7 +1465,7 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
                 </tr>
               ) : filteredRows.length === 0 ? (
                 <tr>
-                  <td className="py-12 text-center" colSpan={8}>
+                  <td className="py-12 text-center" colSpan={showStudentColumn ? 8 : 7}>
                     <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center">
                       <ImageIcon size={24} className="text-gray-400" />
                     </div>
@@ -1380,9 +1479,8 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
                 </tr>
               ) : (
                 filteredRows.map((row) => {
-                  const thumb = row.previewUrl || row.url;
-                  const showVideoPreview =
-                    row.type === MediaType.Video && isVideoAssetUrl(thumb);
+                  const thumb = normalizeMediaUrl(row.previewUrl || row.url);
+                  const showVideoPreview = row.type === MediaType.Video;
                   const visibilityLabel =
                     row.visibility === Visibility.ClassOnly && row.className
                       ? `Chỉ lớp học (${row.className})`
@@ -1425,7 +1523,7 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
                             <div className="font-medium text-gray-900 line-clamp-1">
                               {row.caption || "(Chưa có chú thích)"}
                             </div>
-                            {mode === "teacher" &&
+                            {canManageCrud &&
                               row.approvalStatus === ApprovalStatus.Rejected &&
                               row.rejectReason && (
                                 <div className="mt-1 inline-flex rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-700 max-w-xs">
@@ -1441,12 +1539,14 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
                           </div>
                         </div>
                       </td>
-                      <td className="py-3 px-4">
-                        <div className="inline-flex items-center gap-2 text-sm text-gray-900">
-                          <UserIcon size={14} className="text-gray-400" />
-                          <span>{row.studentName || "-"}</span>
-                        </div>
-                      </td>
+                      {showStudentColumn && (
+                        <td className="py-3 px-4">
+                          <div className="inline-flex items-center gap-2 text-sm text-gray-900">
+                            <UserIcon size={14} className="text-gray-400" />
+                            <span>{row.studentName || "-"}</span>
+                          </div>
+                        </td>
+                      )}
                       <td className="py-3 px-4">
                         <div className="inline-flex items-center gap-2 text-sm text-gray-900">
                           <Building2 size={14} className="text-gray-400" />
@@ -1580,7 +1680,7 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
                             </button>
                           )}
 
-                          {mode === "teacher" &&
+                          {canManageCrud &&
                             canEditRow(row) &&
                             row.approvalStatus === ApprovalStatus.Rejected && (
                               <button
@@ -1645,50 +1745,51 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
             {/* Modal Body */}
             <div className="p-6 max-h-[70vh] overflow-y-auto">
               <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                    <Users size={16} className="text-red-600" />
-                    Lớp học
-                  </label>
-                  <LightSelect
-                    value={updateForm.classId ?? ""}
-                    onValueChange={(value) =>
-                      setUpdateForm((prev) => ({
-                        ...prev,
-                        classId: value,
-                        studentProfileId: "",
-                      }))
-                    }
-                    options={classOptionsForEdit}
-                    placeholder="Không chọn lớp học"
-                    emptyLabel="Không chọn lớp học"
-                  />
-                </div>
+                {showEditClassField && (
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <Users size={16} className="text-red-600" />
+                      Lớp học
+                      {requireEditClass && <span className="text-red-500">*</span>}
+                    </label>
+                    <LightSelect
+                      value={updateForm.classId ?? ""}
+                      onValueChange={(value) =>
+                        setUpdateForm((prev) => ({
+                          ...prev,
+                          classId: value,
+                          studentProfileId: "",
+                        }))
+                      }
+                      options={classOptionsForEdit}
+                      placeholder="Không chọn lớp học"
+                      emptyLabel="Không chọn lớp học"
+                    />
+                  </div>
+                )}
 
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                    <UserIcon size={16} className="text-red-600" />
-                    Học viên
-                  </label>
-                  <LightSelect
-                    value={updateForm.studentProfileId ?? ""}
-                    onValueChange={(value) =>
-                      setUpdateForm((prev) => ({
-                        ...prev,
-                        studentProfileId: value,
-                      }))
-                    }
-                    options={studentOptionsForEdit}
-                    placeholder="Không chọn học viên cụ thể"
-                    emptyLabel="Không chọn học viên cụ thể"
-                    disabled={
-                      mode === "teacher" &&
-                      (updateForm.classId
-                        ? editStudentOptions.length === 0
-                        : true)
-                    }
-                  />
-                </div>
+                {showEditStudentField && (
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <UserIcon size={16} className="text-red-600" />
+                      Học viên
+                      {requireEditStudent && <span className="text-red-500">*</span>}
+                    </label>
+                    <LightSelect
+                      value={updateForm.studentProfileId ?? ""}
+                      onValueChange={(value) =>
+                        setUpdateForm((prev) => ({
+                          ...prev,
+                          studentProfileId: value,
+                        }))
+                      }
+                      options={studentOptionsForEdit}
+                      placeholder="Không chọn học viên cụ thể"
+                      emptyLabel="Không chọn học viên cụ thể"
+                      disabled={canManageCrud && editStudentOptions.length === 0}
+                    />
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
@@ -1761,7 +1862,7 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
                         visibility: value as Visibility,
                       }))
                     }
-                    options={Object.values(Visibility).map((option) => ({
+                    options={editVisibilityOptions.map((option) => ({
                       value: option,
                       label: NHAN_VISIBILITY[option],
                     }))}
@@ -1851,52 +1952,57 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
             {/* Modal Body */}
             <div className="p-6 max-h-[70vh] overflow-y-auto">
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                    <Users size={16} className="text-red-600" />
-                    Lớp học
-                  </label>
-                  <LightSelect
-                    value={createForm.classId}
-                    onValueChange={(value) =>
-                      setCreateForm((prev) => ({
-                        ...prev,
-                        classId: value,
-                        studentProfileId: "",
-                      }))
-                    }
-                    options={classOptions.map((option) => ({
-                      value: option.id,
-                      label: option.label,
-                    }))}
-                    placeholder="Chọn lớp học"
-                  />
-                </div>
+                {showCreateClassField && (
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <Users size={16} className="text-red-600" />
+                      Lớp học
+                      {requireCreateClass && <span className="text-red-500">*</span>}
+                    </label>
+                    <LightSelect
+                      value={createForm.classId}
+                      onValueChange={(value) =>
+                        setCreateForm((prev) => ({
+                          ...prev,
+                          classId: value,
+                          studentProfileId: "",
+                        }))
+                      }
+                      options={classOptions.map((option) => ({
+                        value: option.id,
+                        label: option.label,
+                      }))}
+                      placeholder="Chọn lớp học"
+                      emptyLabel="Không chọn lớp học"
+                    />
+                  </div>
+                )}
 
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                    <UserIcon size={16} className="text-red-600" />
-                    Học viên
-                  </label>
-                  <LightSelect
-                    value={createForm.studentProfileId}
-                    onValueChange={(value) =>
-                      setCreateForm((prev) => ({
-                        ...prev,
-                        studentProfileId: value,
-                      }))
-                    }
-                    options={studentOptions.map((option) => ({
-                      value: option.id,
-                      label: option.label,
-                    }))}
-                    placeholder="Không chọn học viên cụ thể"
-                    emptyLabel="Không chọn học viên cụ thể"
-                    disabled={
-                      !createForm.classId || studentOptions.length === 0
-                    }
-                  />
-                </div>
+                {showCreateStudentField && (
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <UserIcon size={16} className="text-red-600" />
+                      Học viên
+                      {requireCreateStudent && <span className="text-red-500">*</span>}
+                    </label>
+                    <LightSelect
+                      value={createForm.studentProfileId}
+                      onValueChange={(value) =>
+                        setCreateForm((prev) => ({
+                          ...prev,
+                          studentProfileId: value,
+                        }))
+                      }
+                      options={studentOptions.map((option) => ({
+                        value: option.id,
+                        label: option.label,
+                      }))}
+                      placeholder="Không chọn học viên cụ thể"
+                      emptyLabel="Không chọn học viên cụ thể"
+                      disabled={studentOptions.length === 0}
+                    />
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
@@ -1984,13 +2090,24 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
                   </label>
                   <LightSelect
                     value={createForm.visibility}
-                    onValueChange={(value) =>
+                    onValueChange={(value) => {
+                      const visibility = value as Visibility;
+                      const ownershipScope = mapVisibilityToScope(visibility);
                       setCreateForm((prev) => ({
                         ...prev,
-                        visibility: value as Visibility,
-                      }))
-                    }
-                    options={Object.values(Visibility).map((option) => ({
+                        visibility,
+                        ownershipScope,
+                        classId:
+                          ownershipScope === MediaOwnershipScope.Class
+                            ? prev.classId
+                            : "",
+                        studentProfileId:
+                          ownershipScope === MediaOwnershipScope.Personal
+                            ? prev.studentProfileId
+                            : "",
+                      }));
+                    }}
+                    options={createVisibilityOptions.map((option) => ({
                       value: option,
                       label: NHAN_VISIBILITY[option],
                     }))}
@@ -2005,12 +2122,22 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
                   </label>
                   <LightSelect
                     value={createForm.ownershipScope}
-                    onValueChange={(value) =>
+                    onValueChange={(value) => {
+                      const ownershipScope = value as MediaOwnershipScope;
                       setCreateForm((prev) => ({
                         ...prev,
-                        ownershipScope: value as MediaOwnershipScope,
-                      }))
-                    }
+                        ownershipScope,
+                        visibility: mapScopeToVisibility(ownershipScope),
+                        classId:
+                          ownershipScope === MediaOwnershipScope.Class
+                            ? prev.classId
+                            : "",
+                        studentProfileId:
+                          ownershipScope === MediaOwnershipScope.Personal
+                            ? prev.studentProfileId
+                            : "",
+                      }));
+                    }}
                     options={[
                       { value: MediaOwnershipScope.Class, label: "Lớp học" },
                       { value: MediaOwnershipScope.Personal, label: "Cá nhân" },
@@ -2102,7 +2229,7 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
       {/* Preview Modal */}
       {previewTarget && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          className="fixed inset-0 z-9999 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
           onClick={() => setPreviewTarget(null)}
         >
           <div
@@ -2148,7 +2275,7 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
             <div className="flex items-center justify-center bg-gray-900/5 p-6 max-h-[70vh] overflow-auto">
               {previewTarget.type === MediaType.Video ? (
                 <video
-                  src={normalizeMediaUrl(previewTarget.url)}
+                  src={normalizeMediaUrl(previewTarget.url || previewTarget.previewUrl)}
                   controls
                   className="max-h-[60vh] w-full rounded-lg shadow-lg"
                   autoPlay
@@ -2156,7 +2283,7 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={normalizeMediaUrl(previewTarget.url)}
+                  src={normalizeMediaUrl(previewTarget.previewUrl || previewTarget.url)}
                   alt={previewTarget.caption || "preview"}
                   className="max-h-[60vh] w-auto rounded-lg shadow-lg object-contain"
                 />

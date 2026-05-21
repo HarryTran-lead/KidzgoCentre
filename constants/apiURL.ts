@@ -180,6 +180,7 @@ export const CLASS_ENDPOINTS = {
   GET_BY_ID: (id: string) => `/api/classes/${id}`,
   UPDATE: (id: string) => `/api/classes/${id}`,
   RESYNC_FUTURE_LESSONS: (id: string) => `/api/classes/${id}/resync-future-lessons`,
+  GET_STUDENTS: (id: string) => `/api/classes/${id}/students`,
   SCHEDULE_SEGMENTS: (id: string) => `/api/classes/${id}/schedule-segments`,
   MODULE_PROGRESS: (classId: string) => `/api/classes/${classId}/module-progress`,
   MODULE_PROGRESS_BY_MODULE: (classId: string, moduleId: string) => `/api/classes/${classId}/module-progress/${moduleId}`,
@@ -244,6 +245,7 @@ export const BACKEND_CLASS_ENDPOINTS = {
   GET_ALL: () => "/classes",
   GET_BY_ID: (id: string) => `/classes/${id}`,
   UPDATE: (id: string) => `/classes/${id}`,
+  GET_STUDENTS: (id: string) => `/classes/${id}/students`,
   PREVIEW_SESSIONS: "/classes/preview-sessions",
   RESYNC_FUTURE_LESSONS: (id: string) => `/classes/${id}/resync-future-lessons`,
   MODULE_PROGRESS: (classId: string) => `/classes/${classId}/module-progress`,
@@ -258,6 +260,7 @@ export const BACKEND_SYLLABUS_ENDPOINTS = {
   IMPORT_ARCHIVE: '/syllabuses/import-archive',
   IMPORT_CONFIGURATION: '/syllabuses/import-configuration',
   IMPORT_LESSON_PLAN_WORDS: '/syllabuses/import-lesson-plan-words',
+  GET_STUDENTS: (id: string) => `/classes/${id}/students`,
 } as const;
 
 export const BACKEND_MAKEUP_CREDIT_ENDPOINTS = {

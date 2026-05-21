@@ -55,9 +55,12 @@ export interface RegistrationRequest {
   studentProfileId: string;
   branchId: string;
   programId: string;
+  levelId: string;
   tuitionPlanId: string;
   secondaryProgramId?: string | null;
   secondaryProgramSkillFocus?: string | null;
+  secondaryLevelId?: string | null;
+  secondaryLevelSkillFocus?: string | null;
   expectedStartDate?: string | null;
   preferredSchedule?: string | null;
   note?: string | null;
@@ -68,9 +71,13 @@ export interface UpdateRegistrationRequest {
   preferredSchedule?: string | null;
   note?: string | null;
   tuitionPlanId?: string | null;
+  levelId?: string | null;
   secondaryProgramId?: string | null;
   secondaryProgramSkillFocus?: string | null;
+  secondaryLevelId?: string | null;
+  secondaryLevelSkillFocus?: string | null;
   removeSecondaryProgram?: boolean | null;
+  removeSecondaryLevel?: boolean | null;
 }
 
 export interface AssignClassRequest {
@@ -90,9 +97,14 @@ export interface Registration {
   branchName: string;
   programId: string;
   programName: string;
+  levelId?: string | null;
+  levelName?: string | null;
   secondaryProgramId?: string | null;
   secondaryProgramName?: string | null;
   secondaryProgramSkillFocus?: string | null;
+  secondaryLevelId?: string | null;
+  secondaryLevelName?: string | null;
+  secondaryLevelSkillFocus?: string | null;
   tuitionPlanId: string;
   tuitionPlanName: string;
   registrationDate: string;
@@ -147,9 +159,14 @@ export interface SuggestedClassBucket {
   length?: number;
   suggestedClasses: SuggestedClass[];
   alternativeClasses: SuggestedClass[];
+  levelId?: string | null;
+  levelName?: string | null;
   secondaryProgramId?: string | null;
   secondaryProgramName?: string | null;
   secondaryProgramSkillFocus?: string | null;
+  secondaryLevelId?: string | null;
+  secondaryLevelName?: string | null;
+  secondaryLevelSkillFocus?: string | null;
   secondarySuggestedClasses: SuggestedClass[];
   secondaryAlternativeClasses: SuggestedClass[];
 }

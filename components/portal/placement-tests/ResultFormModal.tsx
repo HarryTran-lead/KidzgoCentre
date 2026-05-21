@@ -5,6 +5,7 @@ import { X, Award, FileText, Paperclip, Upload, Loader2, AlertCircle } from "luc
 import { ADMIN_ENDPOINTS, buildFileUrl, FILE_ENDPOINTS } from "@/constants/apiURL";
 import { getAccessToken } from "@/lib/store/authToken";
 import { uploadFile, isUploadSuccess } from "@/lib/api/fileService";
+import { getLevels } from "@/lib/api/academicProgressionService";
 import { useToast } from "@/hooks/use-toast";
 import {
   Select,
@@ -14,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/lightswind/select";
 import type { PlacementTestResultRequest } from "@/types/placement-test";
+import type { LevelDto } from "@/types/academic-progression";
 
 type ProgramOption = {
   id: string;
@@ -132,15 +134,18 @@ export default function ResultFormModal({
     writingScore: initialData?.writingScore?.toString() || "",
     programRecommendationId: initialData?.programRecommendationId || "",
     programRecommendationName: initialData?.programRecommendationName || "",
-    secondaryProgramRecommendationId: initialData?.secondaryProgramRecommendationId || "",
-    secondaryProgramRecommendationName: initialData?.secondaryProgramRecommendationName || "",
-    isSecondaryProgramSupplementary: Boolean(initialData?.isSecondaryProgramSupplementary),
-    secondaryProgramSkillFocus: initialData?.secondaryProgramSkillFocus || "",
+    primaryLevelRecommendationId: initialData?.primaryLevelRecommendationId || "",
+    primaryLevelRecommendationName: initialData?.primaryLevelRecommendationName || "",
+    secondaryLevelRecommendationId: initialData?.secondaryLevelRecommendationId || "",
+    secondaryLevelRecommendationName: initialData?.secondaryLevelRecommendationName || "",
+    secondaryLevelSkillFocus: initialData?.secondaryLevelSkillFocus || "",
     attachmentUrls: getInitialAttachmentUrls(initialData),
     note: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [programOptions, setProgramOptions] = useState<ProgramOption[]>([]);
+  const [levelOptions, setLevelOptions] = useState<LevelDto[]>([]);
+  const [isLoadingLevels, setIsLoadingLevels] = useState(false);
   const [isLoadingPrograms, setIsLoadingPrograms] = useState(false);
   const [programLoadError, setProgramLoadError] = useState("");
   const [formError, setFormError] = useState("");
@@ -155,10 +160,11 @@ export default function ResultFormModal({
       writingScore: initialData?.writingScore?.toString() || "",
       programRecommendationId: initialData?.programRecommendationId || "",
       programRecommendationName: initialData?.programRecommendationName || "",
-      secondaryProgramRecommendationId: initialData?.secondaryProgramRecommendationId || "",
-      secondaryProgramRecommendationName: initialData?.secondaryProgramRecommendationName || "",
-      isSecondaryProgramSupplementary: Boolean(initialData?.isSecondaryProgramSupplementary),
-      secondaryProgramSkillFocus: initialData?.secondaryProgramSkillFocus || "",
+      primaryLevelRecommendationId: initialData?.primaryLevelRecommendationId || "",
+      primaryLevelRecommendationName: initialData?.primaryLevelRecommendationName || "",
+      secondaryLevelRecommendationId: initialData?.secondaryLevelRecommendationId || "",
+      secondaryLevelRecommendationName: initialData?.secondaryLevelRecommendationName || "",
+      secondaryLevelSkillFocus: initialData?.secondaryLevelSkillFocus || "",
       attachmentUrls: getInitialAttachmentUrls(initialData),
       note: "",
     });
@@ -206,10 +212,11 @@ export default function ResultFormModal({
         writingScore: initialData?.writingScore?.toString() || "",
         programRecommendationId: initialData?.programRecommendationId || "",
         programRecommendationName: initialData?.programRecommendationName || "",
-        secondaryProgramRecommendationId: initialData?.secondaryProgramRecommendationId || "",
-        secondaryProgramRecommendationName: initialData?.secondaryProgramRecommendationName || "",
-        isSecondaryProgramSupplementary: Boolean(initialData?.isSecondaryProgramSupplementary),
-        secondaryProgramSkillFocus: initialData?.secondaryProgramSkillFocus || "",
+        primaryLevelRecommendationId: initialData?.primaryLevelRecommendationId || "",
+        primaryLevelRecommendationName: initialData?.primaryLevelRecommendationName || "",
+        secondaryLevelRecommendationId: initialData?.secondaryLevelRecommendationId || "",
+        secondaryLevelRecommendationName: initialData?.secondaryLevelRecommendationName || "",
+        secondaryLevelSkillFocus: initialData?.secondaryLevelSkillFocus || "",
         attachmentUrls: getInitialAttachmentUrls(initialData),
         note: "",
       });
@@ -222,10 +229,11 @@ export default function ResultFormModal({
         writingScore: "",
         programRecommendationId: "",
         programRecommendationName: "",
-        secondaryProgramRecommendationId: "",
-        secondaryProgramRecommendationName: "",
-        isSecondaryProgramSupplementary: false,
-        secondaryProgramSkillFocus: "",
+        primaryLevelRecommendationId: "",
+        primaryLevelRecommendationName: "",
+        secondaryLevelRecommendationId: "",
+        secondaryLevelRecommendationName: "",
+        secondaryLevelSkillFocus: "",
         attachmentUrls: [],
         note: "",
       });
@@ -361,6 +369,30 @@ export default function ResultFormModal({
     fetchPrograms();
   }, [isOpen, branchId]);
 
+  useEffect(() => {
+    if (!isOpen || !formData.programRecommendationId) {
+      setLevelOptions([]);
+      return;
+    }
+
+    const fetchLevels = async () => {
+      setIsLoadingLevels(true);
+      try {
+        const response = await getLevels({
+          programId: formData.programRecommendationId,
+          isActive: true,
+        });
+        setLevelOptions(response?.data?.items || []);
+      } catch {
+        setLevelOptions([]);
+      } finally {
+        setIsLoadingLevels(false);
+      }
+    };
+
+    void fetchLevels();
+  }, [isOpen, formData.programRecommendationId]);
+
   const computedResultScore = useMemo(() => {
     const listening = Number.parseFloat(formData.listeningScore || "0") || 0;
     const speaking = Number.parseFloat(formData.speakingScore || "0") || 0;
@@ -370,17 +402,17 @@ export default function ResultFormModal({
     return Number(((listening + speaking + reading + writing) / 4).toFixed(1));
   }, [formData.listeningScore, formData.speakingScore, formData.readingScore, formData.writingScore]);
 
-  const isDuplicateProgramSelection =
-    Boolean(formData.programRecommendationId) &&
-    Boolean(formData.secondaryProgramRecommendationId) &&
-    formData.programRecommendationId === formData.secondaryProgramRecommendationId;
+  const isDuplicateLevelSelection =
+    Boolean(formData.primaryLevelRecommendationId) &&
+    Boolean(formData.secondaryLevelRecommendationId) &&
+    formData.primaryLevelRecommendationId === formData.secondaryLevelRecommendationId;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError("");
 
-    if (isDuplicateProgramSelection) {
-      setFormError("Chương trình chính và chương trình song song không được trùng nhau.");
+    if (isDuplicateLevelSelection) {
+      setFormError("Trình độ chính và trình độ phụ không được trùng nhau.");
       return;
     }
 
@@ -398,8 +430,8 @@ export default function ResultFormModal({
     setIsSubmitting(true);
 
     try {
-      const secondaryProgramRecommendationId = formData.secondaryProgramRecommendationId.trim();
-      const secondaryProgramSkillFocus = formData.secondaryProgramSkillFocus.trim();
+      const secondaryLevelRecommendationId = formData.secondaryLevelRecommendationId.trim();
+      const secondaryLevelSkillFocus = formData.secondaryLevelSkillFocus.trim();
       const attachmentUrls = Array.from(new Set(formData.attachmentUrls.filter(Boolean)));
       const attachmentPayload =
         attachmentUrls.length > 1
@@ -413,15 +445,14 @@ export default function ResultFormModal({
         resultScore: computedResultScore,
         programRecommendationId: formData.programRecommendationId || null,
         programRecommendationName: formData.programRecommendationName || null,
-        secondaryProgramRecommendationId: secondaryProgramRecommendationId || null,
-        secondaryProgramRecommendationName: secondaryProgramRecommendationId
-          ? formData.secondaryProgramRecommendationName || null
+        primaryLevelRecommendationId: formData.primaryLevelRecommendationId || null,
+        primaryLevelRecommendationName: formData.primaryLevelRecommendationName || null,
+        secondaryLevelRecommendationId: secondaryLevelRecommendationId || null,
+        secondaryLevelRecommendationName: secondaryLevelRecommendationId
+          ? formData.secondaryLevelRecommendationName || null
           : null,
-        isSecondaryProgramSupplementary: secondaryProgramRecommendationId
-          ? formData.isSecondaryProgramSupplementary
-          : null,
-        secondaryProgramSkillFocus: secondaryProgramRecommendationId
-          ? secondaryProgramSkillFocus || null
+        secondaryLevelSkillFocus: secondaryLevelRecommendationId
+          ? secondaryLevelSkillFocus || null
           : null,
         attachmentUrl: attachmentPayload,
         attachmentUrls,
@@ -577,44 +608,29 @@ export default function ResultFormModal({
                 <div className="p-1.5 rounded-lg bg-red-100">
                   <FileText size={16} className="text-red-600" />
                 </div>
-                <h3 className="text-sm font-semibold text-gray-700">Đề xuất chương trình</h3>
+                <h3 className="text-sm font-semibold text-gray-700">Đề xuất chương trình và level</h3>
               </div>
 
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  Đề xuất chương trình chính
+                  Chương trình đề xuất
                 </label>
                 <Select
                   value={formData.programRecommendationId}
                   onValueChange={(value) => {
                     const selected = programOptions.find((p) => p.id === value);
-                    const isConflictedSecondary =
-                      Boolean(formData.secondaryProgramRecommendationId) &&
-                      formData.secondaryProgramRecommendationId === value;
 
                     setFormData((prev) => ({
                       ...prev,
                       programRecommendationId: value,
                       programRecommendationName: selected?.name || "",
-                      secondaryProgramRecommendationId: isConflictedSecondary
-                        ? ""
-                        : prev.secondaryProgramRecommendationId,
-                      secondaryProgramRecommendationName: isConflictedSecondary
-                        ? ""
-                        : prev.secondaryProgramRecommendationName,
-                      isSecondaryProgramSupplementary: isConflictedSecondary
-                        ? false
-                        : prev.isSecondaryProgramSupplementary,
-                      secondaryProgramSkillFocus: isConflictedSecondary
-                        ? ""
-                        : prev.secondaryProgramSkillFocus,
+                      primaryLevelRecommendationId: "",
+                      primaryLevelRecommendationName: "",
+                      secondaryLevelRecommendationId: "",
+                      secondaryLevelRecommendationName: "",
+                      secondaryLevelSkillFocus: "",
                     }));
-
-                    if (isConflictedSecondary) {
-                      setFormError("Chương trình song song đã được xóa vì trùng với chương trình chính.");
-                    } else {
-                      setFormError("");
-                    }
+                    setFormError("");
                   }}
                   disabled={isLoadingPrograms || !branchId}
                 >
@@ -646,31 +662,61 @@ export default function ResultFormModal({
 
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  Đề xuất chương trình song song (nếu có)
+                  Trình độ chính đề xuất
                 </label>
                 <Select
-                  value={formData.secondaryProgramRecommendationId}
+                  value={formData.primaryLevelRecommendationId}
+                  onValueChange={(value) => {
+                    const selected = levelOptions.find((l) => l.id === value);
+                    const isConflict = value && value === formData.secondaryLevelRecommendationId;
+                    setFormData((prev) => ({
+                      ...prev,
+                      primaryLevelRecommendationId: value,
+                      primaryLevelRecommendationName: selected?.name || "",
+                      secondaryLevelRecommendationId: isConflict ? "" : prev.secondaryLevelRecommendationId,
+                      secondaryLevelRecommendationName: isConflict ? "" : prev.secondaryLevelRecommendationName,
+                      secondaryLevelSkillFocus: isConflict ? "" : prev.secondaryLevelSkillFocus,
+                    }));
+                  }}
+                  disabled={!formData.programRecommendationId || isLoadingLevels}
+                >
+                  <SelectTrigger className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all">
+                    <SelectValue placeholder={!formData.programRecommendationId ? "Chọn chương trình trước" : "Chọn level chính"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {levelOptions.map((level) => (
+                      <SelectItem key={`primary-${level.id}`} value={level.id}>
+                        {level.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  Trình độ phụ đề xuất (nếu có)
+                </label>
+                <Select
+                  value={formData.secondaryLevelRecommendationId}
                   onValueChange={(value) => {
                     const nextValue = value === "__none__" ? "" : value;
                     if (
                       nextValue &&
-                      formData.programRecommendationId &&
-                      nextValue === formData.programRecommendationId
+                      formData.primaryLevelRecommendationId &&
+                      nextValue === formData.primaryLevelRecommendationId
                     ) {
-                      setFormError("Chương trình song song không được trùng với chương trình chính.");
+                      setFormError("Trình độ phụ không được trùng với trình độ chính.");
                       return;
                     }
 
-                    const selected = nextValue ? programOptions.find((p) => p.id === nextValue) : null;
+                    const selected = nextValue ? levelOptions.find((l) => l.id === nextValue) : null;
                     setFormError("");
                     setFormData((prev) => ({
                       ...prev,
-                      secondaryProgramRecommendationId: nextValue,
-                      secondaryProgramRecommendationName: selected?.name || "",
-                      isSecondaryProgramSupplementary: nextValue
-                        ? prev.isSecondaryProgramSupplementary
-                        : false,
-                      secondaryProgramSkillFocus: nextValue ? prev.secondaryProgramSkillFocus : "",
+                      secondaryLevelRecommendationId: nextValue,
+                      secondaryLevelRecommendationName: selected?.name || "",
+                      secondaryLevelSkillFocus: nextValue ? prev.secondaryLevelSkillFocus : "",
                     }));
                   }}
                   disabled={isLoadingPrograms || !branchId}
@@ -678,48 +724,47 @@ export default function ResultFormModal({
                   <SelectTrigger className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all">
                     <SelectValue
                       placeholder={
-                        isLoadingPrograms
-                          ? "Đang tải chương trình..."
-                          : !branchId
-                            ? "Không xác định chi nhánh"
-                            : "Chọn chương trình song song"
+                        isLoadingLevels
+                          ? "Đang tải level..."
+                          : !formData.programRecommendationId
+                            ? "Chọn chương trình trước"
+                            : "Chọn level phụ"
                       }
                     />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">Không có secondary</SelectItem>
-                    {programOptions
-                      .filter((program) => program.id !== formData.programRecommendationId)
-                      .map((program) => (
-                      <SelectItem key={`secondary-${program.id}`} value={program.id}>
-                        {program.name}
-                        {program.isSupplementary ? " • Phụ trợ" : ""}
+                    {levelOptions
+                      .filter((level) => level.id !== formData.primaryLevelRecommendationId)
+                      .map((level) => (
+                      <SelectItem key={`secondary-${level.id}`} value={level.id}>
+                        {level.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-gray-500">
-                  Để trống nếu không có học chương trình song song.
+                  Để trống nếu không có level phụ.
                 </p>
-                {isDuplicateProgramSelection ? (
+                {isDuplicateLevelSelection ? (
                   <p className="text-xs text-red-600">
-                    Chương trình chính và chương trình song song đang bị trùng. Vui lòng chọn lại.
+                    Trình độ chính và trình độ phụ đang bị trùng. Vui lòng chọn lại.
                   </p>
                 ) : null}
               </div>
 
-              {formData.secondaryProgramRecommendationId ? (
+              {formData.secondaryLevelRecommendationId ? (
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                     Skill focus
                   </label>
                   <input
                     type="text"
-                    value={formData.secondaryProgramSkillFocus}
+                    value={formData.secondaryLevelSkillFocus}
                     onChange={(e) =>
                       setFormData((prev) => ({
                         ...prev,
-                        secondaryProgramSkillFocus: e.target.value,
+                        secondaryLevelSkillFocus: e.target.value,
                       }))
                     }
                     placeholder="Ví dụ: Speaking"
