@@ -176,6 +176,7 @@ export const BACKEND_STUDENT_ENDPOINTS = {
 export const CLASS_ENDPOINTS = {
   GET_ALL: "/api/classes",
   GET_BY_ID: (id: string) => `/api/classes/${id}`,
+  GET_STUDENTS: (id: string) => `/api/classes/${id}/students`,
   SCHEDULE_SEGMENTS: (id: string) => `/api/classes/${id}/schedule-segments`,
 } as const;
 
@@ -224,6 +225,7 @@ export const BACKEND_SESSION_ENDPOINTS = {
 export const BACKEND_CLASS_ENDPOINTS = {
   GET_ALL: () => "/classes",
   GET_BY_ID: (id: string) => `/classes/${id}`,
+  GET_STUDENTS: (id: string) => `/classes/${id}/students`,
 } as const;
 
 export const BACKEND_MAKEUP_CREDIT_ENDPOINTS = {

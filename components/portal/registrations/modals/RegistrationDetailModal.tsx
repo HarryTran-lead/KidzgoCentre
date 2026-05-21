@@ -527,7 +527,9 @@ export default function RegistrationDetailModal({
                     icon={<BookOpen size={14} />}
                     label="Chương trình"
                     value={
-                      item.secondaryProgramName
+                      item.secondaryLevelName
+                        ? `${item.programName || "-"} • ${item.secondaryLevelName}`
+                        : item.secondaryProgramName
                         ? `${item.programName || "-"} • ${item.secondaryProgramName}`
                         : item.programName || "-"
                     }
@@ -546,11 +548,11 @@ export default function RegistrationDetailModal({
                         : item.className || "Chưa xếp lớp"
                     }
                   />
-                  {item.secondaryProgramId ? (
+                  {(item.secondaryLevelId || item.secondaryProgramId) ? (
                     <InfoCard
                       icon={<BookOpen size={14} />}
                       label="Chú trọng kĩ năng"
-                      value={item.secondaryProgramSkillFocus || "Chưa có"}
+                      value={item.secondaryLevelSkillFocus || item.secondaryProgramSkillFocus || "Chưa có"}
                     />
                   ) : null}
                   <InfoCard
@@ -761,7 +763,7 @@ export default function RegistrationDetailModal({
                             <tr>
                               <th className="px-3 py-2">Loại</th>
                               <th className="px-3 py-2">Số lượng</th>
-                              <th className="px-3 py-2">Lý do</th>
+                              <th className="px-3 py-2">Nội dung</th>
                               <th className="px-3 py-2">Thời gian</th>
                             </tr>
                           </thead>

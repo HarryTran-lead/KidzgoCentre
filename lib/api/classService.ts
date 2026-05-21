@@ -81,6 +81,22 @@ export async function getClassById(id: string): Promise<StudentClassResponse> {
   return get<StudentClassResponse>(endpoint);
 }
 
+export async function getClassStudents(
+  classId: string,
+  params?: {
+    pageNumber?: number;
+    pageSize?: number;
+  }
+): Promise<any> {
+  const queryParams = new URLSearchParams();
+  if (params?.pageNumber) queryParams.append("pageNumber", String(params.pageNumber));
+  if (params?.pageSize) queryParams.append("pageSize", String(params.pageSize));
+
+  const base = CLASS_ENDPOINTS.GET_STUDENTS(classId);
+  const url = queryParams.toString() ? `${base}?${queryParams.toString()}` : base;
+  return get<any>(url);
+}
+
 export async function addClassScheduleSegment(
   id: string,
   payload: AddClassScheduleSegmentRequest

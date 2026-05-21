@@ -45,7 +45,7 @@ import {
 import { buildFileUrl } from "@/constants/apiURL";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useToast } from "@/hooks/use-toast";
-import { getAllClasses } from "@/lib/api/classService";
+import { getAllClasses, getClassStudents } from "@/lib/api/classService";
 import {
   approveMediaRecord,
   createMediaRecord,
@@ -58,11 +58,9 @@ import {
   updateMediaRecord,
   uploadMediaFile,
 } from "@/lib/api/mediaService";
+import { getStaffStudents } from "@/lib/api/staffPortalService";
 import { normalizeRole } from "@/lib/role";
-import {
-  getTeacherClasses,
-  getTeacherClassStudents,
-} from "@/lib/api/teacherService";
+import { getTeacherClasses } from "@/lib/api/teacherService";
 import {
   ApprovalStatus,
   MediaContentType,
@@ -260,6 +258,38 @@ function extractNestedItems(payload: any, key: string): any[] {
   return extractItems(payload);
 }
 
+function normalizeStudentOptionsFromClassPayload(payload: any): SelectOption[] {
+  const raw = extractNestedItems(payload, "students");
+  return (Array.isArray(raw) ? raw : [])
+    .map((item: any) => {
+      const id = String(item.studentProfileId ?? item.id ?? item.studentId ?? "");
+      const name = String(
+        item.fullName ?? item.studentName ?? item.name ?? "Học viên",
+      );
+      return { id, label: name };
+    })
+    .filter((item: SelectOption) => item.id);
+}
+
+function normalizeStudentOptionsFromStaffPayload(payload: any): SelectOption[] {
+  const raw =
+    payload?.data?.data ??
+    payload?.data?.items ??
+    payload?.data ??
+    payload;
+
+  const items = Array.isArray(raw) ? raw : [];
+  return items
+    .map((item: any) => {
+      const id = String(item.studentProfileId ?? item.studentId ?? item.id ?? "");
+      const name = String(
+        item.fullName ?? item.studentName ?? item.name ?? "Học viên",
+      );
+      return { id, label: name };
+    })
+    .filter((item: SelectOption) => item.id);
+}
+
 function normalizeStatus(value: unknown, isPublished: boolean): ApprovalStatus {
   if (typeof value === "number") {
     if (value === 1) return ApprovalStatus.Approved;
@@ -322,14 +352,10 @@ function normalizeVisibility(value: unknown): Visibility {
 function normalizeMediaUrl(value: unknown) {
   const url = String(value ?? "").trim();
   if (!url) return "";
-  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+
+  // Use shared resolver so private Vercel Blob URLs are proxied via /api/files/blob/view.
   if (url.startsWith("/api/files/serve")) return url;
   return buildFileUrl(url);
-}
-
-function isVideoAssetUrl(url?: string) {
-  if (!url) return false;
-  return /\.(mp4|mov|webm|avi|m4v|mkv)(\?|$)/i.test(url);
 }
 
 function normalizeRows(payload: any): MediaRow[] {
@@ -392,7 +418,17 @@ function buildMonthTag(year: string, month: string) {
   return `${year}-${month}`;
 }
 
-const MA_MAC_DINH = "";
+function mapScopeToVisibility(scope: MediaOwnershipScope): Visibility {
+  if (scope === MediaOwnershipScope.Personal) return Visibility.Personal;
+  if (scope === MediaOwnershipScope.Branch) return Visibility.PublicParent;
+  return Visibility.ClassOnly;
+}
+
+function mapVisibilityToScope(visibility: Visibility): MediaOwnershipScope {
+  if (visibility === Visibility.Personal) return MediaOwnershipScope.Personal;
+  if (visibility === Visibility.PublicParent) return MediaOwnershipScope.Branch;
+  return MediaOwnershipScope.Class;
+}
 
 // Helper function để format date
 function formatDate(dateString?: string) {
@@ -418,6 +454,7 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
   const canManageCrud =
     (isTeacherMode && isTeacherRole) ||
     (isStaffMode && isStaffManagementRole);
+  const showStudentColumn = isTeacherMode;
   const canCreate = canManageCrud;
   const canDeleteStorage = false;
 
@@ -582,37 +619,16 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
   }, [createForm.branchId, isStaffMode]);
 
   useEffect(() => {
-    if (!createForm.classId) {
-      setStudentOptions([]);
-      setCreateForm((prev) => ({ ...prev, studentProfileId: MA_MAC_DINH }));
-      return;
-    }
-
-    if (!canManageCrud) {
+    if (!canManageCrud || createForm.ownershipScope !== MediaOwnershipScope.Personal) {
       setStudentOptions([]);
       return;
     }
 
     let alive = true;
-    getTeacherClassStudents(createForm.classId, {
-      pageNumber: 1,
-      pageSize: 200,
-    })
+    getStaffStudents()
       .then((res: any) => {
         if (!alive) return;
-        const raw = extractNestedItems(res, "students");
-
-        const options = (Array.isArray(raw) ? raw : [])
-          .map((item: any) => {
-            const id = String(item.studentProfileId ?? item.id ?? "");
-            const name = String(
-              item.fullName ?? item.studentName ?? item.name ?? "Học viên",
-            );
-            return { id, label: name };
-          })
-          .filter((item: SelectOption) => item.id);
-
-        setStudentOptions(options);
+        setStudentOptions(normalizeStudentOptionsFromStaffPayload(res));
       })
       .catch(() => {
         if (!alive) return;
@@ -622,36 +638,40 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
     return () => {
       alive = false;
     };
-  }, [canManageCrud, createForm.classId]);
+  }, [canManageCrud, createForm.ownershipScope]);
 
   useEffect(() => {
     const classId = updateForm.classId ?? editing?.classId;
-    if (!editing || !classId || !canManageCrud) {
+    const scope = editing?.ownershipScope ?? MediaOwnershipScope.Class;
+
+    if (!editing || !canManageCrud || scope !== MediaOwnershipScope.Personal) {
       setEditStudentOptions([]);
       return;
     }
 
     let alive = true;
-    getTeacherClassStudents(classId, { pageNumber: 1, pageSize: 200 })
-      .then((res: any) => {
-        if (!alive) return;
-        const raw = extractNestedItems(res, "students");
-        const options = (Array.isArray(raw) ? raw : [])
-          .map((item: any) => {
-            const id = String(item.studentProfileId ?? item.id ?? "");
-            const name = String(
-              item.fullName ?? item.studentName ?? item.name ?? "Học viên",
-            );
-            return { id, label: name };
-          })
-          .filter((item: SelectOption) => item.id);
 
-        setEditStudentOptions(options);
-      })
-      .catch(() => {
-        if (!alive) return;
-        setEditStudentOptions([]);
-      });
+    if (classId) {
+      getClassStudents(classId, { pageNumber: 1, pageSize: 200 })
+        .then((res: any) => {
+          if (!alive) return;
+          setEditStudentOptions(normalizeStudentOptionsFromClassPayload(res));
+        })
+        .catch(() => {
+          if (!alive) return;
+          setEditStudentOptions([]);
+        });
+    } else {
+      getStaffStudents()
+        .then((res: any) => {
+          if (!alive) return;
+          setEditStudentOptions(normalizeStudentOptionsFromStaffPayload(res));
+        })
+        .catch(() => {
+          if (!alive) return;
+          setEditStudentOptions([]);
+        });
+    }
 
     return () => {
       alive = false;
@@ -857,58 +877,25 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
     [updateForm.monthTag],
   );
 
-  const createVisibility = createForm.visibility;
   const createScope = createForm.ownershipScope;
-  const createVisibilityOptions =
-    createScope === MediaOwnershipScope.Branch
-      ? Object.values(Visibility).filter(
-          (option) => option !== Visibility.Personal,
-        )
-      : Object.values(Visibility);
-  const showCreateClassField =
-    createScope !== MediaOwnershipScope.Branch ||
-    createVisibility === Visibility.ClassOnly;
-  const showCreateStudentField = createScope !== MediaOwnershipScope.Branch;
-  const requireCreateClass =
-    createScope === MediaOwnershipScope.Class ||
-    createVisibility === Visibility.ClassOnly;
-  const requireCreateStudent =
-    createScope === MediaOwnershipScope.Personal ||
-    createVisibility === Visibility.Personal;
+  const showCreateClassField = createScope === MediaOwnershipScope.Class;
+  const showCreateStudentField = createScope === MediaOwnershipScope.Personal;
+  const requireCreateClass = showCreateClassField;
+  const requireCreateStudent = showCreateStudentField;
+  const createVisibilityOptions = Object.values(Visibility);
 
   const editScope = editing?.ownershipScope ?? MediaOwnershipScope.Class;
-  const editVisibility = updateForm.visibility ?? editing?.visibility;
-  const editVisibilityOptions =
-    editScope === MediaOwnershipScope.Branch
-      ? Object.values(Visibility).filter(
-          (option) => option !== Visibility.Personal,
-        )
-      : Object.values(Visibility);
-  const showEditClassField =
-    editScope !== MediaOwnershipScope.Branch ||
-    editVisibility === Visibility.ClassOnly;
-  const showEditStudentField = editScope !== MediaOwnershipScope.Branch;
-  const requireEditClass =
-    editScope === MediaOwnershipScope.Class ||
-    editVisibility === Visibility.ClassOnly;
-  const requireEditStudent =
-    editScope === MediaOwnershipScope.Personal ||
-    editVisibility === Visibility.Personal;
+  const showEditClassField = editScope === MediaOwnershipScope.Class;
+  const showEditStudentField = editScope === MediaOwnershipScope.Personal;
+  const requireEditClass = showEditClassField;
+  const requireEditStudent = showEditStudentField;
+  const editVisibilityOptions = Object.values(Visibility);
 
   useEffect(() => {
     if (!showCreateClassField && createForm.classId) {
       setCreateForm((prev) => ({ ...prev, classId: "" }));
     }
   }, [createForm.classId, showCreateClassField]);
-
-  useEffect(() => {
-    if (
-      createScope === MediaOwnershipScope.Branch &&
-      createVisibility === Visibility.Personal
-    ) {
-      setCreateForm((prev) => ({ ...prev, visibility: Visibility.ClassOnly }));
-    }
-  }, [createScope, createVisibility]);
 
   useEffect(() => {
     if (!showCreateStudentField && createForm.studentProfileId) {
@@ -921,15 +908,6 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
       setUpdateForm((prev) => ({ ...prev, classId: undefined }));
     }
   }, [showEditClassField, updateForm.classId]);
-
-  useEffect(() => {
-    if (
-      editScope === MediaOwnershipScope.Branch &&
-      editVisibility === Visibility.Personal
-    ) {
-      setUpdateForm((prev) => ({ ...prev, visibility: Visibility.ClassOnly }));
-    }
-  }, [editScope, editVisibility]);
 
   useEffect(() => {
     if (!showEditStudentField && updateForm.studentProfileId) {
@@ -1381,7 +1359,11 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Tìm theo tên tư liệu, học viên, người tải..."
+              placeholder={
+                showStudentColumn
+                  ? "Tìm theo tên tư liệu, học viên, người tải..."
+                  : "Tìm theo tên tư liệu, người tải..."
+              }
               className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-300"
             />
           </div>
@@ -1415,14 +1397,16 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
                     )}
                   </div>
                 </th>
-                <th className="py-3 px-4 cursor-pointer hover:bg-red-100/50 transition-colors" onClick={() => { setSortColumn(sortColumn === "studentName" ? null : "studentName"); if (sortColumn === "studentName") setSortDirection(sortDirection === "asc" ? "desc" : "asc"); }}>
-                  <div className="flex items-center gap-1.5">
-                    Học viên
-                    {sortColumn === "studentName" && (
-                      sortDirection === "asc" ? <ArrowUp size={14} className="text-red-600" /> : <ArrowDown size={14} className="text-red-600" />
-                    )}
-                  </div>
-                </th>
+                {showStudentColumn && (
+                  <th className="py-3 px-4 cursor-pointer hover:bg-red-100/50 transition-colors" onClick={() => { setSortColumn(sortColumn === "studentName" ? null : "studentName"); if (sortColumn === "studentName") setSortDirection(sortDirection === "asc" ? "desc" : "asc"); }}>
+                    <div className="flex items-center gap-1.5">
+                      Học viên
+                      {sortColumn === "studentName" && (
+                        sortDirection === "asc" ? <ArrowUp size={14} className="text-red-600" /> : <ArrowDown size={14} className="text-red-600" />
+                      )}
+                    </div>
+                  </th>
+                )}
                 <th className="py-3 px-4 cursor-pointer hover:bg-red-100/50 transition-colors" onClick={() => { setSortColumn(sortColumn === "uploaderName" ? null : "uploaderName"); if (sortColumn === "uploaderName") setSortDirection(sortDirection === "asc" ? "desc" : "asc"); }}>
                   <div className="flex items-center gap-1.5">
                     Người tải lên
@@ -1469,7 +1453,7 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td className="py-12 text-center" colSpan={8}>
+                  <td className="py-12 text-center" colSpan={showStudentColumn ? 8 : 7}>
                     <div className="flex items-center justify-center gap-2 text-gray-500">
                       <Loader2
                         size={20}
@@ -1481,7 +1465,7 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
                 </tr>
               ) : filteredRows.length === 0 ? (
                 <tr>
-                  <td className="py-12 text-center" colSpan={8}>
+                  <td className="py-12 text-center" colSpan={showStudentColumn ? 8 : 7}>
                     <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center">
                       <ImageIcon size={24} className="text-gray-400" />
                     </div>
@@ -1495,9 +1479,8 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
                 </tr>
               ) : (
                 filteredRows.map((row) => {
-                  const thumb = row.previewUrl || row.url;
-                  const showVideoPreview =
-                    row.type === MediaType.Video && isVideoAssetUrl(thumb);
+                  const thumb = normalizeMediaUrl(row.previewUrl || row.url);
+                  const showVideoPreview = row.type === MediaType.Video;
                   const visibilityLabel =
                     row.visibility === Visibility.ClassOnly && row.className
                       ? `Chỉ lớp học (${row.className})`
@@ -1556,12 +1539,14 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
                           </div>
                         </div>
                       </td>
-                      <td className="py-3 px-4">
-                        <div className="inline-flex items-center gap-2 text-sm text-gray-900">
-                          <UserIcon size={14} className="text-gray-400" />
-                          <span>{row.studentName || "-"}</span>
-                        </div>
-                      </td>
+                      {showStudentColumn && (
+                        <td className="py-3 px-4">
+                          <div className="inline-flex items-center gap-2 text-sm text-gray-900">
+                            <UserIcon size={14} className="text-gray-400" />
+                            <span>{row.studentName || "-"}</span>
+                          </div>
+                        </td>
+                      )}
                       <td className="py-3 px-4">
                         <div className="inline-flex items-center gap-2 text-sm text-gray-900">
                           <Building2 size={14} className="text-gray-400" />
@@ -1801,10 +1786,7 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
                       options={studentOptionsForEdit}
                       placeholder="Không chọn học viên cụ thể"
                       emptyLabel="Không chọn học viên cụ thể"
-                      disabled={
-                        canManageCrud &&
-                        (updateForm.classId ? editStudentOptions.length === 0 : true)
-                      }
+                      disabled={canManageCrud && editStudentOptions.length === 0}
                     />
                   </div>
                 )}
@@ -2017,7 +1999,7 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
                       }))}
                       placeholder="Không chọn học viên cụ thể"
                       emptyLabel="Không chọn học viên cụ thể"
-                      disabled={!createForm.classId || studentOptions.length === 0}
+                      disabled={studentOptions.length === 0}
                     />
                   </div>
                 )}
@@ -2108,12 +2090,23 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
                   </label>
                   <LightSelect
                     value={createForm.visibility}
-                    onValueChange={(value) =>
+                    onValueChange={(value) => {
+                      const visibility = value as Visibility;
+                      const ownershipScope = mapVisibilityToScope(visibility);
                       setCreateForm((prev) => ({
                         ...prev,
-                        visibility: value as Visibility,
-                      }))
-                    }
+                        visibility,
+                        ownershipScope,
+                        classId:
+                          ownershipScope === MediaOwnershipScope.Class
+                            ? prev.classId
+                            : "",
+                        studentProfileId:
+                          ownershipScope === MediaOwnershipScope.Personal
+                            ? prev.studentProfileId
+                            : "",
+                      }));
+                    }}
                     options={createVisibilityOptions.map((option) => ({
                       value: option,
                       label: NHAN_VISIBILITY[option],
@@ -2129,12 +2122,22 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
                   </label>
                   <LightSelect
                     value={createForm.ownershipScope}
-                    onValueChange={(value) =>
+                    onValueChange={(value) => {
+                      const ownershipScope = value as MediaOwnershipScope;
                       setCreateForm((prev) => ({
                         ...prev,
-                        ownershipScope: value as MediaOwnershipScope,
-                      }))
-                    }
+                        ownershipScope,
+                        visibility: mapScopeToVisibility(ownershipScope),
+                        classId:
+                          ownershipScope === MediaOwnershipScope.Class
+                            ? prev.classId
+                            : "",
+                        studentProfileId:
+                          ownershipScope === MediaOwnershipScope.Personal
+                            ? prev.studentProfileId
+                            : "",
+                      }));
+                    }}
                     options={[
                       { value: MediaOwnershipScope.Class, label: "Lớp học" },
                       { value: MediaOwnershipScope.Personal, label: "Cá nhân" },
@@ -2226,7 +2229,7 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
       {/* Preview Modal */}
       {previewTarget && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          className="fixed inset-0 z-9999 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
           onClick={() => setPreviewTarget(null)}
         >
           <div
@@ -2272,7 +2275,7 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
             <div className="flex items-center justify-center bg-gray-900/5 p-6 max-h-[70vh] overflow-auto">
               {previewTarget.type === MediaType.Video ? (
                 <video
-                  src={normalizeMediaUrl(previewTarget.url)}
+                  src={normalizeMediaUrl(previewTarget.url || previewTarget.previewUrl)}
                   controls
                   className="max-h-[60vh] w-full rounded-lg shadow-lg"
                   autoPlay
@@ -2280,7 +2283,7 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={normalizeMediaUrl(previewTarget.url)}
+                  src={normalizeMediaUrl(previewTarget.previewUrl || previewTarget.url)}
                   alt={previewTarget.caption || "preview"}
                   className="max-h-[60vh] w-auto rounded-lg shadow-lg object-contain"
                 />

@@ -13,6 +13,8 @@ import {
   suggestClassesForRegistration,
   getRegistrations,
 } from "@/lib/api/registrationService";
+import { getLevels } from "@/lib/api/academicProgressionService";
+import type { LevelDto } from "@/types/academic-progression";
 import { getAllClasses } from "@/lib/api/classService";
 import { getTuitionPlans } from "@/lib/api/tuitionPlanService";
 import { getActiveProgramsForDropdown } from "@/lib/api/programService";
@@ -232,11 +234,14 @@ export default function RegistrationFlowModal({
   const [isBootstrapping, setIsBootstrapping] = useState(false);
   const [activeStep, setActiveStep] = useState<StepKey>("create");
   const [programId, setProgramId] = useState("");
+    const [levels, setLevels] = useState<LevelDto[]>([]);
+    const [levelId, setLevelId] = useState("");
   const [tuitionPlanId, setTuitionPlanId] = useState("");
   const [isSecondaryEnabled, setIsSecondaryEnabled] = useState(false);
   const [secondaryProgramId, setSecondaryProgramId] = useState("");
   const [secondaryProgramSkillFocus, setSecondaryProgramSkillFocus] =
     useState("");
+  const [secondaryLevelId, setSecondaryLevelId] = useState("");
   const [expectedStartDate, setExpectedStartDate] = useState("");
   const [preferredSchedule, setPreferredSchedule] = useState("");
   const [sessionsPerWeek, setSessionsPerWeek] = useState(1);
@@ -406,11 +411,12 @@ export default function RegistrationFlowModal({
     Boolean(effectiveStudentProfileId) &&
     Boolean(branchId) &&
     Boolean(programId) &&
+    Boolean(levelId) &&
     Boolean(tuitionPlanId) &&
     Boolean(preferredSchedule.trim());
 
   const hasSecondaryTrack = Boolean(
-    secondaryProgramId || suggestedClasses?.secondaryProgramId,
+    secondaryProgramId || secondaryLevelId || suggestedClasses?.secondaryProgramId || suggestedClasses?.secondaryLevelId,
   );
   const manualClassOptions = useMemo(
     () =>
@@ -670,44 +676,10 @@ export default function RegistrationFlowModal({
           (p) => p.isActive && p.programId === nextProgramId,
         );
         setTuitionPlanId(firstPlan?.id || "");
-        const normalizedSecondaryRecommendation = (
-          test?.secondaryProgramRecommendationName || ""
-        )
-          .trim()
-          .toLowerCase();
-        const recommendedSecondaryProgramId = String(
-          test?.secondaryProgramRecommendationId || "",
-        ).trim();
-        const mainProgramIds = new Set(
-          (activeProgramItems || [])
-            .filter((program) => !program?.isMakeup && !program?.isSupplementary)
-            .map((program) => String(program.id || ""))
-            .filter(Boolean),
-        );
-        const recommendedSecondaryProgram = (planItems || []).find((p) => {
-          const planProgramId = String(p.programId || "").trim();
-          if (!mainProgramIds.has(planProgramId)) return false;
-          if (
-            recommendedSecondaryProgramId &&
-            planProgramId === recommendedSecondaryProgramId
-          ) {
-            return true;
-          }
-          if (!normalizedSecondaryRecommendation) return false;
-          return (
-            (p.programName || "").trim().toLowerCase() ===
-            normalizedSecondaryRecommendation
-          );
-        });
-        const nextSecondaryProgramId =
-          recommendedSecondaryProgram?.programId || "";
-        const resolvedSecondaryProgramId =
-          nextSecondaryProgramId && nextSecondaryProgramId !== nextProgramId
-            ? nextSecondaryProgramId
-            : "";
-        setIsSecondaryEnabled(Boolean(resolvedSecondaryProgramId));
-        setSecondaryProgramId(resolvedSecondaryProgramId);
-        setSecondaryProgramSkillFocus(test?.secondaryProgramSkillFocus || "");
+        setIsSecondaryEnabled(Boolean(test?.secondaryLevelRecommendationId));
+        setSecondaryProgramId("");
+        setSecondaryLevelId(String(test?.secondaryLevelRecommendationId || ""));
+        setSecondaryProgramSkillFocus(test?.secondaryLevelSkillFocus || "");
 
         setExpectedStartDate(toInputDateValue(test?.scheduledAt));
         setPreferredSchedule("");
@@ -821,8 +793,8 @@ export default function RegistrationFlowModal({
               preferredSchedule: String(r.preferredSchedule || ""),
               programId: String(r.programId || ""),
               programName: String(r.programName || ""),
-              secondaryProgramId: String(r.secondaryProgramId || ""),
-              secondaryProgramName: String(r.secondaryProgramName || ""),
+              secondaryProgramId: String(r.secondaryLevelId || ""),
+              secondaryProgramName: String(r.secondaryLevelName || ""),
               tuitionPlanId: String(r.tuitionPlanId || ""),
               tuitionPlanName: String(r.tuitionPlanName || ""),
               className: String(r.className || ""),
@@ -830,7 +802,7 @@ export default function RegistrationFlowModal({
               totalSessions: Number(r.totalSessions ?? 0),
               usedSessions: Number(r.usedSessions ?? 0),
               remainingSessions: Number(r.remainingSessions ?? 0),
-              label: `${r.studentName} • ${toVietnameseStatus(r.status)} • ${toDisplayDate(r.createdAt)} • ${r.programName}${r.secondaryProgramName ? ` • ${r.secondaryProgramName}` : ""}${classNames.length > 0 ? ` • Lớp: ${classNames.join(" + ")}` : ""}`,
+              label: `${r.studentName} • ${toVietnameseStatus(r.status)} • ${toDisplayDate(r.createdAt)} • ${r.programName}${r.secondaryLevelName ? ` • ${r.secondaryLevelName}` : ""}${classNames.length > 0 ? ` • Lớp: ${classNames.join(" + ")}` : ""}`,
             };
           });
           setRegistrationOptions(options);
@@ -888,12 +860,52 @@ export default function RegistrationFlowModal({
     test?.id,
     test?.programRecommendationId,
     test?.programRecommendationName,
-    test?.secondaryProgramRecommendationId,
-    test?.secondaryProgramRecommendationName,
-    test?.secondaryProgramSkillFocus,
+    test?.secondaryLevelRecommendationId,
+    test?.secondaryLevelRecommendationName,
+    test?.secondaryLevelSkillFocus,
     test?.scheduledAt,
     toast,
   ]);
+
+    // Load levels for selected program
+    useEffect(() => {
+      let cancelled = false;
+      if (!programId) {
+        setLevels([]);
+        setLevelId("");
+        return;
+      }
+
+      const loadLevels = async () => {
+        try {
+          const res = await getLevels({ programId, isActive: true });
+          const items = res?.data?.items || [];
+          if (cancelled) return;
+          setLevels(items as LevelDto[]);
+          const suggestedPrimaryLevelId = String(
+            test?.primaryLevelRecommendationId || "",
+          ).trim();
+          const hasSuggestedPrimaryLevel = suggestedPrimaryLevelId
+            ? items.some((item) => String(item?.id || "") === suggestedPrimaryLevelId)
+            : false;
+
+          if (hasSuggestedPrimaryLevel) {
+            setLevelId(suggestedPrimaryLevelId);
+          } else if (!levelId && items.length) {
+            setLevelId(String(items[0].id || ""));
+          }
+        } catch (e) {
+          if (cancelled) return;
+          setLevels([]);
+        }
+      };
+
+      void loadLevels();
+
+      return () => {
+        cancelled = true;
+      };
+    }, [programId, test?.primaryLevelRecommendationId]);
 
   useEffect(() => {
     if (test?.studentProfileId) {
@@ -1009,14 +1021,14 @@ export default function RegistrationFlowModal({
           studentProfileId: effectiveStudentProfileId,
           branchId,
           programId,
+          levelId,
           tuitionPlanId,
-          secondaryProgramId: isSecondaryEnabled
-            ? secondaryProgramId || undefined
+          secondaryLevelId: isSecondaryEnabled
+            ? secondaryLevelId || undefined
             : undefined,
-          secondaryProgramSkillFocus:
-            isSecondaryEnabled && secondaryProgramId
-              ? secondaryProgramSkillFocus || undefined
-              : undefined,
+          secondaryLevelSkillFocus: isSecondaryEnabled && secondaryLevelId
+            ? secondaryProgramSkillFocus || undefined
+            : undefined,
           expectedStartDate: expectedStartDate || undefined,
           preferredSchedule: preferredSchedule || undefined,
           note: note || undefined,
@@ -1594,6 +1606,8 @@ export default function RegistrationFlowModal({
                     studentName={studentName}
                     programId={programId}
                     setProgramId={setProgramId}
+                    levelId={levelId}
+                    setLevelId={setLevelId}
                     tuitionPlanId={tuitionPlanId}
                     setTuitionPlanId={setTuitionPlanId}
                     isSecondaryEnabled={isSecondaryEnabled}
@@ -1601,6 +1615,8 @@ export default function RegistrationFlowModal({
                     secondaryAllowed={isPrimaryMainProgram}
                     secondaryProgramId={secondaryProgramId}
                     setSecondaryProgramId={setSecondaryProgramId}
+                    secondaryLevelId={secondaryLevelId}
+                    setSecondaryLevelId={setSecondaryLevelId}
                     secondaryProgramSkillFocus={secondaryProgramSkillFocus}
                     setSecondaryProgramSkillFocus={setSecondaryProgramSkillFocus}
                     expectedStartDate={expectedStartDate}
@@ -1625,6 +1641,7 @@ export default function RegistrationFlowModal({
                     programs={programs}
                     filteredTuitionPlans={filteredTuitionPlans}
                     secondaryPrograms={secondaryPrograms}
+                    levels={levels}
                     weekDays={WEEK_DAYS}
                     timeSlots={TIME_SLOTS}
                     suggestedPanel={(

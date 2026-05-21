@@ -769,11 +769,11 @@ export async function updatePlacementTestResults(
       writingScore: results.writingScore ?? 0,
       resultScore: results.resultScore ?? 0,
       programRecommendationId: results.programRecommendationId,
-      secondaryProgramRecommendationId:
-        results.secondaryProgramRecommendationId || null,
-      secondaryProgramRecommendationName:
-        results.secondaryProgramRecommendationName || null,
-      secondaryProgramSkillFocus: results.secondaryProgramSkillFocus || undefined,
+      primaryLevelRecommendationId:
+        results.primaryLevelRecommendationId || null,
+      secondaryLevelRecommendationId:
+        results.secondaryLevelRecommendationId || null,
+      secondaryLevelSkillFocus: results.secondaryLevelSkillFocus || undefined,
       attachmentUrl: attachmentPayload,
       attachmentUrls,
     };

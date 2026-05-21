@@ -1540,13 +1540,13 @@ export default function Page() {
         resultScore: data.resultScore ?? 0,
         programRecommendationId: data.programRecommendationId || null,
         programRecommendationName: data.programRecommendationName || null,
-        secondaryProgramRecommendationId:
-          data.secondaryProgramRecommendationId || null,
-        secondaryProgramRecommendationName:
-          data.secondaryProgramRecommendationName || null,
-        isSecondaryProgramSupplementary:
-          data.isSecondaryProgramSupplementary ?? null,
-        secondaryProgramSkillFocus: data.secondaryProgramSkillFocus || null,
+        primaryLevelRecommendationId: data.primaryLevelRecommendationId || null,
+        primaryLevelRecommendationName: data.primaryLevelRecommendationName || null,
+        secondaryLevelRecommendationId:
+          data.secondaryLevelRecommendationId || null,
+        secondaryLevelRecommendationName:
+          data.secondaryLevelRecommendationName || null,
+        secondaryLevelSkillFocus: data.secondaryLevelSkillFocus || null,
         attachmentUrl: attachmentPayload,
         attachmentUrls,
       };
@@ -2466,3 +2466,4 @@ export default function Page() {
     </div>
   );
 }
+

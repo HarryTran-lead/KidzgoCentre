@@ -664,11 +664,30 @@ function mapToRegistration(item: any): Registration {
     branchName: String(item?.branchName ?? ""),
     programId: String(item?.programId ?? ""),
     programName: String(item?.programName ?? ""),
+    levelId: item?.levelId ? String(item.levelId) : null,
+    levelName: typeof item?.levelName === "string" ? item.levelName : null,
     secondaryProgramId: item?.secondaryProgramId ? String(item.secondaryProgramId) : null,
     secondaryProgramName:
       typeof item?.secondaryProgramName === "string" ? item.secondaryProgramName : null,
     secondaryProgramSkillFocus:
       typeof item?.secondaryProgramSkillFocus === "string" ? item.secondaryProgramSkillFocus : null,
+    secondaryLevelId: item?.secondaryLevelId
+      ? String(item.secondaryLevelId)
+      : item?.secondaryProgramId
+      ? String(item.secondaryProgramId)
+      : null,
+    secondaryLevelName:
+      typeof item?.secondaryLevelName === "string"
+        ? item.secondaryLevelName
+        : typeof item?.secondaryProgramName === "string"
+        ? item.secondaryProgramName
+        : null,
+    secondaryLevelSkillFocus:
+      typeof item?.secondaryLevelSkillFocus === "string"
+        ? item.secondaryLevelSkillFocus
+        : typeof item?.secondaryProgramSkillFocus === "string"
+        ? item.secondaryProgramSkillFocus
+        : null,
     tuitionPlanId: String(item?.tuitionPlanId ?? ""),
     tuitionPlanName: String(item?.tuitionPlanName ?? ""),
     registrationDate: String(item?.registrationDate ?? ""),
@@ -874,11 +893,30 @@ export async function suggestClassesForRegistration(id: string): Promise<Suggest
     alternativeClasses: alternativeClasses
       .map(mapSuggestedClass)
       .filter((x: SuggestedClass) => Boolean(x.id)),
+    levelId: bucket?.levelId ? String(bucket.levelId) : null,
+    levelName: typeof bucket?.levelName === "string" ? bucket.levelName : null,
     secondaryProgramId: bucket?.secondaryProgramId ? String(bucket.secondaryProgramId) : null,
     secondaryProgramName:
       typeof bucket?.secondaryProgramName === "string" ? bucket.secondaryProgramName : null,
     secondaryProgramSkillFocus:
       typeof bucket?.secondaryProgramSkillFocus === "string"
+        ? bucket.secondaryProgramSkillFocus
+        : null,
+    secondaryLevelId: bucket?.secondaryLevelId
+      ? String(bucket.secondaryLevelId)
+      : bucket?.secondaryProgramId
+      ? String(bucket.secondaryProgramId)
+      : null,
+    secondaryLevelName:
+      typeof bucket?.secondaryLevelName === "string"
+        ? bucket.secondaryLevelName
+        : typeof bucket?.secondaryProgramName === "string"
+        ? bucket.secondaryProgramName
+        : null,
+    secondaryLevelSkillFocus:
+      typeof bucket?.secondaryLevelSkillFocus === "string"
+        ? bucket.secondaryLevelSkillFocus
+        : typeof bucket?.secondaryProgramSkillFocus === "string"
         ? bucket.secondaryProgramSkillFocus
         : null,
     secondarySuggestedClasses: secondarySuggestedClasses
@@ -1033,9 +1071,10 @@ export async function createRegistrationFromPlacementTest(payload: {
   studentProfileId: string;
   branchId: string;
   programId: string;
+  levelId: string;
   tuitionPlanId: string;
-  secondaryProgramId?: string | null;
-  secondaryProgramSkillFocus?: string | null;
+  secondaryLevelId?: string | null;
+  secondaryLevelSkillFocus?: string | null;
   expectedStartDate?: string;
   preferredSchedule?: string;
   note?: string;
@@ -1049,9 +1088,10 @@ export async function createRegistrationFromPlacementTest(payload: {
     studentProfileId: payload.studentProfileId,
     branchId: payload.branchId,
     programId: payload.programId,
+    levelId: payload.levelId,
     tuitionPlanId: payload.tuitionPlanId,
-    secondaryProgramId: payload.secondaryProgramId,
-    secondaryProgramSkillFocus: payload.secondaryProgramSkillFocus,
+    secondaryLevelId: payload.secondaryLevelId,
+    secondaryLevelSkillFocus: payload.secondaryLevelSkillFocus,
     expectedStartDate: payload.expectedStartDate,
     preferredSchedule: payload.preferredSchedule,
     note: noteSegments.length > 0 ? noteSegments.join(" | ") : undefined,
