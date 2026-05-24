@@ -14,6 +14,6 @@ export async function GET(req: Request, { params }: Params) {
 
   return forwardToBackend(req, backendUrl, {
     method: "GET",
-    context: { method: "GET", endpoint: "classes/module-progress/module", id, moduleId },
+    context: { method: "GET", endpoint: "classes/module-progress/module", id },
   });
 }

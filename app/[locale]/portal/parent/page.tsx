@@ -11,7 +11,8 @@ import {
   Clock,
   Users,
   Activity,
-  MapPin
+  MapPin,
+  Sparkles
 } from "lucide-react";
 import ChildOverviewCard from "@/components/portal/parent/ChildOverviewCard";
 import { getParentOverview } from "@/lib/api/parentPortalService";
@@ -44,43 +45,46 @@ function StatCard({
   label,
   value,
   hint,
-  trend = "up",
+  trend = "neutral",
   color = "red",
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
-  hint: string;
-  trend?: "up" | "down" | "stable";
-  color?: "red" | "gray" | "black";
+  hint?: string;
+  trend?: "up" | "down" | "neutral";
+  color?: "red" | "emerald" | "blue" | "violet" | "amber";
 }) {
-  const colorClasses = {
-    red: "bg-gradient-to-r from-red-600 to-red-700",
-    gray: "bg-gradient-to-r from-gray-600 to-gray-700",
-    black: "bg-gradient-to-r from-gray-800 to-gray-900"
+  const iconColorMap = {
+    red: "from-red-600 to-red-700",
+    emerald: "from-emerald-600 to-teal-600",
+    blue: "from-blue-600 to-cyan-600",
+    violet: "from-violet-600 to-purple-600",
+    amber: "from-amber-600 to-orange-600",
   };
 
-  const trendColors = {
-    up: "text-red-600",
-    down: "text-gray-600",
-    stable: "text-gray-800"
+  const trendColorMap = {
+    up: "text-red-600 bg-red-50 border-red-100",
+    down: "text-gray-600 bg-gray-100 border-gray-200",
+    neutral: "text-gray-600 bg-gray-50 border-gray-200",
   };
+
+  const iconGradient = iconColorMap[color];
+  const trendStyle = trendColorMap[trend];
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 p-5 hover:border-red-300 transition-all cursor-pointer">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="text-sm text-gray-600">{label}</div>
-          <div className="text-2xl font-bold mt-2 text-gray-900">{value}</div>
-          <div className={`text-xs flex items-center gap-1 mt-1 ${trendColors[trend]}`}>
-            {trend === "up" && <TrendingUp size={12} />}
-            {trend === "down" && <TrendingUp size={12} className="rotate-180" />}
-            {trend === "stable" && <Activity size={12} />}
-            {hint}
+    <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+      <div className="absolute right-0 top-0 h-12 w-12 -translate-y-1/2 translate-x-1/2 rounded-full bg-gradient-to-r from-red-600 to-red-700 opacity-10 blur-xl" />
+      <div className="flex items-start gap-3 relative z-10">
+        {icon ? (
+          <div className={`rounded-xl bg-gradient-to-r ${iconGradient} p-2.5 text-white flex-shrink-0`}>
+            <span className="text-white">{icon}</span>
           </div>
-        </div>
-        <div className={`p-3 rounded-xl ${colorClasses[color]} text-white shadow-lg`}>
-          {icon}
+        ) : null}
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-gray-600 truncate">{label}</p>
+          <p className="text-xl font-bold text-gray-900 leading-tight mt-1">{value}</p>
+
         </div>
       </div>
     </div>
@@ -124,26 +128,31 @@ export default function ParentPage() {
   }
 
   return (
-    <div className="space-y-6 bg-gray-50 p-4 md:p-6">
+    <div className="min-h-screen bg-gray-50 p-4 md:p-2 space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="p-2.5 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
-          <Users className="w-5 h-5 text-white" />
-        </div>
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold text-gray-900">
-            Trang chủ phụ huynh
-          </h1>
-          <p className="text-xs text-gray-600">
-            Theo dõi tiến độ học tập và tài chính của con
-          </p>
+      <div className="mb-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
+              <Users size={25} className="text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl md:text-2xl font-bold text-gray-900">
+                Trang chủ phụ huynh
+              </h1>
+              <p className="text-gray-600 mt-1 flex items-center gap-2">
+                <Sparkles size={14} className="text-red-600" />
+                Theo dõi tiến độ học tập và tài chính của con
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          icon={<BookOpen size={20} />}
+          icon={<BookOpen size={18} />}
           label="Tiến độ học tập"
           value={data?.homeworkCompletion != null ? `${data.homeworkCompletion}%` : `${stats.pendingHomeworks ?? 0} bài`}
           hint="Bài tập & tiến độ"
@@ -151,28 +160,28 @@ export default function ParentPage() {
           color="red"
         />
         <StatCard
-          icon={<Clock size={20} />}
+          icon={<Clock size={18} />}
           label="Buổi học tiếp theo"
           value={nextSession ? new Date(nextSession.plannedDatetime).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) : "--:--"}
           hint={nextSession ? `${nextSession.classCode}` : "Không có lịch"}
-          trend="stable"
-          color="gray"
+          trend="neutral"
+          color="emerald"
         />
         <StatCard
-          icon={<CreditCard size={20} />}
+          icon={<CreditCard size={18} />}
           label="Học phí chờ thanh toán"
           value={`${stats.pendingInvoices ?? 0}`}
           hint={data?.tuitionDue != null ? `${Number(data.tuitionDue).toLocaleString("vi-VN")} ₫` : "Không có"}
           trend="down"
-          color="black"
+          color="blue"
         />
         <StatCard
-          icon={<Bell size={20} />}
+          icon={<Bell size={18} />}
           label="Thông báo mới"
           value={`${data?.unreadNotifications ?? 0}`}
           hint="Chưa đọc"
           trend="up"
-          color="red"
+          color="violet"
         />
       </div>
 
@@ -184,7 +193,7 @@ export default function ParentPage() {
       {/* Learning Overview & Notifications */}
       <div className="grid lg:grid-cols-3 gap-4">
         {/* Learning Overview */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-200">
+        <div className="lg:col-span-2 bg-gradient-to-br from-white to-red-50/30 rounded-2xl border border-red-100">
           <div className="p-4 border-b border-gray-200 flex items-center justify-between">
             <h3 className="font-semibold text-gray-900">Tổng quan học tập</h3>
             <button className="text-xs text-red-600 font-medium inline-flex items-center gap-1">
@@ -195,7 +204,7 @@ export default function ParentPage() {
         </div>
 
         {/* Approvals */}
-        <div className="bg-white rounded-2xl border border-gray-200">
+        <div className="bg-gradient-to-br from-white to-red-50/30 rounded-2xl border border-red-100">
           <div className="p-4 border-b border-gray-200 flex items-center justify-between">
             <h3 className="font-semibold text-gray-900">Thông báo & phê duyệt</h3>
             <Badge color="red">{pendingApprovalItems.length}</Badge>
@@ -205,7 +214,7 @@ export default function ParentPage() {
               <p className="text-xs text-gray-500">Không có mục nào cần phê duyệt</p>
             )}
             {pendingApprovalItems.map((item: any, idx: number) => (
-              <div key={idx} className="p-3 border border-gray-200 rounded-xl bg-gray-50/50 flex gap-2">
+              <div key={idx} className="p-3 border border-red-100 rounded-xl bg-gradient-to-br from-red-50/40 to-white/60 flex gap-2">
                 <ShieldCheck className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
                 <div className="flex-1">
                   <div className="text-sm font-medium text-gray-900">{item.title}</div>
@@ -223,7 +232,7 @@ export default function ParentPage() {
       {/* Schedule & Communication */}
       <div className="grid lg:grid-cols-2 gap-4">
         {/* Weekly Schedule */}
-        <div className="bg-white rounded-2xl border border-gray-200">
+        <div className="bg-gradient-to-br from-white to-red-50/30 rounded-2xl border border-red-100">
           <div className="p-4 border-b border-gray-200 flex items-center justify-between">
             <h3 className="font-semibold text-gray-900">Lịch học tuần này</h3>
             <button className="text-xs text-gray-600 font-medium inline-flex items-center gap-1">
@@ -239,7 +248,7 @@ export default function ParentPage() {
               const dayStr = d.toLocaleDateString("vi-VN", { weekday: "long" });
               const timeStr = d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
               return (
-              <div key={item.id ?? idx} className="p-3 border border-gray-200 rounded-xl bg-gray-50/50 flex items-center justify-between">
+              <div key={item.id ?? idx} className="p-3 border border-red-100 rounded-xl bg-gradient-to-br from-red-50/40 to-white/60 flex items-center justify-between">
                 <div>
                   <div className="text-sm font-medium text-gray-900">{dayStr}</div>
                   <div className="text-xs text-gray-600 mt-0.5">{item.classCode}</div>

@@ -12,6 +12,7 @@ import {
   UserCircle,
   History,
   Users,
+  Home,
 } from "lucide-react";
 import type { MenuItem } from "./types";
 import type { Locale } from "@/lib/i18n";
@@ -19,6 +20,12 @@ import { getMessages } from "@/lib/dict";
 
 export function parentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
   const t = getMessages(locale).menuParent;
+
+  const homeItem: MenuItem = {
+    label: t.items.home,
+    icon: Home,
+    href: root,
+  };
 
   const scheduleItem: MenuItem = {
     label: t.items.schedule,
@@ -100,6 +107,7 @@ export function parentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
   };
 
   return [
+    homeItem,
     scheduleItem,
     progressionItem,
     homeworkItem,

@@ -15,6 +15,7 @@ import {
   History,
   Package,
   Receipt,
+  Sparkles,
   TrendingDown,
   TrendingUp,
   Users,
@@ -250,16 +251,16 @@ function Pill({ tone = "neutral", children }: { tone?: Tone; children: ReactNode
 }
 
 function StatCard({ label, value, hint, icon: Icon, tone = "neutral" }: { label: string; value: string; hint: string; icon: LucideIcon; tone?: "red" | "dark" | "neutral" | "green" }) {
-  const bg: Record<string, string> = { red: "from-red-600 to-red-700", dark: "from-slate-800 to-slate-900", neutral: "from-gray-600 to-gray-700", green: "from-emerald-600 to-emerald-700" };
+  const bg: Record<string, string> = { red: "from-red-600 to-rose-600", dark: "from-emerald-600 to-teal-600", neutral: "from-blue-600 to-cyan-600", green: "from-violet-600 to-purple-600" };
   return (
-    <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="text-sm text-gray-500">{label}</div>
-          <div className="mt-2 text-2xl font-bold text-gray-950 truncate">{value}</div>
-          <div className="mt-3 text-xs leading-5 text-gray-600">{hint}</div>
+    <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+      <div className="absolute right-0 top-0 h-12 w-12 -translate-y-1/2 translate-x-1/2 rounded-full bg-gradient-to-r from-red-600 to-red-700 opacity-10 blur-xl" />
+      <div className="relative flex items-center gap-3 z-10">
+        <div className={`rounded-xl bg-gradient-to-r ${bg[tone]} p-2.5 text-white flex-shrink-0`}><Icon size={20} /></div>
+        <div>
+          <div className="text-sm font-medium text-gray-600">{label}</div>
+          <div className="text-xl font-bold mt-1 text-gray-900">{value}</div>
         </div>
-        <div className={`shrink-0 rounded-2xl bg-gradient-to-br p-3 text-white shadow-lg ${bg[tone]}`}><Icon size={20} /></div>
       </div>
     </div>
   );
@@ -443,66 +444,27 @@ export default function PaymentPage() {
   /* ── Render ── */
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-6">
+    <div className="min-h-screen bg-gray-50 p-4 md:p-2">
       <div className="space-y-6">
 
         {/* ── Hero header ── */}
-        <section className="overflow-hidden rounded-[28px] bg-gradient-to-br from-slate-950 via-slate-900 to-red-950 p-6 text-white shadow-2xl md:p-8">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-            <div className="max-w-2xl">
-              <div className="flex items-start gap-4">
-                <div className="rounded-2xl bg-white/10 p-3 ring-1 ring-white/10"><Wallet size={28} /></div>
-                <div>
-                  <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Tài chính & gói học</h1>
-                  <p className="mt-2 text-sm leading-6 text-white/70">Theo dõi tiến độ gói học, công nợ, hạn đóng và lịch sử thanh toán.</p>
-                </div>
-              </div>
-
-              {/* Quick chips */}
-              <div className="mt-5 flex flex-wrap gap-2">
-                <Pill tone="dark"><Users size={12} /> {studentName}</Pill>
-                {classLabel ? <Pill tone="dark"><BookOpen size={12} /> {classLabel}</Pill> : null}
-                {programName ? <Pill tone="dark"><Package size={12} /> {programName}</Pill> : null}
-                {daysUntilDue != null ? (
-                  <Pill tone={daysUntilDue < 0 ? "danger" : daysUntilDue <= 7 ? "warning" : "success"}>
-                    <Clock size={12} /> {dueDescription}
-                  </Pill>
-                ) : null}
-              </div>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
+              <Wallet className="text-white" size={25} />
             </div>
+            <div>
+              <h1 className="text-2xl md:text-2xl font-bold text-gray-900">
+                Tài chính & gói học
+              </h1>
+              <p className="text-gray-600 mt-1 flex items-center gap-2">
+                <Sparkles size={14} className="text-red-600" />
 
-            {/* Session progress card in hero */}
-            {hasSessions ? (
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-5 lg:min-w-[320px]">
-                <div className="text-xs uppercase tracking-[0.22em] text-white/50">Tiến độ gói học</div>
-                <div className="mt-3 flex items-end gap-3">
-                  <div className="text-3xl font-bold">{remainingSessions}</div>
-                  <div className="mb-1 text-sm text-white/70">buổi còn lại / {totalSessions}</div>
-                </div>
-                <div className="mt-4">
-                  <div className="flex items-center justify-between text-xs text-white/60 mb-1.5">
-                    <span>{usedSessions}/{totalSessions} đã học</span>
-                    <span>{totalSessions! > 0 ? Math.round((usedSessions! / totalSessions!) * 100) : 0}%</span>
-                  </div>
-                  <div className="h-2 w-full rounded-full bg-white/10">
-                    <div
-                      className={`h-2 rounded-full transition-all duration-500 ${
-                        usedSessions! / totalSessions! >= 0.9 ? "bg-red-400" : usedSessions! / totalSessions! >= 0.7 ? "bg-amber-400" : "bg-emerald-400"
-                      }`}
-                      style={{ width: `${totalSessions! > 0 ? Math.min(Math.round((usedSessions! / totalSessions!) * 100), 100) : 0}%` }}
-                    />
-                  </div>
-                </div>
-                {packageLabel ? <div className="mt-3 text-xs text-white/50">Gói: {packageLabel}</div> : null}
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-5 lg:min-w-[280px]">
-                <div className="text-xs uppercase tracking-[0.22em] text-white/50">Gói học</div>
-                <div className="mt-3 text-sm text-white/70">Chưa có dữ liệu tiến độ gói học từ hệ thống.</div>
-              </div>
-            )}
+                <span>Theo dõi tiến độ gói học, công nợ, hạn đóng và lịch sử thanh toán</span>
+              </p>
+            </div>
           </div>
-        </section>
+        </div>
 
         {error ? <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
 
@@ -520,7 +482,7 @@ export default function PaymentPage() {
             value={nextDueDate ? formatDate(nextDueDate) : "Không có"}
             hint={dueDescription}
             icon={Calendar}
-            tone={daysUntilDue != null && daysUntilDue < 0 ? "red" : "neutral"}
+            tone={daysUntilDue != null && daysUntilDue < 0 ? "dark" : "neutral"}
           />
           <StatCard
             label="Công nợ hiện tại"
