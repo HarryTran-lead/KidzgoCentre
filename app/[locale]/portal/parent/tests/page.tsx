@@ -7,7 +7,6 @@ import {
   FileText, 
   Download, 
   PieChart, 
-  TrendingUp, 
   Users, 
   BookOpen,
   Target,
@@ -17,9 +16,7 @@ import {
   ChevronRight,
   Eye,
   Award,
-  Clock,
-  TrendingDown,
-  Activity
+  Clock
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/lightswind/card";
 import { Button } from "@/components/lightswind/button";
@@ -411,43 +408,30 @@ function StatCard({
   label,
   value,
   hint,
-  trend = "up",
-  color = "red",
+  tone = "red",
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   hint: string;
-  trend?: "up" | "down" | "stable";
-  color?: "red" | "gray" | "black";
+  tone?: "red" | "gray" | "blue";
 }) {
-  const colorClasses = {
-    red: "bg-gradient-to-r from-red-600 to-red-700",
-    gray: "bg-gradient-to-r from-gray-600 to-gray-700",
-    black: "bg-gradient-to-r from-gray-800 to-gray-900"
-  };
-
-  const trendColors = {
-    up: "text-red-600",
-    down: "text-gray-600",
-    stable: "text-gray-800"
+  const toneClasses = {
+    red: "from-red-600 to-rose-600",
+    gray: "from-slate-600 to-gray-700",
+    blue: "from-blue-600 to-cyan-600"
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 p-5 hover:border-red-300 transition-all cursor-pointer">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="text-sm text-gray-600">{label}</div>
-          <div className="text-2xl font-bold mt-2 text-gray-900">{value}</div>
-          <div className={`text-xs flex items-center gap-1 mt-1 ${trendColors[trend]}`}>
-            {trend === "up" && <TrendingUp size={12} />}
-            {trend === "down" && <TrendingDown size={12} />}
-            {trend === "stable" && <Activity size={12} />}
-            {hint}
-          </div>
-        </div>
-        <div className={`p-3 rounded-xl ${colorClasses[color]} text-white shadow-lg`}>
+    <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+      <div className="absolute right-0 top-0 h-12 w-12 -translate-y-1/2 translate-x-1/2 rounded-full bg-gradient-to-r from-red-600 to-red-700 opacity-10 blur-xl" />
+      <div className="relative flex items-center gap-3 z-10">
+        <div className={`rounded-xl bg-gradient-to-r ${toneClasses[tone]} p-2.5 text-white flex-shrink-0`}>
           {icon}
+        </div>
+        <div>
+          <div className="text-sm font-medium text-gray-600">{label}</div>
+          <div className="text-xl font-bold mt-1 text-gray-900">{value}</div>
         </div>
       </div>
     </div>
@@ -1217,17 +1201,18 @@ export default function TestsPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-6 space-y-6">
+    <div className="min-h-screen bg-gray-50 p-4 md:p-2 space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
           <BarChart3 className="w-6 h-6 text-white" />
         </div>
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+          <h1 className="text-2xl md:text-2xl font-bold text-gray-900">
             Kiểm tra & Báo cáo
           </h1>
-          <p className="text-sm text-gray-600">
+          <p className="text-gray-600 mt-1 flex items-center gap-2">
+            <Sparkles size={14} className="text-red-600" />
             Theo dõi kết quả kiểm tra và báo cáo học tập
           </p>
         </div>
@@ -1240,32 +1225,28 @@ export default function TestsPage() {
           label="Tổng bài kiểm tra"
           value={totalTests.toString()}
           hint="+2 bài trong tháng 12"
-          trend="up"
-          color="red"
+          tone="red"
         />
         <StatCard
           icon={<Target size={20} />}
           label="Điểm trung bình"
           value={`${averageScore}%`}
           hint="Tăng 5% so với tháng trước"
-          trend="up"
-          color="gray"
+          tone="blue"
         />
         <StatCard
           icon={<Award size={20} />}
           label="Điểm cao nhất"
           value={`${bestScore}%`}
           hint="Bài Mid-term Test"
-          trend="up"
-          color="black"
+          tone="gray"
         />
         <StatCard
           icon={<Users size={20} />}
           label="Báo cáo đã nhận"
           value={(totalReports + totalSessionReports).toString()}
           hint={`Tháng: ${totalReports} - Theo buổi: ${totalSessionReports}`}
-          trend="stable"
-          color="red"
+          tone="red"
         />
       </div>
 

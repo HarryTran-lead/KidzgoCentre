@@ -2483,7 +2483,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
             : "-translate-y-4 opacity-0"
         }`}
       >
-        <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-start gap-4">
             <div className="rounded-xl bg-linear-to-r from-red-600 to-red-700 p-3 text-white shadow-lg">
               <Clock3 size={25} />
@@ -2502,7 +2502,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-3">
+          <div className="flex items-center gap-3 flex-shrink-0">
             <button
               type="button"
               onClick={() => void handleReload()}

@@ -691,7 +691,7 @@ export default function UserProfileWorkspace() {
     <div
       className={isStudentPortal
         ? "space-y-6 px-4 pb-6 pt-4 md:px-6"
-        : "min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 p-4 md:p-8"}
+        : "min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 p-4 md:p-2"}
     >
       {/* Animated Background Elements */}
       {!isStudentPortal && (
@@ -709,11 +709,11 @@ export default function UserProfileWorkspace() {
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-r from-red-600 to-red-700 rounded-2xl blur-lg opacity-30"></div>
                 <div className="relative p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-2xl shadow-lg">
-                  <UserRound size={28} className="text-white" />
+                  <UserRound size={25} className="text-white" />
                 </div>
               </div>
               <div>
-                <h1 className={`text-3xl md:text-4xl font-bold ${isStudentPortal ? "text-slate-100" : "bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent"}`}>
+                <h1 className={`text-3xl md:text-2xl font-bold ${isStudentPortal ? "text-slate-100" : "bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent"}`}>
                   Hồ sơ cá nhân
                 </h1>
                 <p className={`mt-1 flex items-center gap-2 ${isStudentPortal ? "text-slate-300/80" : "text-gray-500"}`}>

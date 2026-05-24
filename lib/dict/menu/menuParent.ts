@@ -1,6 +1,7 @@
 export const menuParent = {
   vi: {
     items: {
+      home: "Trang chủ",
       schedule: "Lịch học & Điểm danh",
       homework: "Bài tập & Nộp bài",
       gamification: "Nhiệm vụ & Đổi thưởng",
@@ -17,6 +18,7 @@ export const menuParent = {
   },
   en: {
     items: {
+      home: "Home",
       schedule: "Schedule & Attendance",
       homework: "Homework",
       gamification: "Missions & Rewards",

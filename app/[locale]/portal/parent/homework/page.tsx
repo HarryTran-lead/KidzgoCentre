@@ -48,6 +48,7 @@ export default function HomeworkPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
   const { selectedProfile } = useSelectedStudentProfile();
   const params = useParams();
   const locale = params.locale as string || "vi";
@@ -165,139 +166,131 @@ export default function HomeworkPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-6 space-y-6">
+    <div className="min-h-screen bg-gray-50 p-4 md:p-2 space-y-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
         <div className="flex items-center gap-4">
           <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
-            <BookOpen className="text-white" size={28} />
+            <BookOpen className="text-white" size={25} />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-              Bài tập
+            <h1 className="text-2xl md:text-2xl font-bold text-gray-900">
+              Bài tập của bé
             </h1>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-gray-600 mt-1 flex items-center gap-2">
+              <Sparkles size={14} className="text-red-600" />
               Theo dõi các bài tập được giao và tiến độ học tập
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-gray-50 transition-colors cursor-pointer text-gray-700">
-            <Filter size={16} className="text-gray-600" /> Lọc nâng cao
-          </button>
-        </div>
+
       </div>
 
       {/* Stats Cards - Redesigned with Red-Black-White theme */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 hover:border-red-300 transition-all cursor-pointer">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm text-gray-600">Tổng bài tập</div>
-              <div className="text-2xl font-bold mt-2 text-gray-900">{stats.total}</div>
+        <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+          <div className="absolute right-0 top-0 h-12 w-12 -translate-y-1/2 translate-x-1/2 rounded-full bg-gradient-to-r from-red-600 to-red-700 opacity-10 blur-xl" />
+          <div className="flex items-start gap-3 relative z-10">
+            <div className="rounded-xl bg-gradient-to-r from-red-600 to-red-700 p-2.5 text-white flex-shrink-0">
+              <BookOpen size={18} />
             </div>
-            <div className="p-3 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg">
-              <BookOpen size={20} />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-600 truncate">Tổng bài tập</p>
+              <p className="text-xl font-bold text-gray-900 leading-tight mt-1">{stats.total}</p>
             </div>
-          </div>
-          <div className="mt-4 text-xs text-gray-600 flex items-center gap-1">
-            <TrendingUp size={12} className="text-red-600" />
-            +3 bài tập mới
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 hover:border-red-300 transition-all cursor-pointer">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm text-gray-600">Chưa nộp</div>
-              <div className="text-2xl font-bold mt-2 text-gray-900">{stats.pending}</div>
+        <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+          <div className="absolute right-0 top-0 h-12 w-12 -translate-y-1/2 translate-x-1/2 rounded-full bg-gradient-to-r from-red-600 to-red-700 opacity-10 blur-xl" />
+          <div className="flex items-start gap-3 relative z-10">
+            <div className="rounded-xl bg-gradient-to-r from-gray-600 to-gray-700 p-2.5 text-white flex-shrink-0">
+              <Clock size={18} />
             </div>
-            <div className="p-3 rounded-xl bg-gradient-to-r from-gray-600 to-gray-700 text-white shadow-lg">
-              <Clock size={20} />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-600 truncate">Chưa nộp</p>
+              <p className="text-xl font-bold text-gray-900 leading-tight mt-1">{stats.pending}</p>
             </div>
-          </div>
-          <div className="mt-4 text-xs text-amber-600 flex items-center gap-1">
-            <AlertCircle size={12} />
-            Cần hoàn thành sớm
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 hover:border-red-300 transition-all cursor-pointer">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm text-gray-600">Đã nộp</div>
-              <div className="text-2xl font-bold mt-2 text-gray-900">{stats.submitted}</div>
+        <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+          <div className="absolute right-0 top-0 h-12 w-12 -translate-y-1/2 translate-x-1/2 rounded-full bg-gradient-to-r from-red-600 to-red-700 opacity-10 blur-xl" />
+          <div className="flex items-start gap-3 relative z-10">
+            <div className="rounded-xl bg-gradient-to-r from-gray-800 to-gray-900 p-2.5 text-white flex-shrink-0">
+              <CheckSquare size={18} />
             </div>
-            <div className="p-3 rounded-xl bg-gradient-to-r from-gray-800 to-gray-900 text-white shadow-lg">
-              <CheckSquare size={20} />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-600 truncate">Đã nộp</p>
+              <p className="text-xl font-bold text-gray-900 leading-tight mt-1">{stats.submitted}</p>
             </div>
-          </div>
-          <div className="mt-4 text-xs text-gray-600 flex items-center gap-1">
-            <CheckCircle2 size={12} className="text-gray-700" />
-            {stats.submitted} bài đã chấm
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 hover:border-red-300 transition-all cursor-pointer">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm text-gray-600">Quá hạn</div>
-              <div className="text-2xl font-bold mt-2 text-gray-900">{stats.late}</div>
+        <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+          <div className="absolute right-0 top-0 h-12 w-12 -translate-y-1/2 translate-x-1/2 rounded-full bg-gradient-to-r from-red-600 to-red-700 opacity-10 blur-xl" />
+          <div className="flex items-start gap-3 relative z-10">
+            <div className="rounded-xl bg-gradient-to-r from-red-700 to-red-800 p-2.5 text-white flex-shrink-0">
+              <XCircle size={18} />
             </div>
-            <div className="p-3 rounded-xl bg-gradient-to-r from-red-700 to-red-800 text-white shadow-lg">
-              <XCircle size={20} />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-600 truncate">Quá hạn</p>
+              <p className="text-xl font-bold text-gray-900 leading-tight mt-1">{stats.late}</p>
             </div>
-          </div>
-          <div className="mt-4 text-xs text-red-600 flex items-center gap-1">
-            <AlertCircle size={12} />
-            Cần xử lý ngay
           </div>
         </div>
       </div>
 
       {/* Search and Tabs */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-4">
-        <div className="flex flex-col lg:flex-row gap-4">
-          {/* Search Bar */}
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Tìm kiếm bài tập theo tiêu đề, mô tả hoặc môn học..."
-                className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-transparent text-gray-900"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-          </div>
-
-          {/* Tabs */}
-          <div className="flex gap-2 flex-wrap lg:flex-nowrap">
-            {[
-              { key: "all" as TabType, label: "Tất cả", count: stats.total },
-              { key: "pending" as TabType, label: "Chưa nộp", count: stats.pending },
-              { key: "submitted" as TabType, label: "Đã nộp", count: stats.submitted },
-              { key: "late" as TabType, label: "Quá hạn", count: stats.late },
-            ].map((tab) => (
+      <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4">
+        <div className="flex flex-wrap gap-2 pb-4 border-b border-red-200">
+          {[
+            { key: "all" as TabType, label: "Tất cả", count: stats.total },
+            { key: "pending" as TabType, label: "Chưa nộp", count: stats.pending },
+            { key: "submitted" as TabType, label: "Đã nộp", count: stats.submitted },
+            { key: "late" as TabType, label: "Quá hạn", count: stats.late },
+          ].map((tab) => {
+            const isActive = activeTab === tab.key;
+            return (
               <button
                 key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer flex items-center gap-2 ${
-                  activeTab === tab.key
-                    ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
-                    : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50"
+                onClick={() => {
+                  setActiveTab(tab.key);
+                  setCurrentPage(1);
+                }}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl border transition-all cursor-pointer text-sm font-medium ${
+                  isActive
+                    ? "bg-gradient-to-r from-red-600 to-red-700 text-white border-red-600 shadow-md"
+                    : "bg-white border-red-200 text-gray-700 hover:bg-red-50"
                 }`}
               >
-                <span>{tab.label}</span>
-                <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                  activeTab === tab.key ? "bg-white/20 text-white" : "bg-gray-100 text-gray-600"
-                }`}>
+                {tab.label}
+                <span
+                  className={`px-1.5 py-0.5 rounded-xl text-xs font-semibold ${
+                    isActive
+                      ? "bg-white/30 text-white"
+                      : "bg-red-50 text-red-600"
+                  }`}
+                >
                   {tab.count}
                 </span>
               </button>
-            ))}
-          </div>
+            );
+          })}
+        </div>
+
+        <div className="relative flex-1 mt-4">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" size={16} />
+          <input
+            type="text"
+            placeholder="Tìm kiếm bài tập theo tiêu đề, mô tả hoặc môn học..."
+            className="w-full h-10 pl-10 pr-4 rounded-xl border border-gray-200 bg-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setCurrentPage(1);
+            }}
+          />
         </div>
       </div>
 
@@ -306,10 +299,9 @@ export default function HomeworkPage() {
         {filteredAssignments.map((assignment) => (
           <div
             key={assignment.id}
-            className={`bg-white rounded-2xl border ${
-              assignment.status === "LATE" ? "border-red-200 bg-gradient-to-r from-white to-red-50/30" :
-              assignment.status === "SUBMITTED" ? "border-gray-200" :
-              "border-gray-200"
+            className={`bg-gradient-to-br from-white to-red-50/30 rounded-2xl border ${
+              assignment.status === "LATE" ? "border-red-100" :
+              "border-red-100"
             } hover:shadow-md transition-all duration-300 cursor-pointer overflow-hidden`}
           >
             <div className="p-6">
@@ -397,9 +389,9 @@ export default function HomeworkPage() {
 
                   {/* Feedback Section */}
                   {assignment.feedback && (
-                    <div className="mt-4 p-4 rounded-xl border border-gray-200 bg-gray-50">
+                    <div className="mt-4 p-4 rounded-xl border border-red-100 bg-gradient-to-br from-red-50/40 to-white/60">
                       <div className="flex items-start gap-3">
-                        <div className="p-2 bg-white rounded-lg border border-gray-200">
+                        <div className="p-2 bg-white rounded-lg border border-red-100">
                           <FileText className="w-4 h-4 text-gray-700" />
                         </div>
                         <div className="flex-1">
@@ -436,7 +428,7 @@ export default function HomeworkPage() {
         ))}
 
         {filteredAssignments.length === 0 && (
-          <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center">
+          <div className="bg-gradient-to-br from-white to-red-50/30 rounded-2xl border border-red-100 p-12 text-center">
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center">
               <AlertCircle className="w-8 h-8 text-gray-400" />
             </div>
@@ -457,7 +449,7 @@ export default function HomeworkPage() {
       </div>
 
       {/* Tips Section */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-5 hover:border-red-300 transition-all">
+      <div className="bg-gradient-to-br from-white to-red-50/30 rounded-2xl border border-red-100 p-5 hover:shadow-md transition-all">
         <div className="flex items-start gap-3">
           <div className="p-2 bg-gray-100 rounded-lg">
             <AlertCircle className="w-5 h-5 text-gray-700" />

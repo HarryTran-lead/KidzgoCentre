@@ -9,6 +9,7 @@ import {
   Eye,
   Image as ImageIcon,
   Play,
+  Sparkles,
   User,
   Users,
   X,
@@ -299,44 +300,109 @@ export default function ParentMediaPage() {
   }, [currentItem, currentMedia.length]);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-6">
-      <section className="rounded-2xl border border-red-100 bg-white p-5">
-        <h1 className="text-2xl font-bold text-gray-900">Thư viện media phụ huynh</h1>
-        <p className="mt-1 text-sm text-gray-600">Xem album ảnh/video đã được duyệt và công khai cho học viên.</p>
+    <div className="min-h-screen bg-gray-50 p-4 md:p-2 space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
+            <ImageIcon className="text-white" size={25} />
+          </div>
+          <div>
+            <h1 className="text-2xl md:text-2xl font-bold text-gray-900">
+              Thư viện media
+            </h1>
+            <p className="text-gray-600 mt-1 flex items-center gap-2">
+              <Sparkles size={14} className="text-red-600" />
+              Xem album ảnh/video đã được duyệt và công khai cho học viên
+            </p>
+          </div>
+        </div>
+      </div>
 
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            className={`rounded-xl px-4 py-2 text-sm font-medium ${tab === "class" ? "bg-red-600 text-white" : "border border-gray-200 text-gray-700"}`}
-            onClick={() => setTab("class")}
-          >
-            <span className="inline-flex items-center gap-1"><Users size={14} /> Ảnh của lớp ({albums.filter((album) => album.category === "class").length})</span>
-          </button>
-          <button
-            type="button"
-            className={`rounded-xl px-4 py-2 text-sm font-medium ${tab === "personal" ? "bg-red-600 text-white" : "border border-gray-200 text-gray-700"}`}
-            onClick={() => setTab("personal")}
-          >
-            <span className="inline-flex items-center gap-1"><User size={14} /> Ảnh của con ({albums.filter((album) => album.category === "personal").length})</span>
-          </button>
-          <input
-            className="ml-auto h-10 min-w-65 rounded-xl border border-gray-200 px-3 text-sm"
-            placeholder="Tìm theo tên album hoặc ảnh/video"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-          />
+      {/* Filter Bar */}
+      <section className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-5">
+        <div className="space-y-4">
+          {/* Category Tabs */}
+          <div className="flex flex-wrap gap-2 pb-4 border-b border-red-200">
+            <button
+              type="button"
+              onClick={() => setTab("class")}
+              className={`px-4 py-2.5 rounded-xl border text-sm font-medium transition-all cursor-pointer inline-flex items-center gap-2 ${
+                tab === "class"
+                  ? "bg-gradient-to-r from-red-600 to-red-700 text-white border-red-600 shadow-md"
+                  : "bg-white border-red-200 text-gray-700 hover:bg-red-50"
+              }`}
+            >
+              <Users size={16} />
+              <span>Ảnh của lớp</span>
+              <span
+                className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                  tab === "class"
+                    ? "bg-white/30 text-white"
+                    : "bg-red-50 text-red-600"
+                }`}
+              >
+                {albums.filter((album) => album.category === "class").length}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("personal")}
+              className={`px-4 py-2.5 rounded-xl border text-sm font-medium transition-all cursor-pointer inline-flex items-center gap-2 ${
+                tab === "personal"
+                  ? "bg-gradient-to-r from-red-600 to-red-700 text-white border-red-600 shadow-md"
+                  : "bg-white border-red-200 text-gray-700 hover:bg-red-50"
+              }`}
+            >
+              <User size={16} />
+              <span>Ảnh của con</span>
+              <span
+                className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                  tab === "personal"
+                    ? "bg-white/30 text-white"
+                    : "bg-red-50 text-red-600"
+                }`}
+              >
+                {albums.filter((album) => album.category === "personal").length}
+              </span>
+            </button>
+          </div>
+
+          {/* Search Input */}
+          <div className="relative">
+            <svg
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+            <input
+              type="text"
+              placeholder="Tìm theo tên album..."
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-red-200 bg-white hover:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-300 text-gray-900 placeholder-gray-400 transition-all text-sm"
+            />
+          </div>
         </div>
       </section>
 
-      <section className="mt-5 rounded-2xl border border-red-100 bg-white p-5">
+      {/* Media Grid */}
+      <section className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-6 shadow-sm">
         {loading ? (
           <p className="py-10 text-center text-sm text-gray-500">Đang tải media...</p>
         ) : filteredAlbums.length === 0 ? (
           <p className="py-10 text-center text-sm text-gray-500">Không có album phù hợp.</p>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
             {filteredAlbums.map((album) => (
-              <article key={album.id} className="overflow-hidden rounded-2xl border border-gray-200">
+              <article key={album.id} className="overflow-hidden rounded-2xl border border-red-100 bg-white shadow-sm transition-all duration-300 hover:shadow-lg hover:border-red-200">
                 <div className="relative h-44 bg-gray-100">
                   {album.coverUrl ? (
                     isVideoAssetUrl(album.coverUrl) ? (
@@ -347,13 +413,16 @@ export default function ParentMediaPage() {
                   ) : (
                     <div className="flex h-full items-center justify-center"><ImageIcon className="text-gray-400" size={36} /></div>
                   )}
-                  <div className="absolute left-3 top-3 rounded-full bg-black/60 px-2 py-1 text-xs text-white">
+                  <div className="absolute left-3 top-3 rounded-full bg-gradient-to-r from-red-600 to-red-700 px-3 py-1.5 text-xs font-semibold text-white shadow-lg">
                     {album.media.length} mục
                   </div>
                 </div>
                 <div className="space-y-3 p-4">
-                  <h3 className="line-clamp-1 text-base font-semibold text-gray-900">{album.title}</h3>
-                  <p className="inline-flex items-center gap-1 text-xs text-gray-500"><Calendar size={12} /> {album.date}</p>
+                  <h3 className="line-clamp-2 text-base font-semibold text-gray-900">{album.title}</h3>
+                  <p className="inline-flex items-center gap-1.5 text-xs text-gray-500">
+                    <Calendar size={14} /> 
+                    <span>{album.date}</span>
+                  </p>
                   <button
                     type="button"
                     onClick={() => {
@@ -362,9 +431,9 @@ export default function ParentMediaPage() {
                       setViewerItems(album.media);
                       setViewerIndex(0);
                     }}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-md transition-all cursor-pointer"
                   >
-                    <Eye size={14} /> Xem album
+                    <Eye size={16} /> Xem album
                   </button>
                 </div>
               </article>
@@ -382,34 +451,34 @@ export default function ParentMediaPage() {
                 event.stopPropagation();
                 closeViewer();
               }}
-              className="absolute right-6 top-6 rounded-full border border-white/30 bg-black/70 p-2 text-white"
+              className="absolute right-6 top-6 z-30 rounded-full border border-white/30 bg-black/70 p-2 text-white hover:bg-black/90 transition-all"
             >
-              <X size={18} />
+              <X size={20} />
             </button>
 
             <div
-              className="relative w-full max-w-4xl overflow-hidden rounded-2xl border border-white/20 bg-black/40"
+              className="relative w-full max-w-5xl overflow-hidden rounded-2xl border border-white/20 bg-black/40"
               onClick={(event) => event.stopPropagation()}
             >
               <button
                 type="button"
                 onClick={goPrev}
-                className="absolute left-3 top-1/2 z-20 -translate-y-1/2 rounded-full border border-white/30 bg-black/70 p-2 text-white"
+                className="absolute left-3 top-1/2 z-20 -translate-y-1/2 rounded-full border border-white/30 bg-black/70 p-2.5 text-white hover:bg-black/90 transition-all"
               >
-                <ChevronLeft size={20} />
+                <ChevronLeft size={24} />
               </button>
               <button
                 type="button"
                 onClick={goNext}
-                className="absolute right-3 top-1/2 z-20 -translate-y-1/2 rounded-full border border-white/30 bg-black/70 p-2 text-white"
+                className="absolute right-3 top-1/2 z-20 -translate-y-1/2 rounded-full border border-white/30 bg-black/70 p-2.5 text-white hover:bg-black/90 transition-all"
               >
-                <ChevronRight size={20} />
+                <ChevronRight size={24} />
               </button>
 
-              <div className="flex items-center justify-between border-b border-white/10 px-4 py-3 text-white">
+              <div className="flex items-center justify-between border-b border-white/10 bg-black/60 px-6 py-4 text-white">
                 <div>
-                  <div className="text-sm font-semibold">{currentItem.title}</div>
-                  <div className="text-xs text-white/70">{activeAlbum?.title} • {viewerIndex + 1}/{currentMedia.length}</div>
+                  <div className="text-base font-semibold">{currentItem.title}</div>
+                  <div className="text-sm text-white/70 mt-1">{activeAlbum?.title} • {viewerIndex + 1}/{currentMedia.length}</div>
                 </div>
               </div>
               <div className="flex h-[70vh] items-center justify-center bg-black/70 p-8">

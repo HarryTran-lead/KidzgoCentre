@@ -17,6 +17,8 @@ import {
   History,
   FileWarning,
   CalendarDays,
+  Search,
+  Sparkles,
 } from "lucide-react";
 
 import {
@@ -68,6 +70,7 @@ type MakeupCreditSummary = {
 };
 
 type TabType = "leaveRequests" | "makeup";
+type LeaveRequestFilterStatus = "all" | LeaveRequestStatus;
 
 /* ===================== Constants ===================== */
 
@@ -349,6 +352,8 @@ export default function ParentAttendancePage() {
 
   // Tab state
   const [activeTab, setActiveTab] = useState<TabType>("leaveRequests");
+  const [leaveRequestFilter, setLeaveRequestFilter] = useState<LeaveRequestFilterStatus>("all");
+  const [leaveRequestSearch, setLeaveRequestSearch] = useState("");
 
   // Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -633,7 +638,23 @@ export default function ParentAttendancePage() {
 
   /* ===================== Memos ===================== */
 
-  const displayRequests = useMemo(() => requests.slice(0, 10), [requests]);
+  const displayRequests = useMemo(() => {
+    let result = requests;
+    
+    if (leaveRequestFilter !== "all") {
+      result = result.filter(r => normalizeStatus(r.status as string | undefined) === leaveRequestFilter);
+    }
+    
+    if (leaveRequestSearch) {
+      const searchLower = leaveRequestSearch.toLowerCase();
+      result = result.filter(r => 
+        (r.reason?.toLowerCase().includes(searchLower) ?? false) ||
+        classNameById(r.classId).toLowerCase().includes(searchLower)
+      );
+    }
+    
+    return result.slice(0, 10);
+  }, [requests, leaveRequestFilter, leaveRequestSearch]);
   const displayMakeup = useMemo(() => makeupAllocations.slice(0, 10), [makeupAllocations]);
   const displayAttendance = useMemo(() => attendanceHistory.slice(0, 10), [attendanceHistory]);
 
@@ -867,16 +888,17 @@ export default function ParentAttendancePage() {
   ];
 
   return (
-    <div className="min-h-screen space-y-6 bg-gray-50 p-4 md:p-6">
+    <div className="min-h-screen space-y-6 bg-gray-50 p-4 md:p-2">
       {/* Header */}
       <div className={`flex flex-col md:flex-row md:items-center md:justify-between gap-4 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
         <div className="flex items-center gap-3">
           <div className="p-3 rounded-xl bg-gradient-to-r from-red-600 to-red-700 shadow-lg">
-            <CalendarCheck className="text-white" size={24} />
+            <CalendarCheck className="text-white" size={25} />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">Xin nghỉ / Điểm danh</h1>
-            <p className="text-sm text-gray-600">
+            <h1 className="text-2xl md:text-2xl font-extrabold text-gray-900">Xin nghỉ & Điểm danh</h1>
+            <p className="text-gray-600 mt-1 flex items-center gap-2">
+              <Sparkles size={14} className="text-red-600" />
               Tạo đơn xin nghỉ cho học viên và theo dõi trạng thái duyệt.
             </p>
           </div>
@@ -902,50 +924,54 @@ export default function ParentAttendancePage() {
 
       {/* Stats cards */}
       <div className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-md transition">
-          <div className="flex items-center gap-3">
-            <span className="w-10 h-10 rounded-xl bg-red-100 grid place-items-center">
-              <CalendarCheck className="text-red-600" size={18} />
-            </span>
+        <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+          <div className="absolute right-0 top-0 h-12 w-12 -translate-y-1/2 translate-x-1/2 rounded-full bg-gradient-to-r from-red-600 to-red-700 opacity-10 blur-xl" />
+          <div className="relative flex items-center gap-3 z-10">
+            <div className="rounded-xl bg-gradient-to-r from-red-600 to-rose-600 p-2.5 text-white flex-shrink-0">
+              <CalendarCheck size={18} />
+            </div>
             <div>
-              <div className="text-sm text-gray-600">Tổng đơn nghỉ</div>
-              <div className="text-2xl font-extrabold text-gray-900">{stats.totalRequests}</div>
+              <p className="text-sm font-medium text-gray-600 truncate">Tổng đơn nghỉ</p>
+              <p className="text-xl font-bold text-gray-900 leading-tight mt-1">{stats.totalRequests}</p>
             </div>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-md transition">
-          <div className="flex items-center gap-3">
-            <span className="w-10 h-10 rounded-xl bg-amber-100 grid place-items-center">
-              <Clock className="text-amber-600" size={18} />
-            </span>
+        <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+          <div className="absolute right-0 top-0 h-12 w-12 -translate-y-1/2 translate-x-1/2 rounded-full bg-gradient-to-r from-red-600 to-red-700 opacity-10 blur-xl" />
+          <div className="relative flex items-center gap-3 z-10">
+            <div className="rounded-xl bg-gradient-to-r from-amber-600 to-yellow-600 p-2.5 text-white flex-shrink-0">
+              <Clock size={18} />
+            </div>
             <div>
-              <div className="text-sm text-gray-600">Chờ duyệt</div>
-              <div className="text-2xl font-extrabold text-gray-900">{stats.pendingRequests}</div>
+              <p className="text-sm font-medium text-gray-600 truncate">Chờ duyệt</p>
+              <p className="text-xl font-bold text-gray-900 leading-tight mt-1">{stats.pendingRequests}</p>
             </div>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-md transition">
-          <div className="flex items-center gap-3">
-            <span className="w-10 h-10 rounded-xl bg-sky-100 grid place-items-center">
-              <FileText className="text-sky-600" size={18} />
-            </span>
+        <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+          <div className="absolute right-0 top-0 h-12 w-12 -translate-y-1/2 translate-x-1/2 rounded-full bg-gradient-to-r from-red-600 to-red-700 opacity-10 blur-xl" />
+          <div className="relative flex items-center gap-3 z-10">
+            <div className="rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 p-2.5 text-white flex-shrink-0">
+              <FileText size={18} />
+            </div>
             <div>
-              <div className="text-sm text-gray-600">Số suất học bù còn lại</div>
-              <div className="text-2xl font-extrabold text-gray-900">{stats.makeupCredits}</div>
+              <p className="text-sm font-medium text-gray-600 truncate">Số suất học bù còn lại</p>
+              <p className="text-xl font-bold text-gray-900 leading-tight mt-1">{stats.makeupCredits}</p>
             </div>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-md transition">
-          <div className="flex items-center gap-3">
-            <span className="w-10 h-10 rounded-xl bg-emerald-100 grid place-items-center">
-              <CheckCircle2 className="text-emerald-600" size={18} />
-            </span>
+        <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+          <div className="absolute right-0 top-0 h-12 w-12 -translate-y-1/2 translate-x-1/2 rounded-full bg-gradient-to-r from-red-600 to-red-700 opacity-10 blur-xl" />
+          <div className="relative flex items-center gap-3 z-10">
+            <div className="rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 p-2.5 text-white flex-shrink-0">
+              <CheckCircle2 size={18} />
+            </div>
             <div>
-              <div className="text-sm text-gray-600">Tỷ lệ có mặt</div>
-              <div className="text-2xl font-extrabold text-gray-900">{stats.attendanceRate}%</div>
+              <p className="text-sm font-medium text-gray-600 truncate">Tỷ lệ có mặt</p>
+              <p className="text-xl font-bold text-gray-900 leading-tight mt-1">{stats.attendanceRate}%</p>
             </div>
           </div>
         </div>
@@ -965,7 +991,13 @@ export default function ParentAttendancePage() {
           <TabButton
             key={tab.id}
             active={activeTab === tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => {
+              setActiveTab(tab.id);
+              if (tab.id === "leaveRequests") {
+                setLeaveRequestFilter("all");
+                setLeaveRequestSearch("");
+              }
+            }}
             icon={tab.icon as (props: any) => JSX.Element}
             label={tab.label}
             count={tab.count}
@@ -973,10 +1005,62 @@ export default function ParentAttendancePage() {
         ))}
       </div>
 
+      {/* Leave Requests Filter Bar */}
+      {activeTab === "leaveRequests" && (
+        <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <div className="flex flex-wrap gap-2 pb-4 border-b border-red-200">
+            {(["all", "PENDING", "APPROVED", "REJECTED", "CANCELLED"] as const).map((status) => {
+              const count = status === "all" 
+                ? requests.length 
+                : requests.filter(r => normalizeStatus(r.status as string | undefined) === status).length;
+              const isActive = leaveRequestFilter === status;
+              const statusLabel = status === "all" ? "Tất cả" : statusLabels[status as LeaveRequestStatus];
+              
+              return (
+                <button
+                  key={status}
+                  onClick={() => {
+                    setLeaveRequestFilter(status as LeaveRequestFilterStatus);
+                    setLeaveRequestSearch("");
+                  }}
+                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl border transition-all cursor-pointer text-sm font-medium ${
+                    isActive
+                      ? "bg-gradient-to-r from-red-600 to-red-700 text-white border-red-600 shadow-md"
+                      : "bg-white border-red-200 text-gray-700 hover:bg-red-50"
+                  }`}
+                >
+                  {statusLabel}
+                  <span
+                    className={`px-1.5 py-0.5 rounded-xl text-xs font-semibold ${
+                      isActive
+                        ? "bg-white/30 text-white"
+                        : "bg-red-50 text-red-600"
+                    }`}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="relative flex-1 mt-4">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" size={16} />
+            <input
+              type="text"
+              placeholder="Tìm kiếm theo lý do hoặc tên lớp..."
+              className="w-full h-10 pl-10 pr-4 rounded-xl border border-gray-200 bg-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200"
+              value={leaveRequestSearch}
+              onChange={(e) => setLeaveRequestSearch(e.target.value)}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Tab Content - Leave Requests */}
       {activeTab === "leaveRequests" && (
-        <div className={`rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-gray-200 px-6 py-4">
+        <div className={`rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 shadow-sm overflow-hidden transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-red-100 px-6 py-4">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">Đơn nghỉ</h2>
@@ -990,7 +1074,7 @@ export default function ParentAttendancePage() {
 
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-gray-200">
+              <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-red-100">
                 <tr>
                   <th className="py-3 px-6 text-left text-sm font-semibold tracking-wide text-gray-700">
                     Thời gian nghỉ
@@ -1095,8 +1179,8 @@ export default function ParentAttendancePage() {
 
       {/* Tab Content - Makeup Sessions */}
       {activeTab === "makeup" && (
-        <div className={`rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+        <div className={`rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 shadow-sm overflow-hidden transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-red-100 px-6 py-4 flex items-center justify-between">
             <div>
               <div className="text-lg font-semibold text-gray-900">Các buổi học bù đã lên lịch</div>
               {makeupLoading ? <div className="text-sm text-gray-500 mt-1">Đang tải...</div> : null}
@@ -1133,7 +1217,7 @@ export default function ParentAttendancePage() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gradient-to-r from-red-600/5 to-red-700/5 border-b border-gray-200">
+                <thead className="bg-gradient-to-r from-red-600/5 to-red-700/5 border-b border-red-100">
                   <tr>
                     <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
                       Thời gian buổi học
@@ -1232,7 +1316,7 @@ export default function ParentAttendancePage() {
       )}
 
       {/* Info Banner */}
-      <div className={`rounded-2xl border border-gray-200 bg-white p-4 shadow-sm flex gap-3 transition-all duration-700 delay-400 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+      <div className={`rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm flex gap-3 transition-all duration-700 delay-400 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         <div className="h-9 w-9 rounded-2xl bg-gradient-to-r from-amber-600 to-amber-700 flex items-center justify-center shadow">
           <MessageSquare className="text-white" size={18} />
         </div>

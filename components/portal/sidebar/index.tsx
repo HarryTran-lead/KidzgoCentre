@@ -398,7 +398,7 @@ export default function Sidebar({
       rawHref === "" ||
       /^\/(vi|en)\/?$/.test(target) ||
       target.endsWith("/portal") ||
-      /\/portal\/(admin|teacher|student)$/.test(target) ||
+      /\/portal\/(admin|teacher|student|parent)$/.test(target) ||
       /\/portal\/staff\/(management|accountant)$/.test(target) ||
       /\/portal\/staff-accountant$/.test(target) ||
       /\/portal\/staff-management$/.test(target);

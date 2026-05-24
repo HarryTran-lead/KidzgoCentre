@@ -24,7 +24,6 @@ import type {
 
 type ProgramProgressionMySchedulesPanelProps = {
   canFilterByStudent?: boolean;
-  isStudentView?: boolean;
 };
 
 function scheduleStatusLabel(status: ProgramProgressionScheduleStatus): string {
@@ -75,7 +74,6 @@ function mapScheduleErrorMessage(error: unknown): string {
 
 export default function ProgramProgressionMySchedulesPanel({
   canFilterByStudent = false,
-  isStudentView = false,
 }: ProgramProgressionMySchedulesPanelProps) {
   const { toast } = useToast();
   const { selectedProfile } = useSelectedStudentProfile();
@@ -232,111 +230,78 @@ export default function ProgramProgressionMySchedulesPanel({
 
   const safeTotalCount = totalCount > 0 ? totalCount : items.length;
   const safeTotalPages = Math.max(totalPages, 1);
-  const filterGridClass = canFilterByStudent
-    ? "grid gap-3 md:grid-cols-2 xl:grid-cols-5"
-    : "grid gap-3 md:grid-cols-2 xl:grid-cols-4";
 
   return (
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div
-          className={
-            isStudentView
-              ? "relative overflow-hidden rounded-2xl border border-indigo-400/30 bg-slate-900/80 p-4 shadow-sm transition-all duration-300 hover:border-indigo-300/50"
-              : "relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-300 hover:border-red-300 hover:shadow-md"
-          }
-        >
-          <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full bg-linear-to-r from-red-600 to-red-700 opacity-5 blur-xl" />
-          <div className="relative flex items-center justify-between gap-3">
-            <div className="rounded-xl bg-linear-to-r from-red-600 to-red-700 p-2 text-white shadow-sm">
-              <CalendarClock size={18} />
+        <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+          <div className="absolute right-0 top-0 h-12 w-12 -translate-y-1/2 translate-x-1/2 rounded-full bg-gradient-to-r from-red-600 to-red-700 opacity-10 blur-xl" />
+          <div className="relative flex items-center gap-3 z-10">
+            <div className="rounded-xl bg-gradient-to-r from-red-600 to-rose-600 p-2.5 text-white flex-shrink-0">
+              <CalendarClock size={20} />
             </div>
-            <div className="min-w-0 flex-1 text-right">
-              <div className={isStudentView ? "text-xs font-medium text-indigo-200" : "text-xs font-medium text-gray-600"}>Lịch trong trang</div>
-              <div className={isStudentView ? "text-xl font-bold text-white" : "text-xl font-bold text-gray-900"}>{scheduleStats.totalCount}</div>
+            <div>
+              <div className="text-sm font-medium text-gray-600">Lịch trong trang</div>
+              <div className="text-xl font-bold mt-1 text-gray-900">{scheduleStats.totalCount}</div>
             </div>
           </div>
         </div>
 
-        <div
-          className={
-            isStudentView
-              ? "relative overflow-hidden rounded-2xl border border-indigo-400/30 bg-slate-900/80 p-4 shadow-sm transition-all duration-300 hover:border-indigo-300/50"
-              : "relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-300 hover:border-red-300 hover:shadow-md"
-          }
-        >
-          <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full bg-linear-to-r from-blue-500 to-blue-600 opacity-5 blur-xl" />
-          <div className="relative flex items-center justify-between gap-3">
-            <div className="rounded-xl bg-linear-to-r from-blue-500 to-blue-600 p-2 text-white shadow-sm">
-              <Clock3 size={18} />
+        <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+          <div className="absolute right-0 top-0 h-12 w-12 -translate-y-1/2 translate-x-1/2 rounded-full bg-gradient-to-r from-red-600 to-red-700 opacity-10 blur-xl" />
+          <div className="relative flex items-center gap-3 z-10">
+            <div className="rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 p-2.5 text-white flex-shrink-0">
+              <Clock3 size={20} />
             </div>
-            <div className="min-w-0 flex-1 text-right">
-              <div className={isStudentView ? "text-xs font-medium text-indigo-200" : "text-xs font-medium text-gray-600"}>Đã lên lịch</div>
-              <div className={isStudentView ? "text-xl font-bold text-white" : "text-xl font-bold text-gray-900"}>{scheduleStats.scheduledCount}</div>
+            <div>
+              <div className="text-sm font-medium text-gray-600">Đã lên lịch</div>
+              <div className="text-xl font-bold mt-1 text-gray-900">{scheduleStats.scheduledCount}</div>
             </div>
           </div>
         </div>
 
-        <div
-          className={
-            isStudentView
-              ? "relative overflow-hidden rounded-2xl border border-indigo-400/30 bg-slate-900/80 p-4 shadow-sm transition-all duration-300 hover:border-indigo-300/50"
-              : "relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-300 hover:border-red-300 hover:shadow-md"
-          }
-        >
-          <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full bg-linear-to-r from-green-500 to-green-600 opacity-5 blur-xl" />
-          <div className="relative flex items-center justify-between gap-3">
-            <div className="rounded-xl bg-linear-to-r from-green-500 to-green-600 p-2 text-white shadow-sm">
-              <CheckCircle2 size={18} />
+        <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+          <div className="absolute right-0 top-0 h-12 w-12 -translate-y-1/2 translate-x-1/2 rounded-full bg-gradient-to-r from-red-600 to-red-700 opacity-10 blur-xl" />
+          <div className="relative flex items-center gap-3 z-10">
+            <div className="rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 p-2.5 text-white flex-shrink-0">
+              <CheckCircle2 size={20} />
             </div>
-            <div className="min-w-0 flex-1 text-right">
-              <div className={isStudentView ? "text-xs font-medium text-indigo-200" : "text-xs font-medium text-gray-600"}>Hoàn thành</div>
-              <div className={isStudentView ? "text-xl font-bold text-white" : "text-xl font-bold text-gray-900"}>{scheduleStats.completedCount}</div>
+            <div>
+              <div className="text-sm font-medium text-gray-600">Hoàn thành</div>
+              <div className="text-xl font-bold mt-1 text-gray-900">{scheduleStats.completedCount}</div>
             </div>
           </div>
         </div>
 
-        <div
-          className={
-            isStudentView
-              ? "relative overflow-hidden rounded-2xl border border-indigo-400/30 bg-slate-900/80 p-4 shadow-sm transition-all duration-300 hover:border-indigo-300/50"
-              : "relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-300 hover:border-red-300 hover:shadow-md"
-          }
-        >
-          <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full bg-linear-to-r from-rose-500 to-rose-600 opacity-5 blur-xl" />
-          <div className="relative flex items-center justify-between gap-3">
-            <div className="rounded-xl bg-linear-to-r from-rose-500 to-rose-600 p-2 text-white shadow-sm">
-              <XCircle size={18} />
+        <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+          <div className="absolute right-0 top-0 h-12 w-12 -translate-y-1/2 translate-x-1/2 rounded-full bg-gradient-to-r from-red-600 to-red-700 opacity-10 blur-xl" />
+          <div className="relative flex items-center gap-3 z-10">
+            <div className="rounded-xl bg-gradient-to-r from-slate-600 to-gray-700 p-2.5 text-white flex-shrink-0">
+              <XCircle size={20} />
             </div>
-            <div className="min-w-0 flex-1 text-right">
-              <div className={isStudentView ? "text-xs font-medium text-indigo-200" : "text-xs font-medium text-gray-600"}>Đã hủy</div>
-              <div className={isStudentView ? "text-xl font-bold text-white" : "text-xl font-bold text-gray-900"}>{scheduleStats.cancelledCount}</div>
+            <div>
+              <div className="text-sm font-medium text-gray-600">Đã hủy</div>
+              <div className="text-xl font-bold mt-1 text-gray-900">{scheduleStats.cancelledCount}</div>
             </div>
           </div>
         </div>
       </div>
 
-      <div
-        className={
-          isStudentView
-            ? "rounded-2xl border border-indigo-400/30 bg-slate-900/80 p-4 backdrop-blur"
-            : "rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50 p-4"
-        }
-      >
-        <div className={filterGridClass}>
+      <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
           {canFilterByStudent && (
             <div>
-              <label className={isStudentView ? "mb-1 block text-xs text-indigo-100" : "mb-1 block text-xs text-gray-600"}>
+              <label className="mb-1 block text-xs text-gray-600">
                 Học sinh đang theo dõi
               </label>
-              <div className={isStudentView ? "w-full rounded-xl border border-indigo-300/30 bg-slate-950/70 px-3 py-2 text-sm text-indigo-50" : "w-full rounded-xl border border-red-200 bg-white px-3 py-2 text-sm text-gray-700"}>
+              <div className="w-full rounded-xl border border-red-200 bg-white px-3 py-2 text-sm text-gray-700">
                 {selectedProfile?.displayName || "Chưa chọn học sinh"}
               </div>
             </div>
           )}
 
           <div>
-            <label className={isStudentView ? "mb-1 block text-xs text-indigo-100" : "mb-1 block text-xs text-gray-600"}>Trạng thái lịch</label>
+            <label className="mb-1 block text-xs text-gray-600">Trạng thái lịch</label>
             <Select
               value={statusFilter}
               onValueChange={(value) =>
@@ -345,7 +310,7 @@ export default function ProgramProgressionMySchedulesPanel({
               searchPlaceholder="Tìm kiếm trạng thái lịch..."
               emptyText="Không có trạng thái phù hợp."
             >
-              <SelectTrigger className={isStudentView ? "h-10 w-full rounded-xl border border-indigo-300/30 bg-slate-950/70 text-sm text-indigo-50 data-[state=open]:border-indigo-300 data-[state=open]:ring-2 data-[state=open]:ring-indigo-300/30" : "h-10 w-full rounded-xl border border-red-200 bg-white text-sm text-gray-700 data-[state=open]:border-red-300 data-[state=open]:ring-2 data-[state=open]:ring-red-100"}>
+              <SelectTrigger className="h-10 w-full rounded-xl border border-red-200 bg-white text-sm text-gray-700 data-[state=open]:border-red-300 data-[state=open]:ring-2 data-[state=open]:ring-red-100">
                 <SelectValue placeholder="Chọn trạng thái" />
               </SelectTrigger>
               <SelectContent>
@@ -358,7 +323,7 @@ export default function ProgramProgressionMySchedulesPanel({
           </div>
 
           <div>
-            <label className={isStudentView ? "mb-1 block text-xs text-indigo-100" : "mb-1 block text-xs text-gray-600"}>Trạng thái tham gia</label>
+            <label className="mb-1 block text-xs text-gray-600">Trạng thái tham gia</label>
             <Select
               value={participantStatusFilter}
               onValueChange={(value) =>
@@ -367,7 +332,7 @@ export default function ProgramProgressionMySchedulesPanel({
               searchPlaceholder="Tìm kiếm trạng thái tham gia..."
               emptyText="Không có trạng thái phù hợp."
             >
-              <SelectTrigger className={isStudentView ? "h-10 w-full rounded-xl border border-indigo-300/30 bg-slate-950/70 text-sm text-indigo-50 data-[state=open]:border-indigo-300 data-[state=open]:ring-2 data-[state=open]:ring-indigo-300/30" : "h-10 w-full rounded-xl border border-red-200 bg-white text-sm text-gray-700 data-[state=open]:border-red-300 data-[state=open]:ring-2 data-[state=open]:ring-red-100"}>
+              <SelectTrigger className="h-10 w-full rounded-xl border border-red-200 bg-white text-sm text-gray-700 data-[state=open]:border-red-300 data-[state=open]:ring-2 data-[state=open]:ring-red-100">
                 <SelectValue placeholder="Chọn trạng thái tham gia" />
               </SelectTrigger>
               <SelectContent>
@@ -381,22 +346,22 @@ export default function ProgramProgressionMySchedulesPanel({
           </div>
 
           <div>
-            <label className={isStudentView ? "mb-1 block text-xs text-indigo-100" : "mb-1 block text-xs text-gray-600"}>Từ ngày</label>
+            <label className="mb-1 block text-xs text-gray-600">Từ ngày</label>
             <input
               type="date"
               value={fromDate}
               onChange={(event) => setFromDate(event.target.value)}
-              className={isStudentView ? "h-10 w-full rounded-xl border border-indigo-300/30 bg-slate-950/70 px-3 py-2 text-sm text-indigo-50" : "h-10 w-full rounded-xl border border-red-200 bg-white px-3 py-2 text-sm"}
+              className="h-10 w-full rounded-xl border border-red-200 bg-white px-3 py-2 text-sm"
             />
           </div>
 
           <div>
-            <label className={isStudentView ? "mb-1 block text-xs text-indigo-100" : "mb-1 block text-xs text-gray-600"}>Đến ngày</label>
+            <label className="mb-1 block text-xs text-gray-600">Đến ngày</label>
             <input
               type="date"
               value={toDate}
               onChange={(event) => setToDate(event.target.value)}
-              className={isStudentView ? "h-10 w-full rounded-xl border border-indigo-300/30 bg-slate-950/70 px-3 py-2 text-sm text-indigo-50" : "h-10 w-full rounded-xl border border-red-200 bg-white px-3 py-2 text-sm"}
+              className="h-10 w-full rounded-xl border border-red-200 bg-white px-3 py-2 text-sm"
             />
           </div>
         </div>
@@ -405,27 +370,21 @@ export default function ProgramProgressionMySchedulesPanel({
           <button
             type="button"
             onClick={() => void loadSchedules()}
-            className={isStudentView ? "inline-flex items-center gap-2 rounded-xl border border-indigo-300/30 bg-slate-950/70 px-4 py-2 text-sm font-semibold text-indigo-100" : "inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700"}
+            className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 transition-colors"
           >
             <RefreshCw size={16} /> Làm mới
           </button>
         </div>
       </div>
 
-      <div
-        className={
-          isStudentView
-            ? "overflow-hidden rounded-2xl border border-indigo-400/30 bg-slate-900/80 shadow-sm backdrop-blur"
-            : "overflow-hidden rounded-2xl border border-red-200 bg-white shadow-sm"
-        }
-      >
-        <div className={isStudentView ? "border-b border-indigo-300/20 bg-slate-950/60 p-4" : "border-b border-red-100 bg-linear-to-r from-red-500/10 to-red-700/10 p-4"}>
+      <div className="overflow-hidden rounded-2xl border border-red-200 bg-white shadow-sm">
+        <div className="border-b border-red-100 bg-linear-to-r from-red-500/10 to-red-700/10 p-4">
           <div className="flex items-center justify-between">
-            <h3 className={isStudentView ? "text-sm font-semibold text-white" : "text-sm font-semibold text-gray-900"}>
+            <h3 className="text-sm font-semibold text-gray-900">
               Lịch đánh giá của tôi
             </h3>
             {!isLoading && (
-              <span className={isStudentView ? "text-xs text-indigo-100" : "text-xs text-gray-500"}>
+              <span className="text-xs text-gray-500">
                 {safeTotalCount} lịch
               </span>
             )}
@@ -434,45 +393,45 @@ export default function ProgramProgressionMySchedulesPanel({
 
         <div className="p-4">
           {isLoading ? (
-            <div className={isStudentView ? "text-sm text-indigo-100" : "text-sm text-gray-500"}>Đang tải dữ liệu...</div>
+            <div className="text-sm text-gray-500">Đang tải dữ liệu...</div>
           ) : items.length === 0 ? (
-            <div className={isStudentView ? "rounded-xl border border-dashed border-indigo-300/30 bg-slate-950/40 p-6 text-center" : "rounded-xl border border-dashed border-red-200 p-6 text-center"}>
+            <div className="rounded-xl border border-dashed border-red-200 p-6 text-center">
               <CalendarClock size={22} className="mx-auto mb-2 text-red-500" />
-              <div className={isStudentView ? "text-sm font-semibold text-white" : "text-sm font-semibold text-gray-900"}>Không có lịch đánh giá</div>
-              <p className={isStudentView ? "mt-1 text-xs text-indigo-100" : "mt-1 text-xs text-gray-500"}>Bạn chưa có lịch đánh giá trong bộ lọc đã chọn.</p>
+              <div className="text-sm font-semibold text-gray-900">Không có lịch đánh giá</div>
+              <p className="mt-1 text-xs text-gray-500">Bạn chưa có lịch đánh giá trong bộ lọc đã chọn.</p>
             </div>
           ) : (
-            <div className={isStudentView ? "overflow-hidden rounded-xl border border-indigo-300/30 bg-slate-950/50" : "overflow-hidden rounded-xl border border-red-200 bg-white"}>
+            <div className="overflow-hidden rounded-xl border border-red-200 bg-white">
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className={isStudentView ? "border-b border-indigo-300/20 bg-slate-950/70" : "border-b border-red-200 bg-linear-to-r from-red-500/5 to-red-700/5"}>
+                  <thead className="border-b border-red-200 bg-linear-to-r from-red-500/5 to-red-700/5">
                     <tr>
-                      <th className={isStudentView ? "min-w-55 px-6 py-3 text-left text-sm font-semibold text-indigo-100" : "min-w-55 px-6 py-3 text-left text-sm font-semibold text-gray-700"}>Lớp</th>
-                      <th className={isStudentView ? "min-w-55 px-6 py-3 text-left text-sm font-semibold text-indigo-100" : "min-w-55 px-6 py-3 text-left text-sm font-semibold text-gray-700"}>Thời gian</th>
-                      <th className={isStudentView ? "min-w-55 px-6 py-3 text-left text-sm font-semibold text-indigo-100" : "min-w-55 px-6 py-3 text-left text-sm font-semibold text-gray-700"}>Giáo viên / Phòng</th>
-                      <th className={isStudentView ? "min-w-45 px-6 py-3 text-left text-sm font-semibold text-indigo-100" : "min-w-45 px-6 py-3 text-left text-sm font-semibold text-gray-700"}>Trạng thái</th>
-                      <th className={isStudentView ? "min-w-40 px-6 py-3 text-left text-sm font-semibold text-indigo-100" : "min-w-40 px-6 py-3 text-left text-sm font-semibold text-gray-700"}>Đánh giá</th>
+                      <th className="min-w-55 px-6 py-3 text-left text-sm font-semibold text-gray-700">Lớp</th>
+                      <th className="min-w-55 px-6 py-3 text-left text-sm font-semibold text-gray-700">Thời gian</th>
+                      <th className="min-w-55 px-6 py-3 text-left text-sm font-semibold text-gray-700">Giáo viên / Phòng</th>
+                      <th className="min-w-45 px-6 py-3 text-left text-sm font-semibold text-gray-700">Trạng thái</th>
+                      <th className="min-w-40 px-6 py-3 text-left text-sm font-semibold text-gray-700">Đánh giá</th>
                     </tr>
                   </thead>
-                  <tbody className={isStudentView ? "divide-y divide-indigo-300/15" : "divide-y divide-red-100"}>
+                  <tbody className="divide-y divide-red-100">
                     {items.map((item) => (
                       <tr
                         key={item.id}
-                        className={isStudentView ? "group transition-all duration-200 hover:bg-indigo-500/10" : "group transition-all duration-200 hover:bg-linear-to-r hover:from-red-50/50 hover:to-white"}
+                        className="group transition-all duration-200 hover:bg-linear-to-r hover:from-red-50/50 hover:to-white"
                       >
-                        <td className={isStudentView ? "min-w-55 px-6 py-4 align-top text-sm text-indigo-50" : "min-w-55 px-6 py-4 align-top text-sm text-gray-900"}>
+                        <td className="min-w-55 px-6 py-4 align-top text-sm text-gray-900">
                           <div className="font-medium">{item.sourceClassName || "Lớp chưa xác định"}</div>
                         </td>
-                        <td className={isStudentView ? "min-w-55 px-6 py-4 align-top text-sm text-indigo-100" : "min-w-55 px-6 py-4 align-top text-sm text-gray-700"}>
+                        <td className="min-w-55 px-6 py-4 align-top text-sm text-gray-700">
                           <div>{new Date(item.scheduledAt).toLocaleString("vi-VN")}</div>
-                          <div className={isStudentView ? "mt-1 text-xs text-indigo-200" : "mt-1 text-xs text-gray-500"}>Thời lượng: {item.durationMinutes ?? "--"} phút</div>
+                          <div className="mt-1 text-xs text-gray-500">Thời lượng: {item.durationMinutes ?? "--"} phút</div>
                         </td>
-                        <td className={isStudentView ? "min-w-55 px-6 py-4 align-top text-sm text-indigo-100" : "min-w-55 px-6 py-4 align-top text-sm text-gray-700"}>
+                        <td className="min-w-55 px-6 py-4 align-top text-sm text-gray-700">
                           <div className="inline-flex items-center gap-1.5">
                             <UserRound size={12} className="text-gray-400" />
                             <span>{item.assignedTeacherName || "--"}</span>
                           </div>
-                          <div className={isStudentView ? "mt-1 text-xs text-indigo-200" : "mt-1 text-xs text-gray-500"}>Phòng: {item.roomName || "--"}</div>
+                          <div className="mt-1 text-xs text-gray-500">Phòng: {item.roomName || "--"}</div>
                         </td>
                         <td className="min-w-45 px-6 py-4 align-top">
                           <div className="flex flex-wrap gap-1.5">
@@ -486,7 +445,7 @@ export default function ProgramProgressionMySchedulesPanel({
                             )}
                           </div>
                         </td>
-                        <td className={isStudentView ? "min-w-40 px-6 py-4 align-top text-sm text-indigo-100" : "min-w-40 px-6 py-4 align-top text-sm text-gray-700"}>
+                        <td className="min-w-40 px-6 py-4 align-top text-sm text-gray-700">
                           {assessmentStatusLabel(item.assessmentStatus)}
                         </td>
                       </tr>
