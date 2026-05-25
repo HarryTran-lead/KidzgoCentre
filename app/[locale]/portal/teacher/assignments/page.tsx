@@ -980,7 +980,7 @@ function CreateAssignmentModal({
       <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
         <div
           ref={modalRef}
-          className="relative w-full max-w-4xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden"
+          className="relative w-full max-w-3xl max-h-[95vh] bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden flex flex-col"
         >
           <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
             <div className="flex items-center justify-between">
@@ -989,7 +989,7 @@ function CreateAssignmentModal({
                   <TimerReset size={24} className="text-white" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-white">
+                  <h2 className="text-xl font-bold text-white">
                     Giao bài tập mới
                   </h2>
                   <p className="text-sm text-red-100">
@@ -1059,7 +1059,7 @@ function CreateAssignmentModal({
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
                   placeholder="Nhập tiêu đề bài tập..."
                 />
               </div>
@@ -1109,7 +1109,7 @@ function CreateAssignmentModal({
                       type="number"
                       value={maxScore}
                       onChange={(e) => setMaxScore(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
                       min="0"
                       placeholder="10"
                     />
@@ -1194,7 +1194,7 @@ function CreateAssignmentModal({
                     type="number"
                     value={rewardStars}
                     onChange={(e) => setRewardStars(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
                     min="0"
                     placeholder="0"
                   />
@@ -1209,7 +1209,7 @@ function CreateAssignmentModal({
                     type="number"
                     value={maxAttempts}
                     onChange={(e) => setMaxAttempts(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                    className="w-full px-4 py-3 rounded-xl text-smborder border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
                     min="1"
                     placeholder="1"
                   />
@@ -1226,7 +1226,7 @@ function CreateAssignmentModal({
                     type="date"
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                    className="w-full px-4 py-3 text-sm rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
                   />
                 </div>
                 <div className="space-y-2">
@@ -1238,7 +1238,7 @@ function CreateAssignmentModal({
                     type="time"
                     value={startTime}
                     onChange={(e) => setStartTime(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                    className="w-full px-4 py-3 text-sm rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
                   />
                 </div>
               </div>
@@ -1254,7 +1254,7 @@ function CreateAssignmentModal({
                     type="date"
                     value={dueDate}
                     onChange={(e) => setDueDate(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                    className="w-full px-4 py-3 text-sm rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
                   />
                 </div>
                 <div className="space-y-2">
@@ -1266,7 +1266,7 @@ function CreateAssignmentModal({
                     type="time"
                     value={dueTime}
                     onChange={(e) => setDueTime(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                    className="w-full px-4 py-3 text-sm rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
                   />
                 </div>
               </div>
@@ -1282,7 +1282,7 @@ function CreateAssignmentModal({
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
                       rows={3}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all resize-none"
+                      className="w-full px-4 py-3 text-sm rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all resize-none"
                       placeholder="Nhập mô tả chi tiết về bài tập..."
                     />
                   </div>
@@ -1296,7 +1296,7 @@ function CreateAssignmentModal({
                       value={instructions}
                       onChange={(e) => setInstructions(e.target.value)}
                       rows={3}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all resize-none"
+                      className="w-full px-4 py-3 text-sm rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all resize-none"
                       placeholder="Hướng dẫn chi tiết cho học viên..."
                     />
                   </div>
@@ -1332,35 +1332,39 @@ function CreateAssignmentModal({
               </div> */}
 
               <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-                <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                  <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
+                <div className="relative overflow-hidden rounded-2xl border border-violet-200 bg-gradient-to-br from-white to-violet-50/30 p-4">
+                  <div className="absolute right-0 top-0 h-12 w-12 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-violet-600"></div>
+                  <p className=" font-medium text-sm tracking-wide text-gray-900">
                     Loại bài
                   </p>
-                  <p className="mt-2 text-sm font-semibold text-gray-900">
+                  <p className="mt-2 inline-flex items-center rounded-full bg-violet-100 px-3 py-1 text-sm font-semibold text-violet-700">
                     {isMultipleChoice ? "Trắc nghiệm" : "Bài tập thường"}
                   </p>
                 </div>
-                <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                  <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
+                <div className="relative overflow-hidden rounded-2xl border border-blue-200 bg-gradient-to-br from-white to-blue-50/30 p-4">
+                  <div className="absolute right-0 top-0 h-12 w-12 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-blue-600"></div>
+                  <p className=" font-medium text-sm tracking-wide text-gray-900">
                     Lớp học
                   </p>
-                  <p className="mt-2 text-sm font-semibold text-gray-900">
+                  <p className="mt-2 inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-700">
                     {selectedClassOption?.name || "Chưa chọn"}
                   </p>
                 </div>
-                <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                  <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
+                <div className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-br from-white to-emerald-50/30 p-4">
+                  <div className="absolute right-0 top-0 h-12 w-12 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-emerald-600"></div>
+                  <p className=" font-medium text-sm tracking-wide text-gray-900">
                     Buổi học
                   </p>
-                  <p className="mt-2 text-sm font-semibold text-gray-900">
+                  <p className="mt-2 inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700">
                     {selectedSessionOption?.name || "Không gắn buổi"}
                   </p>
                 </div>
-                <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                  <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
+                <div className="relative overflow-hidden rounded-2xl border border-orange-200 bg-gradient-to-br from-white to-orange-50/30 p-4">
+                  <div className="absolute right-0 top-0 h-12 w-12 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-orange-600"></div>
+                  <p className=" font-medium text-sm tracking-wide text-gray-900">
                     Hạn nộp
                   </p>
-                  <p className="mt-2 text-sm font-semibold text-gray-900">
+                  <p className="mt-2 inline-flex items-center rounded-full bg-orange-100 px-3 py-1 text-sm font-semibold text-orange-700">
                     {dueDateTimeLabel}
                   </p>
                 </div>
@@ -1411,7 +1415,7 @@ function CreateAssignmentModal({
                               )
                             }
                             className={clsx(
-                              "rounded-2xl border p-4 text-left transition-all cursor-pointer",
+                              "rounded-2xl border p-3 text-left transition-all cursor-pointer",
                               isSelected
                                 ? "border-red-300 bg-red-50 shadow-sm"
                                 : "border-gray-200 bg-white hover:border-red-200 hover:bg-red-50/40",
@@ -1441,7 +1445,7 @@ function CreateAssignmentModal({
                     <button
                       type="button"
                       onClick={() => setShowRubricSection(!showRubricSection)}
-                      className="w-full px-4 py-4 flex items-center justify-between hover:bg-gray-100 transition-colors cursor-pointer"
+                      className="w-full px-4 py-4 rounded-2xl flex items-center justify-between hover:bg-gray-100 transition-colors cursor-pointer"
                     >
                       <div>
                         <p className="text-sm font-semibold text-gray-900">
@@ -1470,7 +1474,7 @@ function CreateAssignmentModal({
                             value={rubric}
                             onChange={(e) => setRubric(e.target.value)}
                             rows={3}
-                            className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all resize-none"
+                            className="w-full px-4 py-3 text-sm rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all resize-none"
                             placeholder="Nhập tiêu chí và cách chấm điểm..."
                           />
                         </div>
@@ -1887,7 +1891,7 @@ function CreateAssignmentModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer"
+                className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 text-sm font-semibold hover:bg-gray-50 transition-colors cursor-pointer"
               >
                 Hủy bỏ
               </button>
@@ -1895,7 +1899,7 @@ function CreateAssignmentModal({
                 type="button"
                 onClick={handleSubmit}
                 disabled={isSubmitting}
-                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
+                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white text-sm font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
               >
                 {isSubmitting ? (
                   <>
@@ -3382,7 +3386,7 @@ export default function TeacherAssignmentsPage() {
   const displayTo = filtered.length > 0 ? Math.min(currentPage * itemsPerPage, displayTotalItems) : 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-6 space-y-6">
+    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-2 space-y-6">
       <div
         className={`flex flex-wrap items-center justify-between gap-4 transition-all duration-700 ${
           isPageLoaded
@@ -3392,22 +3396,21 @@ export default function TeacherAssignmentsPage() {
       >
         <div className="flex items-center gap-4">
           <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
-            <GraduationCap size={28} className="text-white" />
+            <GraduationCap size={25} className="text-white" />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">
+            <h1 className="text-2xl md:text-2xl font-extrabold text-gray-900">
               Quản lý bài tập
             </h1>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-gray-600 mt-1 flex items-center gap-2">
+              <Sparkles size={14} className="text-red-600" />
               Quản lý bài tập đã giao, theo dõi tiến độ nộp bài và gửi nhận xét
               cho học viên.
             </p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-red-50 transition-colors cursor-pointer">
-            <Filter size={16} /> Lọc
-          </button>
+
           <button
             onClick={() => setIsCreateModalOpen(true)}
             className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer"
@@ -3430,10 +3433,10 @@ export default function TeacherAssignmentsPage() {
               <BookOpen size={20} />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-xs font-medium text-gray-600 truncate">
+              <div className="text-sm font-medium text-gray-600 truncate">
                 Tổng bài nộp
               </div>
-              <div className="text-xl font-bold text-gray-900 leading-tight">
+              <div className="text-2xl font-bold text-gray-900 leading-tight">
                 {submissions.length}
               </div>
             </div>
@@ -3447,10 +3450,10 @@ export default function TeacherAssignmentsPage() {
               <CheckCircle size={20} />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-xs font-medium text-gray-600 truncate">
+              <div className="text-sm font-medium text-gray-600 truncate">
                 Đã chấm
               </div>
-              <div className="text-xl font-bold text-gray-900 leading-tight">
+              <div className="text-2xl font-bold text-gray-900 leading-tight">
                 {submissions.filter((s) => s.status === "REVIEWED").length}
               </div>
             </div>
@@ -3464,10 +3467,10 @@ export default function TeacherAssignmentsPage() {
               <Clock size={20} />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-xs font-medium text-gray-600 truncate">
+              <div className="text-sm font-medium text-gray-600 truncate">
                 Chờ chấm
               </div>
-              <div className="text-xl font-bold text-gray-900 leading-tight">
+              <div className="text-2xl font-bold text-gray-900 leading-tight">
                 {submissions.filter((s) => s.status === "PENDING").length}
               </div>
             </div>
@@ -3508,25 +3511,23 @@ export default function TeacherAssignmentsPage() {
           </div>
 
           {/* Class Filter */}
-          <div className="flex items-center gap-2">
-            <select
-              value={selectedClass}
-              onChange={(e) => setSelectedClass(e.target.value)}
-              disabled={isLoadingClassOptions}
-              className="h-10 rounded-xl border border-red-200 bg-white px-4 pr-10 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200 appearance-none cursor-pointer"
-            >
-              <option value="ALL">Tất cả lớp</option>
+          <Select
+            value={selectedClass}
+            onValueChange={(value) => setSelectedClass(value)}
+            defaultValue="ALL"
+          >
+            <SelectTrigger disabled={isLoadingClassOptions} className="h-10 w-48 rounded-xl border-red-200 bg-white text-sm text-gray-700">
+              <SelectValue placeholder="Chọn lớp" />
+            </SelectTrigger>
+            <SelectContent align="start">
+              <SelectItem value="ALL">Tất cả lớp</SelectItem>
               {classOptions.map((cls) => (
-                <option key={cls.id} value={cls.id}>
+                <SelectItem key={cls.id} value={cls.id}>
                   {cls.name}
-                </option>
+                </SelectItem>
               ))}
-            </select>
-            <ChevronDown
-              size={16}
-              className="absolute ml-64 pointer-events-none text-gray-400"
-            />
-          </div>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 

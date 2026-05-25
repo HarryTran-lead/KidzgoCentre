@@ -126,9 +126,9 @@ function StatsCard({ title, value, icon: Icon, color, subtitle }: { title: strin
           <Icon size={20} />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-xs font-medium text-gray-600 truncate">{title}</div>
+          <div className="text-sm font-medium text-gray-600 truncate">{title}</div>
           <div className="text-xl font-bold text-gray-900 leading-tight">{value}</div>
-          {subtitle && <div className="text-[11px] text-gray-500 truncate">{subtitle}</div>}
+
         </div>
       </div>
     </div>
@@ -484,18 +484,19 @@ export default function Page() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-6 space-y-6">
+    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-2 space-y-6">
       {/* Header */}
       <div className={`transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
         <div className="flex items-center gap-3 mb-4">
           <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
-            <BookOpen size={24} className="text-white" />
+            <BookOpen size={25} className="text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">
+            <h1 className="text-2xl font-bold text-gray-900">
               Lớp học của tôi
             </h1>
             <p className="text-gray-600 mt-1 flex items-center gap-2">
+              <Sparkles size={14} className="text-red-600" />
               Quản lý và theo dõi các lớp được phân công
             </p>
           </div>
@@ -580,7 +581,7 @@ export default function Page() {
         {/* Table Header */}
         <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-red-200 px-6 py-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Danh sách lớp học</h2>
+            <h2 className="text font-semibold text-gray-900">Danh sách lớp học</h2>
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <span className="font-medium">{filteredAndSorted.length} lớp</span>
               <button
