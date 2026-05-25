@@ -588,7 +588,7 @@ export default function NotificationInboxPage({ role }: { role: Role }) {
   }, []);
 
   // Admin Layout
-  if (isAdmin) {
+  if (isAdmin || role === "Teacher" || role === "Parent") {
     return (
       <div className="min-h-screen bg-gray-50 p-4 md:p-2 space-y-6">
         {/* Header */}

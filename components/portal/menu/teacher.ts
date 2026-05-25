@@ -4,7 +4,6 @@ import {
   CalendarClock,
   CheckSquare,
   ClipboardCheck,
-  Clock4,
   FileText,
   Folder,
   GraduationCap,
@@ -52,7 +51,6 @@ export function teacherMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     },
     [t.reportRequests, Send, "/report-requests"],
     [t.incidentReports, AlertTriangle, "/incident-reports"],
-    [t.timesheet, Clock4, "/timesheet"],
     [t.notifications, Bell, "/notifications"],
   ];
 
