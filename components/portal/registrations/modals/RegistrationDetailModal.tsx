@@ -456,7 +456,7 @@ export default function RegistrationDetailModal({
             <button
               type="button"
               onClick={onClose}
-              className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer"
+              className="p-2 rounded-full  hover:bg-white/20 transition-colors cursor-pointer"
               aria-label="Đóng"
             >
               <X size={20} className="text-white" />
@@ -848,7 +848,7 @@ export default function RegistrationDetailModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-6 py-2.5 rounded-xl bg-linear-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer"
+              className="px-6 py-2.5 rounded-xl text-sm bg-linear-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer"
             >
               Đóng
             </button>

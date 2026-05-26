@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Rocket, Wallet } from "lucide-react";
+import { BookOpen, Package, Rocket, Wallet } from "lucide-react";
 import { getTicketBalance } from "@/lib/api/learningTicketService";
 import {
   Select,
@@ -93,69 +93,81 @@ export default function UpgradeRegistrationStep({
         Học vụ phát sinh
       </div>
 
-      <div className="mb-3 rounded-xl border border-red-100 bg-white/90 p-3">
-        <div className="grid grid-cols-1 gap-2 text-sm text-gray-700 md:grid-cols-3">
-          <div className="rounded-lg border border-red-100 bg-red-50/70 px-3 py-2">
-            <p className="text-xs font-medium text-gray-500">Vé học còn lại</p>
-            <p className="flex items-center gap-1 font-semibold text-gray-900">
+      <div className="mb-3 space-y-3">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div className="rounded-xl border border-amber-200 bg-gradient-to-br from-white to-amber-50/30 p-3 shadow-sm">
+            <div className="flex items-center gap-2 mb-1">
               <Wallet size={14} className="text-amber-600" />
-              {ticketLoading ? "Đang tải..." : `${displayedAvailable} vé`}
+              <p className="text-sm font-medium text-gray-600">Vé học còn lại</p>
+            </div>
+            <p className="text-lg font-bold text-gray-900">
+              {ticketLoading ? "..." : `${displayedAvailable}`}
             </p>
-            <p className="text-xs text-gray-500">Đã dùng: {displayedConsumed} vé</p>
+            <p className="text-sm text-gray-500 mt-1">Đã dùng: {displayedConsumed}</p>
           </div>
-          <div className="rounded-lg border border-red-100 bg-red-50/70 px-3 py-2">
-            <p className="text-xs font-medium text-gray-500">Chương trình hiện tại</p>
-            <p className="font-semibold text-gray-900">{selectedProgramName || "-"}</p>
+          
+          <div className="rounded-xl border border-blue-200 bg-gradient-to-br from-white to-blue-50/30 p-3 shadow-sm">
+            <div className="flex items-center gap-2 mb-1">
+              <BookOpen size={14} className="text-blue-600" />
+              <p className="text-sm font-medium text-gray-600">Chương trình</p>
+            </div>
+            <p className="text-sm font-bold text-gray-900 truncate">
+              {selectedProgramName || "-"}
+            </p>
           </div>
-          <div className="rounded-lg border border-red-100 bg-red-50/70 px-3 py-2">
-            <p className="text-xs font-medium text-gray-500">Tổng vé đã cấp</p>
-            <p className="font-semibold text-gray-900">{displayedTotalGranted} vé</p>
-            <p className="text-xs text-gray-500">Gói đang học: {currentTuitionPlanName || "-"}</p>
+
+          <div className="rounded-xl border border-emerald-200 bg-gradient-to-br from-white to-emerald-50/30 p-3 shadow-sm">
+            <div className="flex items-center gap-2 mb-1">
+              <Wallet size={14} className="text-emerald-600" />
+              <p className="text-sm font-medium text-gray-600">Tổng vé cấp</p>
+            </div>
+            <p className="text-lg font-bold text-gray-900">
+              {displayedTotalGranted}
+            </p>
+            <p className="text-sm text-gray-500 mt-1 truncate">Gói: {currentTuitionPlanName || "-"}</p>
           </div>
         </div>
       </div>
 
       <div className="rounded-xl border border-red-100 bg-white/80 p-3">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto] md:items-end">
-          <div className="space-y-1">
-            <label className="text-sm font-medium text-gray-700">Gói học mới</label>
-            <Select
-              value={upgradeTuitionPlanId || "__none__"}
-              onValueChange={(value) =>
-                setUpgradeTuitionPlanId(value === "__none__" ? "" : value)
-              }
-            >
-              <SelectTrigger className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100">
-                <SelectValue placeholder="Chọn gói để gia hạn" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">Chọn gói để gia hạn</SelectItem>
-                {filteredTuitionPlans.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.name} ({p.totalSessions} buổi)
-                    {p.id === tuitionPlanId ? " • Gói hiện tại" : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-gray-500">
-              Hiển thị các gói active của đúng chương trình học hiện tại (bao gồm cả gói hiện tại).
-            </p>
-            {filteredTuitionPlans.length === 0 && (
-              <p className="text-xs font-medium text-red-600">
-                Không có gói gia hạn phù hợp cho chương trình này.
-              </p>
-            )}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Package size={16} className="text-red-600" />
+            <label className="text-sm font-medium text-gray-900">Gói học mới</label>
           </div>
-
-          <button
-            type="button"
-            onClick={handleUpgrade}
-            disabled={!registrationId || !upgradeTuitionPlanId || isUpgrading}
-            className="rounded-xl bg-linear-to-r from-red-600 to-rose-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+          <Select
+            value={upgradeTuitionPlanId || "__none__"}
+            onValueChange={(value) =>
+              setUpgradeTuitionPlanId(value === "__none__" ? "" : value)
+            }
           >
-                       {isUpgrading ? "Đang cập nhật..." : "Cập nhật gói học"}
-          </button>
+            <SelectTrigger className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100">
+              <SelectValue placeholder="Chọn gói để gia hạn" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">Chọn gói để gia hạn</SelectItem>
+              {filteredTuitionPlans.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  <div className="flex items-center gap-2">
+                    <span>{p.name} ({p.totalSessions} buổi)</span>
+                    {p.id === tuitionPlanId && (
+                      <span className="ml-auto px-2 py-0.5 text-xs font-semibold text-white bg-red-600 rounded">
+                        Gói hiện tại
+                      </span>
+                    )}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-gray-500">
+            Hiển thị các gói active của đúng chương trình học hiện tại (bao gồm cả gói hiện tại).
+          </p>
+          {filteredTuitionPlans.length === 0 && (
+            <p className="text-xs font-medium text-red-600">
+              Không có gói gia hạn phù hợp cho chương trình này.
+            </p>
+          )}
         </div>
       </div>
     </div>

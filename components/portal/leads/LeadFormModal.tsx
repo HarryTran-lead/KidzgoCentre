@@ -212,7 +212,7 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
 
   return (
     <div className="fixed inset-0 z-9999 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
-      <div className="relative w-full max-w-2xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+      <div className="relative w-full max-w-3xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
         {/* Header - Gradient đỏ như modal mẫu */}
         <div className="bg-linear-to-r from-red-600 to-red-700 p-6">
           <div className="flex items-center justify-between">
@@ -221,7 +221,7 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
                 <User size={24} className="text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-white">
+                <h2 className="text-xl font-bold text-white">
                   {lead ? "Chỉnh sửa khách tiềm năng" : "Tạo khách tiềm năng mới"}
                 </h2>
                 <p className="text-sm text-red-100">
@@ -241,7 +241,7 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
         </div>
 
         {/* Form Body */}
-        <div className="p-6 max-h-[75vh] overflow-y-auto">
+        <div className="p-6 max-h-[70vh] overflow-y-auto">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Basic Info Section */}
             <div className="space-y-4">
@@ -255,13 +255,14 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <User size={16} className="text-gray-400" />
                     Họ và tên <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={formData.contactName}
                     onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                    className="w-full px-4 py-3 rounded-xl text-sm border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
                     placeholder="Nguyễn Văn A"
                     required
                   />
@@ -269,13 +270,14 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
 
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <Phone size={16} className="text-gray-400" />
                     Số điện thoại <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                    className="w-full px-4 py-3 text-sm rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
                     placeholder="0987654321"
                     required
                   />
@@ -291,7 +293,7 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                  className="w-full px-4 py-3 text-sm rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
                   placeholder="email@example.com"
                 />
               </div>
@@ -323,9 +325,6 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
               </div>
               
               <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  Nguồn
-                </label>
                 <Select
                   value={formData.source || LeadSource.Landing}
                   onValueChange={(value) =>
@@ -365,14 +364,11 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
                 <div className="p-1.5 rounded-lg bg-red-100">
                   <Building size={16} className="text-red-600" />
                 </div>
-                <h3 className="text-sm font-semibold text-gray-700">Sở thích & Ghi chú</h3>
+                <h3 className="text-sm font-semibold text-gray-700">Chi nhánh</h3>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="">
                 <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                    Chi nhánh mong muốn
-                  </label>
                   <Select
                     value={formData.branchPreference || ""}
                     onValueChange={(value) =>
@@ -397,16 +393,27 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
                   </Select>
                 </div>
               </div>
+            </div>
+
+            {/* Notes Section */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-red-100">
+                  <MessageSquare size={16} className="text-red-600" />
+                </div>
+                <h3 className="text-sm font-semibold text-gray-700">Ghi chú</h3>
+              </div>
 
               <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  Ghi chú
-                </label>
                 <textarea
                   value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  rows={3}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all resize-none"
+                  onChange={(e) => {
+                    setFormData({ ...formData, notes: e.target.value });
+                    e.target.style.height = "auto";
+                    e.target.style.height = Math.min(e.target.scrollHeight, 400) + "px";
+                  }}
+                  className="w-full px-4 py-3 text-sm rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all resize-none overflow-hidden"
+                  style={{ minHeight: "76px", maxHeight: "400px" }}
                   placeholder="Ghi chú thêm..."
                 />
               </div>
@@ -421,7 +428,7 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+              className="px-6 py-2.5 text-sm rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
             >
               Hủy bỏ
             </button>
@@ -460,7 +467,7 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
                   }
                 }}
                 disabled={isSubmitting}
-                className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                className="px-6 py-2.5 text-sm rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {lead ? "Khôi phục" : "Đặt lại"}
               </button>
@@ -468,7 +475,7 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
                 type="submit"
                 onClick={handleSubmit}
                 disabled={isSubmitting}
-                className="px-6 py-2.5 rounded-xl bg-linear-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
+                className="px-6 py-2.5 rounded-xl text-sm bg-linear-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {isSubmitting ? "Đang lưu..." : (lead ? "Cập nhật" : "Tạo mới")}
               </button>

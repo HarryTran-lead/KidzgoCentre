@@ -476,7 +476,7 @@ export default function EnrollmentFormModal({
 
   return (
     <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
-      <div className="relative w-full max-w-6xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+      <div className="relative w-full max-w-4xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
         {/* Header - Gradient đỏ như modal mẫu */}
         <div className="bg-linear-to-r from-red-600 to-red-700 p-6">
           <div className="flex items-center justify-between">
@@ -485,7 +485,7 @@ export default function EnrollmentFormModal({
                 <BookOpen size={24} className="text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-white">Tạo ghi danh mới</h2>
+                <h2 className="text-xl font-bold text-white">Tạo ghi danh mới</h2>
                 <p className="text-sm text-red-100">Nhập thông tin chi tiết về ghi danh</p>
               </div>
             </div>
@@ -501,7 +501,7 @@ export default function EnrollmentFormModal({
         </div>
 
         {/* Form Body */}
-        <div className="p-6 max-h-[78vh] overflow-y-auto">
+        <div className="p-6 max-h-[70vh] overflow-y-auto">
           <form id="create-enrollment-form" onSubmit={handleSubmit} className="space-y-6">
             {isBootstrapping ? (
               <div className="flex items-center justify-center gap-2 py-8 text-sm text-gray-500">
@@ -842,7 +842,7 @@ export default function EnrollmentFormModal({
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+              className="px-6 py-2.5 rounded-xl text-sm border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
             >
               Hủy bỏ
             </button>
@@ -851,7 +851,7 @@ export default function EnrollmentFormModal({
                 type="button"
                 onClick={handleReset}
                 disabled={isSubmitting}
-                className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                className="px-6 py-2.5 rounded-xl text-sm border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Đặt lại
               </button>
@@ -859,7 +859,7 @@ export default function EnrollmentFormModal({
                 type="submit"
                 form="create-enrollment-form"
                 disabled={isSubmitting || !classId || !studentProfileId || !enrollDate}
-                className="px-6 py-2.5 rounded-xl bg-linear-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
+                className="px-6 py-2.5 rounded-xl text-sm bg-linear-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {isSubmitting ? "Đang xử lý..." : "Tạo ghi danh"}
               </button>

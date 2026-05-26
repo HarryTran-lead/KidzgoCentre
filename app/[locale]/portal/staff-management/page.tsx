@@ -404,16 +404,16 @@ export default function Page() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-6">
+    <div className="min-h-screen bg-gray-50 p-4 md:p-2">
       {/* Header */}
       <div className={`mb-8 transition-all duration-700 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"}`}>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
-              <BarChart3 size={28} className="text-white" />
+              <BarChart3 size={25} className="text-white" />
             </div>
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+              <h1 className="text-2xl md:text-2xl font-bold text-gray-900">
                 Vận hành & Học vụ
               </h1>
               <p className="text-gray-600 mt-1 flex items-center gap-2">

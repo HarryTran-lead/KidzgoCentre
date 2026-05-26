@@ -26,7 +26,7 @@ function StatCard({ title, value, icon: Icon, color, subtitle }: StatCardProps) 
           <Icon size={20} />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-xs font-medium text-gray-600 truncate">{title}</div>
+          <div className="text-sm font-medium text-gray-600 truncate">{title}</div>
           <div className="text-2xl font-bold text-gray-900 leading-tight">{value}</div>
           {subtitle && <div className="text-[11px] text-gray-500 truncate">{subtitle}</div>}
         </div>

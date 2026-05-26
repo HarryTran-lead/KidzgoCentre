@@ -9,6 +9,7 @@ import {
   CalendarClock,
   BookOpen,
   ClipboardList,
+  Sparkles,
 } from "lucide-react";
 import {
   getAllLeads,
@@ -1899,7 +1900,7 @@ export default function Page() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-red-50/30 to-white p-6 space-y-6">
+    <div className="min-h-screen bg-linear-to-b from-red-50/30 to-white p-2 space-y-6">
       {/* Loading Overlay */}
       {(isCreatingLead || isCreatingTest || isCreatingEnrollment) && (
         <div className="fixed inset-0 z-100 bg-black/30 backdrop-blur-sm flex items-center justify-center w-screen h-screen">
@@ -1920,13 +1921,14 @@ export default function Page() {
       >
         <div className="flex items-center gap-4">
           <div className="p-3 bg-linear-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
-            <Target size={28} className="text-white" />
+            <Target size={25} className="text-white" />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+            <h1 className="text-2xl md:text-2xl font-bold text-gray-900">
               Quản lý Khách tiềm năng & Kiểm tra xếp lớp
             </h1>
-            <p className="text-sm text-gray-700 mt-1">
+            <p className="text-gray-600 mt-1 flex items-center gap-2">
+              <Sparkles size={14} className="text-red-600" />
               Nhận khách tiềm năng, phân công tư vấn, đặt lịch kiểm tra và chuyển đổi ghi danh
               {currentUser?.branchName && (
                 <span className="ml-2 text-red-600 font-medium">

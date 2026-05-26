@@ -51,11 +51,11 @@ function InfoCard({ icon, label, value, iconColor = "text-red-500" }: { icon?: R
     <div className="rounded-xl bg-white p-3 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-center gap-2">
         {icon && <div className={cn("shrink-0", iconColor)}>{icon}</div>}
-        <div className="text-xs font-medium uppercase tracking-wide text-gray-500">
+        <div className="text-sm font-semibold  tracking-wide text-gray-900">
           {label}
         </div>
       </div>
-      <div className="mt-1 break-all text-sm font-semibold text-gray-900">{value || "-"}</div>
+      <div className="mt-1 break-all text-sm font-semibold text-gray-500">{value || "-"}</div>
     </div>
   );
 }
@@ -184,9 +184,9 @@ export default function EnrollmentDetailModal({
 
   return (
     <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="relative max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+      <div className="relative flex flex-col max-h-[85vh] w-full max-w-3xl rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
         {/* Modal Header - Gradient đỏ như các modal khác */}
-        <div className="sticky top-0 z-10 bg-linear-to-r from-red-600 to-red-700 px-6 py-4">
+        <div className="z-10 bg-linear-to-r from-red-600 to-red-700 px-6 py-4 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
@@ -208,7 +208,7 @@ export default function EnrollmentDetailModal({
         </div>
 
         {/* Tabs */}
-        <div className="border-b border-gray-200 bg-linear-to-r from-red-500/5 to-red-700/5 px-6">
+        <div className="border-b border-gray-200 bg-linear-to-r from-red-500/5 to-red-700/5 px-6 flex-shrink-0">
           <div className="flex gap-1">
             <button
               onClick={() => setActiveTab("details")}
@@ -242,7 +242,7 @@ export default function EnrollmentDetailModal({
         </div>
 
         {/* Content */}
-        <div className="p-6">
+        <div className="flex-1 overflow-y-auto p-6">
           {activeTab === "details" && (
             <div className="space-y-5">
               {/* Status Card */}
@@ -253,7 +253,7 @@ export default function EnrollmentDetailModal({
                       <GraduationCap size={20} className="text-white" />
                     </div>
                     <div>
-                      <div className="text-xs uppercase tracking-wide text-gray-500">Trạng thái</div>
+                      <div className="text-sm  tracking-wide text-gray-900">Trạng thái</div>
                       <div className="text-lg font-bold text-gray-900">
                         {getStatusBadge(displayedEnrollment.status)}
                       </div>
@@ -412,7 +412,7 @@ export default function EnrollmentDetailModal({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-gray-200 bg-linear-to-r from-red-500/5 to-red-700/5 px-6 py-4">
+        <div className="border-t border-gray-200 bg-linear-to-r from-red-500/5 to-red-700/5 px-6 py-4 flex-shrink-0">
           <div className="flex items-center justify-end">
             <button
               onClick={onClose}

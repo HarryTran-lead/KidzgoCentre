@@ -14,6 +14,7 @@ import {
   ChevronRight,
   BookOpen,
   RefreshCw,
+  FileText,
 } from "lucide-react";
 import type { Enrollment } from "@/types/enrollment";
 
@@ -24,6 +25,13 @@ const STATUS_MAPPING: Record<StatusType, string> = {
   Paused: "Tạm nghỉ",
   Dropped: "Đã nghỉ",
 };
+
+function getStudentInitials(name: string | undefined): string {
+  if (!name) return "?";
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 0) return "?";
+  return parts.map((p) => p.charAt(0).toUpperCase()).join("").slice(0, 2);
+}
 
 interface EnrollmentTableProps {
   enrollments: Enrollment[];
@@ -172,7 +180,7 @@ export default function EnrollmentTable({
     <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50/30 shadow-sm overflow-hidden">
       <div className="bg-linear-to-r from-red-500/10 to-red-700/10 border-b border-red-200 px-6 py-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">Danh sách Ghi danh</h3>
+          <h3 className=" font-semibold text-gray-900">Danh sách Ghi danh</h3>
           <div className="flex items-center gap-3">
             {onRefresh && (
               <button
@@ -205,16 +213,30 @@ export default function EnrollmentTable({
                 className="border-b border-red-100 hover:bg-red-50/30 transition-colors"
               >
                 <td className="px-4 py-3">
-                  <div className="font-medium text-gray-900">{enrollment.studentName || "N/A"}</div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-red-600 text-white text-sm font-semibold flex-shrink-0">
+                      {getStudentInitials(enrollment.studentName)}
+                    </div>
+                    <span className="font-medium text-sm text-gray-900">{enrollment.studentName || "N/A"}</span>
+                  </div>
                 </td>
                 <td className="px-4 py-3">
-                  <div className="font-medium text-gray-900">{enrollment.classTitle || "N/A"}</div>
+                  <div className="flex items-center gap-1.5">
+                    <BookOpen size={14} className="text-red-600 flex-shrink-0" />
+                    <div className="font-medium text-gray-900">{enrollment.classTitle || "N/A"}</div>
+                  </div>
                 </td>
                 <td className="px-4 py-3 text-gray-600">
-                  {enrollment.classCode || "N/A"}
+                  <div className="flex items-center gap-1.5">
+                    <FileText size={14} className="text-red-600 flex-shrink-0" />
+                    {enrollment.classCode || "N/A"}
+                  </div>
                 </td>
                 <td className="px-4 py-3 text-gray-600">
-                  {formatDate(enrollment.enrollDate)}
+                  <div className="flex items-center gap-1.5">
+                    <Calendar size={14} className="text-red-600 flex-shrink-0" />
+                    {formatDate(enrollment.enrollDate)}
+                  </div>
                 </td>
                 <td className="px-4 py-3">
                   {getStatusBadge(enrollment.status)}
@@ -226,7 +248,7 @@ export default function EnrollmentTable({
                       className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors text-gray-400 hover:text-blue-600 cursor-pointer"
                       title="Xem chi tiết"
                     >
-                      <Eye size={16} />
+                      <Eye size={14} />
                     </button>
                     {onManageScheduleSegment && (
                       <button
@@ -239,7 +261,7 @@ export default function EnrollmentTable({
                             : "Quản lý Schedule Segment"
                         }
                       >
-                        <Calendar size={16} />
+                        <Calendar size={14} />
                       </button>
                     )}
                     {!readOnly && enrollment.status === "Active" && (
@@ -249,14 +271,14 @@ export default function EnrollmentTable({
                           className="p-1.5 rounded-lg hover:bg-amber-50 transition-colors text-gray-400 hover:text-amber-600 cursor-pointer"
                           title="Tạm nghỉ"
                         >
-                          <Pause size={16} />
+                          <Pause size={14} />
                         </button>
                         <button
                           onClick={() => onDrop?.(enrollment)}
                           className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
                           title="Cho nghỉ"
                         >
-                          <Trash2 size={16} />
+                          <Trash2 size={14} />
                         </button>
                       </>
                     )}

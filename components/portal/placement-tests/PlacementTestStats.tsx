@@ -74,7 +74,7 @@ export default function PlacementTestStats({ tests, isLoading }: PlacementTestSt
                 <Icon size={20} />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="truncate text-xs font-medium text-gray-600">{stat.label}</div>
+                <div className="truncate text-sm font-medium text-gray-600">{stat.label}</div>
                 <div className="leading-tight text-2xl font-bold text-gray-900">{stat.value}</div>
                 <div className="truncate text-[11px] text-gray-500">{stat.subtitle}</div>
               </div>

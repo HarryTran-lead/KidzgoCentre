@@ -711,7 +711,7 @@ export default function PlacementTestFormModal({
 
   return (
     <div className="fixed inset-0 z-9999 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
-      <div className="relative w-full max-w-2xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+      <div className="relative w-full max-w-3xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
         {/* Header - Gradient đỏ như modal mẫu */}
         <div className="bg-linear-to-r from-red-600 to-red-700 p-6">
           <div className="flex items-center justify-between">
@@ -720,7 +720,7 @@ export default function PlacementTestFormModal({
                 <Calendar size={24} className="text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-white">
+                <h2 className="text-xl font-bold text-white">
                   {test ? "Chỉnh sửa kiểm tra xếp lớp" : mode === "create" ? "Tạo kiểm tra xếp lớp mới" : "Tạo kiểm tra lại xếp lớp"}
                 </h2>
                 <p className="text-sm text-red-100">
@@ -740,7 +740,7 @@ export default function PlacementTestFormModal({
         </div>
 
         {/* Form Body */}
-        <div className="p-6 max-h-[75vh] overflow-y-auto">
+        <div className="p-6 max-h-[70vh] overflow-y-auto">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Mode Switch Buttons */}
             {!test && allowModeSwitch && (
@@ -789,14 +789,14 @@ export default function PlacementTestFormModal({
             {/* Lead Selection (only for create) - Vertical Layout */}
             {!test && mode === "create" && (
               <div className="space-y-4">
-                <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
+                <div className="flex items-center gap-2 pb-2">
                   <div className="p-1.5 rounded-lg bg-red-100">
                     <User size={16} className="text-red-600" />
                   </div>
                   <h3 className="text-sm font-semibold text-gray-700">Thông tin khách tiềm năng</h3>
                 </div>
 
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                       <User size={16} className="text-gray-400" />
@@ -966,7 +966,7 @@ export default function PlacementTestFormModal({
 
             {/* Test Schedule - Vertical Layout */}
             <div className="space-y-4">
-              <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
+              <div className="flex items-center gap-2 pb-2">
                 <div className="p-1.5 rounded-lg bg-red-100">
                   <Clock size={16} className="text-red-600" />
                 </div>
@@ -974,38 +974,40 @@ export default function PlacementTestFormModal({
               </div>
 
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                    <Calendar size={16} className="text-gray-400" />
-                    Thời gian test {mode === "create" || test ? <span className="text-red-500">*</span> : "(optional)"}
-                  </label>
-                  <input
-                    type="datetime-local"
-                    value={formData.scheduledAt}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, scheduledAt: e.target.value }))}
-                    required={mode === "create" || Boolean(test)}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
-                  />
-                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <Calendar size={16} className="text-gray-400" />
+                      Thời gian test {mode === "create" || test ? <span className="text-red-500">*</span> : "(optional)"}
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={formData.scheduledAt}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, scheduledAt: e.target.value }))}
+                      required={mode === "create" || Boolean(test)}
+                      className="w-full px-4 py-3 text-sm rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                    />
+                  </div>
 
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                    <Clock size={16} className="text-gray-400" />
-                    Thời lượng (phút) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min={MIN_DURATION_MINUTES}
-                    step={5}
-                    value={formData.durationMinutes}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        durationMinutes: e.target.value,
-                      }))
-                    }
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
-                  />
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <Clock size={16} className="text-gray-400" />
+                      Thời lượng (phút) <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      min={MIN_DURATION_MINUTES}
+                      step={5}
+                      value={formData.durationMinutes}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          durationMinutes: e.target.value,
+                        }))
+                      }
+                      className="w-full px-4 py-3 text-sm rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                    />
+                  </div>
                 </div>
 
                 {formData.scheduledAt && (
@@ -1030,112 +1032,114 @@ export default function PlacementTestFormModal({
                   </p>
                 )}
 
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                    <MapPin size={16} className="text-gray-400" />
-                    Phòng test
-                  </label>
-                  <Select
-                    value={formData.roomId}
-                    onValueChange={(value) => setFormData((prev) => ({ ...prev, roomId: value }))}
-                  >
-                    <SelectTrigger className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all">
-                      <SelectValue placeholder="Chọn phòng test" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">Chọn phòng test</SelectItem>
-                      {dynamicRooms.length === 0 ? (
-                        <SelectItem value="__no_room_available__" disabled>
-                          Không có phòng khả dụng cho khung giờ này
-                        </SelectItem>
-                      ) : (
-                        dynamicRooms.map((room) => {
-                          const isBusy = !room.isAvailable;
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <MapPin size={16} className="text-gray-400" />
+                      Phòng test
+                    </label>
+                    <Select
+                      value={formData.roomId}
+                      onValueChange={(value) => setFormData((prev) => ({ ...prev, roomId: value }))}
+                    >
+                      <SelectTrigger className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all">
+                        <SelectValue placeholder="Chọn phòng test" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Chọn phòng test</SelectItem>
+                        {dynamicRooms.length === 0 ? (
+                          <SelectItem value="__no_room_available__" disabled>
+                            Không có phòng khả dụng cho khung giờ này
+                          </SelectItem>
+                        ) : (
+                          dynamicRooms.map((room) => {
+                            const isBusy = !room.isAvailable;
 
-                          return (
-                            <SelectItem
-                              key={`${room.id}-${room.roomName}`}
-                              value={room.id}
-                              disabled={isBusy}
-                            >
-                              <div className="flex w-full items-center justify-between gap-2">
-                                <span>{room.roomName}</span>
-                                {isBusy ? (
-                                  <Tooltip content={getConflictTooltipContent(room.conflicts)} side="top" align="start">
-                                    <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
-                                      Bận
+                            return (
+                              <SelectItem
+                                key={`${room.id}-${room.roomName}`}
+                                value={room.id}
+                                disabled={isBusy}
+                              >
+                                <div className="flex w-full items-center justify-between gap-2">
+                                  <span>{room.roomName}</span>
+                                  {isBusy ? (
+                                    <Tooltip content={getConflictTooltipContent(room.conflicts)} side="top" align="start">
+                                      <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+                                        Bận
+                                      </span>
+                                    </Tooltip>
+                                  ) : (
+                                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                                      Khả dụng
                                     </span>
-                                  </Tooltip>
-                                ) : (
-                                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                                    Khả dụng
+                                  )}
+                                </div>
+                              </SelectItem>
+                            );
+                          })
+                        )}
+                      </SelectContent>
+                    </Select>
+                    {roomConflictMessage && (
+                      <p className="text-sm text-red-600">{roomConflictMessage}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <User size={16} className="text-gray-400" />
+                      Tên người phụ trách {mode === "create" || test ? <span className="text-red-500">*</span> : "(optional)"}
+                    </label>
+                    <Select
+                      value={formData.invigilatorUserId}
+                      onValueChange={(value) => setFormData((prev) => ({ ...prev, invigilatorUserId: value }))}
+                    >
+                      <SelectTrigger className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all">
+                        <SelectValue placeholder="Chọn tên người phụ trách" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Chọn tên người phụ trách</SelectItem>
+                        {dynamicInvigilators.length === 0 ? (
+                          <SelectItem value="__no_invigilator_available__" disabled>
+                            Không có người phụ trách khả dụng cho khung giờ này
+                          </SelectItem>
+                        ) : (
+                          dynamicInvigilators.map((invigilator) => {
+                            const isBusy = !invigilator.isAvailable;
+
+                            return (
+                              <SelectItem
+                                key={invigilator.id}
+                                value={invigilator.id}
+                                disabled={isBusy}
+                              >
+                                <div className="flex w-full items-center justify-between gap-2">
+                                  <span>
+                                    {invigilator.fullName} ({formatInvigilatorRoleLabel(invigilator.role)})
                                   </span>
-                                )}
-                              </div>
-                            </SelectItem>
-                          );
-                        })
-                      )}
-                    </SelectContent>
-                  </Select>
-                  {roomConflictMessage && (
-                    <p className="text-sm text-red-600">{roomConflictMessage}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                    <User size={16} className="text-gray-400" />
-                    Tên người phụ trách {mode === "create" || test ? <span className="text-red-500">*</span> : "(optional)"}
-                  </label>
-                  <Select
-                    value={formData.invigilatorUserId}
-                    onValueChange={(value) => setFormData((prev) => ({ ...prev, invigilatorUserId: value }))}
-                  >
-                    <SelectTrigger className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all">
-                      <SelectValue placeholder="Chọn tên người phụ trách" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">Chọn tên người phụ trách</SelectItem>
-                      {dynamicInvigilators.length === 0 ? (
-                        <SelectItem value="__no_invigilator_available__" disabled>
-                          Không có người phụ trách khả dụng cho khung giờ này
-                        </SelectItem>
-                      ) : (
-                        dynamicInvigilators.map((invigilator) => {
-                          const isBusy = !invigilator.isAvailable;
-
-                          return (
-                            <SelectItem
-                              key={invigilator.id}
-                              value={invigilator.id}
-                              disabled={isBusy}
-                            >
-                              <div className="flex w-full items-center justify-between gap-2">
-                                <span>
-                                  {invigilator.fullName} ({formatInvigilatorRoleLabel(invigilator.role)})
-                                </span>
-                                {isBusy ? (
-                                  <Tooltip content={getConflictTooltipContent(invigilator.conflicts)} side="top" align="start">
-                                    <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
-                                      Bận
+                                  {isBusy ? (
+                                    <Tooltip content={getConflictTooltipContent(invigilator.conflicts)} side="top" align="start">
+                                      <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+                                        Bận
+                                      </span>
+                                    </Tooltip>
+                                  ) : (
+                                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                                      Rảnh
                                     </span>
-                                  </Tooltip>
-                                ) : (
-                                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                                    Rảnh
-                                  </span>
-                                )}
-                              </div>
-                            </SelectItem>
-                          );
-                        })
-                      )}
-                    </SelectContent>
-                  </Select>
-                  {invigilatorConflictMessage && (
-                    <p className="text-sm text-red-600">{invigilatorConflictMessage}</p>
-                  )}
+                                  )}
+                                </div>
+                              </SelectItem>
+                            );
+                          })
+                        )}
+                      </SelectContent>
+                    </Select>
+                    {invigilatorConflictMessage && (
+                      <p className="text-sm text-red-600">{invigilatorConflictMessage}</p>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1185,7 +1189,7 @@ export default function PlacementTestFormModal({
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+              className="px-6 py-2.5 rounded-xl text-sm border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
             >
               Hủy bỏ
             </button>
@@ -1194,7 +1198,7 @@ export default function PlacementTestFormModal({
                 type="button"
                 onClick={handleReset}
                 disabled={isSubmitting}
-                className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                className="px-6 py-2.5 rounded-xl text-sm border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {test ? "Khôi phục" : "Đặt lại"}
               </button>
@@ -1202,7 +1206,7 @@ export default function PlacementTestFormModal({
                 type="submit"
                 onClick={handleSubmit}
                 disabled={isSubmitting}
-                className="px-6 py-2.5 rounded-xl bg-linear-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
+                className="px-6 py-2.5 rounded-xl text-sm bg-linear-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {isSubmitting
                   ? "Đang xử lý..."
