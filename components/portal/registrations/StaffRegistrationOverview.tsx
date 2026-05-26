@@ -5,18 +5,23 @@ import {
   ArrowRightLeft,
   ArrowUpDown,
   BookOpen,
+  Building2,
+  Calendar,
   CheckCircle2,
   ClipboardList,
   Clock3,
   Eye,
   FileText,
   Loader2,
+  Package,
   RefreshCw,
   Rocket,
   Search,
   Sparkles,
+  User,
   Users,
   XCircle,
+  Zap,
 } from "lucide-react";
 import ConfirmModal from "@/components/ConfirmModal";
 import LeadPagination from "@/components/portal/leads/LeadPagination";
@@ -590,6 +595,13 @@ function canOpenEnrollmentPdf(row: Registration) {
   return Boolean(row?.id && row?.classId && eligibleStatuses.includes(row.status));
 }
 
+function getStudentInitials(name: string | null | undefined): string {
+  if (!name) return "?";
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 0) return "?";
+  return parts.map((p) => p.charAt(0).toUpperCase()).join("").slice(0, 2);
+}
+
 export default function StaffRegistrationOverview({
   branchId,
   onTotalChange,
@@ -950,9 +962,11 @@ export default function StaffRegistrationOverview({
   const SortHeader = ({
     label,
     keyName,
+    icon: Icon,
   }: {
     label: string;
     keyName: RegistrationSortKey;
+    icon?: React.ComponentType<{ size?: number; className?: string }>;
   }) => (
     <th className="px-4 py-3">
       <button
@@ -960,6 +974,7 @@ export default function StaffRegistrationOverview({
         onClick={() => handleSort(keyName)}
         className="inline-flex items-center gap-1.5 text-sm tracking-wide font-semibold text-gray-600 hover:text-red-700 cursor-pointer"
       >
+        {Icon && <Icon size={14} className="text-red-600" />}
         {label}
         <ArrowUpDown
           size={12}
@@ -990,21 +1005,21 @@ export default function StaffRegistrationOverview({
         value: waiting,
         subtitle: "Đang chờ phân lớp",
         icon: Clock3,
-        color: "from-gray-600 to-gray-700",
+        color: "from-blue-600 to-cyan-600",
       },
       {
         title: "Đang học",
         value: studying,
         subtitle: "Đang theo lớp",
         icon: BookOpen,
-        color: "from-gray-700 to-gray-800",
+        color: "from-emerald-600 to-teal-600",
       },
       {
         title: "Hoàn thành",
         value: completed,
         subtitle: "Đã kết thúc chương trình",
         icon: CheckCircle2,
-        color: "from-red-500 to-red-600",
+        color: "from-amber-600 to-orange-600",
       },
     ];
   }, [summaryRows]);
@@ -1637,22 +1652,20 @@ export default function StaffRegistrationOverview({
           return (
             <div
               key={item.title}
-              className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-300 hover:border-red-300 hover:shadow-md"
+              className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102"
             >
-              <div
-                className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-5 blur-xl bg-linear-to-r ${item.color}`}
-              />
-              <div className="relative flex items-center justify-between gap-3">
+              <div className={`absolute right-0 top-0 h-12 w-12 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r from-red-600 to-red-700`} />
+              <div className="relative flex items-center gap-3">
                 <div
-                  className={`rounded-xl bg-linear-to-r ${item.color} p-2 text-white shadow-sm`}
+                  className={`rounded-xl bg-gradient-to-br ${item.color} p-2 text-white shadow-sm flex-shrink-0`}
                 >
                   <Icon size={20} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-xs font-medium text-gray-600">
+                  <div className="truncate text-sm font-medium text-gray-600">
                     {item.title}
                   </div>
-                  <div className="leading-tight text-xl font-bold text-gray-900">
+                  <div className="leading-tight text-2xl font-bold text-gray-900">
                     {item.value}
                   </div>
                   <div className="truncate text-[11px] text-gray-500">
@@ -1681,7 +1694,7 @@ export default function StaffRegistrationOverview({
       <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50/30 shadow-sm overflow-hidden">
         <div className="bg-linear-to-r from-red-500/10 to-red-700/10 border-b border-red-200 px-6 py-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900">
+            <h3 className="text font-semibold text-gray-900">
               Danh sách Đăng ký
             </h3>
             <button
@@ -1701,13 +1714,17 @@ export default function StaffRegistrationOverview({
           <table className="w-full min-w-220">
             <thead className="bg-linear-to-r from-red-500/5 to-red-700/5 border-b border-red-200 text-left text-xs  tracking-wide text-gray-600">
               <tr>
-                <SortHeader label="Học viên" keyName="studentName" />
-                <SortHeader label="Chương trình" keyName="programName" />
-                <SortHeader label="Gói học" keyName="tuitionPlanName" />
+                <SortHeader label="Học viên" keyName="studentName"  />
+                <SortHeader label="Chương trình" keyName="programName"  />
+                <SortHeader label="Gói học" keyName="tuitionPlanName"  />
                 <SortHeader label="Lớp" keyName="className" />
-                <SortHeader label="Trạng thái" keyName="status" />
-                <SortHeader label="Ngày tạo" keyName="createdAt" />
-                <th className="text-center px-4 py-3">Thao tác</th>
+                <SortHeader label="Trạng thái" keyName="status"  />
+                <SortHeader label="Ngày tạo" keyName="createdAt"  />
+                <th className="text-center px-4 py-3">
+                  <div className="inline-flex items-center gap-1.5 text-sm tracking-wide font-semibold text-gray-600">
+                    Thao tác
+                  </div>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -1738,28 +1755,53 @@ export default function StaffRegistrationOverview({
                     key={row.id}
                     className="border-t border-red-100 text-sm text-gray-800 hover:bg-red-50/30"
                   >
-                    <td className="px-4 py-3 font-medium text-gray-900">
-                      {row.studentName || "-"}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center text-sm justify-center h-8 w-8 rounded-xl bg-red-600 text-white  font-semibold flex-shrink-0">
+                          {getStudentInitials(row.studentName)}
+                        </div>
+                        <span className="font-medium text-gray-900">
+                          {row.studentName || "-"}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 font-medium">
+                      <div className="flex items-center gap-1.5">
+                        <BookOpen size={14} className="text-red-600 flex-shrink-0" />
+                        {row.secondaryProgramName
+                          ? `${row.programName || "-"} • ${row.secondaryProgramName}`
+                          : row.programName || "-"}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 font-medium">
+                      <div className="flex items-center gap-1.5">
+                        <Package size={14} className="text-red-600 flex-shrink-0" />
+                        {row.tuitionPlanName || "-"}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 font-medium">
+                      <div className="flex items-center gap-1.5">
+                        <Building2 size={14} className="text-red-600 flex-shrink-0" />
+                        {row.secondaryClassName
+                          ? `${row.className || "Chưa xếp lớp"} • ${row.secondaryClassName}`
+                          : row.className || "Chưa xếp lớp"}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
-                      {row.secondaryProgramName
-                        ? `${row.programName || "-"} • ${row.secondaryProgramName}`
-                        : row.programName || "-"}
-                    </td>
-                    <td className="px-4 py-3">{row.tuitionPlanName || "-"}</td>
-                    <td className="px-4 py-3">
-                      {row.secondaryClassName
-                        ? `${row.className || "Chưa xếp lớp"} • ${row.secondaryClassName}`
-                        : row.className || "Chưa xếp lớp"}
+                      <div className="inline-flex items-center gap-1.5">
+                        <span
+                          className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusClass(row.status)}`}
+                        >
+                          {statusLabel(row.status)}
+                        </span>
+                      </div>
                     </td>
                     <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusClass(row.status)}`}
-                      >
-                        {statusLabel(row.status)}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <Calendar size={14} className="text-red-600 flex-shrink-0" />
+                        {toDate(row.createdAt)}
+                      </div>
                     </td>
-                    <td className="px-4 py-3">{toDate(row.createdAt)}</td>
                     <td className="px-4 py-3 text-center">
                       <div className="inline-flex items-center gap-1.5">
                         <button
@@ -1768,7 +1810,7 @@ export default function StaffRegistrationOverview({
                           title="Xem chi tiết"
                           className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
                         >
-                          <Eye size={12} />
+                          <Eye size={14} />
                         </button>
                         <button
                           type="button"
@@ -1778,7 +1820,7 @@ export default function StaffRegistrationOverview({
                           hidden={!canOpenEnrollmentPdf(row)}
                           aria-hidden={!canOpenEnrollmentPdf(row)}
                         >
-                          <FileText size={12} />
+                          <FileText size={14} />
                         </button>
                         {(!row.classId || row.status === "WaitingForClass" || row.status === "New") && (
                           <button
@@ -1787,10 +1829,9 @@ export default function StaffRegistrationOverview({
                             title="Gợi ý và xếp lớp"
                             className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
                           >
-                            <Users size={12} />
+                            <Users size={14} />
                           </button>
                         )}
-
                         {row.status !== "Cancelled" && (
                           <button
                             type="button"
@@ -1798,7 +1839,7 @@ export default function StaffRegistrationOverview({
                             title="Cập nhật gói học"
                             className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
                           >
-                            <Rocket size={12} />
+                            <Rocket size={14} />
                           </button>
                         )}
 
@@ -1809,7 +1850,7 @@ export default function StaffRegistrationOverview({
                             title="Chuyển lớp"
                             className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
                           >
-                            <ArrowRightLeft size={12} />
+                            <ArrowRightLeft size={14} />
                           </button>
                         )}
 
@@ -1820,7 +1861,7 @@ export default function StaffRegistrationOverview({
                             title="Hủy đăng ký"
                             className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
                           >
-                            <XCircle size={12} />
+                            <XCircle size={14} />
                           </button>
                         )}
                       </div>

@@ -197,7 +197,7 @@ export default function PlacementTestTable({
       {/* Header */}
       <div className="bg-linear-to-r from-red-500/10 to-red-700/10 border-b border-red-200 px-6 py-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">
+          <h3 className="text font-semibold text-gray-900">
             Danh sách kiểm tra đầu vào
           </h3>
           <div className="flex items-center gap-3">
@@ -304,7 +304,7 @@ export default function PlacementTestTable({
                 {/* Tên trẻ */}
                 <td className="py-4 px-6">
                   <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 rounded-lg bg-linear-to-r from-red-600 to-red-700 flex items-center justify-center text-white font-semibold text-xs">
+                    <div className="h-8 w-8 rounded-lg bg-linear-to-r from-red-600 to-red-700 flex items-center justify-center text-white font-semibold text-sm">
                       {test.childName
                         ? test.childName
                             .split(" ")
@@ -315,7 +315,7 @@ export default function PlacementTestTable({
                         : "??"}
                     </div>
                     <div>
-                      <div className="font-medium text-gray-900">
+                      <div className="text-sm font-medium text-gray-900">
                         {test.childName || "N/A"}
                       </div>
                     </div>
@@ -326,7 +326,7 @@ export default function PlacementTestTable({
                 <td className="py-4 px-6">
                   <div className="flex items-center gap-2">
                     <User size={14} className="text-red-600 flex-shrink-0" />
-                    <div className="font-medium text-gray-700">
+                    <div className="text-sm font-medium text-gray-700">
                       {test.leadContactName || "N/A"}
                     </div>
                   </div>
@@ -334,7 +334,7 @@ export default function PlacementTestTable({
 
                 {/* Thời gian */}
                 <td className="py-4 px-6">
-                  <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                  <div className="flex items-center font-medium gap-1.5 text-sm text-gray-600">
                     <Calendar size={14} className="text-red-600" />
                     <span>{formatTableScheduledAt(test.scheduledAt)}</span>
                   </div>
@@ -352,7 +352,7 @@ export default function PlacementTestTable({
                       <div className="h-6 w-6 rounded-full bg-linear-to-r from-red-500 to-red-600 flex items-center justify-center text-white text-xs font-semibold">
                         {test.invigilatorName.split(" ").pop()?.[0] || "N"}
                       </div>
-                      <span className="font-medium text-gray-900">
+                      <span className="text-sm font-medium text-gray-900">
                         {test.invigilatorName}
                       </span>
                     </div>

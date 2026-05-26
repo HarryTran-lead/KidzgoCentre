@@ -300,7 +300,7 @@ export default function RegistrationCompletionPdfModal({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Left sidebar - Registration info */}
-        <div className="hidden md:flex w-85 flex-col border-r border-gray-200 bg-gray-50">
+        <div className="hidden md:flex w-90 flex-col border-r border-gray-200 bg-gray-50">
           {/* Header */}
           <div className="bg-linear-to-r from-red-600 to-red-700 px-5 py-4">
             <h3 className="text-base font-semibold text-white">

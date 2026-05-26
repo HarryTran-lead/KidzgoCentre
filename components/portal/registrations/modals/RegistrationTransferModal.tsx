@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Loader2, X } from "lucide-react";
+import { Building2, Calendar, Clock, Filter, Loader2, Share2, X } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -56,7 +56,9 @@ const RRULE_DAY_LABELS: Record<string, string> = {
 };
 
 function normalizeRRuleDay(value?: string): string {
-  const raw = String(value || "").trim().toUpperCase();
+  const raw = String(value || "")
+    .trim()
+    .toUpperCase();
   const map: Record<string, string> = {
     MO: "MO",
     MON: "MO",
@@ -121,10 +123,14 @@ function buildPreviewFromWeeklyPattern(value?: WeeklyPatternEntry[]): string[] {
     .flatMap((entry) => {
       const time = normalizeTime(entry?.startTime);
       const days = Array.isArray(entry?.dayOfWeeks)
-        ? entry.dayOfWeeks.map((day) => normalizeRRuleDay(String(day))).filter(Boolean)
+        ? entry.dayOfWeeks
+            .map((day) => normalizeRRuleDay(String(day)))
+            .filter(Boolean)
         : [];
       if (!time || days.length === 0) return [] as string[];
-      return days.map((dayCode) => `${RRULE_DAY_LABELS[dayCode] || dayCode} • ${time}`);
+      return days.map(
+        (dayCode) => `${RRULE_DAY_LABELS[dayCode] || dayCode} • ${time}`,
+      );
     })
     .filter(Boolean);
 
@@ -141,7 +147,9 @@ function buildPreviewFromScheduleText(value?: string): string[] {
     .filter(Boolean)
     .map((chunk) => {
       const day = extractRRuleDayFromText(chunk);
-      const timeMatch = chunk.match(/(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})?/);
+      const timeMatch = chunk.match(
+        /(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})?/,
+      );
       const startTime = normalizeTime(timeMatch?.[1]);
       return {
         day,
@@ -149,7 +157,9 @@ function buildPreviewFromScheduleText(value?: string): string[] {
       };
     })
     .filter((item) => item.day && item.startTime)
-    .map((item) => `${RRULE_DAY_LABELS[item.day] || item.day} • ${item.startTime}`);
+    .map(
+      (item) => `${RRULE_DAY_LABELS[item.day] || item.day} • ${item.startTime}`,
+    );
 
   return Array.from(new Set(chunks));
 }
@@ -173,10 +183,13 @@ export default function RegistrationTransferModal({
   isTransferring,
   onConfirmTransfer,
 }: RegistrationTransferModalProps) {
-  const [selectedScheduleKeys, setSelectedScheduleKeys] = useState<string[]>([]);
+  const [selectedScheduleKeys, setSelectedScheduleKeys] = useState<string[]>(
+    [],
+  );
 
   const selectedTransferClass = useMemo(
-    () => transferClassOptions.find((item) => item.id === transferClassId) ?? null,
+    () =>
+      transferClassOptions.find((item) => item.id === transferClassId) ?? null,
     [transferClassId, transferClassOptions],
   );
   const hasEnabledTransferOption = useMemo(
@@ -190,30 +203,34 @@ export default function RegistrationTransferModal({
 
   const scheduleOptions = useMemo(() => {
     const fromWeeklyPattern =
-      selectedTransferClass?.defaultWeeklyPattern
-        ?.flatMap((entry) => {
-          const time = normalizeTime(entry?.startTime);
-          const durationRaw = Number(entry?.durationMinutes);
-          const durationMinutes =
-            Number.isFinite(durationRaw) && durationRaw > 0 ? Math.floor(durationRaw) : 90;
-          const days = Array.isArray(entry?.dayOfWeeks)
-            ? entry.dayOfWeeks.map((day) => normalizeRRuleDay(String(day))).filter(Boolean)
-            : [];
-          if (!time || days.length === 0) return [] as Array<{
+      selectedTransferClass?.defaultWeeklyPattern?.flatMap((entry) => {
+        const time = normalizeTime(entry?.startTime);
+        const durationRaw = Number(entry?.durationMinutes);
+        const durationMinutes =
+          Number.isFinite(durationRaw) && durationRaw > 0
+            ? Math.floor(durationRaw)
+            : 90;
+        const days = Array.isArray(entry?.dayOfWeeks)
+          ? entry.dayOfWeeks
+              .map((day) => normalizeRRuleDay(String(day)))
+              .filter(Boolean)
+          : [];
+        if (!time || days.length === 0)
+          return [] as Array<{
             key: string;
             dayCode: string;
             time: string;
             durationMinutes: number;
             label: string;
           }>;
-          return days.map((dayCode) => ({
-            key: `${dayCode}|${time}`,
-            dayCode,
-            time,
-            durationMinutes,
-            label: `${RRULE_DAY_LABELS[dayCode] || dayCode} • ${time}`,
-          }));
-        }) || [];
+        return days.map((dayCode) => ({
+          key: `${dayCode}|${time}`,
+          dayCode,
+          time,
+          durationMinutes,
+          label: `${RRULE_DAY_LABELS[dayCode] || dayCode} • ${time}`,
+        }));
+      }) || [];
 
     if (fromWeeklyPattern.length > 0) {
       return Array.from(
@@ -253,10 +270,17 @@ export default function RegistrationTransferModal({
       }
     }
 
-    const fromScheduleText = buildPreviewFromScheduleText(selectedTransferClass?.schedule)
+    const fromScheduleText = buildPreviewFromScheduleText(
+      selectedTransferClass?.schedule,
+    )
       .map((line) => {
-        const [dayLabelRaw, timeRaw] = line.split("•").map((part) => part.trim());
-        const dayCode = Object.entries(RRULE_DAY_LABELS).find(([, label]) => label === dayLabelRaw)?.[0] || "";
+        const [dayLabelRaw, timeRaw] = line
+          .split("•")
+          .map((part) => part.trim());
+        const dayCode =
+          Object.entries(RRULE_DAY_LABELS).find(
+            ([, label]) => label === dayLabelRaw,
+          )?.[0] || "";
         const time = normalizeTime(timeRaw);
         if (!dayCode || !time) return null;
         return {
@@ -269,8 +293,14 @@ export default function RegistrationTransferModal({
       })
       .filter((item): item is NonNullable<typeof item> => Boolean(item));
 
-    return Array.from(new Map(fromScheduleText.map((item) => [item.key, item])).values());
-  }, [computedSessionPattern, selectedTransferClass?.defaultWeeklyPattern, selectedTransferClass?.schedule]);
+    return Array.from(
+      new Map(fromScheduleText.map((item) => [item.key, item])).values(),
+    );
+  }, [
+    computedSessionPattern,
+    selectedTransferClass?.defaultWeeklyPattern,
+    selectedTransferClass?.schedule,
+  ]);
 
   useEffect(() => {
     if (!transferClassId || scheduleOptions.length === 0) {
@@ -286,11 +316,17 @@ export default function RegistrationTransferModal({
   }, [transferClassId, scheduleOptions]);
 
   const selectedWeeklyPattern = useMemo(() => {
-    if (scheduleOptions.length === 0 || selectedScheduleKeys.length === 0) return [] as WeeklyPatternEntry[];
-    const selected = scheduleOptions.filter((item) => selectedScheduleKeys.includes(item.key));
+    if (scheduleOptions.length === 0 || selectedScheduleKeys.length === 0)
+      return [] as WeeklyPatternEntry[];
+    const selected = scheduleOptions.filter((item) =>
+      selectedScheduleKeys.includes(item.key),
+    );
     if (selected.length === 0) return [];
 
-    const grouped = new Map<string, { dayOfWeeks: string[]; startTime: string; durationMinutes: number }>();
+    const grouped = new Map<
+      string,
+      { dayOfWeeks: string[]; startTime: string; durationMinutes: number }
+    >();
     selected.forEach((item) => {
       const groupKey = `${item.time}|${item.durationMinutes}`;
       const existing = grouped.get(groupKey);
@@ -314,7 +350,9 @@ export default function RegistrationTransferModal({
         startTime: entry.startTime,
         durationMinutes: entry.durationMinutes,
       }))
-      .filter((entry) => entry.dayOfWeeks.length > 0 && Boolean(entry.startTime));
+      .filter(
+        (entry) => entry.dayOfWeeks.length > 0 && Boolean(entry.startTime),
+      );
   }, [scheduleOptions, selectedScheduleKeys]);
 
   const schedulePreview = useMemo(
@@ -345,7 +383,12 @@ export default function RegistrationTransferModal({
       const [hourRaw, minuteRaw] = String(entry.startTime || "").split(":");
       const hour = Number(hourRaw || "");
       const minute = Number(minuteRaw || "");
-      if (!Number.isNaN(hour) && !Number.isNaN(minute) && Array.isArray(entry.dayOfWeeks) && entry.dayOfWeeks.length > 0) {
+      if (
+        !Number.isNaN(hour) &&
+        !Number.isNaN(minute) &&
+        Array.isArray(entry.dayOfWeeks) &&
+        entry.dayOfWeeks.length > 0
+      ) {
         setTransferSessionPattern(
           `FREQ=WEEKLY;BYDAY=${entry.dayOfWeeks.join(",")};BYHOUR=${hour};BYMINUTE=${minute}`,
         );
@@ -365,7 +408,13 @@ export default function RegistrationTransferModal({
         setTransferSessionPattern("");
       }
     }
-  }, [transferClassId, transferWeeklyPattern, transferSessionPattern, setTransferWeeklyPattern, setTransferSessionPattern]);
+  }, [
+    transferClassId,
+    transferWeeklyPattern,
+    transferSessionPattern,
+    setTransferWeeklyPattern,
+    setTransferSessionPattern,
+  ]);
 
   if (!isOpen) return null;
   if (typeof window === "undefined") return null;
@@ -379,13 +428,25 @@ export default function RegistrationTransferModal({
         className="max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between bg-linear-to-r from-red-600 to-red-700 px-5 py-3 text-white">
-          <h3 className="text-lg font-semibold">Chuyển lớp cùng trình độ</h3>
+        <div className="flex items-center justify-between bg-linear-to-r from-red-600 to-red-700 px-6 py-4 text-white">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
+              <Share2 size={20} />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold">
+                Chuyển lớp cùng trình độ
+              </h3>
+              <p className="text-sm text-red-100">
+                Chuyển học viên sang lớp khác
+              </p>
+            </div>
+          </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1 hover:bg-white/15"        
-            aria-label="Dong"
+            className="rounded-lg p-1 hover:bg-white/15"
+            aria-label="Đóng"
           >
             <X size={18} />
           </button>
@@ -393,9 +454,13 @@ export default function RegistrationTransferModal({
 
         <div className="space-y-4 p-5">
           <div className="rounded-xl border border-red-100 bg-red-50/60 p-3 text-sm text-gray-700">
-            <p className="font-semibold text-gray-900">Tên học viên: {selectedRegistration?.studentName || "Không có thông tin"}</p>
+            <p className="font-semibold text-gray-900">
+              Tên học viên:{" "}
+              {selectedRegistration?.studentName || "Không có thông tin"}
+            </p>
             <p>
-              Lớp học hiện tại: {selectedRegistration?.className || "Chưa có lớp"}
+              Lớp học hiện tại:{" "}
+              {selectedRegistration?.className || "Chưa có lớp"}
               {selectedRegistration?.secondaryClassName
                 ? ` • Chương trình song song: ${selectedRegistration.secondaryClassName}`
                 : ""}
@@ -404,17 +469,24 @@ export default function RegistrationTransferModal({
 
           {selectedRegistration?.secondaryClassId && (
             <div className="space-y-1">
-              <label className="text-sm font-medium text-gray-700">Chương trình cần chuyển lớp</label>
+              <div className="flex items-center gap-2">
+                <Filter size={16} className="text-red-600" />
+                <label className="text-sm font-medium text-gray-700">Chương trình cần chuyển lớp</label>
+              </div>
               <Select
                 value={transferTrack}
-                onValueChange={(value) => setTransferTrack(value as RegistrationTrackType)}
+                onValueChange={(value) =>
+                  setTransferTrack(value as RegistrationTrackType)
+                }
               >
                 <SelectTrigger className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100">
                   <SelectValue placeholder="Chọn chương trình cần chuyển" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="primary">Chương trình chính</SelectItem>
-                  <SelectItem value="secondary">Chương trình song song</SelectItem>
+                  <SelectItem value="secondary">
+                    Chương trình song song
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -422,7 +494,10 @@ export default function RegistrationTransferModal({
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <div className="space-y-1">
-              <label className="text-sm font-medium text-gray-700">Lớp mới cùng trình độ</label>
+              <div className="flex items-center gap-2">
+                <Building2 size={16} className="text-red-600" />
+                <label className="text-sm font-semibold text-gray-900">Lớp mới cùng trình độ</label>
+              </div>
               <Select
                 value={transferClassId || "__none__"}
                 onValueChange={(value) =>
@@ -434,10 +509,17 @@ export default function RegistrationTransferModal({
                   <SelectValue placeholder="Chọn lớp mới cùng trình độ" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__">Chọn lớp mới cùng trình độ</SelectItem>
+                  <SelectItem value="__none__">
+                    Chọn lớp mới cùng trình độ
+                  </SelectItem>
                   {transferClassOptions.map((item) => (
-                    <SelectItem key={item.id} value={item.id} disabled={Boolean(item.disabled)}>
-                      {item.name} • Còn chỗ: {item.remainingSlots ?? "-"} • Lịch: {item.schedule || "Chưa có"}
+                    <SelectItem
+                      key={item.id}
+                      value={item.id}
+                      disabled={Boolean(item.disabled)}
+                    >
+                      {item.name} • Còn chỗ: {item.remainingSlots ?? "-"} •
+                      Lịch: {item.schedule || "Chưa có"}
                       {item.disabledReason ? ` • ${item.disabledReason}` : ""}
                     </SelectItem>
                   ))}
@@ -445,7 +527,8 @@ export default function RegistrationTransferModal({
               </Select>
               {isLoadingTransferClasses ? (
                 <p className="inline-flex items-center gap-2 text-xs text-gray-500">
-                  <Loader2 size={12} className="animate-spin" /> Đang tải danh sách lớp...
+                  <Loader2 size={12} className="animate-spin" /> Đang tải danh
+                  sách lớp...
                 </p>
               ) : !transferClassOptions.length ? (
                 <p className="text-xs text-amber-700">
@@ -453,13 +536,17 @@ export default function RegistrationTransferModal({
                 </p>
               ) : !hasEnabledTransferOption ? (
                 <p className="text-xs text-amber-700">
-                  Các lớp cùng chương trình hiện không khả dụng để chuyển (đã hủy hoặc hết chỗ).
+                  Các lớp cùng chương trình hiện không khả dụng để chuyển (đã
+                  hủy hoặc hết chỗ).
                 </p>
               ) : null}
             </div>
 
             <div className="space-y-1">
-              <label className="text-sm font-medium text-gray-700">Ngày bắt đầu</label>
+              <div className="flex items-center gap-2">
+                <Calendar size={16} className="text-red-600" />
+                <label className="text-sm font-semibold text-gray-900">Ngày bắt đầu</label>
+              </div>
               <input
                 type="datetime-local"
                 value={transferEffectiveDate}
@@ -470,18 +557,22 @@ export default function RegistrationTransferModal({
           </div>
 
           <div className="rounded-2xl border border-red-100 p-4">
-            <div className="mb-3 text-lg font-semibold text-gray-800">Lịch học mong muốn</div>
+            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-900">
+              <Clock size={16} className="text-red-600" />
+              Lịch học mong muốn
+            </div>
             <div className="space-y-3 rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-3">
               {!transferClassId ? (
-                <div className="rounded-lg border border-dashed border-gray-200 bg-white px-3 py-2 text-xs text-gray-500">
+                <div className="rounded-lg border border-dashed border-gray-200 bg-white px-3 py-2 text-sm text-gray-500">
                   Chọn lớp mới để xem lịch học áp dụng.
                 </div>
               ) : schedulePreview.length > 0 ? (
                 <>
-                  
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {scheduleOptions.map((item) => {
-                      const isSelected = selectedScheduleKeys.includes(item.key);
+                      const isSelected = selectedScheduleKeys.includes(
+                        item.key,
+                      );
                       return (
                         <button
                           key={item.key}
@@ -504,29 +595,31 @@ export default function RegistrationTransferModal({
                 </>
               ) : (
                 <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                  Lớp đã chọn chưa có dữ liệu lịch chuẩn. Vui lòng kiểm tra lịch lớp trước khi chuyển.
+                  Lớp đã chọn chưa có dữ liệu lịch chuẩn. Vui lòng kiểm tra lịch
+                  lớp trước khi chuyển.
                 </div>
               )}
             </div>
           </div>
-
-          <div className="flex justify-end gap-2 pt-1">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-            >
-              Đóng
-            </button>
-            <button
-              type="button"
-              onClick={onConfirmTransfer}
-              disabled={!transferClassId || isTransferring || isLoadingTransferClasses}
-              className="rounded-xl bg-linear-to-r from-red-600 to-rose-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isTransferring ? "Đang chuyển lớp..." : "Xác nhận chuyển lớp"}
-            </button>
-          </div>
+        </div>
+        <div className="flex justify-end gap-2 border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer"
+          >
+            Đóng
+          </button>
+          <button
+            type="button"
+            onClick={onConfirmTransfer}
+            disabled={
+              !transferClassId || isTransferring || isLoadingTransferClasses
+            }
+            className="rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60 hover:shadow-lg hover:shadow-red-500/25 cursor-pointer"
+          >
+            {isTransferring ? "Đang chuyển lớp..." : "Xác nhận chuyển lớp"}
+          </button>
         </div>
       </div>
     </div>,

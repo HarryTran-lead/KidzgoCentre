@@ -131,7 +131,7 @@ export default function LeadTable({
     <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50/30 shadow-sm overflow-hidden">
       <div className="bg-linear-to-r from-red-500/10 to-red-700/10 border-b border-red-200 px-6 py-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">Danh sách khách hàng tiềm năng</h3>
+          <h3 className="text font-semibold text-gray-900">Danh sách khách hàng tiềm năng</h3>
           {onRefresh && (
             <button
               type="button"
@@ -210,11 +210,11 @@ export default function LeadTable({
                 <td className="py-4 px-6">
                   <div className="space-y-1 min-w-55">
                     <div className="flex items-center gap-2">
-                      <div className="h-8 w-8 rounded-lg bg-linear-to-r from-red-600 to-red-700 flex items-center justify-center text-white font-semibold text-xs">
+                      <div className="h-8 w-8 rounded-lg bg-linear-to-r from-red-600 to-red-700 flex items-center justify-center text-white font-semibold text-sm">
                         {lead.contactName ? lead.contactName.split(" ").map(word => word[0]).join("").toUpperCase().slice(0, 2) : "??"}
                       </div>
                       <div>
-                        <div className="font-medium text-gray-900">{lead.contactName || "Không có tên"}</div>
+                        <div className="text-sm font-medium text-gray-900">{lead.contactName || "Không có tên"}</div>
                       </div>
                     </div>
                     {lead.createdAt && (
@@ -235,7 +235,7 @@ export default function LeadTable({
                     {lead.email ? (
                       <div className="flex items-center gap-2 text-sm text-gray-700">
                         <Mail size={14} className="text-red-600" />
-                        <span className="truncate max-w-65">{lead.email}</span>
+                        <span className="truncate max-w-65 font-medium">{lead.email}</span>
                       </div>
                     ) : (
                       <div className="text-sm text-gray-400">Không có email</div>
@@ -245,7 +245,7 @@ export default function LeadTable({
 
                 <td className="py-4 px-6">
                   <span
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-linear-to-r border ${
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-medium bg-linear-to-r border ${
                       sourceColorMap[lead.source || "Default"] || sourceColorMap.Default
                     }`}
                   >
@@ -259,7 +259,7 @@ export default function LeadTable({
                       <div className="h-6 w-6 rounded-full bg-linear-to-r from-red-500 to-red-600 flex items-center justify-center text-white text-xs font-semibold">
                         {lead.ownerStaffName.split(" ").pop()?.[0] || "N"}
                       </div>
-                      <span className="font-medium text-gray-900">{lead.ownerStaffName}</span>
+                      <span className="text-sm font-medium text-gray-900">{lead.ownerStaffName}</span>
                     </div>
                   ) : (
                     <span className="text-sm text-gray-400">Chưa phân công</span>
