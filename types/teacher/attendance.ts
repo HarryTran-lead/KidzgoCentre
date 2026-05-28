@@ -52,6 +52,8 @@ export type LessonDetail = {
   moduleName?: string | null;
   moduleId?: string | null;
   lessonPlanTemplateId?: string | null;
+  plannedLessonPlanTemplateId?: string | null;
+  actualLessonPlanTemplateId?: string | null;
   teachingLogStatus?: string | null;
   teachingProgressStatus?: string | null;
 };
@@ -126,6 +128,8 @@ export type SessionApiItem = {
   moduleId?: string | null;
   moduleName?: string | null;
   lessonPlanTemplateId?: string | null;
+  plannedLessonPlanTemplateId?: string | null;
+  actualLessonPlanTemplateId?: string | null;
   sessionIndexInModule?: number | null;
   plannedLessonTitle?: string | null;
   actualLessonTitle?: string | null;

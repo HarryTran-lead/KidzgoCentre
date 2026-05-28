@@ -645,6 +645,23 @@ export default function ClassDetailPage() {
                       <span className="font-medium">Chương trình:</span>
                       <span className="font-semibold">{classData.program}</span>
                     </span>
+                    {(classData.syllabusCode ||
+                      classData.syllabusVersion ||
+                      classData.syllabusTitle) && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 rounded-lg text-gray-700 max-w-full">
+                        <Layers size={14} className="text-emerald-500" />
+                        <span className="font-medium">Syllabus:</span>
+                        <span className="font-semibold truncate">
+                          {[
+                            classData.syllabusCode,
+                            classData.syllabusVersion,
+                            classData.syllabusTitle,
+                          ]
+                            .filter(Boolean)
+                            .join(" - ")}
+                        </span>
+                      </span>
+                    )}
                     <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 rounded-lg text-gray-700">
                       <Calendar size={14} className="text-amber-500" />
                       <span className="font-medium">Số buổi:</span>

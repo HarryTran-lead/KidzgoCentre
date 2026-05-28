@@ -330,7 +330,14 @@ function mapSessionToLesson(session: SessionApiItem): { lesson: LessonDetail; at
     sessionIndexInModule: session?.sessionIndexInModule ?? null,
     moduleName: session?.moduleName ?? null,
     moduleId: session?.moduleId ?? null,
-    lessonPlanTemplateId: session?.lessonPlanTemplateId ?? null,
+    lessonPlanTemplateId:
+      (session as any)?.lessonPlanTemplateId ??
+      (session as any)?.plannedLessonPlanTemplateId ??
+      (session as any)?.actualLessonPlanTemplateId ??
+      (session as any)?.templateId ??
+      null,
+    plannedLessonPlanTemplateId: (session as any)?.plannedLessonPlanTemplateId ?? null,
+    actualLessonPlanTemplateId: (session as any)?.actualLessonPlanTemplateId ?? null,
     teachingLogStatus: session?.teachingLogStatus ?? null,
     teachingProgressStatus: session?.teachingProgressStatus ?? null,
   };

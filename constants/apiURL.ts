@@ -2,12 +2,17 @@
 // On server, fallback to BACKEND_API_BASE_URL (and a final hard fallback)
 // so Next API routes still work when NEXT_PUBLIC_API_URL is missing in deployment.
 const PUBLIC_API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
-const SERVER_API_FALLBACK = (
-  process.env.BACKEND_API_BASE_URL ?? "http://103.146.22.206:5000/api"
+const SERVER_API_FALLBACK = "http://103.146.22.206:5000/api";
+const SERVER_API_BASE_URL = (
+  (process.env.BACKEND_API_BASE_URL ?? "") ||
+  PUBLIC_API_URL ||
+  SERVER_API_FALLBACK
 ).replace(/\/$/, "");
 
 export const BASE_URL =
-  PUBLIC_API_URL || (typeof window === "undefined" ? SERVER_API_FALLBACK : "");
+  typeof window === "undefined"
+    ? SERVER_API_BASE_URL
+    : PUBLIC_API_URL;
 
 // (Optional) root base nếu BASE_URL đang là .../api
 const ROOT_BASE_URL = BASE_URL.replace(/\/api\/?$/, "");
@@ -189,6 +194,18 @@ export const CLASS_ENDPOINTS = {
 export const SYLLABUS_ENDPOINTS = {
   BASE: '/api/syllabuses',
   BY_ID: (id: string) => `/api/syllabuses/${id}`,
+  DOCUMENT: (id: string) => `/api/syllabuses/${id}/document`,
+  IMPORT_PREVIEW: '/api/syllabuses/import-preview',
+  IMPORT_COMMIT: '/api/syllabuses/import-commit',
+  METADATA: (id: string) => `/api/syllabuses/${id}/metadata`,
+  SECTIONS: (id: string) => `/api/syllabuses/${id}/sections`,
+  SECTION_BY_ID: (id: string, sectionId: string) => `/api/syllabuses/${id}/sections/${sectionId}`,
+  REORDER_SECTIONS: (id: string) => `/api/syllabuses/${id}/sections/reorder`,
+  TABLE_ROWS: (id: string, sectionId: string) => `/api/syllabuses/${id}/sections/${sectionId}/rows`,
+  TABLE_CELL: (id: string, sectionId: string, rowId: string, columnKey: string) =>
+    `/api/syllabuses/${id}/sections/${sectionId}/rows/${rowId}/cells/${columnKey}`,
+  PUBLISH: (id: string) => `/api/syllabuses/${id}/publish`,
+  ARCHIVE: (id: string) => `/api/syllabuses/${id}/archive`,
   UNIT_LESSON_PLANS: (id: string) => `/api/syllabuses/${id}/unit-lesson-plans`,
   IMPORT_WORD: '/api/syllabuses/import-word',
   IMPORT_ARCHIVE: '/api/syllabuses/import-archive',
@@ -230,6 +247,7 @@ export const SESSION_ENDPOINTS = {
 export const BACKEND_SESSION_ENDPOINTS = {
   GET_ALL: '/sessions',
   GET_BY_ID: (id: string) => `/sessions/${id}`,
+  LESSON_PLAN_DOCUMENT: (id: string) => `/sessions/${id}/lesson-plan-document`,
   CREATE: '/sessions',
   UPDATE: (id: string) => `/sessions/${id}`,
   DELETE: (id: string) => `/sessions/${id}`,
@@ -255,6 +273,18 @@ export const BACKEND_CLASS_ENDPOINTS = {
 export const BACKEND_SYLLABUS_ENDPOINTS = {
   BASE: '/syllabuses',
   BY_ID: (id: string) => `/syllabuses/${id}`,
+  DOCUMENT: (id: string) => `/syllabuses/${id}/document`,
+  IMPORT_PREVIEW: '/syllabuses/import-preview',
+  IMPORT_COMMIT: '/syllabuses/import-commit',
+  METADATA: (id: string) => `/syllabuses/${id}/metadata`,
+  SECTIONS: (id: string) => `/syllabuses/${id}/sections`,
+  SECTION_BY_ID: (id: string, sectionId: string) => `/syllabuses/${id}/sections/${sectionId}`,
+  REORDER_SECTIONS: (id: string) => `/syllabuses/${id}/sections/reorder`,
+  TABLE_ROWS: (id: string, sectionId: string) => `/syllabuses/${id}/sections/${sectionId}/rows`,
+  TABLE_CELL: (id: string, sectionId: string, rowId: string, columnKey: string) =>
+    `/syllabuses/${id}/sections/${sectionId}/rows/${rowId}/cells/${columnKey}`,
+  PUBLISH: (id: string) => `/syllabuses/${id}/publish`,
+  ARCHIVE: (id: string) => `/syllabuses/${id}/archive`,
   UNIT_LESSON_PLANS: (id: string) => `/syllabuses/${id}/unit-lesson-plans`,
   IMPORT_WORD: '/syllabuses/import-word',
   IMPORT_ARCHIVE: '/syllabuses/import-archive',
@@ -314,6 +344,7 @@ export const BRANCH_ENDPOINTS = {
   GET_ALL: '/api/branches',
   GET_ALL_PUBLIC: '/api/branches/all', // For all roles (staff, teacher, etc.)
   GET_BY_ID: (id: string) => `/api/branches/${id}`,
+  SYLLABUSES: (id: string) => `/api/branches/${id}/syllabuses`,
   CREATE: '/api/branches',
   UPDATE: (id: string) => `/api/branches/${id}`,
   DELETE: (id: string) => `/api/branches/${id}`,
@@ -324,6 +355,7 @@ export const BRANCH_ENDPOINTS = {
 export const BACKEND_BRANCH_ENDPOINTS = {
   GET_ALL: '/branches',
   GET_BY_ID: (id: string) => `/branches/${id}`,
+  SYLLABUSES: (id: string) => `/branches/${id}/syllabuses`,
   CREATE: '/branches',
   UPDATE: (id: string) => `/branches/${id}`,
   DELETE: (id: string) => `/branches/${id}`,

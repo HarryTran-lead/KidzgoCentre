@@ -4,9 +4,21 @@
  */
 
 import { getAccessToken } from "@/lib/store/authToken";
-import { ADMIN_ENDPOINTS } from "@/constants/apiURL";
+import { ADMIN_ENDPOINTS, BRANCH_ENDPOINTS } from "@/constants/apiURL";
 import { getAllBranches } from "@/lib/api/branchService";
 import type { ClassFormSelectData, SelectOption } from "@/types/admin/classFormData";
+
+export interface BranchSyllabusOption {
+  value: string;
+  label: string;
+  programId: string;
+  levelId: string;
+  curriculumAssignmentId: string;
+  syllabusId: string;
+  code: string;
+  version: string;
+  title: string;
+}
 
 async function fetchTeachersByBranch(branchId: string): Promise<SelectOption[]> {
   const token = getAccessToken();
@@ -76,6 +88,88 @@ export async function fetchProgramOptionsByBranch(
   branchId: string
 ): Promise<SelectOption[]> {
   return fetchProgramsByBranch(branchId);
+}
+
+function normalizeBranchSyllabusOption(item: any): BranchSyllabusOption | null {
+  const syllabusSource = item?.syllabus ?? item?.Syllabus ?? item;
+  const syllabusId = String(
+    syllabusSource?.id ??
+      syllabusSource?.Id ??
+      syllabusSource?.syllabusId ??
+      syllabusSource?.SyllabusId ??
+      item?.syllabusId ??
+      item?.SyllabusId ??
+      "",
+  ).trim();
+  if (!syllabusId) {
+    return null;
+  }
+
+  const code = String(
+    syllabusSource?.code ?? syllabusSource?.Code ?? item?.code ?? item?.Code ?? "",
+  ).trim();
+  const version = String(
+    syllabusSource?.version ?? syllabusSource?.Version ?? item?.version ?? item?.Version ?? "",
+  ).trim();
+  const title = String(
+    syllabusSource?.title ?? syllabusSource?.Title ?? item?.title ?? item?.Title ?? "",
+  ).trim();
+  const programId = String(
+    syllabusSource?.programId ??
+      syllabusSource?.ProgramId ??
+      item?.programId ??
+      item?.ProgramId ??
+      "",
+  ).trim();
+  const levelId = String(
+    syllabusSource?.levelId ??
+      syllabusSource?.LevelId ??
+      item?.levelId ??
+      item?.LevelId ??
+      "",
+  ).trim();
+
+  return {
+    value: syllabusId,
+    label: [code, version, title].filter(Boolean).join(" - ") || syllabusId,
+    programId,
+    levelId,
+    curriculumAssignmentId: String(
+      item?.curriculumAssignmentId ??
+        item?.CurriculumAssignmentId ??
+        ((item?.syllabus ?? item?.Syllabus) ? item?.id ?? item?.Id ?? "" : ""),
+    ).trim(),
+    syllabusId,
+    code,
+    version,
+    title,
+  };
+}
+
+export async function fetchSyllabusOptionsByBranch(
+  branchId: string,
+): Promise<BranchSyllabusOption[]> {
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại.");
+  }
+
+  const res = await fetch(BRANCH_ENDPOINTS.SYLLABUSES(branchId), {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const json = res.ok ? await res.json() : null;
+  const items: any[] =
+    (json?.data?.syllabuses as any[]) ??
+    (json?.data?.items as any[]) ??
+    (json?.data as any[]) ??
+    (Array.isArray(json) ? json : []);
+
+  return items
+    .map(normalizeBranchSyllabusOption)
+    .filter((item): item is BranchSyllabusOption => Boolean(item));
 }
 
 /**

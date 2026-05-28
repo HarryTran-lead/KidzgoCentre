@@ -172,3 +172,42 @@ html,body{ font-family: var(--font-sans); }
 .animate-fade-in-delay-3 {
   animation: fadeIn 0.6s ease-out 0.3s both;
 }
+
+.chart-recharts-theme .recharts-cartesian-axis-tick text {
+  fill: hsl(var(--muted-foreground));
+}
+
+.chart-recharts-theme .recharts-cartesian-grid line[stroke="#ccc"] {
+  stroke: hsl(var(--border));
+}
+
+@supports (color: color-mix(in lab, red, red)) {
+  .chart-recharts-theme .recharts-cartesian-grid line[stroke="#ccc"] {
+    stroke: color-mix(in oklab, hsl(var(--border)) 50%, transparent);
+  }
+}
+
+.chart-recharts-theme .recharts-curve.recharts-tooltip-cursor,
+.chart-recharts-theme .recharts-reference-line [stroke="#ccc"] {
+  stroke: hsl(var(--border));
+}
+
+.chart-recharts-theme .recharts-dot[stroke="#fff"],
+.chart-recharts-theme .recharts-sector[stroke="#fff"] {
+  stroke: transparent;
+}
+
+.chart-recharts-theme .recharts-layer,
+.chart-recharts-theme .recharts-sector,
+.chart-recharts-theme .recharts-surface {
+  outline: none;
+}
+
+.chart-recharts-theme .recharts-polar-grid [stroke="#ccc"] {
+  stroke: hsl(var(--border));
+}
+
+.chart-recharts-theme .recharts-radial-bar-background-sector,
+.chart-recharts-theme .recharts-rectangle.recharts-tooltip-cursor {
+  fill: hsl(var(--muted));
+}

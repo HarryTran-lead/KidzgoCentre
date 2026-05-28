@@ -9,6 +9,8 @@ import { useToast } from "@/hooks/use-toast";
 import { getAccessToken } from "@/lib/store/authToken";
 import { getLessonPlanTemplateById } from "@/lib/api/lessonPlanService";
 import type { LessonPlanTemplate } from "@/lib/api/lessonPlanService";
+import LessonPlanTemplateDocument from "@/components/lesson-plans/LessonPlanTemplateDocument";
+import SyllabusSummaryPanel from "@/components/lesson-plans/SyllabusSummaryPanel";
 import {
   ArrowLeft,
   BookOpen,
@@ -74,27 +76,6 @@ async function fetchTeachingLog(sessionId: string): Promise<TeachingLogData | nu
   } catch {
     return null;
   }
-}
-
-// ── Procedure parsing (mirrors lesson-plan-workspace.tsx) ─────────────────────
-function parseProcedureRows(text: string): { stage: string; step: string; details: string }[] {
-  if (!text?.trim()) return [];
-  const cleaned = text.replace(/^\s*Stages\s*\|\s*Step\s*\|\s*Details\s*/i, "").trim();
-  const rows: { stage: string; step: string; details: string }[] = [];
-  const rowRegex = /(\d+)\s*\|\s*([^|]+?)\s*\|\s*([\s\S]*?)(?=\s+\d+\s*\||\s*$)/g;
-  let m: RegExpExecArray | null;
-  while ((m = rowRegex.exec(cleaned)) !== null) {
-    rows.push({ stage: m[1].trim(), step: m[2].trim(), details: m[3].trim() });
-  }
-  return rows;
-}
-
-function formatDetailsText(text: string): string {
-  if (!text?.trim()) return text;
-  return text
-    .replace(/[ \t]+((?:I{1,3}|IV|VI{0,3}|IX|X{1,3}I{0,3}|X))\s*\.\s+/g, "\n$1. ")
-    .replace(/[ \t]+(\d+)\.\s+([A-Z*\-])/g, "\n$1. $2")
-    .trim();
 }
 
 const PROGRESS_STATUS_LABELS: Record<string, { label: string; color: string }> = {
@@ -168,7 +149,7 @@ function LessonPlanDrawer({
     >
       <div
         ref={drawerRef}
-        className="relative flex w-full max-w-3xl max-h-[90vh] flex-col bg-white shadow-2xl overflow-hidden rounded-2xl"
+        className="relative flex w-full max-w-6xl max-h-[90vh] flex-col bg-white shadow-2xl overflow-hidden rounded-2xl"
         style={{ animation: "scaleIn 0.18s ease-out" }}
       >
         {/* Header */}
@@ -178,7 +159,7 @@ function LessonPlanDrawer({
               <GraduationCap size={18} className="text-red-600" />
             </div>
             <div>
-              <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Giáo án buổi học</div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Lesson Plan / Giáo án buổi học</div>
               <div className="text-sm font-bold text-gray-900 line-clamp-1">
                 {lesson.plannedLessonTitle ?? lesson.lesson}
               </div>
@@ -211,206 +192,61 @@ function LessonPlanDrawer({
             )}
           </div>
 
-          {/* ── Curriculum Template (A–H document) ────────────────────────── */}
-          <section>
-            <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-              <FileText size={13} /> Giáo án dự kiến (curriculum)
-            </div>
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_320px]">
+            <section className="rounded-2xl border border-emerald-100 bg-white shadow-sm overflow-hidden">
+              <div className="border-b border-emerald-100 bg-gradient-to-r from-emerald-50 to-white px-5 py-4">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                  <FileText size={13} /> Lesson Plan / Giáo án
+                </div>
+                <p className="mt-2 text-sm text-gray-600">Nội dung chuẩn để admin đối chiếu buổi học với kế hoạch giảng dạy.</p>
+              </div>
 
-            {loadingTemplate ? (
-              <div className="flex items-center gap-2 text-sm text-gray-500 py-3">
-                <Loader2 size={14} className="animate-spin" /> Đang tải giáo án...
-              </div>
-            ) : !lesson.lessonPlanTemplateId ? (
-              <div className="rounded-xl border border-dashed border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 flex items-center gap-2">
-                <AlertCircle size={14} />
-                Buổi này chưa được gắn lesson plan template từ curriculum.
-              </div>
-            ) : !template ? (
-              <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
-                Không thể tải nội dung giáo án.
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm">
-                {/* Document header */}
-                <div className="px-6 py-4 bg-gradient-to-b from-gray-50 to-white border-b border-gray-200 text-center space-y-1">
-                  {(template.moduleName || template.moduleCode) && (
-                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-red-600">
-                      {template.moduleName || template.moduleCode}
-                    </div>
-                  )}
-                  <div className="text-base font-bold text-gray-900">{template.title}</div>
-                  <div className="text-xs text-gray-500 flex items-center justify-center gap-2 flex-wrap">
-                    <span>Lesson {template.sessionOrder ?? template.sessionIndex ?? "-"}</span>
-                    {template.moduleName && <span>• {template.moduleName}</span>}
-                    {template.programName && <span className="text-gray-400">• {template.programName}</span>}
+              <div className="p-5">
+                {loadingTemplate ? (
+                  <div className="flex items-center gap-2 text-sm text-gray-500 py-3">
+                    <Loader2 size={14} className="animate-spin" /> Đang tải lesson plan...
                   </div>
-                  {template.createdByName && (
-                    <div className="text-[11px] text-gray-400">Tạo bởi {template.createdByName}</div>
-                  )}
-                </div>
-
-                {/* A–H Sections */}
-                <div className="divide-y divide-gray-100">
-                  {/* A. Objectives */}
-                  {template.objectives && (
-                    <div className="flex">
-                      <div className="w-10 flex-shrink-0 flex items-start justify-center pt-4 bg-emerald-50/70 border-r border-emerald-100">
-                        <span className="text-xs font-extrabold text-emerald-700">A</span>
-                      </div>
-                      <div className="flex-1 px-4 py-3">
-                        <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-emerald-700 mb-1.5">Objectives</div>
-                        <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{template.objectives}</div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* B. Language Content */}
-                  {(template.languageContent || template.vocabulary || template.grammar) && (
-                    <div className="flex">
-                      <div className="w-10 flex-shrink-0 flex items-start justify-center pt-4 bg-blue-50/70 border-r border-blue-100">
-                        <span className="text-xs font-extrabold text-blue-700">B</span>
-                      </div>
-                      <div className="flex-1 px-4 py-3">
-                        <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-blue-700 mb-1.5">Language content</div>
-                        {template.languageContent && <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6 mb-1">{template.languageContent}</div>}
-                        {template.vocabulary && <div className="text-sm text-gray-700 mb-0.5"><span className="font-semibold text-blue-600">Vocabulary: </span>{template.vocabulary}</div>}
-                        {template.grammar && <div className="text-sm text-gray-700"><span className="font-semibold text-blue-600">Grammar: </span>{template.grammar}</div>}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* C. Teaching Methodology */}
-                  {template.teachingMethodology && (
-                    <div className="flex">
-                      <div className="w-10 flex-shrink-0 flex items-start justify-center pt-4 bg-orange-50/70 border-r border-orange-100">
-                        <span className="text-xs font-extrabold text-orange-700">C</span>
-                      </div>
-                      <div className="flex-1 px-4 py-3">
-                        <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-orange-700 mb-1.5">Teaching methodology</div>
-                        <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{template.teachingMethodology}</div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* D. Materials for teacher */}
-                  {template.teacherMaterials && (
-                    <div className="flex">
-                      <div className="w-10 flex-shrink-0 flex items-start justify-center pt-4 bg-amber-50/70 border-r border-amber-100">
-                        <span className="text-xs font-extrabold text-amber-700">D</span>
-                      </div>
-                      <div className="flex-1 px-4 py-3">
-                        <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-amber-700 mb-1.5">Materials for teacher</div>
-                        <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{template.teacherMaterials}</div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* E. Materials for students */}
-                  {template.studentMaterials && (
-                    <div className="flex">
-                      <div className="w-10 flex-shrink-0 flex items-start justify-center pt-4 bg-yellow-50/70 border-r border-yellow-100">
-                        <span className="text-xs font-extrabold text-yellow-600">E</span>
-                      </div>
-                      <div className="flex-1 px-4 py-3">
-                        <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-yellow-700 mb-1.5">Materials for students</div>
-                        <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{template.studentMaterials}</div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* F. Procedure */}
-                  {template.procedure && (
-                    <div className="flex">
-                      <div className="w-10 flex-shrink-0 flex items-start justify-center pt-4 bg-teal-50/70 border-r border-teal-100">
-                        <span className="text-xs font-extrabold text-teal-700">F</span>
-                      </div>
-                      <div className="flex-1 px-4 py-3">
-                        <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-teal-700 mb-2">Procedure</div>
-                        {(() => {
-                          const rows = parseProcedureRows(template.procedure!);
-                          if (rows.length === 0) return <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{template.procedure}</div>;
-                          return (
-                            <div className="rounded-xl border border-teal-200 overflow-hidden text-sm">
-                              <div className="grid grid-cols-[2.5rem_9rem_1fr] bg-teal-50 border-b border-teal-200 text-[11px] font-semibold text-teal-700">
-                                <div className="px-2 py-2 text-center border-r border-teal-200">Stages</div>
-                                <div className="px-3 py-2 text-center border-r border-teal-200">Step</div>
-                                <div className="px-3 py-2 text-left">Details</div>
-                              </div>
-                              <div className="divide-y divide-gray-100">
-                                {rows.map((row, i) => (
-                                  <div key={i} className={`grid grid-cols-[2.5rem_9rem_1fr] ${i % 2 === 0 ? "bg-white" : "bg-gray-50/50"}`}>
-                                    <div className="px-2 py-3 text-center font-bold text-gray-600 border-r border-gray-100">{row.stage}</div>
-                                    <div className="px-3 py-3 font-semibold text-gray-700 border-r border-gray-100 leading-5">{row.step}</div>
-                                    <div className="px-3 py-3 text-gray-700 leading-6 whitespace-pre-wrap">{formatDetailsText(row.details)}</div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* G. Evaluation */}
-                  {template.evaluation && (
-                    <div className="flex">
-                      <div className="w-10 flex-shrink-0 flex items-start justify-center pt-4 bg-red-50/70 border-r border-red-100">
-                        <span className="text-xs font-extrabold text-red-700">G</span>
-                      </div>
-                      <div className="flex-1 px-4 py-3">
-                        <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-red-700 mb-1.5">Evaluation</div>
-                        <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{template.evaluation}</div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* H. Homework */}
-                  {template.homework && (
-                    <div className="flex">
-                      <div className="w-10 flex-shrink-0 flex items-start justify-center pt-4 bg-pink-50/70 border-r border-pink-100">
-                        <span className="text-xs font-extrabold text-pink-700">H</span>
-                      </div>
-                      <div className="flex-1 px-4 py-3">
-                        <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-pink-700 mb-1.5">Homework</div>
-                        <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{template.homework}</div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Teacher Note */}
-                  {template.teacherNote && (
-                    <div className="px-5 py-3 bg-yellow-50/50">
-                      <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-yellow-700 mb-1">Teacher Note</div>
-                      <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{template.teacherNote}</div>
-                    </div>
-                  )}
-
-                  {/* Fallback if no structured fields */}
-                  {!template.objectives && !template.languageContent && !template.vocabulary && !template.grammar
-                    && !template.teachingMethodology && !template.teacherMaterials && !template.studentMaterials
-                    && !template.procedure && !template.evaluation && !template.homework && (
-                    <div className="px-5 py-4">
-                      {template.syllabusContent ? (
-                        <div className="whitespace-pre-wrap text-sm text-gray-700">{template.syllabusContent}</div>
-                      ) : (
-                        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-                          Mẫu giáo án này chưa có dữ liệu syllabus chi tiết.
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+                ) : !lesson.lessonPlanTemplateId ? (
+                  <div className="rounded-xl border border-dashed border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 flex items-center gap-2">
+                    <AlertCircle size={14} />
+                    Buổi này chưa được gắn lesson plan template từ curriculum.
+                  </div>
+                ) : !template ? (
+                  <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
+                    Không thể tải nội dung lesson plan.
+                  </div>
+                ) : (
+                  <LessonPlanTemplateDocument template={template} />
+                )}
               </div>
-            )}
-          </section>
+            </section>
+
+            <aside>
+              <SyllabusSummaryPanel
+                description="Bản đồ nhanh để admin xác định buổi học đang nằm ở đâu trong chương trình."
+                items={[
+                  { label: "Course / Chương trình", value: template?.programName || lesson.course || null },
+                  { label: "Unit / Module", value: template?.lessonPlanUnitName || lesson.moduleName || null },
+                  { label: "Lesson / Buổi", value: template?.sessionOrder != null ? `Lesson ${template.sessionOrder}` : lesson.sessionIndexInModule != null ? `Lesson ${lesson.sessionIndexInModule}` : null },
+                  { label: "Topic / Chủ điểm", value: lesson.plannedLessonTitle || template?.title || lesson.lesson || null },
+                  { label: "Date / Ngày", value: lesson.date || null },
+                  { label: "Time / Giờ", value: lesson.time || null },
+                  { label: "Teacher / Giáo viên", value: lesson.teacher || null },
+                  { label: "Room / Phòng", value: lesson.room || null },
+                ]}
+              />
+            </aside>
+          </div>
 
           {/* ── Teaching Log ───────────────────────────────────────────────── */}
-          <section>
-            <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-              <ClipboardList size={13} /> Teaching log (thực tế)
+          <section className="rounded-2xl border border-red-100 bg-white shadow-sm overflow-hidden">
+            <div className="border-b border-red-100 bg-gradient-to-r from-red-50 to-white px-5 py-4">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-red-700">
+                <ClipboardList size={13} /> Teaching Log / Nhật ký giảng dạy
+              </div>
+              <p className="mt-2 text-sm text-gray-600">Dữ liệu thực tế sau buổi học để admin đối chiếu với lesson plan chuẩn.</p>
             </div>
+            <div className="p-5">
             {loadingLog ? (
               <div className="flex items-center gap-2 text-sm text-gray-500 py-3">
                 <Loader2 size={14} className="animate-spin" /> Đang tải teaching log...
@@ -443,25 +279,25 @@ function LessonPlanDrawer({
                 </div>
                 {teachingLog.actualLessonTitle && teachingLog.actualLessonTitle !== lesson.plannedLessonTitle && (
                   <div>
-                    <span className="text-xs font-semibold text-gray-500 uppercase">Bài thực tế dạy</span>
+                    <span className="text-xs font-semibold text-gray-500 uppercase">Actual Lesson / Bài thực tế dạy</span>
                     <p className="font-medium text-gray-900 mt-0.5">{teachingLog.actualLessonTitle}</p>
                   </div>
                 )}
                 {teachingLog.actualContent && (
                   <div>
-                    <span className="text-xs font-semibold text-gray-500 uppercase">Nội dung đã dạy</span>
+                    <span className="text-xs font-semibold text-gray-500 uppercase">Completed Activities / Nội dung đã dạy</span>
                     <p className="text-gray-700 mt-0.5 whitespace-pre-wrap">{teachingLog.actualContent}</p>
                   </div>
                 )}
                 {teachingLog.actualHomework && (
                   <div>
-                    <span className="text-xs font-semibold text-gray-500 uppercase">Bài tập về nhà</span>
+                    <span className="text-xs font-semibold text-gray-500 uppercase">Homework Assigned / Bài tập giao</span>
                     <p className="text-gray-700 mt-0.5 whitespace-pre-wrap">{teachingLog.actualHomework}</p>
                   </div>
                 )}
                 {teachingLog.teacherNote && (
                   <div>
-                    <span className="text-xs font-semibold text-gray-500 uppercase">Ghi chú giáo viên</span>
+                    <span className="text-xs font-semibold text-gray-500 uppercase">Teacher Note / Ghi chú giáo viên</span>
                     <p className="text-gray-700 mt-0.5 whitespace-pre-wrap">{teachingLog.teacherNote}</p>
                   </div>
                 )}
@@ -472,6 +308,7 @@ function LessonPlanDrawer({
                 )}
               </div>
             )}
+            </div>
           </section>
         </div>
       </div>

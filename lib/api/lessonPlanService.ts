@@ -38,6 +38,10 @@ export interface ServiceResponse<T> {
 
 export interface LessonPlanTemplate {
   id: string;
+  syllabusId?: string | null;
+  syllabusCode?: string | null;
+  syllabusVersion?: string | null;
+  syllabusTitle?: string | null;
   programId?: string;
   programName?: string;
   levelId?: string;
@@ -49,10 +53,15 @@ export interface LessonPlanTemplate {
   moduleId?: string | null;
   moduleCode?: string | null;
   moduleName?: string | null;
+  moduleOrderIndex?: number | null;
   // Unit (real entity from BE — do NOT parse from title anymore)
   lessonPlanUnitId?: string | null;
   lessonPlanUnitName?: string | null;
+  unitOrderIndex?: number | null;
+  unitNumber?: string | null;
+  unitTitle?: string | null;
   orderIndexInUnit?: number | null;
+  lessonOrderIndexInUnit?: number | null;
   sessionOrder?: number | null;
   syllabusMetadata?: string | null;
   syllabusContent?: string | null;
@@ -79,6 +88,7 @@ export interface LessonPlanTemplate {
 }
 
 export interface GetLessonPlanTemplatesParams {
+  syllabusId?: string;
   moduleId?: string;
   title?: string;
   isActive?: boolean;
@@ -229,6 +239,10 @@ export interface ClassLessonPlanSyllabusSession {
   sessionId: string;
   sessionIndex: number;
   sessionIndexInModule?: number | null;
+  syllabusId?: string | null;
+  syllabusCode?: string | null;
+  syllabusVersion?: string | null;
+  syllabusTitle?: string | null;
   sessionDate?: string | null;
   plannedTeacherId?: string | null;
   plannedTeacherName?: string | null;
@@ -256,8 +270,33 @@ export interface ClassLessonPlanSyllabus {
   classTitle?: string;
   programId?: string;
   programName?: string;
+  levelId?: string;
+  levelName?: string;
+  syllabusId?: string | null;
+  syllabusCode?: string | null;
+  syllabusVersion?: string | null;
+  syllabusTitle?: string | null;
   syllabusMetadata?: string | null;
   sessions: ClassLessonPlanSyllabusSession[];
+}
+
+export interface SessionLessonPlanDocument {
+  sessionId: string;
+  classId?: string | null;
+  syllabusId?: string | null;
+  moduleId?: string | null;
+  moduleName?: string | null;
+  sessionIndexInModule?: number | null;
+  lessonPlanTemplateId?: string | null;
+  plannedLessonPlanTemplateId?: string | null;
+  actualLessonPlanTemplateId?: string | null;
+  plannedLessonTitle?: string | null;
+  actualLessonTitle?: string | null;
+  teachingLogId?: string | null;
+  teachingLogStatus?: string | null;
+  teachingProgressStatus?: string | null;
+  actualTeachingType?: string | null;
+  document: LessonPlanTemplate | null;
 }
 
 export interface LessonPlanFileUploadResponse {
@@ -348,6 +387,39 @@ function normalizeNullableString(...values: unknown[]) {
   return value || null;
 }
 
+function parseJsonObject(value: unknown): Record<string, unknown> | null {
+  if (typeof value !== "string") return null;
+  const text = value.trim();
+  if (!text) return null;
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function pickTextFromObject(obj: Record<string, unknown> | null, keys: string[]) {
+  if (!obj) return "";
+  for (const key of keys) {
+    const value = obj[key];
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+    if (Array.isArray(value)) {
+      const flattened = value
+        .map((item) => (typeof item === "string" ? item.trim() : ""))
+        .filter(Boolean)
+        .join("\n");
+      if (flattened) return flattened;
+    }
+  }
+  return "";
+}
+
 function paginationFromCandidates<T>(root: any, candidates: string[]): PaginatedItems<T> {
   for (const candidate of candidates) {
     const container = root?.[candidate];
@@ -401,34 +473,155 @@ function buildQuery<T extends object>(params?: T) {
 }
 
 function normalizeTemplate(item: any): LessonPlanTemplate {
+  const syllabus = item?.syllabus ?? item?.Syllabus;
+  const metadataObject = parseJsonObject(item?.syllabusMetadata ?? item?.SyllabusMetadata);
+  const contentObject = parseJsonObject(
+    item?.syllabusContent ??
+      item?.SyllabusContent ??
+      item?.contentJson ??
+      item?.ContentJson ??
+      item?.rawContentJson ??
+      item?.RawContentJson
+  );
+
   return {
-    id: stringOr(item?.id),
-    programId: stringOr(item?.programId) || undefined,
-    programName: stringOr(item?.programName) || undefined,
-    levelId: stringOr(item?.levelId) || undefined,
-    levelName: stringOr(item?.levelName) || undefined,
-    level: stringOr(item?.levelName, item?.level) || undefined,
-    moduleCode: stringOr(item?.moduleCode) || undefined,
-    moduleName: stringOr(item?.moduleName) || undefined,
-    moduleId: stringOr(item?.moduleId) || undefined,
+    id: stringOr(item?.id, item?.Id),
+    syllabusId:
+      normalizeNullableString(
+        item?.syllabusId,
+        item?.SyllabusId,
+        syllabus?.id,
+        syllabus?.Id,
+        syllabus?.syllabusId,
+        syllabus?.SyllabusId,
+      ) ?? undefined,
+    syllabusCode:
+      normalizeNullableString(
+        item?.syllabusCode,
+        item?.SyllabusCode,
+        syllabus?.code,
+        syllabus?.Code,
+        syllabus?.syllabusCode,
+        syllabus?.SyllabusCode,
+      ) ?? null,
+    syllabusVersion:
+      normalizeNullableString(
+        item?.syllabusVersion,
+        item?.SyllabusVersion,
+        syllabus?.version,
+        syllabus?.Version,
+        syllabus?.syllabusVersion,
+        syllabus?.SyllabusVersion,
+      ) ?? null,
+    syllabusTitle:
+      normalizeNullableString(
+        item?.syllabusTitle,
+        item?.SyllabusTitle,
+        syllabus?.title,
+        syllabus?.Title,
+        syllabus?.syllabusTitle,
+        syllabus?.SyllabusTitle,
+      ) ?? null,
+    programId: stringOr(item?.programId, item?.ProgramId, syllabus?.programId, syllabus?.ProgramId) || undefined,
+    programName: stringOr(item?.programName, item?.ProgramName, syllabus?.programName, syllabus?.ProgramName) || undefined,
+    levelId: stringOr(item?.levelId, item?.LevelId, syllabus?.levelId, syllabus?.LevelId) || undefined,
+    levelName: stringOr(item?.levelName, item?.LevelName, syllabus?.levelName, syllabus?.LevelName) || undefined,
+    level: stringOr(item?.levelName, item?.LevelName, item?.level) || undefined,
+    moduleCode: stringOr(item?.moduleCode, item?.ModuleCode) || undefined,
+    moduleName: stringOr(item?.moduleName, item?.ModuleName) || undefined,
+    moduleId: stringOr(item?.moduleId, item?.ModuleId) || undefined,
+    moduleOrderIndex:
+      numberFromUnknown(
+        item?.moduleOrderIndex,
+        item?.moduleOrder,
+        item?.module?.orderIndex,
+        item?.ModuleOrderIndex,
+      ) ?? null,
     lessonPlanUnitId: normalizeNullableString(item?.lessonPlanUnitId),
     lessonPlanUnitName: normalizeNullableString(item?.lessonPlanUnitName),
+    unitOrderIndex:
+      numberFromUnknown(item?.unitOrderIndex, item?.UnitOrderIndex) ?? null,
+    unitNumber:
+      normalizeNullableString(item?.unitNumber, item?.UnitNumber) ?? null,
+    unitTitle:
+      normalizeNullableString(item?.unitTitle, item?.UnitTitle) ?? null,
     orderIndexInUnit: numberFromUnknown(item?.orderIndexInUnit) ?? null,
+    lessonOrderIndexInUnit:
+      numberFromUnknown(item?.lessonOrderIndexInUnit, item?.LessonOrderIndexInUnit) ?? null,
     title: stringOr(item?.title, item?.name, `Session ${numberOr(numberFromUnknown(item?.sessionIndex), 0)}`),
     sessionIndex: numberOr(numberFromUnknown(item?.sessionIndex)),
-    syllabusMetadata: normalizeNullableString(item?.syllabusMetadata),
-    syllabusContent: normalizeNullableString(item?.syllabusContent),
-    objectives: normalizeNullableString(item?.objectives),
-    languageContent: normalizeNullableString(item?.languageContent),
-    vocabulary: normalizeNullableString(item?.vocabulary),
-    grammar: normalizeNullableString(item?.grammar),
-    teachingMethodology: normalizeNullableString(item?.teachingMethodology),
-    teacherMaterials: normalizeNullableString(item?.teacherMaterials),
-    studentMaterials: normalizeNullableString(item?.studentMaterials),
-    procedure: normalizeNullableString(item?.procedure),
-    evaluation: normalizeNullableString(item?.evaluation),
-    homework: normalizeNullableString(item?.homework),
-    teacherNote: normalizeNullableString(item?.teacherNote),
+    syllabusMetadata: normalizeNullableString(item?.syllabusMetadata, item?.SyllabusMetadata),
+    syllabusContent: normalizeNullableString(
+      item?.syllabusContent,
+      item?.SyllabusContent,
+      item?.contentJson,
+      item?.ContentJson,
+      item?.rawContentJson,
+      item?.RawContentJson
+    ),
+    objectives: normalizeNullableString(
+      item?.objectives,
+      item?.Objectives,
+      item?.objective,
+      item?.Objective,
+      pickTextFromObject(contentObject, ["objectives", "objective", "learningObjectives"])
+    ),
+    languageContent: normalizeNullableString(
+      item?.languageContent,
+      item?.LanguageContent,
+      item?.language,
+      pickTextFromObject(contentObject, ["languageContent", "language", "languageFocus", "language_targets"])
+    ),
+    vocabulary: normalizeNullableString(
+      item?.vocabulary,
+      item?.Vocabulary,
+      pickTextFromObject(contentObject, ["vocabulary", "vocab", "newWords"])
+    ),
+    grammar: normalizeNullableString(
+      item?.grammar,
+      item?.Grammar,
+      pickTextFromObject(contentObject, ["grammar", "grammarFocus"])
+    ),
+    teachingMethodology: normalizeNullableString(
+      item?.teachingMethodology,
+      item?.TeachingMethodology,
+      item?.methodology,
+      item?.Methodology,
+      pickTextFromObject(contentObject, ["teachingMethodology", "methodology", "approach", "teachingMethod"])
+    ),
+    teacherMaterials: normalizeNullableString(
+      item?.teacherMaterials,
+      item?.TeacherMaterials,
+      pickTextFromObject(contentObject, ["teacherMaterials", "materialsForTeacher"]),
+      pickTextFromObject(metadataObject, ["teachingMaterials", "teacherMaterials"])
+    ),
+    studentMaterials: normalizeNullableString(
+      item?.studentMaterials,
+      item?.StudentMaterials,
+      pickTextFromObject(contentObject, ["studentMaterials", "materialsForStudents", "studentResources"])
+    ),
+    procedure: normalizeNullableString(
+      item?.procedure,
+      item?.Procedure,
+      pickTextFromObject(contentObject, ["procedure", "teachingProcedure", "stages", "activities"])
+    ),
+    evaluation: normalizeNullableString(
+      item?.evaluation,
+      item?.Evaluation,
+      pickTextFromObject(contentObject, ["evaluation", "assessment", "checking"])
+    ),
+    homework: normalizeNullableString(
+      item?.homework,
+      item?.Homework,
+      pickTextFromObject(contentObject, ["homework", "homeworkTasks", "homeworkMaterials"])
+    ),
+    teacherNote: normalizeNullableString(
+      item?.teacherNote,
+      item?.TeacherNote,
+      item?.teacherNotes,
+      item?.TeacherNotes,
+      pickTextFromObject(contentObject, ["teacherNote", "teacherNotes", "note", "notes"])
+    ),
     sourceFileName: normalizeNullableString(item?.sourceFileName),
     attachment: normalizeNullableString(item?.attachment, item?.attachmentUrl, item?.fileUrl, item?.file?.url, item?.file?.path),
     isActive: typeof item?.isActive === "boolean" ? item.isActive : undefined,
@@ -503,13 +696,86 @@ function normalizeLessonPlan(item: any): LessonPlan {
 }
 
 function normalizeSyllabusSession(item: any): ClassLessonPlanSyllabusSession {
-  const template = item?.template ?? item?.lessonPlanTemplate ?? item?.linkedTemplate;
-  const lessonPlan = item?.lessonPlan ?? item?.LessonPlan ?? item?.plan;
+  const template = item?.template ?? item?.Template ?? item?.lessonPlanTemplate ?? item?.LessonPlanTemplate ?? item?.linkedTemplate ?? item?.LinkedTemplate;
+  const lessonPlan = item?.lessonPlan ?? item?.LessonPlan ?? item?.plan ?? item?.Plan;
+  const syllabus = item?.syllabus ?? item?.Syllabus ?? template?.syllabus ?? template?.Syllabus;
 
   return {
-    sessionId: stringOr(item?.sessionId, item?.id, item?.SessionId),
+    sessionId: stringOr(item?.sessionId, item?.id, item?.SessionId, item?.Id),
     sessionIndex: numberOr(numberFromUnknown(item?.sessionIndex, item?.SessionIndex, item?.index, item?.order)),
     sessionIndexInModule: numberFromUnknown(item?.sessionIndexInModule, item?.SessionIndexInModule) ?? null,
+    syllabusId: normalizeNullableString(
+      item?.syllabusId,
+      item?.SyllabusId,
+      syllabus?.id,
+      syllabus?.Id,
+      syllabus?.syllabusId,
+      syllabus?.SyllabusId,
+      template?.syllabusId,
+      template?.SyllabusId,
+      template?.syllabus?.id,
+      template?.syllabus?.syllabusId,
+      template?.syllabus?.Id,
+      template?.syllabus?.SyllabusId,
+      template?.Syllabus?.id,
+      template?.Syllabus?.Id,
+      template?.Syllabus?.syllabusId,
+      template?.Syllabus?.SyllabusId,
+    ),
+    syllabusCode: normalizeNullableString(
+      item?.syllabusCode,
+      item?.SyllabusCode,
+      syllabus?.code,
+      syllabus?.Code,
+      syllabus?.syllabusCode,
+      syllabus?.SyllabusCode,
+      template?.syllabusCode,
+      template?.SyllabusCode,
+      template?.syllabus?.code,
+      template?.syllabus?.syllabusCode,
+      template?.syllabus?.Code,
+      template?.syllabus?.SyllabusCode,
+      template?.Syllabus?.code,
+      template?.Syllabus?.Code,
+      template?.Syllabus?.syllabusCode,
+      template?.Syllabus?.SyllabusCode,
+    ),
+    syllabusVersion: normalizeNullableString(
+      item?.syllabusVersion,
+      item?.SyllabusVersion,
+      syllabus?.version,
+      syllabus?.Version,
+      syllabus?.syllabusVersion,
+      syllabus?.SyllabusVersion,
+      template?.syllabusVersion,
+      template?.SyllabusVersion,
+      template?.syllabus?.version,
+      template?.syllabus?.syllabusVersion,
+      template?.syllabus?.Version,
+      template?.syllabus?.SyllabusVersion,
+      template?.Syllabus?.version,
+      template?.Syllabus?.Version,
+      template?.Syllabus?.syllabusVersion,
+      template?.Syllabus?.SyllabusVersion,
+    ),
+    syllabusTitle: normalizeNullableString(
+      item?.syllabusTitle,
+      item?.SyllabusTitle,
+      syllabus?.title,
+      syllabus?.Title,
+      syllabus?.syllabusTitle,
+      syllabus?.SyllabusTitle,
+      template?.syllabusTitle,
+      template?.SyllabusTitle,
+      template?.syllabus?.title,
+      template?.syllabus?.syllabusTitle,
+      template?.syllabus?.Title,
+      template?.syllabus?.SyllabusTitle,
+      template?.Syllabus?.title,
+      template?.Syllabus?.Title,
+      template?.Syllabus?.syllabusTitle,
+      template?.Syllabus?.SyllabusTitle,
+    ),
     sessionDate: dateOr(item?.sessionDate, item?.SessionDate, item?.plannedDatetime, item?.plannedDateTime, item?.actualDatetime) || null,
     plannedTeacherId: normalizeNullableString(item?.plannedTeacherId, item?.PlannedTeacherId),
     plannedTeacherName: normalizeNullableString(item?.plannedTeacherName, item?.PlannedTeacherName),
@@ -571,39 +837,77 @@ function normalizeSyllabusSession(item: any): ClassLessonPlanSyllabusSession {
 }
 
 function normalizeSyllabus(data: any): ClassLessonPlanSyllabus {
-  const normalizedSessions = Array.isArray(data?.sessions) ? data.sessions.map(normalizeSyllabusSession) : [];
+  const syllabus = data?.syllabus ?? data?.Syllabus ?? data?.linkedSyllabus ?? data?.LinkedSyllabus ?? data?.classSyllabus ?? data?.ClassSyllabus;
+  const sessionsRaw = Array.isArray(data?.sessions) ? data.sessions : Array.isArray(data?.Sessions) ? data.Sessions : [];
+  const normalizedSessions = sessionsRaw.map(normalizeSyllabusSession);
+  const syllabusId = normalizeNullableString(data?.syllabusId, data?.SyllabusId, syllabus?.id, syllabus?.Id, syllabus?.syllabusId, syllabus?.SyllabusId);
+  const syllabusCode = normalizeNullableString(data?.syllabusCode, data?.SyllabusCode, syllabus?.code, syllabus?.Code, syllabus?.syllabusCode, syllabus?.SyllabusCode);
+  const syllabusVersion = normalizeNullableString(data?.syllabusVersion, data?.SyllabusVersion, syllabus?.version, syllabus?.Version, syllabus?.syllabusVersion, syllabus?.SyllabusVersion);
+  const syllabusTitle = normalizeNullableString(data?.syllabusTitle, data?.SyllabusTitle, syllabus?.title, syllabus?.Title, syllabus?.syllabusTitle, syllabus?.SyllabusTitle);
 
   const anchorSession =
     normalizedSessions.find(
       (session: ClassLessonPlanSyllabusSession) =>
         session.sessionIndex === 1 &&
-        (session.templateId || (typeof session.templateSyllabusContent === "string" && session.templateSyllabusContent.trim()))
+        (session.syllabusId || session.syllabusCode || session.syllabusVersion || session.syllabusTitle)
     ) ||
     normalizedSessions.find(
-      (session: ClassLessonPlanSyllabusSession) => session.templateId || (typeof session.templateSyllabusContent === "string" && session.templateSyllabusContent.trim())
+      (session: ClassLessonPlanSyllabusSession) =>
+        session.syllabusId || session.syllabusCode || session.syllabusVersion || session.syllabusTitle
     );
 
   const sessions = anchorSession
     ? normalizedSessions.map((session: ClassLessonPlanSyllabusSession) => ({
         ...session,
-        templateId: session.templateId ?? anchorSession.templateId ?? null,
-        templateTitle: session.templateTitle ?? anchorSession.templateTitle ?? null,
-        templateSyllabusContent: session.templateSyllabusContent ?? anchorSession.templateSyllabusContent ?? null,
-        plannedContent:
-          typeof session.plannedContent === "string" && session.plannedContent.trim()
-            ? session.plannedContent
-            : session.templateSyllabusContent ?? anchorSession.templateSyllabusContent ?? null,
+        syllabusId: session.syllabusId ?? syllabusId ?? anchorSession.syllabusId ?? null,
+        syllabusCode: session.syllabusCode ?? syllabusCode ?? anchorSession.syllabusCode ?? null,
+        syllabusVersion: session.syllabusVersion ?? syllabusVersion ?? anchorSession.syllabusVersion ?? null,
+        syllabusTitle: session.syllabusTitle ?? syllabusTitle ?? anchorSession.syllabusTitle ?? null,
       }))
     : normalizedSessions;
 
   return {
-    classId: stringOr(data?.classId),
-    classCode: stringOr(data?.classCode) || undefined,
-    classTitle: stringOr(data?.classTitle) || undefined,
-    programId: stringOr(data?.programId) || undefined,
-    programName: stringOr(data?.programName) || undefined,
-    syllabusMetadata: normalizeNullableString(data?.syllabusMetadata),
+    classId: stringOr(data?.classId, data?.ClassId),
+    classCode: stringOr(data?.classCode, data?.ClassCode) || undefined,
+    classTitle: stringOr(data?.classTitle, data?.ClassTitle, data?.className, data?.ClassName) || undefined,
+    programId: stringOr(data?.programId, data?.ProgramId, syllabus?.programId, syllabus?.ProgramId) || undefined,
+    programName: stringOr(data?.programName, data?.ProgramName, syllabus?.programName, syllabus?.ProgramName) || undefined,
+    levelId: stringOr(data?.levelId, data?.LevelId, syllabus?.levelId, syllabus?.LevelId) || undefined,
+    levelName: stringOr(data?.levelName, data?.LevelName, syllabus?.levelName, syllabus?.LevelName) || undefined,
+    syllabusId,
+    syllabusCode,
+    syllabusVersion,
+    syllabusTitle,
+    syllabusMetadata: normalizeNullableString(data?.syllabusMetadata, data?.SyllabusMetadata),
     sessions,
+  };
+}
+
+function normalizeSessionLessonPlanDocument(data: any): SessionLessonPlanDocument {
+  const documentPayload = data?.document ?? data?.lessonPlanTemplate ?? data?.template ?? null;
+  const document = documentPayload ? normalizeTemplate(documentPayload) : null;
+
+  return {
+    sessionId: stringOr(data?.sessionId, data?.id),
+    classId: normalizeNullableString(data?.classId),
+    syllabusId: normalizeNullableString(
+      data?.syllabusId,
+      data?.SyllabusId,
+      document?.syllabusId,
+    ),
+    moduleId: normalizeNullableString(data?.moduleId),
+    moduleName: normalizeNullableString(data?.moduleName),
+    sessionIndexInModule: numberFromUnknown(data?.sessionIndexInModule) ?? null,
+    lessonPlanTemplateId: normalizeNullableString(data?.lessonPlanTemplateId),
+    plannedLessonPlanTemplateId: normalizeNullableString(data?.plannedLessonPlanTemplateId),
+    actualLessonPlanTemplateId: normalizeNullableString(data?.actualLessonPlanTemplateId),
+    plannedLessonTitle: normalizeNullableString(data?.plannedLessonTitle),
+    actualLessonTitle: normalizeNullableString(data?.actualLessonTitle),
+    teachingLogId: normalizeNullableString(data?.teachingLogId),
+    teachingLogStatus: normalizeNullableString(data?.teachingLogStatus),
+    teachingProgressStatus: normalizeNullableString(data?.teachingProgressStatus),
+    actualTeachingType: normalizeNullableString(data?.actualTeachingType),
+    document,
   };
 }
 
@@ -911,6 +1215,19 @@ export async function getClassLessonPlanSyllabus(
     const data = unwrapData<any>(response);
 
     return successResponse(data ? normalizeSyllabus(data) : null, response);
+  } catch (error) {
+    return errorResponse(null, error);
+  }
+}
+
+export async function getSessionLessonPlanDocument(
+  sessionId: string
+): Promise<ServiceResponse<SessionLessonPlanDocument | null>> {
+  try {
+    const response = await get<ApiLikeResponse>(`/api/sessions/${sessionId}/lesson-plan-document`);
+    const data = unwrapData<any>(response);
+
+    return successResponse(data ? normalizeSessionLessonPlanDocument(data) : null, response);
   } catch (error) {
     return errorResponse(null, error);
   }

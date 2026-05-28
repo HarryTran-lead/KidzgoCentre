@@ -1,4 +1,4 @@
-﻿import { SYLLABUS_ENDPOINTS } from "@/constants/apiURL";
+﻿import { BRANCH_ENDPOINTS, SYLLABUS_ENDPOINTS } from "@/constants/apiURL";
 import { getAccessToken } from "@/lib/store/authToken";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -109,6 +109,7 @@ export interface ImportSyllabusArchiveParams {
   levelId: string;
   code: string;
   version: string;
+  branchId?: string;
   overwriteExisting?: boolean;
 }
 
@@ -123,19 +124,41 @@ export interface ImportSyllabusWordResult {
 export interface ImportedEntry {
   entryName?: string | null;
   fileName?: string | null;
-  moduleId: string;
+  sourceFolder?: string | null;
+  sourceType?: string | null;
+  moduleId?: string | null;
+  moduleName?: string | null;
   lessonPlanTemplateId?: string | null;
   sessionTemplateId?: string | null;
-  sessionIndex: number;
+  sessionIndex?: number | null;
+  sessionOrder?: number | null;
+  lessonCode?: string | null;
   created?: boolean;
   title?: string | null;
+}
+
+export interface ImportSkippedItem {
+  entryName?: string | null;
+  fileName?: string | null;
+  sourceFolder?: string | null;
+  sourceType?: string | null;
+  reason?: string | null;
+  message?: string | null;
 }
 
 export interface ImportSyllabusArchiveResult {
   syllabusId: string;
   importedLessonPlans: number;
   skippedFiles: number;
+  archiveFileName?: string | null;
+  archiveParserVersion?: string | null;
+  selectedSyllabusEntryName?: string | null;
+  selectedSyllabusNormalizedEntryName?: string | null;
+  selectedSyllabusFileName?: string | null;
+  selectedSyllabusSourceType?: string | null;
+  selectedSyllabusParserVersion?: string | null;
   importedEntries: ImportedEntry[];
+  skippedItems: ImportSkippedItem[];
   skippedEntries: string[];
 }
 
@@ -149,8 +172,16 @@ export interface ImportLessonPlanWordsResult {
 export interface ImportLessonPlanWordsParams {
   programId: string;
   levelId: string;
+  syllabusId: string;
   overwriteExisting?: boolean;
   moduleId?: string;
+}
+
+export interface AssignSyllabusToBranchRequest {
+  syllabusId: string;
+  effectiveFrom?: string | null;
+  effectiveTo?: string | null;
+  isActive: boolean;
 }
 
 // ─── Import Configuration Types ───────────────────────────────────────────────
@@ -216,10 +247,231 @@ export interface SyllabusPagination {
   hasNextPage: boolean;
 }
 
+export type SyllabusDocumentStatus = "Draft" | "Published" | "Archived";
+export type SyllabusDocumentSourceType = "Manual" | "Imported" | "Hybrid";
+export type SyllabusDocumentSectionType = "heading" | "narrative" | "list" | "table";
+
+export interface SyllabusDocumentWarning {
+  code: string;
+  severity?: string | null;
+  message?: string | null;
+  sectionRef?: string | null;
+  rowRef?: string | null;
+  cellRef?: string | null;
+}
+
+export interface SyllabusDocumentSummary {
+  totalUnits?: number | null;
+  totalSessions?: number | null;
+  totalLessons?: number | null;
+  totalPeriods?: number | null;
+  minutesPerPeriod?: number | null;
+}
+
+export interface SyllabusDocumentTableColumn {
+  key: string;
+  label?: string | null;
+  width?: number | null;
+  sticky?: boolean | null;
+}
+
+export interface SyllabusDocumentTableCell {
+  columnKey: string;
+  value?: string | null;
+  rowSpan?: number | null;
+  colSpan?: number | null;
+  align?: string | null;
+  bold?: boolean | null;
+}
+
+export interface SyllabusDocumentTableRowGroup {
+  blockLabel?: string | null;
+  topicGroupId?: string | null;
+  topicRowSpan?: number | null;
+}
+
+export interface SyllabusDocumentTableRow {
+  rowId: string;
+  orderIndex?: number | null;
+  group?: SyllabusDocumentTableRowGroup | null;
+  cells: SyllabusDocumentTableCell[];
+}
+
+export interface SyllabusDocumentTable {
+  columns: SyllabusDocumentTableColumn[];
+  rows: SyllabusDocumentTableRow[];
+}
+
+export interface SyllabusDocumentSection {
+  sectionId: string;
+  type: SyllabusDocumentSectionType;
+  title?: string | null;
+  orderIndex?: number | null;
+  editable?: boolean | null;
+  content?: string | null;
+  table?: SyllabusDocumentTable | null;
+}
+
+export interface SyllabusDocument {
+  id: string;
+  programId: string;
+  levelId: string;
+  code: string;
+  title: string;
+  edition?: string | null;
+  status?: SyllabusDocumentStatus | null;
+  sourceType?: SyllabusDocumentSourceType | null;
+  sourceFileName?: string | null;
+  parserVersion?: string | null;
+  version: number;
+  summary?: SyllabusDocumentSummary | null;
+  sections: SyllabusDocumentSection[];
+  warnings: SyllabusDocumentWarning[];
+}
+
+export interface CreateManualSyllabusDocumentRequest {
+  programId: string;
+  levelId: string;
+  code: string;
+  title: string;
+  edition?: string | null;
+  status?: SyllabusDocumentStatus;
+  sourceType?: SyllabusDocumentSourceType;
+  minutesPerPeriod?: number | null;
+}
+
+export interface ImportSyllabusPreviewParams {
+  programId: string;
+  levelId: string;
+}
+
+export interface ImportSyllabusCommitParams {
+  programId: string;
+  levelId: string;
+  code: string;
+  title?: string | null;
+  edition?: string | null;
+  asDraft?: boolean;
+}
+
+export interface ImportSyllabusPreviewResult {
+  document: SyllabusDocument;
+  warnings: SyllabusDocumentWarning[];
+}
+
+export interface UpdateSyllabusDocumentMetadataRequest {
+  expectedVersion: number;
+  code?: string;
+  title?: string;
+  edition?: string | null;
+  minutesPerPeriod?: number | null;
+}
+
+export interface CreateSyllabusSectionRequest {
+  expectedVersion: number;
+  section: {
+    type: SyllabusDocumentSectionType;
+    title?: string | null;
+    orderIndex: number;
+    content?: string | null;
+  };
+}
+
+export interface UpdateSyllabusSectionRequest {
+  expectedVersion: number;
+  title?: string | null;
+  content?: string | null;
+}
+
+export interface ReorderSyllabusSectionsRequest {
+  expectedVersion: number;
+  orders: Array<{ sectionId: string; orderIndex: number }>;
+}
+
+export interface UpdateSyllabusTableCellRequest {
+  expectedVersion: number;
+  value?: string | null;
+  rowSpan?: number | null;
+  colSpan?: number | null;
+  align?: string | null;
+  bold?: boolean | null;
+}
+
+export interface AddSyllabusTableRowRequest {
+  expectedVersion: number;
+  orderIndex: number;
+  cells: Array<{ columnKey: string; value?: string | null }>;
+}
+
+export interface PublishOrArchiveSyllabusRequest {
+  expectedVersion: number;
+  reason?: string;
+}
+
+export interface UpdateSyllabusDocumentMetadataRequest {
+  expectedVersion: number;
+  code?: string;
+  title?: string;
+  edition?: string | null;
+  minutesPerPeriod?: number | null;
+}
+
+export interface CreateSyllabusDocumentSectionRequest {
+  expectedVersion: number;
+  section: {
+    type: SyllabusDocumentSectionType;
+    title?: string | null;
+    orderIndex: number;
+    content?: string | null;
+  };
+}
+
+export interface UpdateSyllabusDocumentSectionRequest {
+  expectedVersion: number;
+  title?: string | null;
+  content?: string | null;
+}
+
+export interface ReorderSyllabusDocumentSectionsRequest {
+  expectedVersion: number;
+  orders: Array<{ sectionId: string; orderIndex: number }>;
+}
+
+export interface UpdateSyllabusDocumentCellRequest {
+  expectedVersion: number;
+  value?: string | null;
+  rowSpan?: number | null;
+  colSpan?: number | null;
+  align?: string | null;
+  bold?: boolean | null;
+}
+
+export interface CreateSyllabusDocumentRowRequest {
+  expectedVersion: number;
+  orderIndex: number;
+  cells: Array<{ columnKey: string; value?: string | null }>;
+}
+
+export interface PublishSyllabusDocumentRequest {
+  expectedVersion: number;
+}
+
+export interface ArchiveSyllabusDocumentRequest {
+  expectedVersion: number;
+  reason?: string | null;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function str(v: unknown): string {
   return typeof v === "string" ? v : "";
+}
+
+function strAny(...values: unknown[]): string {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value;
+  }
+  return "";
 }
 
 function num(v: unknown): number | null {
@@ -227,59 +479,259 @@ function num(v: unknown): number | null {
   return isNaN(n) ? null : n;
 }
 
-function normalizeSyllabusListItem(item: any): SyllabusListItem {
+function bool(v: unknown): boolean | null {
+  if (typeof v === "boolean") return v;
+  if (typeof v === "string") {
+    const lowered = v.trim().toLowerCase();
+    if (lowered === "true") return true;
+    if (lowered === "false") return false;
+  }
+  return null;
+}
+
+function normalizeSyllabusListItem(item: unknown): SyllabusListItem {
+  const source = (item ?? {}) as Record<string, unknown>;
   return {
-    id: str(item?.id),
-    programId: str(item?.programId),
-    programName: str(item?.programName) || null,
-    levelId: str(item?.levelId),
-    levelName: str(item?.levelName) || null,
-    code: str(item?.code),
-    version: str(item?.version),
-    title: str(item?.title),
-    isActive: Boolean(item?.isActive),
-    unitCount: num(item?.unitCount),
-    sessionTemplateCount: num(item?.sessionTemplateCount),
-    createdAt: str(item?.createdAt) || null,
+    id: strAny(source.id, source.syllabusId, source.Id, source.SyllabusId),
+    programId: strAny(source.programId, source.ProgramId),
+    programName: strAny(source.programName, source.ProgramName) || null,
+    levelId: strAny(source.levelId, source.LevelId),
+    levelName: strAny(source.levelName, source.LevelName) || null,
+    code: strAny(source.code, source.Code),
+    version: strAny(source.version, source.Version),
+    title: strAny(source.title, source.Title),
+    isActive: typeof source.isActive === "boolean" ? source.isActive : Boolean(source.IsActive),
+    unitCount: num(source.unitCount ?? source.UnitCount),
+    sessionTemplateCount: num(source.sessionTemplateCount ?? source.SessionTemplateCount),
+    createdAt: strAny(source.createdAt, source.CreatedAt) || null,
   };
 }
 
-function normalizeSyllabusDetail(item: any): SyllabusDetail {
+function normalizeSyllabusDetail(item: unknown): SyllabusDetail {
+  const source = (item ?? {}) as Record<string, unknown>;
   return {
-    ...normalizeSyllabusListItem(item),
-    edition: str(item?.edition) || null,
-    effectiveFrom: str(item?.effectiveFrom) || null,
-    effectiveTo: str(item?.effectiveTo) || null,
-    pacingSchemeJson: str(item?.pacingSchemeJson) || null,
-    overview: str(item?.overview) || null,
-    overallObjectives: str(item?.overallObjectives) || null,
-    specificObjectives: str(item?.specificObjectives) || null,
-    ethicsAndAttitudes: str(item?.ethicsAndAttitudes) || null,
-    bookOverview: str(item?.bookOverview) || null,
-    totalPeriods: num(item?.totalPeriods),
-    minutesPerPeriod: num(item?.minutesPerPeriod),
-    totalLessons: num(item?.totalLessons),
-    sourceFileName: str(item?.sourceFileName) || null,
-    attachmentUrl: str(item?.attachmentUrl) || null,
-    rawContentJson: str(item?.rawContentJson) || null,
-    units: Array.isArray(item?.units) ? item.units : [],
-    lessons: Array.isArray(item?.lessons) ? item.lessons : [],
-    resources: Array.isArray(item?.resources) ? item.resources : [],
-    sessionTemplates: Array.isArray(item?.sessionTemplates) ? item.sessionTemplates : [],
+    ...normalizeSyllabusListItem(source),
+    edition: strAny(source.edition, source.Edition) || null,
+    effectiveFrom: strAny(source.effectiveFrom, source.EffectiveFrom) || null,
+    effectiveTo: strAny(source.effectiveTo, source.EffectiveTo) || null,
+    pacingSchemeJson: strAny(source.pacingSchemeJson, source.PacingSchemeJson) || null,
+    overview: strAny(source.overview, source.Overview) || null,
+    overallObjectives: strAny(source.overallObjectives, source.OverallObjectives) || null,
+    specificObjectives: strAny(source.specificObjectives, source.SpecificObjectives) || null,
+    ethicsAndAttitudes: strAny(source.ethicsAndAttitudes, source.EthicsAndAttitudes) || null,
+    bookOverview: strAny(source.bookOverview, source.BookOverview) || null,
+    totalPeriods: num(source.totalPeriods ?? source.TotalPeriods),
+    minutesPerPeriod: num(source.minutesPerPeriod ?? source.MinutesPerPeriod),
+    totalLessons: num(source.totalLessons ?? source.TotalLessons),
+    sourceFileName: strAny(source.sourceFileName, source.SourceFileName) || null,
+    attachmentUrl: strAny(source.attachmentUrl, source.AttachmentUrl) || null,
+    rawContentJson: strAny(source.rawContentJson, source.RawContentJson) || null,
+    units: Array.isArray(source.units) ? source.units : Array.isArray(source.Units) ? source.Units : [],
+    lessons: Array.isArray(source.lessons) ? source.lessons : Array.isArray(source.Lessons) ? source.Lessons : [],
+    resources: Array.isArray(source.resources) ? source.resources : Array.isArray(source.Resources) ? source.Resources : [],
+    sessionTemplates: Array.isArray(source.sessionTemplates)
+      ? source.sessionTemplates
+      : Array.isArray(source.SessionTemplates)
+        ? source.SessionTemplates
+        : [],
+  };
+}
+
+function normalizeDocumentWarning(item: unknown): SyllabusDocumentWarning {
+  const source = (item ?? {}) as Record<string, unknown>;
+  return {
+    code: strAny(source.code, source.Code),
+    severity: strAny(source.severity, source.Severity) || null,
+    message: strAny(source.message, source.Message) || null,
+    sectionRef: strAny(source.sectionRef, source.SectionRef) || null,
+    rowRef: strAny(source.rowRef, source.RowRef) || null,
+    cellRef: strAny(source.cellRef, source.CellRef) || null,
+  };
+}
+
+function normalizeDocumentCell(item: unknown): SyllabusDocumentTableCell {
+  const source = (item ?? {}) as Record<string, unknown>;
+  return {
+    columnKey: strAny(source.columnKey, source.ColumnKey, source.columnId, source.ColumnId, source.key, source.Key),
+    value: strAny(source.value, source.Value, source.content, source.Content, source.text, source.Text) || null,
+    rowSpan: num(source.rowSpan ?? source.RowSpan),
+    colSpan: num(source.colSpan ?? source.ColSpan),
+    align: strAny(source.align, source.Align) || null,
+    bold: bool(source.bold ?? source.Bold),
+  };
+}
+
+function normalizeDocumentRow(
+  item: unknown,
+  columns: SyllabusDocumentTableColumn[] = [],
+): SyllabusDocumentTableRow {
+  const source = (item ?? {}) as Record<string, unknown>;
+  const groupObj = ((source.group ?? source.Group) ?? null) as Record<string, unknown> | null;
+  const valuesSource = source.values ?? source.Values;
+  const cellsSource = source.cells ?? source.Cells ?? source.items ?? source.Items ?? valuesSource;
+
+  let normalizedCells = Array.isArray(cellsSource)
+    ? (cellsSource as unknown[])
+        .map((cell: unknown, index) => {
+          if (cell && typeof cell === "object") return normalizeDocumentCell(cell);
+          const column = columns[index];
+          return {
+            columnKey: column?.key ?? `col-${index + 1}`,
+            value: strAny(cell) || null,
+            rowSpan: null,
+            colSpan: null,
+            align: null,
+            bold: null,
+          } satisfies SyllabusDocumentTableCell;
+        })
+        .filter((cell) => cell.columnKey || cell.value)
+    : [];
+
+  if (normalizedCells.length === 0 && columns.length > 0) {
+    normalizedCells = columns.map((column) => {
+      const byKey = source[column.key];
+      const byLowerKey = source[column.key.toLowerCase()];
+      const byLabel = column.label ? source[column.label] : undefined;
+      const value = strAny(byKey, byLowerKey, byLabel);
+
+      return {
+        columnKey: column.key,
+        value: value || null,
+        rowSpan: null,
+        colSpan: null,
+        align: null,
+        bold: null,
+      } satisfies SyllabusDocumentTableCell;
+    });
+  }
+
+  return {
+    rowId: strAny(source.rowId, source.RowId),
+    orderIndex: num(source.orderIndex ?? source.OrderIndex),
+    group: groupObj
+      ? {
+          blockLabel: strAny(groupObj.blockLabel, groupObj.BlockLabel) || null,
+          topicGroupId: strAny(groupObj.topicGroupId, groupObj.TopicGroupId) || null,
+          topicRowSpan: num(groupObj.topicRowSpan ?? groupObj.TopicRowSpan),
+        }
+      : null,
+    cells: normalizedCells,
+  };
+}
+
+function normalizeDocumentSection(item: unknown): SyllabusDocumentSection {
+  const source = (item ?? {}) as Record<string, unknown>;
+  const tableObj = ((source.table ?? source.Table) ?? null) as Record<string, unknown> | null;
+  const normalizedType = strAny(source.type, source.Type).toLowerCase();
+
+  const rawColumns = tableObj
+    ? (tableObj.columns ?? tableObj.Columns ?? tableObj.headers ?? tableObj.Headers ?? tableObj.columnDefinitions ?? tableObj.ColumnDefinitions)
+    : null;
+  const columns: SyllabusDocumentTableColumn[] = Array.isArray(rawColumns)
+    ? (rawColumns as unknown[])
+        .map((column, index) => {
+          const col = (column ?? {}) as Record<string, unknown>;
+          const key = strAny(col.key, col.Key, col.columnKey, col.ColumnKey) || `col-${index + 1}`;
+          return {
+            key,
+            label: strAny(col.label, col.Label, col.title, col.Title, col.name, col.Name) || key,
+            width: num(col.width ?? col.Width),
+            sticky: bool(col.sticky ?? col.Sticky),
+          };
+        })
+        .filter((col) => col.key)
+    : [];
+
+  const rawRows = tableObj
+    ? (tableObj.rows ?? tableObj.Rows ?? tableObj.dataRows ?? tableObj.DataRows ?? tableObj.body ?? tableObj.Body ?? tableObj.items ?? tableObj.Items)
+    : null;
+  const rows: SyllabusDocumentTableRow[] = Array.isArray(rawRows)
+    ? (rawRows as unknown[]).map((row) => normalizeDocumentRow(row, columns))
+    : [];
+
+  const hasTable = columns.length > 0 && rows.length > 0;
+  const type: SyllabusDocumentSectionType =
+    normalizedType === "heading" || normalizedType === "narrative" || normalizedType === "list" || normalizedType === "table"
+      ? normalizedType
+      : hasTable
+        ? "table"
+        : "narrative";
+
+  return {
+    sectionId: strAny(source.sectionId, source.SectionId),
+    type,
+    title: strAny(source.title, source.Title) || null,
+    orderIndex: num(source.orderIndex ?? source.OrderIndex),
+    editable: bool(source.editable ?? source.Editable),
+    content: strAny(source.content, source.Content) || null,
+    table: tableObj
+      ? {
+          columns,
+          rows,
+        }
+      : null,
+  };
+}
+
+function normalizeSyllabusDocument(item: unknown): SyllabusDocument | null {
+  const source = (item ?? {}) as Record<string, unknown>;
+  const id = strAny(source.id, source.Id);
+  const code = strAny(source.code, source.Code);
+  const title = strAny(source.title, source.Title);
+  if (!code || !title) return null;
+
+  const sectionsSource = source.sections ?? source.Sections;
+  const warningsSource = source.warnings ?? source.Warnings;
+  const summarySource = ((source.summary ?? source.Summary) ?? null) as Record<string, unknown> | null;
+
+  return {
+    id,
+    programId: strAny(source.programId, source.ProgramId),
+    levelId: strAny(source.levelId, source.LevelId),
+    code,
+    title,
+    edition: strAny(source.edition, source.Edition) || null,
+    status: (strAny(source.status, source.Status) || null) as SyllabusDocumentStatus | null,
+    sourceType: (strAny(source.sourceType, source.SourceType) || null) as SyllabusDocumentSourceType | null,
+    sourceFileName: strAny(source.sourceFileName, source.SourceFileName) || null,
+    parserVersion: strAny(source.parserVersion, source.ParserVersion) || null,
+    version: Number(source.version ?? source.Version ?? 1),
+    summary: summarySource
+      ? {
+          totalUnits: num(summarySource.totalUnits ?? summarySource.TotalUnits),
+          totalSessions: num(summarySource.totalSessions ?? summarySource.TotalSessions),
+          totalLessons: num(summarySource.totalLessons ?? summarySource.TotalLessons),
+          totalPeriods: num(summarySource.totalPeriods ?? summarySource.TotalPeriods),
+          minutesPerPeriod: num(summarySource.minutesPerPeriod ?? summarySource.MinutesPerPeriod),
+        }
+      : null,
+    sections: Array.isArray(sectionsSource) ? sectionsSource.map((section) => normalizeDocumentSection(section)) : [],
+    warnings: Array.isArray(warningsSource) ? warningsSource.map((warning) => normalizeDocumentWarning(warning)) : [],
   };
 }
 
 function errorResponse<T>(data: T, error: unknown): ServiceResponse<T> {
-  const err = error as any;
-  const payload = err?.response?.data ?? err?.data ?? {};
+  const errObj = (error ?? {}) as {
+    message?: unknown;
+    response?: { data?: unknown; status?: unknown };
+    data?: unknown;
+  };
+  const payloadRaw = errObj.response?.data ?? errObj.data;
+  const payload = (payloadRaw && typeof payloadRaw === "object" ? payloadRaw : {}) as Record<string, unknown>;
+  const statusFromPayload = typeof payload.status === "number" ? payload.status : undefined;
   return {
     isSuccess: false,
     data,
-    message: str(payload?.detail) || str(payload?.error) || str(payload?.message) || str(payload?.title) || str(err?.message) || "Request failed",
-    status: err?.response?.status ?? payload?.status,
-    title: str(payload?.title) || undefined,
-    detail: str(payload?.detail) || undefined,
-    errors: Array.isArray(payload?.errors) ? payload.errors : undefined,
+    message: str(payload.detail) || str(payload.error) || str(payload.message) || str(payload.title) || str(errObj.message) || "Request failed",
+    status:
+      typeof errObj.response?.status === "number"
+        ? errObj.response.status
+        : typeof statusFromPayload === "number"
+          ? statusFromPayload
+          : undefined,
+    title: str(payload.title) || undefined,
+    detail: str(payload.detail) || undefined,
+    errors: Array.isArray(payload.errors) ? payload.errors : undefined,
     raw: payload,
   };
 }
@@ -344,8 +796,16 @@ export async function getSyllabusById(
     const json = await res.json().catch(() => ({}));
     if (!res.ok) return errorResponse(null, json);
 
-    const item = json?.data ?? json;
-    const normalized = item && (item.id || item.code) ? normalizeSyllabusDetail(item) : null;
+    const payload = json?.data ?? json;
+    const item =
+      payload?.syllabus ??
+      payload?.Syllabus ??
+      payload?.item ??
+      payload?.Item ??
+      payload;
+    const normalized = item && (item.id || item.Id || item.syllabusId || item.SyllabusId || item.code || item.Code)
+      ? normalizeSyllabusDetail(item)
+      : null;
     return { isSuccess: true, data: normalized, message: normalized ? undefined : "Không tìm thấy dữ liệu." };
   } catch (error) {
     return errorResponse(null, error);
@@ -369,6 +829,361 @@ export async function createSyllabus(
 
     const item = json?.data ?? json;
     return { isSuccess: true, data: item?.id ? normalizeSyllabusListItem(item) : null, message: json?.message };
+  } catch (error) {
+    return errorResponse(null, error);
+  }
+}
+
+export async function createManualSyllabusDocument(
+  data: CreateManualSyllabusDocumentRequest,
+): Promise<ServiceResponse<SyllabusDocument | null>> {
+  const token = getAccessToken();
+  if (!token) return { isSuccess: false, data: null, message: "Chưa đăng nhập." };
+
+  try {
+    const res = await fetch(SYLLABUS_ENDPOINTS.BASE, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        ...data,
+        status: data.status ?? "Draft",
+        sourceType: data.sourceType ?? "Manual",
+      }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) return errorResponse(null, { response: res, data: json });
+
+    const payload = json?.data ?? json;
+    const doc = normalizeSyllabusDocument(payload);
+    return { isSuccess: true, data: doc };
+  } catch (error) {
+    return errorResponse(null, error);
+  }
+}
+
+export async function getSyllabusDocument(
+  syllabusId: string,
+): Promise<ServiceResponse<SyllabusDocument | null>> {
+  const token = getAccessToken();
+  if (!token) return { isSuccess: false, data: null, message: "Chưa đăng nhập." };
+
+  try {
+    const res = await fetch(SYLLABUS_ENDPOINTS.DOCUMENT(syllabusId), {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) return errorResponse(null, { response: res, data: json });
+    const payload = json?.data ?? json;
+    const candidates = [
+      payload,
+      payload?.document,
+      payload?.Document,
+      payload?.syllabus,
+      payload?.Syllabus,
+      payload?.item,
+      payload?.Item,
+      payload?.syllabusDocument,
+      payload?.SyllabusDocument,
+    ];
+
+    const normalized = candidates
+      .map((candidate) => normalizeSyllabusDocument(candidate))
+      .find((doc) => doc != null) ?? null;
+
+    return { isSuccess: true, data: normalized };
+  } catch (error) {
+    return errorResponse(null, error);
+  }
+}
+
+export async function importSyllabusPreview(
+  params: ImportSyllabusPreviewParams,
+  file: File,
+): Promise<ServiceResponse<ImportSyllabusPreviewResult | null>> {
+  const token = getAccessToken();
+  if (!token) return { isSuccess: false, data: null, message: "Chưa đăng nhập." };
+
+  try {
+    const formData = new FormData();
+    formData.append("programId", params.programId);
+    formData.append("levelId", params.levelId);
+    formData.append("file", file);
+
+    const res = await fetch(SYLLABUS_ENDPOINTS.IMPORT_PREVIEW, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) return errorResponse(null, { response: res, data: json });
+
+    const payload = json?.data ?? json;
+    const doc = normalizeSyllabusDocument(payload?.document ?? payload?.Document);
+    const warningsSource = payload?.warnings ?? payload?.Warnings;
+    return {
+      isSuccess: true,
+      data: doc
+        ? {
+            document: doc,
+            warnings: Array.isArray(warningsSource)
+              ? (warningsSource as unknown[]).map((warning) => normalizeDocumentWarning(warning))
+              : doc.warnings,
+          }
+        : null,
+    };
+  } catch (error) {
+    return errorResponse(null, error);
+  }
+}
+
+export async function importSyllabusCommit(
+  params: ImportSyllabusCommitParams,
+  file: File,
+): Promise<ServiceResponse<SyllabusDocument | null>> {
+  const token = getAccessToken();
+  if (!token) return { isSuccess: false, data: null, message: "Chưa đăng nhập." };
+
+  try {
+    const formData = new FormData();
+    formData.append("programId", params.programId);
+    formData.append("levelId", params.levelId);
+    formData.append("code", params.code);
+    if (params.title) formData.append("title", params.title);
+    if (params.edition) formData.append("edition", params.edition);
+    formData.append("asDraft", String(params.asDraft ?? true));
+    formData.append("file", file);
+
+    const res = await fetch(SYLLABUS_ENDPOINTS.IMPORT_COMMIT, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) return errorResponse(null, { response: res, data: json });
+
+    const payload = json?.data ?? json;
+    const candidates = [
+      payload,
+      payload?.document,
+      payload?.Document,
+      payload?.syllabus,
+      payload?.Syllabus,
+      payload?.item,
+      payload?.Item,
+      payload?.syllabusDocument,
+      payload?.SyllabusDocument,
+    ];
+
+    const normalized = candidates
+      .map((candidate) => normalizeSyllabusDocument(candidate))
+      .find((doc) => doc != null) ?? null;
+
+    return { isSuccess: true, data: normalized };
+  } catch (error) {
+    return errorResponse(null, error);
+  }
+}
+
+export async function updateSyllabusDocumentMetadata(
+  syllabusId: string,
+  body: UpdateSyllabusDocumentMetadataRequest,
+): Promise<ServiceResponse<SyllabusDocument | null>> {
+  const token = getAccessToken();
+  if (!token) return { isSuccess: false, data: null, message: "Chưa đăng nhập." };
+
+  try {
+    const res = await fetch(SYLLABUS_ENDPOINTS.METADATA(syllabusId), {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) return errorResponse(null, { response: res, data: json });
+    const payload = json?.data ?? json;
+    return { isSuccess: true, data: normalizeSyllabusDocument(payload) };
+  } catch (error) {
+    return errorResponse(null, error);
+  }
+}
+
+export async function addSyllabusSection(
+  syllabusId: string,
+  body: CreateSyllabusSectionRequest,
+): Promise<ServiceResponse<SyllabusDocument | null>> {
+  const token = getAccessToken();
+  if (!token) return { isSuccess: false, data: null, message: "Chưa đăng nhập." };
+
+  try {
+    const res = await fetch(SYLLABUS_ENDPOINTS.SECTIONS(syllabusId), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) return errorResponse(null, { response: res, data: json });
+    const payload = json?.data ?? json;
+    return { isSuccess: true, data: normalizeSyllabusDocument(payload) };
+  } catch (error) {
+    return errorResponse(null, error);
+  }
+}
+
+export async function updateSyllabusSection(
+  syllabusId: string,
+  sectionId: string,
+  body: UpdateSyllabusSectionRequest,
+): Promise<ServiceResponse<SyllabusDocument | null>> {
+  const token = getAccessToken();
+  if (!token) return { isSuccess: false, data: null, message: "Chưa đăng nhập." };
+
+  try {
+    const res = await fetch(SYLLABUS_ENDPOINTS.SECTION_BY_ID(syllabusId, sectionId), {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) return errorResponse(null, { response: res, data: json });
+    const payload = json?.data ?? json;
+    return { isSuccess: true, data: normalizeSyllabusDocument(payload) };
+  } catch (error) {
+    return errorResponse(null, error);
+  }
+}
+
+export async function reorderSyllabusSections(
+  syllabusId: string,
+  body: ReorderSyllabusSectionsRequest,
+): Promise<ServiceResponse<SyllabusDocument | null>> {
+  const token = getAccessToken();
+  if (!token) return { isSuccess: false, data: null, message: "Chưa đăng nhập." };
+
+  try {
+    const res = await fetch(SYLLABUS_ENDPOINTS.REORDER_SECTIONS(syllabusId), {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) return errorResponse(null, { response: res, data: json });
+    const payload = json?.data ?? json;
+    return { isSuccess: true, data: normalizeSyllabusDocument(payload) };
+  } catch (error) {
+    return errorResponse(null, error);
+  }
+}
+
+export async function updateSyllabusTableCell(
+  syllabusId: string,
+  sectionId: string,
+  rowId: string,
+  columnKey: string,
+  body: UpdateSyllabusTableCellRequest,
+): Promise<ServiceResponse<SyllabusDocument | null>> {
+  const token = getAccessToken();
+  if (!token) return { isSuccess: false, data: null, message: "Chưa đăng nhập." };
+
+  try {
+    const res = await fetch(SYLLABUS_ENDPOINTS.TABLE_CELL(syllabusId, sectionId, rowId, columnKey), {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) return errorResponse(null, { response: res, data: json });
+    const payload = json?.data ?? json;
+    return { isSuccess: true, data: normalizeSyllabusDocument(payload) };
+  } catch (error) {
+    return errorResponse(null, error);
+  }
+}
+
+export async function addSyllabusTableRow(
+  syllabusId: string,
+  sectionId: string,
+  body: AddSyllabusTableRowRequest,
+): Promise<ServiceResponse<SyllabusDocument | null>> {
+  const token = getAccessToken();
+  if (!token) return { isSuccess: false, data: null, message: "Chưa đăng nhập." };
+
+  try {
+    const res = await fetch(SYLLABUS_ENDPOINTS.TABLE_ROWS(syllabusId, sectionId), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) return errorResponse(null, { response: res, data: json });
+    const payload = json?.data ?? json;
+    return { isSuccess: true, data: normalizeSyllabusDocument(payload) };
+  } catch (error) {
+    return errorResponse(null, error);
+  }
+}
+
+export async function deleteSyllabusTableRow(
+  syllabusId: string,
+  sectionId: string,
+  rowId: string,
+  expectedVersion: number,
+): Promise<ServiceResponse<SyllabusDocument | null>> {
+  const token = getAccessToken();
+  if (!token) return { isSuccess: false, data: null, message: "Chưa đăng nhập." };
+
+  try {
+    const url = `${SYLLABUS_ENDPOINTS.TABLE_ROWS(syllabusId, sectionId)}/${encodeURIComponent(rowId)}?expectedVersion=${encodeURIComponent(String(expectedVersion))}`;
+    const res = await fetch(url, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) return errorResponse(null, { response: res, data: json });
+    const payload = json?.data ?? json;
+    return { isSuccess: true, data: normalizeSyllabusDocument(payload) };
+  } catch (error) {
+    return errorResponse(null, error);
+  }
+}
+
+export async function publishSyllabusDocument(
+  syllabusId: string,
+  body: PublishOrArchiveSyllabusRequest,
+): Promise<ServiceResponse<SyllabusDocument | null>> {
+  const token = getAccessToken();
+  if (!token) return { isSuccess: false, data: null, message: "Chưa đăng nhập." };
+
+  try {
+    const res = await fetch(SYLLABUS_ENDPOINTS.PUBLISH(syllabusId), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) return errorResponse(null, { response: res, data: json });
+    const payload = json?.data ?? json;
+    return { isSuccess: true, data: normalizeSyllabusDocument(payload) };
+  } catch (error) {
+    return errorResponse(null, error);
+  }
+}
+
+export async function archiveSyllabusDocument(
+  syllabusId: string,
+  body: PublishOrArchiveSyllabusRequest,
+): Promise<ServiceResponse<SyllabusDocument | null>> {
+  const token = getAccessToken();
+  if (!token) return { isSuccess: false, data: null, message: "Chưa đăng nhập." };
+
+  try {
+    const res = await fetch(SYLLABUS_ENDPOINTS.ARCHIVE(syllabusId), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) return errorResponse(null, { response: res, data: json });
+    const payload = json?.data ?? json;
+    return { isSuccess: true, data: normalizeSyllabusDocument(payload) };
   } catch (error) {
     return errorResponse(null, error);
   }
@@ -464,6 +1279,7 @@ export async function importSyllabusArchive(
       code: params.code,
       version: params.version,
     });
+    if (params.branchId) query.append("branchId", params.branchId);
     if (params.overwriteExisting !== undefined) {
       query.append("overwriteExisting", String(params.overwriteExisting));
     }
@@ -494,7 +1310,15 @@ export async function importSyllabusArchive(
         syllabusId: str(d?.syllabusId),
         importedLessonPlans: Number(d?.importedLessonPlans ?? 0),
         skippedFiles: Number(d?.skippedFiles ?? 0),
+        archiveFileName: str(d?.archiveFileName) || null,
+        archiveParserVersion: str(d?.archiveParserVersion) || null,
+        selectedSyllabusEntryName: str(d?.selectedSyllabusEntryName) || null,
+        selectedSyllabusNormalizedEntryName: str(d?.selectedSyllabusNormalizedEntryName) || null,
+        selectedSyllabusFileName: str(d?.selectedSyllabusFileName) || null,
+        selectedSyllabusSourceType: str(d?.selectedSyllabusSourceType) || null,
+        selectedSyllabusParserVersion: str(d?.selectedSyllabusParserVersion) || null,
         importedEntries: Array.isArray(d?.importedEntries) ? d.importedEntries : [],
+        skippedItems: Array.isArray(d?.skippedItems) ? d.skippedItems : [],
         skippedEntries: Array.isArray(d?.skippedEntries) ? d.skippedEntries : [],
       },
     };
@@ -514,6 +1338,7 @@ export async function importLessonPlanWords(
     const query = new URLSearchParams({
       programId: params.programId,
       levelId: params.levelId,
+      syllabusId: params.syllabusId,
       overwriteExisting: String(params.overwriteExisting ?? true),
     });
     if (params.moduleId) query.append("moduleId", params.moduleId);
@@ -554,34 +1379,60 @@ export async function importLessonPlanWords(
   }
 }
 
+export async function assignSyllabusToBranch(
+  branchId: string,
+  body: AssignSyllabusToBranchRequest,
+): Promise<ServiceResponse<null>> {
+  const token = getAccessToken();
+  if (!token) return { isSuccess: false, data: null, message: "Chưa đăng nhập." };
+
+  try {
+    const res = await fetch(BRANCH_ENDPOINTS.SYLLABUSES(branchId), {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(body),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) return errorResponse(null, { response: res, data: json });
+    return { isSuccess: true, data: null, message: str(json?.message) || undefined, raw: json };
+  } catch (error) {
+    return errorResponse(null, error);
+  }
+}
+
 // ─── Import Configuration ──────────────────────────────────────────────────────
 
-function normalizeRule(r: any): ImportConfigRule {
+function normalizeRule(r: unknown): ImportConfigRule {
+  const source = (r ?? {}) as Record<string, unknown>;
   return {
-    id: str(r?.id) || undefined,
-    moduleId: str(r?.moduleId),
-    moduleCode: str(r?.moduleCode) || null,
-    moduleName: str(r?.moduleName) || null,
-    moduleOrder: r?.moduleOrder != null ? Number(r.moduleOrder) : null,
-    includeStarterUnit: Boolean(r?.includeStarterUnit),
-    unitFrom: r?.unitFrom != null ? Number(r.unitFrom) : null,
-    unitTo: r?.unitTo != null ? Number(r.unitTo) : null,
-    revisionNumber: r?.revisionNumber != null ? Number(r.revisionNumber) : null,
-    orderIndex: Number(r?.orderIndex ?? 0),
-    expectedLessonPlanCount: r?.expectedLessonPlanCount != null ? Number(r.expectedLessonPlanCount) : null,
+    id: str(source.id) || undefined,
+    moduleId: str(source.moduleId),
+    moduleCode: str(source.moduleCode) || null,
+    moduleName: str(source.moduleName) || null,
+    moduleOrder: source.moduleOrder != null ? Number(source.moduleOrder) : null,
+    includeStarterUnit: Boolean(source.includeStarterUnit),
+    unitFrom: source.unitFrom != null ? Number(source.unitFrom) : null,
+    unitTo: source.unitTo != null ? Number(source.unitTo) : null,
+    revisionNumber: source.revisionNumber != null ? Number(source.revisionNumber) : null,
+    orderIndex: Number(source.orderIndex ?? 0),
+    expectedLessonPlanCount: source.expectedLessonPlanCount != null ? Number(source.expectedLessonPlanCount) : null,
   };
 }
 
-function normalizeImportConfig(d: any): ImportConfiguration {
+function normalizeImportConfig(d: unknown): ImportConfiguration {
+  const source = (d ?? {}) as Record<string, unknown>;
   return {
-    id: str(d?.id),
-    programId: str(d?.programId),
-    levelId: str(d?.levelId),
-    regularUnitLessonPlanCount: Number(d?.regularUnitLessonPlanCount ?? 0),
-    starterUnitLessonPlanCount: Number(d?.starterUnitLessonPlanCount ?? 0),
-    revisionLessonPlanCount: Number(d?.revisionLessonPlanCount ?? 0),
-    isActive: Boolean(d?.isActive ?? true),
-    rules: Array.isArray(d?.rules) ? d.rules.map(normalizeRule) : [],
+    id: str(source.id),
+    programId: str(source.programId),
+    levelId: str(source.levelId),
+    regularUnitLessonPlanCount: Number(source.regularUnitLessonPlanCount ?? 0),
+    starterUnitLessonPlanCount: Number(source.starterUnitLessonPlanCount ?? 0),
+    revisionLessonPlanCount: Number(source.revisionLessonPlanCount ?? 0),
+    isActive: Boolean(source.isActive ?? true),
+    rules: Array.isArray(source.rules) ? source.rules.map(normalizeRule) : [],
   };
 }
 
@@ -611,7 +1462,13 @@ export async function getImportConfiguration(
 
 export interface LessonPlanTemplateInUnit {
   lessonPlanTemplateId: string;
+  moduleId?: string | null;
+  moduleOrderIndex?: number | null;
   lessonPlanUnitId: string | null;
+  unitId?: string | null;
+  unitOrderIndex?: number | null;
+  unitNumber?: string | null;
+  unitTitle?: string | null;
   sessionTemplateId: string | null;
   title: string | null;
   lessonNumber: number | null;
@@ -622,6 +1479,7 @@ export interface LessonPlanTemplateInUnit {
   sessionTopic: string | null;
   sourceFileName: string | null;
   orderIndexInUnit: number;
+  lessonOrderIndexInUnit?: number | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -631,6 +1489,9 @@ export interface LessonPlanUnitGroup {
   unitId: string;
   unitName: string;
   orderIndex: number;
+  unitOrderIndex?: number | null;
+  unitNumber?: string | null;
+  unitTitle?: string | null;
   lessonPlanCount: number;
   lessons: LessonPlanTemplateInUnit[];
 }
@@ -640,6 +1501,7 @@ export interface ModuleUnitLessonPlanGroup {
   moduleCode: string;
   moduleName: string;
   moduleOrder: number;
+  moduleOrderIndex?: number | null;
   unitCount: number;
   lessonPlanCount: number;
   units: LessonPlanUnitGroup[];

@@ -56,10 +56,13 @@ import {
   fetchClassFormSelectData,
   fetchTeacherOptionsByBranch,
   fetchProgramOptionsByBranch,
+  fetchSyllabusOptionsByBranch,
+  type BranchSyllabusOption,
 } from "@/app/api/admin/classFormData";
 import type {
   ClassRow,
   CreateClassRequest,
+  UpdateClassRequest,
   ScheduleSlot,
 } from "@/types/admin/classes";
 import type { SelectOption } from "@/types/admin/classFormData";
@@ -78,6 +81,10 @@ import {
   buildFutureStretchPayload,
   validateFutureStretchPayload,
 } from "@/lib/api/classService";
+import {
+  buildCreateClassPayload,
+  buildUpdateClassPayload,
+} from "@/lib/api/classPayload";
 import type { WeekdayCode } from "@/lib/schedulePattern";
 import { getSlotTypes } from "@/lib/api/slotTypeService";
 import type { SlotType } from "@/types/slot-type";
@@ -1526,6 +1533,7 @@ interface ClassFormData {
   code: string;
   name: string;
   programId: string;
+  syllabusId: string;
   levelId: string;
   startModuleId: string;
   startSessionIndex: number;
@@ -1550,6 +1558,7 @@ const initialFormData: ClassFormData = {
   code: "",
   name: "",
   programId: "",
+  syllabusId: "",
   levelId: "",
   startModuleId: "",
   startSessionIndex: 1,
@@ -1588,6 +1597,9 @@ const CLASS_FORM_FIELD_ORDER: ClassFormField[] = [
   "name",
   "branchId",
   "programId",
+  "syllabusId",
+  "levelId",
+  "startModuleId",
   "mainTeacherId",
   "assistantTeacherId",
   "capacity",
@@ -1755,6 +1767,8 @@ function buildClassSubmissionError(
         fieldErrors.branchId = item?.description || rawMessage;
       } else if (msg.includes("program id") || msg.includes("program")) {
         fieldErrors.programId = item?.description || rawMessage;
+      } else if (msg.includes("syllabus id") || msg.includes("syllabus")) {
+        fieldErrors.syllabusId = item?.description || rawMessage;
       } else if (msg.includes("start date") || msg.includes("ngày bắt đầu")) {
         fieldErrors.startDate = item?.description || rawMessage;
       } else if (msg.includes("end date") || msg.includes("ngày kết thúc")) {
@@ -1811,6 +1825,13 @@ function buildClassSubmissionError(
     normalized.includes("classfull")
   ) {
     fieldErrors.capacity = rawMessage;
+    return new ClassFormSubmitError(rawMessage, fieldErrors);
+  }
+
+  if (
+    normalized.includes("syllabus")
+  ) {
+    fieldErrors.syllabusId = rawMessage;
     return new ClassFormSubmitError(rawMessage, fieldErrors);
   }
 
@@ -2292,6 +2313,8 @@ function  CreateClassModal({
   const [loadingLevels, setLoadingLevels] = useState(false);
   const [moduleOptions, setModuleOptions] = useState<{ id: string; name: string; orderIndex: number; requiredSessions: number; lessonPlanCount: number }[]>([]);
   const [loadingModules, setLoadingModules] = useState(false);
+  const [allSyllabusOptions, setAllSyllabusOptions] = useState<BranchSyllabusOption[]>([]);
+  const [loadingSyllabuses, setLoadingSyllabuses] = useState(false);
 
   // States cho UI chọn lịch học theo từng ngày
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
@@ -2303,6 +2326,48 @@ function  CreateClassModal({
   >({});
   const [sessionsPerWeek, setSessionsPerWeek] = useState<number>(2);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const filteredSyllabusOptions = useMemo(
+    () =>
+      allSyllabusOptions.filter((item) => {
+        if (
+          formData.programId &&
+          item.programId &&
+          item.programId !== formData.programId
+        ) {
+          return false;
+        }
+
+        if (formData.levelId && item.levelId && item.levelId !== formData.levelId) {
+          return false;
+        }
+
+        return true;
+      }),
+    [allSyllabusOptions, formData.programId, formData.levelId],
+  );
+
+  const getSelectedSyllabusOption = () =>
+    allSyllabusOptions.find((item) => item.value === formData.syllabusId) ?? null;
+
+  const getSyllabusValidationMessage = () => {
+    if (!formData.syllabusId.trim()) {
+      return "syllabus là bắt buộc";
+    }
+
+    const selected = getSelectedSyllabusOption();
+    if (!selected) {
+      return "syllabus đã chọn không hợp lệ";
+    }
+    if (selected.programId && selected.programId !== formData.programId) {
+      return "syllabus không khớp chương trình";
+    }
+    if (selected.levelId && selected.levelId !== formData.levelId) {
+      return "syllabus không khớp level";
+    }
+
+    return null;
+  };
 
   const dayToWeekdayCode = (
     dayValue: string,
@@ -2452,6 +2517,7 @@ function  CreateClassModal({
       setRoomOptions([]);
       setAllRooms([]);
       setExistingClasses([]);
+      setAllSyllabusOptions([]);
     }
   }, [isOpen]);
 
@@ -2504,16 +2570,21 @@ function  CreateClassModal({
 
     const branchId = formData.branchId;
     if (!branchId) {
+      setLoadingSyllabuses(false);
       setProgramOptions([]);
       setTeacherOptions([]);
       setRoomOptions([]);
       setAllRooms([]);
       setExistingClasses([]);
       setLevelOptions([]);
+      setAllSyllabusOptions([]);
       setFormData((prev) => ({
         ...prev,
         programId: "",
+        syllabusId: "",
         levelId: "",
+        startModuleId: "",
+        startSessionIndex: 1,
         mainTeacherId: "",
         assistantTeacherId: "",
         roomId: "",
@@ -2525,10 +2596,12 @@ function  CreateClassModal({
     (async () => {
       try {
         setLoadingOptions(true);
-        const [programs, teachers, rooms, existingClassesData] =
+        setLoadingSyllabuses(true);
+        const [programs, teachers, syllabuses, rooms, existingClassesData] =
           await Promise.all([
             fetchProgramOptionsByBranch(branchId),
             fetchTeacherOptionsByBranch(branchId),
+            fetchSyllabusOptionsByBranch(branchId),
             fetchAdminRooms({ branchId }),
             fetchAdminClasses({ branchId }),
           ]);
@@ -2541,6 +2614,7 @@ function  CreateClassModal({
         );
         setProgramOptions(activePrograms);
         setTeacherOptions(teachers);
+        setAllSyllabusOptions(syllabuses);
         setAllRooms(
           rooms.map((r) => ({ id: r.id, name: r.name, capacity: r.capacity })),
         );
@@ -2570,14 +2644,16 @@ function  CreateClassModal({
           prevBranchIdRef.current && prevBranchIdRef.current !== branchId;
 
         if (branchChanged) {
-          const programIds = new Set(programs.map((p) => p.id));
           const teacherIds = new Set(teachers.map((t) => t.id));
           const roomIds = new Set(rooms.map((r) => r.id));
 
           setFormData((prev) => ({
             ...prev,
-            programId: programIds.has(prev.programId) ? prev.programId : "",
-            levelId: programIds.has(prev.programId) ? (prev.levelId ?? "") : "",
+            programId: "",
+            syllabusId: "",
+            levelId: "",
+            startModuleId: "",
+            startSessionIndex: 1,
             mainTeacherId: teacherIds.has(prev.mainTeacherId)
               ? prev.mainTeacherId
               : "",
@@ -2598,8 +2674,12 @@ function  CreateClassModal({
         setRoomOptions([]);
         setAllRooms([]);
         setExistingClasses([]);
+        setAllSyllabusOptions([]);
       } finally {
-        if (!cancelled) setLoadingOptions(false);
+        if (!cancelled) {
+          setLoadingOptions(false);
+          setLoadingSyllabuses(false);
+        }
       }
     })();
 
@@ -2968,10 +3048,12 @@ function  CreateClassModal({
       initialData?.schedule || "",
     );
     const currentScheduleMeta = extractScheduleMeta(formData.schedule || "");
+    const syllabusValidationMessage = getSyllabusValidationMessage();
 
     if (!formData.code.trim()) newErrors.code = "mã lớp là bắt buộc";
     if (!formData.name.trim()) newErrors.name = "tên lớp là bắt buộc";
     if (!formData.programId) newErrors.programId = "chương trình là bắt buộc";
+    if (syllabusValidationMessage) newErrors.syllabusId = syllabusValidationMessage;
     if (!formData.levelId) newErrors.levelId = "level là bắt buộc";
     if (!formData.startModuleId) newErrors.startModuleId = "module bắt đầu là bắt buộc";
     if (!formData.branchId) newErrors.branchId = "chi nhánh là bắt buộc";
@@ -3121,6 +3203,35 @@ function  CreateClassModal({
     setErrors({});
     setIsSubmitting(true);
     try {
+      if (!formData.syllabusId.trim()) {
+        throw new ClassFormSubmitError("Syllabus is required", {
+          syllabusId: "syllabus là bắt buộc",
+        });
+      }
+
+      const selectedSyllabus = getSelectedSyllabusOption();
+      if (!selectedSyllabus) {
+        throw new ClassFormSubmitError("Selected syllabus is invalid", {
+          syllabusId: "syllabus đã chọn không hợp lệ",
+        });
+      }
+      if (
+        selectedSyllabus.programId &&
+        selectedSyllabus.programId !== formData.programId
+      ) {
+        throw new ClassFormSubmitError("Syllabus/program mismatch", {
+          syllabusId: "syllabus không khớp chương trình",
+        });
+      }
+      if (
+        selectedSyllabus.levelId &&
+        selectedSyllabus.levelId !== formData.levelId
+      ) {
+        throw new ClassFormSubmitError("Syllabus/level mismatch", {
+          syllabusId: "syllabus không khớp level",
+        });
+      }
+
       const submitSlots: ScheduleSlot[] = selectedDays
         .map((day) => {
           const slot = daySchedules[day];
@@ -3165,8 +3276,27 @@ function  CreateClassModal({
     setFormData((prev) => {
       const newData = { ...prev, [field]: value };
 
+      if (field === "branchId") {
+        newData.programId = "";
+        newData.syllabusId = "";
+        newData.levelId = "";
+        newData.startModuleId = "";
+        newData.startSessionIndex = 1;
+        newData.mainTeacherId = "";
+        newData.assistantTeacherId = "";
+        newData.roomId = "";
+      }
+
+      if (field === "programId") {
+        newData.syllabusId = "";
+        newData.levelId = "";
+        newData.startModuleId = "";
+        newData.startSessionIndex = 1;
+      }
+
       // Reset startModuleId khi đổi levelId
       if (field === "levelId") {
+        newData.syllabusId = "";
         newData.startModuleId = "";
         newData.startSessionIndex = 1;
       }
@@ -3196,6 +3326,9 @@ function  CreateClassModal({
 
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
+    if (field === "branchId" || field === "programId" || field === "levelId") {
+      setErrors((prev) => ({ ...prev, syllabusId: undefined }));
     }
   };
 
@@ -3471,6 +3604,57 @@ function  CreateClassModal({
                   </p>
                 )}
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <BookOpen size={16} className="text-red-600" />
+                Syllabus <span className="text-red-500">*</span>
+              </label>
+              <Select
+                value={formData.syllabusId || "__none__"}
+                onValueChange={(val) =>
+                  handleChange("syllabusId", val === "__none__" ? "" : val)
+                }
+                disabled={!formData.branchId || !formData.programId || loadingSyllabuses}
+              >
+                <SelectTrigger
+                  data-field="syllabusId"
+                  className={clsx(
+                    "w-full border-gray-200",
+                    errors.syllabusId ? "border-red-400 ring-1 ring-red-300" : "",
+                  )}
+                >
+                  <SelectValue
+                    placeholder={
+                      !formData.branchId
+                        ? "Chọn chi nhánh trước"
+                        : !formData.programId
+                          ? "Chọn chương trình trước"
+                          : loadingSyllabuses
+                            ? "Đang tải..."
+                            : filteredSyllabusOptions.length === 0
+                              ? "Chưa có syllabus phù hợp"
+                              : "Chọn syllabus"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredSyllabusOptions.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.syllabusId && (
+                <p className="text-sm text-red-600 flex items-center gap-1">
+                  <AlertCircle size={14} /> {errors.syllabusId}
+                </p>
+              )}
+              <p className="text-xs text-gray-400">
+                Danh sách lấy theo chi nhánh; submit dùng đúng syllabusId.
+              </p>
             </div>
 
             {/* Row startSessionIndex + sessionsToGenerate + skipHolidays */}
@@ -4342,9 +4526,17 @@ export default function Page() {
     let filtered = !kw
       ? classes
       : classes.filter((c) =>
-          [c.id, c.name, c.sub, c.teacher, c.branch, c.schedule].some((x) =>
-            x.toLowerCase().includes(kw),
-          ),
+          [
+            c.id,
+            c.name,
+            c.sub,
+            c.syllabusCode,
+            c.syllabusVersion,
+            c.syllabusTitle,
+            c.teacher,
+            c.branch,
+            c.schedule,
+          ].some((x) => String(x ?? "").toLowerCase().includes(kw)),
         );
 
     if (statusFilter !== "ALL") {
@@ -4493,26 +4685,27 @@ export default function Page() {
           : convertScheduleToWeeklySlots(data.schedule);
       console.log("Generated weeklyScheduleSlots:", weeklyScheduleSlots);
 
-      const payload: CreateClassRequest = {
+      const payload: CreateClassRequest = buildCreateClassPayload({
         branchId: data.branchId,
-        programId: data.programId.trim(),
+        programId: data.programId,
+        syllabusId: data.syllabusId,
         levelId: data.levelId,
         startModuleId: data.startModuleId,
         startSessionIndex: data.startSessionIndex,
         code: data.code,
         name: data.name,
-        description: data.description || null,
-        mainTeacherId: data.mainTeacherId || null,
-        assistantTeacherId: data.assistantTeacherId || null,
-        roomId: data.roomId || null,
+        description: data.description,
+        mainTeacherId: data.mainTeacherId,
+        assistantTeacherId: data.assistantTeacherId,
+        roomId: data.roomId,
         startDate: data.startDate,
-        endDate: data.endDate || null,
+        endDate: data.endDate,
         capacity: data.capacity,
-        sessionsToGenerate: data.sessionsToGenerate || 24,
+        sessionsToGenerate: data.sessionsToGenerate,
         skipHolidays: data.skipHolidays,
         weeklyScheduleSlots,
-        slotTypeId: data.slotTypeId || null,
-      };
+        slotTypeId: data.slotTypeId,
+      });
 
       console.log("Creating class with payload:", payload);
 
@@ -4590,6 +4783,7 @@ export default function Page() {
         code: detail?.code ?? row.code ?? "",
         name: detail?.title ?? row.name ?? "",
         programId: String(detail?.programId ?? ""),
+        syllabusId: String(detail?.syllabusId ?? ""),
         levelId: String(detail?.levelId ?? ""),
         branchId: String(detail?.branchId ?? ""),
         mainTeacherId: String(detail?.mainTeacherId ?? ""),
@@ -4655,24 +4849,25 @@ export default function Page() {
           ? data.weeklyScheduleSlots
           : convertScheduleToWeeklySlots(data.schedule);
 
-      const payload: CreateClassRequest = {
+      const payload: UpdateClassRequest = buildUpdateClassPayload({
         branchId: data.branchId,
-        programId: data.programId.trim(),
+        programId: data.programId,
+        syllabusId: data.syllabusId,
         levelId: data.levelId,
         startModuleId: data.startModuleId,
         startSessionIndex: data.startSessionIndex,
         code: data.code,
         name: data.name,
-        description: data.description || null,
-        mainTeacherId: data.mainTeacherId || null,
-        assistantTeacherId: data.assistantTeacherId || null,
-        roomId: data.roomId || null,
+        description: data.description,
+        mainTeacherId: data.mainTeacherId,
+        assistantTeacherId: data.assistantTeacherId,
+        roomId: data.roomId,
         startDate: data.startDate,
-        endDate: data.endDate || null,
+        endDate: data.endDate,
         capacity: data.capacity,
         weeklyScheduleSlots,
-        slotTypeId: data.slotTypeId || null,
-      };
+        slotTypeId: data.slotTypeId,
+      });
 
       console.log("Updating class with payload:", payload);
 
@@ -5121,6 +5316,18 @@ export default function Page() {
                         <div className="text-sm text-gray-900 truncate">
                           {c.sub}
                         </div>
+                        {(c.syllabusCode || c.syllabusVersion || c.syllabusTitle) && (
+                          <div className="mt-1 space-y-0.5 text-xs text-gray-500">
+                            <div className="font-medium text-gray-700 truncate">
+                              {[c.syllabusCode, c.syllabusVersion]
+                                .filter(Boolean)
+                                .join(" • ")}
+                            </div>
+                            {c.syllabusTitle && (
+                              <div className="truncate">{c.syllabusTitle}</div>
+                            )}
+                          </div>
+                        )}
                       </td>
 
                       <td className="py-4 px-6 whitespace-nowrap">

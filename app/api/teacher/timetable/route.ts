@@ -63,16 +63,9 @@ export async function GET(req: Request) {
 
     const primary = await fetch(teacherTimetableUrl, requestInit);
     const primaryData = await safeJson(primary);
-    const primarySessionCount = extractSessionCount(primaryData);
 
-    if (primary.status !== 403 && primarySessionCount > 0) {
+    if (primary.ok) {
       return NextResponse.json(primaryData, { status: primary.status });
-    }
-
-    if (primary.status !== 403 && primary.ok && primarySessionCount === 0) {
-      const fallback = await fetch(sessionsUrl, requestInit);
-      const fallbackData = await safeJson(fallback);
-      return NextResponse.json(fallbackData, { status: fallback.status });
     }
 
     const fallback = await fetch(sessionsUrl, requestInit);

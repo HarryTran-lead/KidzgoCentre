@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   DndContext,
   DragEndEvent,
@@ -71,7 +72,6 @@ import {
   getClassLessonPlanSyllabus,
   getLessonPlanById,
   getLessonPlanTemplateById,
-  importLessonPlanTemplates,
   LessonPlan,
   LessonPlanTemplate,
   LessonPlanUnit,
@@ -87,11 +87,23 @@ import {
   deleteLessonPlanTemplate,
   importLessonPlanTemplateWord,
   reorderLessonPlanTemplateSessionOrders,
+  getSessionLessonPlanDocument,
+  SessionLessonPlanDocument,
 } from "@/lib/api/lessonPlanService";
+import {
+  getSyllabusById,
+  getSyllabuses,
+  getUnitLessonPlans,
+  SyllabusDetail,
+  SyllabusListItem,
+} from "@/lib/api/syllabusService";
 import { getAllProgramsForDropdown } from "@/lib/api/programService";
+import LessonPlanTemplateDocument from "@/components/lesson-plans/LessonPlanTemplateDocument";
+import SyllabusSummaryPanel from "@/components/lesson-plans/SyllabusSummaryPanel";
 import { getTeacherClasses } from "@/lib/api/teacherService";
 
 type WorkspaceScope = "teacher" | "staff-management" | "admin";
+type WorkspacePresentation = "workspace" | "session-page";
 type ActiveTab = "templates" | "plans";
 type TemplateStatusFilter = "all" | "active" | "inactive" | "withAttachment";
 type PlanStatusFilter =
@@ -137,10 +149,24 @@ type DetailState =
       item: LessonPlanTemplate | null;
       error?: string;
     }
-  | { type: "plan"; loading: boolean; item: LessonPlan | null; error?: string }
+  | {
+      type: "plan";
+      loading: boolean;
+      item: LessonPlan | null;
+      error?: string;
+    }
+  | {
+      type: "session-document";
+      loading: boolean;
+      item: SessionLessonPlanDocument | null;
+      fallbackTemplate: LessonPlanTemplate | null;
+      fallbackContent?: string | null;
+      error?: string;
+    }
   | null;
 
 type DetailModalState = Exclude<DetailState, null>;
+type SessionDocumentDetailState = Extract<DetailModalState, { type: "session-document" }>;
 
 const COPY: Record<
   WorkspaceScope,
@@ -321,6 +347,37 @@ function getFileExtension(fileName: string) {
 function isSupportedSyllabusFile(fileName: string) {
   const extension = getFileExtension(fileName);
   return extension === "xlsx" || extension === "xls" || extension === "csv";
+}
+
+function getTemplateDisplayTitle(item: LessonPlanTemplate) {
+  const sourceFileName = item.sourceFileName?.trim();
+  if (sourceFileName) return sourceFileName;
+  return item.title;
+}
+
+function getTemplateDisplaySubtitle(item: LessonPlanTemplate) {
+  const sourceFileName = item.sourceFileName?.trim();
+  const title = item.title?.trim();
+
+  if (!sourceFileName) return "Tạo thủ công";
+  if (title && title !== sourceFileName) return `Tiêu đề hệ thống: ${title}`;
+  return "Nguồn từ file";
+}
+
+function compareLessonsByBeOrder(a: LessonPlanTemplate, b: LessonPlanTemplate) {
+  const aHasOrder = typeof a.orderIndexInUnit === "number";
+  const bHasOrder = typeof b.orderIndexInUnit === "number";
+
+  if (aHasOrder && bHasOrder) {
+    return (a.orderIndexInUnit as number) - (b.orderIndexInUnit as number);
+  }
+
+  if (aHasOrder) return -1;
+  if (bHasOrder) return 1;
+
+  const aIdx = a.sessionIndex ?? Number.MAX_SAFE_INTEGER;
+  const bIdx = b.sessionIndex ?? Number.MAX_SAFE_INTEGER;
+  return aIdx - bIdx;
 }
 
 const TEACHER_EDITABLE_FIELDS = {
@@ -842,6 +899,150 @@ function getClassDisplay(syllabus: ClassLessonPlanSyllabus | null) {
   return syllabus.classTitle || syllabus.classCode || "Lớp học";
 }
 
+type CurriculumTableRow = {
+  periods: string;
+  topics: string;
+  lessons: string;
+  contents: string;
+  structures: string;
+  studentsBook: string;
+  teachersBook: string;
+};
+
+function normalizeCurriculumTableText(value: unknown): string {
+  if (value == null) return "";
+  if (typeof value === "string") return value.replace(/\u0000/g, "").trim();
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => normalizeCurriculumTableText(item))
+      .filter(Boolean)
+      .join("\n")
+      .trim();
+  }
+  if (typeof value === "object") {
+    const obj = value as Record<string, unknown>;
+    return ["text", "value", "name", "title", "label", "content"]
+      .map((key) => normalizeCurriculumTableText(obj[key]))
+      .find(Boolean) || "";
+  }
+  return "";
+}
+
+function extractCurriculumRowsFromSyllabusDetail(detail?: SyllabusDetail | null): CurriculumTableRow[] {
+  if (!detail) return [];
+
+  const rowFromSessionTemplate = (item: unknown): CurriculumTableRow | null => {
+    if (!item || typeof item !== "object") return null;
+    const obj = item as Record<string, unknown>;
+    const row: CurriculumTableRow = {
+      periods:
+        normalizeCurriculumTableText(obj.sessionIndexInModule) ||
+        normalizeCurriculumTableText(obj.sessionIndex) ||
+        normalizeCurriculumTableText(obj.curriculumSessionIndex),
+      topics:
+        normalizeCurriculumTableText(obj.unitName) ||
+        normalizeCurriculumTableText(obj.sessionTopic) ||
+        normalizeCurriculumTableText(obj.topic) ||
+        normalizeCurriculumTableText(obj.moduleName),
+      lessons:
+        normalizeCurriculumTableText(obj.lessonNumber) ||
+        normalizeCurriculumTableText(obj.sessionOrder) ||
+        normalizeCurriculumTableText(obj.orderIndexInUnit),
+      contents:
+        normalizeCurriculumTableText(obj.sessionTitle) ||
+        normalizeCurriculumTableText(obj.title) ||
+        normalizeCurriculumTableText(obj.content),
+      structures:
+        normalizeCurriculumTableText(obj.structure) ||
+        normalizeCurriculumTableText(obj.languageFocus),
+      studentsBook:
+        normalizeCurriculumTableText(obj.studentBookPage) ||
+        normalizeCurriculumTableText(obj.studentsBook),
+      teachersBook:
+        normalizeCurriculumTableText(obj.teacherBookPage) ||
+        normalizeCurriculumTableText(obj.teachersBook),
+    };
+
+    const nonEmptyCount = Object.values(row).filter((value) => value.trim().length > 0).length;
+    return nonEmptyCount >= 2 ? row : null;
+  };
+
+  const normKey = (key: string) => key.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const pickByAliases = (obj: Record<string, unknown>, aliases: string[]) => {
+    const aliasSet = new Set(aliases.map(normKey));
+    for (const [key, value] of Object.entries(obj)) {
+      if (!aliasSet.has(normKey(key))) continue;
+      const text = normalizeCurriculumTableText(value);
+      if (text) return text;
+    }
+    return "";
+  };
+
+  const rowFromRawObject = (obj: Record<string, unknown>): CurriculumTableRow | null => {
+    const row: CurriculumTableRow = {
+      periods: pickByAliases(obj, ["periods", "period", "periodRange", "sessionRange", "week", "time"]),
+      topics: pickByAliases(obj, ["topics", "topic", "unit", "unitName", "sessionTopic"]),
+      lessons: pickByAliases(obj, ["lessons", "lesson", "lessonNo", "lessonNumber", "sessionNo", "sessionIndex", "sessionOrder"]),
+      contents: pickByAliases(obj, ["contents", "content", "objective", "objectives", "goals", "skills", "activity"]),
+      structures: pickByAliases(obj, ["structures", "structure", "languageFocus", "grammar", "pattern"]),
+      studentsBook: pickByAliases(obj, ["studentsBook", "studentBook", "studentsbook", "pupils", "pupilBook", "wbPage", "wbPages"]),
+      teachersBook: pickByAliases(obj, ["teachersBook", "teacherBook", "teachersbook", "tbPage", "tbPages", "teacherPage"]),
+    };
+
+    const nonEmptyCount = Object.values(row).filter((value) => value.trim().length > 0).length;
+    const hasSignal = Boolean(row.periods || row.topics || row.lessons || row.contents || row.structures);
+    return nonEmptyCount >= 2 && hasSignal ? row : null;
+  };
+
+  const rawRows: CurriculumTableRow[] = [];
+  const rawParsed = parseJsonContent(detail.rawContentJson);
+  if (rawParsed && typeof rawParsed === "object") {
+    const visited = new WeakSet<object>();
+    const walk = (node: unknown) => {
+      if (!node || typeof node !== "object") return;
+      if (visited.has(node as object)) return;
+      visited.add(node as object);
+
+      if (Array.isArray(node)) {
+        node.forEach(walk);
+        return;
+      }
+
+      const obj = node as Record<string, unknown>;
+      const row = rowFromRawObject(obj);
+      if (row) rawRows.push(row);
+      Object.values(obj).forEach(walk);
+    };
+    walk(rawParsed);
+  }
+
+  const sessionTemplateRows = Array.isArray(detail.sessionTemplates)
+    ? detail.sessionTemplates
+        .map((item) => rowFromSessionTemplate(item))
+        .filter((row): row is CurriculumTableRow => row != null)
+    : [];
+
+  const source = rawRows.length > 0 ? rawRows : sessionTemplateRows;
+  const seen = new Set<string>();
+  return source.filter((row) => {
+    const signature = [
+      row.periods,
+      row.topics,
+      row.lessons,
+      row.contents,
+      row.structures,
+      row.studentsBook,
+      row.teachersBook,
+    ]
+      .map((value) => value.replace(/\s+/g, " ").trim())
+      .join("|");
+    if (!signature || seen.has(signature)) return false;
+    seen.add(signature);
+    return true;
+  }).slice(0, 400);
+}
+
 function getTemplateStats(templates: LessonPlanTemplate[]) {
   return [
     {
@@ -914,7 +1115,32 @@ function getPlanStats(syllabus: ClassLessonPlanSyllabus | null) {
   ];
 }
 
-export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
+function getSyllabusSummaryItems(syllabus: ClassLessonPlanSyllabus | null) {
+  const sessions = syllabus?.sessions || [];
+
+  return [
+    { label: "Lớp", value: syllabus?.classTitle || syllabus?.classCode || "Chưa chọn" },
+    { label: "Chương trình", value: syllabus?.programName || "-" },
+    { label: "Metadata", value: syllabus?.syllabusMetadata || "-" },
+    { label: "Tổng buổi", value: sessions.length },
+    { label: "Đã có lesson plan", value: sessions.filter((item) => item.lessonPlanId).length },
+    { label: "Đã có actual content", value: sessions.filter((item) => item.actualContent).length },
+  ];
+}
+
+export function LessonPlanWorkspace({
+  scope,
+  presentation = "workspace",
+}: {
+  scope: WorkspaceScope;
+  presentation?: WorkspacePresentation;
+}) {
+  const searchParams = useSearchParams();
+  const requestedProgramId = searchParams?.get("programId")?.trim() || "";
+  const requestedSyllabusId = searchParams?.get("syllabusId")?.trim() || "";
+  const requestedModuleId = searchParams?.get("moduleId")?.trim() || "";
+  const requestedClassId = searchParams?.get("classId")?.trim() || "";
+  const requestedSessionId = searchParams?.get("sessionId")?.trim() || "";
   const [activeTab, setActiveTab] = useState<ActiveTab>(
     scope === "teacher" ? "plans" : "templates",
   );
@@ -927,27 +1153,107 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
     useState<ClassLessonPlanSyllabus | null>(null);
   const [programOptions, setProgramOptions] = useState<Option[]>([]);
   const [classOptions, setClassOptions] = useState<Option[]>([]);
+  const [syllabusOptions, setSyllabusOptions] = useState<SyllabusListItem[]>([]);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [templateStatusFilter, setTemplateStatusFilter] =
     useState<TemplateStatusFilter>("all");
   const [planStatusFilter, setPlanStatusFilter] =
     useState<PlanStatusFilter>("all");
-  const [selectedProgramId, setSelectedProgramId] = useState("all");
-  const [selectedClassId, setSelectedClassId] = useState("");
+  const [selectedProgramId, setSelectedProgramId] = useState(
+    requestedProgramId || "all",
+  );
+  const [selectedSyllabusId, setSelectedSyllabusId] = useState(
+    requestedSyllabusId || "all",
+  );
+  const [selectedModuleId, setSelectedModuleId] = useState(
+    requestedModuleId || "all",
+  );
+  const [selectedClassId, setSelectedClassId] = useState(requestedClassId);
 
   const [templateModal, setTemplateModal] = useState<TemplateModalState>(null);
   const [planModal, setPlanModal] = useState<PlanModalState>(null);
   const [detailState, setDetailState] = useState<DetailState>(null);
-  const [showImportModal, setShowImportModal] = useState(false);
-
+  const [focusedSyllabusDetail, setFocusedSyllabusDetail] = useState<SyllabusDetail | null>(null);
+  const [focusedSyllabusLoading, setFocusedSyllabusLoading] = useState(false);
+  const [focusedSyllabusError, setFocusedSyllabusError] = useState<string | null>(null);
   const scopeCopy = COPY[scope];
   const isTeacher = scope === "teacher";
+  const isSessionPage = presentation === "session-page";
   const templatesAvailable = !isTeacher;
 
   const templateMap = useMemo(() => {
     return new Map(templates.map((item) => [item.id, item]));
   }, [templates]);
+
+  const syllabusMap = useMemo(() => {
+    return new Map(syllabusOptions.map((item) => [item.id, item]));
+  }, [syllabusOptions]);
+
+  const filteredSyllabusOptions = useMemo(() => {
+    if (selectedProgramId === "all") {
+      return syllabusOptions;
+    }
+    return syllabusOptions.filter((item) => item.programId === selectedProgramId);
+  }, [selectedProgramId, syllabusOptions]);
+
+  const filteredModuleOptions = useMemo(() => {
+    if (selectedSyllabusId === "all") {
+      return [] as Option[];
+    }
+
+    const moduleMap = new Map<string, Option>();
+
+    for (const item of templates) {
+      const moduleId = item.moduleId?.trim();
+      if (!moduleId) continue;
+      if (item.syllabusId !== selectedSyllabusId) continue;
+      if (selectedProgramId !== "all" && item.programId !== selectedProgramId) {
+        continue;
+      }
+      if (moduleMap.has(moduleId)) continue;
+
+      const moduleName =
+        item.moduleName?.trim() ||
+        item.moduleCode?.trim() ||
+        "Chưa rõ module";
+      const hint = [
+        item.moduleCode && item.moduleName && item.moduleCode !== item.moduleName
+          ? item.moduleCode
+          : null,
+        item.syllabusCode && item.syllabusVersion
+          ? `${item.syllabusCode} ${item.syllabusVersion}`
+          : item.syllabusTitle,
+      ]
+        .filter((value): value is string => Boolean(value && value.trim()))
+        .join(" • ");
+
+      moduleMap.set(moduleId, {
+        id: moduleId,
+        label: moduleName,
+        hint: hint || undefined,
+      });
+    }
+
+    return Array.from(moduleMap.values()).sort((a, b) =>
+      a.label.localeCompare(b.label, "vi"),
+    );
+  }, [selectedProgramId, selectedSyllabusId, templates]);
+
+  const effectiveSelectedModuleId = useMemo(() => {
+    if (selectedSyllabusId === "all") {
+      return "all";
+    }
+
+    return filteredModuleOptions.some((item) => item.id === selectedModuleId)
+      ? selectedModuleId
+      : "all";
+  }, [filteredModuleOptions, selectedModuleId, selectedSyllabusId]);
+
+  const handleSyllabusFilterChange = useCallback((nextSyllabusId: string) => {
+    setSelectedSyllabusId(nextSyllabusId);
+    setSelectedModuleId("all");
+  }, []);
 
   const sharedProgramTemplate = useMemo(
     () => pickSharedProgramTemplate(templates, classSyllabus?.programId),
@@ -960,6 +1266,52 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
     }, 0);
     return () => clearTimeout(timer);
   }, [scope]);
+
+  useEffect(() => {
+    if (requestedProgramId && requestedProgramId !== selectedProgramId) {
+      setSelectedProgramId(requestedProgramId);
+    }
+  }, [requestedProgramId, selectedProgramId]);
+
+  useEffect(() => {
+    if (!requestedSyllabusId) return;
+    if (!syllabusOptions.some((item) => item.id === requestedSyllabusId)) return;
+    if (requestedSyllabusId !== selectedSyllabusId) {
+      setSelectedSyllabusId(requestedSyllabusId);
+    }
+  }, [requestedSyllabusId, selectedSyllabusId, syllabusOptions]);
+
+  useEffect(() => {
+    if (!requestedClassId) return;
+    if (!classOptions.some((item) => item.id === requestedClassId)) return;
+    if (requestedClassId !== selectedClassId) {
+      setSelectedClassId(requestedClassId);
+    }
+  }, [classOptions, requestedClassId, selectedClassId]);
+
+  useEffect(() => {
+    if (selectedSyllabusId === "all") return;
+    const syllabus = syllabusMap.get(selectedSyllabusId);
+    if (!syllabus) return;
+    if (selectedProgramId !== syllabus.programId) {
+      setSelectedProgramId(syllabus.programId);
+    }
+  }, [selectedProgramId, selectedSyllabusId, syllabusMap]);
+
+  useEffect(() => {
+    if (selectedSyllabusId === "all") return;
+    const syllabus = syllabusMap.get(selectedSyllabusId);
+    if (!syllabus) {
+      setSelectedSyllabusId("all");
+      return;
+    }
+    if (
+      selectedProgramId !== "all" &&
+      syllabus.programId !== selectedProgramId
+    ) {
+      setSelectedSyllabusId("all");
+    }
+  }, [selectedProgramId, selectedSyllabusId, syllabusMap]);
 
   const loadPrograms = async () => {
     if (!templatesAvailable) {
@@ -1036,7 +1388,193 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
       );
     }
 
-    setTemplates(response.data.templates.items);
+    const legacyItems = response.data.templates.items;
+    let syllabusCatalog: SyllabusListItem[] = [];
+    const syllabusIdSet = new Set(
+      legacyItems
+        .map((item) => item.syllabusId)
+        .filter((id): id is string => typeof id === "string" && id.trim().length > 0),
+    );
+
+    const legacyLooksIncomplete =
+      legacyItems.length > 0 &&
+      (response.data.templates.totalCount > legacyItems.length ||
+        legacyItems.some(
+          (item) =>
+            typeof item.syllabusId !== "string" || item.syllabusId.trim().length === 0,
+        ));
+
+    const syllabusResponse = await getSyllabuses({
+      pageNumber: 1,
+      pageSize: 200,
+    });
+
+    if (syllabusResponse.isSuccess) {
+      syllabusCatalog = syllabusResponse.data.items;
+      setSyllabusOptions(syllabusResponse.data.items);
+      for (const syllabus of syllabusResponse.data.items) {
+        if (syllabus.id) {
+          syllabusIdSet.add(syllabus.id);
+        }
+      }
+    } else if (legacyLooksIncomplete) {
+      throw new Error(
+        extractMessage(syllabusResponse, "KhÃ´ng thá»ƒ táº£i danh sÃ¡ch syllabus."),
+      );
+    }
+
+    if (selectedSyllabusId !== "all") {
+      syllabusIdSet.add(selectedSyllabusId);
+    }
+    if (requestedSyllabusId) {
+      syllabusIdSet.add(requestedSyllabusId);
+    }
+
+    const syllabusMetaMap = new Map(
+      (syllabusCatalog.length ? syllabusCatalog : syllabusOptions).map((item) => [
+        item.id,
+        item,
+      ]),
+    );
+
+    const syllabusIds = Array.from(syllabusIdSet);
+
+    if (syllabusIds.length === 0) {
+      setTemplates(legacyItems);
+      return;
+    }
+
+    const unitPlanResults = await Promise.all(
+      syllabusIds.map(async (syllabusId) => {
+        const unitRes = await getUnitLessonPlans(syllabusId);
+        return unitRes.isSuccess && unitRes.data
+          ? { syllabusId, data: unitRes.data }
+          : null;
+      }),
+    );
+
+    const flattened: LessonPlanTemplate[] = [];
+    const resolvedSyllabusIds = new Set<string>();
+    for (const result of unitPlanResults) {
+      if (!result) continue;
+
+      const { syllabusId, data } = result;
+      const syllabusMeta = syllabusMetaMap.get(syllabusId);
+      resolvedSyllabusIds.add(syllabusId);
+      for (const [moduleIndex, moduleGroup] of (data.groups ?? []).entries()) {
+        for (const [unitIndex, unitGroup] of (moduleGroup.units ?? []).entries()) {
+          for (const [lessonIndex, lesson] of (unitGroup.lessons ?? []).entries()) {
+            // Trust the nested API hierarchy first; item-level module/unit fields can lag behind.
+            flattened.push({
+              id: lesson.lessonPlanTemplateId,
+              syllabusId,
+              syllabusCode: syllabusMeta?.code ?? null,
+              syllabusVersion: syllabusMeta?.version ?? null,
+              syllabusTitle: syllabusMeta?.title ?? null,
+              programId: data.programId,
+              programName: data.programName ?? undefined,
+              levelId: data.levelId,
+              levelName: data.levelName ?? undefined,
+              title: lesson.title ?? lesson.sessionTitle ?? "Untitled Lesson",
+              sessionIndex: lesson.sessionIndex ?? lesson.sessionOrder ?? 0,
+              moduleId: moduleGroup.moduleId ?? lesson.moduleId,
+              moduleCode: moduleGroup.moduleCode,
+              moduleName: moduleGroup.moduleName,
+              moduleOrderIndex:
+                moduleGroup.moduleOrderIndex ??
+                moduleGroup.moduleOrder ??
+                lesson.moduleOrderIndex ??
+                moduleIndex,
+              lessonPlanUnitId:
+                unitGroup.unitId ?? lesson.unitId ?? lesson.lessonPlanUnitId ?? null,
+              lessonPlanUnitName:
+                unitGroup.unitName ||
+                [unitGroup.unitNumber, unitGroup.unitTitle]
+                  .filter((part) => typeof part === "string" && part.trim())
+                  .join(": "),
+              unitOrderIndex:
+                unitGroup.unitOrderIndex ??
+                unitGroup.orderIndex ??
+                lesson.unitOrderIndex ??
+                unitIndex,
+              unitNumber: lesson.unitNumber ?? unitGroup.unitNumber ?? null,
+              unitTitle: lesson.unitTitle ?? unitGroup.unitTitle ?? null,
+              orderIndexInUnit:
+                lesson.lessonOrderIndexInUnit ?? lesson.orderIndexInUnit ?? lessonIndex,
+              lessonOrderIndexInUnit:
+                lesson.lessonOrderIndexInUnit ?? lesson.orderIndexInUnit ?? lessonIndex,
+              sessionOrder: lesson.sessionOrder ?? null,
+              sourceFileName: lesson.sourceFileName ?? null,
+              isActive: lesson.isActive,
+              createdAt: lesson.createdAt,
+              updatedAt: lesson.updatedAt,
+            });
+          }
+        }
+      }
+
+      for (const lesson of data.orphanLessons ?? []) {
+        flattened.push({
+          id: lesson.lessonPlanTemplateId,
+          syllabusId,
+          syllabusCode: syllabusMeta?.code ?? null,
+          syllabusVersion: syllabusMeta?.version ?? null,
+          syllabusTitle: syllabusMeta?.title ?? null,
+          programId: data.programId,
+          programName: data.programName ?? undefined,
+          levelId: data.levelId,
+          levelName: data.levelName ?? undefined,
+          title: lesson.title ?? lesson.sessionTitle ?? "Untitled Lesson",
+          sessionIndex: lesson.sessionIndex ?? lesson.sessionOrder ?? 0,
+          moduleId: lesson.moduleId ?? null,
+          moduleName: null,
+          moduleOrderIndex: lesson.moduleOrderIndex ?? null,
+          lessonPlanUnitId: null,
+          lessonPlanUnitName: null,
+          unitOrderIndex: null,
+          unitNumber: null,
+          unitTitle: null,
+          orderIndexInUnit:
+            lesson.lessonOrderIndexInUnit ?? lesson.orderIndexInUnit ?? null,
+          lessonOrderIndexInUnit:
+            lesson.lessonOrderIndexInUnit ?? lesson.orderIndexInUnit ?? null,
+          sessionOrder: lesson.sessionOrder ?? null,
+          sourceFileName: lesson.sourceFileName ?? null,
+          isActive: lesson.isActive,
+          createdAt: lesson.createdAt,
+          updatedAt: lesson.updatedAt,
+        });
+      }
+    }
+
+    const merged = new Map<string, LessonPlanTemplate>();
+    for (const item of flattened) {
+      if (item.id) {
+        merged.set(item.id, item);
+      }
+    }
+
+    for (const item of legacyItems) {
+      const legacySyllabusMeta = item.syllabusId
+        ? syllabusMetaMap.get(item.syllabusId)
+        : undefined;
+      const legacySyllabusId = item.syllabusId?.trim();
+      const shouldKeepLegacy =
+        !legacySyllabusId || !resolvedSyllabusIds.has(legacySyllabusId);
+      if (shouldKeepLegacy && item.id && !merged.has(item.id)) {
+        merged.set(item.id, {
+          ...item,
+          syllabusCode:
+            item.syllabusCode ?? legacySyllabusMeta?.code ?? null,
+          syllabusVersion:
+            item.syllabusVersion ?? legacySyllabusMeta?.version ?? null,
+          syllabusTitle:
+            item.syllabusTitle ?? legacySyllabusMeta?.title ?? null,
+        });
+      }
+    }
+
+    setTemplates(merged.size > 0 ? Array.from(merged.values()) : legacyItems);
   };
 
   const loadClassSyllabus = async (classId: string) => {
@@ -1085,6 +1623,8 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
   };
 
   const refreshWorkspaceRef = useRef(refreshWorkspace);
+  const autoOpenedSessionDetailRef = useRef("");
+  const warnedMissingSessionRef = useRef("");
 
   useEffect(() => {
     refreshWorkspaceRef.current = refreshWorkspace;
@@ -1153,6 +1693,20 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
         }
 
         if (
+          selectedSyllabusId !== "all" &&
+          item.syllabusId !== selectedSyllabusId
+        ) {
+          return false;
+        }
+
+        if (
+          effectiveSelectedModuleId !== "all" &&
+          item.moduleId !== effectiveSelectedModuleId
+        ) {
+          return false;
+        }
+
+        if (
           templateStatusFilter === "active" &&
           getTemplateStatus(item) !== "active"
         ) {
@@ -1188,7 +1742,47 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
         const timeB = new Date(b.updatedAt || b.createdAt || 0).getTime();
         return timeB - timeA;
       });
-  }, [searchQuery, selectedProgramId, templateStatusFilter, templates]);
+  }, [
+    effectiveSelectedModuleId,
+    searchQuery,
+    selectedProgramId,
+    selectedSyllabusId,
+    templateStatusFilter,
+    templates,
+  ]);
+
+  const templateStatsSource = useMemo(() => {
+    return templates.filter((item) => {
+      if (selectedProgramId !== "all" && item.programId !== selectedProgramId) {
+        return false;
+      }
+      if (selectedSyllabusId !== "all" && item.syllabusId !== selectedSyllabusId) {
+        return false;
+      }
+      if (
+        effectiveSelectedModuleId !== "all" &&
+        item.moduleId !== effectiveSelectedModuleId
+      ) {
+        return false;
+      }
+      if (
+        templateStatusFilter === "active" &&
+        getTemplateStatus(item) !== "active"
+      ) {
+        return false;
+      }
+      if (
+        templateStatusFilter === "inactive" &&
+        getTemplateStatus(item) !== "inactive"
+      ) {
+        return false;
+      }
+      if (templateStatusFilter === "withAttachment" && !item.attachment) {
+        return false;
+      }
+      return true;
+    });
+  }, [effectiveSelectedModuleId, selectedProgramId, selectedSyllabusId, templateStatusFilter, templates]);
 
   const filteredSessions = useMemo(() => {
     const keyword = searchQuery.trim().toLowerCase();
@@ -1245,9 +1839,9 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
 
   const stats = useMemo(() => {
     return activeTab === "templates" && templatesAvailable
-      ? getTemplateStats(templates)
+      ? getTemplateStats(templateStatsSource)
       : getPlanStats(classSyllabus);
-  }, [activeTab, classSyllabus, templates, templatesAvailable]);
+  }, [activeTab, classSyllabus, templateStatsSource, templatesAvailable]);
 
   const openAttachment = (url?: string | null) => {
     const resolvedUrl = resolveAttachmentUrl(url);
@@ -1288,6 +1882,92 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
 
     setDetailState({ type: "plan", loading: false, item: response.data });
   };
+
+  const openSessionSyllabusDetail = useCallback(async (
+    session: ClassLessonPlanSyllabusSession,
+  ) => {
+    setDetailState({
+      type: "session-document",
+      loading: true,
+      item: null,
+      fallbackTemplate: null,
+      fallbackContent:
+        session.plannedContent || session.templateSyllabusContent || null,
+    });
+
+    let fallbackTemplate: LessonPlanTemplate | null = null;
+    let dedicatedDocument: SessionLessonPlanDocument | null = null;
+
+    const documentResponse = await getSessionLessonPlanDocument(session.sessionId);
+    if (documentResponse.isSuccess) {
+      dedicatedDocument = documentResponse.data;
+    } else if (documentResponse.status && documentResponse.status !== 404) {
+      setDetailState({
+        type: "session-document",
+        loading: false,
+        item: null,
+        fallbackTemplate: null,
+        fallbackContent:
+          session.plannedContent || session.templateSyllabusContent || null,
+        error: extractMessage(
+          documentResponse,
+          "Không thể tải syllabus theo buổi.",
+        ),
+      });
+      return;
+    }
+
+    const resolvedTemplateId =
+      dedicatedDocument?.lessonPlanTemplateId ||
+      dedicatedDocument?.plannedLessonPlanTemplateId ||
+      dedicatedDocument?.actualLessonPlanTemplateId ||
+      session.templateId ||
+      null;
+
+    if (!dedicatedDocument?.document && resolvedTemplateId) {
+      const templateResponse = await getLessonPlanTemplateById(resolvedTemplateId);
+      if (templateResponse.isSuccess && templateResponse.data) {
+        fallbackTemplate = templateResponse.data;
+      }
+    }
+
+    if (!dedicatedDocument?.document && !fallbackTemplate) {
+      fallbackTemplate = templateMap.get(resolvedTemplateId || "") || null;
+    }
+
+    setDetailState({
+      type: "session-document",
+      loading: false,
+      item: dedicatedDocument,
+      fallbackTemplate,
+      fallbackContent:
+        session.plannedContent || session.templateSyllabusContent || null,
+    });
+  }, [templateMap]);
+
+  useEffect(() => {
+    if (!requestedSessionId || !classSyllabus?.sessions.length) return;
+    if (autoOpenedSessionDetailRef.current === requestedSessionId) return;
+
+    const matchedSession = classSyllabus.sessions.find(
+      (session) => session.sessionId === requestedSessionId,
+    );
+
+    if (!matchedSession) {
+      if (warnedMissingSessionRef.current === requestedSessionId) return;
+      warnedMissingSessionRef.current = requestedSessionId;
+      toast({
+        title: "Không tìm thấy buổi học trong syllabus lớp",
+        description: "Buổi được chọn không còn nằm trong syllabus hiện tại của lớp này.",
+        variant: "warning",
+      });
+      return;
+    }
+
+    autoOpenedSessionDetailRef.current = requestedSessionId;
+    warnedMissingSessionRef.current = "";
+    void openSessionSyllabusDetail(matchedSession);
+  }, [classSyllabus, openSessionSyllabusDetail, requestedSessionId]);
 
   const openTemplateEditor = async (template: LessonPlanTemplate) => {
     const response = await getLessonPlanTemplateById(template.id);
@@ -1397,40 +2077,32 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
     await loadTemplates();
   };
 
-  const handleImportSubmit = async (payload: {
-    file: File;
-    programId?: string;
-    level?: string;
-    overwriteExisting: boolean;
-  }) => {
-    const response = await importLessonPlanTemplates({
-      file: payload.file,
-      programId: payload.programId,
-      level: payload.level,
-      overwriteExisting: payload.overwriteExisting,
-    });
+  const openSyllabusWorkspace = () => {
+    if (typeof window === "undefined") return;
+    const locale = window.location.pathname.split("/")[1] || "vi";
+    if (scope === "teacher") {
+      const query = new URLSearchParams();
+      const targetSyllabusId =
+        focusedSyllabusId ||
+        (selectedSyllabusId !== "all" ? selectedSyllabusId : "") ||
+        classSyllabus?.syllabusId ||
+        requestedSyllabusId ||
+        "";
+      const targetClassId = selectedClassId || classSyllabus?.classId || requestedClassId || "";
 
-    if (!response.isSuccess || !response.data) {
-      throw new Error(extractMessage(response, "Không thể import syllabus."));
+      if (targetClassId) query.set("classId", targetClassId);
+      if (targetSyllabusId) query.set("syllabusId", targetSyllabusId);
+      if (effectiveSelectedModuleId !== "all") {
+        query.set("moduleId", effectiveSelectedModuleId);
+      }
+
+      const target = `/${locale}/portal/teacher/subjects${query.size ? `?${query.toString()}` : ""}`;
+      window.location.href = target;
+      return;
     }
 
-    const importedPrograms = (response.data.programs ?? [])
-      .map(
-        (item) =>
-          `${item.programName || item.programId}: ${item.importedSessions}`,
-      )
-      .join(" • ");
-
-    toast({
-      title: "Nhập syllabus thành công",
-      description:
-        importedPrograms ||
-        `Đã nhập ${response.data.importedCount} mẫu buổi học.`,
-      variant: "success",
-    });
-
-    setShowImportModal(false);
-    await loadTemplates();
+    const portalScope = scope === "staff-management" ? "staff-management" : "admin";
+    window.location.href = `/${locale}/portal/${portalScope}/syllabuses`;
   };
 
   const handlePlanSubmit = async (payload: {
@@ -1499,6 +2171,185 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
     );
   }, [classSyllabus, templates]);
 
+  const focusedSession = useMemo(
+    () =>
+      requestedSessionId
+        ? classSyllabus?.sessions.find((session) => session.sessionId === requestedSessionId) ?? null
+        : null,
+    [classSyllabus, requestedSessionId],
+  );
+
+  const focusedSessionDetailState =
+    detailState?.type === "session-document" ? detailState : null;
+  const focusedSyllabusId =
+    focusedSessionDetailState?.item?.syllabusId ||
+    focusedSessionDetailState?.item?.document?.syllabusId ||
+    focusedSessionDetailState?.fallbackTemplate?.syllabusId ||
+    requestedSyllabusId ||
+    "";
+  const focusedCurriculumRows = useMemo(
+    () => extractCurriculumRowsFromSyllabusDetail(focusedSyllabusDetail),
+    [focusedSyllabusDetail],
+  );
+
+  useEffect(() => {
+    if (!isSessionPage) return;
+    if (!focusedSyllabusId) {
+      setFocusedSyllabusDetail(null);
+      setFocusedSyllabusError(null);
+      setFocusedSyllabusLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setFocusedSyllabusLoading(true);
+    setFocusedSyllabusError(null);
+
+    void getSyllabusById(focusedSyllabusId)
+      .then((response) => {
+        if (cancelled) return;
+        if (!response.isSuccess || !response.data) {
+          setFocusedSyllabusDetail(null);
+          setFocusedSyllabusError(extractMessage(response, "Không thể tải curriculum của syllabus."));
+          return;
+        }
+
+        setFocusedSyllabusDetail(response.data);
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        setFocusedSyllabusDetail(null);
+        setFocusedSyllabusError(toErrorMessage(error, "Không thể tải curriculum của syllabus."));
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setFocusedSyllabusLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [focusedSyllabusId, isSessionPage]);
+
+  if (isSessionPage) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-red-50/40 to-white p-2 space-y-6">
+        <div className="mx-auto max-w-6xl space-y-6">
+          <div className="flex flex-col gap-4 rounded-2xl border border-red-200 bg-white p-6 shadow-sm md:flex-row md:items-start md:justify-between">
+            <div className="space-y-2">
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-red-600">
+                Syllabus theo buổi
+              </div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                {focusedSession?.templateTitle || getSessionDisplay(focusedSession || { sessionIndex: 0, sessionDate: null })}
+              </h1>
+              <p className="text-sm text-gray-600">
+                Trang cố định cho syllabus của đúng buổi học được mở từ attendance. Không hiển thị popup trên trang này.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => refreshWorkspace(true)}
+              className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-red-50 cursor-pointer"
+            >
+              <RefreshCw
+                size={16}
+                className={cn(refreshing && "animate-spin")}
+              />
+              Làm mới
+            </button>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <InfoCard
+              icon={Users}
+              label="Lớp học"
+              value={getClassDisplay(classSyllabus)}
+            />
+            <InfoCard
+              icon={CalendarDays}
+              label="Buổi học"
+              value={focusedSession ? getSessionDisplay(focusedSession) : "Đang xác định buổi học"}
+            />
+            <InfoCard
+              icon={Layers}
+              label="Module"
+              value={focusedSessionDetailState?.item?.moduleName || focusedSessionDetailState?.item?.moduleId || focusedSession?.moduleName || "-"}
+            />
+            <InfoCard
+              icon={ShieldCheck}
+              label="Teaching log"
+              value={focusedSessionDetailState?.item?.teachingLogStatus || "-"}
+            />
+          </div>
+
+          <div className="rounded-2xl border border-red-200 bg-white shadow-sm">
+            <div className="border-b border-red-100 bg-gradient-to-r from-red-50 to-white px-6 py-5">
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-red-600">
+                Session syllabus detail
+              </div>
+              <h2 className="mt-1 text-lg font-bold text-gray-900">
+                {focusedSession?.templateTitle || focusedSession?.plannedContent || "Nội dung syllabus theo buổi"}
+              </h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Toàn bộ nội dung bên dưới là syllabus đã resolve cho buổi này, render trực tiếp trong trang riêng.
+              </p>
+            </div>
+
+            <div className="p-6">
+              {loading ? (
+                <div className="flex items-center justify-center py-16 text-gray-600">
+                  <Loader2 size={20} className="mr-3 animate-spin text-red-600" />
+                  Đang tải syllabus buổi học...
+                </div>
+              ) : !requestedSessionId ? (
+                <EmptyState
+                  title="Thiếu sessionId"
+                  subtitle="Trang này cần sessionId để mở đúng syllabus theo buổi."
+                />
+              ) : !classSyllabus ? (
+                <EmptyState
+                  title="Chưa tải được syllabus lớp"
+                  subtitle="Không có dữ liệu class syllabus để resolve syllabus theo buổi."
+                />
+              ) : !focusedSession ? (
+                <EmptyState
+                  title="Không tìm thấy buổi học"
+                  subtitle="Buổi được chọn không tồn tại trong syllabus hiện tại của lớp này."
+                />
+              ) : !focusedSessionDetailState ? (
+                <div className="flex items-center justify-center py-16 text-gray-600">
+                  <Loader2 size={20} className="mr-3 animate-spin text-red-600" />
+                  Đang mở syllabus của buổi này...
+                </div>
+              ) : focusedSessionDetailState.loading ? (
+                <div className="flex items-center justify-center py-16 text-gray-600">
+                  <Loader2 size={20} className="mr-3 animate-spin text-red-600" />
+                  Đang tải chi tiết syllabus...
+                </div>
+              ) : focusedSessionDetailState.error ? (
+                <ErrorBox message={focusedSessionDetailState.error} />
+              ) : (
+                <div className="space-y-6">
+                  <SessionDocumentDetailContent state={focusedSessionDetailState} />
+                  <SessionCurriculumTable
+                    rows={focusedCurriculumRows}
+                    currentRowIndex={focusedSession ? focusedSession.sessionIndex - 1 : -1}
+                    loading={focusedSyllabusLoading}
+                    error={focusedSyllabusError}
+                    syllabusTitle={focusedSyllabusDetail?.title || focusedSessionDetailState.item?.document?.syllabusTitle || focusedSessionDetailState.fallbackTemplate?.syllabusTitle || "Syllabus hiện tại"}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-red-50/40 to-white p-2 space-y-6">
       <div
@@ -1543,7 +2394,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
               <>
                 <button
                   type="button"
-                  onClick={() => setShowImportModal(true)}
+                  onClick={openSyllabusWorkspace}
                   className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100 cursor-pointer"
                 >
                   <Upload size={16} />
@@ -1604,11 +2455,51 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
         onPlanStatusFilterChange={setPlanStatusFilter}
         selectedProgramId={selectedProgramId}
         onProgramChange={setSelectedProgramId}
+        selectedSyllabusId={selectedSyllabusId}
+        onSyllabusChange={handleSyllabusFilterChange}
+        selectedModuleId={effectiveSelectedModuleId}
+        onModuleChange={setSelectedModuleId}
         selectedClassId={selectedClassId}
         onClassChange={setSelectedClassId}
         programOptions={programOptions}
+        syllabusOptions={filteredSyllabusOptions}
+        moduleOptions={filteredModuleOptions}
         classOptions={classOptions}
       />
+
+      {activeTab === "plans" && classSyllabus ? (
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="rounded-2xl border border-red-200 bg-white p-4 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-red-600">
+                  Full syllabus
+                </div>
+                <h2 className="mt-1 text-lg font-bold text-gray-900">
+                  {classSyllabus.classTitle || classSyllabus.classCode || "Syllabus lớp học"}
+                </h2>
+                <p className="mt-1 text-sm text-gray-600">
+                  Dòng bên trái là syllabus tổng; chọn từng buổi ở bảng bên dưới để xem syllabus/session detail tương ứng.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={openSyllabusWorkspace}
+                className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 transition-colors hover:bg-red-100 cursor-pointer"
+              >
+                <BookOpenCheck size={16} />
+                Mở full syllabus
+              </button>
+            </div>
+          </div>
+
+          <SyllabusSummaryPanel
+            title="Syllabus theo buổi"
+            description="Bản đồ nhanh để drill-down từ syllabus tổng xuống từng session và lesson plan tương ứng."
+            items={getSyllabusSummaryItems(classSyllabus)}
+          />
+        </div>
+      ) : null}
 
       <div
         className={cn(
@@ -1636,6 +2527,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
             items={filteredSessions}
             templateMap={templateMap}
             sharedTemplate={sharedProgramTemplate}
+            onOpenSessionSyllabus={openSessionSyllabusDetail}
             onCreate={(session) => setPlanModal({ mode: "create", session })}
             onEdit={openPlanEditor}
             onOpenPlanDetail={(lessonPlanId) => openPlanDetail(lessonPlanId)}
@@ -1660,14 +2552,6 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
           }
           onClose={() => setTemplateModal(null)}
           onSubmit={handleTemplateSubmit}
-        />
-      ) : null}
-
-      {showImportModal ? (
-        <ImportTemplateModal
-          programOptions={programOptions}
-          onClose={() => setShowImportModal(false)}
-          onSubmit={handleImportSubmit}
         />
       ) : null}
 
@@ -1710,9 +2594,15 @@ function FilterBar({
   onPlanStatusFilterChange,
   selectedProgramId,
   onProgramChange,
+  selectedSyllabusId,
+  onSyllabusChange,
+  selectedModuleId,
+  onModuleChange,
   selectedClassId,
   onClassChange,
   programOptions,
+  syllabusOptions,
+  moduleOptions,
   classOptions,
   activeTab,
 }: {
@@ -1725,9 +2615,15 @@ function FilterBar({
   onPlanStatusFilterChange: (filter: PlanStatusFilter) => void;
   selectedProgramId: string;
   onProgramChange: (id: string) => void;
+  selectedSyllabusId: string;
+  onSyllabusChange: (id: string) => void;
+  selectedModuleId: string;
+  onModuleChange: (id: string) => void;
   selectedClassId: string;
   onClassChange: (id: string) => void;
   programOptions: Option[];
+  syllabusOptions: SyllabusListItem[];
+  moduleOptions: Option[];
   classOptions: Option[];
   activeTab: ActiveTab;
 }) {
@@ -1843,6 +2739,40 @@ function FilterBar({
                     ))}
                   </SelectContent>
                 </Select>
+                <Select
+                  value={selectedSyllabusId}
+                  onValueChange={onSyllabusChange}
+                >
+                  <SelectTrigger className="w-auto min-w-[220px] rounded-xl h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Táº¥t cáº£ syllabus</SelectItem>
+                    {syllabusOptions.map((item) => (
+                      <SelectItem key={item.id} value={item.id}>
+                        {`${item.code} ${item.version} Â· ${item.title}`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedSyllabusId !== "all" ? (
+                  <Select
+                    value={selectedModuleId}
+                    onValueChange={onModuleChange}
+                  >
+                    <SelectTrigger className="w-auto min-w-[190px] rounded-xl h-10">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tất cả module</SelectItem>
+                      {moduleOptions.map((item) => (
+                        <SelectItem key={item.id} value={item.id}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : null}
               </>
             ) : (
               <>
@@ -2191,8 +3121,8 @@ function SortableLessonRow({
             <BookOpenCheck size={13} className="text-white" />
           </div>
           <div>
-            <div className="text-sm font-semibold text-gray-900">{item.title}</div>
-            <div className="mt-0.5 text-xs text-gray-400">{item.sourceFileName || "Tạo thủ công"}</div>
+            <div className="text-sm font-semibold text-gray-900">{getTemplateDisplayTitle(item)}</div>
+            <div className="mt-0.5 text-xs text-gray-400">{getTemplateDisplaySubtitle(item)}</div>
           </div>
         </div>
       </td>
@@ -2557,7 +3487,10 @@ function TemplateTable({
 
   async function handleSessionOrderChange(item: LessonPlanTemplate, newOrder: number) {
     // Find the level this lesson belongs to so we can reorder the full level batch
-    const levelGroup = levelGroups.find((lg) => lg.levelId === item.levelId);
+    const levelGroup =
+      levelGroups.find(
+        (lg) => lg.levelId === item.levelId && lg.syllabusId === (item.syllabusId ?? null),
+      ) ?? levelGroups.find((lg) => lg.levelId === item.levelId);
     if (!levelGroup?.levelId) {
       // No level context — fall back to individual update
       await updateLessonPlanTemplate(item.id, { sessionOrder: newOrder });
@@ -2686,17 +3619,12 @@ function TemplateTable({
     });
   };
 
-  // Extract "UNIT X: NAME" from "UNIT X: NAME - Lesson Y" (fallback for orphan display)
-  const extractUnitGroup = (title: string): string => {
-    const match = title.match(/^(.+?)\s*[-\u2013]\s*Lesson\s+\d+/i);
-    return match ? match[1].trim() : title;
-  };
-
   type UnitGroup = { unitKey: string; displayName: string; isLegacy: boolean; items: LessonPlanTemplate[] };
   type ModuleGroup = {
     moduleKey: string;
     moduleName: string;
     moduleCode: string | null;
+    moduleOrderIndex: number | null;
     units: UnitGroup[];
     orphans: LessonPlanTemplate[];
     totalItems: number;
@@ -2706,37 +3634,45 @@ function TemplateTable({
     levelId: string | null;
     levelName: string;
     programName: string;
+    syllabusId: string | null;
+    syllabusCode: string | null;
+    syllabusVersion: string | null;
+    syllabusTitle: string | null;
     modules: ModuleGroup[];
     totalItems: number;
   };
 
   const levelGroups = useMemo<LevelGroup[]>(() => {
     const sorted = [...items].sort((a, b) => {
-      const aOrd = a.orderIndexInUnit ?? Number.MAX_SAFE_INTEGER;
-      const bOrd = b.orderIndexInUnit ?? Number.MAX_SAFE_INTEGER;
-      if (aOrd !== bOrd) return aOrd - bOrd;
+      const aModOrd = a.moduleOrderIndex ?? Number.MAX_SAFE_INTEGER;
+      const bModOrd = b.moduleOrderIndex ?? Number.MAX_SAFE_INTEGER;
+      if (aModOrd !== bModOrd) return aModOrd - bModOrd;
       const aIdx = a.sessionIndex ?? Number.MAX_SAFE_INTEGER;
       const bIdx = b.sessionIndex ?? Number.MAX_SAFE_INTEGER;
       return aIdx - bIdx;
     });
     const levelMap = new Map<string, LevelGroup>();
     for (const item of sorted) {
-      const levelKey = `${item.programId ?? ""}${item.levelId ?? item.level ?? ""}`;
+      const levelKey = `${item.syllabusId ?? ""}__${item.programId ?? ""}__${item.levelId ?? item.level ?? ""}`;
       const moduleKey = item.moduleId ?? `${levelKey}__nomod`;
-      // Prefer real unit data from BE; fall back to title-parsing for legacy data
-      // (data imported before unit migration has lessonPlanUnitId = null)
+      const beUnits = moduleUnitsMap[moduleKey] ?? [];
       const realUnitId = item.lessonPlanUnitId;
-      const parsedUnitName = extractUnitGroup(item.title ?? "");
-      const unitKey = realUnitId ?? `${moduleKey}__title__${parsedUnitName}`;
-      const unitName = item.lessonPlanUnitName ?? (parsedUnitName || null);
-      // isLegacy: unit is title-derived, not a real BE unit
-      const isLegacy = !realUnitId && !!unitName;
+      const beUnitName = realUnitId
+        ? (beUnits.find((u) => u.id === realUnitId)?.name ?? null)
+        : null;
+      const unitKey = realUnitId ?? "";
+      const unitName = (item.lessonPlanUnitName ?? beUnitName ?? "").trim() || null;
+      const isLegacy = false;
       if (!levelMap.has(levelKey)) {
         levelMap.set(levelKey, {
           levelKey,
           levelId: item.levelId ?? null,
           levelName: item.levelName || item.level || "Chưa xác định cấp độ",
           programName: item.programName || "",
+          syllabusId: item.syllabusId ?? null,
+          syllabusCode: item.syllabusCode ?? null,
+          syllabusVersion: item.syllabusVersion ?? null,
+          syllabusTitle: item.syllabusTitle ?? null,
           modules: [],
           totalItems: 0,
         });
@@ -2748,14 +3684,17 @@ function TemplateTable({
           moduleKey,
           moduleName: item.moduleName || "Chưa phân module",
           moduleCode: item.moduleCode ?? null,
+          moduleOrderIndex: item.moduleOrderIndex ?? null,
           units: [],
           orphans: [],
           totalItems: 0,
         };
         level.modules.push(mod);
+      } else if (mod.moduleOrderIndex == null && item.moduleOrderIndex != null) {
+        mod.moduleOrderIndex = item.moduleOrderIndex;
       }
-      if (!unitName) {
-        // Truly no unit info at all — show as orphan inside module
+      if (!realUnitId || !unitName) {
+        // No authoritative unit id/name from BE -> orphan.
         mod.orphans.push(item);
       } else {
         let unit = mod.units.find((u) => u.unitKey === unitKey);
@@ -2771,6 +3710,9 @@ function TemplateTable({
     // Sort modules within each level alphabetically by moduleCode (then moduleName)
     for (const level of levelMap.values()) {
       level.modules.sort((a, b) => {
+        const aOrd = a.moduleOrderIndex ?? Number.MAX_SAFE_INTEGER;
+        const bOrd = b.moduleOrderIndex ?? Number.MAX_SAFE_INTEGER;
+        if (aOrd !== bOrd) return aOrd - bOrd;
         const aKey = (a.moduleCode ?? a.moduleName).toUpperCase();
         const bKey = (b.moduleCode ?? b.moduleName).toUpperCase();
         return aKey.localeCompare(bKey);
@@ -2779,18 +3721,31 @@ function TemplateTable({
     // Sort unit groups within each module by real BE orderIndex
     for (const level of levelMap.values()) {
       for (const mod of level.modules) {
-        const beUnits = moduleUnitsMap[mod.moduleKey] ?? [];
-        if (beUnits.length > 0) {
-          mod.units.sort((a, b) => {
-            const findOrder = (ug: UnitGroup) => {
-              // Real units: match by ID; legacy units: match by normalized name
-              let bu = beUnits.find((u) => u.id === ug.unitKey);
-              if (!bu) bu = beUnits.find((u) => u.name.toUpperCase() === ug.displayName.toUpperCase());
-              return bu?.orderIndex ?? Number.MAX_SAFE_INTEGER;
-            };
-            return findOrder(a) - findOrder(b);
-          });
+        mod.units.sort((a, b) => {
+          const aOrder =
+            a.items.find((item) => typeof item.unitOrderIndex === "number")
+              ?.unitOrderIndex ?? Number.MAX_SAFE_INTEGER;
+          const bOrder =
+            b.items.find((item) => typeof item.unitOrderIndex === "number")
+              ?.unitOrderIndex ?? Number.MAX_SAFE_INTEGER;
+          if (aOrder !== bOrder) return aOrder - bOrder;
+
+          const beUnits = moduleUnitsMap[mod.moduleKey] ?? [];
+          const aBeOrder =
+            beUnits.find((u) => u.id === a.unitKey)?.orderIndex ?? Number.MAX_SAFE_INTEGER;
+          const bBeOrder =
+            beUnits.find((u) => u.id === b.unitKey)?.orderIndex ?? Number.MAX_SAFE_INTEGER;
+          return aBeOrder - bBeOrder;
+        });
+
+        for (const unit of mod.units) {
+          unit.items.sort(compareLessonsByBeOrder);
         }
+        mod.orphans.sort((a, b) => {
+          const aIdx = a.sessionIndex ?? Number.MAX_SAFE_INTEGER;
+          const bIdx = b.sessionIndex ?? Number.MAX_SAFE_INTEGER;
+          return aIdx - bIdx;
+        });
       }
     }
     return Array.from(levelMap.values());
@@ -2863,6 +3818,14 @@ function TemplateTable({
                 {levelGroup.programName && (
                   <span className="text-xs text-gray-400 font-normal">
                     · {levelGroup.programName}
+                  </span>
+                )}
+                {(levelGroup.syllabusCode || levelGroup.syllabusVersion) && (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-[11px] font-semibold text-red-700">
+                    <span>{levelGroup.syllabusCode || "Syllabus"}</span>
+                    {levelGroup.syllabusVersion ? (
+                      <span className="text-red-500">{levelGroup.syllabusVersion}</span>
+                    ) : null}
                   </span>
                 )}
                 <span className="ml-auto flex items-center gap-3 text-xs text-gray-400 font-medium whitespace-nowrap">
@@ -3091,10 +4054,10 @@ function TemplateTable({
                                               </div>
                                               <div>
                                                 <div className="text-sm font-semibold text-gray-900">
-                                                  {item.title}
+                                                  {getTemplateDisplayTitle(item)}
                                                 </div>
                                                 <div className="mt-0.5 text-xs text-gray-400">
-                                                  {item.sourceFileName || "Tạo thủ công"}
+                                                  {getTemplateDisplaySubtitle(item)}
                                                 </div>
                                               </div>
                                             </div>
@@ -3177,6 +4140,7 @@ function SyllabusView({
   items,
   templateMap,
   sharedTemplate,
+  onOpenSessionSyllabus,
   onCreate,
   onEdit,
   onOpenPlanDetail,
@@ -3187,6 +4151,7 @@ function SyllabusView({
   items: ClassLessonPlanSyllabusSession[];
   templateMap: Map<string, LessonPlanTemplate>;
   sharedTemplate?: LessonPlanTemplate;
+  onOpenSessionSyllabus: (session: ClassLessonPlanSyllabusSession) => void;
   onCreate: (session: ClassLessonPlanSyllabusSession) => void;
   onEdit: (session: ClassLessonPlanSyllabusSession) => void;
   onOpenPlanDetail: (lessonPlanId: string) => void;
@@ -3381,6 +4346,15 @@ function SyllabusView({
                 </div>
 
                 <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onOpenSessionSyllabus(session)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 transition-all hover:border-red-200 hover:bg-red-50 hover:text-red-700"
+                  >
+                    <BookOpenCheck size="16" />
+                    Xem syllabus buổi
+                  </button>
+
                   {resolvedTemplate?.id && onOpenTemplateDetail && (
                     <button
                       type="button"
@@ -3388,7 +4362,7 @@ function SyllabusView({
                       className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 transition-all hover:border-purple-200 hover:bg-purple-50 hover:text-purple-700"
                     >
                       <FolderOpen size="16" />
-                      Xem template
+                      Xem template gốc
                     </button>
                   )}
 
@@ -6074,7 +7048,23 @@ function DetailModal({
   onOpenAttachment: (url?: string | null) => void;
 }) {
   const title =
-    state.type === "template" ? "Chi tiết mẫu giáo án" : "Chi tiết giáo án";
+    state.type === "template"
+      ? "Chi tiết mẫu giáo án"
+      : state.type === "session-document"
+        ? "Syllabus theo buổi"
+        : "Chi tiết giáo án";
+  const subtitle =
+    state.type === "template"
+      ? "Xem thông tin mẫu giáo án đã tạo"
+      : state.type === "session-document"
+        ? "Xem lesson-plan document hoặc syllabus đã resolve cho từng buổi học"
+        : "Xem thông tin giáo án của lớp học";
+  const titleIcon =
+    state.type === "template"
+      ? FolderOpen
+      : state.type === "session-document"
+        ? BookOpenCheck
+        : FileText;
   const hasTemplateMetadata =
     state.type === "template" && state.item
       ? hasDisplayablePayload(state.item.syllabusMetadata)
@@ -6083,20 +7073,150 @@ function DetailModal({
     state.type === "template" && state.item
       ? hasDisplayablePayload(state.item.syllabusContent)
       : false;
+  const templateMetadataObject =
+    state.type === "template" && state.item
+      ? asObject(parseJsonContent(state.item.syllabusMetadata))
+      : null;
+  const templateContentObject =
+    state.type === "template" && state.item
+      ? asObject(parseJsonContent(state.item.syllabusContent))
+      : null;
+  const fallbackActivityProcedureText =
+    state.type === "template" && state.item
+      ? (() => {
+          const activities = activityDraftsFromUnknown(
+            templateContentObject?.activities,
+          ).filter(
+            (item) =>
+              item.time.trim() ||
+              item.skills.trim() ||
+              item.classwork.trim() ||
+              item.requiredMaterials.trim() ||
+              item.extra.trim(),
+          );
+          if (!activities.length) return "";
+          return activities
+            .map((item, index) => {
+              const blocks = [
+                item.time.trim() && `Time: ${item.time.trim()}`,
+                item.skills.trim() && `Skills: ${item.skills.trim()}`,
+                item.classwork.trim() && `Classwork:\n${item.classwork.trim()}`,
+                item.requiredMaterials.trim() &&
+                  `Required materials: ${item.requiredMaterials.trim()}`,
+                item.homeworkRequiredMaterials.trim() &&
+                  `Homework required materials: ${item.homeworkRequiredMaterials.trim()}`,
+                item.extra.trim() && `Extra / Note: ${item.extra.trim()}`,
+              ].filter(Boolean);
+              return [`Stage ${index + 1}`, ...blocks].join("\n");
+            })
+            .join("\n\n");
+        })()
+      : "";
+
+  const resolvedObjectives =
+    state.type === "template" && state.item
+      ? (state.item.objectives ??
+        pickStringValue(templateContentObject, [
+          "objectives",
+          "objective",
+          "learningObjectives",
+        ]))
+      : "";
+  const resolvedLanguageContent =
+    state.type === "template" && state.item
+      ? (state.item.languageContent ??
+        pickStringValue(templateContentObject, [
+          "languageContent",
+          "language",
+          "languageFocus",
+        ]))
+      : "";
+  const resolvedVocabulary =
+    state.type === "template" && state.item
+      ? (state.item.vocabulary ??
+        pickStringValue(templateContentObject, ["vocabulary", "vocab", "newWords"]))
+      : "";
+  const resolvedGrammar =
+    state.type === "template" && state.item
+      ? (state.item.grammar ??
+        pickStringValue(templateContentObject, ["grammar", "grammarFocus"]))
+      : "";
+  const resolvedMethodology =
+    state.type === "template" && state.item
+      ? (state.item.teachingMethodology ??
+        pickStringValue(templateContentObject, [
+          "teachingMethodology",
+          "methodology",
+          "teachingMethod",
+          "approach",
+        ]))
+      : "";
+  const resolvedTeacherMaterials =
+    state.type === "template" && state.item
+      ? (state.item.teacherMaterials ??
+        (pickStringValue(templateContentObject, [
+          "teacherMaterials",
+          "materialsForTeacher",
+        ]) ||
+          linesToTextarea(templateMetadataObject?.teachingMaterials)))
+      : "";
+  const resolvedStudentMaterials =
+    state.type === "template" && state.item
+      ? (state.item.studentMaterials ??
+        pickStringValue(templateContentObject, [
+          "studentMaterials",
+          "materialsForStudents",
+          "studentResources",
+        ]))
+      : "";
+  const resolvedProcedure =
+    state.type === "template" && state.item
+      ? (state.item.procedure ??
+        (pickStringValue(templateContentObject, ["procedure", "teachingProcedure"]) ||
+          fallbackActivityProcedureText))
+      : "";
+  const resolvedEvaluation =
+    state.type === "template" && state.item
+      ? (state.item.evaluation ??
+        pickStringValue(templateContentObject, [
+          "evaluation",
+          "assessment",
+          "checking",
+        ]))
+      : "";
+  const resolvedHomework =
+    state.type === "template" && state.item
+      ? (state.item.homework ??
+        pickStringValue(templateContentObject, [
+          "homework",
+          "homeworkTasks",
+          "homeworkNotes",
+        ]))
+      : "";
+  const resolvedTeacherNote =
+    state.type === "template" && state.item
+      ? (state.item.teacherNote ??
+        pickStringValue(templateContentObject, [
+          "teacherNote",
+          "teacherNotes",
+          "note",
+          "notes",
+        ]))
+      : "";
   const structuredContentFields: { label: string; value: string; accent: string }[] =
     state.type === "template" && state.item
       ? [
-          { label: "Mục tiêu", value: state.item.objectives ?? "", accent: "text-emerald-700" },
-          { label: "Nội dung ngôn ngữ", value: state.item.languageContent ?? "", accent: "text-blue-700" },
-          { label: "Từ vựng", value: state.item.vocabulary ?? "", accent: "text-violet-700" },
-          { label: "Ngữ pháp", value: state.item.grammar ?? "", accent: "text-indigo-700" },
-          { label: "Phương pháp giảng dạy", value: state.item.teachingMethodology ?? "", accent: "text-orange-700" },
-          { label: "Tài liệu giáo viên", value: state.item.teacherMaterials ?? "", accent: "text-amber-700" },
-          { label: "Tài liệu học sinh", value: state.item.studentMaterials ?? "", accent: "text-yellow-700" },
-          { label: "Quy trình dạy học", value: state.item.procedure ?? "", accent: "text-teal-700" },
-          { label: "Đánh giá", value: state.item.evaluation ?? "", accent: "text-red-700" },
-          { label: "Bài tập về nhà", value: state.item.homework ?? "", accent: "text-pink-700" },
-          { label: "Ghi chú giáo viên", value: state.item.teacherNote ?? "", accent: "text-gray-600" },
+          { label: "Mục tiêu", value: resolvedObjectives ?? "", accent: "text-emerald-700" },
+          { label: "Nội dung ngôn ngữ", value: resolvedLanguageContent ?? "", accent: "text-blue-700" },
+          { label: "Từ vựng", value: resolvedVocabulary ?? "", accent: "text-violet-700" },
+          { label: "Ngữ pháp", value: resolvedGrammar ?? "", accent: "text-indigo-700" },
+          { label: "Phương pháp giảng dạy", value: resolvedMethodology ?? "", accent: "text-orange-700" },
+          { label: "Tài liệu giáo viên", value: resolvedTeacherMaterials ?? "", accent: "text-amber-700" },
+          { label: "Tài liệu học sinh", value: resolvedStudentMaterials ?? "", accent: "text-yellow-700" },
+          { label: "Quy trình dạy học", value: resolvedProcedure ?? "", accent: "text-teal-700" },
+          { label: "Đánh giá", value: resolvedEvaluation ?? "", accent: "text-red-700" },
+          { label: "Bài tập về nhà", value: resolvedHomework ?? "", accent: "text-pink-700" },
+          { label: "Ghi chú giáo viên", value: resolvedTeacherNote ?? "", accent: "text-gray-600" },
         ].filter((f) => f.value.trim())
       : [];
   const hasStructuredFields = structuredContentFields.length > 0;
@@ -6105,8 +7225,8 @@ function DetailModal({
     return (
       <ModalFrame
         title={title}
-        subtitle={state.type === "template" ? "Xem thông tin mẫu giáo án đã tạo" : "Xem thông tin giáo án của lớp học"}
-        icon={state.type === "template" ? FolderOpen : FileText}
+        subtitle={subtitle}
+        icon={titleIcon}
         onClose={onClose}
         widthClass="max-w-5xl"
       >
@@ -6135,8 +7255,8 @@ function DetailModal({
     return (
       <ModalFrame
         title={title}
-        subtitle={state.type === "template" ? "Xem thông tin mẫu giáo án đã tạo" : "Xem thông tin giáo án của lớp học"}
-        icon={state.type === "template" ? FolderOpen : FileText}
+        subtitle={subtitle}
+        icon={titleIcon}
         onClose={onClose}
         widthClass="max-w-5xl"
       >
@@ -6163,8 +7283,8 @@ function DetailModal({
   return (
     <ModalFrame
       title={title}
-      subtitle={state.type === "template" ? "Xem thông tin mẫu giáo án đã tạo" : "Xem thông tin giáo án của lớp học"}
-      icon={state.type === "template" ? FolderOpen : FileText}
+      subtitle={subtitle}
+      icon={titleIcon}
       onClose={onClose}
       widthClass="max-w-5xl"
     >
@@ -6292,37 +7412,37 @@ function DetailModal({
                 })()}
 
                 {/* A. Objectives */}
-                {state.item.objectives && (
+                {resolvedObjectives && (
                   <div className="flex">
                     <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-emerald-50/70 border-r border-emerald-100">
                       <span className="text-sm font-extrabold text-emerald-700">A</span>
                     </div>
                     <div className="flex-1 px-6 py-4">
                       <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-emerald-700 mb-2">Objectives</div>
-                      <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{state.item.objectives}</div>
+                      <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{resolvedObjectives}</div>
                     </div>
                   </div>
                 )}
 
                 {/* B. Language content */}
-                {(state.item.languageContent || state.item.vocabulary || state.item.grammar) && (
+                {(resolvedLanguageContent || resolvedVocabulary || resolvedGrammar) && (
                   <div className="flex">
                     <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-blue-50/70 border-r border-blue-100">
                       <span className="text-sm font-extrabold text-blue-700">B</span>
                     </div>
                     <div className="flex-1 px-6 py-4">
                       <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-blue-700 mb-2">Language content</div>
-                      {state.item.languageContent && (
-                        <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6 mb-2">{state.item.languageContent}</div>
+                      {resolvedLanguageContent && (
+                        <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6 mb-2">{resolvedLanguageContent}</div>
                       )}
-                      {state.item.vocabulary && (
+                      {resolvedVocabulary && (
                         <div className="text-sm text-gray-700 mb-1">
-                          <span className="font-semibold text-blue-600">Vocabulary: </span>{state.item.vocabulary}
+                          <span className="font-semibold text-blue-600">Vocabulary: </span>{resolvedVocabulary}
                         </div>
                       )}
-                      {state.item.grammar && (
+                      {resolvedGrammar && (
                         <div className="text-sm text-gray-700">
-                          <span className="font-semibold text-blue-600">Grammar: </span>{state.item.grammar}
+                          <span className="font-semibold text-blue-600">Grammar: </span>{resolvedGrammar}
                         </div>
                       )}
                     </div>
@@ -6330,46 +7450,46 @@ function DetailModal({
                 )}
 
                 {/* C. Teaching methodology */}
-                {state.item.teachingMethodology && (
+                {resolvedMethodology && (
                   <div className="flex">
                     <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-orange-50/70 border-r border-orange-100">
                       <span className="text-sm font-extrabold text-orange-700">C</span>
                     </div>
                     <div className="flex-1 px-6 py-4">
                       <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-orange-700 mb-2">Teaching methodology</div>
-                      <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{state.item.teachingMethodology}</div>
+                      <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{resolvedMethodology}</div>
                     </div>
                   </div>
                 )}
 
                 {/* D. Materials for teacher */}
-                {state.item.teacherMaterials && (
+                {resolvedTeacherMaterials && (
                   <div className="flex">
                     <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-amber-50/70 border-r border-amber-100">
                       <span className="text-sm font-extrabold text-amber-700">D</span>
                     </div>
                     <div className="flex-1 px-6 py-4">
                       <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-amber-700 mb-2">Materials for teacher</div>
-                      <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{state.item.teacherMaterials}</div>
+                      <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{resolvedTeacherMaterials}</div>
                     </div>
                   </div>
                 )}
 
                 {/* E. Materials for students */}
-                {state.item.studentMaterials && (
+                {resolvedStudentMaterials && (
                   <div className="flex">
                     <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-yellow-50/70 border-r border-yellow-100">
                       <span className="text-sm font-extrabold text-yellow-600">E</span>
                     </div>
                     <div className="flex-1 px-6 py-4">
                       <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-yellow-700 mb-2">Materials for students</div>
-                      <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{state.item.studentMaterials}</div>
+                      <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{resolvedStudentMaterials}</div>
                     </div>
                   </div>
                 )}
 
                 {/* F. Procedure */}
-                {state.item.procedure && (
+                {resolvedProcedure && (
                   <div className="flex">
                     <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-teal-50/70 border-r border-teal-100">
                       <span className="text-sm font-extrabold text-teal-700">F</span>
@@ -6377,9 +7497,9 @@ function DetailModal({
                     <div className="flex-1 px-6 py-4">
                       <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-teal-700 mb-3">Procedure</div>
                       {(() => {
-                        const rows = parseProcedureRows(state.item!.procedure!);
+                        const rows = parseProcedureRows(resolvedProcedure);
                         if (rows.length === 0) {
-                          return <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{state.item.procedure}</div>;
+                          return <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{resolvedProcedure}</div>;
                         }
                         return (
                           <div className="rounded-xl border border-teal-200 overflow-hidden">
@@ -6405,44 +7525,48 @@ function DetailModal({
                 )}
 
                 {/* G. Evaluation */}
-                {state.item.evaluation && (
+                {resolvedEvaluation && (
                   <div className="flex">
                     <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-red-50/70 border-r border-red-100">
                       <span className="text-sm font-extrabold text-red-700">G</span>
                     </div>
                     <div className="flex-1 px-6 py-4">
                       <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-red-700 mb-2">Evaluation</div>
-                      <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{state.item.evaluation}</div>
+                      <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{resolvedEvaluation}</div>
                     </div>
                   </div>
                 )}
 
                 {/* H. Homework */}
-                {state.item.homework && (
+                {resolvedHomework && (
                   <div className="flex">
                     <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-pink-50/70 border-r border-pink-100">
                       <span className="text-sm font-extrabold text-pink-700">H</span>
                     </div>
                     <div className="flex-1 px-6 py-4">
                       <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-pink-700 mb-2">Homework</div>
-                      <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{state.item.homework}</div>
+                      <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{resolvedHomework}</div>
                     </div>
                   </div>
                 )}
 
                 {/* Teacher note */}
-                {state.item.teacherNote && (
+                {resolvedTeacherNote && (
                   <div className="px-8 py-4 bg-yellow-50/50 border-t border-yellow-100">
                     <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-yellow-700 mb-2">Teacher Note</div>
-                    <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{state.item.teacherNote}</div>
+                    <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{resolvedTeacherNote}</div>
                   </div>
                 )}
 
-                {/* Fallback: raw syllabusContent if no structured fields */}
-                {!hasStructuredFields && hasTemplateContent && (
-                  <div className="px-8 py-4">
-                    <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-gray-600 mb-2">Nội dung</div>
-                    <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{state.item.syllabusContent}</div>
+                {/* Raw source reference: always available when syllabusContent exists */}
+                {hasTemplateContent && (
+                  <div className="px-8 py-4 border-t border-gray-100 bg-slate-50/70">
+                    <details>
+                      <summary className="cursor-pointer text-[11px] font-bold uppercase tracking-[0.15em] text-slate-700">
+                        Nội dung gốc từ file import
+                      </summary>
+                      <div className="mt-3 whitespace-pre-wrap text-sm text-gray-700 leading-6">{state.item.syllabusContent}</div>
+                    </details>
                   </div>
                 )}
                 {!hasStructuredFields && !hasTemplateMetadata && !hasTemplateContent && (
@@ -6564,6 +7688,8 @@ function DetailModal({
               )}
             </div>
           </>
+        ) : state.type === "session-document" ? (
+          <SessionDocumentDetailContent state={state} />
         ) : (
           <EmptyState
             title="Không có dữ liệu chi tiết"
@@ -6585,6 +7711,154 @@ function DetailModal({
         </div>
       </div>
     </ModalFrame>
+  );
+}
+
+function SessionDocumentDetailContent({ state }: { state: SessionDocumentDetailState }) {
+  return (
+    <>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <InfoCard
+          icon={CalendarDays}
+          label="Buổi trong module"
+          value={String(state.item?.sessionIndexInModule ?? "-")}
+        />
+        <InfoCard
+          icon={Layers}
+          label="Module"
+          value={state.item?.moduleName || state.item?.moduleId || "-"}
+        />
+        <InfoCard
+          icon={ShieldCheck}
+          label="Trạng thái teaching log"
+          value={state.item?.teachingLogStatus || "-"}
+        />
+        <InfoCard
+          icon={CheckCircle2}
+          label="Teaching progress"
+          value={state.item?.teachingProgressStatus || "-"}
+        />
+      </div>
+
+      {state.item?.document || state.fallbackTemplate ? (
+        <LessonPlanTemplateDocument
+          template={state.item?.document || state.fallbackTemplate!}
+        />
+      ) : state.fallbackContent?.trim() ? (
+        <ContentPanel
+          title="syllabusContent"
+          value={state.fallbackContent}
+          accent="text-red-700"
+        />
+      ) : (
+        <EmptyState
+          title="Buổi học chưa có syllabus chi tiết"
+          subtitle="Backend chưa trả lesson-plan document và session này cũng chưa gắn template khả dụng."
+        />
+      )}
+    </>
+  );
+}
+
+function SessionCurriculumTable({
+  rows,
+  currentRowIndex,
+  loading,
+  error,
+  syllabusTitle,
+}: {
+  rows: CurriculumTableRow[];
+  currentRowIndex: number;
+  loading: boolean;
+  error: string | null;
+  syllabusTitle: string;
+}) {
+  const hasHighlightedRow = currentRowIndex >= 0 && currentRowIndex < rows.length;
+
+  return (
+    <div className="rounded-2xl border border-red-200 bg-white shadow-sm overflow-hidden">
+      <div className="border-b border-red-100 bg-gradient-to-r from-amber-50 to-white px-6 py-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">
+              Curriculum của syllabus
+            </div>
+            <h3 className="mt-1 text-lg font-bold text-gray-900">{syllabusTitle}</h3>
+            <p className="mt-1 text-sm text-gray-600">
+              Bảng curriculum đầy đủ của syllabus. Dòng đang tô là buổi hiện tại teacher đang mở.
+            </p>
+          </div>
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800">
+            {rows.length} dòng curriculum
+          </div>
+        </div>
+      </div>
+
+      <div className="p-6">
+        {loading ? (
+          <div className="flex items-center justify-center py-16 text-gray-600">
+            <Loader2 size={20} className="mr-3 animate-spin text-amber-600" />
+            Đang tải curriculum của syllabus...
+          </div>
+        ) : error ? (
+          <ErrorBox message={error} />
+        ) : !rows.length ? (
+          <EmptyState
+            title="Syllabus chưa có curriculum table"
+            subtitle="API syllabus detail chưa trả sessionTemplates hoặc rawContentJson phù hợp để dựng bảng curriculum."
+          />
+        ) : (
+          <div className="space-y-3">
+            {hasHighlightedRow ? (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                Đang đối chiếu theo dòng curriculum số <strong>{currentRowIndex + 1}</strong> của syllabus.
+              </div>
+            ) : null}
+
+            <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
+              <table className="min-w-[1220px] w-full border-collapse text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">#</th>
+                    <th className="border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">Periods</th>
+                    <th className="border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">Topics</th>
+                    <th className="border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">Lessons</th>
+                    <th className="border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">Contents</th>
+                    <th className="border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">Structures</th>
+                    <th className="border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">Student's book</th>
+                    <th className="border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">Teacher's book</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row, rowIndex) => {
+                    const isCurrentRow = rowIndex === currentRowIndex;
+
+                    return (
+                      <tr
+                        key={`${row.periods}-${row.topics}-${row.lessons}-${rowIndex}`}
+                        className={cn(
+                          "align-top border-b border-gray-100",
+                          isCurrentRow ? "bg-emerald-50/70" : rowIndex % 2 === 0 ? "bg-white" : "bg-gray-50/45",
+                        )}
+                      >
+                        <td className={cn("px-3 py-3 text-xs font-semibold text-gray-500", isCurrentRow && "text-emerald-700")}>{rowIndex + 1}</td>
+                        <td className="px-3 py-3 whitespace-pre-wrap text-gray-700">{row.periods || "—"}</td>
+                        <td className="px-3 py-3 whitespace-pre-wrap text-gray-700">{row.topics || "—"}</td>
+                        <td className="px-3 py-3 whitespace-pre-wrap text-gray-700">{row.lessons || "—"}</td>
+                        <td className="px-3 py-3 whitespace-pre-wrap text-gray-700">{row.contents || "—"}</td>
+                        <td className="px-3 py-3 whitespace-pre-wrap text-gray-700">{row.structures || "—"}</td>
+                        <td className="px-3 py-3 whitespace-pre-wrap text-gray-700">{row.studentsBook || "—"}</td>
+                        <td className="px-3 py-3 whitespace-pre-wrap text-gray-700">{row.teachersBook || "—"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 

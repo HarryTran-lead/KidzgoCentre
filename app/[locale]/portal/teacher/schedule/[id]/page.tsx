@@ -14,6 +14,7 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
+  GraduationCap,
 } from "lucide-react";
 import {
   fetchSessionDetail,
@@ -205,6 +206,14 @@ export default function LessonAttendancePage() {
   const { toast } = useToast();
   const itemsPerPage = 10;
   const selectAllRef = useRef<HTMLInputElement>(null);
+
+  const sessionDateParam = useMemo(() => {
+    const raw = String(lesson?.date ?? "").trim();
+    const match = raw.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+    if (!match) return "";
+    const [, dd, mm, yyyy] = match;
+    return `${yyyy}-${mm}-${dd}`;
+  }, [lesson?.date]);
 
   const loadAttendance = useCallback(
     async (signal?: AbortSignal) => {
@@ -461,6 +470,22 @@ export default function LessonAttendancePage() {
         </button>
 
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              const query = new URLSearchParams({
+                sessionId: lessonId,
+                openLessonPlan: "1",
+              });
+              if (sessionDateParam) {
+                query.set("date", sessionDateParam);
+              }
+              router.push(`/${locale}/portal/teacher/attendance?${query.toString()}`);
+            }}
+            className="px-3 py-2 rounded-lg bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:shadow-lg transition flex items-center gap-2 cursor-pointer"
+          >
+            <GraduationCap size={16} /> Xem giáo án
+          </button>
           <button className="px-3 py-2 rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white hover:shadow-lg transition flex items-center gap-2 cursor-pointer">
             <Download size={16} /> Xuất danh sách
           </button>

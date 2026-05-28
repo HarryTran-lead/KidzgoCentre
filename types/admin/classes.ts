@@ -3,6 +3,10 @@ export type ClassRow = {
   code: string; 
   name: string;
   sub: string;
+  syllabusId?: string | null;
+  syllabusCode?: string | null;
+  syllabusVersion?: string | null;
+  syllabusTitle?: string | null;
   teacher: string;
   branch: string;
   current: number;
@@ -27,6 +31,7 @@ export interface SimpleSchedule {
 export interface CreateClassRequest {
   branchId: string;
   programId: string;
+  syllabusId: string;
   levelId: string;
   startModuleId: string;
   startSessionIndex: number;
@@ -51,6 +56,7 @@ export interface CreateClassRequest {
 export interface UpdateClassRequest {
   branchId: string;
   programId: string;
+  syllabusId: string;
   levelId: string;
   startModuleId: string;
   startSessionIndex: number;
@@ -122,6 +128,10 @@ export interface Class {
   description?: string | null;
   programId?: string | null;
   programName?: string | null;
+  syllabusId?: string | null;
+  syllabusCode?: string | null;
+  syllabusVersion?: string | null;
+  syllabusTitle?: string | null;
   levelId?: string | null;
   levelName?: string | null;
   branchId?: string | null;
@@ -168,6 +178,10 @@ export interface CreateClassResponse {
   id: string;
   branchId?: string | null;
   programId?: string | null;
+  syllabusId?: string | null;
+  syllabusCode?: string | null;
+  syllabusVersion?: string | null;
+  syllabusTitle?: string | null;
   levelId?: string | null;
   startModuleId?: string | null;
   startSessionIndex?: number | null;
@@ -199,6 +213,10 @@ export interface ClassApiDetail {
   branchName?: string | null;
   programId?: string | null;
   programName?: string | null;
+  syllabusId?: string | null;
+  syllabusCode?: string | null;
+  syllabusVersion?: string | null;
+  syllabusTitle?: string | null;
   levelId?: string | null;
   levelName?: string | null;
   startModuleId?: string | null;
@@ -252,6 +270,10 @@ export interface ClassDetail {
   branch: string;
   program: string;
   programId: string;
+  syllabusId?: string | null;
+  syllabusCode?: string | null;
+  syllabusVersion?: string | null;
+  syllabusTitle?: string | null;
   totalSessions: number;
   progress: number;
   teacher: string;

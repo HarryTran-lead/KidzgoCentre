@@ -37,7 +37,9 @@
     ".next/types/**/*.ts",
     "**/*.mts",
     "app/[locale]/portal/student/feedback",
-    ".next/dev/types/**/*.ts"
+    ".next/dev/types/**/*.ts",
+    ".next-local/types/**/*.ts",
+    ".next-local/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

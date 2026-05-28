@@ -5,7 +5,14 @@
 
 import { getAccessToken } from "@/lib/store/authToken";
 import { ADMIN_ENDPOINTS, USER_ENDPOINTS } from "@/constants/apiURL";
-import type { ClassRow, CreateClassRequest, Class, ClassDetail, Track } from "@/types/admin/classes";
+import type {
+  ClassRow,
+  CreateClassRequest,
+  UpdateClassRequest,
+  Class,
+  ClassDetail,
+  Track,
+} from "@/types/admin/classes";
 import { fetchAdminProgramDetail } from "./programs";
 
 type ApiProblemDetails = {
@@ -277,6 +284,10 @@ function mapApiClassToRow(item: any): ClassRow {
     code,
     name,
     sub,
+    syllabusId: item?.syllabusId ?? null,
+    syllabusCode: item?.syllabusCode ?? null,
+    syllabusVersion: item?.syllabusVersion ?? null,
+    syllabusTitle: item?.syllabusTitle ?? null,
     teacher,
     branch,
     current,
@@ -420,6 +431,10 @@ export async function createAdminClass(
     title: data?.title ?? payload.title ?? null,
     description: data?.description ?? payload.description ?? null,
     programId: data?.programId ?? payload.programId ?? null,
+    syllabusId: data?.syllabusId ?? payload.syllabusId ?? null,
+    syllabusCode: data?.syllabusCode ?? null,
+    syllabusVersion: data?.syllabusVersion ?? null,
+    syllabusTitle: data?.syllabusTitle ?? null,
     branchId: data?.branchId ?? payload.branchId ?? null,
     mainTeacherId: data?.mainTeacherId ?? payload.mainTeacherId ?? null,
     assistantTeacherId: data?.assistantTeacherId ?? payload.assistantTeacherId ?? null,
@@ -440,7 +455,7 @@ export async function createAdminClass(
 
 export async function updateAdminClass(
   classId: string,
-  payload: CreateClassRequest
+  payload: UpdateClassRequest
 ): Promise<Class> {
   const token = getAccessToken();
   if (!token) {
@@ -475,6 +490,10 @@ export async function updateAdminClass(
     title: data?.title ?? payload.title ?? null,
     description: data?.description ?? payload.description ?? null,
     programId: data?.programId ?? payload.programId ?? null,
+    syllabusId: data?.syllabusId ?? payload.syllabusId ?? null,
+    syllabusCode: data?.syllabusCode ?? null,
+    syllabusVersion: data?.syllabusVersion ?? null,
+    syllabusTitle: data?.syllabusTitle ?? null,
     branchId: data?.branchId ?? payload.branchId ?? null,
     mainTeacherId: data?.mainTeacherId ?? payload.mainTeacherId ?? null,
     assistantTeacherId: data?.assistantTeacherId ?? payload.assistantTeacherId ?? null,
@@ -1016,6 +1035,10 @@ export async function fetchAndMapAdminClassDetail(classId: string): Promise<Clas
     branch: apiData?.branchName ?? apiData?.branch?.name ?? "Chưa có chi nhánh",
     program: apiData?.programName ?? "Chưa có chương trình",
     programId: apiData?.programId ?? "",
+    syllabusId: apiData?.syllabusId ?? null,
+    syllabusCode: apiData?.syllabusCode ?? null,
+    syllabusVersion: apiData?.syllabusVersion ?? null,
+    syllabusTitle: apiData?.syllabusTitle ?? null,
     totalSessions: programTotalSessions,
     progress: 0,
     teacher: teacherName,

@@ -14,12 +14,13 @@ export async function POST(req: Request) {
     const { searchParams } = new URL(req.url);
     const programId = searchParams.get("programId");
     const levelId = searchParams.get("levelId");
+    const syllabusId = searchParams.get("syllabusId");
     const overwriteExisting = searchParams.get("overwriteExisting") ?? "true";
     const moduleId = searchParams.get("moduleId");
 
-    if (!programId || !levelId) {
+    if (!programId || !levelId || !syllabusId) {
       return NextResponse.json(
-        { isSuccess: false, data: null, message: "programId và levelId là bắt buộc" },
+        { isSuccess: false, data: null, message: "programId, levelId và syllabusId là bắt buộc" },
         { status: 400 },
       );
     }
@@ -40,7 +41,7 @@ export async function POST(req: Request) {
       }
     }
 
-    const query = new URLSearchParams({ programId, levelId, overwriteExisting });
+    const query = new URLSearchParams({ programId, levelId, syllabusId, overwriteExisting });
     if (moduleId) query.append("moduleId", moduleId);
 
     const backendUrl = buildApiUrl(`${BACKEND_SYLLABUS_ENDPOINTS.IMPORT_LESSON_PLAN_WORDS}?${query}`);
