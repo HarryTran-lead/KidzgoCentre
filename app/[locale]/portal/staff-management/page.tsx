@@ -6,17 +6,13 @@ import {
   CalendarRange,
   NotebookPen,
   MessageSquare,
-  TrendingUp,
   Sparkles,
   Calendar,
   BarChart3,
   Target,
   Download,
   MoreVertical,
-  TrendingDown,
   AlertCircle,
-  ArrowUpRight,
-  ArrowDownRight,
 } from "lucide-react";
 import {
   LineChart,
@@ -40,82 +36,29 @@ function StatCard({
   icon,
   label,
   value,
-  hint,
-  trend = "up",
-  color = "red",
-  delay = 0,
+  iconColor = "from-red-600 to-red-700",
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
-  hint: string;
-  trend?: "up" | "down" | "stable";
-  color?: "red" | "gray" | "black";
-  delay?: number;
+  iconColor?: string;
 }) {
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsVisible(true), delay);
-    return () => clearTimeout(timer);
-  }, [delay]);
-
-  const colorClasses = {
-    red: "bg-gradient-to-r from-red-600 to-red-700",
-    gray: "bg-gradient-to-r from-gray-600 to-gray-700",
-    black: "bg-gradient-to-r from-gray-800 to-gray-900",
-  };
-
-  const trendColors = {
-    up: "text-red-600",
-    down: "text-gray-600",
-    stable: "text-gray-800",
-  };
-
   return (
-    <div
-      className={`bg-white rounded-2xl border border-gray-200 p-5 transition-all duration-700 transform cursor-pointer hover:border-red-300 hover:shadow-md ${
-        isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-      }`}
-    >
-      <div className="flex items-center justify-between">
+    <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-linear-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+      <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-linear-to-r from-red-600 to-red-700"></div>
+      <div className="relative flex items-center gap-3">
+        <span className={`w-10 h-10 rounded-xl bg-linear-to-br ${iconColor} grid place-items-center`}>
+          {icon}
+        </span>
         <div>
           <div className="text-sm text-gray-600">{label}</div>
-          <div className="text-2xl font-bold mt-2 text-gray-900">{value}</div>
-          <div className={`text-xs flex items-center gap-1 mt-1 ${trendColors[trend]}`}>
-            {trend === "up" && <TrendingUp size={12} />}
-            {trend === "down" && <TrendingUp size={12} className="rotate-180" />}
-            {trend === "stable" && <span>→</span>}
-            {hint}
-          </div>
-        </div>
-        <div className={`p-3 rounded-xl bg-gradient-to-r ${colorClasses[color]} text-white shadow-lg`}>
-          {icon}
+          <div className="text-2xl font-extrabold text-gray-900">{value}</div>
         </div>
       </div>
     </div>
   );
 }
 
-function Badge({
-  color = "gray",
-  children,
-}: {
-  color?: "gray" | "red" | "black";
-  children: React.ReactNode;
-}) {
-  const colorClasses = {
-    gray: "bg-gray-100 text-gray-700 border border-gray-200",
-    red: "bg-red-50 text-red-700 border border-red-200",
-    black: "bg-gray-900 text-white border border-gray-800",
-  };
-
-  return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${colorClasses[color]}`}>
-      {children}
-    </span>
-  );
-}
 
 import { getStaffManagementDashboard } from "@/lib/api/staffManagementService";
 
@@ -316,11 +259,26 @@ function normalizeDashboardPayload(raw: unknown) {
   };
 }
 
+const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-lg">
+        <p className="text-sm font-semibold text-gray-900">{label}</p>
+        {payload.map((p: any) => (
+          <p key={p.dataKey} className="text-sm" style={{ color: p.color }}>
+            {p.name}: {p.value}
+          </p>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
+
 export default function Page() {
   const [isPageLoaded, setIsPageLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "leads" | "schedule" | "reports">("overview");
   const [dashboard, setDashboard] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
@@ -331,7 +289,6 @@ export default function Page() {
 
   useEffect(() => {
     let alive = true;
-    setLoading(true);
     getStaffManagementDashboard({ month: selectedMonth, year: selectedYear })
       .then((res: any) => {
         if (!alive) return;
@@ -339,7 +296,7 @@ export default function Page() {
         setDashboard(normalizeDashboardPayload(d));
       })
       .catch(() => {})
-      .finally(() => { if (alive) setLoading(false); });
+      .finally(() => { if (alive) {} });
     return () => { alive = false; };
   }, [selectedMonth, selectedYear]);
 
@@ -382,26 +339,6 @@ export default function Page() {
   const qualifiedLeads = dashboard?.qualifiedLeads ?? "—";
   const weekSessions = dashboard?.weekSessions ?? "—";
   const reportRate = dashboard?.reportRate ?? "—";
-  const leadsTrend = dashboard?.leadsTrend ?? "";
-  const qualifiedTrend = dashboard?.qualifiedTrend ?? "";
-  const sessionsTrend = dashboard?.sessionsTrend ?? "";
-  const reportsTrend = dashboard?.reportsTrend ?? "";
-
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-lg">
-          <p className="text-sm font-semibold text-gray-900">{label}</p>
-          {payload.map((p: any) => (
-            <p key={p.dataKey} className="text-sm" style={{ color: p.color }}>
-              {p.name}: {p.value}
-            </p>
-          ))}
-        </div>
-      );
-    }
-    return null;
-  };
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-2">
@@ -409,7 +346,7 @@ export default function Page() {
       <div className={`mb-8 transition-all duration-700 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"}`}>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
+            <div className="p-3 bg-linear-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
               <BarChart3 size={25} className="text-white" />
             </div>
             <div>
@@ -447,7 +384,7 @@ export default function Page() {
                 ))}
               </select>
             </div>
-            <button className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl text-sm font-semibold hover:shadow-lg transition-all cursor-pointer flex items-center gap-2">
+            <button className="px-4 py-2 bg-linear-to-r from-red-600 to-red-700 text-white rounded-xl text-sm font-semibold hover:shadow-lg transition-all cursor-pointer flex items-center gap-2">
               <Download size={16} />
               Xuất báo cáo
             </button>
@@ -460,40 +397,28 @@ export default function Page() {
         {/* Main Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <StatCard
-            icon={<Users size={20} />}
+            icon={<Users size={20} className="text-white" />}
             label="Khách tiềm năng mới (tháng)"
             value={String(newLeads)}
-            hint={leadsTrend || "—"}
-            trend="up"
-            color="red"
-            delay={100}
+            iconColor="from-blue-600 to-cyan-600"
           />
           <StatCard
-            icon={<Target size={20} />}
+            icon={<Target size={20} className="text-white" />}
             label="Khách tiềm năng đạt chuẩn"
             value={String(qualifiedLeads)}
-            hint={qualifiedTrend || "—"}
-            trend="stable"
-            color="gray"
-            delay={200}
+            iconColor="from-amber-600 to-yellow-600"
           />
           <StatCard
-            icon={<CalendarRange size={20} />}
+            icon={<CalendarRange size={20} className="text-white" />}
             label="Ca học tuần này"
             value={String(weekSessions)}
-            hint={sessionsTrend || "—"}
-            trend="down"
-            color="gray"
-            delay={300}
+            iconColor="from-emerald-600 to-teal-600"
           />
           <StatCard
-            icon={<NotebookPen size={20} />}
+            icon={<NotebookPen size={20} className="text-white" />}
             label="Báo cáo tháng"
             value={String(reportRate)}
-            hint={reportsTrend || "—"}
-            trend="up"
-            color="red"
-            delay={400}
+            iconColor="from-red-600 to-pink-600"
           />
         </div>
       </div>
@@ -517,7 +442,7 @@ export default function Page() {
             onClick={() => setActiveTab(tab.key)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
               activeTab === tab.key
-                ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                ? "bg-linear-to-r from-red-600 to-red-700 text-white shadow-md"
                 : "text-gray-700 hover:bg-gray-50"
             }`}
           >
@@ -535,12 +460,13 @@ export default function Page() {
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                    <TrendingUp size={20} className="text-red-600" />
+                    <div className="p-2 bg-linear-to-r from-red-600 to-red-700 rounded-lg">
+                      <BarChart3 size={20} className="text-white" />
+                    </div>
                     Tăng trưởng khách tiềm năng
                   </h3>
                   <p className="text-sm text-gray-600 mt-1">6 tháng gần nhất</p>
                 </div>
-                <Badge color="red">+24% tháng này</Badge>
               </div>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
@@ -572,12 +498,13 @@ export default function Page() {
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                    <MessageSquare size={20} className="text-red-600" />
+                    <div className="p-2 bg-linear-to-r from-red-600 to-red-700 rounded-lg">
+                      <MessageSquare size={20} className="text-white" />
+                    </div>
                     Phân loại ticket
                   </h3>
                   <p className="text-sm text-gray-600 mt-1">Theo nhóm yêu cầu</p>
                 </div>
-                <Badge color="gray">Tuần này</Badge>
               </div>
 
               <div className="h-64">
@@ -611,10 +538,11 @@ export default function Page() {
             <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                  <CalendarRange size={20} className="text-gray-900" />
+                  <div className="p-2 bg-linear-to-r from-red-600 to-red-700 rounded-lg">
+                    <CalendarRange size={20} className="text-white" />
+                  </div>
                   Ca học & xung đột tuần
                 </h3>
-                <Badge color="gray">7 ngày</Badge>
               </div>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
@@ -636,12 +564,13 @@ export default function Page() {
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                    <AlertCircle size={20} className="text-red-600" />
+                    <div className="p-2 bg-linear-to-r from-red-600 to-red-700 rounded-lg">
+                      <AlertCircle size={20} className="text-white" />
+                    </div>
                     Tiến độ báo cáo tháng
                   </h3>
                   <p className="text-sm text-gray-600 mt-1">Tỷ lệ nộp & tồn</p>
                 </div>
-                <Badge color="gray">+4% cải thiện</Badge>
               </div>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
@@ -684,12 +613,11 @@ export default function Page() {
           <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
             <div className="flex items-center justify-between mb-6">
               <h3 className="font-bold text-gray-900 flex items-center gap-2 text-xl">
-                <div className="p-2 bg-gradient-to-r from-red-600 to-red-700 rounded-lg">
-                  <TrendingUp size={20} className="text-white" />
+                <div className="p-2 bg-linear-to-r from-red-600 to-red-700 rounded-lg">
+                  <BarChart3 size={20} className="text-white" />
                 </div>
                 Khách tiềm năng & đạt chuẩn 6 tháng
               </h3>
-              <Badge color="red">Tổng khách tiềm năng: {dashboard?.totalLeads ?? "—"}</Badge>
             </div>
             <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
@@ -724,12 +652,11 @@ export default function Page() {
           <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
             <div className="flex items-center justify-between mb-6">
               <h3 className="font-bold text-gray-900 flex items-center gap-2 text-xl">
-                <div className="p-2 bg-gradient-to-r from-gray-600 to-gray-700 rounded-lg">
+                <div className="p-2 bg-linear-to-r from-red-600 to-red-700 rounded-lg">
                   <CalendarRange size={20} className="text-white" />
                 </div>
                 Ca học & xung đột tuần
               </h3>
-              <Badge color="gray">Tuần hiện tại</Badge>
             </div>
             <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
@@ -754,12 +681,11 @@ export default function Page() {
           <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
             <div className="flex items-center justify-between mb-6">
               <h3 className="font-bold text-gray-900 flex items-center gap-2 text-xl">
-                <div className="p-2 bg-gradient-to-r from-red-600 to-red-700 rounded-lg">
+                <div className="p-2 bg-linear-to-r from-red-600 to-red-700 rounded-lg">
                   <NotebookPen size={20} className="text-white" />
                 </div>
                 Tiến độ báo cáo tháng
               </h3>
-              <Badge color="gray">{String(reportRate)} đã nộp</Badge>
             </div>
             <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">

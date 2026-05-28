@@ -17,6 +17,7 @@ import {
   User,
   ArrowUpDown,
   Eye,
+  Sparkles,
 } from "lucide-react";
 import {
   Select,
@@ -45,6 +46,10 @@ type ViewMode = "list" | "detail";
 type DisplayStatus = "Mới" | "Đang xử lý" | "Đã phản hồi" | "Đã đóng";
 
 /* ================= HELPERS ================= */
+
+function cn(...values: Array<string | false | null | undefined>) {
+  return values.filter(Boolean).join(" ");
+}
 
 const STATUS_MAP: Record<string, DisplayStatus> = {
   Open: "Mới",
@@ -110,15 +115,13 @@ function StatCard({
           <Icon size={20} />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-xs font-medium text-gray-600 truncate">
+          <div className="text-sm font-medium text-gray-600 truncate">
             {title}
           </div>
-          <div className="text-xl font-bold text-gray-900 leading-tight">
+          <div className="text-2xl font-bold text-gray-900 leading-tight">
             {value}
           </div>
-          {subtitle && (
-            <div className="text-[11px] text-gray-500 truncate">{subtitle}</div>
-          )}
+
         </div>
       </div>
     </div>
@@ -564,6 +567,16 @@ export default function Page() {
   const statusOpts = ["Tất cả trạng thái", "Mới", "Đang xử lý", "Đã phản hồi", "Đã đóng"];
   const catOpts = ["Tất cả danh mục", "Homework", "Finance", "Schedule", "Tech"];
 
+  const statusCounts = useMemo(() => {
+    return {
+      "Tất cả trạng thái": tickets.length,
+      "Mới": tickets.filter((t) => t.status === "Open").length,
+      "Đang xử lý": tickets.filter((t) => t.status === "InProgress").length,
+      "Đã phản hồi": tickets.filter((t) => t.status === "Resolved").length,
+      "Đã đóng": tickets.filter((t) => t.status === "Closed").length,
+    };
+  }, [tickets]);
+
   const filtered = useMemo(() => {
     return tickets.filter((t) => {
       const mS =
@@ -638,18 +651,19 @@ export default function Page() {
 
   /* ---- List view ---- */
   return (
-    <div className="min-h-screen bg-linear-to-b from-red-50/30 to-white p-6 space-y-6">
+    <div className="min-h-screen bg-gray-50 p-2 space-y-6">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="p-3 bg-linear-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
-            <LifeBuoy size={28} className="text-white" />
+            <LifeBuoy size={25} className="text-white" />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+            <h1 className="text-2xl md:text-2xl font-bold text-gray-900">
               Ticket hỗ trợ
             </h1>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-gray-600 mt-1 flex items-center gap-2">
+              <Sparkles size={14} className="text-red-600" />
               Quản lý phản hồi phụ huynh/học viên, phân tuyến cho giáo viên và
               staff
             </p>
@@ -697,39 +711,53 @@ export default function Page() {
 
       {/* Filter */}
       <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50 p-4">
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
-          <div className="relative flex-1 lg:flex-1">
-            <input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Tìm theo mã, tiêu đề, người gửi..."
-              className="w-full h-10 rounded-xl border border-red-300 bg-white pl-10 pr-4 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 cursor-text"
-            />
-            <Search
-              size={16}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-            />
+        <div className="space-y-4">
+          {/* Status Filter Tabs */}
+          <div className="flex flex-wrap gap-2 pb-4 border-b border-red-200">
+            {statusOpts.map((s) => (
+              <button
+                key={s}
+                onClick={() => setStatusFilter(s)}
+                className={cn(
+                  "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all cursor-pointer",
+                  statusFilter === s
+                    ? "bg-linear-to-r from-red-600 to-red-700 text-white shadow-sm"
+                    : "bg-white border border-red-200 text-gray-700 hover:bg-red-50"
+                )}
+              >
+                <span>{s}</span>
+                <span
+                  className={cn(
+                    "text-xs font-semibold px-2 py-0.5 rounded-full",
+                    statusFilter === s
+                      ? "bg-white/20 text-white"
+                      : "bg-red-100 text-red-700"
+                  )}
+                >
+                  {statusCounts[s as keyof typeof statusCounts] || 0}
+                </span>
+              </button>
+            ))}
           </div>
 
-          <div className="flex items-center gap-2">
-            <Filter size={16} className="text-gray-500 shrink-0" />
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+          {/* Search and Category Filter Row */}
+          <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
+            <div className="relative flex-1">
+              <input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Tìm theo mã, tiêu đề, người gửi..."
+                className="w-full h-10 rounded-xl border border-red-300 bg-white pl-10 pr-4 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 cursor-text"
+              />
+              <Search
+                size={16}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              />
+            </div>
+
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
               <SelectTrigger className="w-auto min-w-[140px] rounded-xl h-10">
                 <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {statusOpts.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {s}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-auto min-w-[140px] rounded-xl h-10">
-              <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {catOpts.map((c) => {
@@ -742,6 +770,7 @@ export default function Page() {
               })}
             </SelectContent>
           </Select>
+          </div>
         </div>
       </div>
 
@@ -749,7 +778,7 @@ export default function Page() {
       <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50/30 shadow-sm overflow-hidden">
         <div className="bg-linear-to-r from-red-50 to-red-100/30 border-b border-red-200 px-6 py-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">
+            <h2 className=" font-semibold text-gray-900">
               Danh sách ticket
             </h2>
             <div className="text-sm text-gray-600 font-medium">

@@ -291,7 +291,7 @@ export default function TeachingMaterialsWorkspace({ viewerRole }: { viewerRole:
   }), [materials]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-2 space-y-6">
+    <div className="min-h-screen bg-gray-50  p-2 space-y-6">
       {/* Header */}
       <div className={`flex flex-wrap items-center justify-between gap-4 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
         <div className="flex items-center gap-4">
@@ -339,93 +339,80 @@ export default function TeachingMaterialsWorkspace({ viewerRole }: { viewerRole:
 
         {/* Stats Cards */}
         <div className={`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 transition-all duration-500 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}>
-          <div className="group relative rounded-2xl border border-gray-200/80 bg-white/80 backdrop-blur-sm p-4 hover:shadow-lg hover:shadow-red-500/10 hover:border-red-200/50 transition-all duration-300 overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-red-50/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-linear-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
+            <div className="absolute right-0 top-0 h-12 w-12 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-linear-to-r from-red-600 to-red-700"></div>
             <div className="relative flex items-center gap-3">
-              <div className="relative">
-                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-red-100 to-red-200/50 flex items-center justify-center shadow-sm">
-                  <Layers className="text-red-600" size={18} />
-                </div>
-                <div className="absolute -inset-1 bg-red-500/20 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition-opacity -z-10" />
-              </div>
+              <span className="w-10 h-10 rounded-xl bg-linear-to-br from-blue-600 to-cyan-600 grid place-items-center">
+                <Layers className="text-white" size={16} />
+              </span>
               <div>
-                <div className="text-sm font-medium text-gray-500 mb-0.5 ">Tổng cộng</div>
-                <div className="text-2xl font-bold text-gray-900 tabular-nums">{stats.total}</div>
+                <div className="text-sm text-gray-600">Tổng cộng</div>
+                <div className="text-2xl font-extrabold text-gray-900">{stats.total}</div>
               </div>
             </div>
           </div>
-          <div className="group relative rounded-2xl border border-gray-200/80 bg-white/80 backdrop-blur-sm p-4 hover:shadow-lg hover:shadow-violet-500/10 hover:border-violet-200/50 transition-all duration-300 overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-violet-50/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+          <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-linear-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
+            <div className="absolute right-0 top-0 h-12 w-12 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-linear-to-r from-red-600 to-red-700"></div>
             <div className="relative flex items-center gap-3">
-              <div className="relative">
-                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-violet-100 to-violet-200/50 flex items-center justify-center shadow-sm">
-                  <FileText className="text-violet-600" size={18} />
-                </div>
-                <div className="absolute -inset-1 bg-violet-500/20 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition-opacity -z-10" />
-              </div>
+              <span className="w-10 h-10 rounded-xl bg-linear-to-br from-violet-600 to-purple-600 grid place-items-center">
+                <FileText className="text-white" size={16} />
+              </span>
               <div>
-                <div className="text-sm font-medium text-gray-500 mb-0.5">Slides</div>
-                <div className="text-2xl font-bold text-gray-900 tabular-nums">{stats.presentations}</div>
+                <div className="text-sm text-gray-600">Slides</div>
+                <div className="text-2xl font-extrabold text-gray-900">{stats.presentations}</div>
               </div>
             </div>
           </div>
-          <div className="group relative rounded-2xl border border-gray-200/80 bg-white/80 backdrop-blur-sm p-4 hover:shadow-lg hover:shadow-blue-500/10 hover:border-blue-200/50 transition-all duration-300 overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+          <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-linear-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
+            <div className="absolute right-0 top-0 h-12 w-12 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-linear-to-r from-red-600 to-red-700"></div>
             <div className="relative flex items-center gap-3">
-              <div className="relative">
-                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-100 to-blue-200/50 flex items-center justify-center shadow-sm">
-                  <Music className="text-blue-600" size={18} />
-                </div>
-                <div className="absolute -inset-1 bg-blue-500/20 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition-opacity -z-10" />
-              </div>
+              <span className="w-10 h-10 rounded-xl bg-linear-to-br from-blue-600 to-cyan-600 grid place-items-center">
+                <Music className="text-white" size={16} />
+              </span>
               <div>
-                <div className="text-sm font-medium text-gray-500 mb-0.5">Audio</div>
-                <div className="text-2xl font-bold text-gray-900 tabular-nums">{stats.audios}</div>
+                <div className="text-sm text-gray-600">Audio</div>
+                <div className="text-2xl font-extrabold text-gray-900">{stats.audios}</div>
               </div>
             </div>
           </div>
-          <div className="group relative rounded-2xl border border-gray-200/80 bg-white/80 backdrop-blur-sm p-4 hover:shadow-lg hover:shadow-rose-500/10 hover:border-rose-200/50 transition-all duration-300 overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-rose-50/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+          <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-linear-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
+            <div className="absolute right-0 top-0 h-12 w-12 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-linear-to-r from-red-600 to-red-700"></div>
             <div className="relative flex items-center gap-3">
-              <div className="relative">
-                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-rose-100 to-rose-200/50 flex items-center justify-center shadow-sm">
-                  <Film className="text-rose-600" size={18} />
-                </div>
-                <div className="absolute -inset-1 bg-rose-500/20 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition-opacity -z-10" />
-              </div>
+              <span className="w-10 h-10 rounded-xl bg-linear-to-br from-emerald-600 to-teal-600 grid place-items-center">
+                <Film className="text-white" size={16} />
+              </span>
               <div>
-                <div className="text-sm font-medium text-gray-500 mb-0.5">Video</div>
-                <div className="text-2xl font-bold text-gray-900 tabular-nums">{stats.videos}</div>
+                <div className="text-sm text-gray-600">Video</div>
+                <div className="text-2xl font-extrabold text-gray-900">{stats.videos}</div>
               </div>
             </div>
           </div>
-          <div className="group relative rounded-2xl border border-gray-200/80 bg-white/80 backdrop-blur-sm p-4 hover:shadow-lg hover:shadow-emerald-500/10 hover:border-emerald-200/50 transition-all duration-300 overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+          <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-linear-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
+            <div className="absolute right-0 top-0 h-12 w-12 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-linear-to-r from-red-600 to-red-700"></div>
             <div className="relative flex items-center gap-3">
-              <div className="relative">
-                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-100 to-emerald-200/50 flex items-center justify-center shadow-sm">
-                  <ImageIcon className="text-emerald-600" size={18} />
-                </div>
-                <div className="absolute -inset-1 bg-emerald-500/20 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition-opacity -z-10" />
-              </div>
+              <span className="w-10 h-10 rounded-xl bg-linear-to-br from-green-600 to-emerald-600 grid place-items-center">
+                <ImageIcon className="text-white" size={16} />
+              </span>
               <div>
-                <div className="text-sm font-medium text-gray-500 mb-0.5">Hình ảnh</div>
-                <div className="text-2xl font-bold text-gray-900 tabular-nums">{stats.images}</div>
+                <div className="text-sm text-gray-600">Hình ảnh</div>
+                <div className="text-2xl font-extrabold text-gray-900">{stats.images}</div>
               </div>
             </div>
           </div>
-          <div className="group relative rounded-2xl border border-gray-200/80 bg-white/80 backdrop-blur-sm p-4 hover:shadow-lg hover:shadow-orange-500/10 hover:border-orange-200/50 transition-all duration-300 overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-orange-50/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+          <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-linear-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
+            <div className="absolute right-0 top-0 h-12 w-12 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-linear-to-r from-red-600 to-red-700"></div>
             <div className="relative flex items-center gap-3">
-              <div className="relative">
-                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-orange-100 to-orange-200/50 flex items-center justify-center shadow-sm">
-                  <FileIcon className="text-orange-600" size={18} />
-                </div>
-                <div className="absolute -inset-1 bg-orange-500/20 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition-opacity -z-10" />
-              </div>
+              <span className="w-10 h-10 rounded-xl bg-linear-to-br from-orange-600 to-red-600 grid place-items-center">
+                <FileIcon className="text-white" size={16} />
+              </span>
               <div>
-                <div className="text-sm font-medium text-gray-500 mb-0.5">Tài liệu</div>
-                <div className="text-2xl font-bold text-gray-900 tabular-nums">{stats.documents}</div>
+                <div className="text-sm text-gray-600">Tài liệu</div>
+                <div className="text-2xl font-extrabold text-gray-900">{stats.documents}</div>
               </div>
             </div>
           </div>

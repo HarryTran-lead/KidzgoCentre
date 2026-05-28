@@ -39,11 +39,21 @@ import {
   User,
   Bell,
   CalendarArrowDown,
+  Sparkles,
+  BookOpen,
 } from "lucide-react";
 import { useBranchFilter } from "@/hooks/useBranchFilter";
 import { useToast } from "@/hooks/use-toast";
 import ConfirmModal from "@/components/ConfirmModal";
 import SessionBulkChangeModal from "@/components/portal/schedule/SessionBulkChangeModal";
+import AdminBranchSelectField from "@/components/admin/common/AdminBranchSelectField";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/lightswind/select";
 
 type SlotType = "CLASS" | "MAKEUP" | "EVENT";
 type Slot = {
@@ -696,7 +706,7 @@ function CreateScheduleModal({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div ref={modalRef} className="relative w-full max-w-4xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
+      <div ref={modalRef} className="relative w-full max-w-3xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
         <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -704,7 +714,7 @@ function CreateScheduleModal({
                 <CalendarDays size={24} className="text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-white">Tạo lịch mới</h2>
+                <h2 className="text-xl font-bold text-white">Tạo lịch mới</h2>
                 <p className="text-sm text-red-100">Thêm lịch học, buổi bù hoặc sự kiện mới</p>
               </div>
             </div>
@@ -720,204 +730,270 @@ function CreateScheduleModal({
               <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{submitError}</div>
             )}
 
-            {/* Chi nhanh */}
+            {/* Row 0: Chi nhánh & Lớp học */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
-                  <Building2 size={16} className="text-red-600" /> Chi nhánh *
-                </label>
-                <select
-                  value={formData.branchId}
-                  onChange={(e) => handleChange("branchId", e.target.value)}
-                  className={`w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 ${errors.branchId ? "border-red-500" : "border-gray-200"}`}
-                >
-                  <option value="">Chọn chi nhánh</option>
-                  {branchOptions.map((b) => (
-                    <option key={b.id} value={b.id}>{b.label}</option>
-                  ))}
-                </select>
-                {errors.branchId && <p className="text-sm text-red-600">{errors.branchId}</p>}
-              </div>
-            </div>
+              <AdminBranchSelectField
+                isOpen={isOpen}
+                value={formData.branchId}
+                options={branchOptions.map((branch) => ({ id: branch.id, label: branch.label }))}
+                onValueChange={(value) => handleChange("branchId", value)}
+                error={errors.branchId}
+                placeholder="Vui lòng chọn chi nhánh"
+                dataField="branchId"
+              />
 
-            {/* Lop hoc & Loai */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
-                  <Tag size={16} className="text-red-600" /> Lớp học *
+                  <Tag size={16} className="text-red-600" />
+                  Lớp học <span className="text-red-600">*</span>
                 </label>
-                <select
+                <Select
                   value={formData.classId}
-                  onChange={(e) => handleChange("classId", e.target.value)}
-                  className={`w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 ${errors.classId ? "border-red-500" : "border-gray-200"}`}
+                  onValueChange={(value) => handleChange("classId", value)}
                 >
-                  <option value="">Chọn lớp học</option>
-                  {classOptions.map((c) => (
-                    <option key={c.id} value={c.id}>{c.label}</option>
-                  ))}
-                </select>
-                {errors.classId && <p className="text-sm text-red-600">{errors.classId}</p>}
-              </div>
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
-                  <Calendar size={16} className="text-red-600" /> Loại lịch
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(["CLASS", "MAKEUP", "EVENT"] as const).map((v) => (
-                    <button
-                      key={v}
-                      type="button"
-                      onClick={() => handleChange("type", v)}
-                      className={`px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all ${
-                        formData.type === v
-                          ? "bg-red-50 text-red-800 border-red-300"
-                          : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
-                      }`}
-                    >
-                      {TYPE_META[v].text}
-                    </button>
-                  ))}
-                </div>
+                  <SelectTrigger className={`w-full rounded-xl border bg-white text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all ${errors.classId ? "border-red-500" : "border-gray-200"}`}>
+                    <SelectValue placeholder="Chọn lớp học" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Chọn lớp học</SelectItem>
+                    {classOptions.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.classId && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.classId}</p>}
               </div>
             </div>
 
-            {/* Giao vien & Phong hoc */}
+            {/* Row 1: Giáo viên & Phòng học */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
-                  <User size={16} className="text-red-600" /> Giáo viên chính *
+                  <User size={16} className="text-red-600" />
+                  Giáo viên <span className="text-red-600">*</span>
                 </label>
-                <select
+                <Select
                   value={formData.teacherId}
-                  onChange={(e) => handleChange("teacherId", e.target.value)}
-                  className={`w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 ${errors.teacherId ? "border-red-500" : "border-gray-200"}`}
+                  onValueChange={(value) => handleChange("teacherId", value)}
                 >
-                  <option value="">Chọn giáo viên chính</option>
-                  {teacherOptions.map((t) => (
-                    <option key={t.id} value={t.id}>{t.label}</option>
-                  ))}
-                </select>
-                {errors.teacherId && <p className="text-sm text-red-600">{errors.teacherId}</p>}
+                  <SelectTrigger className={`w-full rounded-xl border bg-white text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all ${errors.teacherId ? "border-red-500" : "border-gray-200"}`}>
+                    <SelectValue placeholder="Chọn giáo viên" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Chọn giáo viên</SelectItem>
+                    {teacherOptions.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.teacherId && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.teacherId}</p>}
               </div>
+
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
-                  <Building2 size={16} className="text-red-600" /> Phòng học *
+                  <Building2 size={16} className="text-red-600" />
+                  Phòng học <span className="text-red-600">*</span>
                 </label>
-                <select
+                <Select
                   value={formData.roomId}
-                  onChange={(e) => handleChange("roomId", e.target.value)}
-                  className={`w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 ${errors.roomId ? "border-red-500" : "border-gray-200"}`}
+                  onValueChange={(value) => handleChange("roomId", value)}
                 >
-                  <option value="">Chọn phòng học</option>
-                  {roomOptions.map((r) => (
-                    <option key={r.id} value={r.id}>{r.label}</option>
-                  ))}
-                </select>
-                {errors.roomId && <p className="text-sm text-red-600">{errors.roomId}</p>}
+                  <SelectTrigger className={`w-full rounded-xl border bg-white text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all ${errors.roomId ? "border-red-500" : "border-gray-200"}`}>
+                    <SelectValue placeholder="Chọn phòng học" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Chọn phòng học</SelectItem>
+                    {roomOptions.map((r) => (
+                      <SelectItem key={r.id} value={r.id}>
+                        {r.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.roomId && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.roomId}</p>}
               </div>
             </div>
 
-            {/* Giao vien phu */}
+            {/* Row 2: Giáo viên phụ */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
-                  <User size={16} className="text-gray-500" /> Giáo viên phụ (tùy chọn)
+                  <User size={16} className="text-gray-500" />
+                  Giáo viên phụ (tùy chọn)
                 </label>
-                <select
+                <Select
                   value={formData.assistantId}
-                  onChange={(e) => handleChange("assistantId", e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300"
+                  onValueChange={(value) => handleChange("assistantId", value)}
                 >
-                  <option value="">Không có</option>
-                  {teacherOptions.filter((t) => t.id !== formData.teacherId).map((t) => (
-                    <option key={t.id} value={t.id}>{t.label}</option>
-                  ))}
-                </select>
+                  <SelectTrigger className="w-full rounded-xl border border-gray-200 bg-white text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all">
+                    <SelectValue placeholder="Không có" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Không có</SelectItem>
+                    {teacherOptions.filter((t) => t.id !== formData.teacherId).map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
-            {/* Ngay & Ca */}
+            {/* Row 3: Ngày & Loại lịch */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
-                  <Calendar size={16} className="text-red-600" /> Ngày *
+                  <Calendar size={16} className="text-red-600" />
+                  Ngày <span className="text-red-600">*</span>
                 </label>
-                <input
-                  type="date"
-                  value={formData.date}
-                  onChange={(e) => handleChange("date", e.target.value)}
-                  className={`w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 ${errors.date ? "border-red-500" : "border-gray-200"}`}
-                />
-                {errors.date && <p className="text-sm text-red-600">{errors.date}</p>}
+                <div className="relative">
+                  <input
+                    type="date"
+                    value={formData.date}
+                    onChange={(e) => handleChange("date", e.target.value)}
+                    className={`w-full px-4 py-3 rounded-xl border bg-white text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all ${errors.date ? "border-red-500" : "border-gray-200"}`}
+                  />
+                  {errors.date && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <AlertCircle size={18} className="text-red-500" />
+                    </div>
+                  )}
+                </div>
+                {errors.date && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.date}</p>}
               </div>
+
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
-                  <Clock3 size={16} className="text-red-600" /> Ca học
+                  <Calendar size={16} className="text-red-600" />
+                  Loại lịch
                 </label>
                 <div className="grid grid-cols-3 gap-2">
-                  {(["MORNING", "AFTERNOON", "EVENING"] as const).map((p) => (
+                  {([
+                    { value: "CLASS" as const, label: "Lớp học", color: "bg-red-50 text-red-800 border-red-300" },
+                    { value: "MAKEUP" as const, label: "Buổi bù", color: "bg-rose-50 text-rose-800 border-rose-300" },
+                    { value: "EVENT" as const, label: "Sự kiện", color: "bg-gray-100 text-gray-800 border-gray-200" },
+                  ]).map((type) => (
                     <button
-                      key={p}
+                      key={type.value}
                       type="button"
-                      onClick={() => {
-                        handleChange("period", p);
-                        handleChange("time", PERIOD_TIME_RANGES[p]);
-                      }}
-                      className={`px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all flex flex-col items-center ${
-                        formData.period === p
-                          ? "bg-red-50 border-red-300 text-red-700"
-                          : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
+                      onClick={() => handleChange("type", type.value)}
+                      className={`px-3 py-2.5 cursor-pointer rounded-xl border text-sm font-semibold transition-all ${formData.type === type.value
+                        ? `${type.color}`
+                        : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
                       }`}
                     >
-                      <span>{PERIODS.find((pp) => pp.key === p)?.label}</span>
-                      <span className="text-xs font-normal mt-0.5">{PERIOD_TIME_RANGES[p]}</span>
+                      {type.label}
                     </button>
                   ))}
                 </div>
               </div>
             </div>
 
-            {/* Thoi gian chi tiet */}
+            {/* Row 4: Ca học */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
-                <Clock3 size={16} className="text-red-600" /> Thời gian chi tiết *
+                <Clock3 size={16} className="text-red-600" />
+                Ca học
               </label>
-              <input
-                type="text"
-                value={formData.time}
-                onChange={(e) => handleChange("time", e.target.value)}
-                className={`w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 ${errors.time ? "border-red-500" : "border-gray-200"}`}
-                placeholder="VD: 18:30 - 20:00"
-              />
-              {errors.time && <p className="text-sm text-red-600">{errors.time}</p>}
+              <div className="grid grid-cols-3 gap-2">
+                {([
+                  { value: "MORNING" as const, label: "Sáng", time: PERIOD_TIME_RANGES.MORNING },
+                  { value: "AFTERNOON" as const, label: "Chiều", time: PERIOD_TIME_RANGES.AFTERNOON },
+                  { value: "EVENING" as const, label: "Tối", time: PERIOD_TIME_RANGES.EVENING },
+                ]).map((period) => (
+                  <button
+                    key={period.value}
+                    type="button"
+                    onClick={() => {
+                      handleChange("period", period.value);
+                      handleChange("time", period.time);
+                    }}
+                    className={`px-3 py-2.5 cursor-pointer rounded-xl border text-sm font-semibold transition-all flex flex-col items-center ${formData.period === period.value
+                      ? "bg-gradient-to-r from-red-50 to-red-100 border-red-300 text-red-700"
+                      : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    <span>{period.label}</span>
+                    <span className="text-xs font-normal mt-0.5">{period.time}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Row 5: Thời gian chi tiết */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                <Clock3 size={16} className="text-red-600" />
+                Thời gian chi tiết <span className="text-red-600">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={formData.time}
+                  onChange={(e) => handleChange("time", e.target.value)}
+                  className={`w-full px-4 py-3 rounded-xl border bg-white text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all ${errors.time ? "border-red-500" : "border-gray-200"}`}
+                  placeholder="VD: 18:30 - 20:00"
+                />
+                {errors.time && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <AlertCircle size={18} className="text-red-500" />
+                  </div>
+                )}
+              </div>
+              {errors.time && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.time}</p>}
               <p className="text-xs text-gray-500">Nhập theo định dạng HH:MM - HH:MM</p>
             </div>
 
-            {/* Mau sac */}
+            {/* Row 6: Màu sắc */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
-                <Palette size={16} className="text-red-600" /> Màu sắc hiển thị
+                <Palette size={16} className="text-red-600" />
+                Màu sắc hiển thị
               </label>
-              <div className="grid grid-cols-8">
+              <div className="grid grid-cols-10 gap-2">
                 {COLOR_OPTIONS.map((color) => (
                   <button
                     key={color.value}
                     type="button"
                     onClick={() => handleChange("color", normalizeSessionColor(color.value))}
-                    className={`h-8 w-8 rounded-lg cursor-pointer border-2 ${
-                      isSameColor(formData.color, color.value) ? "border-white ring-2 ring-red-500" : "border-gray-300"
-                    } hover:scale-110 transition-all`}
+                    className={`h-8 w-8 rounded-lg cursor-pointer border-2 ${isSameColor(formData.color, color.value) ? 'border-white ring-2 ring-red-500' : 'border-gray-300'} hover:scale-110 transition-all`}
                     style={{ backgroundColor: color.value }}
                     title={color.name}
                   />
                 ))}
               </div>
+              <div className="flex flex-wrap items-center gap-2 pt-2">
+                <input
+                  type="color"
+                  value={normalizeSessionColor(formData.color)}
+                  onChange={(e) => handleChange("color", normalizeSessionColor(e.target.value))}
+                  className="h-9 w-14 rounded-lg border border-gray-300 bg-white cursor-pointer"
+                  title="Tự chọn màu"
+                />
+                <input
+                  type="text"
+                  value={formData.color}
+                  onChange={(e) => handleChange("color", e.target.value)}
+                  onBlur={() => {
+                    const parsed = parseCustomColorInput(formData.color);
+                    if (parsed) handleChange("color", parsed);
+                  }}
+                  className="h-9 min-w-[170px] flex-1 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-800"
+                  placeholder="#AABBCC hoặc rgb(170, 187, 204)"
+                />
+              </div>
             </div>
 
-            {/* Loai buoi hoc */}
+            {/* Row 7: Loại buổi học */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
-                <Tag size={16} className="text-red-600" /> Loại buổi học
+                <Tag size={16} className="text-red-600" />
+                Loại buổi học
               </label>
               <div className="grid grid-cols-5 gap-2">
                 {SECTION_TYPE_OPTIONS.map((opt) => (
@@ -925,10 +1001,9 @@ function CreateScheduleModal({
                     key={opt.value}
                     type="button"
                     onClick={() => handleChange("sectionType", opt.value)}
-                    className={`px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all ${
-                      formData.sectionType === opt.value
-                        ? "bg-red-50 text-red-800 border-red-300"
-                        : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
+                    className={`px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all ${formData.sectionType === opt.value
+                      ? "bg-red-50 text-red-800 border-red-300"
+                      : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
                     }`}
                   >
                     {opt.label}
@@ -937,22 +1012,23 @@ function CreateScheduleModal({
               </div>
             </div>
 
-            {/* Ghi chu */}
+            {/* Row 8: Ghi chú */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
-                <FileText size={16} className="text-red-600" /> Ghi chú
+                <FileText size={16} className="text-red-600" />
+                Ghi chú
               </label>
               <textarea
                 value={formData.note}
                 onChange={(e) => handleChange("note", e.target.value)}
-                rows={2}
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 resize-none"
-                placeholder="Ghi chú thêm..."
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 resize-none overflow-hidden"
+                placeholder="VD: Bù cho 03/12, Mang theo tài liệu, Chủ đề hôm nay..."
+                style={{ minHeight: '120px' }}
               />
             </div>
 
             {/* Gui thong bao */}
-            <div className="flex items-center justify-between p-3 rounded-xl border border-gray-200 bg-gray-50">
+            <div className="flex items-center justify-between p-3 rounded-xl border border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
               <div className="flex items-center gap-3">
                 <div className={`p-2 rounded-lg ${formData.sendNotification ? "bg-red-100 text-red-800" : "bg-gray-100 text-gray-500"}`}>
                   <Bell size={18} />
@@ -965,47 +1041,44 @@ function CreateScheduleModal({
               <button
                 type="button"
                 onClick={() => handleChange("sendNotification", !formData.sendNotification)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  formData.sendNotification ? "bg-red-600" : "bg-gray-300"
-                }`}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${formData.sendNotification ? 'bg-gradient-to-r from-red-600 to-red-800' : 'bg-gray-300'}`}
               >
                 <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    formData.sendNotification ? "translate-x-6" : "translate-x-1"
-                  }`}
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${formData.sendNotification ? 'translate-x-6' : 'translate-x-1'}`}
                 />
               </button>
             </div>
           </form>
         </div>
 
-        <div className="border-t border-gray-200 bg-gray-50 p-6">
+        <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-6">
           <div className="flex items-center justify-between">
-            <button type="button" onClick={onClose} className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 cursor-pointer">
-              Hủy bỏ
+            <button type="button" onClick={onClose} className="px-6 py-2.5 text-sm rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer">
+              Hủy
             </button>
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => {
+                  setFormData(initialFormData);
                   const today = new Date();
-                  const formatted = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-                  setFormData({ ...initialFormData, date: formatted });
+                  const formattedDate = today.toISOString().split('T')[0];
+                  setFormData(prev => ({ ...prev, date: formattedDate }));
                   setErrors({});
                 }}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 cursor-pointer"
+                className="inline-flex text-sm items-center gap-2 px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer"
               >
-                <RotateCcw size={16} /> Đặt lại
+                <RotateCcw size={14} />
+                Đặt lại
               </button>
               <button
                 type="button"
                 onClick={(e) => handleSubmit(e as any)}
                 disabled={isSubmitting}
-                className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg transition-all cursor-pointer ${
-                  isSubmitting ? "opacity-60 cursor-not-allowed" : ""
-                }`}
+                className={`inline-flex text-sm items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer ${isSubmitting ? "opacity-60 cursor-not-allowed" : ""}`}
               >
-                <Save size={16} /> {isSubmitting ? "Đang tạo..." : "Tạo lịch"}
+                <Save size={16} />
+                {isSubmitting ? "Đang tạo..." : "Tạo lịch"}
               </button>
             </div>
           </div>
@@ -1576,7 +1649,7 @@ function WeekTimetable({
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
-      <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-red-50 to-red-100">
+      <div className="flex items-center rounded-t-2xl justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-red-50 to-red-100">
         <div className="flex items-center gap-4">
           <div className="relative p-3 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg">
             <CalendarDays size={24} />
@@ -1585,18 +1658,18 @@ function WeekTimetable({
             </div>
           </div>
           <div>
-            <div className="text-2xl font-bold text-gray-900">Lịch tuần</div>
-            <div className="text-gray-700">{rangeText}</div>
+            <div className="text-xl font-bold text-gray-900">Lịch tuần</div>
+            <div className="text-gray-700 text-sm font-medium">{rangeText}</div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button className="p-2 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer" onClick={() => setWeekCursor(addDays(weekCursor, -7))}>
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          <button className="p-2 rounded-xl border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer" onClick={() => setWeekCursor(addDays(weekCursor, -7))}>
             <ChevronLeft size={18} className="text-gray-700" />
           </button>
           <div className="min-w-[220px] text-center text-sm font-semibold text-gray-700">
             Tuần từ {days[0].getDate()}/{days[0].getMonth() + 1} đến {days[6].getDate()}/{days[6].getMonth() + 1}
           </div>
-          <button className="p-2 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer" onClick={() => setWeekCursor(addDays(weekCursor, 7))}>
+          <button className="p-2 rounded-xl border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer" onClick={() => setWeekCursor(addDays(weekCursor, 7))}>
             <ChevronRight size={18} className="text-gray-700" />
           </button>
           <button className="ml-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm hover:bg-gray-100 transition-colors cursor-pointer text-gray-700" onClick={() => setWeekCursor(startOfWeek(new Date()))}>
@@ -1606,7 +1679,7 @@ function WeekTimetable({
         </div>
       </div>
 
-      <div className="grid grid-cols-8 border-t border-gray-200 bg-gradient-to-r from-red-50 to-gray-100 text-sm font-semibold text-gray-700">
+      <div className="grid grid-cols-8  border-t border-gray-200 bg-gradient-to-r from-red-50 to-gray-100 text-sm font-semibold text-gray-700">
         <div className="px-4 py-3">Ca / Ngày</div>
         {days.map((d) => {
           const key = keyYMD(d);
@@ -1631,7 +1704,7 @@ function WeekTimetable({
 
       {PERIODS.map((p, rowIdx) => (
         <div key={p.key} className="grid grid-cols-8 border-t border-gray-200">
-          <div className="px-4 py-4 text-sm font-semibold text-gray-800 bg-gradient-to-r from-red-50 to-gray-100 flex items-center justify-center">
+          <div className="px-4 py-4 text-sm font-semibold  text-gray-800 bg-gradient-to-r from-red-50 to-gray-100 flex items-center justify-center">
             <div className="flex flex-col items-center">
               <span className="font-bold text-lg">{p.label}</span>
               {p.key === "MORNING" && <span className="text-xs text-gray-600 mt-1">7:00-12:00</span>}
@@ -1646,7 +1719,7 @@ function WeekTimetable({
             return (
               <div
                 key={k}
-                className={`min-h-[130px] p-3 ${rowIdx % 2 ? "bg-white" : "bg-gray-50"} border-l border-gray-200`}
+                className={`min-h-[130px]  p-3 ${rowIdx % 2 ? "bg-white" : "bg-gray-50"} border-l border-gray-200`}
               >
                 <div className="space-y-2">
                   {evts.map((s) => {
@@ -2064,16 +2137,17 @@ export default function Page() {
 
   return (
     <>
-      <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 p-6 space-y-6">
+      <div className="min-h-screen bg-gray-50 p-2 space-y-6">
         {/* Header */}
         <div className={`flex flex-wrap items-center justify-between gap-3 mb-8 transition-all duration-700 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"}`}>
           <div className="flex items-center gap-4">
             <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
-              <CalendarDays size={28} className="text-white" />
+              <CalendarDays size={25} className="text-white" />
             </div>
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Điều phối lịch, lớp, phòng</h1>
-              <p className="text-sm text-gray-700 mt-1">
+              <h1 className="text-2xl md:text-2xl font-bold text-gray-900">Điều phối lịch, lớp, phòng</h1>
+              <p className="text-gray-600 mt-1 flex items-center gap-2">
+                <Sparkles size={14} className="text-red-600" />
                 Tạo/đổi ca, gán giáo viên chính &amp; phụ, đổi phòng học, xử lý xung đột lịch
               </p>
             </div>
@@ -2091,36 +2165,99 @@ export default function Page() {
         </div>
 
         {/* Stats */}
-        <div className={`grid gap-4 md:grid-cols-4 transition-all duration-700 delay-100 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
-          <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-            <div className="text-xs font-medium text-gray-700">Tổng số ca</div>
-            <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
+        <div className={`grid gap-4 md:grid-cols-2 xl:grid-cols-4 transition-all duration-700 delay-100 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+          <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-linear-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+            <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-linear-to-r from-red-600 to-red-700"></div>
+            <div className="relative flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-linear-to-br from-blue-600 to-cyan-600 grid place-items-center">
+                <Clock3 className="text-white" size={18} />
+              </span>
+              <div>
+                <div className="text-sm text-gray-600">Tổng số ca</div>
+                <div className="text-2xl font-extrabold text-gray-900">{stats.total}</div>
+              </div>
+            </div>
           </div>
-          <div className="rounded-2xl border border-red-200 bg-white p-4 shadow-sm">
-            <div className="text-xs font-medium text-gray-700">Lớp học</div>
-            <div className="text-2xl font-bold text-gray-900">{stats.byType.CLASS}</div>
+          <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-linear-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+            <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-linear-to-r from-red-600 to-red-700"></div>
+            <div className="relative flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-linear-to-br from-red-600 to-pink-600 grid place-items-center">
+                <Clock3 className="text-white" size={18} />
+              </span>
+              <div>
+                <div className="text-sm text-gray-600">Lớp học</div>
+                <div className="text-2xl font-extrabold text-gray-900">{stats.byType.CLASS}</div>
+              </div>
+            </div>
           </div>
-          <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-            <div className="text-xs font-medium text-gray-700">Buổi bù</div>
-            <div className="text-2xl font-bold text-gray-900">{stats.byType.MAKEUP}</div>
+          <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-linear-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+            <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-linear-to-r from-red-600 to-red-700"></div>
+            <div className="relative flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-linear-to-br from-amber-600 to-yellow-600 grid place-items-center">
+                <Clock3 className="text-white" size={18} />
+              </span>
+              <div>
+                <div className="text-sm text-gray-600">Buổi bù</div>
+                <div className="text-2xl font-extrabold text-gray-900">{stats.byType.MAKEUP}</div>
+              </div>
+            </div>
           </div>
-          <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-            <div className="text-xs font-medium text-gray-700">Sự kiện</div>
-            <div className="text-2xl font-bold text-gray-900">{stats.byType.EVENT}</div>
+          <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-linear-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+            <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-linear-to-r from-red-600 to-red-700"></div>
+            <div className="relative flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-linear-to-br from-emerald-600 to-teal-600 grid place-items-center">
+                <Clock3 className="text-white" size={18} />
+              </span>
+              <div>
+                <div className="text-sm text-gray-600">Sự kiện</div>
+                <div className="text-2xl font-extrabold text-gray-900">{stats.byType.EVENT}</div>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Filters */}
-        <div className={`rounded-2xl border border-gray-200 bg-white p-4 flex flex-wrap gap-2 items-center transition-all duration-700 delay-100 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
-          {(["ALL", "CLASS", "MAKEUP", "EVENT"] as const).map((item) => {
+        {/* Bộ lọc */}
+        <div className={`rounded-2xl border border-gray-200 bg-white p-4 flex flex-nowrap gap-2 overflow-x-auto transition-all duration-700 delay-100 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+          {/* Filter Lớp học */}
+          <div className="flex items-center gap-2">
+            <Select value={classFilter} onValueChange={(value) => setClassFilter(value)}>
+              <SelectTrigger className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm font-medium min-w-[180px]">
+                <SelectValue placeholder="Tất cả lớp" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Tất cả lớp</SelectItem>
+                {classOptions.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <button
+              onClick={() => setIsBulkUpdateModalOpen(true)}
+              disabled={classFilter === "ALL"}
+              className="px-3 py-2 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 text-sm font-semibold hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed min-w-[210px]"
+              title={classFilter === "ALL" ? "Chọn 1 lớp để cập nhật hàng loạt" : "Cập nhật hàng loạt theo lớp"}
+            >
+              Đổi gv, phòng hàng loạt
+            </button>
+          </div>
+
+          <div className="border-l border-gray-200 mx-2"></div>
+
+          {["ALL", "CLASS", "MAKEUP", "EVENT"].map((item) => {
             const isActive = filter === item;
-            const meta = item === "ALL" ? { text: "Tất cả", badge: "bg-gradient-to-r from-red-600 to-red-700" } : TYPE_META[item];
+            const meta = item === "ALL"
+              ? { text: "Tất cả", badge: "bg-gradient-to-r from-red-700 to-red-900" }
+              : TYPE_META[item as SlotType];
+
             return (
               <button
                 key={item}
                 onClick={() => setFilter(item as typeof filter)}
-                className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer flex items-center gap-2 ${
-                  isActive ? `${meta.badge} text-white shadow-md` : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-100"
+                className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer flex items-center gap-2 ${isActive
+                  ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                  : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-100"
                 }`}
               >
                 <span>{item === "ALL" ? "Tất cả" : meta.text}</span>
@@ -2132,28 +2269,6 @@ export default function Page() {
               </button>
             );
           })}
-
-          {/* Class filter */}
-          <div className="ml-auto">
-            <button
-              onClick={() => setIsBulkUpdateModalOpen(true)}
-              disabled={classFilter === "ALL"}
-              className="mr-2 px-3 py-2 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 text-sm font-semibold hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed"
-              title={classFilter === "ALL" ? "Chọn 1 lớp để cập nhật hàng loạt" : "Cập nhật hàng loạt theo lớp"}
-            >
-              Bulk đổi GV/Phòng
-            </button>
-            <select
-              value={classFilter}
-              onChange={(e) => setClassFilter(e.target.value)}
-              className="px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-red-300"
-            >
-              <option value="ALL">Tất cả lớp</option>
-              {classOptions.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </div>
         </div>
 
         {/* Week Timetable */}
@@ -2168,24 +2283,6 @@ export default function Page() {
           />
         </div>
 
-        {/* Legend */}
-        <div className={`rounded-2xl border border-gray-200 bg-white p-4 transition-all duration-700 delay-200 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
-          <div className="text-sm font-semibold text-gray-900 mb-3">Chú thích:</div>
-          <div className="flex flex-wrap gap-4">
-            <div className="flex items-center gap-2">
-              <Palette size={14} className="text-gray-500" />
-              <span className="text-sm text-gray-700">Nhấn nút palette để đổi màu</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <ArrowLeftRight size={14} className="text-blue-600" />
-              <span className="text-sm text-gray-700">Nhấn slot → Đổi phòng/GV/lịch</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <AlertCircle size={14} className="text-amber-600" />
-              <span className="text-sm text-gray-700">Xung đột lịch</span>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Create Modal */}

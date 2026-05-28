@@ -71,7 +71,7 @@ function StatCard({
         </div>
         <div className="min-w-0 flex-1">
           <div className="text-sm font-medium text-gray-600 truncate">{title}</div>
-          <div className="text-xl font-bold text-gray-900 leading-tight">{value}</div>
+          <div className="text-2xl font-bold text-gray-900 leading-tight">{value}</div>
           {subtitle && <div className="text-[11px] text-gray-500 truncate">{subtitle}</div>}
         </div>
       </div>
@@ -684,7 +684,7 @@ export default function SessionReportsReviewWorkspace() {
           {/* Filter Tabs */}
           <div className="flex flex-wrap items-center gap-3">
             {/* Status Filter */}
-            <div className="inline-flex rounded-xl border border-red-200 bg-white p-1">
+            <div className="flex flex-wrap items-center gap-2">
               {[
                 { k: 'REVIEW', label: 'Chờ duyệt', count: stats.review },
                 { k: 'APPROVED', label: 'Đã duyệt', count: stats.approved },
@@ -695,13 +695,13 @@ export default function SessionReportsReviewWorkspace() {
                 <button
                   key={item.k}
                   onClick={() => setStatusFilter(item.k)}
-                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 cursor-pointer ${statusFilter === item.k
-                    ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm'
-                    : 'text-gray-700 hover:bg-red-50'
+                  className={`px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200 flex items-center gap-2 cursor-pointer border ${statusFilter === item.k
+                    ? 'bg-gradient-to-r from-red-600 to-red-700 text-white border-red-600 shadow-md'
+                    : 'bg-white border-red-200 text-gray-700 hover:bg-red-50'
                     }`}
                 >
                   {item.label}
-                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${statusFilter === item.k ? 'bg-white/20' : 'bg-gray-100'
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${statusFilter === item.k ? 'bg-white/30 text-white' : 'bg-red-50 text-red-600'
                     }`}>
                     {item.count}
                   </span>
@@ -742,9 +742,9 @@ export default function SessionReportsReviewWorkspace() {
                 </button>
               )}
             </div>
-            <div className="mt-1 text-[11px] text-gray-500">
+            {/* <div className="mt-1 text-[11px] text-gray-500">
               {filteredReports.length} kết quả
-            </div>
+            </div> */}
           </div>
         </div>
       </div>

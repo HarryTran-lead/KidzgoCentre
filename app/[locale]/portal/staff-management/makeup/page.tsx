@@ -13,8 +13,15 @@ import {
   Search,
   ChevronUp,
   ChevronDown,
+  Sparkles,
 } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/lightswind/select";
 
 import {
   approveLeaveRequest,
@@ -32,7 +39,11 @@ import {
   getMakeupSettings,
   updateMakeupSettings,
 } from "@/lib/api/makeupCreditService";
-import type { MakeupCredit, MakeupCreditStudent, MakeupSettings } from "@/types/makeupCredit";
+import type {
+  MakeupCredit,
+  MakeupCreditStudent,
+  MakeupSettings,
+} from "@/types/makeupCredit";
 import {
   createHoliday,
   deleteHoliday,
@@ -147,8 +158,14 @@ const pickValue = (obj: any, paths: string[]) => {
 };
 
 const isAutoApprovedLeaveRequest = (item: LeaveRequestRecord) => {
-  const status = String((item as any).status ?? "").trim().toUpperCase();
-  if (status === "AUTO_APPROVED" || status === "AUTOAPPROVED" || status === "AUTO_APPROVE") {
+  const status = String((item as any).status ?? "")
+    .trim()
+    .toUpperCase();
+  if (
+    status === "AUTO_APPROVED" ||
+    status === "AUTOAPPROVED" ||
+    status === "AUTO_APPROVE"
+  ) {
     return true;
   }
 
@@ -156,7 +173,13 @@ const isAutoApprovedLeaveRequest = (item: LeaveRequestRecord) => {
   const approvedAt = (item as any).approvedAt;
   const noticeHours = Number((item as any).noticeHours ?? Number.NaN);
 
-  return !!requestedAt && !!approvedAt && requestedAt === approvedAt && Number.isFinite(noticeHours) && noticeHours >= 24;
+  return (
+    !!requestedAt &&
+    !!approvedAt &&
+    requestedAt === approvedAt &&
+    Number.isFinite(noticeHours) &&
+    noticeHours >= 24
+  );
 };
 
 const unwrap = (res: any) => {
@@ -206,7 +229,7 @@ const extractListItems = (payload: any): any[] => {
 const buildLookups = (
   studentsRaw: any[],
   classesRaw: any[],
-  parentProfilesRaw: any[]
+  parentProfilesRaw: any[],
 ): LeaveRequestLookups => {
   const students = new Map<string, StudentLookup>();
   const classes = new Map<string, string>();
@@ -214,7 +237,12 @@ const buildLookups = (
   const studentUserByProfileId = new Map<string, string>();
 
   studentsRaw.forEach((student) => {
-    const ids = collectIdCandidates(student, ["id", "profileId", "studentId", "userId"]);
+    const ids = collectIdCandidates(student, [
+      "id",
+      "profileId",
+      "studentId",
+      "userId",
+    ]);
     if (!ids.length) return;
 
     const userId = String(student?.userId ?? "").trim();
@@ -243,8 +271,9 @@ const buildLookups = (
     if (!userId) return;
 
     const parentName =
-      (pickValue(parent, ["displayName", "fullName", "name"]) as string | undefined) ??
-      undefined;
+      (pickValue(parent, ["displayName", "fullName", "name"]) as
+        | string
+        | undefined) ?? undefined;
 
     if (!parentName) return;
     parentByUserId.set(userId, parentName);
@@ -276,7 +305,9 @@ const buildLookups = (
   return { students, classes, parentByUserId };
 };
 
-async function getSessionById(sessionId: string): Promise<SessionDetail | null> {
+async function getSessionById(
+  sessionId: string,
+): Promise<SessionDetail | null> {
   if (!sessionId) return null;
   try {
     const res = await get<any>(`${TEACHER_ENDPOINTS.SESSIONS}/${sessionId}`);
@@ -317,7 +348,7 @@ function normalizeStatus(input: unknown): NormalizedStatusKey {
 
 const mapLeaveRequests = (
   items: LeaveRequestRecord[],
-  lookups: LeaveRequestLookups
+  lookups: LeaveRequestLookups,
 ): LeaveRequest[] => {
   if (!items?.length) return [];
 
@@ -352,9 +383,12 @@ const mapLeaveRequests = (
       ]) as string | undefined) ?? studentLookup?.parentName;
 
     const className =
-      (pickValue(item, ["className", "class.className", "class.name", "class.title"]) as
-        | string
-        | undefined) ?? lookups.classes.get(classId);
+      (pickValue(item, [
+        "className",
+        "class.className",
+        "class.name",
+        "class.title",
+      ]) as string | undefined) ?? lookups.classes.get(classId);
 
     return {
       id: (item as any).id,
@@ -364,7 +398,9 @@ const mapLeaveRequests = (
       type: isSingleDay ? "Nghỉ 1 ngày" : "Nghỉ dài ngày",
       requestTime: (() => {
         const created =
-          (item as any).createdAt ?? (item as any).requestedAt ?? (item as any).submittedAt;
+          (item as any).createdAt ??
+          (item as any).requestedAt ??
+          (item as any).submittedAt;
         if (!created) return "-";
         return formatDateTimeVN(created);
       })(),
@@ -374,7 +410,10 @@ const mapLeaveRequests = (
           : formatDateVN(start)
         : "-",
       status: statusLabel,
-      credit: statusKey !== "REJECTED" && statusKey !== "CANCELLED" && isSingleDay ? 1 : 0,
+      credit:
+        statusKey !== "REJECTED" && statusKey !== "CANCELLED" && isSingleDay
+          ? 1
+          : 0,
       note: (item as any).reason ?? "-",
       raw: item,
     };
@@ -384,18 +423,23 @@ const mapLeaveRequests = (
 const mapMakeupCredits = (
   items: MakeupCredit[],
   studentLookup?: Map<string, StudentLookup>,
-  makeupStudentNames?: Map<string, string>
+  makeupStudentNames?: Map<string, string>,
 ): UsedMakeupCredit[] => {
   if (!items?.length) return [];
 
   return items.map((item) => {
-    const studentId = pickValue(item, ["studentProfileId", "studentId"]) as string | undefined;
+    const studentId = pickValue(item, ["studentProfileId", "studentId"]) as
+      | string
+      | undefined;
     const studentName =
-      (pickValue(item, ["studentName", "studentFullName", "studentProfileName"]) as
-        | string
-        | undefined) ??
+      (pickValue(item, [
+        "studentName",
+        "studentFullName",
+        "studentProfileName",
+      ]) as string | undefined) ??
       (studentId
-        ? studentLookup?.get(studentId)?.name ?? makeupStudentNames?.get(studentId)
+        ? (studentLookup?.get(studentId)?.name ??
+          makeupStudentNames?.get(studentId))
         : undefined) ??
       "Chưa có tên học viên";
 
@@ -404,20 +448,27 @@ const mapMakeupCredits = (
       studentProfileId: studentId,
       student: studentName,
       status: String(pickValue(item, ["status"]) ?? "Used"),
-      createdReason: (pickValue(item, ["createdReason"]) as string | undefined) ?? undefined,
-      createdAt: (pickValue(item, ["createdAt"]) as string | undefined) ?? undefined,
+      createdReason:
+        (pickValue(item, ["createdReason"]) as string | undefined) ?? undefined,
+      createdAt:
+        (pickValue(item, ["createdAt"]) as string | undefined) ?? undefined,
       expiresAt:
-        (pickValue(item, ["expiresAt", "expiredAt", "expiryDate"]) as string | undefined) ??
-        null,
-      sourceSessionId: (pickValue(item, ["sourceSessionId"]) as string | undefined) ?? undefined,
-      usedSessionId: (pickValue(item, ["usedSessionId"]) as string | undefined) ?? undefined,
+        (pickValue(item, ["expiresAt", "expiredAt", "expiryDate"]) as
+          | string
+          | undefined) ?? null,
+      sourceSessionId:
+        (pickValue(item, ["sourceSessionId"]) as string | undefined) ??
+        undefined,
+      usedSessionId:
+        (pickValue(item, ["usedSessionId"]) as string | undefined) ?? undefined,
       raw: item,
     };
   });
 };
 
 const sessionTitle = (session: SessionDetail | null | undefined) =>
-  [session?.classCode, session?.classTitle].filter(Boolean).join(" - ") || "Chưa có lớp";
+  [session?.classCode, session?.classTitle].filter(Boolean).join(" - ") ||
+  "Chưa có lớp";
 
 const sessionMeta = (session: SessionDetail | null | undefined) =>
   [session?.branchName, session?.plannedRoomName].filter(Boolean).join(" • ");
@@ -456,7 +507,8 @@ function SortableHeader({
   onSort: (column: string) => void;
 }) {
   const isActive = currentSort.column === columnKey;
-  const Icon = isActive && currentSort.direction === "desc" ? ChevronDown : ChevronUp;
+  const Icon =
+    isActive && currentSort.direction === "desc" ? ChevronDown : ChevronUp;
 
   return (
     <button
@@ -465,7 +517,10 @@ function SortableHeader({
       className="inline-flex items-center gap-1.5 cursor-pointer hover:text-gray-900 transition-colors"
     >
       <span>{label}</span>
-      <Icon size={14} className={isActive ? "text-gray-700" : "text-gray-400"} />
+      <Icon
+        size={14}
+        className={isActive ? "text-gray-700" : "text-gray-400"}
+      />
     </button>
   );
 }
@@ -484,17 +539,20 @@ function StatCard({
   color: string;
 }) {
   return (
-    <div className="rounded-2xl border border-red-200 bg-white p-5 shadow-sm">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="text-sm font-semibold text-gray-700">{title}</div>
-          <div className="mt-2 text-3xl font-bold text-gray-900">{value}</div>
-          {subtitle && <div className="mt-1 text-xs text-gray-500">{subtitle}</div>}
-        </div>
-        <div
-          className={`h-12 w-12 rounded-2xl bg-gradient-to-r ${color} flex items-center justify-center shadow-lg`}
+    <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-linear-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
+      <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-linear-to-r from-red-600 to-red-700"></div>
+      <div className="relative flex items-center gap-3">
+        <span
+          className={`w-10 h-10 rounded-xl bg-linear-to-br ${color} grid place-items-center flex-shrink-0`}
         >
-          <Icon size={20} className="text-white" />
+          <Icon size={18} className="text-white" />
+        </span>
+        <div>
+          <div className="text-sm text-gray-600">{title}</div>
+          <div className="text-2xl font-extrabold text-gray-900">{value}</div>
+          {subtitle && (
+            <div className="mt-0.5 text-xs text-gray-500">{subtitle}</div>
+          )}
         </div>
       </div>
     </div>
@@ -565,20 +623,25 @@ export default function Page() {
   const [actionMessage, setActionMessage] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<LeaveRequestStatusLabel | "Tất cả">(
-    "Tất cả"
-  );
+  const [statusFilter, setStatusFilter] = useState<
+    LeaveRequestStatusLabel | "Tất cả"
+  >("Tất cả");
 
   const [selectedLeaveIds, setSelectedLeaveIds] = useState<string[]>([]);
   const [openLeaveModal, setOpenLeaveModal] = useState(false);
-  const [leaveSort, setLeaveSort] = useState<{ column: string; direction: "asc" | "desc" }>({ column: "student", direction: "asc" });
+  const [leaveSort, setLeaveSort] = useState<{
+    column: string;
+    direction: "asc" | "desc";
+  }>({ column: "student", direction: "asc" });
 
   const [confirmAction, setConfirmAction] = useState<{
     type: "approve" | "reject";
     request: LeaveRequest;
   } | null>(null);
   const [showBulkApproveConfirm, setShowBulkApproveConfirm] = useState(false);
-  const [expireTarget, setExpireTarget] = useState<UsedMakeupCredit | null>(null);
+  const [expireTarget, setExpireTarget] = useState<UsedMakeupCredit | null>(
+    null,
+  );
 
   const [processingAction, setProcessingAction] = useState(false);
   const [processingBulkApprove, setProcessingBulkApprove] = useState(false);
@@ -588,8 +651,13 @@ export default function Page() {
   const [makeupCredits, setMakeupCredits] = useState<UsedMakeupCredit[]>([]);
   const [loadingMakeupCredits, setLoadingMakeupCredits] = useState(false);
   const [makeupError, setMakeupError] = useState<string | null>(null);
-  const [makeupSort, setMakeupSort] = useState<{ column: string; direction: "asc" | "desc" }>({ column: "student", direction: "asc" });
-  const [makeupSettings, setMakeupSettings] = useState<MakeupSettings | null>(null);
+  const [makeupSort, setMakeupSort] = useState<{
+    column: string;
+    direction: "asc" | "desc";
+  }>({ column: "student", direction: "asc" });
+  const [makeupSettings, setMakeupSettings] = useState<MakeupSettings | null>(
+    null,
+  );
   const [makeupSettingsLoading, setMakeupSettingsLoading] = useState(false);
   const [makeupSettingsSaving, setMakeupSettingsSaving] = useState(false);
   const [creditExpiryDaysInput, setCreditExpiryDaysInput] = useState("7");
@@ -621,19 +689,28 @@ export default function Page() {
 
   const fetchLeaveLookups = async (): Promise<LeaveRequestLookups> => {
     try {
-      const [studentsRes, classesRes, parentProfilesRes] = await Promise.allSettled([
-        get<any>("/api/students", { params: { pageNumber: 1, pageSize: 1000 } }),
-        get<any>("/api/classes", { params: { pageNumber: 1, pageSize: 1000 } }),
-        get<any>("/api/students", {
-          params: { profileType: "Parent", pageNumber: 1, pageSize: 1000 },
-        }),
-      ]);
+      const [studentsRes, classesRes, parentProfilesRes] =
+        await Promise.allSettled([
+          get<any>("/api/students", {
+            params: { pageNumber: 1, pageSize: 1000 },
+          }),
+          get<any>("/api/classes", {
+            params: { pageNumber: 1, pageSize: 1000 },
+          }),
+          get<any>("/api/students", {
+            params: { profileType: "Parent", pageNumber: 1, pageSize: 1000 },
+          }),
+        ]);
 
       const studentsRaw =
-        studentsRes.status === "fulfilled" ? extractListItems(unwrap(studentsRes.value)) : [];
+        studentsRes.status === "fulfilled"
+          ? extractListItems(unwrap(studentsRes.value))
+          : [];
 
       const classesRaw =
-        classesRes.status === "fulfilled" ? extractListItems(unwrap(classesRes.value)) : [];
+        classesRes.status === "fulfilled"
+          ? extractListItems(unwrap(classesRes.value))
+          : [];
 
       const parentProfilesRaw =
         parentProfilesRes.status === "fulfilled"
@@ -642,7 +719,11 @@ export default function Page() {
 
       return buildLookups(studentsRaw, classesRaw, parentProfilesRaw);
     } catch {
-      return { students: new Map(), classes: new Map(), parentByUserId: new Map() };
+      return {
+        students: new Map(),
+        classes: new Map(),
+        parentByUserId: new Map(),
+      };
     }
   };
 
@@ -652,8 +733,18 @@ export default function Page() {
     try {
       const response = await getLeaveRequests();
       const api = unwrap(response);
-   const items = Array.isArray(api?.items) ? api.items : Array.isArray(api?.data?.items) ? api.data.items : Array.isArray(api) ? api : [];      setRequestItems(
-        mapLeaveRequests(items as LeaveRequestRecord[], lookupsOverride ?? leaveLookups)
+      const items = Array.isArray(api?.items)
+        ? api.items
+        : Array.isArray(api?.data?.items)
+          ? api.data.items
+          : Array.isArray(api)
+            ? api
+            : [];
+      setRequestItems(
+        mapLeaveRequests(
+          items as LeaveRequestRecord[],
+          lookupsOverride ?? leaveLookups,
+        ),
       );
     } catch {
       setActionError("Không thể tải danh sách đơn xin nghỉ.");
@@ -690,13 +781,16 @@ export default function Page() {
       const makeupStudentNames = new Map<string, string>();
       (studentItems as MakeupCreditStudent[]).forEach((student) => {
         const id = String(
-          pickValue(student, ["studentProfileId", "studentId", "id"]) ?? ""
+          pickValue(student, ["studentProfileId", "studentId", "id"]) ?? "",
         ).trim();
         if (!id) return;
         const name =
-          (pickValue(student, ["name", "fullName", "studentName", "studentFullName"]) as
-            | string
-            | undefined) ?? "";
+          (pickValue(student, [
+            "name",
+            "fullName",
+            "studentName",
+            "studentFullName",
+          ]) as string | undefined) ?? "";
         if (!name.trim()) return;
         makeupStudentNames.set(id, name.trim());
       });
@@ -704,7 +798,7 @@ export default function Page() {
       const mapped = mapMakeupCredits(
         items as MakeupCredit[],
         lookupsOverride?.students ?? leaveLookups.students,
-        makeupStudentNames
+        makeupStudentNames,
       );
 
       const sessionIds = new Set<string>();
@@ -714,7 +808,9 @@ export default function Page() {
       });
 
       const sessionEntries = await Promise.all(
-        Array.from(sessionIds).map(async (id) => [id, await getSessionById(id)] as const)
+        Array.from(sessionIds).map(
+          async (id) => [id, await getSessionById(id)] as const,
+        ),
       );
       const sessionMap = new Map(sessionEntries);
 
@@ -722,12 +818,12 @@ export default function Page() {
         mapped.map((credit) => ({
           ...credit,
           sourceSession: credit.sourceSessionId
-            ? sessionMap.get(credit.sourceSessionId) ?? null
+            ? (sessionMap.get(credit.sourceSessionId) ?? null)
             : null,
           usedSession: credit.usedSessionId
-            ? sessionMap.get(credit.usedSessionId) ?? null
+            ? (sessionMap.get(credit.usedSessionId) ?? null)
             : null,
-        }))
+        })),
       );
     } catch {
       setUsedError("Không thể tải danh sách makeup credit.");
@@ -815,7 +911,11 @@ export default function Page() {
   };
 
   const handleSubmitHoliday = async () => {
-    if (!holidayForm.name.trim() || !holidayForm.startDate || !holidayForm.endDate) {
+    if (
+      !holidayForm.name.trim() ||
+      !holidayForm.startDate ||
+      !holidayForm.endDate
+    ) {
       setActionError(msg.holiday.msgValidation);
       return;
     }
@@ -913,7 +1013,9 @@ export default function Page() {
     const pending = requestItems.filter((r) => r.status === "Chờ duyệt").length;
     const approved = requestItems.filter((r) => r.status === "Đã duyệt").length;
     const rejected = requestItems.filter((r) => r.status === "Từ chối").length;
-    const auto = requestItems.filter((r) => r.raw && isAutoApprovedLeaveRequest(r.raw)).length;
+    const auto = requestItems.filter(
+      (r) => r.raw && isAutoApprovedLeaveRequest(r.raw),
+    ).length;
     return { total, pending, approved, rejected, auto };
   }, [requestItems]);
 
@@ -921,7 +1023,8 @@ export default function Page() {
     const q = searchQuery.trim().toLowerCase();
 
     let filtered = requestItems.filter((r) => {
-      const matchesStatus = statusFilter === "Tất cả" || r.status === statusFilter;
+      const matchesStatus =
+        statusFilter === "Tất cả" || r.status === statusFilter;
 
       const matchesSearch =
         !q ||
@@ -973,16 +1076,20 @@ export default function Page() {
   }, [requestItems, searchQuery, statusFilter, leaveSort]);
 
   const pendingVisibleIds = useMemo(
-    () => filteredLeave.filter((item) => item.status === statusMap.PENDING).map((item) => item.id),
-    [filteredLeave]
+    () =>
+      filteredLeave
+        .filter((item) => item.status === statusMap.PENDING)
+        .map((item) => item.id),
+    [filteredLeave],
   );
 
   const allPendingVisibleSelected =
-    pendingVisibleIds.length > 0 && pendingVisibleIds.every((id) => selectedLeaveIds.includes(id));
+    pendingVisibleIds.length > 0 &&
+    pendingVisibleIds.every((id) => selectedLeaveIds.includes(id));
 
   const sortedMakeupCredits = useMemo(() => {
     const sorted = [...makeupCredits];
-    
+
     sorted.sort((a, b) => {
       let aVal: any;
       let bVal: any;
@@ -1015,13 +1122,19 @@ export default function Page() {
 
   useEffect(() => {
     setSelectedLeaveIds((prev) =>
-      prev.filter((id) => requestItems.some((item) => item.id === id && item.status === statusMap.PENDING))
+      prev.filter((id) =>
+        requestItems.some(
+          (item) => item.id === id && item.status === statusMap.PENDING,
+        ),
+      ),
     );
   }, [requestItems]);
 
   const toggleLeaveSelection = (requestId: string) => {
     setSelectedLeaveIds((prev) =>
-      prev.includes(requestId) ? prev.filter((id) => id !== requestId) : [...prev, requestId]
+      prev.includes(requestId)
+        ? prev.filter((id) => id !== requestId)
+        : [...prev, requestId],
     );
   };
 
@@ -1037,7 +1150,10 @@ export default function Page() {
 
   const handleLeaveSort = (column: string) => {
     if (leaveSort.column === column) {
-      setLeaveSort({ column, direction: leaveSort.direction === "asc" ? "desc" : "asc" });
+      setLeaveSort({
+        column,
+        direction: leaveSort.direction === "asc" ? "desc" : "asc",
+      });
     } else {
       setLeaveSort({ column, direction: "asc" });
     }
@@ -1045,7 +1161,10 @@ export default function Page() {
 
   const handleMakeupSort = (column: string) => {
     if (makeupSort.column === column) {
-      setMakeupSort({ column, direction: makeupSort.direction === "asc" ? "desc" : "asc" });
+      setMakeupSort({
+        column,
+        direction: makeupSort.direction === "asc" ? "desc" : "asc",
+      });
     } else {
       setMakeupSort({ column, direction: "asc" });
     }
@@ -1116,16 +1235,23 @@ export default function Page() {
       if (errors.length > 0) {
         const preview = errors
           .slice(0, 3)
-          .map((item: any) => item?.message ?? item?.code ?? item?.id ?? "Lỗi không xác định")
+          .map(
+            (item: any) =>
+              item?.message ?? item?.code ?? item?.id ?? "Lỗi không xác định",
+          )
           .join("\n");
         setActionMessage(
-          `Đã duyệt ${approvedIds.length} đơn. Có ${errors.length} đơn chưa xử lý được.\n${preview}`
+          `Đã duyệt ${approvedIds.length} đơn. Có ${errors.length} đơn chưa xử lý được.\n${preview}`,
         );
       } else {
-        setActionMessage(`Đã duyệt hàng loạt ${approvedIds.length} đơn thành công.`);
+        setActionMessage(
+          `Đã duyệt hàng loạt ${approvedIds.length} đơn thành công.`,
+        );
       }
     } catch (error: any) {
-      setActionError(getDomainErrorMessage(error, "Không thể duyệt hàng loạt đơn xin nghỉ."));
+      setActionError(
+        getDomainErrorMessage(error, "Không thể duyệt hàng loạt đơn xin nghỉ."),
+      );
     } finally {
       setProcessingBulkApprove(false);
     }
@@ -1144,23 +1270,33 @@ export default function Page() {
       setActionMessage("Đã cập nhật trạng thái hết hạn cho bù.");
       setExpireTarget(null);
     } catch (error: any) {
-      setActionError(getDomainErrorMessage(error, "Không thể cập nhật trạng thái hết hạn cho makeup credit."));
+      setActionError(
+        getDomainErrorMessage(
+          error,
+          "Không thể cập nhật trạng thái hết hạn cho makeup credit.",
+        ),
+      );
     } finally {
       setProcessingExpire(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-6 space-y-6">
+    <div className="min-h-screen bg-gray-50 p-2 space-y-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="p-3 rounded-xl bg-gradient-to-r from-red-600 to-red-700 shadow-lg">
-            <CalendarDays size={24} className="text-white" />
+            <CalendarDays size={25} className="text-white" />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">Nghỉ ngắn ngày và bù</h1>
-            <p className="text-sm text-gray-600">Quản lý đơn xin nghỉ và makeup credit</p>
+            <h1 className="text-2xl md:text-2xl font-extrabold text-gray-900">
+              Nghỉ ngắn ngày và bù
+            </h1>
+            <p className="text-gray-600 mt-1 flex items-center gap-2">
+              <Sparkles size={14} className="text-red-600" />
+              Quản lý đơn xin nghỉ và makeup credit
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -1232,68 +1368,102 @@ export default function Page() {
       {activeTab === "leave" && (
         <>
           {/* Stats */}
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <StatCard
               title="Tổng"
               value={String(stats.total)}
               icon={CalendarDays}
-              color="from-red-600 to-red-700"
+              color="from-blue-600 to-cyan-600"
             />
             <StatCard
               title="Chờ duyệt"
               value={String(stats.pending)}
               icon={AlertCircle}
-              color="from-amber-500 to-orange-500"
+              color="from-amber-600 to-yellow-600"
             />
             <StatCard
               title="Đã duyệt"
               value={String(stats.approved)}
               icon={ShieldCheck}
-              color="from-emerald-500 to-teal-500"
+              color="from-emerald-600 to-teal-600"
             />
             <StatCard
               title="Từ chối"
               value={String(stats.rejected)}
               icon={XCircle}
-              color="from-red-500 to-pink-500"
-            />
-            <StatCard
-              title="Tự động duyệt"
-              value={String(stats.auto)}
-              icon={CheckCircle2}
-              color="from-fuchsia-500 to-purple-500"
+              color="from-red-600 to-pink-600"
             />
           </div>
 
-          {/* Filters */}
+          {/* Status Filter Tabs */}
           <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm">
-            <div className="flex flex-col md:flex-row gap-3 md:items-center">
-              {/* Search Bar */}
-              <div className="relative flex-1">
-                <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                <input
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Tìm kiếm..."
-                  className="h-10 w-full rounded-xl border border-red-200 bg-white pl-10 pr-4 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
-                />
+            <div className="space-y-4">
+              {/* Status Filter Buttons */}
+              <div className="flex flex-wrap gap-2 pb-4 border-b border-red-200">
+                {statusOptions.map((status) => {
+                  const counts: Record<string, number> = {
+                    "Tất cả": requestItems.length,
+                    "Chờ duyệt": requestItems.filter((r) => r.status === "Chờ duyệt").length,
+                    "Đã duyệt": requestItems.filter((r) => r.status === "Đã duyệt").length,
+                    "Từ chối": requestItems.filter((r) => r.status === "Từ chối").length,
+                    "Đã hủy": requestItems.filter((r) => r.status === "Đã hủy").length,
+                  };
+
+                  const isActive = statusFilter === status;
+                  return (
+                    <button
+                      key={status}
+                      onClick={() => setStatusFilter(status)}
+                      className={`px-4 py-2 rounded-xl border text-sm font-medium transition-all cursor-pointer ${
+                        isActive
+                          ? "bg-linear-to-r from-red-600 to-red-700 text-white border-red-600 shadow-md"
+                          : "bg-white border-red-200 text-gray-700 hover:bg-red-50"
+                      }`}
+                    >
+                      <span className="inline-flex items-center gap-2">
+                        {status}
+                        <span
+                          className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-semibold ${
+                            isActive
+                              ? "bg-white/30 text-white"
+                              : "bg-red-50 text-red-600"
+                          }`}
+                        >
+                          {counts[status]}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
 
-              {/* Filters */}
-              <div className="flex flex-wrap items-center gap-2">
-                <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as any)}>
-                  <SelectTrigger className="w-auto min-w-max rounded-xl h-10">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {statusOptions.map((s) => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              {/* Search Bar and Actions */}
+              <div className="flex flex-col md:flex-row gap-3 md:items-center">
+                {/* Search Bar */}
+                <div className="relative flex-1">
+                  <svg
+                    className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
+                  </svg>
+                  <input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Tìm kiếm..."
+                    className="h-10 w-full rounded-xl border border-red-200 bg-white pl-10 pr-4 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
+                  />
+                </div>
 
+                {/* Action Button */}
                 <button
                   type="button"
                   onClick={() => setShowBulkApproveConfirm(true)}
@@ -1310,10 +1480,16 @@ export default function Page() {
           <div className="rounded-2xl border border-red-200 bg-white shadow-sm overflow-hidden">
             <div className="border-b border-red-200 bg-gradient-to-r from-red-50 to-red-100/30 px-6 py-4 flex items-center justify-between">
               <div>
-                <div className="text-lg font-semibold text-gray-900">Danh sách đơn xin nghỉ</div>
-                {loadingRequests && <div className="text-sm text-gray-500 mt-1">Đang tải...</div>}
+                <div className="text font-semibold text-gray-900">
+                  Danh sách đơn xin nghỉ
+                </div>
+                {loadingRequests && (
+                  <div className="text-sm text-gray-500 mt-1">Đang tải...</div>
+                )}
               </div>
-              <div className="text-sm text-gray-600 font-medium">{filteredLeave.length} đơn</div>
+              <div className="text-sm text-gray-600 font-medium">
+                {filteredLeave.length} đơn
+              </div>
             </div>
 
             <div className="overflow-x-auto">
@@ -1331,19 +1507,44 @@ export default function Page() {
                       />
                     </th>
                     <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                      <SortableHeader label="Học viên" columnKey="student" currentSort={leaveSort} onSort={handleLeaveSort} />
+                      <SortableHeader
+                        label="Học viên"
+                        columnKey="student"
+                        currentSort={leaveSort}
+                        onSort={handleLeaveSort}
+                      />
                     </th>
                     <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                      <SortableHeader label="Phụ huynh" columnKey="parentName" currentSort={leaveSort} onSort={handleLeaveSort} />
+                      <SortableHeader
+                        label="Phụ huynh"
+                        columnKey="parentName"
+                        currentSort={leaveSort}
+                        onSort={handleLeaveSort}
+                      />
                     </th>
                     <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                      <SortableHeader label="Lớp" columnKey="className" currentSort={leaveSort} onSort={handleLeaveSort} />
+                      <SortableHeader
+                        label="Lớp"
+                        columnKey="className"
+                        currentSort={leaveSort}
+                        onSort={handleLeaveSort}
+                      />
                     </th>
                     <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                      <SortableHeader label="Thời gian" columnKey="requestTime" currentSort={leaveSort} onSort={handleLeaveSort} />
+                      <SortableHeader
+                        label="Thời gian"
+                        columnKey="requestTime"
+                        currentSort={leaveSort}
+                        onSort={handleLeaveSort}
+                      />
                     </th>
                     <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                      <SortableHeader label="Trạng thái" columnKey="status" currentSort={leaveSort} onSort={handleLeaveSort} />
+                      <SortableHeader
+                        label="Trạng thái"
+                        columnKey="status"
+                        currentSort={leaveSort}
+                        onSort={handleLeaveSort}
+                      />
                     </th>
                     <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
                       Ghi chú
@@ -1374,13 +1575,23 @@ export default function Page() {
                             />
                           </td>
                           <td className="py-4 px-6">
-                            <div className="text-sm font-medium text-gray-900">{r.student}</div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {r.student}
+                            </div>
                           </td>
-                          <td className="py-4 px-6 text-sm text-gray-700">{r.parentName}</td>
-                          <td className="py-4 px-6 text-sm text-gray-700">{r.className}</td>
+                          <td className="py-4 px-6 text-sm text-gray-700">
+                            {r.parentName}
+                          </td>
+                          <td className="py-4 px-6 text-sm text-gray-700">
+                            {r.className}
+                          </td>
                           <td className="py-4 px-6">
-                            <div className="text-sm text-gray-700">{r.sessionTime}</div>
-                            <div className="text-xs text-gray-500">{r.requestTime}</div>
+                            <div className="text-sm text-gray-700">
+                              {r.sessionTime}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {r.requestTime}
+                            </div>
                           </td>
                           <td className="py-4 px-6">
                             <span
@@ -1389,12 +1600,19 @@ export default function Page() {
                               {r.status}
                             </span>
                           </td>
-                          <td className="py-4 px-6 text-sm text-gray-700">{r.note}</td>
+                          <td className="py-4 px-6 text-sm text-gray-700">
+                            {r.note}
+                          </td>
                           <td className="py-4 px-6 text-right">
                             <div className="inline-flex items-center gap-2">
                               <button
                                 disabled={!canAct}
-                                onClick={() => setConfirmAction({ type: "approve", request: r })}
+                                onClick={() =>
+                                  setConfirmAction({
+                                    type: "approve",
+                                    request: r,
+                                  })
+                                }
                                 className="inline-flex items-center gap-1 rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-emerald-100 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 cursor-pointer"
                                 title="Duyệt"
                               >
@@ -1403,7 +1621,12 @@ export default function Page() {
                               </button>
                               <button
                                 disabled={!canAct}
-                                onClick={() => setConfirmAction({ type: "reject", request: r })}
+                                onClick={() =>
+                                  setConfirmAction({
+                                    type: "reject",
+                                    request: r,
+                                  })
+                                }
                                 className="inline-flex items-center gap-1 rounded-xl border border-red-200 bg-gradient-to-r from-red-50 to-red-100 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50 cursor-pointer"
                                 title="Từ chối"
                               >
@@ -1421,7 +1644,9 @@ export default function Page() {
                         <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
                           <Search size={24} className="text-red-400" />
                         </div>
-                        <div className="text-gray-600 font-medium">Không có đơn phù hợp</div>
+                        <div className="text-gray-600 font-medium">
+                          Không có đơn phù hợp
+                        </div>
                         <div className="text-sm text-gray-500 mt-1">
                           Thử thay đổi bộ lọc hoặc từ khóa
                         </div>
@@ -1452,7 +1677,9 @@ export default function Page() {
               holidaysLoading={holidaysLoading}
               holidaySubmitting={holidaySubmitting}
               holidayForm={holidayForm}
-              onFormChange={(update) => setHolidayForm((prev) => ({ ...prev, ...update }))}
+              onFormChange={(update) =>
+                setHolidayForm((prev) => ({ ...prev, ...update }))
+              }
               onSubmit={handleSubmitHoliday}
               onResetForm={resetHolidayForm}
               onEdit={handleHolidayEdit}
@@ -1462,147 +1689,195 @@ export default function Page() {
           </div>
 
           <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 shadow-sm overflow-hidden">
-          <div className="bg-gradient-to-r from-red-50 to-red-100/30 border-b border-red-200 px-6 py-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">Danh sách makeup credit</h2>
+            <div className="bg-gradient-to-r from-red-50 to-red-100/30 border-b border-red-200 px-6 py-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className=" font-semibold text-gray-900">
+                    Danh sách makeup credit
+                  </h2>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="text-sm text-gray-600 font-medium">
+                    {usedCredits.length} credit
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                
-                <div className="text-sm text-gray-600 font-medium">{usedCredits.length} credit</div>
-              </div>
+
+              {loadingUsedCredits && (
+                <div className="text-sm text-gray-500 mt-1">
+                  Đang tải danh sách makeup credit...
+                </div>
+              )}
+              {usedError && (
+                <div className="mt-2">
+                  <Banner kind="error" text={usedError} />
+                </div>
+              )}
             </div>
 
-            {loadingUsedCredits && (
-              <div className="text-sm text-gray-500 mt-1">Đang tải danh sách makeup credit...</div>
-            )}
-            {usedError && (
-              <div className="mt-2">
-                <Banner kind="error" text={usedError} />
-              </div>
-            )}
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-red-200">
-                <tr>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                    <SortableHeader label="Học viên" columnKey="student" currentSort={makeupSort} onSort={handleMakeupSort} />
-                  </th>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                    Buổi nghỉ
-                  </th>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                    Buổi bù
-                  </th>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                    <SortableHeader label="Trạng thái" columnKey="status" currentSort={makeupSort} onSort={handleMakeupSort} />
-                  </th>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                    <SortableHeader label="Tạo lúc" columnKey="createdAt" currentSort={makeupSort} onSort={handleMakeupSort} />
-                  </th>
-                  <th className="py-3 px-6 text-right text-sm font-semibold text-gray-700">
-                    Thao tác
-                  </th>
-                </tr>
-              </thead>
-
-              <tbody className="divide-y divide-red-100">
-                {usedCredits.length > 0 ? (
-                  sortedMakeupCredits.map((credit) => {
-                    const sourceTime = credit.sourceSession?.plannedDatetime
-                      ? formatDateTimeVN(credit.sourceSession.plannedDatetime)
-                      : "Chưa có thời gian";
-                    const usedTime = credit.usedSession?.plannedDatetime
-                      ? formatDateTimeVN(credit.usedSession.plannedDatetime)
-                      : "Chưa có thời gian";
-                    const createdTime = credit.createdAt ? formatDateTimeVN(credit.createdAt) : "-";
-                    const sourceMeta = sessionMeta(credit.sourceSession);
-                    const usedMeta = sessionMeta(credit.usedSession);
-
-                    return (
-                      <tr
-                        key={credit.id}
-                        className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200"
-                      >
-                        <td className="py-4 px-6">
-                          <div className="text-sm font-medium text-gray-900">{credit.student}</div>
-                        </td>
-
-                        <td className="py-4 px-6">
-                          <div className="text-sm text-gray-900">
-                            {sessionTitle(credit.sourceSession)}
-                          </div>
-                          <div className="text-xs text-gray-500">{sourceTime}</div>
-                          {sourceMeta && <div className="text-xs text-gray-500">{sourceMeta}</div>}
-                          {!credit.sourceSession && credit.sourceSessionId && (
-                            <div className="text-xs text-gray-400">Chưa có thông tin buổi nghỉ</div>
-                          )}
-                        </td>
-
-                        <td className="py-4 px-6">
-                          <div className="text-sm text-gray-900">
-                            {sessionTitle(credit.usedSession)}
-                          </div>
-                          <div className="text-xs text-gray-500">{usedTime}</div>
-                          {usedMeta && <div className="text-xs text-gray-500">{usedMeta}</div>}
-                          {!credit.usedSession && credit.usedSessionId && (
-                            <div className="text-xs text-gray-400">Chưa có thông tin buổi bù</div>
-                          )}
-                        </td>
-
-                        <td className="py-4 px-6">
-                          <span className="inline-flex items-center rounded-xl border border-red-200 bg-gradient-to-r from-red-50 to-red-100 px-2.5 py-1 text-xs font-semibold text-red-700">
-                            {credit.status}
-                          </span>
-                          {credit.createdReason && (
-                            <div className="mt-1 text-xs text-gray-500">
-                              Lý do: {credit.createdReason}
-                            </div>
-                          )}
-                          {credit.expiresAt && (
-                            <div className="mt-1 text-xs text-gray-500">
-                              Hết hạn: {formatDateTimeVN(credit.expiresAt)}
-                            </div>
-                          )}
-                        </td>
-
-                        <td className="py-4 px-6">
-                          <div className="text-sm text-gray-700">{createdTime}</div>
-                        </td>
-                        <td className="py-4 px-6 text-right">
-                          {isExpiredCredit(credit) ? (
-                            <span className="text-xs font-semibold text-gray-400">Đã hết hạn</span>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => setExpireTarget(credit)}
-                              className="inline-flex items-center gap-1 rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-100 px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-100 cursor-pointer"
-                            >
-                              Đặt hết hạn
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })
-                ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-red-200">
                   <tr>
-                    <td colSpan={6} className="py-12 text-center">
-                      <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
-                        <Search size={24} className="text-red-400" />
-                      </div>
-                      <div className="text-gray-600 font-medium">Chưa có makeup credit</div>
-                      <div className="text-sm text-gray-500 mt-1">
-                        Danh sách sẽ hiển thị khi hệ thống phát sinh makeup credit từ đơn nghỉ hoặc điểm danh.
-                      </div>
-                    </td>
+                    <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
+                      <SortableHeader
+                        label="Học viên"
+                        columnKey="student"
+                        currentSort={makeupSort}
+                        onSort={handleMakeupSort}
+                      />
+                    </th>
+                    <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
+                      Buổi nghỉ
+                    </th>
+                    <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
+                      Buổi bù
+                    </th>
+                    <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
+                      <SortableHeader
+                        label="Trạng thái"
+                        columnKey="status"
+                        currentSort={makeupSort}
+                        onSort={handleMakeupSort}
+                      />
+                    </th>
+                    <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
+                      <SortableHeader
+                        label="Tạo lúc"
+                        columnKey="createdAt"
+                        currentSort={makeupSort}
+                        onSort={handleMakeupSort}
+                      />
+                    </th>
+                    <th className="py-3 px-6 text-right text-sm font-semibold text-gray-700">
+                      Thao tác
+                    </th>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+
+                <tbody className="divide-y divide-red-100">
+                  {usedCredits.length > 0 ? (
+                    sortedMakeupCredits.map((credit) => {
+                      const sourceTime = credit.sourceSession?.plannedDatetime
+                        ? formatDateTimeVN(credit.sourceSession.plannedDatetime)
+                        : "Chưa có thời gian";
+                      const usedTime = credit.usedSession?.plannedDatetime
+                        ? formatDateTimeVN(credit.usedSession.plannedDatetime)
+                        : "Chưa có thời gian";
+                      const createdTime = credit.createdAt
+                        ? formatDateTimeVN(credit.createdAt)
+                        : "-";
+                      const sourceMeta = sessionMeta(credit.sourceSession);
+                      const usedMeta = sessionMeta(credit.usedSession);
+
+                      return (
+                        <tr
+                          key={credit.id}
+                          className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200"
+                        >
+                          <td className="py-4 px-6">
+                            <div className="text-sm font-medium text-gray-900">
+                              {credit.student}
+                            </div>
+                          </td>
+
+                          <td className="py-4 px-6">
+                            <div className="text-sm text-gray-900">
+                              {sessionTitle(credit.sourceSession)}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {sourceTime}
+                            </div>
+                            {sourceMeta && (
+                              <div className="text-xs text-gray-500">
+                                {sourceMeta}
+                              </div>
+                            )}
+                            {!credit.sourceSession &&
+                              credit.sourceSessionId && (
+                                <div className="text-xs text-gray-400">
+                                  Chưa có thông tin buổi nghỉ
+                                </div>
+                              )}
+                          </td>
+
+                          <td className="py-4 px-6">
+                            <div className="text-sm text-gray-900">
+                              {sessionTitle(credit.usedSession)}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {usedTime}
+                            </div>
+                            {usedMeta && (
+                              <div className="text-xs text-gray-500">
+                                {usedMeta}
+                              </div>
+                            )}
+                            {!credit.usedSession && credit.usedSessionId && (
+                              <div className="text-xs text-gray-400">
+                                Chưa có thông tin buổi bù
+                              </div>
+                            )}
+                          </td>
+
+                          <td className="py-4 px-6">
+                            <span className="inline-flex items-center rounded-xl border border-red-200 bg-gradient-to-r from-red-50 to-red-100 px-2.5 py-1 text-xs font-semibold text-red-700">
+                              {credit.status}
+                            </span>
+                            {credit.createdReason && (
+                              <div className="mt-1 text-xs text-gray-500">
+                                Lý do: {credit.createdReason}
+                              </div>
+                            )}
+                            {credit.expiresAt && (
+                              <div className="mt-1 text-xs text-gray-500">
+                                Hết hạn: {formatDateTimeVN(credit.expiresAt)}
+                              </div>
+                            )}
+                          </td>
+
+                          <td className="py-4 px-6">
+                            <div className="text-sm text-gray-700">
+                              {createdTime}
+                            </div>
+                          </td>
+                          <td className="py-4 px-6 text-right">
+                            {isExpiredCredit(credit) ? (
+                              <span className="text-xs font-semibold text-gray-400">
+                                Đã hết hạn
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setExpireTarget(credit)}
+                                className="inline-flex items-center gap-1 rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-100 px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-100 cursor-pointer"
+                              >
+                                Đặt hết hạn
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center">
+                        <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
+                          <Search size={24} className="text-red-400" />
+                        </div>
+                        <div className="text-gray-600 font-medium">
+                          Chưa có makeup credit
+                        </div>
+                        <div className="text-sm text-gray-500 mt-1">
+                          Danh sách sẽ hiển thị khi hệ thống phát sinh makeup
+                          credit từ đơn nghỉ hoặc điểm danh.
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </>
       )}
@@ -1610,13 +1885,19 @@ export default function Page() {
       {/* Confirm Modal */}
       <ConfirmModal
         open={!!confirmAction}
-        title={confirmAction?.type === "approve" ? "Xác nhận duyệt đơn" : "Xác nhận từ chối"}
+        title={
+          confirmAction?.type === "approve"
+            ? "Xác nhận duyệt đơn"
+            : "Xác nhận từ chối"
+        }
         description={
           confirmAction
             ? `Phụ huynh: ${confirmAction.request.parentName}\nHọc viên: ${confirmAction.request.student}\nLớp: ${confirmAction.request.className}\nThời gian: ${confirmAction.request.sessionTime}`
             : ""
         }
-        confirmText={confirmAction?.type === "approve" ? "Duyệt đơn" : "Từ chối"}
+        confirmText={
+          confirmAction?.type === "approve" ? "Duyệt đơn" : "Từ chối"
+        }
         disabled={processingAction}
         onClose={() => setConfirmAction(null)}
         onConfirm={handleConfirmAction}
@@ -1655,7 +1936,6 @@ export default function Page() {
           setActiveTab("leave");
         }}
       />
-
     </div>
   );
 }

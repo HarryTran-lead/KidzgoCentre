@@ -1900,7 +1900,7 @@ export default function Page() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-red-50/30 to-white p-2 space-y-6">
+    <div className="min-h-screen bg-gray-50 p-2 space-y-6">
       {/* Loading Overlay */}
       {(isCreatingLead || isCreatingTest || isCreatingEnrollment) && (
         <div className="fixed inset-0 z-100 bg-black/30 backdrop-blur-sm flex items-center justify-center w-screen h-screen">
