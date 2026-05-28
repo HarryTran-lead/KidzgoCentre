@@ -23,9 +23,8 @@ import {
   Sparkles,
   Tag,
   UserCheck,
-  Users,
 } from "lucide-react";
-import { makeGroup, makeMenu, type RawItem, type MixedRawItem } from "./utils";
+import { makeGroup, makeMenu, type RawItem } from "./utils";
 import type { MenuItem } from "./types";
 import type { GroupItem } from "./types";
 import { getMessages } from "@/lib/dict";
@@ -88,6 +87,11 @@ export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
         label: t.groups.ops.feedback.sessionReport,
         icon: ClipboardCheck,
         href: root + "/feedback/session",
+      },
+      {
+        label: "Reports V3",
+        icon: BarChart3,
+        href: root + "/reports-v3",
       },
     ],
   };

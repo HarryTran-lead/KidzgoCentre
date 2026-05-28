@@ -553,6 +553,30 @@ export const REMEDIAL_PLAN_ENDPOINTS = {
   BY_STUDENT: (studentId: string) => `/api/remedial-plans/${studentId}`,
 } as const;
 
+// Phase 3 — Reports V3 Endpoints (Client-side -> Next.js API Routes)
+export const REPORTS_V3_ENDPOINTS = {
+  BASE: '/api/reports',
+  GENERATE: '/api/reports/generate',
+  BY_ID: (id: string) => `/api/reports/${id}`,
+  PERIODS: '/api/reports/periods',
+  PERIOD_BY_ID: (id: string) => `/api/reports/periods/${id}`,
+  TEMPLATES: '/api/reports/templates',
+  TEMPLATE_BY_ID: (id: string) => `/api/reports/templates/${id}`,
+  RISK_RULES: '/api/reports/risk-rules',
+  RISK_RULE_BY_TYPE: (riskType: string) => `/api/reports/risk-rules/${riskType}`,
+  PUBLISH_TO_PARENT: (id: string) => `/api/reports/${id}/publish-to-parent`,
+  SHARE: (id: string) => `/api/reports/${id}/share`,
+  SHARE_CALLBACK: '/api/reports/share-callback',
+  MARK_VIEWED: (id: string) => `/api/reports/${id}/mark-viewed`,
+  STUDENT_REPORTS: (studentId: string) => `/api/students/${studentId}/reports`,
+  STUDENT_REPORTS_LATEST: (studentId: string) => `/api/students/${studentId}/reports/latest`,
+  STUDENT_PARENT_REPORT: (studentId: string) => `/api/students/${studentId}/parent-report`,
+  STUDENT_RECOMMENDATIONS: (studentId: string) => `/api/students/${studentId}/recommendations`,
+  CLASS_ACADEMIC_DASHBOARD: (classId: string) => `/api/classes/${classId}/academic-dashboard`,
+  CLASS_RISK_ALERTS: (classId: string) => `/api/classes/${classId}/risk-alerts`,
+  BRANCH_DASHBOARD: (branchId: string) => `/api/branches/${branchId}/dashboard`,
+} as const;
+
 // Phase 2 — Academic Progression Backend Endpoints (Next.js API Routes → Backend)
 export const BACKEND_LEVEL_ENDPOINTS = {
   BASE: '/levels',
@@ -587,6 +611,30 @@ export const BACKEND_PROMOTION_DECISION_ENDPOINTS = {
 export const BACKEND_REMEDIAL_PLAN_ENDPOINTS = {
   BASE: '/remedial-plans',
   BY_STUDENT: (studentId: string) => `/remedial-plans/${studentId}`,
+} as const;
+
+// Phase 3 — Reports V3 Backend Endpoints (Next.js API Routes -> Backend API)
+export const BACKEND_REPORTS_V3_ENDPOINTS = {
+  BASE: '/reports',
+  GENERATE: '/reports/generate',
+  BY_ID: (id: string) => `/reports/${id}`,
+  PERIODS: '/reports/periods',
+  PERIOD_BY_ID: (id: string) => `/reports/periods/${id}`,
+  TEMPLATES: '/reports/templates',
+  TEMPLATE_BY_ID: (id: string) => `/reports/templates/${id}`,
+  RISK_RULES: '/reports/risk-rules',
+  RISK_RULE_BY_TYPE: (riskType: string) => `/reports/risk-rules/${riskType}`,
+  PUBLISH_TO_PARENT: (id: string) => `/reports/${id}/publish-to-parent`,
+  SHARE: (id: string) => `/reports/${id}/share`,
+  SHARE_CALLBACK: '/reports/share-callback',
+  MARK_VIEWED: (id: string) => `/reports/${id}/mark-viewed`,
+  STUDENT_REPORTS: (studentId: string) => `/students/${studentId}/reports`,
+  STUDENT_REPORTS_LATEST: (studentId: string) => `/students/${studentId}/reports/latest`,
+  STUDENT_PARENT_REPORT: (studentId: string) => `/students/${studentId}/parent-report`,
+  STUDENT_RECOMMENDATIONS: (studentId: string) => `/students/${studentId}/recommendations`,
+  CLASS_ACADEMIC_DASHBOARD: (classId: string) => `/classes/${classId}/academic-dashboard`,
+  CLASS_RISK_ALERTS: (classId: string) => `/classes/${classId}/risk-alerts`,
+  BRANCH_DASHBOARD: (branchId: string) => `/branches/${branchId}/dashboard`,
 } as const;
 
 // Monthly Report Endpoints (Client-side → Next.js API Routes)

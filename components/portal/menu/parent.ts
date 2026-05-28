@@ -9,7 +9,6 @@ import {
   BellRing,
   HeadphonesIcon,
   Route,
-  UserCircle,
   History,
   Users,
   Home,
@@ -69,6 +68,12 @@ export function parentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     href: `${root}/tests`,
   };
 
+  const reportsV3Item: MenuItem = {
+    label: "Báo cáo học tập V3",
+    icon: FileSpreadsheet,
+    href: `${root}/reports-v3`,
+  };
+
   const paymentItem: MenuItem = {
     label: t.items.payment,
     icon: Banknote,
@@ -112,6 +117,7 @@ export function parentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     progressionItem,
     homeworkItem,
     testsReportsItem,
+    reportsV3Item,
     paymentItem,
     mediaItem,
     notificationsItem,
