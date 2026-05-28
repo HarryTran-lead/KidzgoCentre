@@ -1037,24 +1037,23 @@ function parseCurriculumTableObject(table: Record<string, unknown>): CurriculumR
       if (!row || typeof row !== "object") return null;
       const rowObj = row as Record<string, unknown>;
       const rawCells = Array.isArray(rowObj.cells) ? rowObj.cells : [];
-      const cells: CurriculumRenderCell[] = rawCells
-        .map((cell) => {
-          if (!cell || typeof cell !== "object") return null;
+        const cells = rawCells.reduce<CurriculumRenderCell[]>((acc, cell) => {
+          if (!cell || typeof cell !== "object") return acc;
           const cellObj = cell as Record<string, unknown>;
           const columnKey = normalizeCurriculumText(cellObj.columnKey || cellObj.key);
-          if (!columnKey) return null;
+          if (!columnKey) return acc;
           const rowSpanValue = Number(cellObj.rowSpan);
           const colSpanValue = Number(cellObj.colSpan);
-          return {
+          acc.push({
             columnKey,
             value: normalizeCurriculumText(cellObj.value),
             rowSpan: Number.isFinite(rowSpanValue) && rowSpanValue > 1 ? rowSpanValue : undefined,
             colSpan: Number.isFinite(colSpanValue) && colSpanValue > 1 ? colSpanValue : undefined,
             align: normalizeCurriculumText(cellObj.align) || undefined,
             bold: typeof cellObj.bold === "boolean" ? cellObj.bold : undefined,
-          };
-        })
-        .filter((item): item is CurriculumRenderCell => item != null);
+          });
+          return acc;
+        }, []);
 
       if (!cells.length) return null;
       return { cells };
