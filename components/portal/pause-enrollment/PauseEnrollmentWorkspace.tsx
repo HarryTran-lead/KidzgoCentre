@@ -2475,7 +2475,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
   };
 
   return (
-    <div className="min-h-screen space-y-6 bg-linear-to-b from-red-50/30 to-white p-4 md:p-2">
+    <div className="min-h-screen space-y-6 bg-gray-50  p-4 md:p-2">
       <div
         className={`space-y-4 transition-all duration-700 ${
           isPageLoaded

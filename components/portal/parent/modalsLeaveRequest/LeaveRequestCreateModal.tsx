@@ -366,7 +366,6 @@ export default function LeaveRequestCreateModal({
   const [profilesLoading, setProfilesLoading] = useState(false);
   const [profilesError, setProfilesError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [parentSearchTerm, setParentSearchTerm] = useState("");
   const [classes, setClasses] = useState<StudentClass[]>([]);
   const [classesLoading, setClassesLoading] = useState(false);
   const [classesError, setClassesError] = useState<string | null>(null);
@@ -417,7 +416,6 @@ export default function LeaveRequestCreateModal({
       setClassSessions([]);
       setSessionsError(null);
       setSearchTerm("");
-      setParentSearchTerm("");
       setVisibleMonth(getMonthStart(new Date()));
     }
   }, [open]);
@@ -443,16 +441,15 @@ export default function LeaveRequestCreateModal({
       return locked ? [locked] : [];
     }
 
-    const studentTerm = searchTerm.trim().toLowerCase();
-    const parentTerm = parentSearchTerm.trim().toLowerCase();
-    if (!studentTerm && !parentTerm) return studentProfiles;
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return studentProfiles;
 
     return studentProfiles.filter((student) => {
-      const matchedStudent = studentTerm ? studentLabel(student).toLowerCase().includes(studentTerm) : true;
-      const matchedParent = parentTerm ? parentLabel(student).toLowerCase().includes(parentTerm) : true;
-      return matchedStudent && matchedParent;
+      const studentMatch = studentLabel(student).toLowerCase().includes(term);
+      const parentMatch = parentLabel(student).toLowerCase().includes(term);
+      return studentMatch || parentMatch;
     });
-  }, [isStudentLocked, lockedStudentProfileId, parentSearchTerm, searchTerm, studentProfiles]);
+  }, [isStudentLocked, lockedStudentProfileId, searchTerm, studentProfiles]);
 
   const selectedStudent = useMemo(() => {
     const currentId = formState.studentProfileId;
@@ -749,7 +746,7 @@ export default function LeaveRequestCreateModal({
                   <CalendarDays size={24} className="text-white" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-white">Tạo đơn xin nghỉ</h2>
+                  <h2 className="text-xl font-bold text-white">Tạo đơn xin nghỉ</h2>
                   <p className="text-sm text-red-100">
                     Điền thông tin nghỉ học và chọn đúng buổi học cần xử lý.
                   </p>
@@ -798,89 +795,137 @@ export default function LeaveRequestCreateModal({
                     ) : null}
                   </div>
                 ) : (
-                  <>
-                    <div className="grid gap-3 md:grid-cols-2">
-                      <div className="relative">
+                  <div className="relative">
+                    <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
+                      {/* Search Input */}
+                      <div className="relative p-3 border-b border-gray-200">
                         <input
                           className={cn(
                             "w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 bg-white text-sm text-gray-900",
                             "focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
                           )}
-                          placeholder="Tìm theo tên học viên"
+                          placeholder="Tìm theo tên học viên hoặc phụ huynh..."
                           value={searchTerm}
                           onChange={(event) => setSearchTerm(event.target.value)}
+                          autoComplete="off"
                         />
-                        <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <User size={16} className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                       </div>
-                      <div className="relative">
-                        <input
-                          className={cn(
-                            "w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 bg-white text-sm text-gray-900",
-                            "focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
-                          )}
-                          placeholder="Tìm theo tên phụ huynh"
-                          value={parentSearchTerm}
-                          onChange={(event) => setParentSearchTerm(event.target.value)}
-                        />
-                        <Users size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+
+                      {/* Dropdown List */}
+                      <div className="max-h-56 overflow-y-auto">
+                        {profilesLoading ? (
+                          <div className="p-4 text-sm text-gray-600 text-center">Đang tải học viên...</div>
+                        ) : filteredStudents.length > 0 ? (
+                          <div className="space-y-1 p-2">
+                            {filteredStudents.map((student) => {
+                              const id = studentId(student);
+                              if (!id) return null;
+
+                              const label = studentLabel(student);
+                              const parentName = parentLabel(student);
+                              const classLabel = studentClassLabel(student);
+                              const isSelected = formState.studentProfileId === id;
+
+                              // Helper to render highlighted text as JSX
+                              const renderHighlight = (text: string, searchQuery: string): Array<{text: string; isMatch: boolean}> => {
+                                if (!searchQuery.trim()) return [{ text, isMatch: false }];
+                                
+                                const query = searchQuery.trim();
+                                const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')})`, 'gi');
+                                const parts: Array<{text: string; isMatch: boolean}> = [];
+                                let lastIndex = 0;
+                                let match;
+                                
+                                while ((match = regex.exec(text)) !== null) {
+                                  if (match.index > lastIndex) {
+                                    parts.push({ text: text.slice(lastIndex, match.index), isMatch: false });
+                                  }
+                                  parts.push({ text: match[0], isMatch: true });
+                                  lastIndex = regex.lastIndex;
+                                }
+                                
+                                if (lastIndex < text.length) {
+                                  parts.push({ text: text.slice(lastIndex), isMatch: false });
+                                }
+                                
+                                return parts.length ? parts : [{ text, isMatch: false }];
+                              };
+
+                              const query = searchTerm.trim().toLowerCase();
+                              const studentMatch = query && label.toLowerCase().includes(query);
+                              const parentMatch = query && parentName.toLowerCase().includes(query);
+                              const displayLabelParts = studentMatch ? renderHighlight(label, searchTerm) : [{ text: label, isMatch: false }];
+                              const displayParentParts = parentMatch ? renderHighlight(parentName, searchTerm) : [{ text: parentName, isMatch: false }];
+
+                              return (
+                                <button
+                                  key={id}
+                                  onClick={() => {
+                                    setFormState((prev) => ({
+                                      ...prev,
+                                      studentProfileId: id,
+                                      classId: "",
+                                      sessionId: null,
+                                      sessionDate: "",
+                                      endDate: null,
+                                    }));
+                                    setFormErrors((prev) => ({
+                                      ...prev,
+                                      studentProfileId: undefined,
+                                      classId: undefined,
+                                      sessionDate: undefined,
+                                    }));
+                                    setActionError(null);
+                                    setClasses([]);
+                                    setSearchTerm("");
+                                  }}
+                                  className={cn(
+                                    "w-full text-left px-4 py-2.5 rounded-lg transition-all cursor-pointer text-sm",
+                                    isSelected
+                                      ? "bg-linear-to-r from-red-600 to-red-700 text-white"
+                                      : "bg-white hover:bg-red-50"
+                                  )}
+                                >
+                                  <div className="font-medium">
+                                    {displayLabelParts.map((part, idx) => (
+                                      part.isMatch ? (
+                                        <span key={idx} className={isSelected ? "bg-yellow-300/40 px-0.5 rounded" : "bg-yellow-200 px-0.5 rounded font-semibold"}>
+                                          {part.text}
+                                        </span>
+                                      ) : (
+                                        <span key={idx}>{part.text}</span>
+                                      )
+                                    ))}
+                                  </div>
+                                  {parentName && (
+                                    <div className={cn("text-xs mt-1", isSelected ? "text-red-100" : "text-gray-600")}>
+                                      {displayParentParts.map((part, idx) => (
+                                        part.isMatch ? (
+                                          <span key={idx} className={isSelected ? "bg-yellow-300/40 px-0.5 rounded" : "bg-yellow-200 px-0.5 rounded font-semibold"}>
+                                            {part.text}
+                                          </span>
+                                        ) : (
+                                          <span key={idx}>{part.text}</span>
+                                        )
+                                      ))}
+                                    </div>
+                                  )}
+                                  {classLabel && (
+                                    <div className={cn("text-xs mt-1", isSelected ? "text-red-100" : "text-gray-500")}>
+                                      {classLabel}
+                                    </div>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="p-4 text-sm text-gray-500 text-center">Không tìm thấy học viên</div>
+                        )}
                       </div>
                     </div>
-
-                    <Select
-                      value={formState.studentProfileId || undefined}
-                      onValueChange={(nextStudentId) => {
-                        setFormState((prev) => ({
-                          ...prev,
-                          studentProfileId: nextStudentId,
-                          classId: "",
-                          sessionId: null,
-                          sessionDate: "",
-                          endDate: null,
-                        }));
-                        setFormErrors((prev) => ({
-                          ...prev,
-                          studentProfileId: undefined,
-                          classId: undefined,
-                          sessionDate: undefined,
-                        }));
-                        setActionError(null);
-                        setClasses([]);
-                      }}
-                      disabled={profilesLoading}
-                    >
-                      <SelectTrigger
-                        className={cn(
-                          "h-11 w-full rounded-xl bg-white px-4 text-sm text-gray-800 transition-all disabled:cursor-not-allowed disabled:opacity-60",
-                          formErrors.studentProfileId
-                            ? "border border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-100"
-                            : "border border-gray-200 focus:border-red-400 focus:ring-2 focus:ring-red-200"
-                        )}
-                      >
-                        <SelectValue
-                          placeholder={
-                            profilesLoading
-                              ? "Đang tải học viên..."
-                              : filteredStudents.length
-                                ? "Chọn học viên"
-                                : "Không tìm thấy học viên"
-                          }
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {filteredStudents.map((student) => {
-                          const id = studentId(student);
-                          if (!id) return null;
-
-                          return (
-                            <SelectItem key={id} value={id}>
-                              {studentLabel(student)}
-                              {studentClassLabel(student) ? ` • ${studentClassLabel(student)}` : ""}
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
-                  </>
+                  </div>
                 )}
 
                 {formErrors.studentProfileId && (
@@ -1192,14 +1237,14 @@ export default function LeaveRequestCreateModal({
               <button
                 onClick={handleClose}
                 disabled={creating}
-                className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                className="px-6 py-2.5 text-sm rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Hủy bỏ
               </button>
               <button
                 onClick={submitLeaveRequest}
                 disabled={!canSubmit || creating}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-linear-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
+                className="inline-flex text-sm items-center gap-2 px-6 py-2.5 rounded-xl bg-linear-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {creating ? (
                   <>

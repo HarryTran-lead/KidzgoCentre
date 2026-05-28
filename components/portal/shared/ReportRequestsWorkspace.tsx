@@ -6,7 +6,7 @@ import {
   Plus, Search, FileText, Clock, CalendarClock, User, Users,
   BookOpen, X, ChevronLeft, ChevronRight, Send,
   CheckCircle2, Loader2, ExternalLink, ArrowUp, ArrowDown, RefreshCw,
-  Sparkles,
+  Sparkles, AlertCircle, MessageSquare,
 } from "lucide-react";
 import {
   getReportRequests,
@@ -398,7 +398,12 @@ function CreateRequestModal({
         {/* body */}
         <div className="p-6 max-h-[70vh] overflow-y-auto space-y-5">
           {/* Loại */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1 mb-3">
+            <div className="flex items-center gap-2">
+              <FileText size={16} className="text-red-600" />
+              <label className="text-sm font-semibold text-gray-700">Loại báo cáo</label>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
             {(["Monthly", "Session"] as ReportRequestType[]).map((t) => (
               <button
                 key={t}
@@ -414,13 +419,17 @@ function CreateRequestModal({
                 {TYPE_MAP[t]}
               </button>
             ))}
+            </div>
           </div>
 
           {/* Class selector */}
           <div className="space-y-1">
-            <label className="text-sm font-semibold text-gray-700">Lớp học *</label>
+            <div className="flex items-center gap-2">
+              <BookOpen size={16} className="text-red-600" />
+              <label className="text-sm font-semibold text-gray-700">Lớp học <span className="text-red-600">*</span></label>
+            </div>
             <Select value={selectedClass?.id ?? ""} onValueChange={handleSelectClass} disabled={loadingClasses}>
-              <SelectTrigger className="w-full rounded-xl border border-pink-200 bg-white text-sm transition-all hover:border-pink-300 focus:border-pink-400 focus:ring-2 focus:ring-pink-200 data-[state=open]:border-pink-400 data-[state=open]:ring-2 data-[state=open]:ring-pink-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
+              <SelectTrigger className="w-full rounded-xl border border-gray-100 bg-white text-sm transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 data-[state=open]:border-red-400 data-[state=open]:ring-2 data-[state=open]:ring-red-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
                 <SelectValue placeholder={loadingClasses ? "Đang tải danh sách lớp…" : "— Chọn lớp học —"} />
               </SelectTrigger>
               <SelectContent>
@@ -435,7 +444,10 @@ function CreateRequestModal({
 
           {/* Teacher (auto-filled, read-only) */}
           <div className="space-y-1">
-            <label className="text-sm font-semibold text-gray-700">Giáo viên phụ trách</label>
+            <div className="flex items-center gap-2">
+              <User size={16} className="text-red-600" />
+              <label className="text-sm font-semibold text-gray-700">Giáo viên phụ trách</label>
+            </div>
             {selectedClass ? (
               <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-green-200 bg-green-50">
                 <User size={16} className="text-green-600 shrink-0" />
@@ -453,13 +465,16 @@ function CreateRequestModal({
 
           {/* Student selector */}
           <div className="space-y-1">
-            <label className="text-sm font-semibold text-gray-700">Học sinh <span className="text-gray-400 font-normal">(tùy chọn)</span></label>
+            <div className="flex items-center gap-2">
+              <Users size={16} className="text-red-600" />
+              <label className="text-sm font-semibold text-gray-700">Học sinh <span className="text-orange-500 font-normal">(tùy chọn)</span></label>
+            </div>
             {!selectedClass ? (
               <div className="px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-400">Chọn lớp trước để xem danh sách học sinh</div>
             ) : (
               <Select value={selectedStudent?.profileId ?? ""} onValueChange={(val) => { const found = studentList.find((s) => s.profileId === val); setSelectedStudent(found ?? null); }} disabled={loadingStudents}>
-                <SelectTrigger className="w-full rounded-xl border border-pink-200 bg-white text-sm transition-all hover:border-pink-300 focus:border-pink-400 focus:ring-2 focus:ring-pink-200 data-[state=open]:border-pink-400 data-[state=open]:ring-2 data-[state=open]:ring-pink-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
-                  <SelectValue placeholder={loadingStudents ? "Đang tải danh sách học sinh…" : "— Tất cả học sinh lớp này —"} />
+                <SelectTrigger className="w-full rounded-xl border border-red-200 bg-white text-sm transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 data-[state=open]:border-red-400 data-[state=open]:ring-2 data-[state=open]:ring-red-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
+                  <SelectValue placeholder={loadingStudents ? "Đang tải danh sách học sinh…" : " Tất cả học sinh lớp này "} />
                 </SelectTrigger>
                 <SelectContent>
                   {studentList.map((s) => (
@@ -473,13 +488,16 @@ function CreateRequestModal({
           {/* Session (nếu type = Session) */}
           {reportType === "Session" && (
             <div className="space-y-1">
-              <label className="text-sm font-semibold text-gray-700">Buổi học *</label>
+              <div className="flex items-center gap-2">
+                <Clock size={16} className="text-red-600" />
+                <label className="text-sm font-semibold text-gray-700">Buổi học <span className="text-red-600">*</span></label>
+              </div>
               {!selectedClass ? (
                 <div className="px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-400">Chọn lớp trước để xem danh sách buổi học</div>
               ) : (
                 <Select value={selectedSession?.id ?? ""} onValueChange={(val) => { const found = sessionList.find((s) => s.id === val); setSelectedSession(found ?? null); }} disabled={loadingSessions}>
-                  <SelectTrigger className="w-full rounded-xl border border-pink-200 bg-white text-sm transition-all hover:border-pink-300 focus:border-pink-400 focus:ring-2 focus:ring-pink-200 data-[state=open]:border-pink-400 data-[state=open]:ring-2 data-[state=open]:ring-pink-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
-                    <SelectValue placeholder={loadingSessions ? "Đang tải danh sách buổi học…" : "— Chọn buổi học —"} />
+                  <SelectTrigger className="w-full rounded-xl border border-red-200 bg-white text-sm transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 data-[state=open]:border-red-400 data-[state=open]:ring-2 data-[state=open]:ring-red-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
+                    <SelectValue placeholder={loadingSessions ? "Đang tải danh sách buổi học…" : " Chọn buổi học "} />
                   </SelectTrigger>
                   <SelectContent>
                     {sessionList.map((s) => (
@@ -493,11 +511,16 @@ function CreateRequestModal({
 
           {/* Month/Year (nếu type = Monthly) */}
           {reportType === "Monthly" && (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <CalendarClock size={16} className="text-red-600" />
+                <label className="text-sm font-semibold text-gray-700">Tháng/Năm <span className="text-red-600">*</span></label>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label className="text-sm font-semibold text-gray-700">Tháng *</label>
+                <label className="text-sm font-semibold text-gray-700">Tháng </label>
                 <Select value={String(month)} onValueChange={(val) => setMonth(Number(val))}>
-                  <SelectTrigger className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm transition-all hover:border-pink-300 focus:border-pink-400 focus:ring-2 focus:ring-pink-200 data-[state=open]:border-pink-400 data-[state=open]:ring-2 data-[state=open]:ring-pink-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
+                  <SelectTrigger className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 data-[state=open]:border-red-400 data-[state=open]:ring-2 data-[state=open]:ring-red-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -508,15 +531,19 @@ function CreateRequestModal({
                 </Select>
               </div>
               <div className="space-y-1">
-                <label className="text-sm font-semibold text-gray-700">Năm *</label>
-                <input type="number" value={year} onChange={(e) => setYear(Number(e.target.value))} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-pink-200" />
+                <label className="text-sm font-semibold text-gray-700">Năm </label>
+                <input type="number" value={year} onChange={(e) => setYear(Number(e.target.value))} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-red-200" />
+              </div>
               </div>
             </div>
           )}
 
           {/* Priority */}
           <div className="space-y-1">
-            <label className="text-sm font-semibold text-gray-700">Độ ưu tiên</label>
+            <div className="flex items-center gap-2">
+              <AlertCircle size={16} className="text-red-600" />
+              <label className="text-sm font-semibold text-gray-700">Độ ưu tiên</label>
+            </div>
             <div className="flex flex-wrap gap-2">
               {(["Low", "Normal", "High", "Urgent"] as ReportRequestPriority[]).map((p) => (
                 <button
@@ -536,21 +563,27 @@ function CreateRequestModal({
 
           {/* Due date */}
           <div className="space-y-1">
-            <label className="text-sm font-semibold text-gray-700">Deadline gợi ý</label>
-            <input type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-pink-200" />
+            <div className="flex items-center gap-2">
+              <Clock size={16} className="text-red-600" />
+              <label className="text-sm font-semibold text-gray-700">Deadline gợi ý</label>
+            </div>
+            <input type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-red-200" />
           </div>
 
           {/* Message */}
           <div className="space-y-1">
-            <label className="text-sm font-semibold text-gray-700">Lời nhắn cho giáo viên</label>
-            <textarea value={message} onChange={(e) => setMessage(e.target.value)} maxLength={1000} rows={3} placeholder="VD: Ưu tiên làm báo cáo tháng cho bé này trước giúp Admin." className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-pink-200 resize-none" />
+            <div className="flex items-center gap-2">
+              <MessageSquare size={16} className="text-red-600" />
+              <label className="text-sm font-semibold text-gray-700">Lời nhắn cho giáo viên</label>
+            </div>
+            <textarea value={message} onChange={(e) => setMessage(e.target.value)} maxLength={1000} rows={3} placeholder="VD: Ưu tiên làm báo cáo tháng cho bé này trước giúp Admin." className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-red-200 resize-none max-h-32 overflow-y-auto" />
           </div>
         </div>
 
         {/* footer */}
         <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-4 flex justify-end gap-3">
-          <button onClick={onClose} disabled={submitting} className="px-5 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer">Hủy</button>
-          <button onClick={handleSubmit} disabled={submitting} className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg transition-all cursor-pointer disabled:opacity-70">
+          <button onClick={onClose} disabled={submitting} className="px-5 py-2.5 text-sm rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer">Hủy</button>
+          <button onClick={handleSubmit} disabled={submitting} className="px-5 py-2.5 text-sm rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg transition-all cursor-pointer disabled:opacity-70">
             {submitting ? "Đang tạo..." : "Tạo yêu cầu"}
           </button>
         </div>
@@ -940,18 +973,31 @@ export default function ReportRequestsWorkspace({ isAdmin = false }: { isAdmin?:
               { value: "Session" as const, label: "Báo cáo buổi" },
             ].map((tab) => {
               const isActive = typeFilter === tab.value;
+              const getTypeCount = () => {
+                if (tab.value === "ALL") return totalCount;
+                return items.filter((item) => item.reportType === tab.value).length;
+              };
+              const count = getTypeCount();
               return (
                 <button
                   key={tab.value}
                   onClick={() => { setTypeFilter(tab.value); setPage(1); }}
                   className={cn(
-                    "inline-flex items-center px-4 py-2 rounded-xl border transition-all duration-200 font-medium text-sm cursor-pointer",
+                    "inline-flex items-center gap-2 px-4 py-2 rounded-xl border transition-all duration-200 font-medium text-sm cursor-pointer",
                     isActive
                       ? "bg-gradient-to-r from-red-600 to-red-700 text-white border-red-600 shadow-md hover:shadow-lg"
                       : "bg-white border-red-200 text-gray-700 hover:bg-red-50/80"
                   )}
                 >
-                  {tab.label}
+                  <span>{tab.label}</span>
+                  <span className={cn(
+                    "inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-semibold",
+                    isActive
+                      ? "bg-white/30 text-white"
+                      : "bg-red-50 text-red-600"
+                  )}>
+                    {count}
+                  </span>
                 </button>
               );
             })}

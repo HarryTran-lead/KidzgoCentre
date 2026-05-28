@@ -38,7 +38,7 @@ export default function KpiCard({ title, value, subValue, icon, trend = "neutral
           </div>
         ) : null}
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-medium text-gray-600 truncate">{title}</p>
+          <p className="text-sm font-medium text-gray-600 truncate">{title}</p>
           <p className="text-xl font-bold text-gray-900 leading-tight mt-1">{value}</p>
           {subValue ? (
             <span className={`inline-flex text-[11px] font-medium px-2 py-0.5 rounded-full mt-2 ${trendStyle[trend]}`}>

@@ -79,9 +79,7 @@ export default function Page() {
               <Download size={16} />
               {t.header.refreshData}
             </button>
-            <button className="p-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer">
-              <MoreVertical size={20} className="text-gray-600" />
-            </button>
+
           </div>
         </div>
       </div>

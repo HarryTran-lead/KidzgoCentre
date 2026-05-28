@@ -42,7 +42,7 @@ export default function ManagementFeedbackWorkspace() {
               <FileBarChart className="text-white" size={24} />
             </div>
             <div>
-              <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">
+              <h1 className="text-2xl md:text-2xl font-extrabold text-gray-900">
                 Quản lý phản hồi & đánh giá
               </h1>
               <p className="text-sm text-gray-600">

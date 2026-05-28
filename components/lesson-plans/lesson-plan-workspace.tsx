@@ -1500,7 +1500,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
   }, [classSyllabus, templates]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-red-50/40 to-white p-2 space-y-6">
+    <div className="min-h-screen bg-gray-50  p-2 space-y-6">
       <div
         className={cn(
           "flex flex-col gap-4 transition-all duration-500",
@@ -1608,6 +1608,8 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
         onClassChange={setSelectedClassId}
         programOptions={programOptions}
         classOptions={classOptions}
+        templates={templates}
+        classSyllabus={classSyllabus}
       />
 
       <div
@@ -1715,6 +1717,8 @@ function FilterBar({
   programOptions,
   classOptions,
   activeTab,
+  templates,
+  classSyllabus,
 }: {
   templatesAvailable: boolean;
   searchQuery: string;
@@ -1730,6 +1734,8 @@ function FilterBar({
   programOptions: Option[];
   classOptions: Option[];
   activeTab: ActiveTab;
+  templates: LessonPlanTemplate[];
+  classSyllabus: ClassLessonPlanSyllabus | null;
 }) {
   return (
     <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4">
@@ -1746,6 +1752,25 @@ function FilterBar({
                   withAttachment: "Có file đính kèm",
                 };
 
+                const getTemplateCount = (filterStatus: typeof status) => {
+                  return templates.filter((item) => {
+                    if (selectedProgramId !== "all" && item.programId !== selectedProgramId) {
+                      return false;
+                    }
+                    if (filterStatus === "active" && getTemplateStatus(item) !== "active") {
+                      return false;
+                    }
+                    if (filterStatus === "inactive" && getTemplateStatus(item) !== "inactive") {
+                      return false;
+                    }
+                    if (filterStatus === "withAttachment" && !item.attachment) {
+                      return false;
+                    }
+                    return true;
+                  }).length;
+                };
+
+                const count = getTemplateCount(status);
                 const isActive = templateStatusFilter === status;
                 return (
                   <button
@@ -1757,7 +1782,18 @@ function FilterBar({
                         : "bg-white border-red-200 text-gray-700 hover:bg-red-50"
                     }`}
                   >
-                    {labels[status]}
+                    <span className="inline-flex items-center gap-2">
+                      {labels[status]}
+                      <span
+                        className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-semibold ${
+                          isActive
+                            ? "bg-white/30 text-white"
+                            : "bg-red-50 text-red-600"
+                        }`}
+                      >
+                        {count}
+                      </span>
+                    </span>
                   </button>
                 );
               },
@@ -1787,6 +1823,29 @@ function FilterBar({
                 notReported: "Chưa báo cáo",
               };
 
+              const getPlanCount = (filterStatus: typeof status) => {
+                const sessions = classSyllabus?.sessions || [];
+                return sessions.filter((item) => {
+                  if (filterStatus === "editable" && !item.canEdit) {
+                    return false;
+                  }
+                  if (filterStatus === "hasPlan" && !item.lessonPlanId) {
+                    return false;
+                  }
+                  if (filterStatus === "missingPlan" && item.lessonPlanId) {
+                    return false;
+                  }
+                  if (filterStatus === "reported" && !item.actualContent) {
+                    return false;
+                  }
+                  if (filterStatus === "notReported" && item.actualContent) {
+                    return false;
+                  }
+                  return true;
+                }).length;
+              };
+
+              const count = getPlanCount(status);
               const isActive = planStatusFilter === status;
               return (
                 <button
@@ -1798,7 +1857,18 @@ function FilterBar({
                       : "bg-white border-red-200 text-gray-700 hover:bg-red-50"
                   }`}
                 >
-                  {labels[status]}
+                  <span className="inline-flex items-center gap-2">
+                    {labels[status]}
+                    <span
+                      className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-semibold ${
+                        isActive
+                          ? "bg-white/30 text-white"
+                          : "bg-red-50 text-red-600"
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  </span>
                 </button>
               );
             })}

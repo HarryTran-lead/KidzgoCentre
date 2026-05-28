@@ -1199,7 +1199,7 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
           <button
             type="button"
             onClick={() => setShowCreateModal(true)}
-            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:shadow-lg text-white font-semibold cursor-pointer transition-all hover:scale-105 active:scale-95"
+            className="inline-flex text-sm items-center gap-2 rounded-xl px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:shadow-lg text-white font-semibold cursor-pointer transition-all hover:scale-105 active:scale-95"
           >
             <Plus size={18} /> Tạo tư liệu mới
           </button>
@@ -1932,7 +1932,7 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
                     <Upload size={24} className="text-white" />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-bold text-white">
+                    <h2 className="text-xl font-bold text-white">
                       Tạo tư liệu mới
                     </h2>
                     <p className="text-sm text-red-100">
@@ -2187,25 +2187,25 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
               <div className="flex items-center justify-between">
                 <button
                   type="button"
-                  onClick={resetCreateForm}
-                  disabled={uploading}
-                  className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer"
+                  onClick={() => setShowCreateModal(false)}
+                  className="px-6 py-2.5 text-sm rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer"
                 >
-                  Đặt lại
+                  Hủy bỏ
                 </button>
                 <div className="flex gap-3">
                   <button
                     type="button"
-                    onClick={() => setShowCreateModal(false)}
-                    className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer"
+                    onClick={resetCreateForm}
+                    disabled={uploading}
+                    className="px-6 py-2.5 text-sm rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer"
                   >
-                    Hủy bỏ
+                    Đặt lại
                   </button>
                   <button
                     type="button"
                     onClick={handleCreateRecord}
                     disabled={uploading}
-                    className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg transition-all cursor-pointer disabled:opacity-60"
+                    className="inline-flex items-center text-sm gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg transition-all cursor-pointer disabled:opacity-60"
                   >
                     {uploading ? (
                       <>
@@ -2233,7 +2233,7 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
           onClick={() => setPreviewTarget(null)}
         >
           <div
-            className="relative max-h-[85vh] w-full max-w-4xl overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl"
+            className="relative max-h-[92vh] w-full max-w-2xl overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header - giống với edit/create modal */}
@@ -2272,12 +2272,12 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
             </div>
 
             {/* Modal Body - Nội dung preview */}
-            <div className="flex items-center justify-center bg-gray-900/5 p-6 max-h-[70vh] overflow-auto">
+            <div className="flex items-center justify-center bg-gray-900/5 p-6 max-h-[80vh] overflow-auto">
               {previewTarget.type === MediaType.Video ? (
                 <video
                   src={normalizeMediaUrl(previewTarget.url || previewTarget.previewUrl)}
                   controls
-                  className="max-h-[60vh] w-full rounded-lg shadow-lg"
+                  className="max-h-[75vh] w-full rounded-lg shadow-lg"
                   autoPlay
                 />
               ) : (
@@ -2285,7 +2285,7 @@ export default function MediaWorkspaceCore({ mode }: { mode: WorkspaceMode }) {
                 <img
                   src={normalizeMediaUrl(previewTarget.previewUrl || previewTarget.url)}
                   alt={previewTarget.caption || "preview"}
-                  className="max-h-[60vh] w-auto rounded-lg shadow-lg object-contain"
+                  className="max-h-[75vh] w-auto rounded-lg shadow-lg object-contain"
                 />
               )}
             </div>
