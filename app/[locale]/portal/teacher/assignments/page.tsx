@@ -879,8 +879,8 @@ function CreateAssignmentModal({
                 ? uploadResult.detail ||
                     uploadResult.error ||
                     uploadResult.title ||
-                    `KhÃ´ng thá»ƒ táº£i file ${attachment.name}`
-                : `KhÃ´ng thá»ƒ táº£i file ${attachment.name}`,
+                    `Không thể tải file ${attachment.name}`
+                : `Không thể tải file ${attachment.name}`,
             );
             return;
           }

@@ -1,9 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import {
-  AlertTriangle,
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
   BookOpen,
   BookOpenCheck,
   Building2,
@@ -13,14 +15,13 @@ import {
   Eye,
   FileArchive,
   FileText,
-  Filter,
   GripVertical,
   Loader2,
   Pencil,
   Plus,
-  RefreshCw,
   Search,
   Settings2,
+  Sparkles,
   Trash2,
   Upload,
   X,
@@ -127,9 +128,14 @@ function mapDocumentToSyllabusDetail(doc: SyllabusDocument): SyllabusDetail {
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  const parts = label.split(/(\*)/);
   return (
     <div>
-      <label className="mb-1.5 block text-sm font-semibold text-gray-700">{label}</label>
+      <label className="mb-1.5 block text-sm font-semibold text-gray-700">
+        {parts.map((part, idx) => 
+          part === "*" ? <span key={idx} className="text-red-600">{part}</span> : part
+        )}
+      </label>
       {children}
     </div>
   );
@@ -196,9 +202,10 @@ function ImportConfigModal({
   const [rules, setRules] = useState<RuleForm[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const inputCls = "w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-200";
+  const inputCls = "w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200";
 
   useEffect(() => {
     if (!programId) { setLevels([]); setLevelId(""); return; }
@@ -383,10 +390,10 @@ function ImportConfigModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm" onClick={onClose}>
-      <div className="my-4 w-full max-w-3xl rounded-2xl border border-gray-200 bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-100 flex items-center justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-3xl rounded-2xl border border-gray-200 bg-white shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div className="flex items-center justify-between rounded-t-2xl bg-gradient-to-r from-indigo-600 to-indigo-700 px-6 py-5">
+        <div className="flex items-center justify-between bg-gradient-to-r from-red-600 to-red-700 px-6 py-5">
           <div className="flex items-center gap-3">
             <div className="rounded-xl bg-white/20 p-2.5 text-white"><Settings2 size={20} /></div>
             <div>
@@ -399,7 +406,9 @@ function ImportConfigModal({
           </button>
         </div>
 
-        <div className="space-y-5 p-6">
+        {/* Scrollable Content */}
+        <div className="max-h-[calc(100vh-280px)] overflow-y-auto">
+          <div className="space-y-5 p-6">
           {/* Program + Level */}
           <div className="grid gap-4 md:grid-cols-2">
             <Field label="Chương trình *">
@@ -425,8 +434,8 @@ function ImportConfigModal({
           {levelId && (
             <>
               {/* Counts */}
-              <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-4">
-                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-indigo-600">Số lesson plan kỳ vọng</p>
+              <div className="rounded-xl border border-red-100 bg-red-50/40 p-4">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-red-600">Số lesson plan kỳ vọng</p>
                 <div className="grid gap-3 md:grid-cols-3">
                   <Field label="Mỗi Unit thường">
                     <input type="number" min={1} value={regularCount} onChange={(e) => setRegularCount(e.target.value)} className={inputCls} />
@@ -453,10 +462,10 @@ function ImportConfigModal({
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-semibold text-gray-700">Rules mapping
-                      <span className="ml-2 rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-700">{rules.length}</span>
+                      <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-600">{rules.length}</span>
                     </p>
                     <button type="button" onClick={addRule}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 cursor-pointer">
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-100 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-200 cursor-pointer">
                       <Plus size={13} /> Thêm rule
                     </button>
                   </div>
@@ -471,7 +480,7 @@ function ImportConfigModal({
                       {rules.map((rule) => (
                         <div key={rule.key} className="rounded-xl border border-gray-200 bg-gray-50/50 p-4 space-y-3">
                           <div className="flex items-center gap-2">
-                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700 shrink-0">{rule.orderIndex}</span>
+                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-red-100 text-xs font-bold text-red-600 shrink-0">{rule.orderIndex}</span>
                             <div className="flex-1 min-w-0">
                               <Select value={rule.moduleId} onValueChange={(v) => updateRule(rule.key, {
                                 moduleId: v,
@@ -521,16 +530,15 @@ function ImportConfigModal({
             </>
           )}
 
-          {error && (
-            <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-              <AlertTriangle size={16} className="mt-0.5 shrink-0" /> {error}
-            </div>
-          )}
+          </div>
+        </div>
 
-          <div className="flex items-center justify-between gap-3 border-t border-gray-200 pt-4">
+        {/* Fixed Footer */}
+        <div className="border-t border-gray-200 bg-linear-to-r from-red-500/5 to-red-700/5 px-6 py-4">
+          <div className="flex items-center justify-between gap-3">
             <button type="button" onClick={onClose} className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer">Đóng</button>
             <button type="button" onClick={handleSave} disabled={saving || !levelId}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 px-5 py-2.5 text-sm font-semibold text-white hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer">
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-5 py-2.5 text-sm font-semibold text-white hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer">
               {saving ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
               Lưu cấu hình
             </button>
@@ -629,10 +637,10 @@ function SyllabusFormModal({
   const inputCls = "w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm" onClick={onClose}>
-      <div className="my-4 w-full max-w-2xl rounded-2xl border border-gray-200 bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-100 flex items-center justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-2xl rounded-2xl border border-gray-200 bg-white shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div className="flex items-center justify-between rounded-t-2xl bg-gradient-to-r from-red-600 to-red-700 px-6 py-5">
+        <div className="flex items-center justify-between bg-gradient-to-r from-red-600 to-red-700 px-6 py-5">
           <div className="flex items-center gap-3">
             <div className="rounded-xl bg-white/20 p-2.5 text-white">
               <BookOpen size={20} />
@@ -647,97 +655,130 @@ function SyllabusFormModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4 p-6">
-          {!isEdit && (
-            <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-4 space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">Chương trình &amp; Level</p>
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field label="Chương trình *">
-                  <Select value={programId} onValueChange={(v) => { setProgramId(v); setLevelId(""); }}>
-                    <SelectTrigger className={inputCls}>
-                      <SelectValue placeholder="Chọn chương trình" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {programOptions.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field label="Level *">
-                  <Select value={levelId} onValueChange={setLevelId} disabled={!programId || levelsLoading}>
-                    <SelectTrigger className={cn(inputCls, (!programId || levelsLoading) && "opacity-50 cursor-not-allowed")}>
-                      <SelectValue placeholder={levelsLoading ? "Đang tải..." : "Chọn level"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {levels.map((l) => (
-                        <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
+        {/* Form Body */}
+        <div className="max-h-[70vh] overflow-y-auto">
+          <form onSubmit={handleSubmit} className="space-y-4 p-6">
+            {!isEdit && (
+              <div className="rounded-xl border border-red-100 bg-red-50/40 p-4 space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-red-600">Chương trình &amp; Level</p>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="Chương trình *">
+                    <Select value={programId} onValueChange={(v) => { setProgramId(v); setLevelId(""); }}>
+                      <SelectTrigger className={inputCls}>
+                        <SelectValue placeholder="Chọn chương trình" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {programOptions.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field label="Level *">
+                    <Select value={levelId} onValueChange={setLevelId} disabled={!programId || levelsLoading}>
+                      <SelectTrigger className={cn(inputCls, (!programId || levelsLoading) && "opacity-50 cursor-not-allowed")}>
+                        <SelectValue placeholder={levelsLoading ? "Đang tải..." : "Chọn level"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {levels.map((l) => (
+                          <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                </div>
               </div>
+            )}
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label="Mã Syllabus (code) *">
+                <input value={code} onChange={(e) => setCode(e.target.value)} className={inputCls} placeholder="GET_READY_STARTER" />
+              </Field>
+              <Field label="Version *">
+                <input value={version} onChange={(e) => setVersion(e.target.value)} className={inputCls} placeholder="v1" />
+              </Field>
             </div>
-          )}
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <Field label="Mã Syllabus (code) *">
-              <input value={code} onChange={(e) => setCode(e.target.value)} className={inputCls} placeholder="GET_READY_STARTER" />
+            <Field label="Tiêu đề *">
+              <input value={title} onChange={(e) => setTitle(e.target.value)} className={inputCls} placeholder="The Syllabus of Get Ready for Starters" />
             </Field>
-            <Field label="Version *">
-              <input value={version} onChange={(e) => setVersion(e.target.value)} className={inputCls} placeholder="v1" />
+
+            <Field label="Edition">
+              <input value={edition} onChange={(e) => setEdition(e.target.value)} className={inputCls} placeholder="Second edition" />
             </Field>
-          </div>
 
-          <Field label="Tiêu đề *">
-            <input value={title} onChange={(e) => setTitle(e.target.value)} className={inputCls} placeholder="The Syllabus of Get Ready for Starters" />
-          </Field>
-
-          <Field label="Edition">
-            <input value={edition} onChange={(e) => setEdition(e.target.value)} className={inputCls} placeholder="Second edition" />
-          </Field>
-
-          <Field label="Overview (Tổng quan)">
-            <textarea value={overview} onChange={(e) => setOverview(e.target.value)} rows={3} className={inputCls} placeholder="Mô tả tổng quan chương trình..." />
-          </Field>
-
-          <div className="grid gap-4 md:grid-cols-3">
-            <Field label="Tổng số tiết">
-              <input type="number" value={totalPeriods} onChange={(e) => setTotalPeriods(e.target.value)} className={inputCls} placeholder="72" min={0} />
+            <Field label="Overview (Tổng quan)">
+              <textarea value={overview} onChange={(e) => setOverview(e.target.value)} rows={6} className={cn(inputCls, "resize-vertical")} placeholder="Mô tả tổng quan chương trình..." />
             </Field>
-            <Field label="Phút / tiết">
-              <input type="number" value={minutesPerPeriod} onChange={(e) => setMinutesPerPeriod(e.target.value)} className={inputCls} placeholder="90" min={0} />
-            </Field>
-            <Field label="Tổng bài học">
-              <input type="number" value={totalLessons} onChange={(e) => setTotalLessons(e.target.value)} className={inputCls} placeholder="72" min={0} />
-            </Field>
-          </div>
 
-          {isEdit && (
-            <Field label="Trạng thái">
-              <div className="grid grid-cols-2 gap-3">
-                {[true, false].map((val) => (
-                  <button key={String(val)} type="button" onClick={() => setIsActive(val)}
-                    className={cn("rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors cursor-pointer",
-                      isActive === val ? "border-red-300 bg-red-50 text-red-700" : "border-gray-200 bg-white text-gray-600")}>
-                    {val ? "Đang hoạt động" : "Tạm ẩn"}
-                  </button>
-                ))}
-              </div>
-            </Field>
-          )}
+            <div className="grid gap-4 md:grid-cols-3">
+              <Field label="Tổng số tiết">
+                <input type="number" value={totalPeriods} onChange={(e) => setTotalPeriods(e.target.value)} className={inputCls} placeholder="72" min={0} />
+              </Field>
+              <Field label="Phút / tiết">
+                <input type="number" value={minutesPerPeriod} onChange={(e) => setMinutesPerPeriod(e.target.value)} className={inputCls} placeholder="90" min={0} />
+              </Field>
+              <Field label="Tổng bài học">
+                <input type="number" value={totalLessons} onChange={(e) => setTotalLessons(e.target.value)} className={inputCls} placeholder="72" min={0} />
+              </Field>
+            </div>
 
-          {error && <ErrorBox message={error} />}
+            {isEdit && (
+              <Field label="Trạng thái">
+                <div className="grid grid-cols-2 gap-3">
+                  {[true, false].map((val) => (
+                    <button key={String(val)} type="button" onClick={() => setIsActive(val)}
+                      className={cn("rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors cursor-pointer",
+                        isActive === val ? "border-red-300 bg-red-50 text-red-700" : "border-gray-200 bg-white text-gray-600")}>
+                      {val ? "Đang hoạt động" : "Tạm ẩn"}
+                    </button>
+                  ))}
+                </div>
+              </Field>
+            )}
 
-          <div className="flex items-center justify-between gap-3 border-t border-gray-200 pt-4">
-            <button type="button" onClick={onClose} className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer">Hủy</button>
-            <button type="submit" disabled={submitting}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-5 py-2.5 text-sm font-semibold text-white hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer">
-              {submitting ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
-              {isEdit ? "Lưu thay đổi" : "Tạo Syllabus"}
+            {error && <ErrorBox message={error} />}
+          </form>
+        </div>
+
+        {/* Footer */}
+        <div className="border-t border-gray-200 bg-linear-to-r from-red-500/5 to-red-700/5 p-6">
+          <div className="flex items-center justify-between">
+            <button type="button" onClick={onClose} disabled={submitting} className="px-6 py-2.5 text-sm rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60">
+              Hủy bỏ
             </button>
+            <div className="flex items-center gap-3">
+              <button type="button" onClick={() => {
+                if (isEdit && initial) {
+                  setCode((initial as any).code ?? "");
+                  setVersion((initial as any).version ?? "");
+                  setTitle((initial as any).title ?? "");
+                  setEdition(((initial as any) as SyllabusDetail)?.edition ?? "");
+                  setOverview(((initial as any) as SyllabusDetail)?.overview ?? "");
+                  setTotalPeriods(String(((initial as any) as SyllabusDetail)?.totalPeriods ?? ""));
+                  setMinutesPerPeriod(String(((initial as any) as SyllabusDetail)?.minutesPerPeriod ?? ""));
+                  setTotalLessons(String(((initial as any) as SyllabusDetail)?.totalLessons ?? ""));
+                  setIsActive((initial as any).isActive ?? true);
+                } else {
+                  setCode("");
+                  setVersion("");
+                  setTitle("");
+                  setEdition("");
+                  setOverview("");
+                  setTotalPeriods("");
+                  setMinutesPerPeriod("");
+                  setTotalLessons("");
+                  setIsActive(true);
+                }
+              }} disabled={submitting} className="px-6 py-2.5 text-sm rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60">
+                {isEdit ? "Khôi phục" : "Đặt lại"}
+              </button>
+              <button type="submit" onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-xl text-sm bg-linear-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-70">
+                {submitting ? "Đang lưu..." : (isEdit ? "Cập nhật" : "Tạo mới")}
+              </button>
+            </div>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );
@@ -843,16 +884,19 @@ function ImportWordModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm" onClick={onClose}>
-      <div className="my-4 w-full max-w-lg rounded-2xl border border-gray-200 bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between rounded-t-2xl bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-5">
+    <div className="fixed inset-0 z-100 flex items-center justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between rounded-t-2xl bg-gradient-to-r from-red-600 to-red-700 px-6 py-5">
           <div className="flex items-center gap-3">
             <div className="rounded-xl bg-white/20 p-2.5 text-white"><FileText size={20} /></div>
             <h2 className="text-lg font-bold text-white">Import giáo trình (Word)</h2>
           </div>
           <button type="button" onClick={onClose} className="rounded-full p-2 text-white hover:bg-white/20 cursor-pointer"><X size={18} /></button>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4 p-6">
+        
+        {/* Scrollable Content */}
+        <div className="max-h-[calc(100vh-280px)] overflow-y-auto">
+          <form id="importWordForm" onSubmit={handleSubmit} className="space-y-4 p-6">
           <div className="grid gap-4 md:grid-cols-2">
             <Field label="Chương trình *">
               <Select value={programId} onValueChange={(v) => { setProgramId(v); setLevelId(""); }}>
@@ -884,8 +928,8 @@ function ImportWordModal({
             </Field>
           </div>
           <Field label="File .docx *">
-            <label className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-dashed border-blue-200 bg-blue-50/50 px-4 py-4 text-sm text-gray-600 hover:bg-blue-50 transition-colors">
-              <Upload size={18} className="text-blue-600 shrink-0" />
+            <label className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-dashed border-red-200 bg-red-50/50 px-4 py-4 text-sm text-gray-600 hover:bg-red-50 transition-colors">
+              <Upload size={18} className="text-red-600 shrink-0" />
               <span className="truncate">{file ? file.name : "Nhấn để chọn file giáo trình (.docx)"}</span>
               <input type="file" accept=".doc,.docx" className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} />
             </label>
@@ -896,7 +940,7 @@ function ImportWordModal({
           </label>
 
           {previewDoc && (
-            <div className="space-y-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs text-blue-800">
+            <div className="space-y-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-800">
               <div className="font-semibold">Xem trước tài liệu</div>
               <div>Tiêu đề: <span className="font-medium">{previewDoc.title}</span></div>
               <div>Mã: <span className="font-medium">{previewDoc.code}</span></div>
@@ -937,25 +981,30 @@ function ImportWordModal({
           )}
 
           {error && <ErrorBox message={error} />}
-          <div className="flex items-center justify-between gap-3 border-t border-gray-200 pt-4">
+          </form>
+        </div>
+
+        {/* Fixed Footer */}
+        <div className="border-t border-gray-200 bg-linear-to-r from-red-500/5 to-red-700/5 px-6 py-4">
+          <div className="flex items-center justify-between gap-3">
             <button type="button" onClick={onClose} className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer">Hủy</button>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={handlePreview}
                 disabled={loading || previewing}
-                className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-white px-4 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-50 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
               >
                 {(loading || previewing) ? <Loader2 size={16} className="animate-spin" /> : <Eye size={16} />}
                 Xem trước
               </button>
-              <button type="submit" disabled={loading || previewing || !previewChecked} className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 px-5 py-2.5 text-sm font-semibold text-white hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer">
+              <button type="submit" form="importWordForm" disabled={loading || previewing || !previewChecked} className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-5 py-2.5 text-sm font-semibold text-white hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer">
                 {loading ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
                 Xác nhận import
               </button>
             </div>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );
@@ -1019,22 +1068,23 @@ function ImportArchiveModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm" onClick={onClose}>
-      <div className="my-4 w-full max-w-lg rounded-2xl border border-gray-200 bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between rounded-t-2xl bg-gradient-to-r from-purple-600 to-purple-700 px-6 py-5">
+    <div className="fixed inset-0 z-100 flex items-center justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between bg-gradient-to-r from-red-600 to-red-700 px-6 py-5">
           <div className="flex items-center gap-3">
             <div className="rounded-xl bg-white/20 p-2.5 text-white"><FileArchive size={20} /></div>
             <h2 className="text-lg font-bold text-white">Import giáo trình (Zip)</h2>
           </div>
           <button type="button" onClick={onClose} className="rounded-full p-2 text-white hover:bg-white/20 cursor-pointer"><X size={18} /></button>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4 p-6">
-          <div className="rounded-xl border border-purple-200 bg-purple-50 px-4 py-3 text-xs text-purple-700">
+        
+        {/* Scrollable Content */}
+        <div className="max-h-[calc(100vh-280px)] overflow-y-auto">
+          <form id="importArchiveForm" onSubmit={handleSubmit} className="space-y-4 p-6">
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
             ZIP phải chứa: thư mục <strong>PPCT ...</strong> (file syllabus) và các thư mục <strong>UNIT 1</strong>, <strong>UNIT 2</strong>, ... (file bài học .docx)
           </div>
-          <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs text-blue-700">
-            FE chỉ upload ZIP và render JSON từ API, không parse DOCX/XLSX trực tiếp trên client.
-          </div>
+
           {levelId && !configChecking && configFound === false && (
             <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
               <strong>Chưa có cấu hình import</strong> cho Chương trình + Level này. Vui lòng lưu cấu hình trước khi import zip.
@@ -1093,8 +1143,8 @@ function ImportArchiveModal({
             </Field>
           </div>
           <Field label="File .zip *">
-            <label className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-dashed border-purple-200 bg-purple-50/50 px-4 py-4 text-sm text-gray-600 hover:bg-purple-50 transition-colors">
-              <Upload size={18} className="text-purple-600 shrink-0" />
+            <label className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-dashed border-red-200 bg-red-50/50 px-4 py-4 text-sm text-gray-600 hover:bg-red-50 transition-colors">
+              <Upload size={18} className="text-red-600 shrink-0" />
               <span className="truncate">{file ? file.name : "Nhấn để chọn file giáo trình (.zip)"}</span>
               <input type="file" accept=".zip" className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} />
             </label>
@@ -1104,14 +1154,19 @@ function ImportArchiveModal({
             Ghi đè nếu đã tồn tại
           </label>
           {error && <ErrorBox message={error} />}
-          <div className="flex items-center justify-between gap-3 border-t border-gray-200 pt-4">
+          </form>
+        </div>
+
+        {/* Fixed Footer */}
+        <div className="border-t border-gray-200 bg-linear-to-r from-red-500/5 to-red-700/5 px-6 py-4">
+          <div className="flex items-center justify-between gap-3">
             <button type="button" onClick={onClose} className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer">Hủy</button>
-            <button type="submit" disabled={loading || configFound === false} className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-purple-700 px-5 py-2.5 text-sm font-semibold text-white hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer">
+            <button type="submit" form="importArchiveForm" disabled={loading || configFound === false} className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-5 py-2.5 text-sm font-semibold text-white hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer">
               {loading ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
               Nhập từ Zip
             </button>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );
@@ -1169,7 +1224,7 @@ function ImportLessonPlanWordsModal({
       .finally(() => setSyllabusesLoading(false));
   }, [levelId, programId]);
 
-  const inputCls = "w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-teal-200";
+  const inputCls = "w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200";
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1182,51 +1237,78 @@ function ImportLessonPlanWordsModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm" onClick={onClose}>
-      <div className="my-4 w-full max-w-lg rounded-2xl border border-gray-200 bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between rounded-t-2xl bg-gradient-to-r from-teal-600 to-teal-700 px-6 py-5">
+    <div className="fixed inset-0 z-100 flex items-center justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between bg-gradient-to-r from-red-600 to-red-700 px-6 py-5">
           <div className="flex items-center gap-3">
             <div className="rounded-xl bg-white/20 p-2.5 text-white"><Upload size={20} /></div>
             <h2 className="text-lg font-bold text-white">Import kế hoạch bài dạy (Word)</h2>
           </div>
           <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-white/70 hover:bg-white/20 hover:text-white cursor-pointer"><X size={18} /></button>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4 p-6">
+        
+        {/* Scrollable Content */}
+        <div className="max-h-[calc(100vh-280px)] overflow-y-auto">
+          <form id="importLessonPlanWordsForm" onSubmit={handleSubmit} className="space-y-4 p-6">
           <Field label="Chương trình *">
-            <select value={programId} onChange={(e) => { setProgramId(e.target.value); setLevelId(""); setLevels([]); setModules([]); setModuleId(""); setSyllabusOptions([]); setSyllabusId(""); setLevelsLoading(true); setModulesLoading(false); setSyllabusesLoading(false); }} className={inputCls}>
-              <option value="">-- Chọn chương trình --</option>
-              {programOptions.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
+            <Select value={programId || "__none__"} onValueChange={(value) => { const newVal = value === "__none__" ? "" : value; setProgramId(newVal); setLevelId(""); setLevels([]); setModules([]); setModuleId(""); setSyllabusOptions([]); setSyllabusId(""); setLevelsLoading(true); setModulesLoading(false); setSyllabusesLoading(false); }}>
+              <SelectTrigger className={inputCls}>
+                <SelectValue placeholder="-- Chọn chương trình --" />
+              </SelectTrigger>
+              <SelectContent>
+                {programOptions.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </Field>
           <Field label="Cấp độ *">
-            <select value={levelId} onChange={(e) => { setLevelId(e.target.value); setModules([]); setModuleId(""); setSyllabusOptions([]); setSyllabusId(""); setModulesLoading(true); setSyllabusesLoading(true); }} disabled={!programId || levelsLoading} className={inputCls}>
-              <option value="">{levelsLoading ? "Đang tải..." : "-- Chọn level --"}</option>
-              {levels.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-            </select>
+            <Select value={levelId || "__none__"} onValueChange={(value) => { const newVal = value === "__none__" ? "" : value; setLevelId(newVal); setModules([]); setModuleId(""); setSyllabusOptions([]); setSyllabusId(""); setModulesLoading(true); setSyllabusesLoading(true); }} disabled={!programId || levelsLoading}>
+              <SelectTrigger className={inputCls}>
+                <SelectValue placeholder={levelsLoading ? "Đang tải..." : "-- Chọn level --"} />
+              </SelectTrigger>
+              <SelectContent>
+                {levels.map((l) => (
+                  <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </Field>
           <Field label="Syllabus *">
-            <select value={syllabusId} onChange={(e) => setSyllabusId(e.target.value)} disabled={!levelId || syllabusesLoading} className={inputCls}>
-              <option value="">{syllabusesLoading ? "Đang tải..." : !levelId ? "-- Chọn level trước --" : syllabusOptions.length === 0 ? "-- Không có syllabus phù hợp --" : "-- Chọn syllabus --"}</option>
-              {syllabusOptions.map((syllabus) => <option key={syllabus.id} value={syllabus.id}>{`${syllabus.code} ${syllabus.version} · ${syllabus.title}`}</option>)}
-            </select>
+            <Select value={syllabusId || "__none__"} onValueChange={(value) => setSyllabusId(value === "__none__" ? "" : value)} disabled={!levelId || syllabusesLoading}>
+              <SelectTrigger className={inputCls}>
+                <SelectValue placeholder={syllabusesLoading ? "Đang tải..." : !levelId ? "-- Chọn level trước --" : syllabusOptions.length === 0 ? "-- Không có syllabus phù hợp --" : "-- Chọn syllabus --"} />
+              </SelectTrigger>
+              <SelectContent>
+                {syllabusOptions.map((syllabus) => (
+                  <SelectItem key={syllabus.id} value={syllabus.id}>{`${syllabus.code} ${syllabus.version} · ${syllabus.title}`}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <p className="mt-1 text-xs text-gray-500">API import Word hiện yêu cầu syllabusId để backend map file vào đúng syllabus/version.</p>
           </Field>
           <Field label="Module (tùy chọn - để trống để tự map theo cấu hình)">
-            <select value={moduleId} onChange={(e) => setModuleId(e.target.value)} disabled={!levelId || modulesLoading} className={inputCls}>
-              <option value="">{modulesLoading ? "Đang tải..." : "-- Tự map theo cấu hình import --"}</option>
-              {modules.map((m) => <option key={m.id} value={m.id}>{m.name ?? m.code}</option>)}
-            </select>
+            <Select value={moduleId || "__none__"} onValueChange={(value) => setModuleId(value === "__none__" ? "" : value)} disabled={!levelId || modulesLoading}>
+              <SelectTrigger className={inputCls}>
+                <SelectValue placeholder={modulesLoading ? "Đang tải..." : "-- Tự map theo cấu hình import --"} />
+              </SelectTrigger>
+              <SelectContent>
+                {modules.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>{m.name ?? m.code}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {levelId && !moduleId && (
               <p className="mt-1 text-xs text-amber-600">Nếu không chọn module, cần có cấu hình import đã lưu cho Chương trình + Level này.</p>
             )}
           </Field>
           <Field label="Files .docx *">
-            <label className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed border-teal-200 bg-teal-50/50 px-4 py-4 text-sm text-gray-600 hover:bg-teal-50 transition-colors">
-              <Upload size={20} className="text-teal-600 shrink-0" />
+            <label className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed border-red-200 bg-red-50/50 px-4 py-4 text-sm text-gray-600 hover:bg-red-50 transition-colors">
+              <Upload size={20} className="text-red-600 shrink-0" />
               {files.length === 0 ? (
                 <span>Nhấn để chọn nhiều file kế hoạch bài dạy (.docx)</span>
               ) : (
-                <span className="font-medium text-teal-700">{files.length} file đã chọn</span>
+                <span className="font-medium text-red-700">{files.length} file đã chọn</span>
               )}
               <input type="file" accept=".doc,.docx" multiple className="hidden" onChange={(e) => setFiles(Array.from(e.target.files ?? []))} />
             </label>
@@ -1241,14 +1323,19 @@ function ImportLessonPlanWordsModal({
             Ghi đè nếu đã tồn tại
           </label>
           {error && <ErrorBox message={error} />}
-          <div className="flex items-center justify-between gap-3 border-t border-gray-200 pt-4">
+          </form>
+        </div>
+
+        {/* Fixed Footer */}
+        <div className="border-t border-gray-200 bg-linear-to-r from-red-500/5 to-red-700/5 px-6 py-4">
+          <div className="flex items-center justify-between gap-3">
             <button type="button" onClick={onClose} className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer">Hủy</button>
-            <button type="submit" disabled={loading} className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 px-5 py-2.5 text-sm font-semibold text-white hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer">
+            <button type="submit" form="importLessonPlanWordsForm" disabled={loading} className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-5 py-2.5 text-sm font-semibold text-white hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer">
               {loading ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
               Nhập kế hoạch bài dạy
             </button>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );
@@ -1290,25 +1377,28 @@ function AssignBranchModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm" onClick={onClose}>
-      <div className="my-4 w-full max-w-lg rounded-2xl border border-gray-200 bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between rounded-t-2xl bg-gradient-to-r from-emerald-600 to-emerald-700 px-6 py-5">
+    <div className="fixed inset-0 z-100 flex items-center justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between bg-gradient-to-r from-red-600 to-red-700 px-6 py-5">
           <div className="flex items-center gap-3">
             <div className="rounded-xl bg-white/20 p-2.5 text-white"><BookOpenCheck size={20} /></div>
             <div>
               <h2 className="text-lg font-bold text-white">Gán syllabus vào chi nhánh</h2>
-              <p className="text-xs text-emerald-100">{syllabus.code} {syllabus.version} · {syllabus.title}</p>
+              <p className="text-xs text-red-100">{syllabus.code} {syllabus.version} · {syllabus.title}</p>
             </div>
           </div>
           <button type="button" onClick={onClose} className="rounded-full p-2 text-white hover:bg-white/20 cursor-pointer"><X size={18} /></button>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4 p-6">
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-700">
+        
+        {/* Scrollable Content */}
+        <div className="max-h-[calc(100vh-280px)] overflow-y-auto">
+          <form id="assignBranchForm" onSubmit={handleSubmit} className="space-y-4 p-6">
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
             Backend sẽ tự suy ra programId và levelId từ syllabus; FE chỉ cần gửi syllabusId cùng hiệu lực assignment.
           </div>
           <Field label="Chi nhánh *">
             <Select value={branchId || "__none__"} onValueChange={(value) => setBranchId(value === "__none__" ? "" : value)}>
-              <SelectTrigger className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-200">
+              <SelectTrigger className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200">
                 <SelectValue placeholder="Chọn chi nhánh" />
               </SelectTrigger>
               <SelectContent>
@@ -1319,10 +1409,10 @@ function AssignBranchModal({
           </Field>
           <div className="grid gap-4 md:grid-cols-2">
             <Field label="Hiệu lực từ *">
-              <input type="date" value={effectiveFrom} onChange={(e) => setEffectiveFrom(e.target.value)} className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-200" />
+              <input type="date" value={effectiveFrom} onChange={(e) => setEffectiveFrom(e.target.value)} className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200" />
             </Field>
             <Field label="Hiệu lực đến">
-              <input type="date" value={effectiveTo} onChange={(e) => setEffectiveTo(e.target.value)} className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-200" />
+              <input type="date" value={effectiveTo} onChange={(e) => setEffectiveTo(e.target.value)} className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200" />
             </Field>
           </div>
           <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
@@ -1330,14 +1420,19 @@ function AssignBranchModal({
             Kích hoạt assignment ngay sau khi lưu
           </label>
           {error && <ErrorBox message={error} />}
-          <div className="flex items-center justify-between gap-3 border-t border-gray-200 pt-4">
+          </form>
+        </div>
+
+        {/* Fixed Footer */}
+        <div className="border-t border-gray-200 bg-linear-to-r from-red-500/5 to-red-700/5 px-6 py-4">
+          <div className="flex items-center justify-between gap-3">
             <button type="button" onClick={onClose} className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer">Hủy</button>
-            <button type="submit" disabled={loading} className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer">
+            <button type="submit" form="assignBranchForm" disabled={loading} className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-5 py-2.5 text-sm font-semibold text-white hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer">
               {loading ? <Loader2 size={16} className="animate-spin" /> : <BookOpenCheck size={16} />}
               Gán vào chi nhánh
             </button>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );
@@ -1355,8 +1450,8 @@ function SyllabusDetailModal({
   onEdit: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm" onClick={onClose}>
-      <div className="my-4 w-full max-w-6xl rounded-2xl border border-gray-200 bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-6xl rounded-2xl border border-gray-200 bg-white shadow-2xl overflow-hidden flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
         <SyllabusDetailModalBody detail={detail} onClose={onClose} onEdit={onEdit} />
       </div>
     </div>
@@ -1413,39 +1508,41 @@ function ArchiveImportResultModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm" onClick={onClose}>
-      <div className="my-4 w-full max-w-6xl rounded-2xl border border-gray-200 bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between rounded-t-2xl bg-gradient-to-r from-purple-600 to-purple-700 px-6 py-5">
+    <div className="fixed inset-0 z-100 flex items-center justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-6xl rounded-2xl border border-gray-200 bg-white shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between bg-gradient-to-r from-red-600 to-red-700 px-6 py-5">
           <div className="flex items-center gap-3">
             <div className="rounded-xl bg-white/20 p-2.5 text-white"><CheckCircle size={20} /></div>
             <div>
               <h2 className="text-lg font-bold text-white">Kết quả import ZIP</h2>
-              <p className="text-xs text-purple-200">{payload.programName || "Chương trình"} · {payload.levelName || "Level"}</p>
+              <p className="text-xs text-red-200">{payload.programName || "Chương trình"} · {payload.levelName || "Level"}</p>
             </div>
           </div>
           <button type="button" onClick={onClose} className="rounded-full p-2 text-white hover:bg-white/20 cursor-pointer"><X size={18} /></button>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 border-b border-gray-100 px-6 py-4 md:grid-cols-4">
-          <div className="rounded-xl border border-purple-100 bg-purple-50 px-5 py-3 text-center">
-            <div className="text-2xl font-extrabold text-purple-700">{payload.result.importedLessonPlans}</div>
-            <div className="mt-0.5 text-xs font-medium text-purple-500">Lesson plans tạo/cập nhật</div>
+        {/* Scrollable Content */}
+        <div className="max-h-[calc(100vh-280px)] overflow-y-auto">
+          <div className="grid grid-cols-2 gap-4 border-b border-gray-100 px-6 py-4 md:grid-cols-4">
+            <div className="rounded-xl border border-red-100 bg-red-50 px-5 py-3 text-center">
+              <div className="text-2xl font-extrabold text-red-700">{payload.result.importedLessonPlans}</div>
+              <div className="mt-0.5 text-xs font-medium text-red-500">Lesson plans tạo/cập nhật</div>
+            </div>
+            <div className="rounded-xl border border-blue-100 bg-blue-50 px-5 py-3 text-center">
+              <div className="text-2xl font-extrabold text-blue-700">{importedEntries.length}</div>
+              <div className="mt-0.5 text-xs font-medium text-blue-500">Imported entries</div>
+            </div>
+            <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-5 py-3 text-center">
+              <div className="text-2xl font-extrabold text-emerald-700">{payload.result.syllabusId ? 1 : 0}</div>
+              <div className="mt-0.5 text-xs font-medium text-emerald-500">Syllabus ID nhận được</div>
+            </div>
+            <div className="rounded-xl border border-amber-100 bg-amber-50 px-5 py-3 text-center">
+              <div className="text-2xl font-extrabold text-amber-700">{skippedEntries.length}</div>
+              <div className="mt-0.5 text-xs font-medium text-amber-600">Skipped entries</div>
+            </div>
           </div>
-          <div className="rounded-xl border border-blue-100 bg-blue-50 px-5 py-3 text-center">
-            <div className="text-2xl font-extrabold text-blue-700">{importedEntries.length}</div>
-            <div className="mt-0.5 text-xs font-medium text-blue-500">Imported entries</div>
-          </div>
-          <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-5 py-3 text-center">
-            <div className="text-2xl font-extrabold text-emerald-700">{payload.result.syllabusId ? 1 : 0}</div>
-            <div className="mt-0.5 text-xs font-medium text-emerald-500">Syllabus ID nhận được</div>
-          </div>
-          <div className="rounded-xl border border-amber-100 bg-amber-50 px-5 py-3 text-center">
-            <div className="text-2xl font-extrabold text-amber-700">{skippedEntries.length}</div>
-            <div className="mt-0.5 text-xs font-medium text-amber-600">Skipped entries</div>
-          </div>
-        </div>
 
-        <div className="space-y-4 p-6">
+          <div className="space-y-4 p-6">
           <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-800">
             FE đang render trực tiếp dữ liệu JSON từ API import archive. Nếu cần kiểm tra đầy đủ syllabus sau import, bấm <strong>Mở chi tiết syllabus</strong>.
           </div>
@@ -1567,16 +1664,20 @@ function ArchiveImportResultModal({
             {firstLessonCode ? <p className="mt-1 font-mono">GET /api/lessons/{firstLessonCode}</p> : null}
           </div>
         </div>
+        </div>
 
-        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-gray-100 px-6 py-4">
-          <button
-            type="button"
-            onClick={() => onOpenSyllabus(payload.result.syllabusId)}
-            className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 cursor-pointer"
-          >
-            <Eye size={16} /> Mở chi tiết syllabus
-          </button>
-          <button type="button" onClick={onClose} className="rounded-xl bg-gradient-to-r from-purple-600 to-purple-700 px-5 py-2.5 text-sm font-semibold text-white hover:shadow-lg cursor-pointer">Đóng</button>
+        {/* Fixed Footer */}
+        <div className="border-t border-gray-100 bg-linear-to-r from-red-500/5 to-red-700/5 px-6 py-4">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => onOpenSyllabus(payload.result.syllabusId)}
+              className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-100 cursor-pointer"
+            >
+              <Eye size={16} /> Mở chi tiết syllabus
+            </button>
+            <button type="button" onClick={onClose} className="rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-5 py-2.5 text-sm font-semibold text-white hover:shadow-lg cursor-pointer">Đóng</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1605,7 +1706,7 @@ export default function SyllabusesPage() {
   const [pageNumber, setPageNumber] = useState(1);
   const PAGE_SIZE = 20;
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  // const [refreshing, setRefreshing] = useState(false);
 
   // Filters
   const searchParams = useSearchParams();
@@ -1628,6 +1729,10 @@ export default function SyllabusesPage() {
   const [configTarget, setConfigTarget] = useState<ConfigTarget>(null);
   const [branchAssignTarget, setBranchAssignTarget] = useState<BranchAssignTarget>(null);
   const [archiveImportResult, setArchiveImportResult] = useState<ArchiveImportResultView | null>(null);
+
+  // Sorting
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   // Load programs once
   useEffect(() => {
@@ -1951,124 +2056,222 @@ export default function SyllabusesPage() {
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
+  // Sorting functions
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(column);
+      setSortDirection("asc");
+    }
+  };
+
+  const getSortIcon = (column: string) => {
+    if (sortColumn !== column) {
+      return <ArrowUpDown size={14} className="text-gray-400" />;
+    }
+    return sortDirection === "asc" ? (
+      <ArrowUp size={14} className="text-red-600" />
+    ) : (
+      <ArrowDown size={14} className="text-red-600" />
+    );
+  };
+
+  const sortedItems = useMemo(() => {
+    const sorted = [...items];
+    if (sortColumn) {
+      sorted.sort((a, b) => {
+        let aVal: unknown = "";
+        let bVal: unknown = "";
+
+        switch (sortColumn) {
+          case "title":
+            aVal = (a.title ?? "").toLowerCase();
+            bVal = (b.title ?? "").toLowerCase();
+            break;
+          case "code":
+            aVal = (a.code ?? "").toLowerCase();
+            bVal = (b.code ?? "").toLowerCase();
+            break;
+          case "version":
+            aVal = (a.version ?? "").toLowerCase();
+            bVal = (b.version ?? "").toLowerCase();
+            break;
+          case "unitCount":
+            aVal = a.unitCount ?? 0;
+            bVal = b.unitCount ?? 0;
+            break;
+          case "sessionTemplateCount":
+            aVal = a.sessionTemplateCount ?? 0;
+            bVal = b.sessionTemplateCount ?? 0;
+            break;
+          case "isActive":
+            aVal = a.isActive ? 1 : 0;
+            bVal = b.isActive ? 1 : 0;
+            break;
+          default:
+            return 0;
+        }
+
+        if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
+        if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
+        return 0;
+      });
+    }
+    return sorted;
+  }, [items, sortColumn, sortDirection]);
+
   const inputCls = "rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200";
 
   return (
-    <div className="min-h-screen space-y-6 bg-gray-50 p-4 md:p-6">
+    <div className="min-h-screen space-y-6 bg-gray-50 p-4 md:p-2">
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-sm">
         <a href={`/${locale}/portal/admin/courses`} className="font-medium text-gray-500 hover:text-red-600 transition-colors">← Chương trình</a>
         <span className="text-gray-400">/</span>
         <span className="font-medium text-gray-700">Syllabus</span>
       </nav>
+
       {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-4">
-          <div className="rounded-xl bg-gradient-to-r from-red-600 to-red-700 p-3 shadow-lg">
-            <BookOpen size={22} className="text-white" />
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="flex items-start gap-4">
+          <div className="rounded-xl bg-linear-to-r from-red-600 to-red-700 p-3 text-white shadow-lg">
+            <BookOpen size={25} />
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Syllabus</h1>
-            <p className="text-sm text-gray-500">{totalCount} syllabus</p>
+          <div className="space-y-1">
+            <h1 className="text-2xl font-bold text-gray-900 md:text-2xl">Syllabus</h1>
+            <div className="text-gray-600 mt-1 flex items-center gap-2">
+              <Sparkles size={14} className="text-red-600" />
+              <p className="max-w-4xl text-sm leading-6 text-gray-600">Quản lý tài liệu giảng dạy và kế hoạch bài học</p>
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <button type="button" onClick={() => loadData(pageNumber, true)} disabled={refreshing}
-            className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-red-50 cursor-pointer disabled:opacity-50">
-            <RefreshCw size={16} className={cn(refreshing && "animate-spin")} /> Làm mới
-          </button>
-          <a href={`/${locale}/portal/admin/documents${filterProgramId ? `?programId=${encodeURIComponent(filterProgramId)}` : ""}`}
-            className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 cursor-pointer">
-            <BookOpenCheck size={16} /> Kế hoạch bài dạy →
-          </a>
-          <button type="button" onClick={() => setConfigTarget({ programId: "", levelId: "" })}
-            className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 cursor-pointer">
-            <Settings2 size={16} /> Cấu hình import
-          </button>
-          <button type="button" onClick={() => setImportMode("word")}
-            className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-100 cursor-pointer">
-            <FileText size={16} /> Nhập Word (Syllabus)
-          </button>
-          <button type="button" onClick={() => setImportMode("archive")}
-            className="inline-flex items-center gap-2 rounded-xl border border-purple-200 bg-purple-50 px-4 py-2.5 text-sm font-semibold text-purple-700 hover:bg-purple-100 cursor-pointer">
-            <FileArchive size={16} /> Nhập Zip (Lesson Plans + Syllabus mapping)
-          </button>
-          <button type="button" onClick={() => setImportMode("lesson-plan-words")}
-            className="inline-flex items-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-4 py-2.5 text-sm font-semibold text-teal-700 hover:bg-teal-100 cursor-pointer">
-            <Upload size={16} /> Import kế hoạch bài dạy
-          </button>
+        <div className="flex items-center gap-3 flex-shrink-0">
           <button type="button" onClick={() => setModal({ mode: "create" })}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg cursor-pointer">
+            className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer">
             <Plus size={16} /> Tạo Syllabus
           </button>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="mb-3 flex items-center gap-2">
-          <Filter size={14} className="text-gray-400" />
-          <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">Lọc &amp; Tìm kiếm</span>
-        </div>
-        <div className="flex flex-wrap items-end gap-3">
-          {/* Search */}
-          <div className="flex-1 min-w-[180px]">
-            <label className="mb-1.5 block text-xs font-medium text-gray-500">Từ khoá</label>
-            <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-              <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Tìm tiêu đề, mã, phiên bản..." className={cn(inputCls, "pl-9")} />
+      {/* Filter Card */}
+      <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50 p-4">
+        <div className="space-y-4">
+          {/* Status Filter Tabs */}
+          <div className="flex flex-wrap gap-2 pb-4 border-b border-red-200">
+            {(["all", "active", "inactive"] as const).map((status) => {
+              const counts: Record<typeof status, number> = {
+                all: totalCount,
+                active: items.filter((s) => s.isActive).length,
+                inactive: items.filter((s) => !s.isActive).length,
+              };
+
+              const labels: Record<typeof status, string> = {
+                all: "Tất cả",
+                active: "Đang hoạt động",
+                inactive: "Tạm ẩn",
+              };
+
+              const isActive = filterActive === status;
+              return (
+                <button
+                  key={status}
+                  onClick={() => setFilterActive(status)}
+                  className={cn("px-4 py-2 rounded-xl border text-sm font-medium transition-all cursor-pointer",
+                    isActive
+                      ? "bg-linear-to-r from-red-600 to-red-700 text-white border-red-600 shadow-md"
+                      : "bg-white border-red-200 text-gray-700 hover:bg-red-50"
+                  )}>
+                  <span className="inline-flex items-center gap-2">
+                    {labels[status]}
+                    <span
+                      className={cn("inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-semibold",
+                        isActive
+                          ? "bg-white/30 text-white"
+                          : "bg-red-50 text-red-600"
+                      )}>
+                      {counts[status]}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Search and Filters Row */}
+          <div className="flex gap-3 items-end">
+            {/* Search */}
+            <div className="flex-[4]">
+              <div className="relative">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Tìm tiêu đề, mã, phiên bản..." className={cn(inputCls, "pl-9 w-full")} />
+              </div>
             </div>
-          </div>
-          {/* Program */}
-          <div className="min-w-[185px]">
-            <label className="mb-1.5 block text-xs font-medium text-gray-500">Chương trình</label>
-            <Select value={filterProgramId || "__all__"} onValueChange={(v) => { setFilterProgramId(v === "__all__" ? "" : v); setFilterLevelId(""); }}>
-              <SelectTrigger className={inputCls}>
-                <SelectValue placeholder="Tất cả" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">Tất cả chương trình</SelectItem>
-                {programOptions.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          {/* Level */}
-          <div className="min-w-[160px]">
-            <label className="mb-1.5 block text-xs font-medium text-gray-500">Level</label>
-            <Select value={filterLevelId || "__all__"} onValueChange={(v) => setFilterLevelId(v === "__all__" ? "" : v)} disabled={filterLevels.length === 0}>
-              <SelectTrigger className={cn(inputCls, filterLevels.length === 0 && "opacity-50 cursor-not-allowed")}>
-                <SelectValue placeholder="Tất cả" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">Tất cả level</SelectItem>
-                {filterLevels.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          {/* Status */}
-          <div className="min-w-[155px]">
-            <label className="mb-1.5 block text-xs font-medium text-gray-500">Trạng thái</label>
-            <Select value={filterActive} onValueChange={(v) => setFilterActive(v as "all" | "active" | "inactive")}>
-              <SelectTrigger className={inputCls}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tất cả</SelectItem>
-                <SelectItem value="active">Đang hoạt động</SelectItem>
-                <SelectItem value="inactive">Tạm ẩn</SelectItem>
-              </SelectContent>
-            </Select>
+            {/* Program */}
+            <div className="flex-1">
+              <Select value={filterProgramId || "__all__"} onValueChange={(v) => { setFilterProgramId(v === "__all__" ? "" : v); setFilterLevelId(""); }}>
+                <SelectTrigger className={inputCls}>
+                  <SelectValue placeholder="Chương trình" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Tất cả chương trình</SelectItem>
+                  {programOptions.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            {/* Level */}
+            <div className="flex-1">
+              <Select value={filterLevelId || "__all__"} onValueChange={(v) => setFilterLevelId(v === "__all__" ? "" : v)} disabled={filterLevels.length === 0}>
+                <SelectTrigger className={cn(inputCls, filterLevels.length === 0 && "opacity-50 cursor-not-allowed")}>
+                  <SelectValue placeholder="Level" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Tất cả level</SelectItem>
+                  {filterLevels.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
       </div>
 
+      {/* Secondary Actions */}
+      <div className="flex flex-wrap gap-2">
+        <a href={`/${locale}/portal/admin/documents${filterProgramId ? `?programId=${encodeURIComponent(filterProgramId)}` : ""}`}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 hover:bg-emerald-100 cursor-pointer transition-colors">
+          <BookOpenCheck size={14} /> Kế hoạch bài dạy
+        </a>
+        <button type="button" onClick={() => setConfigTarget({ programId: "", levelId: "" })}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-medium text-indigo-700 hover:bg-indigo-100 cursor-pointer transition-colors">
+          <Settings2 size={14} /> Cấu hình import
+        </button>
+        <button type="button" onClick={() => setImportMode("word")}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-700 hover:bg-blue-100 cursor-pointer transition-colors">
+          <FileText size={14} /> Nhập Word
+        </button>
+        <button type="button" onClick={() => setImportMode("archive")}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-purple-200 bg-purple-50 px-3 py-2 text-xs font-medium text-purple-700 hover:bg-purple-100 cursor-pointer transition-colors">
+          <FileArchive size={14} /> Nhập Zip
+        </button>
+        <button type="button" onClick={() => setImportMode("lesson-plan-words")}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-xs font-medium text-teal-700 hover:bg-teal-100 cursor-pointer transition-colors">
+          <Upload size={14} /> Import Bài Dạy
+        </button>
+      </div>
+
       {/* Table */}
-      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3">
-          <p className="text-sm font-semibold text-gray-700">
-            Danh sách syllabus
-            <span className="ml-2 rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-semibold text-gray-600">{totalCount}</span>
-          </p>
+      <div className="overflow-hidden rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50/30 shadow-sm">
+        <div className="border-b border-red-200 bg-linear-to-r from-red-500/10 to-red-700/10 px-6 py-4">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="font-semibold text-gray-900">Danh sách syllabus</h2>
+            </div>
+            <div className="flex items-center gap-3 flex-shrink-0">
+              <span className="text-sm text-gray-600">
+                <span className="font-medium text-gray-700">{totalCount} syllabus</span>
+              </span>
+            </div>
+          </div>
         </div>
         {loading ? (
           <div className="flex items-center justify-center py-20 text-gray-400">
@@ -2080,90 +2283,102 @@ export default function SyllabusesPage() {
             <p className="text-sm">Không có syllabus phù hợp</p>
           </div>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="border-b border-gray-100 bg-gray-50/80 text-left">
-              <tr>
-                <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-500">Tiêu đề</th>
-                <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-500">Chương trình / Level</th>
-                <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-500">Mã · Phiên bản</th>
-                <th className="px-5 py-3.5 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">Unit</th>
-                <th className="px-5 py-3.5 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">Session</th>
-                <th className="px-5 py-3.5 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">Trạng thái</th>
-                <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {items.map((item) => (
-                <tr key={item.id} className="group hover:bg-red-50/30 transition-colors">
-                  <td className="px-5 py-3.5 max-w-xs">
-                    <p className="font-semibold text-gray-900 truncate">{item.title}</p>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-190 text-sm">
+              <thead className="border-b border-red-200 bg-linear-to-r from-red-600/5 to-red-700/5">
+                <tr className="text-left font-semibold text-gray-700">
+                  <th className="px-6 py-4 cursor-pointer hover:bg-red-50 transition-colors select-none" onClick={() => handleSort("title")}>
+                    <span className="inline-flex items-center gap-2">Tiêu đề {getSortIcon("title")}</span>
+                  </th>
+                  <th className="px-6 py-4">Chương trình / Level</th>
+                  <th className="px-6 py-4 cursor-pointer hover:bg-red-50 transition-colors select-none" onClick={() => handleSort("code")}>
+                    <span className="inline-flex items-center gap-2">Mã Phiên bản {getSortIcon("code")}</span>
+                  </th>
+                  <th className="px-6 py-4 text-center cursor-pointer hover:bg-red-50 transition-colors select-none" onClick={() => handleSort("unitCount")}>
+                    <span className="inline-flex items-center justify-center gap-2">Unit {getSortIcon("unitCount")}</span>
+                  </th>
+                  <th className="px-6 py-4 text-center cursor-pointer hover:bg-red-50 transition-colors select-none" onClick={() => handleSort("sessionTemplateCount")}>
+                    <span className="inline-flex items-center justify-center gap-2">Session {getSortIcon("sessionTemplateCount")}</span>
+                  </th>
+                  <th className="px-6 py-4 text-center cursor-pointer hover:bg-red-50 transition-colors select-none" onClick={() => handleSort("isActive")}>
+                    <span className="inline-flex items-center justify-center gap-2">Trạng thái {getSortIcon("isActive")}</span>
+                  </th>
+                  <th className="px-6 py-4 text-right">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-red-100">
+              {sortedItems.map((item) => (
+                <tr key={item.id} className="hover:bg-red-50/30 transition-colors">
+                  <td className="px-6 py-4 max-w-xs">
+                    <p className="font-semibold text-gray-900 truncate cursor-help" title={item.title}>{item.title}</p>
                     <p className="mt-0.5 text-xs text-gray-400">{item.createdAt ? new Date(item.createdAt).toLocaleDateString("vi-VN") : ""}</p>
                   </td>
-                  <td className="px-5 py-3.5">
+                  <td className="px-6 py-4">
                     <p className="font-medium text-gray-700">{item.programName ?? "—"}</p>
                     <p className="text-xs text-gray-400">{item.levelName ?? "—"}</p>
                   </td>
-                  <td className="px-5 py-3.5">
+                  <td className="px-6 py-4">
                     <span className="inline-block rounded-md bg-gray-100 px-2 py-0.5 font-mono text-xs font-bold text-gray-700">{item.code}</span>
                     <span className="ml-2 text-xs text-gray-400">{item.version}</span>
                   </td>
-                  <td className="px-5 py-3.5 text-center">
+                  <td className="px-6 py-4 text-center">
                     <span className="inline-flex h-7 w-10 items-center justify-center rounded-lg bg-blue-50 text-xs font-semibold text-blue-700">{item.unitCount ?? "—"}</span>
                   </td>
-                  <td className="px-5 py-3.5 text-center">
+                  <td className="px-6 py-4 text-center">
                     <span className="inline-flex h-7 w-12 items-center justify-center rounded-lg bg-purple-50 text-xs font-semibold text-purple-700">{item.sessionTemplateCount ?? "—"}</span>
                   </td>
-                  <td className="px-5 py-3.5 text-center"><ActiveBadge isActive={item.isActive} /></td>
-                  <td className="px-5 py-3.5">
-                    <div className="flex items-center justify-end gap-1.5">
-                      <button type="button" disabled={detailLoading} onClick={() => handleOpenDetail(item.id)}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50 cursor-pointer transition-colors shadow-sm">
-                        <Eye size={13} /> Xem
+                  <td className="px-6 py-4 text-center"><ActiveBadge isActive={item.isActive} /></td>
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <button type="button" title="Xem" disabled={detailLoading} onClick={() => handleOpenDetail(item.id)}
+                        className="inline-flex items-center justify-center rounded-lg p-1.5 text-gray-400 hover:text-red-600 disabled:opacity-50 cursor-pointer transition-colors">
+                        <Eye size={14} />
                       </button>
-                      <a href={`/${locale}/portal/admin/syllabuses/${item.id}/editor`}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 cursor-pointer transition-colors shadow-sm">
-                        <BookOpen size={13} /> Editor
+                      <a href={`/${locale}/portal/admin/syllabuses/${item.id}/editor`} title="Editor"
+                        className="inline-flex items-center justify-center rounded-lg p-1.5 text-gray-400 hover:text-blue-600 cursor-pointer transition-colors">
+                        <BookOpen size={14} />
                       </a>
-                      <a href={`/${locale}/portal/admin/documents?programId=${encodeURIComponent(item.programId)}&syllabusId=${encodeURIComponent(item.id)}`}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 cursor-pointer transition-colors shadow-sm">
-                        <BookOpenCheck size={13} /> Giáo án
+                      <a href={`/${locale}/portal/admin/documents?programId=${encodeURIComponent(item.programId)}&syllabusId=${encodeURIComponent(item.id)}`} title="Giáo án"
+                        className="inline-flex items-center justify-center rounded-lg p-1.5 text-gray-400 hover:text-emerald-600 cursor-pointer transition-colors">
+                        <BookOpenCheck size={14} />
                       </a>
-                      <button type="button" onClick={() => setBranchAssignTarget(item)}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100 cursor-pointer transition-colors shadow-sm">
-                        <Building2 size={13} /> Gán CN
+                      <button type="button" title="Gán chi nhánh" onClick={() => setBranchAssignTarget(item)}
+                        className="inline-flex items-center justify-center rounded-lg p-1.5 text-gray-400 hover:text-amber-600 cursor-pointer transition-colors">
+                        <Building2 size={14} />
                       </button>
-                      <button type="button" onClick={() => setModal({ mode: "edit", item })}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:border-red-200 hover:bg-red-50 hover:text-red-600 cursor-pointer transition-colors shadow-sm">
-                        <Pencil size={13} /> Sửa
+                      <button type="button" title="Sửa" onClick={() => setModal({ mode: "edit", item })}
+                        className="inline-flex items-center justify-center rounded-lg p-1.5 text-gray-400 hover:text-red-600 cursor-pointer transition-colors">
+                        <Pencil size={14} />
                       </button>
                       {item.programId && item.levelId && (
-                        <button type="button" onClick={() => setConfigTarget({ programId: item.programId, levelId: item.levelId })}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600 cursor-pointer transition-colors shadow-sm">
-                          <Settings2 size={13} /> Cấu hình
+                        <button type="button" title="Cấu hình" onClick={() => setConfigTarget({ programId: item.programId, levelId: item.levelId })}
+                          className="inline-flex items-center justify-center rounded-lg p-1.5 text-gray-400 hover:text-indigo-600 cursor-pointer transition-colors">
+                          <Settings2 size={14} />
                         </button>
                       )}
                     </div>
                   </td>
                 </tr>
               ))}
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          </div>
         )}
 
         {/* Pagination inside card */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between border-t border-gray-100 px-5 py-3">
-            <p className="text-sm text-gray-500">
-              <strong>{(pageNumber - 1) * PAGE_SIZE + 1}–{Math.min(pageNumber * PAGE_SIZE, totalCount)}</strong> / {totalCount} bản ghi
+          <div className="flex items-center justify-between border-t border-red-100 px-6 py-4">
+            <p className="text-sm text-gray-600">
+              <strong className="text-gray-700">{(pageNumber - 1) * PAGE_SIZE + 1}–{Math.min(pageNumber * PAGE_SIZE, totalCount)}</strong> / {totalCount} bản ghi
             </p>
             <div className="flex items-center gap-1.5">
               <button type="button" disabled={pageNumber <= 1} onClick={() => setPageNumber((p) => p - 1)}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-600 hover:bg-red-50 hover:border-red-200 disabled:opacity-40 cursor-pointer transition-colors shadow-sm">
+                className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-white px-3 py-2 text-sm font-medium text-gray-600 hover:bg-red-50 hover:border-red-200 disabled:opacity-40 cursor-pointer transition-colors shadow-sm">
                 <ChevronLeft size={15} /> Trước
               </button>
               <span className="px-3 py-2 text-sm font-semibold text-gray-700">{pageNumber} / {totalPages}</span>
               <button type="button" disabled={pageNumber >= totalPages} onClick={() => setPageNumber((p) => p + 1)}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-600 hover:bg-red-50 hover:border-red-200 disabled:opacity-40 cursor-pointer transition-colors shadow-sm">
+                className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-white px-3 py-2 text-sm font-medium text-gray-600 hover:bg-red-50 hover:border-red-200 disabled:opacity-40 cursor-pointer transition-colors shadow-sm">
                 Sau <ChevronRight size={15} />
               </button>
             </div>

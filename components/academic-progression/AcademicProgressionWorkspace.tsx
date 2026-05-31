@@ -59,24 +59,22 @@ export default function AcademicProgressionWorkspace({ roleMode, studentId, stud
   const [activeTab, setActiveTab] = useState<TabKey>(defaultTab);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-6">
+    <div className="min-h-screen bg-linear-to-b from-red-50/30 to-white p-2">
       <div className="space-y-6">
         {/* Page header */}
-        <div className="rounded-2xl border border-red-200 bg-white p-5">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-100">
-                <GraduationCap className="h-5 w-5 text-red-600" />
-              </div>
-              <div>
-                <h1 className="text-lg font-bold text-gray-800">{ROLE_TITLE[roleMode]}</h1>
-                <p className="text-sm text-gray-500">{ROLE_SUBTITLE[roleMode]}</p>
-              </div>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex items-start gap-4">
+            <div className="rounded-xl bg-linear-to-r from-red-600 to-red-700 p-3 text-white shadow-lg">
+              <GraduationCap className="h-6 w-6" />
             </div>
-            <div className="flex items-center gap-2 rounded-xl bg-red-50 px-3 py-1.5">
-              <BookOpen className="h-3.5 w-3.5 text-red-500" />
-              <span className="text-xs font-medium text-red-600">Phase 2</span>
+            <div className="space-y-1">
+              <h1 className="text-2xl font-bold text-gray-900">{ROLE_TITLE[roleMode]}</h1>
+              <p className="text-sm text-gray-600">{ROLE_SUBTITLE[roleMode]}</p>
             </div>
+          </div>
+          <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50/50 px-3 py-1.5 shrink-0">
+            <BookOpen className="h-4 w-4 text-red-500" />
+            <span className="text-xs font-semibold text-red-600">Phase 2</span>
           </div>
         </div>
 
@@ -87,7 +85,7 @@ export default function AcademicProgressionWorkspace({ roleMode, studentId, stud
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all ${
+                className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all cursor-pointer ${
                   activeTab === tab.key
                     ? "bg-red-600 text-white shadow-sm"
                     : "text-gray-600 hover:bg-gray-50"

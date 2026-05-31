@@ -1419,7 +1419,7 @@ export function LessonPlanWorkspace({
       }
     } else if (legacyLooksIncomplete) {
       throw new Error(
-        extractMessage(syllabusResponse, "KhÃ´ng thá»ƒ táº£i danh sÃ¡ch syllabus."),
+        extractMessage(syllabusResponse, "Không thể tải danh sách syllabus."),
       );
     }
 
@@ -2817,10 +2817,10 @@ function FilterBar({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Táº¥t cáº£ syllabus</SelectItem>
+                    <SelectItem value="all">Tất cả syllabus</SelectItem>
                     {syllabusOptions.map((item) => (
                       <SelectItem key={item.id} value={item.id}>
-                        {`${item.code} ${item.version} Â· ${item.title}`}
+                        {`${item.code} ${item.version} · ${item.title}`}
                       </SelectItem>
                     ))}
                   </SelectContent>
