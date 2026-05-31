@@ -38,22 +38,23 @@ export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
   ];
   const leads: RawItem[] = [[t.groups.leads.manageLeads, Inbox, "/leads"]];
   const learning: RawItem[] = [
-    [t.groups.learning.coursesSystem.list, GraduationCap, "/courses/system"],
-    [t.groups.learning.coursesBranch.list, GraduationCap, "/courses/branch"],
     [t.groups.learning.tuitionPlans.list, GraduationCap, "/tuition-plans"],
     [t.groups.learning.discountCampaigns.list, CreditCard, "/discount-campaigns"],
     [t.groups.learning.registrations.list, UserCheck, "/registrations"],
     [t.groups.learning.classes.list, BookOpen, "/classes"],
-    ["Giáo trình (Syllabus)", BookOpen, "/syllabuses"],
-    ["Mẫu giáo án", BookOpenCheck, "/documents"],
-    ["Tiến trình học thuật", Layers, "/academic-progression"],
+  ];
+  const curriculum: RawItem[] = [
+    [t.groups.curriculum.coursesSystem.list, GraduationCap, "/courses/system"],
+    [t.groups.curriculum.coursesBranch.list, GraduationCap, "/courses/branch"],
+    [t.groups.curriculum.syllabuses.list, BookOpen, "/syllabuses"],
+    [t.groups.curriculum.lessonPlans.list, BookOpenCheck, "/documents"],
+    [t.groups.curriculum.academicProgression.list, Layers, "/academic-progression"],
   ];
   const opsItems: RawItem[] = [
     [t.groups.ops.rooms, Building2, "/rooms"],
     [t.groups.ops.schedule, CalendarRange, "/schedule"],
     ["Tiến trình chuyển chương trình", Route, "/program-progressions"],
     [t.groups.ops.pauseEnrollments, CalendarClock, "/pause-enrollments"],
-    [t.groups.ops.teachingMaterials, Folder, "/materials"],
     [t.groups.ops.media, Image, "/media"],
     [t.groups.ops.reportRequests, Send, "/report-requests"],
   ];
@@ -99,6 +100,7 @@ export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
   return [
     ...makeMenu(root, quick),
     makeGroup(root, t.groups.leads.title, Inbox, leads),
+    makeGroup(root, t.groups.curriculum.title, BookOpenCheck, curriculum),
     makeGroup(root, t.groups.learning.title, GraduationCap, learning),
     makeGroup(root, t.groups.ops.title, Building2, opsItems),
     feedbackGroup,

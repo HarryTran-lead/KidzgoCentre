@@ -1132,7 +1132,7 @@ export default function SyllabusDetailModalBody({
         ) : null}
       </div>
 
-      <div className="p-6 space-y-5">
+      <div className="flex-1 overflow-y-auto p-6 space-y-5">
         <div className="grid grid-cols-4 gap-3">
           {stats.map((s) => (
             <div key={s.label} className={cn("rounded-xl border px-3 py-3 text-center", statColors[s.color])}>

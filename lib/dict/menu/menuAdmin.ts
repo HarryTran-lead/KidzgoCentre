@@ -12,13 +12,19 @@ export const menuAdmin = {
       learning: {
         title: "Học tập",
         courses: { list: "Danh sách chương trình học" },
-        coursesSystem: { list: "Chương trình toàn hệ thống" },
-        coursesBranch: { list: "Chương trình theo chi nhánh" },
         tuitionPlans: { list: "Danh sách gói học" },
         discountCampaigns: { list: "Khuyến mãi đăng ký" },
         registrations: { list: "Danh sách đăng ký lớp" },
         classes: { list: "Danh sách lớp học" },
         students: { list: "Danh sách học viên" },
+      },
+      curriculum: {
+        title: "Chương trình",
+        coursesSystem: { list: "Chương trình toàn hệ thống" },
+        coursesBranch: { list: "Chương trình theo chi nhánh" },
+        syllabuses: { list: "Giáo trình (Syllabus)" },
+        lessonPlans: { list: "Mẫu giáo án" },
+        academicProgression: { list: "Tiến trình học thuật" },
       },
       ops: {
         title: "Vận hành",
@@ -68,13 +74,19 @@ export const menuAdmin = {
       learning: {
         title: "Learning",
         courses: { list: "Programs" },
-        coursesSystem: { list: "System Programs" },
-        coursesBranch: { list: "Branch Programs" },
         tuitionPlans: { list: "Tuition Plans" },
         discountCampaigns: { list: "Registration Discounts" },
         registrations: { list: "Registrations" },
         classes: { list: "Classes" },
         students: { list: "Students" },
+      },
+      curriculum: {
+        title: "Programs & Curriculum",
+        coursesSystem: { list: "System Programs" },
+        coursesBranch: { list: "Branch Programs" },
+        syllabuses: { list: "Syllabuses" },
+        lessonPlans: { list: "Lesson Plans" },
+        academicProgression: { list: "Academic Progress" },
       },
       ops: {
         title: "Operations",
