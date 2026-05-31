@@ -1,7 +1,7 @@
 "use client";
 
-import ReportsV3Workspace from "@/components/reports-v3/ReportsV3Workspace";
+import ManagementReportsV3Workspace from "@/components/reports-v3/ManagementReportsV3Workspace";
 
 export default function StaffManagementReportsV3Page() {
-  return <ReportsV3Workspace role="management" />;
+  return <ManagementReportsV3Workspace />;
 }

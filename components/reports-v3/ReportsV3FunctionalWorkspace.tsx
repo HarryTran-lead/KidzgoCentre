@@ -9,20 +9,32 @@ import {
   Building2,
   CalendarClock,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   ClipboardList,
   FileBarChart,
   FileText,
   GraduationCap,
+  Layers3,
   Loader2,
   RefreshCw,
   Send,
   ShieldAlert,
+  SlidersHorizontal,
   Sparkles,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/lightswind/select";
 import { fetchClassDetail, fetchTeacherClasses } from "@/app/api/teacher/classes";
 import { getAllBranchesPublic } from "@/lib/api/branchService";
 import { getAllClasses, getClassStudents } from "@/lib/api/classService";
+import { extractApiError } from "@/lib/api/extractApiError";
 import {
   createReportPeriod,
   createReportTemplate,
@@ -96,31 +108,105 @@ type TemplateDraft = {
 };
 
 const REPORT_TYPE_LABELS: Record<ReportsV3GenerateType, string> = {
-  parent: "Parent Report",
-  academic: "Academic Report",
-  internal: "Internal Report",
+  parent: "Báo cáo phụ huynh",
+  academic: "Báo cáo học thuật",
+  internal: "Báo cáo nội bộ",
+};
+
+const PERIOD_TYPE_LABELS: Record<ReportPeriodType, string> = {
+  weekly: "Theo tuần",
+  monthly: "Theo tháng",
+  module: "Theo mô-đun",
+  custom: "Tùy chỉnh",
+};
+
+const TEMPLATE_TYPE_LABELS: Record<ReportTemplateType, string> = {
+  parent: "Mẫu phụ huynh",
+  academic: "Mẫu học thuật",
+  class: "Mẫu lớp học",
+  branch: "Mẫu chi nhánh",
+  internal: "Mẫu nội bộ",
+};
+
+const SHARE_CHANNEL_LABELS: Record<ReportShareChannel, string> = {
+  app: "Ứng dụng",
+  email: "Email",
+  zalo: "Zalo",
+  sms: "SMS",
+};
+
+const RECOMMENDATION_ROLE_LABELS: Record<string, string> = {
+  teacher: "Giáo viên",
+  academic_manager: "Quản lý học thuật",
+  cs: "Chăm sóc khách hàng",
+  admin: "Quản trị viên",
+};
+
+const INSIGHT_TYPE_LABELS: Record<string, string> = {
+  strength: "Điểm mạnh",
+  weakness: "Điểm cần cải thiện",
+  risk: "Rủi ro",
+  recommendation: "Đề xuất",
+  note: "Ghi chú",
+};
+
+const RISK_SEVERITY_LABELS: Record<string, string> = {
+  low: "Thấp",
+  medium: "Trung bình",
+  high: "Cao",
+};
+
+const RISK_TYPE_LABELS: Record<string, string> = {
+  low_attendance: "Điểm danh thấp",
+  academic_fail: "Học thuật chưa đạt",
+  package_expiring: "Gói học sắp hết hạn",
+  class_curriculum_delay: "Chậm tiến độ giáo trình",
 };
 
 const PERIOD_TYPE_OPTIONS: ReportPeriodType[] = ["weekly", "monthly", "module", "custom"];
 const TEMPLATE_TYPE_OPTIONS: ReportTemplateType[] = ["parent", "academic", "class", "branch", "internal"];
 const DEFAULT_TEMPLATE_SCHEMA = JSON.stringify({ blocks: [] }, null, 2);
+const DASHBOARD_FOCUS_OPTIONS = [
+  { id: "class", label: "Theo lớp", icon: <BookOpen size={14} /> },
+  { id: "branch", label: "Theo chi nhánh", icon: <Building2 size={14} /> },
+] as const;
+
+const ROLE_CONTENT: Record<InternalRole, { title: string; subtitle: string; checkList: string[] }> = {
+  teacher: {
+    title: "Theo dõi từng học viên và lớp học",
+    subtitle: "Ưu tiên tạo báo cáo và xử lý theo dõi học thuật theo phạm vi lớp phụ trách.",
+    checkList: [
+      "Chọn đúng lớp và học viên trước khi tạo báo cáo.",
+      "Theo dõi rủi ro và đề xuất cần xử lý theo từng học viên.",
+      "Không công bố phụ huynh trực tiếp ở vai trò giáo viên.",
+    ],
+  },
+  management: {
+    title: "Giám sát học thuật theo lớp và chi nhánh",
+    subtitle: "Tập trung vào dashboard tổng hợp, quản lý kỳ báo cáo và vận hành luồng công bố.",
+    checkList: [
+      "Theo dõi xu hướng rủi ro và học viên cần hỗ trợ.",
+      "Quản lý kỳ báo cáo, rà soát template trước khi vận hành.",
+      "Công bố báo cáo phụ huynh khi báo cáo đã hoàn thành.",
+    ],
+  },
+  admin: {
+    title: "Điều phối toàn cục và chuẩn hóa vận hành",
+    subtitle: "Bao phủ toàn bộ không gian Reports V3: danh mục, template, luật rủi ro và công bố phụ huynh.",
+    checkList: [
+      "Kiểm soát cấu hình template và luật rủi ro.",
+      "Theo dõi dữ liệu cấp chi nhánh để phát hiện bất thường sớm.",
+      "Kiểm tra quyền công bố và nhật ký chia sẻ khi có sự cố.",
+    ],
+  },
+};
 
 function cn(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(" ");
 }
 
 function getErrMsg(error: unknown, fallback: string) {
-  const payload = error as {
-    response?: {
-      data?: {
-        detail?: string;
-        message?: string;
-      };
-    };
-    message?: string;
-  };
-
-  return payload?.response?.data?.detail || payload?.response?.data?.message || payload?.message || fallback;
+  return extractApiError(error, fallback);
 }
 
 function normalizeText(value?: string | null) {
@@ -129,19 +215,21 @@ function normalizeText(value?: string | null) {
 
 function normalizeStatusLabel(value?: string | null) {
   const key = normalizeText(value);
-  if (!key) return "Unknown";
-  if (key === "completed") return "Completed";
-  if (key === "processing") return "Processing";
-  if (key === "pending") return "Pending";
-  if (key === "failed") return "Failed";
-  if (key === "superseded") return "Superseded";
-  if (key === "open") return "Open";
-  if (key === "resolved") return "Resolved";
-  if (key === "ignored") return "Ignored";
-  if (key === "accepted") return "Accepted";
-  if (key === "rejected") return "Rejected";
-  if (key === "done") return "Done";
-  return value ?? "Unknown";
+  if (!key) return "Không xác định";
+  if (key === "completed") return "Hoàn thành";
+  if (key === "processing") return "Đang xử lý";
+  if (key === "pending") return "Chờ xử lý";
+  if (key === "failed") return "Thất bại";
+  if (key === "superseded") return "Đã thay thế";
+  if (key === "open") return "Đang mở";
+  if (key === "resolved") return "Đã xử lý";
+  if (key === "ignored") return "Bỏ qua";
+  if (key === "accepted") return "Đã nhận";
+  if (key === "rejected") return "Từ chối";
+  if (key === "done") return "Hoàn tất";
+  if (key === "sent") return "Đã gửi";
+  if (key === "viewed") return "Đã xem";
+  return value ?? "Không xác định";
 }
 
 function statusTone(value?: string | null) {
@@ -179,8 +267,56 @@ function formatPercent(value?: number | null) {
 
 function formatScalar(value?: string | number | boolean | null) {
   if (value === null || value === undefined || value === "") return "—";
-  if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (typeof value === "boolean") return value ? "Có" : "Không";
   return String(value);
+}
+
+function prettifyCode(value?: string | null) {
+  const normalized = String(value ?? "").trim();
+  if (!normalized) return "Không xác định";
+  return normalized
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function formatReportType(value?: string | null) {
+  const key = normalizeText(value);
+  return REPORT_TYPE_LABELS[key as ReportsV3GenerateType] || prettifyCode(value);
+}
+
+function formatPeriodType(value?: string | null) {
+  const key = normalizeText(value);
+  return PERIOD_TYPE_LABELS[key as ReportPeriodType] || prettifyCode(value);
+}
+
+function formatTemplateType(value?: string | null) {
+  const key = normalizeText(value);
+  return TEMPLATE_TYPE_LABELS[key as ReportTemplateType] || prettifyCode(value);
+}
+
+function formatShareChannel(value?: string | null) {
+  const key = normalizeText(value);
+  return SHARE_CHANNEL_LABELS[key as ReportShareChannel] || prettifyCode(value);
+}
+
+function formatRecommendationRole(value?: string | null) {
+  const key = normalizeText(value);
+  return RECOMMENDATION_ROLE_LABELS[key] || prettifyCode(value);
+}
+
+function formatRiskSeverity(value?: string | null) {
+  const key = normalizeText(value);
+  return RISK_SEVERITY_LABELS[key] || prettifyCode(value);
+}
+
+function formatInsightType(value?: string | null) {
+  const key = normalizeText(value);
+  return INSIGHT_TYPE_LABELS[key] || prettifyCode(value);
+}
+
+function formatRiskType(value?: string | null) {
+  const key = normalizeText(value);
+  return RISK_TYPE_LABELS[key] || prettifyCode(value);
 }
 
 function dedupeOptions(options: Option[]) {
@@ -418,45 +554,45 @@ function SnapshotSummary({ snapshot }: { snapshot?: ReportsV3Snapshot | null }) 
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-        <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Attendance</div>
-        <div className="mt-2 text-sm text-gray-700">Rate: <span className="font-semibold">{formatPercent(attendance?.attendance_rate)}</span></div>
-        <div className="mt-1 text-sm text-gray-700">Present: {formatScalar(attendance?.present)} / {formatScalar(attendance?.total_sections)}</div>
-        <div className="mt-1 text-sm text-gray-700">Absent no notice: {formatScalar(attendance?.absent_without_notice)}</div>
+        <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Điểm danh</div>
+        <div className="mt-2 text-sm text-gray-700">Tỷ lệ: <span className="font-semibold">{formatPercent(attendance?.attendance_rate)}</span></div>
+        <div className="mt-1 text-sm text-gray-700">Có mặt: {formatScalar(attendance?.present)} / {formatScalar(attendance?.total_sections)}</div>
+        <div className="mt-1 text-sm text-gray-700">Vắng không báo: {formatScalar(attendance?.absent_without_notice)}</div>
       </div>
       <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-        <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Learning Progress</div>
-        <div className="mt-2 text-sm text-gray-700">Completion: <span className="font-semibold">{formatPercent(progress?.completion_percent)}</span></div>
-        <div className="mt-1 text-sm text-gray-700">Current lesson: {formatScalar(progress?.current_lesson)}</div>
-        <div className="mt-1 text-sm text-gray-700">Promotion: {formatScalar(progress?.promotion_status)}</div>
+        <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Tiến độ học tập</div>
+        <div className="mt-2 text-sm text-gray-700">Mức hoàn thành: <span className="font-semibold">{formatPercent(progress?.completion_percent)}</span></div>
+        <div className="mt-1 text-sm text-gray-700">Bài học hiện tại: {formatScalar(progress?.current_lesson)}</div>
+        <div className="mt-1 text-sm text-gray-700">Điều kiện lên lớp: {formatScalar(progress?.promotion_status)}</div>
       </div>
       <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-        <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Assessment</div>
-        <div className="mt-2 text-sm text-gray-700">Result: <span className="font-semibold">{formatScalar(assessment?.latest_result)}</span></div>
-        <div className="mt-1 text-sm text-gray-700">Latest score: {formatScalar(assessment?.latest_score)}</div>
-        <div className="mt-1 text-sm text-gray-700">Teacher comment: {formatScalar(assessment?.teacher_comment)}</div>
+        <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Đánh giá</div>
+        <div className="mt-2 text-sm text-gray-700">Kết quả: <span className="font-semibold">{formatScalar(assessment?.latest_result)}</span></div>
+        <div className="mt-1 text-sm text-gray-700">Điểm gần nhất: {formatScalar(assessment?.latest_score)}</div>
+        <div className="mt-1 text-sm text-gray-700">Nhận xét giáo viên: {formatScalar(assessment?.teacher_comment)}</div>
       </div>
       <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-        <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Ticket</div>
-        <div className="mt-2 text-sm text-gray-700">Granted: {formatScalar(tickets?.granted)}</div>
-        <div className="mt-1 text-sm text-gray-700">Consumed: {formatScalar(tickets?.consumed)}</div>
-        <div className="mt-1 text-sm text-gray-700">Remaining: <span className="font-semibold">{formatScalar(tickets?.remaining)}</span></div>
+        <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Vé học</div>
+        <div className="mt-2 text-sm text-gray-700">Đã cấp: {formatScalar(tickets?.granted)}</div>
+        <div className="mt-1 text-sm text-gray-700">Đã dùng: {formatScalar(tickets?.consumed)}</div>
+        <div className="mt-1 text-sm text-gray-700">Còn lại: <span className="font-semibold">{formatScalar(tickets?.remaining)}</span></div>
       </div>
       <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-        <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Teacher Evaluation</div>
-        <div className="mt-2 text-sm text-gray-700">Speaking: {formatScalar(evaluation?.speaking)}</div>
-        <div className="mt-1 text-sm text-gray-700">Confidence: {formatScalar(evaluation?.confidence)}</div>
-        <div className="mt-1 text-sm text-gray-700">Participation: {formatScalar(evaluation?.participation)}</div>
+        <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Đánh giá giáo viên</div>
+        <div className="mt-2 text-sm text-gray-700">Nói: {formatScalar(evaluation?.speaking)}</div>
+        <div className="mt-1 text-sm text-gray-700">Tự tin: {formatScalar(evaluation?.confidence)}</div>
+        <div className="mt-1 text-sm text-gray-700">Tham gia: {formatScalar(evaluation?.participation)}</div>
       </div>
       <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-        <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Message</div>
-        <div className="mt-2 text-sm text-gray-700">Parent: {formatScalar(snapshot.parent_message)}</div>
-        <div className="mt-1 text-sm text-gray-700">Internal: {formatScalar(snapshot.internal_notes)}</div>
+        <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Thông điệp</div>
+        <div className="mt-2 text-sm text-gray-700">Gửi phụ huynh: {formatScalar(snapshot.parent_message)}</div>
+        <div className="mt-1 text-sm text-gray-700">Ghi chú nội bộ: {formatScalar(snapshot.internal_notes)}</div>
       </div>
     </div>
   );
 }
 
-export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
+export default function ReportsV3FunctionalWorkspace({ role }: { role: InternalRole }) {
   const canManageCatalog = role !== "teacher";
   const canEditTemplates = role === "admin";
   const canEditRiskRules = role === "admin";
@@ -465,19 +601,19 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
 
   const tabs = useMemo(() => {
     const base: Array<{ id: WorkspaceTab; label: string; icon: React.ReactNode }> = [
-      { id: "dashboard", label: "Dashboard", icon: <BarChart3 size={16} /> },
-      { id: "generate", label: "Generate", icon: <Sparkles size={16} /> },
-      { id: "reports", label: "History", icon: <FileBarChart size={16} /> },
-      { id: "follow-up", label: "Follow-up", icon: <BellRing size={16} /> },
+      { id: "dashboard", label: "Tổng quan", icon: <BarChart3 size={16} /> },
+      { id: "generate", label: "Tạo báo cáo", icon: <Sparkles size={16} /> },
+      { id: "reports", label: "Lịch sử", icon: <FileBarChart size={16} /> },
+      { id: "follow-up", label: "Theo dõi", icon: <BellRing size={16} /> },
     ];
 
     if (canManageCatalog) {
-      base.push({ id: "periods", label: "Periods", icon: <CalendarClock size={16} /> });
-      base.push({ id: "templates", label: "Templates", icon: <FileText size={16} /> });
+      base.push({ id: "periods", label: "Kỳ báo cáo", icon: <CalendarClock size={16} /> });
+      base.push({ id: "templates", label: "Mẫu báo cáo", icon: <FileText size={16} /> });
     }
 
     if (canEditRiskRules) {
-      base.push({ id: "risk-rules", label: "Risk Rules", icon: <ShieldAlert size={16} /> });
+      base.push({ id: "risk-rules", label: "Luật rủi ro", icon: <ShieldAlert size={16} /> });
     }
 
     return base;
@@ -523,6 +659,8 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
   const [publishingParent, setPublishingParent] = useState(false);
   const [sharingReport, setSharingReport] = useState(false);
   const [pageError, setPageError] = useState<string | null>(null);
+  const [showScopeFilters, setShowScopeFilters] = useState(true);
+  const [dashboardFocus, setDashboardFocus] = useState<"class" | "branch">("class");
 
   const loadPeriods = useCallback(async () => {
     const result = await getReportPeriods({ page: 1, pageSize: 100 });
@@ -682,7 +820,7 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
     try {
       const detail = await getStudentReportById(selectedReportId);
       setReportDetail(detail);
-      setShareRecipientName((current) => current || `Parent of ${detail.studentName || "student"}`);
+      setShareRecipientName((current) => current || `Phụ huynh của ${detail.studentName || "học viên"}`);
     } finally {
       setLoadingDetail(false);
     }
@@ -724,13 +862,13 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
 
   useEffect(() => {
     void loadClassData().catch((error) => {
-      setPageError(getErrMsg(error, "Không thể tải dashboard lớp học."));
+      setPageError(getErrMsg(error, "Không thể tải bảng tổng quan lớp học."));
     });
   }, [loadClassData]);
 
   useEffect(() => {
     void loadBranchData().catch((error) => {
-      setPageError(getErrMsg(error, "Không thể tải dashboard chi nhánh."));
+      setPageError(getErrMsg(error, "Không thể tải bảng tổng quan chi nhánh."));
     });
   }, [loadBranchData]);
 
@@ -745,6 +883,12 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
       setPageError(getErrMsg(error, "Không thể tải chi tiết báo cáo."));
     });
   }, [loadReportDetail]);
+
+  useEffect(() => {
+    if (!canSeeBranchDashboard && dashboardFocus !== "class") {
+      setDashboardFocus("class");
+    }
+  }, [canSeeBranchDashboard, dashboardFocus]);
 
   const filteredReports = useMemo(() => {
     return reports.filter((item) => {
@@ -775,7 +919,7 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
     if (!selectedStudentId || !selectedPeriodId) {
       toast.destructive({
         title: "Thiếu dữ liệu",
-        description: "Cần chọn học viên và kỳ báo cáo trước khi generate.",
+        description: "Cần chọn học viên và kỳ báo cáo trước khi tạo.",
       });
       return;
     }
@@ -791,8 +935,8 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
       });
 
       toast.success({
-        title: "Generate thành công",
-        description: `Report run ${result.reportRunId} đã được tạo.`,
+        title: "Tạo báo cáo thành công",
+        description: `Đã tạo ${formatReportType(reportType)} cho ${studentOptions.find((item) => item.id === selectedStudentId)?.label || "học viên"}.`,
       });
       setActiveTab("reports");
       await loadStudentData();
@@ -800,8 +944,8 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
       await loadClassData();
     } catch (error) {
       toast.destructive({
-        title: "Generate thất bại",
-        description: getErrMsg(error, "Không thể generate báo cáo."),
+        title: "Tạo báo cáo thất bại",
+        description: getErrMsg(error, "Không thể tạo báo cáo."),
       });
     } finally {
       setSavingGenerate(false);
@@ -813,11 +957,11 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
     setPublishingParent(true);
     try {
       await publishReportToParent(reportDetail.id);
-      toast.success({ title: "Đã publish", description: "Parent report đã được mở cho phụ huynh." });
+      toast.success({ title: "Đã công bố", description: "Báo cáo phụ huynh đã được mở cho phụ huynh." });
       await loadStudentData();
       await loadReportDetail();
     } catch (error) {
-      toast.destructive({ title: "Publish thất bại", description: getErrMsg(error, "Không thể publish cho phụ huynh.") });
+      toast.destructive({ title: "Công bố thất bại", description: getErrMsg(error, "Không thể công bố cho phụ huynh.") });
     } finally {
       setPublishingParent(false);
     }
@@ -837,10 +981,10 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
         recipientName: shareRecipientName.trim(),
         recipientContact: shareRecipientContact.trim(),
       });
-      toast.success({ title: "Đã ghi nhận share", description: "Share log đã được tạo." });
+      toast.success({ title: "Đã ghi nhận chia sẻ", description: "Nhật ký chia sẻ đã được tạo." });
       await loadReportDetail();
     } catch (error) {
-      toast.destructive({ title: "Share thất bại", description: getErrMsg(error, "Không thể share báo cáo.") });
+      toast.destructive({ title: "Chia sẻ thất bại", description: getErrMsg(error, "Không thể chia sẻ báo cáo.") });
     } finally {
       setSharingReport(false);
     }
@@ -848,7 +992,7 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
 
   const handleSavePeriod = async () => {
     if (!periodDraft.code.trim() || !periodDraft.name.trim() || !periodDraft.startDate || !periodDraft.endDate) {
-      toast.destructive({ title: "Thiếu dữ liệu", description: "Period cần code, name, start date và end date." });
+      toast.destructive({ title: "Thiếu dữ liệu", description: "Kỳ báo cáo cần mã, tên, ngày bắt đầu và ngày kết thúc." });
       return;
     }
 
@@ -868,11 +1012,11 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
         await createReportPeriod(payload);
       }
 
-      toast.success({ title: "Đã lưu period", description: "Danh mục kỳ báo cáo đã được cập nhật." });
+      toast.success({ title: "Đã lưu kỳ báo cáo", description: "Danh mục kỳ báo cáo đã được cập nhật." });
       setPeriodDraft(defaultPeriodDraft());
       await loadPeriods();
     } catch (error) {
-      toast.destructive({ title: "Lưu period thất bại", description: getErrMsg(error, "Không thể lưu kỳ báo cáo.") });
+      toast.destructive({ title: "Lưu kỳ báo cáo thất bại", description: getErrMsg(error, "Không thể lưu kỳ báo cáo.") });
     } finally {
       setSavingPeriod(false);
     }
@@ -882,19 +1026,19 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
     if (!window.confirm("Xóa kỳ báo cáo này?")) return;
     try {
       await deleteReportPeriod(periodId);
-      toast.success({ title: "Đã xóa period", description: "Kỳ báo cáo đã được xóa." });
+      toast.success({ title: "Đã xóa kỳ báo cáo", description: "Kỳ báo cáo đã được xóa." });
       if (periodDraft.id === periodId) {
         setPeriodDraft(defaultPeriodDraft());
       }
       await loadPeriods();
     } catch (error) {
-      toast.destructive({ title: "Xóa period thất bại", description: getErrMsg(error, "Không thể xóa kỳ báo cáo.") });
+      toast.destructive({ title: "Xóa kỳ báo cáo thất bại", description: getErrMsg(error, "Không thể xóa kỳ báo cáo.") });
     }
   };
 
   const handleSaveTemplate = async () => {
     if (!templateDraft.code.trim() || !templateDraft.name.trim()) {
-      toast.destructive({ title: "Thiếu dữ liệu", description: "Template cần code và name." });
+      toast.destructive({ title: "Thiếu dữ liệu", description: "Mẫu báo cáo cần mã và tên." });
       return;
     }
 
@@ -902,12 +1046,12 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
       try {
         const parsed = JSON.parse(templateDraft.contentSchema);
         if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-          throw new Error("Content schema phải là JSON object.");
+          throw new Error("Schema nội dung phải là đối tượng JSON.");
         }
       } catch (error) {
         toast.destructive({
           title: "Schema không hợp lệ",
-          description: getErrMsg(error, "Content schema phải là JSON object hợp lệ."),
+          description: getErrMsg(error, "Schema nội dung phải là đối tượng JSON hợp lệ."),
         });
         return;
       }
@@ -929,27 +1073,27 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
         await createReportTemplate(payload);
       }
 
-      toast.success({ title: "Đã lưu template", description: "Template báo cáo đã được cập nhật." });
+      toast.success({ title: "Đã lưu mẫu báo cáo", description: "Mẫu báo cáo đã được cập nhật." });
       setTemplateDraft(defaultTemplateDraft());
       await loadTemplates();
     } catch (error) {
-      toast.destructive({ title: "Lưu template thất bại", description: getErrMsg(error, "Không thể lưu template báo cáo.") });
+      toast.destructive({ title: "Lưu mẫu báo cáo thất bại", description: getErrMsg(error, "Không thể lưu mẫu báo cáo.") });
     } finally {
       setSavingTemplate(false);
     }
   };
 
   const handleDeleteTemplate = async (templateId: string) => {
-    if (!window.confirm("Xóa template này?")) return;
+    if (!window.confirm("Xóa mẫu báo cáo này?")) return;
     try {
       await deleteReportTemplate(templateId);
-      toast.success({ title: "Đã xóa template", description: "Template báo cáo đã được xóa." });
+      toast.success({ title: "Đã xóa mẫu báo cáo", description: "Mẫu báo cáo đã được xóa." });
       if (templateDraft.id === templateId) {
         setTemplateDraft(defaultTemplateDraft());
       }
       await loadTemplates();
     } catch (error) {
-      toast.destructive({ title: "Xóa template thất bại", description: getErrMsg(error, "Không thể xóa template báo cáo.") });
+      toast.destructive({ title: "Xóa mẫu báo cáo thất bại", description: getErrMsg(error, "Không thể xóa mẫu báo cáo.") });
     }
   };
 
@@ -958,17 +1102,17 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
     if (!draft) return;
 
     if (!draft.parametersJson.trim()) {
-      toast.destructive({ title: "Thiếu dữ liệu", description: "ParametersJson không được để trống." });
+      toast.destructive({ title: "Thiếu dữ liệu", description: "Thông số JSON không được để trống." });
       return;
     }
 
     try {
       const parsed = JSON.parse(draft.parametersJson);
       if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-        throw new Error("ParametersJson phải là JSON object.");
+        throw new Error("Thông số JSON phải là đối tượng JSON.");
       }
     } catch (error) {
-      toast.destructive({ title: "JSON không hợp lệ", description: getErrMsg(error, "ParametersJson phải là JSON object hợp lệ.") });
+      toast.destructive({ title: "JSON không hợp lệ", description: getErrMsg(error, "Thông số JSON phải là đối tượng JSON hợp lệ.") });
       return;
     }
 
@@ -978,109 +1122,162 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
         score: Number(draft.score || 0),
         parametersJson: draft.parametersJson,
       });
-      toast.success({ title: "Đã lưu rule", description: `Risk rule ${riskType} đã được cập nhật.` });
+      toast.success({ title: "Đã lưu luật", description: `Luật rủi ro ${formatRiskType(riskType)} đã được cập nhật.` });
       await loadRiskRules();
     } catch (error) {
-      toast.destructive({ title: "Lưu risk rule thất bại", description: getErrMsg(error, "Không thể lưu risk rule.") });
+      toast.destructive({ title: "Lưu luật rủi ro thất bại", description: getErrMsg(error, "Không thể lưu luật rủi ro.") });
     }
   };
 
-  const roleLabel = role === "teacher" ? "Giáo viên" : role === "management" ? "Academic Manager" : "Admin";
+  const roleLabel = role === "teacher" ? "Giáo viên" : role === "management" ? "Quản lý học thuật" : "Quản trị viên";
   const reportCount = reports.length;
+  const roleContent = ROLE_CONTENT[role];
+  const scopeLabel = {
+    branch: branchOptions.find((item) => item.id === selectedBranchId)?.label || (canSeeBranchDashboard ? "Tất cả chi nhánh / chưa chọn" : "Theo quyền hiện tại"),
+    className: classOptions.find((item) => item.id === selectedClassId)?.label || "Chưa chọn lớp",
+    student: studentOptions.find((item) => item.id === selectedStudentId)?.label || "Chưa chọn học viên",
+    period: periods.find((item) => item.id === selectedPeriodId)?.name || "Chưa chọn kỳ báo cáo",
+  };
 
   return (
     <div className="space-y-6 bg-gradient-to-b from-red-50/30 to-white p-4 md:p-6">
-      <div className="rounded-3xl border border-red-100 bg-white p-5 shadow-sm">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex items-start gap-3">
             <div className="rounded-2xl bg-gradient-to-r from-red-600 to-red-700 p-3 text-white shadow-lg">
               <GraduationCap size={24} />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Reports V3 Workspace</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Không gian Báo cáo V3</h1>
               <p className="mt-1 max-w-3xl text-sm text-gray-600">
-                Module reporting phase 3 chạy song song với monthly/session report cũ. Snapshot, insight, risk, recommendation,
-                publish và share được tách route riêng để tránh conflict luồng hiện tại.
+                Snapshot bất biến theo từng kỳ giúp tách rõ vận hành báo cáo mới và giảm xung đột với báo cáo cũ.
               </p>
             </div>
           </div>
-          <div className="rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700">
-            Scope: {roleLabel}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700">
+              Phạm vi: {roleLabel}
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowScopeFilters((current) => !current)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              <SlidersHorizontal size={14} />
+              Bộ lọc phạm vi
+              {showScopeFilters ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
           </div>
         </div>
 
-        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-4 grid gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 lg:grid-cols-[1.15fr,0.85fr]">
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Branch</label>
-            <select
-              value={selectedBranchId}
-              onChange={(event) => setSelectedBranchId(event.target.value)}
-              disabled={!canSeeBranchDashboard}
-              className="h-11 w-full rounded-2xl border border-gray-200 bg-white px-3 text-sm text-gray-700 outline-none ring-0 transition focus:border-red-300"
-            >
-              <option value="">{canSeeBranchDashboard ? "Tất cả chi nhánh / chưa chọn" : "Branch theo quyền hiện tại"}</option>
-              {branchOptions.map((option) => (
-                <option key={option.id} value={option.id}>{option.label}</option>
-              ))}
-            </select>
+            <div className="text-sm font-semibold text-slate-900">{roleContent.title}</div>
+            <div className="mt-1 text-sm text-slate-600">{roleContent.subtitle}</div>
           </div>
-          <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Class</label>
-            <select
-              value={selectedClassId}
-              onChange={(event) => setSelectedClassId(event.target.value)}
-              className="h-11 w-full rounded-2xl border border-gray-200 bg-white px-3 text-sm text-gray-700 outline-none ring-0 transition focus:border-red-300"
-            >
-              <option value="">{loadingClasses ? "Đang tải lớp..." : "Chọn lớp"}</option>
-              {classOptions.map((option) => (
-                <option key={option.id} value={option.id}>{option.label}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Student</label>
-            <select
-              value={selectedStudentId}
-              onChange={(event) => setSelectedStudentId(event.target.value)}
-              className="h-11 w-full rounded-2xl border border-gray-200 bg-white px-3 text-sm text-gray-700 outline-none ring-0 transition focus:border-red-300"
-            >
-              <option value="">{loadingStudents ? "Đang tải học viên..." : "Chọn học viên"}</option>
-              {studentOptions.map((option) => (
-                <option key={option.id} value={option.id}>{option.label}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Report Period</label>
-            <select
-              value={selectedPeriodId}
-              onChange={(event) => setSelectedPeriodId(event.target.value)}
-              className="h-11 w-full rounded-2xl border border-gray-200 bg-white px-3 text-sm text-gray-700 outline-none ring-0 transition focus:border-red-300"
-            >
-              <option value="">Chọn kỳ báo cáo</option>
-              {periods.map((period) => (
-                <option key={period.id} value={period.id}>{period.name}</option>
-              ))}
-            </select>
-          </div>
+          <ul className="space-y-1.5 text-xs text-slate-600">
+            {roleContent.checkList.map((item) => (
+              <li key={item} className="flex items-start gap-2">
+                <CheckCircle2 size={13} className="mt-0.5 shrink-0 text-emerald-600" />
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
         </div>
+
+        {showScopeFilters ? (
+          <div className={cn("mt-4 grid gap-3 md:grid-cols-2", canSeeBranchDashboard ? "xl:grid-cols-4" : "xl:grid-cols-3")}>
+            {canSeeBranchDashboard ? (
+              <div>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Chi nhánh</label>
+                <Select value={selectedBranchId} onValueChange={setSelectedBranchId}>
+                  <SelectTrigger className="h-11 w-full rounded-2xl border border-gray-200 bg-white px-3 text-sm text-gray-700">
+                    <SelectValue placeholder="Tất cả chi nhánh / chưa chọn" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Tất cả chi nhánh / chưa chọn</SelectItem>
+                    {branchOptions.map((option) => (
+                      <SelectItem key={option.id} value={option.id}>{option.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
+
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Lớp học</label>
+              <Select value={selectedClassId} onValueChange={setSelectedClassId}>
+                <SelectTrigger className="h-11 w-full rounded-2xl border border-gray-200 bg-white px-3 text-sm text-gray-700">
+                  <SelectValue placeholder={loadingClasses ? "Đang tải lớp..." : "Chọn lớp"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">{loadingClasses ? "Đang tải lớp..." : "Chọn lớp"}</SelectItem>
+                  {classOptions.map((option) => (
+                    <SelectItem key={option.id} value={option.id}>{option.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Học viên</label>
+              <Select value={selectedStudentId} onValueChange={setSelectedStudentId}>
+                <SelectTrigger className="h-11 w-full rounded-2xl border border-gray-200 bg-white px-3 text-sm text-gray-700">
+                  <SelectValue placeholder={loadingStudents ? "Đang tải học viên..." : "Chọn học viên"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">{loadingStudents ? "Đang tải học viên..." : "Chọn học viên"}</SelectItem>
+                  {studentOptions.map((option) => (
+                    <SelectItem key={option.id} value={option.id}>{option.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Kỳ báo cáo</label>
+              <Select value={selectedPeriodId} onValueChange={setSelectedPeriodId}>
+                <SelectTrigger className="h-11 w-full rounded-2xl border border-gray-200 bg-white px-3 text-sm text-gray-700">
+                  <SelectValue placeholder="Chọn kỳ báo cáo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Chọn kỳ báo cáo</SelectItem>
+                  {periods.map((period) => (
+                    <SelectItem key={period.id} value={period.id}>{period.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <div className={cn("grid gap-2 text-sm text-slate-700", canSeeBranchDashboard ? "md:grid-cols-2 xl:grid-cols-4" : "md:grid-cols-3")}>
+              {canSeeBranchDashboard ? (
+                <div><span className="text-slate-500">Chi nhánh:</span> <span className="font-medium">{scopeLabel.branch}</span></div>
+              ) : null}
+              <div><span className="text-slate-500">Lớp:</span> <span className="font-medium">{scopeLabel.className}</span></div>
+              <div><span className="text-slate-500">Học viên:</span> <span className="font-medium">{scopeLabel.student}</span></div>
+              <div><span className="text-slate-500">Kỳ báo cáo:</span> <span className="font-medium">{scopeLabel.period}</span></div>
+            </div>
+          </div>
+        )}
 
         {pageError ? (
           <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{pageError}</div>
         ) : null}
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             type="button"
             onClick={() => setActiveTab(tab.id)}
             className={cn(
-              "inline-flex items-center gap-2 rounded-2xl border px-4 py-2.5 text-sm font-semibold transition",
+              "inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition",
               activeTab === tab.id
                 ? "border-red-700 bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm"
-                : "border-red-200 bg-white text-gray-700 hover:bg-red-50",
+                : "border-transparent bg-white text-gray-700 hover:border-red-100 hover:bg-red-50",
             )}
           >
             {tab.icon}
@@ -1093,7 +1290,7 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
         <div className="flex min-h-[320px] items-center justify-center rounded-3xl border border-gray-200 bg-white">
           <div className="flex items-center gap-3 text-sm text-gray-600">
             <Loader2 size={18} className="animate-spin" />
-            Đang tải Reports V3 workspace...
+            Đang tải không gian Báo cáo V3...
           </div>
         </div>
       ) : null}
@@ -1101,67 +1298,98 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
       {!loadingBoot && activeTab === "dashboard" ? (
         <div className="space-y-6">
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <StatCard title="Reports" value={String(reportCount)} hint="History của học viên đang chọn" tone="red" icon={<FileBarChart size={18} />} />
-            <StatCard title="Open Risks" value={String(openRiskAlerts.length)} hint="Risk alert ở lớp đang chọn" tone="amber" icon={<AlertTriangle size={18} />} />
-            <StatCard title="Pending Recs" value={String(pendingRecommendations.length)} hint="Recommendation đang chờ xử lý" tone="blue" icon={<ClipboardList size={18} />} />
-            <StatCard title="CS Follow-up" value={String(csRecommendations.length)} hint="Recommendation assigned cho CS" tone="green" icon={<Send size={18} />} />
+            <StatCard title="Báo cáo" value={String(reportCount)} hint="Lịch sử của học viên đang chọn" tone="red" icon={<FileBarChart size={18} />} />
+            <StatCard title="Rủi ro đang mở" value={String(openRiskAlerts.length)} hint="Cảnh báo rủi ro ở lớp đang chọn" tone="amber" icon={<AlertTriangle size={18} />} />
+            <StatCard title="Đề xuất chờ xử lý" value={String(pendingRecommendations.length)} hint="Đề xuất đang chờ xử lý" tone="blue" icon={<ClipboardList size={18} />} />
+            <StatCard title="Theo dõi CS" value={String(csRecommendations.length)} hint="Đề xuất giao cho CS" tone="green" icon={<Send size={18} />} />
           </div>
 
-          <SectionCard title="Class Academic Dashboard" subtitle="Đọc dữ liệu lớp đã chọn để xem pace, risk và remedial footprint." icon={<BookOpen size={18} />}>
-            {selectedClassId && classDashboard ? (
-              <div className="grid gap-4 lg:grid-cols-2">
-                <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-                  <div className="text-sm font-semibold text-gray-900">{classDashboard.className || "Lớp học"}</div>
-                  <div className="mt-3 grid gap-2 text-sm text-gray-700">
-                    <div>Tổng học viên: <span className="font-semibold">{formatScalar(classDashboard.totalStudents)}</span></div>
-                    <div>Risk students: <span className="font-semibold">{formatScalar(classDashboard.riskStudents)}</span></div>
-                    <div>Failed assessments: <span className="font-semibold">{formatScalar(classDashboard.failedAssessments)}</span></div>
-                    <div>Remedial required: <span className="font-semibold">{formatScalar(classDashboard.remedialRequired)}</span></div>
-                    <div>Review ratio: <span className="font-semibold">{formatPercent(classDashboard.classPacing?.reviewRatio)}</span></div>
-                    <div>Curriculum delay risk: <span className="font-semibold">{formatScalar(classDashboard.classPacing?.curriculumDelayRisk)}</span></div>
-                  </div>
-                </div>
-                <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-                  <div className="text-sm font-semibold text-gray-900">Weak students</div>
-                  <div className="mt-3 space-y-2">
-                    {classDashboard.weakStudents?.length ? classDashboard.weakStudents.map((item, index) => (
-                      <div key={`${item.studentId || index}`} className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm">
-                        <div className="font-medium text-gray-900">{item.studentName || "Học viên"}</div>
-                        <div className="text-gray-600">{item.reason || "Chưa có lý do chi tiết"}</div>
-                      </div>
-                    )) : <div className="text-sm text-gray-500">Chưa có weak student trong dashboard hiện tại.</div>}
-                  </div>
-                </div>
+          {canSeeBranchDashboard ? (
+            <div className="rounded-2xl border border-slate-200 bg-white p-3">
+              <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-800">
+                <Layers3 size={16} />
+                Tập trung xem dữ liệu
               </div>
-            ) : (
-              <EmptyState title="Chưa có dashboard lớp" description="Chọn lớp để tải academic dashboard và risk alerts." />
-            )}
-          </SectionCard>
+              <div className="flex flex-wrap gap-2">
+                {DASHBOARD_FOCUS_OPTIONS.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => setDashboardFocus(option.id)}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-medium transition",
+                      dashboardFocus === option.id
+                        ? "border-red-200 bg-red-50 text-red-700"
+                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
+                    )}
+                  >
+                    {option.icon}
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
-          <SectionCard title="Branch Dashboard" subtitle="Dành cho management/admin để theo dõi risk classes, package expiring và assessment fail count." icon={<Building2 size={18} />}>
-            {canSeeBranchDashboard && selectedBranchId && branchDashboard ? (
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">Active classes: <span className="font-semibold">{formatScalar(branchDashboard.totalActiveClasses)}</span></div>
-                <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">Active students: <span className="font-semibold">{formatScalar(branchDashboard.totalActiveStudents)}</span></div>
-                <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">Risk students: <span className="font-semibold">{formatScalar(branchDashboard.riskStudents)}</span></div>
-                <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">Risk classes: <span className="font-semibold">{formatScalar(branchDashboard.riskClasses)}</span></div>
-                <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">Package expiring: <span className="font-semibold">{formatScalar(branchDashboard.packageExpiringCount)}</span></div>
-                <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">Assessment fail: <span className="font-semibold">{formatScalar(branchDashboard.assessmentFailCount)}</span></div>
-              </div>
-            ) : (
-              <EmptyState title="Chưa có branch dashboard" description="Chọn chi nhánh để xem summary cấp center manager/academic manager." />
-            )}
-          </SectionCard>
+          {dashboardFocus === "class" || !canSeeBranchDashboard ? (
+            <SectionCard title="Tổng quan học thuật lớp" subtitle="Đọc dữ liệu lớp đã chọn để xem tiến độ, rủi ro và nhu cầu hỗ trợ." icon={<BookOpen size={18} />}>
+              {selectedClassId && classDashboard ? (
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                    <div className="text-sm font-semibold text-gray-900">{classDashboard.className || "Lớp học"}</div>
+                    <div className="mt-3 grid gap-2 text-sm text-gray-700">
+                      <div>Tổng học viên: <span className="font-semibold">{formatScalar(classDashboard.totalStudents)}</span></div>
+                      <div>Học viên có rủi ro: <span className="font-semibold">{formatScalar(classDashboard.riskStudents)}</span></div>
+                      <div>Đánh giá chưa đạt: <span className="font-semibold">{formatScalar(classDashboard.failedAssessments)}</span></div>
+                      <div>Cần hỗ trợ bổ sung: <span className="font-semibold">{formatScalar(classDashboard.remedialRequired)}</span></div>
+                      <div>Tỷ lệ ôn tập: <span className="font-semibold">{formatPercent(classDashboard.classPacing?.reviewRatio)}</span></div>
+                      <div>Rủi ro chậm giáo trình: <span className="font-semibold">{formatScalar(classDashboard.classPacing?.curriculumDelayRisk)}</span></div>
+                    </div>
+                  </div>
+                  <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                    <div className="text-sm font-semibold text-gray-900">Học viên cần hỗ trợ</div>
+                    <div className="mt-3 space-y-2">
+                      {classDashboard.weakStudents?.length ? classDashboard.weakStudents.map((item, index) => (
+                        <div key={`${item.studentId || index}`} className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm">
+                          <div className="font-medium text-gray-900">{item.studentName || "Học viên"}</div>
+                          <div className="text-gray-600">{item.reason || "Chưa có lý do chi tiết"}</div>
+                        </div>
+                      )) : <div className="text-sm text-gray-500">Hiện chưa có học viên cần hỗ trợ trong tổng quan này.</div>}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <EmptyState title="Chưa có tổng quan lớp" description="Chọn lớp để tải tổng quan học thuật và cảnh báo rủi ro." />
+              )}
+            </SectionCard>
+          ) : null}
+
+          {canSeeBranchDashboard && dashboardFocus === "branch" ? (
+            <SectionCard title="Tổng quan chi nhánh" subtitle="Dành cho quản lý và quản trị để theo dõi rủi ro lớp, gói sắp hết hạn và số ca đánh giá chưa đạt." icon={<Building2 size={18} />}>
+              {selectedBranchId && branchDashboard ? (
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">Lớp đang hoạt động: <span className="font-semibold">{formatScalar(branchDashboard.totalActiveClasses)}</span></div>
+                  <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">Học viên đang hoạt động: <span className="font-semibold">{formatScalar(branchDashboard.totalActiveStudents)}</span></div>
+                  <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">Học viên có rủi ro: <span className="font-semibold">{formatScalar(branchDashboard.riskStudents)}</span></div>
+                  <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">Lớp có rủi ro: <span className="font-semibold">{formatScalar(branchDashboard.riskClasses)}</span></div>
+                  <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">Gói sắp hết hạn: <span className="font-semibold">{formatScalar(branchDashboard.packageExpiringCount)}</span></div>
+                  <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">Đánh giá chưa đạt: <span className="font-semibold">{formatScalar(branchDashboard.assessmentFailCount)}</span></div>
+                </div>
+              ) : (
+                <EmptyState title="Chưa chọn chi nhánh" description="Chọn chi nhánh ở bộ lọc để hiển thị dashboard cấp quản lý." />
+              )}
+            </SectionCard>
+          ) : null}
         </div>
       ) : null}
 
       {!loadingBoot && activeTab === "generate" ? (
         <div className="space-y-6">
-          <SectionCard title="Generate Student Report" subtitle="Generate tạo snapshot immutable theo student + period + report type. Không chạm dữ liệu Attendance/Ticket/Progress cũ." icon={<Sparkles size={18} />}>
+          <SectionCard title="Tạo báo cáo học viên" subtitle="Tạo snapshot bất biến theo học viên + kỳ + loại báo cáo, không chạm dữ liệu điểm danh/vé học/tiến độ cũ." icon={<Sparkles size={18} />}>
             <div className="grid gap-4 lg:grid-cols-[1.2fr,0.8fr]">
               <div className="space-y-4 rounded-2xl border border-gray-200 bg-gray-50 p-4">
                 <div>
-                  <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">Report Type</label>
+                  <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">Loại báo cáo</label>
                   <div className="grid gap-3 md:grid-cols-3">
                     {Object.entries(REPORT_TYPE_LABELS).map(([key, label]) => (
                       <button
@@ -1177,7 +1405,7 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
                       >
                         <div className="text-sm font-semibold text-gray-900">{label}</div>
                         <div className="mt-1 text-xs text-gray-500">
-                          {key === "parent" ? "Ngôn ngữ nhẹ cho phụ huynh" : key === "academic" ? "Hiện risk, score, weakness cho academic" : "Internal only, không publish cho parent"}
+                          {key === "parent" ? "Ngôn ngữ thân thiện cho phụ huynh" : key === "academic" ? "Hiển thị rủi ro, điểm số, điểm yếu cho học thuật" : "Chỉ dùng nội bộ, không công bố phụ huynh"}
                         </div>
                       </button>
                     ))}
@@ -1185,12 +1413,12 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
                 </div>
 
                 <div className="rounded-2xl border border-dashed border-red-200 bg-white px-4 py-4 text-sm text-gray-700">
-                  <div className="font-semibold text-gray-900">Context hiện tại</div>
+                  <div className="font-semibold text-gray-900">Ngữ cảnh hiện tại</div>
                   <div className="mt-2 grid gap-2 md:grid-cols-2">
-                    <div>Branch: <span className="font-medium">{branchOptions.find((item) => item.id === selectedBranchId)?.label || "—"}</span></div>
-                    <div>Class: <span className="font-medium">{classOptions.find((item) => item.id === selectedClassId)?.label || "—"}</span></div>
-                    <div>Student: <span className="font-medium">{studentOptions.find((item) => item.id === selectedStudentId)?.label || "—"}</span></div>
-                    <div>Period: <span className="font-medium">{periods.find((item) => item.id === selectedPeriodId)?.name || "—"}</span></div>
+                    <div>Chi nhánh: <span className="font-medium">{branchOptions.find((item) => item.id === selectedBranchId)?.label || "—"}</span></div>
+                    <div>Lớp học: <span className="font-medium">{classOptions.find((item) => item.id === selectedClassId)?.label || "—"}</span></div>
+                    <div>Học viên: <span className="font-medium">{studentOptions.find((item) => item.id === selectedStudentId)?.label || "—"}</span></div>
+                    <div>Kỳ báo cáo: <span className="font-medium">{periods.find((item) => item.id === selectedPeriodId)?.name || "—"}</span></div>
                   </div>
                 </div>
               </div>
@@ -1199,14 +1427,14 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
                 <div className="flex items-start gap-3">
                   <div className="rounded-2xl bg-red-50 p-2 text-red-700"><FileText size={18} /></div>
                   <div>
-                    <div className="text-sm font-semibold text-gray-900">Generate checklist</div>
-                    <div className="mt-1 text-sm text-gray-500">Kiểm tra class/student/period trước khi chạy để tránh report sai scope.</div>
+                    <div className="text-sm font-semibold text-gray-900">Checklist trước khi tạo</div>
+                    <div className="mt-1 text-sm text-gray-500">Kiểm tra lớp/học viên/kỳ trước khi chạy để tránh sai phạm vi.</div>
                   </div>
                 </div>
                 <ul className="mt-4 space-y-2 text-sm text-gray-700">
-                  <li>Student report dùng cùng snapshot cho parent/academic/internal.</li>
-                  <li>Report cũ không đổi khi dữ liệu runtime thay đổi sau này.</li>
-                  <li>Publish cho parent là bước riêng, không chạy tự động sau generate.</li>
+                  <li>Một báo cáo học viên dùng chung snapshot cho bản phụ huynh/học thuật/nội bộ.</li>
+                  <li>Báo cáo cũ không thay đổi khi dữ liệu vận hành thay đổi về sau.</li>
+                  <li>Công bố cho phụ huynh là bước riêng, không tự động chạy sau khi tạo báo cáo.</li>
                 </ul>
                 <button
                   type="button"
@@ -1215,7 +1443,7 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
                   className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-3 text-sm font-semibold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {savingGenerate ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-                  Generate report
+                  Tạo báo cáo
                 </button>
               </div>
             </div>
@@ -1225,43 +1453,45 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
 
       {!loadingBoot && activeTab === "reports" ? (
         <div className="grid gap-6 xl:grid-cols-[1fr,1.2fr]">
-          <SectionCard title="Report History" subtitle="History của học viên đang chọn, tách riêng khỏi monthly/session report cũ." icon={<FileBarChart size={18} />}>
+          <SectionCard title="Lịch sử báo cáo" subtitle="Lịch sử của học viên đang chọn, tách riêng khỏi báo cáo tháng/buổi cũ." icon={<FileBarChart size={18} />}>
             <div className="space-y-3">
               <div className="grid gap-3 md:grid-cols-3">
                 <input
                   value={reportSearch}
                   onChange={(event) => setReportSearch(event.target.value)}
-                  placeholder="Tìm theo tên, lớp, type"
+                  placeholder="Tìm theo tên, lớp, loại báo cáo"
                   className="h-11 rounded-2xl border border-gray-200 px-3 text-sm text-gray-700 outline-none focus:border-red-300"
                 />
-                <select
-                  value={reportTypeFilter}
-                  onChange={(event) => setReportTypeFilter(event.target.value)}
-                  className="h-11 rounded-2xl border border-gray-200 px-3 text-sm text-gray-700 outline-none focus:border-red-300"
-                >
-                  <option value="">All types</option>
-                  <option value="parent">Parent</option>
-                  <option value="academic">Academic</option>
-                  <option value="internal">Internal</option>
-                </select>
-                <select
-                  value={reportStatusFilter}
-                  onChange={(event) => setReportStatusFilter(event.target.value)}
-                  className="h-11 rounded-2xl border border-gray-200 px-3 text-sm text-gray-700 outline-none focus:border-red-300"
-                >
-                  <option value="">All statuses</option>
-                  <option value="completed">Completed</option>
-                  <option value="processing">Processing</option>
-                  <option value="pending">Pending</option>
-                  <option value="failed">Failed</option>
-                  <option value="superseded">Superseded</option>
-                </select>
+                <Select value={reportTypeFilter} onValueChange={setReportTypeFilter}>
+                  <SelectTrigger className="h-11 rounded-2xl border border-gray-200 px-3 text-sm text-gray-700">
+                    <SelectValue placeholder="Tất cả loại báo cáo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Tất cả loại báo cáo</SelectItem>
+                    <SelectItem value="parent">{formatReportType("parent")}</SelectItem>
+                    <SelectItem value="academic">{formatReportType("academic")}</SelectItem>
+                    <SelectItem value="internal">{formatReportType("internal")}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={reportStatusFilter} onValueChange={setReportStatusFilter}>
+                  <SelectTrigger className="h-11 rounded-2xl border border-gray-200 px-3 text-sm text-gray-700">
+                    <SelectValue placeholder="Tất cả trạng thái" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Tất cả trạng thái</SelectItem>
+                    <SelectItem value="completed">{normalizeStatusLabel("completed")}</SelectItem>
+                    <SelectItem value="processing">{normalizeStatusLabel("processing")}</SelectItem>
+                    <SelectItem value="pending">{normalizeStatusLabel("pending")}</SelectItem>
+                    <SelectItem value="failed">{normalizeStatusLabel("failed")}</SelectItem>
+                    <SelectItem value="superseded">{normalizeStatusLabel("superseded")}</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               {loadingReports ? (
                 <div className="flex items-center gap-2 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4 text-sm text-gray-600">
                   <Loader2 size={16} className="animate-spin" />
-                  Đang tải report history...
+                  Đang tải lịch sử báo cáo...
                 </div>
               ) : filteredReports.length ? (
                 <div className="space-y-2">
@@ -1279,29 +1509,29 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
                     >
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
-                          <div className="font-semibold text-gray-900">{item.studentName || "Student report"}</div>
-                          <div className="mt-1 text-sm text-gray-500">{item.className || "No class"} • {item.reportType}</div>
+                          <div className="font-semibold text-gray-900">{item.studentName || "Báo cáo học viên"}</div>
+                          <div className="mt-1 text-sm text-gray-500">{item.className || "Chưa có lớp"} • {formatReportType(item.reportType)}</div>
                         </div>
                         <span className={cn("rounded-full border px-2.5 py-1 text-xs font-semibold", statusTone(item.status))}>
                           {normalizeStatusLabel(item.status)}
                         </span>
                       </div>
                       <div className="mt-2 flex flex-wrap gap-3 text-xs text-gray-500">
-                        <span>Created: {formatDateTime(item.createdAt)}</span>
-                        <span>Parent published: {item.isParentPublished ? "Yes" : "No"}</span>
+                        <span>Ngày tạo: {formatDateTime(item.createdAt)}</span>
+                        <span>Đã công bố phụ huynh: {item.isParentPublished ? "Có" : "Không"}</span>
                       </div>
                     </button>
                   ))}
                 </div>
               ) : (
-                <EmptyState title="Chưa có report history" description="Generate report đầu tiên hoặc chọn học viên khác để xem lịch sử." />
+                <EmptyState title="Chưa có lịch sử báo cáo" description="Tạo báo cáo đầu tiên hoặc chọn học viên khác để xem lịch sử." />
               )}
             </div>
           </SectionCard>
 
           <SectionCard
-            title="Report Detail"
-            subtitle="Snapshot immutable, insight, risk, recommendation và share log đều đọc từ report detail V3."
+            title="Chi tiết báo cáo"
+            subtitle="Snapshot bất biến, insight, rủi ro, đề xuất và nhật ký chia sẻ đều đọc từ chi tiết báo cáo V3."
             icon={<FileText size={18} />}
             action={
               <button
@@ -1311,45 +1541,45 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
                 }}
                 className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
               >
-                <RefreshCw size={14} /> Refresh
+                <RefreshCw size={14} /> Làm mới
               </button>
             }
           >
             {loadingDetail ? (
               <div className="flex items-center gap-2 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4 text-sm text-gray-600">
-                <Loader2 size={16} className="animate-spin" /> Đang tải chi tiết report...
+                <Loader2 size={16} className="animate-spin" /> Đang tải chi tiết báo cáo...
               </div>
             ) : reportDetail ? (
               <div className="space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
                   <div>
-                    <div className="text-lg font-semibold text-gray-900">{reportDetail.studentName || "Student report"}</div>
-                    <div className="mt-1 text-sm text-gray-500">{reportDetail.className || "No class"} • {reportDetail.reportType}</div>
+                    <div className="text-lg font-semibold text-gray-900">{reportDetail.studentName || "Báo cáo học viên"}</div>
+                    <div className="mt-1 text-sm text-gray-500">{reportDetail.className || "Chưa có lớp"} • {formatReportType(reportDetail.reportType)}</div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className={cn("rounded-full border px-2.5 py-1 text-xs font-semibold", statusTone(reportDetail.status))}>
                       {normalizeStatusLabel(reportDetail.status)}
                     </span>
                     {reportDetail.isParentPublished ? (
-                      <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">Parent published</span>
+                      <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">Đã công bố phụ huynh</span>
                     ) : null}
                   </div>
                 </div>
 
                 <div className="grid gap-3 lg:grid-cols-3">
                   <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                    <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Period</div>
+                    <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Kỳ báo cáo</div>
                     <div className="mt-2 text-sm text-gray-700">{reportDetail.reportPeriodName || "—"}</div>
                     <div className="mt-1 text-xs text-gray-500">{formatDate(reportDetail.reportPeriodFrom)} - {formatDate(reportDetail.reportPeriodTo)}</div>
                   </div>
                   <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                    <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Created</div>
+                    <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Thời gian tạo</div>
                     <div className="mt-2 text-sm text-gray-700">{formatDateTime(reportDetail.createdAt)}</div>
-                    <div className="mt-1 text-xs text-gray-500">Parent publish at: {formatDateTime(reportDetail.parentPublishedAt)}</div>
+                    <div className="mt-1 text-xs text-gray-500">Công bố phụ huynh lúc: {formatDateTime(reportDetail.parentPublishedAt)}</div>
                   </div>
                   <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                    <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Summary</div>
-                    <div className="mt-2 text-sm text-gray-700">{reportDetail.summaryText || "Chưa có summary text."}</div>
+                    <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Tóm tắt</div>
+                    <div className="mt-2 text-sm text-gray-700">{reportDetail.summaryText || "Chưa có phần tóm tắt."}</div>
                   </div>
                 </div>
 
@@ -1357,39 +1587,39 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
 
                 <div className="grid gap-4 xl:grid-cols-3">
                   <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                    <div className="text-sm font-semibold text-gray-900">Insights</div>
+                    <div className="text-sm font-semibold text-gray-900">Nhận định</div>
                     <div className="mt-3 space-y-2">
                       {reportDetail.insights?.length ? reportDetail.insights.map((item) => (
                         <div key={item.id} className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
-                          <div className="font-medium text-gray-900">{item.insightType}</div>
+                          <div className="font-medium text-gray-900">{formatInsightType(item.insightType)}</div>
                           <div className="mt-1">{item.content}</div>
                         </div>
-                      )) : <div className="text-sm text-gray-500">Chưa có insight.</div>}
+                      )) : <div className="text-sm text-gray-500">Chưa có nhận định.</div>}
                     </div>
                   </div>
                   <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                    <div className="text-sm font-semibold text-gray-900">Risks</div>
+                    <div className="text-sm font-semibold text-gray-900">Rủi ro</div>
                     <div className="mt-3 space-y-2">
                       {reportDetail.risks?.length ? reportDetail.risks.map((item) => (
                         <div key={item.id} className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
                           <div className="flex items-center justify-between gap-2">
-                            <div className="font-medium text-gray-900">{item.riskType}</div>
-                            <span className={cn("rounded-full border px-2 py-0.5 text-[11px] font-semibold", statusTone(item.severity))}>{item.severity}</span>
+                            <div className="font-medium text-gray-900">{formatRiskType(item.riskType)}</div>
+                            <span className={cn("rounded-full border px-2 py-0.5 text-[11px] font-semibold", statusTone(item.severity))}>{formatRiskSeverity(item.severity)}</span>
                           </div>
                           <div className="mt-1">{item.reason}</div>
                         </div>
-                      )) : <div className="text-sm text-gray-500">Chưa có risk alert trong detail.</div>}
+                      )) : <div className="text-sm text-gray-500">Chưa có cảnh báo rủi ro trong chi tiết.</div>}
                     </div>
                   </div>
                   <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                    <div className="text-sm font-semibold text-gray-900">Recommendations</div>
+                    <div className="text-sm font-semibold text-gray-900">Đề xuất</div>
                     <div className="mt-3 space-y-2">
                       {reportDetail.recommendations?.length ? reportDetail.recommendations.map((item) => (
                         <div key={item.id} className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
-                          <div className="font-medium text-gray-900">{item.assignedRole}</div>
+                          <div className="font-medium text-gray-900">{formatRecommendationRole(item.assignedRole)}</div>
                           <div className="mt-1">{item.content}</div>
                         </div>
-                      )) : <div className="text-sm text-gray-500">Chưa có recommendation trong detail.</div>}
+                      )) : <div className="text-sm text-gray-500">Chưa có đề xuất trong chi tiết.</div>}
                     </div>
                   </div>
                 </div>
@@ -1397,8 +1627,8 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
                 <div className="rounded-2xl border border-gray-200 bg-white p-4">
                   <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                     <div>
-                      <div className="text-sm font-semibold text-gray-900">Publish & Share</div>
-                      <div className="text-sm text-gray-500">Publish chỉ mở cho parent report ở trạng thái Completed. Share log không regenerate report.</div>
+                      <div className="text-sm font-semibold text-gray-900">Công bố và chia sẻ</div>
+                      <div className="text-sm text-gray-500">Chỉ được công bố khi báo cáo phụ huynh ở trạng thái hoàn thành. Chia sẻ chỉ tạo nhật ký, không tạo lại báo cáo.</div>
                     </div>
                     {canPublishToParent && normalizeText(reportDetail.reportType) === "parent" && normalizeText(reportDetail.status) === "completed" && !reportDetail.isParentPublished ? (
                       <button
@@ -1408,7 +1638,7 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
                         className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {publishingParent ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-                        Publish to parent
+                        Công bố cho phụ huynh
                       </button>
                     ) : null}
                   </div>
@@ -1417,25 +1647,26 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
                     <input
                       value={shareRecipientName}
                       onChange={(event) => setShareRecipientName(event.target.value)}
-                      placeholder="Recipient name"
+                      placeholder="Tên người nhận"
                       className="h-11 rounded-2xl border border-gray-200 px-3 text-sm text-gray-700 outline-none focus:border-red-300"
                     />
                     <input
                       value={shareRecipientContact}
                       onChange={(event) => setShareRecipientContact(event.target.value)}
-                      placeholder="Recipient contact"
+                      placeholder="Thông tin liên hệ người nhận"
                       className="h-11 rounded-2xl border border-gray-200 px-3 text-sm text-gray-700 outline-none focus:border-red-300"
                     />
-                    <select
-                      value={shareChannel}
-                      onChange={(event) => setShareChannel(event.target.value as ReportShareChannel)}
-                      className="h-11 rounded-2xl border border-gray-200 px-3 text-sm text-gray-700 outline-none focus:border-red-300"
-                    >
-                      <option value="app">App</option>
-                      <option value="email">Email</option>
-                      <option value="zalo">Zalo</option>
-                      <option value="sms">SMS</option>
-                    </select>
+                    <Select value={shareChannel} onValueChange={(value) => setShareChannel(value as ReportShareChannel)}>
+                      <SelectTrigger className="h-11 rounded-2xl border border-gray-200 px-3 text-sm text-gray-700">
+                        <SelectValue placeholder="Kênh chia sẻ" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="app">{formatShareChannel("app")}</SelectItem>
+                        <SelectItem value="email">{formatShareChannel("email")}</SelectItem>
+                        <SelectItem value="zalo">{formatShareChannel("zalo")}</SelectItem>
+                        <SelectItem value="sms">{formatShareChannel("sms")}</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <button
@@ -1445,29 +1676,29 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
                     className="mt-3 inline-flex items-center gap-2 rounded-2xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {sharingReport ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                    Create share log
+                    Tạo nhật ký chia sẻ
                   </button>
 
                   <div className="mt-4 space-y-2">
                     {reportDetail.shareLogs?.length ? reportDetail.shareLogs.map((item) => (
                       <div key={item.id} className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="font-medium text-gray-900">{item.recipientName} • {item.channel}</div>
+                          <div className="font-medium text-gray-900">{item.recipientName} • {formatShareChannel(item.channel)}</div>
                           <span className={cn("rounded-full border px-2 py-0.5 text-[11px] font-semibold", statusTone(item.status))}>{normalizeStatusLabel(item.status)}</span>
                         </div>
-                        <div className="mt-1 text-xs text-gray-500">Sent {formatDateTime(item.sentAt)} • Viewed {formatDateTime(item.viewedAt)}</div>
+                        <div className="mt-1 text-xs text-gray-500">Gửi lúc {formatDateTime(item.sentAt)} • Xem lúc {formatDateTime(item.viewedAt)}</div>
                       </div>
-                    )) : <div className="text-sm text-gray-500">Chưa có share log.</div>}
+                    )) : <div className="text-sm text-gray-500">Chưa có nhật ký chia sẻ.</div>}
                   </div>
                 </div>
 
                 <div className="rounded-2xl border border-gray-200 bg-slate-950 p-4 text-xs text-slate-100">
-                  <div className="mb-2 font-semibold text-white">Snapshot JSON</div>
+                  <div className="mb-2 font-semibold text-white">Dữ liệu snapshot (JSON)</div>
                   <pre className="overflow-x-auto whitespace-pre-wrap break-words">{JSON.stringify(reportDetail.snapshot ?? {}, null, 2)}</pre>
                 </div>
               </div>
             ) : (
-              <EmptyState title="Chưa chọn report" description="Chọn một report ở cột trái để xem snapshot, risk và recommendation." />
+              <EmptyState title="Chưa chọn báo cáo" description="Chọn một báo cáo ở cột trái để xem snapshot, rủi ro và đề xuất." />
             )}
           </SectionCard>
         </div>
@@ -1475,10 +1706,10 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
 
       {!loadingBoot && activeTab === "follow-up" ? (
         <div className="grid gap-6 xl:grid-cols-2">
-          <SectionCard title="Risk Alerts" subtitle="Đọc risk từ class dashboard và report detail, không update dữ liệu gốc." icon={<AlertTriangle size={18} />}>
+          <SectionCard title="Cảnh báo rủi ro" subtitle="Đọc rủi ro từ tổng quan lớp và chi tiết báo cáo, không cập nhật dữ liệu gốc." icon={<AlertTriangle size={18} />}>
             {loadingFollowUp ? (
               <div className="flex items-center gap-2 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4 text-sm text-gray-600">
-                <Loader2 size={16} className="animate-spin" /> Đang tải risk alerts...
+                <Loader2 size={16} className="animate-spin" /> Đang tải cảnh báo rủi ro...
               </div>
             ) : riskAlerts.length ? (
               <div className="space-y-2">
@@ -1486,11 +1717,11 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
                   <div key={item.id} className="rounded-2xl border border-gray-200 bg-white px-4 py-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
-                        <div className="font-semibold text-gray-900">{item.studentName || item.riskType}</div>
+                        <div className="font-semibold text-gray-900">{item.studentName || formatRiskType(item.riskType)}</div>
                         <div className="mt-1 text-sm text-gray-600">{item.reason}</div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className={cn("rounded-full border px-2.5 py-1 text-xs font-semibold", statusTone(item.severity))}>{item.severity}</span>
+                        <span className={cn("rounded-full border px-2.5 py-1 text-xs font-semibold", statusTone(item.severity))}>{formatRiskSeverity(item.severity)}</span>
                         <span className={cn("rounded-full border px-2.5 py-1 text-xs font-semibold", statusTone(item.status))}>{normalizeStatusLabel(item.status)}</span>
                       </div>
                     </div>
@@ -1498,22 +1729,22 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
                 ))}
               </div>
             ) : (
-              <EmptyState title="Chưa có risk alerts" description="Chọn lớp có dữ liệu rủi ro hoặc generate report để làm giàu follow-up." />
+              <EmptyState title="Chưa có cảnh báo rủi ro" description="Chọn lớp có dữ liệu rủi ro hoặc tạo báo cáo để làm giàu dữ liệu theo dõi." />
             )}
           </SectionCard>
 
-          <SectionCard title="Recommendations" subtitle="Action list theo role teacher / academic manager / cs / admin." icon={<BellRing size={18} />}>
+          <SectionCard title="Đề xuất hành động" subtitle="Danh sách hành động theo vai trò giáo viên / quản lý học thuật / CS / quản trị." icon={<BellRing size={18} />}>
             {recommendations.length ? (
               <div className="space-y-2">
                 {recommendations.map((item) => (
                   <div key={item.id} className="rounded-2xl border border-gray-200 bg-white px-4 py-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
-                        <div className="font-semibold text-gray-900">{item.studentName || "Recommendation"}</div>
+                        <div className="font-semibold text-gray-900">{item.studentName || "Đề xuất"}</div>
                         <div className="mt-1 text-sm text-gray-600">{item.content}</div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700">{item.assignedRole}</span>
+                        <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700">{formatRecommendationRole(item.assignedRole)}</span>
                         <span className={cn("rounded-full border px-2.5 py-1 text-xs font-semibold", statusTone(item.status))}>{normalizeStatusLabel(item.status)}</span>
                       </div>
                     </div>
@@ -1521,7 +1752,7 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
                 ))}
               </div>
             ) : (
-              <EmptyState title="Chưa có recommendations" description="Chọn học viên và generate report để lấy action list theo role." />
+              <EmptyState title="Chưa có đề xuất" description="Chọn học viên và tạo báo cáo để lấy danh sách hành động theo vai trò." />
             )}
           </SectionCard>
         </div>
@@ -1529,7 +1760,7 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
 
       {!loadingBoot && activeTab === "periods" && canManageCatalog ? (
         <div className="grid gap-6 xl:grid-cols-[1fr,0.9fr]">
-          <SectionCard title="Report Periods" subtitle="Weekly, monthly, module, custom. Generate dùng start/end date của period." icon={<CalendarClock size={18} />}>
+          <SectionCard title="Danh mục kỳ báo cáo" subtitle="Theo tuần, tháng, mô-đun hoặc tùy chỉnh. Tạo báo cáo sẽ dùng mốc ngày của kỳ." icon={<CalendarClock size={18} />}>
             {periods.length ? (
               <div className="space-y-2">
                 {periods.map((item) => (
@@ -1537,7 +1768,7 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
                         <div className="font-semibold text-gray-900">{item.name}</div>
-                        <div className="mt-1 text-sm text-gray-500">{item.code} • {item.type} • {formatDate(item.startDate)} - {formatDate(item.endDate)}</div>
+                        <div className="mt-1 text-sm text-gray-500">{item.code} • {formatPeriodType(item.type)} • {formatDate(item.startDate)} - {formatDate(item.endDate)}</div>
                       </div>
                       <div className="flex gap-2">
                         <button
@@ -1552,7 +1783,7 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
                           })}
                           className="rounded-2xl border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
                         >
-                          Edit
+                          Chỉnh sửa
                         </button>
                         {role === "admin" ? (
                           <button
@@ -1560,7 +1791,7 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
                             onClick={() => void handleDeletePeriod(item.id)}
                             className="rounded-2xl border border-rose-200 px-3 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50"
                           >
-                            Delete
+                            Xóa
                           </button>
                         ) : null}
                       </div>
@@ -1569,17 +1800,22 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
                 ))}
               </div>
             ) : (
-              <EmptyState title="Chưa có period" description="Tạo kỳ báo cáo đầu tiên để chạy generate theo mốc thời gian rõ ràng." />
+              <EmptyState title="Chưa có kỳ báo cáo" description="Tạo kỳ báo cáo đầu tiên để chạy tạo báo cáo theo mốc thời gian rõ ràng." />
             )}
           </SectionCard>
 
-          <SectionCard title={periodDraft.id ? "Edit Period" : "Create Period"} subtitle="Management có thể create/update period. Delete chỉ mở cho admin." icon={<FileText size={18} />}>
+          <SectionCard title={periodDraft.id ? "Chỉnh sửa kỳ báo cáo" : "Tạo kỳ báo cáo"} subtitle="Quản lý có thể tạo/cập nhật kỳ báo cáo. Quyền xóa chỉ mở cho quản trị viên." icon={<FileText size={18} />}>
             <div className="space-y-3">
-              <input value={periodDraft.code} onChange={(event) => setPeriodDraft((current) => ({ ...current, code: event.target.value }))} placeholder="Code" className="h-11 w-full rounded-2xl border border-gray-200 px-3 text-sm text-gray-700 outline-none focus:border-red-300" />
-              <input value={periodDraft.name} onChange={(event) => setPeriodDraft((current) => ({ ...current, name: event.target.value }))} placeholder="Name" className="h-11 w-full rounded-2xl border border-gray-200 px-3 text-sm text-gray-700 outline-none focus:border-red-300" />
-              <select value={periodDraft.type} onChange={(event) => setPeriodDraft((current) => ({ ...current, type: event.target.value as ReportPeriodType }))} className="h-11 w-full rounded-2xl border border-gray-200 px-3 text-sm text-gray-700 outline-none focus:border-red-300">
-                {PERIOD_TYPE_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}
-              </select>
+              <input value={periodDraft.code} onChange={(event) => setPeriodDraft((current) => ({ ...current, code: event.target.value }))} placeholder="Mã kỳ báo cáo" className="h-11 w-full rounded-2xl border border-gray-200 px-3 text-sm text-gray-700 outline-none focus:border-red-300" />
+              <input value={periodDraft.name} onChange={(event) => setPeriodDraft((current) => ({ ...current, name: event.target.value }))} placeholder="Tên kỳ báo cáo" className="h-11 w-full rounded-2xl border border-gray-200 px-3 text-sm text-gray-700 outline-none focus:border-red-300" />
+              <Select value={periodDraft.type} onValueChange={(value) => setPeriodDraft((current) => ({ ...current, type: value as ReportPeriodType }))}>
+                <SelectTrigger className="h-11 w-full rounded-2xl border border-gray-200 px-3 text-sm text-gray-700">
+                  <SelectValue placeholder="Loại kỳ báo cáo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PERIOD_TYPE_OPTIONS.map((item) => <SelectItem key={item} value={item}>{formatPeriodType(item)}</SelectItem>)}
+                </SelectContent>
+              </Select>
               <div className="grid gap-3 md:grid-cols-2">
                 <input type="date" value={periodDraft.startDate} onChange={(event) => setPeriodDraft((current) => ({ ...current, startDate: event.target.value }))} className="h-11 rounded-2xl border border-gray-200 px-3 text-sm text-gray-700 outline-none focus:border-red-300" />
                 <input type="date" value={periodDraft.endDate} onChange={(event) => setPeriodDraft((current) => ({ ...current, endDate: event.target.value }))} className="h-11 rounded-2xl border border-gray-200 px-3 text-sm text-gray-700 outline-none focus:border-red-300" />
@@ -1587,9 +1823,9 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
               <div className="flex flex-wrap gap-2">
                 <button type="button" onClick={handleSavePeriod} disabled={savingPeriod} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
                   {savingPeriod ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-                  Save period
+                  Lưu kỳ báo cáo
                 </button>
-                <button type="button" onClick={() => setPeriodDraft(defaultPeriodDraft())} className="rounded-2xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">Reset</button>
+                <button type="button" onClick={() => setPeriodDraft(defaultPeriodDraft())} className="rounded-2xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">Đặt lại</button>
               </div>
             </div>
           </SectionCard>
@@ -1598,7 +1834,7 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
 
       {!loadingBoot && activeTab === "templates" && canManageCatalog ? (
         <div className="grid gap-6 xl:grid-cols-[1fr,1fr]">
-          <SectionCard title="Report Templates" subtitle="Template type parent/academic/internal phục vụ render report. Class/branch hiện chỉ lưu và quản trị." icon={<FileText size={18} />}>
+          <SectionCard title="Danh mục mẫu báo cáo" subtitle="Mẫu phụ huynh/học thuật/nội bộ phục vụ render báo cáo. Mẫu lớp/chi nhánh dùng cho quản trị." icon={<FileText size={18} />}>
             {templates.length ? (
               <div className="space-y-2">
                 {templates.map((item) => (
@@ -1606,7 +1842,7 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
                         <div className="font-semibold text-gray-900">{item.name}</div>
-                        <div className="mt-1 text-sm text-gray-500">{item.code} • {item.type} • {item.isActive ? "Active" : "Inactive"}</div>
+                        <div className="mt-1 text-sm text-gray-500">{item.code} • {formatTemplateType(item.type)} • {item.isActive ? "Đang dùng" : "Ngừng dùng"}</div>
                       </div>
                       <div className="flex gap-2">
                         <button
@@ -1621,7 +1857,7 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
                           })}
                           className="rounded-2xl border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
                         >
-                          View
+                          Xem
                         </button>
                         {canEditTemplates ? (
                           <button
@@ -1629,7 +1865,7 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
                             onClick={() => void handleDeleteTemplate(item.id)}
                             className="rounded-2xl border border-rose-200 px-3 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50"
                           >
-                            Delete
+                            Xóa
                           </button>
                         ) : null}
                       </div>
@@ -1638,29 +1874,34 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
                 ))}
               </div>
             ) : (
-              <EmptyState title="Chưa có template" description="Nếu backend không có template active đúng loại, hệ thống có thể auto-create default template khi generate." />
+              <EmptyState title="Chưa có mẫu báo cáo" description="Nếu backend không có mẫu đúng loại đang hoạt động, hệ thống có thể tự tạo mẫu mặc định khi tạo báo cáo." />
             )}
           </SectionCard>
 
-          <SectionCard title={canEditTemplates ? (templateDraft.id ? "Edit Template" : "Create Template") : "Template Detail"} subtitle={canEditTemplates ? "Admin mới được CRUD template. Management giữ mode read-only." : "Read-only cho management để review content schema."} icon={<Sparkles size={18} />}>
+          <SectionCard title={canEditTemplates ? (templateDraft.id ? "Chỉnh sửa mẫu báo cáo" : "Tạo mẫu báo cáo") : "Chi tiết mẫu báo cáo"} subtitle={canEditTemplates ? "Chỉ quản trị viên được tạo/sửa/xóa mẫu báo cáo. Quản lý ở chế độ chỉ đọc." : "Chế độ chỉ đọc cho quản lý để rà soát schema nội dung."} icon={<Sparkles size={18} />}>
             <div className="space-y-3">
-              <input value={templateDraft.code} onChange={(event) => setTemplateDraft((current) => ({ ...current, code: event.target.value }))} placeholder="Code" disabled={!canEditTemplates} className="h-11 w-full rounded-2xl border border-gray-200 px-3 text-sm text-gray-700 outline-none disabled:bg-gray-50 focus:border-red-300" />
-              <input value={templateDraft.name} onChange={(event) => setTemplateDraft((current) => ({ ...current, name: event.target.value }))} placeholder="Name" disabled={!canEditTemplates} className="h-11 w-full rounded-2xl border border-gray-200 px-3 text-sm text-gray-700 outline-none disabled:bg-gray-50 focus:border-red-300" />
-              <select value={templateDraft.type} onChange={(event) => setTemplateDraft((current) => ({ ...current, type: event.target.value as ReportTemplateType }))} disabled={!canEditTemplates} className="h-11 w-full rounded-2xl border border-gray-200 px-3 text-sm text-gray-700 outline-none disabled:bg-gray-50 focus:border-red-300">
-                {TEMPLATE_TYPE_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}
-              </select>
+              <input value={templateDraft.code} onChange={(event) => setTemplateDraft((current) => ({ ...current, code: event.target.value }))} placeholder="Mã mẫu báo cáo" disabled={!canEditTemplates} className="h-11 w-full rounded-2xl border border-gray-200 px-3 text-sm text-gray-700 outline-none disabled:bg-gray-50 focus:border-red-300" />
+              <input value={templateDraft.name} onChange={(event) => setTemplateDraft((current) => ({ ...current, name: event.target.value }))} placeholder="Tên mẫu báo cáo" disabled={!canEditTemplates} className="h-11 w-full rounded-2xl border border-gray-200 px-3 text-sm text-gray-700 outline-none disabled:bg-gray-50 focus:border-red-300" />
+              <Select value={templateDraft.type} onValueChange={(value) => setTemplateDraft((current) => ({ ...current, type: value as ReportTemplateType }))} disabled={!canEditTemplates}>
+                <SelectTrigger className="h-11 w-full rounded-2xl border border-gray-200 px-3 text-sm text-gray-700 disabled:bg-gray-50">
+                  <SelectValue placeholder="Loại mẫu báo cáo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TEMPLATE_TYPE_OPTIONS.map((item) => <SelectItem key={item} value={item}>{formatTemplateType(item)}</SelectItem>)}
+                </SelectContent>
+              </Select>
               <label className="flex items-center gap-2 rounded-2xl border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-700">
                 <input type="checkbox" checked={templateDraft.isActive} onChange={(event) => setTemplateDraft((current) => ({ ...current, isActive: event.target.checked }))} disabled={!canEditTemplates} />
-                Active template
+                Kích hoạt mẫu báo cáo
               </label>
               <textarea value={templateDraft.contentSchema} onChange={(event) => setTemplateDraft((current) => ({ ...current, contentSchema: event.target.value }))} disabled={!canEditTemplates} rows={16} className="w-full rounded-2xl border border-gray-200 px-3 py-3 text-sm text-gray-700 outline-none disabled:bg-gray-50 focus:border-red-300" />
               {canEditTemplates ? (
                 <div className="flex flex-wrap gap-2">
                   <button type="button" onClick={handleSaveTemplate} disabled={savingTemplate} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
                     {savingTemplate ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-                    Save template
+                    Lưu mẫu báo cáo
                   </button>
-                  <button type="button" onClick={() => setTemplateDraft(defaultTemplateDraft())} className="rounded-2xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">Reset</button>
+                  <button type="button" onClick={() => setTemplateDraft(defaultTemplateDraft())} className="rounded-2xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">Đặt lại</button>
                 </div>
               ) : null}
             </div>
@@ -1669,7 +1910,7 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
       ) : null}
 
       {!loadingBoot && activeTab === "risk-rules" && canEditRiskRules ? (
-        <SectionCard title="Risk Rule Config" subtitle="Rule MVP cho low_attendance, academic_fail, package_expiring, class_curriculum_delay..." icon={<ShieldAlert size={18} />}>
+        <SectionCard title="Cấu hình luật rủi ro" subtitle="Bộ luật MVP cho các nhóm low_attendance, academic_fail, package_expiring, class_curriculum_delay..." icon={<ShieldAlert size={18} />}>
           {riskRules.length ? (
             <div className="grid gap-4 xl:grid-cols-2">
               {riskRules.map((item) => {
@@ -1683,8 +1924,8 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
                   <div key={item.riskType} className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <div className="font-semibold text-gray-900">{item.riskType}</div>
-                        <div className="mt-1 text-sm text-gray-500">Backend score {item.score}</div>
+                        <div className="font-semibold text-gray-900">{formatRiskType(item.riskType)}</div>
+                        <div className="mt-1 text-sm text-gray-500">Điểm hệ thống: {item.score}</div>
                       </div>
                       <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
                         <input
@@ -1695,14 +1936,14 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
                             [item.riskType]: { ...draft, isActive: event.target.checked },
                           }))}
                         />
-                        Active
+                        Đang kích hoạt
                       </label>
                     </div>
                     <div className="mt-4 grid gap-3">
-                      <input value={draft.score} onChange={(event) => setRiskRuleDrafts((current) => ({ ...current, [item.riskType]: { ...draft, score: event.target.value } }))} placeholder="Score 0..100" className="h-11 rounded-2xl border border-gray-200 px-3 text-sm text-gray-700 outline-none focus:border-red-300" />
+                      <input value={draft.score} onChange={(event) => setRiskRuleDrafts((current) => ({ ...current, [item.riskType]: { ...draft, score: event.target.value } }))} placeholder="Điểm 0..100" className="h-11 rounded-2xl border border-gray-200 px-3 text-sm text-gray-700 outline-none focus:border-red-300" />
                       <textarea value={draft.parametersJson} onChange={(event) => setRiskRuleDrafts((current) => ({ ...current, [item.riskType]: { ...draft, parametersJson: event.target.value } }))} rows={8} className="rounded-2xl border border-gray-200 px-3 py-3 text-sm text-gray-700 outline-none focus:border-red-300" />
                       <button type="button" onClick={() => void handleSaveRiskRule(item.riskType)} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white">
-                        <CheckCircle2 size={14} /> Save rule
+                        <CheckCircle2 size={14} /> Lưu luật
                       </button>
                     </div>
                   </div>
@@ -1710,7 +1951,7 @@ export default function ReportsV3Workspace({ role }: { role: InternalRole }) {
               })}
             </div>
           ) : (
-            <EmptyState title="Chưa có risk rules" description="Backend chưa trả về risk rule config nào cho Reports V3." />
+            <EmptyState title="Chưa có luật rủi ro" description="Backend chưa trả về cấu hình luật rủi ro nào cho Báo cáo V3." />
           )}
         </SectionCard>
       ) : null}

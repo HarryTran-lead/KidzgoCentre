@@ -14,6 +14,7 @@ import {
 import ChildSelector from "@/components/portal/parent/ChildSelector";
 import { toast } from "@/hooks/use-toast";
 import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
+import { extractApiError } from "@/lib/api/extractApiError";
 import {
   getParentReport,
   getStudentReportById,
@@ -27,22 +28,18 @@ import type {
   StudentReportListItemDto,
 } from "@/types/reports-v3";
 
+const REPORT_TYPE_LABELS: Record<string, string> = {
+  parent: "Báo cáo phụ huynh",
+  academic: "Báo cáo học thuật",
+  internal: "Báo cáo nội bộ",
+};
+
 function cn(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(" ");
 }
 
 function getErrMsg(error: unknown, fallback: string) {
-  const payload = error as {
-    response?: {
-      data?: {
-        detail?: string;
-        message?: string;
-      };
-    };
-    message?: string;
-  };
-
-  return payload?.response?.data?.detail || payload?.response?.data?.message || payload?.message || fallback;
+  return extractApiError(error, fallback);
 }
 
 function formatDateTime(value?: string | null) {
@@ -61,6 +58,21 @@ function formatScalar(value?: string | number | boolean | null) {
   if (value === null || value === undefined || value === "") return "—";
   if (typeof value === "boolean") return value ? "Có" : "Không";
   return String(value);
+}
+
+function normalizeText(value?: string | null) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function formatReportType(value?: string | null) {
+  const key = normalizeText(value);
+  return REPORT_TYPE_LABELS[key] || (value || "Báo cáo");
+}
+
+function isPublishedParentReport(report?: { reportType?: string; isParentPublished?: boolean }): boolean {
+  if (!report) return false;
+  const isParentType = !report.reportType || normalizeText(report.reportType) === "parent";
+  return isParentType && report.isParentPublished === true;
 }
 
 function ParentStatCard({
@@ -133,9 +145,9 @@ function ParentSnapshotCard({ snapshot }: { snapshot?: ReportsV3Snapshot | null 
       </div>
       <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
         <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Kỹ năng</div>
-        <div className="mt-2 text-sm text-gray-700">Speaking: {formatScalar(evaluation?.speaking)}</div>
-        <div className="mt-1 text-sm text-gray-700">Confidence: {formatScalar(evaluation?.confidence)}</div>
-        <div className="mt-1 text-sm text-gray-700">Participation: {formatScalar(evaluation?.participation)}</div>
+        <div className="mt-2 text-sm text-gray-700">Nói: {formatScalar(evaluation?.speaking)}</div>
+        <div className="mt-1 text-sm text-gray-700">Tự tin: {formatScalar(evaluation?.confidence)}</div>
+        <div className="mt-1 text-sm text-gray-700">Tham gia: {formatScalar(evaluation?.participation)}</div>
       </div>
       <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 md:col-span-2">
         <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Thông điệp gửi phụ huynh</div>
@@ -233,7 +245,8 @@ export default function ParentReportsV3Workspace() {
       let parentView: ParentReportViewResponse | null = null;
       for (const studentId of candidateIds) {
         try {
-          parentView = await getParentReport(studentId);
+          const response = await getParentReport(studentId);
+          parentView = isPublishedParentReport(response) ? response : null;
           if (parentView?.reportId || parentView?.snapshot || parentView?.summaryText) {
             break;
           }
@@ -250,8 +263,12 @@ export default function ParentReportsV3Workspace() {
             pageSize: 30,
             reportType: "parent",
           });
-          if (response.items.length) {
-            historyItems = response.items;
+          const onlyPublishedParent = response.items
+            .filter((item) => isPublishedParentReport(item))
+            .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+
+          if (onlyPublishedParent.length) {
+            historyItems = onlyPublishedParent;
             break;
           }
         } catch {
@@ -261,13 +278,22 @@ export default function ParentReportsV3Workspace() {
 
       setParentReport(parentView);
       setHistory(historyItems);
-      setActiveReportId((current) => current || parentView?.reportId || historyItems[0]?.id || "");
+      setActiveReportId((current) => {
+        const availableIds = new Set(historyItems.map((item) => item.id));
+        if (parentView?.reportId) {
+          availableIds.add(parentView.reportId);
+        }
+        if (current && availableIds.has(current)) {
+          return current;
+        }
+        return parentView?.reportId || historyItems[0]?.id || "";
+      });
 
-      if (parentView?.reportId) {
+      if (parentView?.reportId && isPublishedParentReport(parentView)) {
         void markReportViewed(parentView.reportId).catch(() => undefined);
       }
     } catch (loadError) {
-      setError(getErrMsg(loadError, "Không thể tải parent reports."));
+      setError(getErrMsg(loadError, "Không thể tải báo cáo phụ huynh."));
       setParentReport(null);
       setHistory([]);
       setActiveReportId("");
@@ -285,11 +311,20 @@ export default function ParentReportsV3Workspace() {
 
     try {
       const detail = await getStudentReportById(activeReportId);
+      if (!isPublishedParentReport(detail)) {
+        setActiveReportDetail(null);
+        toast.warning({
+          title: "Không khả dụng",
+          description: "Báo cáo này chưa được công bố cho phụ huynh hoặc không phải bản phụ huynh.",
+        });
+        return;
+      }
+
       setActiveReportDetail(detail);
       void markReportViewed(activeReportId).catch(() => undefined);
     } catch (detailError) {
       setActiveReportDetail(null);
-      toast.warning({ title: "Không mở được detail", description: getErrMsg(detailError, "Không thể tải chi tiết report phụ huynh.") });
+      toast.warning({ title: "Không mở được chi tiết", description: getErrMsg(detailError, "Không thể tải chi tiết báo cáo phụ huynh.") });
     }
   }, [activeReportId]);
 
@@ -315,7 +350,7 @@ export default function ParentReportsV3Workspace() {
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Báo cáo học tập V3</h1>
               <p className="mt-1 max-w-3xl text-sm text-gray-600">
-                Bản phụ huynh chỉ hiển thị báo cáo đã publish, tập trung vào tiến bộ, hỗ trợ cần thiết và gợi ý tiếp theo.
+                Bản phụ huynh chỉ hiển thị báo cáo đã công bố, tập trung vào tiến bộ, hỗ trợ cần thiết và gợi ý tiếp theo.
               </p>
             </div>
           </div>
@@ -323,7 +358,7 @@ export default function ParentReportsV3Workspace() {
         </div>
 
         <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          Báo cáo phụ huynh dùng snapshot immutable. Nếu giáo viên chỉnh dữ liệu sau thời điểm generate, báo cáo cũ vẫn không thay đổi.
+          Báo cáo phụ huynh dùng snapshot bất biến. Nếu giáo viên chỉnh dữ liệu sau thời điểm tạo, báo cáo cũ vẫn không thay đổi.
         </div>
       </div>
 
@@ -332,16 +367,16 @@ export default function ParentReportsV3Workspace() {
       {loading ? (
         <div className="flex min-h-[280px] items-center justify-center rounded-3xl border border-gray-200 bg-white">
           <div className="flex items-center gap-2 text-sm text-gray-600">
-            <Loader2 size={16} className="animate-spin" /> Đang tải parent reports...
+            <Loader2 size={16} className="animate-spin" /> Đang tải báo cáo phụ huynh...
           </div>
         </div>
       ) : (
         <>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <ParentStatCard title="Attendance" value={formatPercent(snapshot?.attendance_summary?.attendance_rate)} hint="Tỷ lệ tham gia trong kỳ" icon={<CheckCircle2 size={18} />} tone="red" />
-            <ParentStatCard title="Progress" value={formatPercent(snapshot?.learning_progress?.completion_percent)} hint="Mức độ hoàn thành hiện tại" icon={<TrendingUp size={18} />} tone="blue" />
-            <ParentStatCard title="Assessment" value={formatScalar(snapshot?.assessment_summary?.latest_result)} hint="Kết quả gần nhất" icon={<Target size={18} />} tone="green" />
-            <ParentStatCard title="Recommendations" value={String(recommendationCount)} hint="Gợi ý hỗ trợ tiếp theo" icon={<MessageSquare size={18} />} tone="amber" />
+            <ParentStatCard title="Điểm danh" value={formatPercent(snapshot?.attendance_summary?.attendance_rate)} hint="Tỷ lệ tham gia trong kỳ" icon={<CheckCircle2 size={18} />} tone="red" />
+            <ParentStatCard title="Tiến độ" value={formatPercent(snapshot?.learning_progress?.completion_percent)} hint="Mức độ hoàn thành hiện tại" icon={<TrendingUp size={18} />} tone="blue" />
+            <ParentStatCard title="Đánh giá" value={formatScalar(snapshot?.assessment_summary?.latest_result)} hint="Kết quả gần nhất" icon={<Target size={18} />} tone="green" />
+            <ParentStatCard title="Đề xuất" value={String(recommendationCount)} hint="Gợi ý hỗ trợ tiếp theo" icon={<MessageSquare size={18} />} tone="amber" />
           </div>
 
           <div className="grid gap-6 xl:grid-cols-[0.9fr,1.1fr]">
@@ -350,7 +385,7 @@ export default function ParentReportsV3Workspace() {
                 <div className="rounded-2xl bg-red-50 p-2 text-red-700"><BookOpen size={18} /></div>
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900">Tổng quan mới nhất</h2>
-                  <p className="mt-1 text-sm text-gray-500">Parent report hiện tại của học viên được chọn.</p>
+                  <p className="mt-1 text-sm text-gray-500">Báo cáo phụ huynh hiện tại của học viên được chọn.</p>
                 </div>
               </div>
 
@@ -358,7 +393,7 @@ export default function ParentReportsV3Workspace() {
                 <div className="space-y-4">
                   <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
                     <div className="font-semibold text-gray-900">{selectedProfile?.displayName || "Học viên"}</div>
-                    <div className="mt-1 text-sm text-gray-500">Latest published parent report</div>
+                    <div className="mt-1 text-sm text-gray-500">Báo cáo phụ huynh mới nhất đã công bố</div>
                   </div>
                   <ParentSnapshotCard snapshot={parentReport?.snapshot} />
                   <div className="rounded-2xl border border-gray-200 bg-white p-4">
@@ -368,7 +403,7 @@ export default function ParentReportsV3Workspace() {
                 </div>
               ) : (
                 <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-8 text-center text-sm text-gray-500">
-                  Chưa có parent report được publish cho học viên này.
+                  Chưa có báo cáo phụ huynh nào được công bố cho học viên này.
                 </div>
               )}
 
@@ -388,14 +423,14 @@ export default function ParentReportsV3Workspace() {
                             : "border-gray-200 bg-white hover:bg-gray-50",
                         )}
                       >
-                        <div className="font-semibold text-gray-900">{item.reportType} • {formatDateTime(item.createdAt)}</div>
+                        <div className="font-semibold text-gray-900">{formatReportType(item.reportType)} • {formatDateTime(item.createdAt)}</div>
                         <div className="mt-1 text-sm text-gray-500">{item.className || "Không có lớp"}</div>
                       </button>
                     ))}
                   </div>
                 ) : (
                   <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">
-                    Chưa có lịch sử report đã publish.
+                    Chưa có lịch sử báo cáo đã công bố.
                   </div>
                 )}
               </div>
@@ -406,7 +441,7 @@ export default function ParentReportsV3Workspace() {
                 <div className="rounded-2xl bg-red-50 p-2 text-red-700"><Sparkles size={18} /></div>
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900">Chi tiết báo cáo</h2>
-                  <p className="mt-1 text-sm text-gray-500">Chỉ hiển thị nội dung phù hợp cho phụ huynh, không lộ internal notes.</p>
+                  <p className="mt-1 text-sm text-gray-500">Chỉ hiển thị nội dung phù hợp cho phụ huynh, không lộ ghi chú nội bộ.</p>
                 </div>
               </div>
 

@@ -46,7 +46,7 @@ export function staffManagerMenu(root: string, locale: Locale = "vi"): MenuItem[
         [t.reportRequests, Send, "/report-requests"],
         [t.monthlyReport, FileText, "/feedback/monthly"],
         [t.sessionReport, CalendarRange, "/feedback/session"],
-        ["Reports V3", FileText, "/reports-v3"],
+        ["Báo cáo V3", FileText, "/reports-v3"],
       ],
     },
     [t.tickets, MessageSquare, "/tickets"],

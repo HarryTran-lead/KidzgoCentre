@@ -47,7 +47,7 @@ export function teacherMenu(root: string, locale: Locale = "vi"): MenuItem[] {
       items: [
         [t.feedbackMonthly, FileText, "/feedback/monthly-report"],
         [t.feedbackSession, CalendarRange, "/feedback/session-report"],
-        ["Reports V3", FileText, "/reports-v3"],
+        ["Báo cáo V3", FileText, "/reports-v3"],
       ] as RawItem[],
     },
     [t.reportRequests, Send, "/report-requests"],

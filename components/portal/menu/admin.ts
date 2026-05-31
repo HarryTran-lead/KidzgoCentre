@@ -89,7 +89,7 @@ export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
         href: root + "/feedback/session",
       },
       {
-        label: "Reports V3",
+        label: "Báo cáo V3",
         icon: BarChart3,
         href: root + "/reports-v3",
       },
