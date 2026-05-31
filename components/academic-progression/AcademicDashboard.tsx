@@ -7,6 +7,7 @@ import {
   BookOpen,
   CheckCircle2,
   RefreshCw,
+  Search,
   TrendingDown,
   TrendingUp,
   Users,
@@ -18,6 +19,7 @@ export default function AcademicDashboard() {
   const [dashboard, setDashboard] = useState<StudentProgressDashboardDto | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const loadDashboard = useCallback(async () => {
     setLoading(true);
@@ -38,30 +40,42 @@ export default function AcademicDashboard() {
         {
           label: "Đang học",
           value: dashboard.inProgressStudents,
-          icon: <TrendingUp className="h-5 w-5 text-blue-500" />,
-          bg: "bg-blue-50",
-          text: "text-blue-700",
+          icon: <TrendingUp className="h-5 w-5 text-white" />,
+          bg: "bg-gradient-to-br from-white to-red-50/30",
+          text: "text-red-700",
+          iconBg: "bg-blue-600",
+          borderColor: "border-red-100",
+          gradient: "from-red-600 to-red-700",
         },
         {
           label: "Hoàn thành",
           value: dashboard.completedStudents,
-          icon: <CheckCircle2 className="h-5 w-5 text-green-500" />,
-          bg: "bg-green-50",
-          text: "text-green-700",
+          icon: <CheckCircle2 className="h-5 w-5 text-white" />,
+          bg: "bg-gradient-to-br from-white to-red-50/30",
+          text: "text-red-700",
+          iconBg: "bg-emerald-600",
+          borderColor: "border-red-100",
+          gradient: "from-red-600 to-red-700",
         },
         {
           label: "Cần phụ đạo",
           value: dashboard.remedialRequiredStudents,
-          icon: <AlertTriangle className="h-5 w-5 text-orange-500" />,
-          bg: "bg-orange-50",
-          text: "text-orange-700",
+          icon: <AlertTriangle className="h-5 w-5 text-white" />,
+          bg: "bg-gradient-to-br from-white to-red-50/30",
+          text: "text-red-700",
+          iconBg: "bg-amber-500",
+          borderColor: "border-red-100",
+          gradient: "from-red-600 to-red-700",
         },
         {
           label: "Không lên lớp",
           value: dashboard.failedPromotions,
-          icon: <TrendingDown className="h-5 w-5 text-red-500" />,
-          bg: "bg-red-50",
+          icon: <TrendingDown className="h-5 w-5 text-white" />,
+          bg: "bg-gradient-to-br from-white to-red-50/30",
           text: "text-red-700",
+          iconBg: "bg-red-600",
+          borderColor: "border-red-100",
+          gradient: "from-red-600 to-red-700",
         },
       ]
     : [];
@@ -69,23 +83,36 @@ export default function AcademicDashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-100">
-            <BarChart3 className="h-5 w-5 text-red-600" />
+      <div className="rounded-2xl border border-red-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-100">
+              <BarChart3 className="h-5 w-5 text-red-600" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-gray-800">Academic Dashboard</h1>
+              <p className="text-sm text-gray-500">Theo dõi tiến trình học thuật toàn trung tâm</p>
+            </div>
           </div>
-          <div>
-            <h2 className="font-bold text-gray-800">Academic Dashboard</h2>
-            <p className="text-xs text-gray-500">Theo dõi tiến trình học thuật toàn trung tâm</p>
-          </div>
+          <button
+            onClick={loadDashboard}
+            className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 hover:border-gray-300 transition-all cursor-pointer shrink-0"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Làm mới
+          </button>
         </div>
-        <button
-          onClick={loadDashboard}
-          className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-50"
-        >
-          <RefreshCw className="h-3 w-3" />
-          Làm mới
-        </button>
+      </div>
+
+      {/* Filter Bar */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+        <input
+          className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-4 text-sm focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-100 transition-all"
+          placeholder="Tìm kiếm học sinh, module, hoặc lớp..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
       </div>
 
       {error && (
@@ -100,15 +127,24 @@ export default function AcademicDashboard() {
       ) : (
         <>
           {/* Stats grid */}
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {stats.map((stat) => (
-              <div key={stat.label} className={`rounded-2xl border p-5 ${stat.bg}`}>
-                <div className="flex items-center justify-between mb-2">
-                  {stat.icon}
-                  <Users className="h-3.5 w-3.5 text-gray-400" />
+              <div key={stat.label} className={`relative overflow-hidden rounded-2xl border ${stat.borderColor} bg-gradient-to-br from-white ${stat.bg} p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102`}>
+                <div className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r ${stat.gradient}`}></div>
+                <div className="flex items-center justify-between">
+                  <div className={`rounded-lg ${stat.iconBg} p-2.5 transition-all duration-300`}>
+                    {stat.icon}
+                  </div>
+                  <span className="text-2xl font-bold text-gray-800">
+                    {stat.value}
+                  </span>
                 </div>
-                <p className={`text-2xl font-bold ${stat.text}`}>{stat.value}</p>
-                <p className="text-xs text-gray-600 mt-0.5">{stat.label}</p>
+                <p className="mt-2 text-sm font-semibold text-gray-700">
+                  {stat.label}
+                </p>
+                <p className="mt-0.5 text-xs text-gray-400">
+                  {stat.value} sinh viên
+                </p>
               </div>
             ))}
           </div>
