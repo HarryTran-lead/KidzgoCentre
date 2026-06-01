@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   CheckCircle,
   GitMerge,
+  Layers,
   Loader2,
   Pencil,
   Plus,
+  Search,
+  Tag,
   Trash2,
   X,
   XCircle,
@@ -34,6 +37,33 @@ import {
 
 function cn(...a: Array<string | false | null | undefined>) {
   return a.filter(Boolean).join(" ");
+}
+
+function StatCard({
+  title,
+  value,
+  icon,
+  color,
+}: {
+  title: string;
+  value: string;
+  icon: React.ReactNode;
+  color: string;
+}) {
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-105">
+      <div className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r ${color}`}></div>
+      <div className="relative flex items-center justify-between gap-3">
+        <div className={`p-2 rounded-xl bg-gradient-to-r ${color} text-white shadow-sm flex-shrink-0`}>
+          {icon}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-medium text-gray-600 truncate">{title}</div>
+          <div className="text-xl font-bold text-gray-900 leading-tight">{value}</div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 type FormData = {
@@ -120,18 +150,23 @@ function FormModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/55 backdrop-blur-sm">
+    <div 
+      className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/55 backdrop-blur-sm"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div className="w-full max-w-lg bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
-        <div className="bg-gradient-to-r from-orange-500 to-amber-600 p-5 flex items-center justify-between">
+        <div className="bg-gradient-to-r from-red-600 to-red-700 p-5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-white/20">
+            <div className="p-2 rounded-full bg-white/20">
               <GitMerge size={20} className="text-white" />
             </div>
             <div>
               <h2 className="text-lg font-bold text-white">
                 {mode === "edit" ? "Cập nhật quy tắc tương thích" : "Thêm quy tắc tương thích"}
               </h2>
-              <p className="text-xs text-orange-100">Loại vé học ↔ Loại slot</p>
+              <p className="text-xs text-red-100">Loại vé học ↔ Loại slot</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer">
@@ -141,7 +176,10 @@ function FormModal({
 
         <form onSubmit={submit} className="p-6 space-y-4">
           <div className="space-y-1">
-            <label className="text-sm font-semibold text-gray-700">
+            <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+              <span className="inline-flex items-center justify-center w-5 h-5 rounded-lg bg-red-100 text-red-600 flex-shrink-0">
+                <Tag size={14} />
+              </span>
               Loại vé học <span className="text-red-500">*</span>
             </label>
             <Select
@@ -170,6 +208,9 @@ function FormModal({
 
           <div className="space-y-1">
             <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+              <span className="inline-flex items-center justify-center w-5 h-5 rounded-lg bg-red-100 text-red-600 flex-shrink-0">
+                <Layers size={14} />
+              </span>
               Loại slot <span className="text-red-500">*</span>
               {mode === "create" && (
                 <span className="text-xs font-normal text-gray-400">(chọn được nhiều)</span>
@@ -187,7 +228,7 @@ function FormModal({
                     className={cn(
                       "flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors select-none",
                       checked
-                        ? "bg-blue-50 border border-blue-200"
+                        ? "bg-red-50 border border-red-200"
                         : "hover:bg-white border border-transparent"
                     )}
                   >
@@ -195,9 +236,9 @@ function FormModal({
                       type="checkbox"
                       checked={checked}
                       onChange={() => toggleSlotType(s.id)}
-                      className="w-4 h-4 accent-blue-600 cursor-pointer flex-shrink-0"
+                      className="w-4 h-4 accent-red-600 cursor-pointer flex-shrink-0"
                     />
-                    <span className="font-mono font-bold text-blue-700 text-xs w-32 flex-shrink-0">{s.code}</span>
+                    <span className="font-mono font-bold text-red-700 text-xs w-32 flex-shrink-0">{s.code}</span>
                     <span className="text-sm text-gray-700">{s.name}</span>
                   </label>
                 );
@@ -207,7 +248,10 @@ function FormModal({
           </div>
 
           <div className="p-4 rounded-xl bg-gray-50 border border-gray-200">
-            <label className="text-sm font-semibold text-gray-700 block mb-3">
+            <label className="text-sm font-semibold text-gray-700 block mb-3 flex items-center gap-2">
+              <span className="inline-flex items-center justify-center w-5 h-5 rounded-lg bg-red-100 text-red-600 flex-shrink-0">
+                <CheckCircle size={14} />
+              </span>
               Kết quả tương thích
             </label>
             <div className="flex gap-3">
@@ -250,7 +294,7 @@ function FormModal({
             </button>
             <button
               type="submit"
-              className="px-5 py-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-600 text-sm text-white font-semibold hover:shadow-lg transition-all cursor-pointer"
+              className="px-5 py-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-sm text-white font-semibold hover:shadow-lg transition-all cursor-pointer"
             >
               {mode === "edit" ? "Lưu thay đổi" : "Thêm rule"}
             </button>
@@ -267,6 +311,9 @@ export default function TicketCompatibilityPage() {
   const [ticketTypes, setTicketTypes] = useState<LearningTicketType[]>([]);
   const [slotTypes, setSlotTypes] = useState<SlotType[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isPageLoaded, setIsPageLoaded] = useState(false);
+  const [search, setSearch] = useState("");
+  const [filterCompatible, setFilterCompatible] = useState<"all" | "compatible" | "incompatible">("all");
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"create" | "edit">("create");
   const [editTarget, setEditTarget] = useState<TicketTypeCompatibility | null>(null);
@@ -289,10 +336,22 @@ export default function TicketCompatibilityPage() {
       toast({ title: "Lỗi", description: "Không thể tải dữ liệu.", variant: "destructive" });
     } finally {
       setLoading(false);
+      setIsPageLoaded(true);
     }
   };
 
   useEffect(() => { load(); }, []);
+
+  const filtered = items.filter(
+    (x) =>
+      (x.learningTicketTypeCode?.toLowerCase().includes(search.toLowerCase()) ||
+        x.learningTicketTypeName?.toLowerCase().includes(search.toLowerCase()) ||
+        x.slotTypeCode?.toLowerCase().includes(search.toLowerCase()) ||
+        x.slotTypeName?.toLowerCase().includes(search.toLowerCase())) &&
+      (filterCompatible === "all" ||
+        (filterCompatible === "compatible" && x.isCompatible) ||
+        (filterCompatible === "incompatible" && !x.isCompatible))
+  );
 
   const openCreate = () => {
     setModalMode("create");
@@ -400,91 +459,196 @@ export default function TicketCompatibilityPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <GitMerge size={24} className="text-orange-600" />
-            Tương thích vé học ↔ Slot
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Ma trận tương thích: vé nào học được lớp nào — mặc định tất cả pass nếu không có rule
-          </p>
+      {/* Header */}
+      <div className={`flex items-center justify-between flex-wrap gap-4 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
+        <div className="flex items-center gap-4">
+          <div className="rounded-xl bg-gradient-to-r from-red-600 to-red-700 p-3 text-white shadow-lg">
+            <GitMerge size={25} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Tương thích vé học ↔ Slot</h1>
+            <p className="text-sm text-gray-500 mt-1">Ma trận tương thích: vé nào học được lớp nào</p>
+          </div>
         </div>
         <button
           onClick={openCreate}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-600 text-sm text-white font-semibold hover:shadow-lg hover:shadow-orange-500/25 transition-all cursor-pointer"
+          className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer flex-shrink-0"
         >
           <Plus size={16} /> Thêm rule
         </button>
       </div>
 
-      {/* Info banner */}
-      <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-800">
-        <strong>Chính sách mặc định:</strong> Nếu vé hoặc slot không có type, hoặc chưa có quy tắc nào →{" "}
-        <span className="font-bold text-emerald-700">tương thích = true</span>.
-        Chỉ khi có quy tắc với <code className="bg-amber-100 px-1 rounded">isCompatible = false</code> thì mới từ chối.
+      {/* Stats Overview */}
+      <div className={`grid gap-4 md:grid-cols-3 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <StatCard
+          title="Tổng quy tắc"
+          value={items.length.toString()}
+          icon={<GitMerge size={20} />}
+          color="from-red-600 to-red-700"
+        />
+        <StatCard
+          title="Tương thích"
+          value={items.filter((x) => x.isCompatible).length.toString()}
+          icon={<CheckCircle size={20} />}
+          color="from-emerald-500 to-teal-500"
+        />
+        <StatCard
+          title="Không tương thích"
+          value={items.filter((x) => !x.isCompatible).length.toString()}
+          icon={<XCircle size={20} />}
+          color="from-amber-500 to-orange-500"
+        />
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+      {/* Info banner */}
+      {/* <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-sm text-red-800">
+        <strong>Chính sách mặc định:</strong> Nếu vé hoặc slot không có type, hoặc chưa có quy tắc nào →{" "}
+        <span className="font-bold text-emerald-700">tương thích = true</span>.
+        Chỉ khi có quy tắc với <code className="bg-red-100 px-1 rounded">isCompatible = false</code> thì mới từ chối.
+      </div> */}
+
+      {/* Filter Card */}
+      <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div className="space-y-4">
+          {/* Status Filter Tabs */}
+          <div className="flex flex-wrap gap-2 pb-4 border-b border-red-200">
+            {(["all", "compatible", "incompatible"] as const).map((status) => {
+              const counts: Record<typeof status, number> = {
+                all: items.length,
+                compatible: items.filter((s) => s.isCompatible).length,
+                incompatible: items.filter((s) => !s.isCompatible).length,
+              };
+
+              const labels: Record<typeof status, string> = {
+                all: "Tất cả",
+                compatible: "Tương thích",
+                incompatible: "Không tương thích",
+              };
+
+              const isActive = filterCompatible === status;
+              return (
+                <button
+                  key={status}
+                  onClick={() => setFilterCompatible(status)}
+                  className={cn(
+                    "px-4 py-2 rounded-xl border text-sm font-medium transition-all cursor-pointer",
+                    isActive
+                      ? "bg-gradient-to-r from-red-600 to-red-700 text-white border-red-600 shadow-md"
+                      : "bg-white border-red-200 text-gray-700 hover:bg-red-50",
+                  )}
+                >
+                  <span className="inline-flex items-center gap-2">
+                    {labels[status]}
+                    <span
+                      className={cn(
+                        "inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-semibold",
+                        isActive
+                          ? "bg-white/30 text-white"
+                          : "bg-red-50 text-red-600",
+                      )}
+                    >
+                      {counts[status]}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Search */}
+          <div className="flex gap-3 items-end">
+            <div className="flex-1">
+              <div className="relative">
+                <Search
+                  size={16}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Tìm kiếm code, tên..."
+                  className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-red-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Table Card */}
+      <div className={`rounded-2xl border border-red-200 bg-white shadow-sm overflow-hidden transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div className="border-b border-red-200 bg-gradient-to-r from-red-500/10 to-red-700/10 px-6 py-4">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="font-semibold text-gray-900">Danh sách quy tắc tương thích</h2>
+            </div>
+          </div>
+        </div>
         {loading ? (
           <div className="flex items-center justify-center py-16">
-            <Loader2 size={32} className="animate-spin text-orange-500" />
+            <Loader2 size={32} className="animate-spin text-red-500" />
           </div>
         ) : items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-gray-400">
             <GitMerge size={40} className="mb-3 opacity-30" />
-            <p className="font-medium">Chưa có compatibility rule nào</p>
-            <p className="text-sm mt-1">Mọi ticket đều compatible với mọi slot (default-pass)</p>
+            <p className="font-medium">Chưa có quy tắc nào</p>
+            <p className="text-sm mt-1">Mọi ticket đều tương thích với mọi slot (default-pass)</p>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+            <Search size={40} className="mb-3 opacity-30" />
+            <p className="font-medium">Không tìm thấy kết quả</p>
+            <p className="text-sm mt-1">Thử thay đổi bộ lọc hoặc tìm kiếm</p>
           </div>
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-100">
-                <th className="text-left px-5 py-3 font-semibold text-gray-600">Loại vé học</th>
-                <th className="text-left px-5 py-3 font-semibold text-gray-600">→</th>
-                <th className="text-left px-5 py-3 font-semibold text-gray-600">Loại slot</th>
-                <th className="text-left px-5 py-3 font-semibold text-gray-600">Kết quả</th>
-                <th className="px-5 py-3" />
+              <tr className="border-b border-red-200 bg-gradient-to-r from-red-50/80 to-red-100/30">
+                <th className="text-left px-6 py-4 font-semibold text-gray-700">Loại vé học</th>
+                <th className="text-left px-6 py-4 font-semibold text-gray-700">→</th>
+                <th className="text-left px-6 py-4 font-semibold text-gray-700">Loại slot</th>
+                <th className="text-left px-6 py-4 font-semibold text-gray-700">Kết quả</th>
+                <th className="px-6 py-4" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
-              {items.map((item) => (
-                <tr key={item.id} className="hover:bg-orange-50/30 transition-colors">
-                  <td className="px-5 py-3.5">
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-purple-100 text-purple-700 text-xs font-bold font-mono">
+            <tbody className="divide-y divide-red-100">
+              {filtered.map((item) => (
+                <tr key={item.id} className="hover:bg-red-50/40 transition-colors duration-200 group">
+                  <td className="px-6 py-4">
+                    <span className="inline-flex items-center px-3 py-1.5 rounded-lg bg-red-100 text-red-700 text-xs font-bold font-mono group-hover:bg-red-200 transition-colors">
                       {item.learningTicketTypeCode ?? item.learningTicketTypeId.slice(0, 8)}
                     </span>
                     {item.learningTicketTypeName && (
                       <span className="ml-2 text-gray-500 text-xs">{item.learningTicketTypeName}</span>
                     )}
                   </td>
-                  <td className="px-2 py-3.5 text-gray-400 font-bold">→</td>
-                  <td className="px-5 py-3.5">
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-blue-100 text-blue-700 text-xs font-bold font-mono">
+                  <td className="px-6 py-4 text-gray-400 font-bold">→</td>
+                  <td className="px-6 py-4">
+                    <span className="inline-flex items-center px-3 py-1.5 rounded-lg bg-red-100 text-red-700 text-xs font-bold font-mono group-hover:bg-red-200 transition-colors">
                       {item.slotTypeCode ?? item.slotTypeId.slice(0, 8)}
                     </span>
                     {item.slotTypeName && (
                       <span className="ml-2 text-gray-500 text-xs">{item.slotTypeName}</span>
                     )}
                   </td>
-                  <td className="px-5 py-3.5">
+                  <td className="px-6 py-4">
                     <CompatibleBadge value={item.isCompatible} />
                   </td>
-                  <td className="px-5 py-3.5">
+                  <td className="px-6 py-4">
                     <div className="flex items-center justify-end gap-2">
                       <button
                         onClick={() => openEdit(item)}
-                        className="p-1.5 rounded-lg hover:bg-orange-100 text-gray-500 hover:text-orange-600 transition-colors cursor-pointer"
+                        className="p-2 rounded-lg hover:bg-red-100 text-gray-400 hover:text-red-600 transition-all hover:scale-110 cursor-pointer"
                         title="Chỉnh sửa"
                       >
-                        <Pencil size={15} />
+                        <Pencil size={16} />
                       </button>
                       <button
                         onClick={() => setDeleteTarget(item)}
-                        className="p-1.5 rounded-lg hover:bg-red-50 text-gray-500 hover:text-red-600 transition-colors cursor-pointer"
+                        className="p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-all hover:scale-110 cursor-pointer"
                         title="Xóa"
                       >
-                        <Trash2 size={15} />
+                        <Trash2 size={16} />
                       </button>
                     </div>
                   </td>

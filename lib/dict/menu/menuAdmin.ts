@@ -47,6 +47,12 @@ export const menuAdmin = {
         cashbook: "Sổ quỹ",
         payroll: "Bảng lương",
       },
+      ticketing: {
+        title: "Vé học & Slot",
+        ticketTypes: "Loại vé học",
+        slotTypes: "Loại slot buổi học",
+        ticketSlotCompat: "Tương thích vé — slot",
+      },
       system: {
         title: "Hệ thống",
         accounts: "Quản lý tài khoản",
@@ -108,6 +114,12 @@ export const menuAdmin = {
         title: "Finance",
         cashbook: "Cashbook",
         payroll: "Payroll",
+      },
+      ticketing: {
+        title: "Tickets & Slots",
+        ticketTypes: "Ticket Types",
+        slotTypes: "Session Slot Types",
+        ticketSlotCompat: "Ticket-Slot Compatibility",
       },
       system: {
         title: "System",
