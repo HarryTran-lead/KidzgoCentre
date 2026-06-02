@@ -173,8 +173,41 @@ function mapApiProgramToRow(item: any): CourseRow {
       ? `${feeNumber.toLocaleString("vi-VN")} VND`
       : "Đang cập nhật";
 
-  const classes = "0 lớp";
-  const students = "0 học viên";
+  const toCount = (...values: unknown[]): number | null => {
+    for (const value of values) {
+      if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
+        return Math.trunc(value);
+      }
+      if (typeof value === "string" && value.trim()) {
+        const parsed = Number(value);
+        if (Number.isFinite(parsed) && parsed >= 0) {
+          return Math.trunc(parsed);
+        }
+      }
+    }
+    return null;
+  };
+
+  const classCount = toCount(
+    item?.classCount,
+    item?.classesCount,
+    item?.totalClasses,
+    item?.activeClasses,
+    item?.stats?.classCount,
+    item?.stats?.totalClasses,
+  );
+  const studentCount = toCount(
+    item?.studentCount,
+    item?.studentsCount,
+    item?.totalStudents,
+    item?.activeStudents,
+    item?.enrolledStudents,
+    item?.stats?.studentCount,
+    item?.stats?.totalStudents,
+  );
+
+  const classes = `${classCount ?? 0} lớp`;
+  const students = `${studentCount ?? 0} học viên`;
 
   let status: CourseRow["status"] = "Tạm dừng";
   const active = normalizeIsActive(item?.isActive ?? item?.status ?? item?.active);
@@ -191,6 +224,8 @@ function mapApiProgramToRow(item: any): CourseRow {
     fee,
     classes,
     students,
+    classCount: classCount ?? undefined,
+    studentCount: studentCount ?? undefined,
     status,
     assignedBranchCount,
     isMakeup: normalizeBooleanFlag(item?.isMakeup),

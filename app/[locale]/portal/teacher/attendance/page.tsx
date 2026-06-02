@@ -57,15 +57,14 @@ import {
 } from "@/app/api/teacher/sessionReport";
 import SessionNoteModal from "@/components/teacher/attendance/SessionNoteModal";
 import {
-  createLessonPlan,
   getClassLessonPlanSyllabus,
   getAllLessonPlanTemplates,
   getLessonPlanById,
   getSessionLessonPlanDocument,
   getLessonPlanTemplateById,
-  updateLessonPlan,
 } from "@/lib/api/lessonPlanService";
-import type { ClassLessonPlanSyllabusSession, LessonPlan, LessonPlanTemplate } from "@/lib/api/lessonPlanService";
+import type { ClassLessonPlanSyllabusSession, LessonPlan, LessonPlanTemplate, SessionLessonPlanDocument } from "@/lib/api/lessonPlanService";
+import { getTeachingLog, submitTeachingLog, updateTeachingLog } from "@/lib/api/sessionService";
 import { getSyllabusById, getSyllabusDocument } from "@/lib/api/syllabusService";
 import type { SyllabusDetail, SyllabusDocument } from "@/lib/api/syllabusService";
 import { buildFileUrl } from "@/constants/apiURL";
@@ -73,6 +72,7 @@ import LessonPlanTemplateDocument from "@/components/lesson-plans/LessonPlanTemp
 import SyllabusDetailModalBody from "@/components/lesson-plans/SyllabusDetailModalBody";
 import SyllabusSummaryPanel from "@/components/lesson-plans/SyllabusSummaryPanel";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/lightswind/resizable";
+import type { TeachingLog, TeachingProgressStatus, TeachingType } from "@/types/admin/sessions";
 
 type FilterField = {
   date: string;
@@ -160,6 +160,100 @@ const SESSION_COLOR_POOL = [
 
 const ZERO_GUID = "00000000-0000-0000-0000-000000000000";
 const GUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const TEACHING_TYPE_LABELS: Record<TeachingType, string> = {
+  normal: "Dạy mới",
+  review: "Ôn tập",
+  test: "Kiểm tra",
+  makeup: "Học bù",
+  event: "Sự kiện",
+  other: "Khác",
+};
+
+const TEACHING_TYPE_OPTIONS: { value: TeachingType; label: string }[] = [
+  { value: "normal", label: TEACHING_TYPE_LABELS.normal },
+  { value: "review", label: TEACHING_TYPE_LABELS.review },
+  { value: "test", label: TEACHING_TYPE_LABELS.test },
+  { value: "makeup", label: TEACHING_TYPE_LABELS.makeup },
+  { value: "event", label: TEACHING_TYPE_LABELS.event },
+  { value: "other", label: TEACHING_TYPE_LABELS.other },
+];
+
+const TEACHING_PROGRESS_LABELS: Record<TeachingProgressStatus, string> = {
+  completed: "Hoàn thành",
+  partial: "Dạy một phần",
+  not_started: "Chưa dạy",
+  skipped: "Bỏ qua",
+};
+
+const TEACHING_PROGRESS_OPTIONS: { value: TeachingProgressStatus; label: string; hint: string }[] = [
+  {
+    value: "completed",
+    label: TEACHING_PROGRESS_LABELS.completed,
+    hint: "Buổi học hoàn tất và sẽ consume lesson theo runtime progression.",
+  },
+  {
+    value: "partial",
+    label: TEACHING_PROGRESS_LABELS.partial,
+    hint: "Buổi học chỉ dạy một phần, chưa consume lesson hiện tại.",
+  },
+  {
+    value: "not_started",
+    label: TEACHING_PROGRESS_LABELS.not_started,
+    hint: "Chưa dạy nội dung planned của buổi này.",
+  },
+  {
+    value: "skipped",
+    label: TEACHING_PROGRESS_LABELS.skipped,
+    hint: "Bỏ qua buổi học; teacher note là bắt buộc để giải thích lý do.",
+  },
+];
+
+function normalizeGuidValue(value: unknown): string | null {
+  const raw = String(value ?? "").trim().replace(/[{}]/g, "");
+  if (!raw || raw === ZERO_GUID) return null;
+  if (GUID_REGEX.test(raw)) return raw;
+  return raw.length >= 8 ? raw : null;
+}
+
+function normalizeTeachingType(value: unknown): TeachingType | null {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (
+    normalized === "normal" ||
+    normalized === "review" ||
+    normalized === "test" ||
+    normalized === "makeup" ||
+    normalized === "event" ||
+    normalized === "other"
+  ) {
+    return normalized;
+  }
+
+  return null;
+}
+
+function normalizeTeachingProgressStatus(value: unknown): TeachingProgressStatus | null {
+  const normalized = String(value ?? "").trim().toLowerCase().replace(/\s+/g, "_");
+
+  if (normalized === "completed") return "completed";
+  if (normalized === "partial") return "partial";
+  if (normalized === "not_started" || normalized === "planned") return "not_started";
+  if (normalized === "skipped") return "skipped";
+
+  return null;
+}
+
+function isTeachingLogReadOnlyStatus(value: unknown): boolean {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  return normalized === "approved" || normalized === "locked";
+}
+
+function getApiErrorCode(error: any): string | undefined {
+  const payload = error?.response?.data ?? error?.data ?? null;
+  const firstError = Array.isArray(payload?.errors) ? payload.errors[0] : null;
+
+  return firstError?.code ?? payload?.code ?? payload?.errorCode ?? payload?.error?.code;
+}
 
 function getLocalIsoDate(date = new Date()): string {
   const year = date.getFullYear();
@@ -663,6 +757,23 @@ function parseTeachingJson(value?: string | null): Record<string, any> | null {
   try { return JSON.parse(value); } catch { return null; }
 }
 
+function getSourceDocumentLabel(sourceFileName?: string | null, sourceUrl?: string | null, fallback = "Mở/Tải source"): string {
+  const preferredName = String(sourceFileName ?? "").trim();
+  if (preferredName) return preferredName;
+
+  const rawUrl = String(sourceUrl ?? "").trim();
+  if (!rawUrl) return fallback;
+
+  const normalizedPath = rawUrl.split(/[?#]/)[0] || rawUrl;
+  const lastSegment = normalizedPath.split("/").filter(Boolean).pop() || fallback;
+
+  try {
+    return decodeURIComponent(lastSegment);
+  } catch {
+    return lastSegment;
+  }
+}
+
 function mapSyllabusDocumentToDetail(doc: SyllabusDocument): SyllabusDetail {
   const sections = Array.isArray(doc.sections) ? doc.sections : [];
   const headingSection = sections.find((section) => (section.type ?? "").toLowerCase() === "heading");
@@ -693,6 +804,7 @@ function mapSyllabusDocumentToDetail(doc: SyllabusDocument): SyllabusDetail {
     minutesPerPeriod: doc.summary?.minutesPerPeriod ?? null,
     totalLessons: doc.summary?.totalLessons ?? null,
     sourceFileName: doc.sourceFileName ?? null,
+    attachmentUrl: doc.attachmentUrl ?? null,
     rawContentJson: JSON.stringify(doc),
     units: [],
     lessons: [],
@@ -1405,16 +1517,22 @@ function mergeTeacherActivities(
     return actualActivities.length ? actualActivities : [createEmptyTeachingActivity()];
   }
 
-  return referenceActivities.map((reference, index) => {
-    const actual = actualActivities[index];
-    if (!actual) return reference;
+  const mergedCount = Math.max(referenceActivities.length, actualActivities.length);
+
+  return Array.from({ length: mergedCount }, (_, index) => {
+    const reference = referenceActivities[index] ?? createEmptyTeachingActivity();
+    const actual = actualActivities[index] ?? createEmptyTeachingActivity();
 
     return {
-      ...reference,
-      // Keep admin structure (time/book/skills), only overlay teacher-editable columns.
+      time: actual.time || reference.time,
+      book: actual.book || reference.book,
+      skills: actual.skills || reference.skills,
       classwork: actual.classwork || reference.classwork,
-      requiredMaterials: actual.requiredMaterials || reference.requiredMaterials,
-      homeworkRequiredMaterials: actual.homeworkRequiredMaterials || reference.homeworkRequiredMaterials,
+      requiredMaterials:
+        actual.requiredMaterials || reference.requiredMaterials,
+      homeworkRequiredMaterials:
+        actual.homeworkRequiredMaterials ||
+        reference.homeworkRequiredMaterials,
       extra: actual.extra || reference.extra,
     };
   });
@@ -1491,21 +1609,25 @@ export default function TeacherAttendancePage() {
   const [teachingReportLoading, setTeachingReportLoading] = useState(false);
   const [teachingReportSubmitting, setTeachingReportSubmitting] = useState(false);
   const [teachingReportError, setTeachingReportError] = useState<string | null>(null);
-  const [teachingReportPlan, setTeachingReportPlan] = useState<LessonPlan | null>(null);
+  const [teachingReportDocument, setTeachingReportDocument] = useState<SessionLessonPlanDocument | null>(null);
+  const [teachingLogRecord, setTeachingLogRecord] = useState<TeachingLog | null>(null);
   const [teachingReportTemplate, setTeachingReportTemplate] = useState<LessonPlanTemplate | null>(null);
   const [teachingReportSession, setTeachingReportSession] = useState<ClassLessonPlanSyllabusSession | null>(null);
   const [teachingReportSyllabusMetadata, setTeachingReportSyllabusMetadata] = useState<string | null>(null);
   const [teachingSyllabusDetail, setTeachingSyllabusDetail] = useState<SyllabusDetail | null>(null);
-  const [teachingSyllabusDetailLoading, setTeachingSyllabusDetailLoading] = useState(false);
-  const [teachingSyllabusDetailError, setTeachingSyllabusDetailError] = useState<string | null>(null);
+  const [, setTeachingSyllabusDetailLoading] = useState(false);
+  const [, setTeachingSyllabusDetailError] = useState<string | null>(null);
   const [teachingActualContent, setTeachingActualContent] = useState("");
   const [teachingActualHomework, setTeachingActualHomework] = useState("");
   const [teachingTeacherNotes, setTeachingTeacherNotes] = useState("");
+  const [teachingProgressStatus, setTeachingProgressStatus] = useState<TeachingProgressStatus>("completed");
+  const [teachingActualTeachingType, setTeachingActualTeachingType] = useState<TeachingType>("normal");
   const [teachingActivityDrafts, setTeachingActivityDrafts] = useState<TeachingActivityDraft[]>([createEmptyTeachingActivity()]);
   const [teachingModalView, setTeachingModalView] = useState<"syllabus" | "lessonPlan" | "teachingLog">("teachingLog");
   const [teachingReferenceTab, setTeachingReferenceTab] = useState<"syllabus" | "planned" | "materials">("syllabus");
-  const [teachingFullSyllabusOpen, setTeachingFullSyllabusOpen] = useState(false);
-  const [teachingLogCompact, setTeachingLogCompact] = useState(true);
+  const [teachingQuickReferenceView, setTeachingQuickReferenceView] = useState<"lessonPlan" | "syllabus">("lessonPlan");
+  const [teachingSyllabusSummaryPopoverOpen, setTeachingSyllabusSummaryPopoverOpen] = useState(false);
+  const [, setTeachingFullSyllabusOpen] = useState(false);
   const [teachingActivityErrors, setTeachingActivityErrors] = useState<Record<number, TeachingActivityErrors>>({});
   const [activeTeachingActivityIndex, setActiveTeachingActivityIndex] = useState(0);
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
@@ -1541,7 +1663,6 @@ export default function TeacherAttendancePage() {
       teachingReportTemplate?.sourceFileName,
     ) ?? "",
   ).trim();
-  const canOpenFullSyllabus = Boolean(teachingSyllabusId);
   const shouldRenderSharedSyllabusBody = shouldRenderAdminStyleSyllabus && Boolean(teachingSyllabusDetail);
   const teachingModalTitle = shouldRenderAdminStyleSyllabus
     ? (
@@ -1559,6 +1680,82 @@ export default function TeacherAttendancePage() {
       : teachingModalView === "lessonPlan"
         ? "Lesson Plan / Giáo án buổi học"
         : "Teaching Log / Nhật ký giảng dạy";
+
+  const resolvedTeachingLogId = useMemo(() => {
+    return (
+      normalizeGuidValue(teachingLogRecord?.teachingLogId) ??
+      normalizeGuidValue(teachingReportDocument?.teachingLogId) ??
+      normalizeGuidValue(selectedLesson?.teachingLogId) ??
+      null
+    );
+  }, [teachingLogRecord?.teachingLogId, teachingReportDocument?.teachingLogId, selectedLesson?.teachingLogId]);
+
+  const resolvedTeachingLogStatus =
+    teachingLogRecord?.teachingLogStatus ??
+    teachingReportDocument?.teachingLogStatus ??
+    selectedLesson?.teachingLogStatus ??
+    null;
+
+  const teachingLogReadOnly = useMemo(() => {
+    return isTeachingLogReadOnlyStatus(resolvedTeachingLogStatus);
+  }, [resolvedTeachingLogStatus]);
+
+  const resolvedTeachingTemplateId = useMemo(() => {
+    return (
+      normalizeGuidValue(teachingLogRecord?.actualLessonPlanTemplateId) ??
+      normalizeGuidValue(teachingReportDocument?.actualLessonPlanTemplateId) ??
+      normalizeGuidValue(teachingReportDocument?.plannedLessonPlanTemplateId) ??
+      normalizeGuidValue(teachingReportDocument?.lessonPlanTemplateId) ??
+      normalizeGuidValue(teachingReportTemplate?.id) ??
+      normalizeGuidValue(selectedLesson?.actualLessonPlanTemplateId) ??
+      normalizeGuidValue(selectedLesson?.plannedLessonPlanTemplateId) ??
+      normalizeGuidValue(selectedLesson?.lessonPlanTemplateId) ??
+      null
+    );
+  }, [
+    teachingLogRecord?.actualLessonPlanTemplateId,
+    teachingReportDocument?.actualLessonPlanTemplateId,
+    teachingReportDocument?.plannedLessonPlanTemplateId,
+    teachingReportDocument?.lessonPlanTemplateId,
+    teachingReportTemplate?.id,
+    selectedLesson?.actualLessonPlanTemplateId,
+    selectedLesson?.plannedLessonPlanTemplateId,
+    selectedLesson?.lessonPlanTemplateId,
+  ]);
+
+  const teachingTemplateGuardMessage = useMemo(() => {
+    if (!selectedSessionId || resolvedTeachingTemplateId) return null;
+
+    return "Session này chưa có planned lesson template ở runtime. Vui lòng nhờ backend backfill plannedLessonPlanTemplateId hoặc lessonPlanTemplateId trước khi lưu teaching log.";
+  }, [selectedSessionId, resolvedTeachingTemplateId]);
+
+  const selectedTeachingProgressOption = useMemo(() => {
+    return TEACHING_PROGRESS_OPTIONS.find((option) => option.value === teachingProgressStatus) ?? TEACHING_PROGRESS_OPTIONS[0];
+  }, [teachingProgressStatus]);
+
+  const activeTeachingActivity = useMemo(() => {
+    return teachingActivityDrafts[activeTeachingActivityIndex] ?? createEmptyTeachingActivity();
+  }, [teachingActivityDrafts, activeTeachingActivityIndex]);
+
+  const activeTeachingActivityErrors = useMemo(() => {
+    return teachingActivityErrors[activeTeachingActivityIndex] ?? {};
+  }, [teachingActivityErrors, activeTeachingActivityIndex]);
+
+  const isFirstTeachingActivity = activeTeachingActivityIndex <= 0;
+  const isLastTeachingActivity = activeTeachingActivityIndex >= Math.max(0, teachingActivityDrafts.length - 1);
+
+  const setActiveTeachingActivityField = useCallback((field: keyof TeachingActivityDraft, value: string) => {
+    setTeachingActivityDrafts((prev) => {
+      if (prev.length === 0) {
+        return [{ ...createEmptyTeachingActivity(), [field]: value }];
+      }
+
+      const safeIndex = Math.max(0, Math.min(activeTeachingActivityIndex, prev.length - 1));
+      const next = [...prev];
+      next[safeIndex] = { ...next[safeIndex], [field]: value };
+      return next;
+    });
+  }, [activeTeachingActivityIndex]);
 
   useEffect(() => {
     if (!teachingReportOpen || !shouldRenderAdminStyleSyllabus) return;
@@ -1675,6 +1872,52 @@ export default function TeacherAttendancePage() {
     return extractLessonPlanFallbackSections(source);
   }, [teachingReportSession?.plannedContent]);
 
+  const syllabusSourceHref = useMemo(() => {
+    return buildFileUrl(teachingSyllabusDetail?.attachmentUrl);
+  }, [teachingSyllabusDetail?.attachmentUrl]);
+
+  const syllabusSourceLabel = useMemo(() => {
+    return getSourceDocumentLabel(
+      teachingSyllabusDetail?.sourceFileName,
+      teachingSyllabusDetail?.attachmentUrl,
+      "Mở/Tải source syllabus",
+    );
+  }, [teachingSyllabusDetail?.attachmentUrl, teachingSyllabusDetail?.sourceFileName]);
+
+  const renderTeachingSourceLink = useCallback((
+    href: string,
+    label: string,
+    emptyMessage: string,
+    tone: "blue" | "violet",
+  ) => {
+    if (href) {
+      const toneClasses = tone === "blue"
+        ? "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
+        : "border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100";
+
+      return (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={label}
+          className={`inline-flex max-w-[320px] items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold transition-colors ${toneClasses}`}
+        >
+          <Download size={13} />
+          <span className="truncate">{label}</span>
+        </a>
+      );
+    }
+
+    return (
+      <div className="max-w-[320px] rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+        <div className="font-semibold uppercase tracking-wide">Source file</div>
+        <div className="mt-1 truncate font-medium">{label}</div>
+        <div className="mt-1 text-[11px]">{emptyMessage}</div>
+      </div>
+    );
+  }, []);
+
   const displayLessonPlanTemplate = useMemo<LessonPlanTemplate | null>(() => {
     if (teachingReportTemplate) return teachingReportTemplate;
 
@@ -1734,6 +1977,28 @@ export default function TeacherAttendancePage() {
     selectedLesson?.teacher,
     selectedSessionId,
   ]);
+
+  const lessonPlanSourceHref = useMemo(() => {
+    const candidates = [
+      displayLessonPlanTemplate?.attachment,
+      ...lessonPlanMediaLinks,
+    ];
+
+    for (const candidate of candidates) {
+      const resolved = buildFileUrl(candidate);
+      if (resolved) return resolved;
+    }
+
+    return "";
+  }, [displayLessonPlanTemplate?.attachment, lessonPlanMediaLinks]);
+
+  const lessonPlanSourceLabel = useMemo(() => {
+    return getSourceDocumentLabel(
+      displayLessonPlanTemplate?.sourceFileName,
+      displayLessonPlanTemplate?.attachment || lessonPlanMediaLinks[0] || null,
+      "Mở/Tải source giáo án",
+    );
+  }, [displayLessonPlanTemplate?.attachment, displayLessonPlanTemplate?.sourceFileName, lessonPlanMediaLinks]);
 
   const syllabusReferenceActivities = useMemo(() => {
     return extractTeachingActivitiesFromContent(teachingReportSession?.templateSyllabusContent);
@@ -1993,45 +2258,6 @@ export default function TeacherAttendancePage() {
             Activity #{activeTeachingActivityIndex + 1}
           </span>
         </div>
-
-        <div className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-blue-100 bg-blue-50/70 px-3 py-3">
-          <div className="space-y-1">
-            <div className="text-xs font-semibold uppercase tracking-wide text-blue-700">Khung buổi học hiện tại</div>
-            <div className="text-xs leading-5 text-gray-600">
-              Teacher đang xem đúng phần syllabus gắn với buổi đang chọn. Khi cần đối chiếu toàn bộ chương trình, dùng nút bên phải để mở full syllabus của cả lớp.
-            </div>
-          </div>
-          {canOpenFullSyllabus ? (
-            <button
-              type="button"
-              onClick={() => {
-                setTeachingSyllabusDetail(null);
-                setTeachingSyllabusDetailError(null);
-                setTeachingFullSyllabusOpen(true);
-                setTeachingModalView("syllabus");
-              }}
-              disabled={teachingSyllabusDetailLoading}
-              className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold cursor-pointer transition-colors ${
-                teachingSyllabusDetailLoading
-                  ? "border-blue-200 bg-blue-100 text-blue-700 opacity-70 cursor-wait"
-                  : "border-blue-200 bg-blue-100 text-blue-700 hover:bg-blue-200"
-              }`}
-            >
-              {teachingSyllabusDetailLoading ? <Loader2 size={13} className="animate-spin" /> : <BookOpen size={13} />}
-              {teachingSyllabusDetailLoading ? "Đang tải toàn bộ chương trình..." : "Xem toàn bộ chương trình"}
-            </button>
-          ) : (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
-              Buổi này chưa resolve được syllabusId để mở full syllabus.
-            </div>
-          )}
-        </div>
-
-        {teachingSyllabusDetailError ? (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
-            {teachingSyllabusDetailError}
-          </div>
-        ) : null}
 
         <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
           Teacher nên xem nhanh theo thứ tự: <strong>Chủ điểm</strong> &rarr; <strong>Hoạt động</strong> &rarr; <strong>Học liệu</strong> &rarr; <strong>BTVN</strong>.
@@ -2966,7 +3192,8 @@ export default function TeacherAttendancePage() {
     setTeachingReportOpen(true);
     setTeachingReportLoading(true);
     setTeachingReportError(null);
-    setTeachingReportPlan(null);
+    setTeachingReportDocument(null);
+    setTeachingLogRecord(null);
     setTeachingReportTemplate(null);
     setTeachingReportSession(null);
     setTeachingReportSyllabusMetadata(null);
@@ -2976,11 +3203,14 @@ export default function TeacherAttendancePage() {
     setTeachingActualContent("");
     setTeachingActualHomework("");
     setTeachingTeacherNotes("");
+    setTeachingProgressStatus("completed");
+    setTeachingActualTeachingType("normal");
     setTeachingActivityDrafts([createEmptyTeachingActivity()]);
     setTeachingModalView(initialView);
     setTeachingReferenceTab("syllabus");
+    setTeachingQuickReferenceView("lessonPlan");
+    setTeachingSyllabusSummaryPopoverOpen(false);
     setTeachingFullSyllabusOpen(shouldOpenFullSyllabus);
-    setTeachingLogCompact(true);
     setTeachingActivityErrors({});
     setActiveTeachingActivityIndex(0);
 
@@ -3116,6 +3346,7 @@ export default function TeacherAttendancePage() {
         setTeachingReportTemplate(resolvedTemplateForDisplay);
       }
 
+      setTeachingReportDocument(dedicatedLessonPlanDoc ?? null);
       setTeachingReportSession(
         enrichTeachingReportSessionWithTemplate(baseTeachingReportSession, resolvedTemplateForDisplay),
       );
@@ -3349,80 +3580,95 @@ export default function TeacherAttendancePage() {
         return String(template?.evaluation ?? "").trim();
       };
 
-      // If lesson plan already exists, load it
+      let existingPlan: LessonPlan | null = null;
       if (matchedSession.lessonPlanId) {
         const planResp = await getLessonPlanById(matchedSession.lessonPlanId);
         if (planResp.isSuccess && planResp.data) {
-          setTeachingReportPlan(planResp.data);
+          existingPlan = planResp.data;
           resolvedTemplateId = String(planResp.data.templateId ?? resolvedTemplateId ?? "").trim() || resolvedTemplateId;
-          const ac = planResp.data.actualContent || matchedSession.actualContent || "";
-          setTeachingActualContent(ac);
-          setTeachingActualHomework(planResp.data.actualHomework || matchedSession.actualHomework || "");
-          setTeachingTeacherNotes(planResp.data.teacherNotes || matchedSession.teacherNotes || "");
-
-          const actualDrafts = initDraftsFromContent(ac);
-          const plannedDrafts = initDraftsFromContent(matchedSession.plannedContent);
-          const templateDrafts = initDraftsFromContent(matchedSession.templateSyllabusContent);
-          const templateReferenceDrafts = buildTemplateReferenceDrafts(resolvedTemplateForDisplay);
-          const referenceDrafts = firstValidDrafts(plannedDrafts, templateDrafts, templateReferenceDrafts);
-
-          setTeachingActivityDrafts(mergeTeacherActivities(referenceDrafts, actualDrafts));
-
-          // Fallback text fields: actual -> planned -> template
-          setTeachingActualHomework(
-            (prev) =>
-              prev ||
-              initHomeworkFromContent(ac) ||
-              initHomeworkFromContent(matchedSession.plannedContent) ||
-              initHomeworkFromContent(matchedSession.templateSyllabusContent) ||
-              initHomeworkFromTemplate(resolvedTemplateForDisplay),
-          );
-          setTeachingTeacherNotes(
-            (prev) =>
-              prev ||
-              initNotesFromContent(ac) ||
-              initNotesFromContent(matchedSession.plannedContent) ||
-              initNotesFromContent(matchedSession.templateSyllabusContent) ||
-              initNotesFromTemplate(resolvedTemplateForDisplay),
-          );
-        }
-      } else {
-        // Create lesson plan automatically
-        const createResp = await createLessonPlan({
-          classId,
-          sessionId,
-          templateId: resolvedTemplateId || null,
-          plannedContent: null,
-          actualContent: null,
-          actualHomework: null,
-          teacherNotes: null,
-        });
-        if (createResp.isSuccess && createResp.data) {
-          setTeachingReportPlan(createResp.data);
-          resolvedTemplateId = String(createResp.data.templateId ?? resolvedTemplateId ?? "").trim() || resolvedTemplateId;
-
-          // Pre-fill from admin reference content (planned first, then template).
-          const plannedDrafts = initDraftsFromContent(matchedSession.plannedContent);
-          const templateDrafts = initDraftsFromContent(matchedSession.templateSyllabusContent);
-          const templateReferenceDrafts = buildTemplateReferenceDrafts(resolvedTemplateForDisplay);
-          const referenceDrafts = firstValidDrafts(plannedDrafts, templateDrafts, templateReferenceDrafts);
-          setTeachingActivityDrafts(referenceDrafts);
-          setTeachingActualHomework(
-            initHomeworkFromContent(matchedSession.plannedContent) ||
-            initHomeworkFromContent(matchedSession.templateSyllabusContent) ||
-            initHomeworkFromTemplate(resolvedTemplateForDisplay),
-          );
-          setTeachingTeacherNotes(
-            initNotesFromContent(matchedSession.plannedContent) ||
-            initNotesFromContent(matchedSession.templateSyllabusContent) ||
-            initNotesFromTemplate(resolvedTemplateForDisplay),
-          );
-        } else {
-          setTeachingReportError(
-            "Không thể tạo lesson plan cho buổi này. " + (createResp.message || "")
-          );
         }
       }
+
+      let existingTeachingLog: TeachingLog | null = null;
+      try {
+        const teachingLogResp = await getTeachingLog(sessionId);
+        const teachingLogData = teachingLogResp?.data ?? null;
+
+        if (teachingLogResp?.isSuccess !== false && teachingLogData) {
+          existingTeachingLog = teachingLogData;
+        }
+      } catch (err: any) {
+        if (err?.response?.status !== 404) {
+          throw err;
+        }
+      }
+
+      setTeachingLogRecord(existingTeachingLog);
+      setTeachingProgressStatus(
+        normalizeTeachingProgressStatus(
+          existingTeachingLog?.progressStatus ??
+          dedicatedLessonPlanDoc?.teachingProgressStatus ??
+          detailSession?.teachingProgressStatus ??
+          (selectedSession as any)?.teachingProgressStatus ??
+          selectedLesson?.teachingProgressStatus,
+        ) ?? "completed",
+      );
+      setTeachingActualTeachingType(
+        normalizeTeachingType(
+          existingTeachingLog?.actualTeachingType ??
+          dedicatedLessonPlanDoc?.actualTeachingType ??
+          detailSession?.actualTeachingType ??
+          (selectedSession as any)?.actualTeachingType ??
+          selectedLesson?.actualTeachingType,
+        ) ?? "normal",
+      );
+
+      const actualContentSource =
+        existingTeachingLog?.actualContent ??
+        existingPlan?.actualContent ??
+        matchedSession.actualContent ??
+        detailSession?.actualContent ??
+        "";
+      const actualHomeworkSource =
+        existingTeachingLog?.actualHomework ??
+        existingPlan?.actualHomework ??
+        matchedSession.actualHomework ??
+        detailSession?.actualHomework ??
+        "";
+      const teacherNoteSource =
+        existingTeachingLog?.teacherNote ??
+        existingPlan?.teacherNotes ??
+        matchedSession.teacherNotes ??
+        detailSession?.teacherNote ??
+        "";
+
+      setTeachingActualContent(actualContentSource);
+
+      const actualDrafts = initDraftsFromContent(actualContentSource);
+      const plannedDrafts = initDraftsFromContent(matchedSession.plannedContent);
+      const templateDrafts = initDraftsFromContent(matchedSession.templateSyllabusContent);
+      const templateReferenceDrafts = buildTemplateReferenceDrafts(resolvedTemplateForDisplay);
+      const referenceDrafts = firstValidDrafts(plannedDrafts, templateDrafts, templateReferenceDrafts);
+
+      setTeachingActivityDrafts(
+        actualDrafts.some(hasActivityContent)
+          ? mergeTeacherActivities(referenceDrafts, actualDrafts)
+          : referenceDrafts,
+      );
+      setTeachingActualHomework(
+        actualHomeworkSource ||
+        initHomeworkFromContent(actualContentSource) ||
+        initHomeworkFromContent(matchedSession.plannedContent) ||
+        initHomeworkFromContent(matchedSession.templateSyllabusContent) ||
+        initHomeworkFromTemplate(resolvedTemplateForDisplay),
+      );
+      setTeachingTeacherNotes(
+        teacherNoteSource ||
+        initNotesFromContent(actualContentSource) ||
+        initNotesFromContent(matchedSession.plannedContent) ||
+        initNotesFromContent(matchedSession.templateSyllabusContent) ||
+        initNotesFromTemplate(resolvedTemplateForDisplay),
+      );
 
       if (!hasDedicatedTemplate && !resolvedTemplateForDisplay && resolvedTemplateId) {
         const templateResp = await getLessonPlanTemplateById(resolvedTemplateId);
@@ -3489,7 +3735,14 @@ export default function TeacherAttendancePage() {
   ]);
 
   const handleSubmitTeachingReport = useCallback(async () => {
-    if (!teachingReportPlan?.id) return;
+    if (!selectedSessionId) return;
+    if (teachingTemplateGuardMessage) {
+      return;
+    }
+    if (teachingLogReadOnly) {
+      setTeachingReportError("Teaching log đã được phê duyệt hoặc khóa. Bạn chỉ có thể xem ở chế độ read-only.");
+      return;
+    }
 
     // Check if at least one activity has content
     const hasActivities = teachingActivityDrafts.some((a) =>
@@ -3527,6 +3780,11 @@ export default function TeacherAttendancePage() {
       return;
     }
 
+    if (teachingProgressStatus === "skipped" && !teachingTeacherNotes.trim()) {
+      setTeachingReportError("Khi chọn bỏ qua buổi học, vui lòng nhập teacher note để giải thích lý do.");
+      return;
+    }
+
     setTeachingActivityErrors({});
 
     setTeachingReportSubmitting(true);
@@ -3539,20 +3797,78 @@ export default function TeacherAttendancePage() {
         teachingTeacherNotes,
       );
 
-      const resp = await updateLessonPlan(teachingReportPlan.id, {
+      const payload = {
+        actualLessonPlanTemplateId: resolvedTeachingTemplateId,
+        actualTeachingType: teachingActualTeachingType,
+        progressStatus: teachingProgressStatus,
         actualContent: actualContentJson || null,
         actualHomework: teachingActualHomework.trim() || null,
-        teacherNotes: teachingTeacherNotes.trim() || null,
-      });
+        teacherNote: teachingTeacherNotes.trim() || null,
+      };
 
-      if (!resp.isSuccess) {
-        setTeachingReportError(resp.message || resp.detail || "Không thể lưu teaching log của buổi học.");
+      let resp;
+
+      try {
+        resp = resolvedTeachingLogId
+          ? await updateTeachingLog(selectedSessionId, payload)
+          : await submitTeachingLog(selectedSessionId, payload);
+      } catch (err: any) {
+        const errorCode = getApiErrorCode(err);
+
+        if (errorCode === "Session.MissingLessonTemplateForTeachingLog") {
+          setTeachingReportError(
+            teachingTemplateGuardMessage ||
+              "Session này chưa có planned lesson template ở runtime. Vui lòng nhờ backend backfill plannedLessonPlanTemplateId hoặc lessonPlanTemplateId trước khi lưu teaching log.",
+          );
+          return;
+        }
+
+        if (!resolvedTeachingLogId && (err?.response?.status === 409 || errorCode === "Session.TeachingLogAlreadyExists")) {
+          resp = await updateTeachingLog(selectedSessionId, payload);
+        } else if (resolvedTeachingLogId && (err?.response?.status === 404 || errorCode === "Session.TeachingLogNotFound")) {
+          resp = await submitTeachingLog(selectedSessionId, payload);
+        } else {
+          throw err;
+        }
+      }
+
+      if (!resp || resp.isSuccess === false || resp.success === false) {
+        setTeachingReportError(resp.message || "Không thể lưu teaching log của buổi học.");
         return;
+      }
+
+      const reloadResults = await Promise.allSettled([
+        getSessionLessonPlanDocument(selectedSessionId),
+        getTeachingLog(selectedSessionId),
+        fetchSessionDetail(selectedSessionId),
+        fetchSessionData(),
+      ]);
+
+      const refreshedDocumentResp = reloadResults[0];
+      const refreshedTeachingLogResp = reloadResults[1];
+
+      if (refreshedDocumentResp.status === "fulfilled" && refreshedDocumentResp.value.isSuccess) {
+        setTeachingReportDocument(refreshedDocumentResp.value.data);
+      }
+
+      if (refreshedTeachingLogResp.status === "fulfilled") {
+        const refreshedTeachingLog = refreshedTeachingLogResp.value?.data ?? null;
+        if (refreshedTeachingLog) {
+          setTeachingLogRecord(refreshedTeachingLog);
+          setTeachingProgressStatus(
+            normalizeTeachingProgressStatus(refreshedTeachingLog.progressStatus) ?? teachingProgressStatus,
+          );
+          setTeachingActualTeachingType(
+            normalizeTeachingType(refreshedTeachingLog.actualTeachingType) ?? teachingActualTeachingType,
+          );
+        }
       }
 
       toast({
         title: "Đã lưu teaching log",
-        description: "Nội dung thực tế, bài tập và ghi chú của buổi học đã được cập nhật.",
+        description: resolvedTeachingLogId
+          ? "Teaching log của buổi học đã được cập nhật và runtime session đã được reload."
+          : "Teaching log của buổi học đã được tạo và runtime session đã được reload.",
         variant: "success",
       });
 
@@ -3562,7 +3878,19 @@ export default function TeacherAttendancePage() {
     } finally {
       setTeachingReportSubmitting(false);
     }
-  }, [teachingReportPlan, teachingActivityDrafts, teachingActualHomework, teachingTeacherNotes]);
+  }, [
+    fetchSessionData,
+    resolvedTeachingLogId,
+    resolvedTeachingTemplateId,
+    selectedSessionId,
+    teachingTemplateGuardMessage,
+    teachingActualHomework,
+    teachingActualTeachingType,
+    teachingActivityDrafts,
+    teachingLogReadOnly,
+    teachingProgressStatus,
+    teachingTeacherNotes,
+  ]);
 
   const handleCloseTeachingReport = useCallback(() => {
     setTeachingReportOpen(false);
@@ -4373,7 +4701,15 @@ export default function TeacherAttendancePage() {
                           <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Điều hướng nhanh</div>
                           <div className="text-sm text-gray-600">Chuyển nhanh giữa syllabus, giáo án và teaching log mà không phải đóng modal.</div>
                         </div>
-                        {renderTeachingModalViewSwitch()}
+                        <div className="flex flex-wrap items-center gap-2">
+                          {renderTeachingSourceLink(
+                            syllabusSourceHref,
+                            syllabusSourceLabel,
+                            "Backend chưa trả attachment URL của syllabus để tải trực tiếp.",
+                            "blue",
+                          )}
+                          {renderTeachingModalViewSwitch()}
+                        </div>
                       </div>
                     </div>
                     <div className="flex-1 overflow-y-auto">
@@ -4434,21 +4770,39 @@ export default function TeacherAttendancePage() {
                     <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_360px]">
                       <section id="teaching-lesson-plan" className="rounded-2xl border border-emerald-100 bg-white shadow-sm">
                         <div className="border-b border-emerald-100 bg-gradient-to-r from-emerald-50 to-white px-5 py-4">
-                          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                                {teachingModalView === "lessonPlan"
+                                  ? "Lesson Plan / Giáo án"
+                                  : "Syllabus / Buổi hiện tại"}
+                              </div>
+                              <h3 className="mt-1 text-lg font-bold text-gray-900">
+                                {teachingModalView === "lessonPlan"
+                                  ? (teachingReportTemplate?.title || teachingReportSession?.templateTitle || selectedLesson?.plannedLessonTitle || selectedLesson?.lesson || "Nội dung buổi học")
+                                  : (teachingReportSession?.templateTitle || selectedLesson?.plannedLessonTitle || selectedLesson?.lesson || "Syllabus tham khảo")}
+                              </h3>
+                              <p className="mt-1 text-sm text-gray-600">
+                                {teachingModalView === "lessonPlan"
+                                  ? "Nội dung chuẩn để teacher đối chiếu buổi học với kế hoạch giảng dạy."
+                                  : "Khung syllabus chuẩn cho đúng buổi học này. Nếu cần đối chiếu cả curriculum, dùng nút Xem toàn bộ chương trình trong modal."}
+                              </p>
+                            </div>
+
                             {teachingModalView === "lessonPlan"
-                              ? "Lesson Plan / Giáo án"
-                              : "Syllabus / Buổi hiện tại"}
+                              ? renderTeachingSourceLink(
+                                  lessonPlanSourceHref,
+                                  lessonPlanSourceLabel,
+                                  "Lesson plan này chưa có attachment URL tải trực tiếp; FE đang giữ file name để đối chiếu.",
+                                  "violet",
+                                )
+                              : renderTeachingSourceLink(
+                                  syllabusSourceHref,
+                                  syllabusSourceLabel,
+                                  "Syllabus này chưa có attachment URL tải trực tiếp; FE đang giữ file name để đối chiếu.",
+                                  "blue",
+                                )}
                           </div>
-                          <h3 className="mt-1 text-lg font-bold text-gray-900">
-                            {teachingModalView === "lessonPlan"
-                              ? (teachingReportTemplate?.title || teachingReportSession?.templateTitle || selectedLesson?.plannedLessonTitle || selectedLesson?.lesson || "Nội dung buổi học")
-                              : (teachingReportSession?.templateTitle || selectedLesson?.plannedLessonTitle || selectedLesson?.lesson || "Syllabus tham khảo")}
-                          </h3>
-                          <p className="mt-1 text-sm text-gray-600">
-                            {teachingModalView === "lessonPlan"
-                              ? "Nội dung chuẩn để teacher đối chiếu buổi học với kế hoạch giảng dạy."
-                              : "Khung syllabus chuẩn cho đúng buổi học này. Nếu cần đối chiếu cả curriculum, dùng nút Xem toàn bộ chương trình trong modal."}
-                          </p>
                         </div>
 
                         <div className="space-y-4 p-5">
@@ -4483,7 +4837,7 @@ export default function TeacherAttendancePage() {
                     <ResizablePanelGroup
                       direction="horizontal"
                       autoSaveId="teacher-attendance-teaching-log-layout"
-                      className="min-h-[780px] gap-4"
+                      className="min-h-[700px] gap-4"
                     >
                     <ResizablePanel defaultSize={56} minSize={38}>
                     <section id="teaching-log-section" className="h-full rounded-2xl border border-red-100 bg-white shadow-sm">
@@ -4491,11 +4845,74 @@ export default function TeacherAttendancePage() {
                         <div className="text-xs font-semibold uppercase tracking-[0.18em] text-red-700">Nhật ký giảng dạy</div>
                         <h3 className="mt-1 text-lg font-bold text-gray-900">Ghi nhận thực tế sau buổi học</h3>
                         <p className="mt-1 text-sm text-gray-600">
-                          Teacher cập nhật những gì đã dạy thực tế, phần chưa hoàn thành, homework và ghi chú cho lớp.
+                          Điền nhanh nội dung đã dạy, học liệu, BTVN và ghi chú chính.
                         </p>
                       </div>
 
                       <div className="space-y-5 p-5">
+                        <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-4">
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <div>
+                              <label className="mb-1.5 block text-sm font-medium text-gray-700">Progress Status / Tiến độ *</label>
+                              <select
+                                value={teachingProgressStatus}
+                                onChange={(e) => setTeachingProgressStatus(e.target.value as TeachingProgressStatus)}
+                                disabled={teachingLogReadOnly}
+                                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500"
+                              >
+                                {TEACHING_PROGRESS_OPTIONS.map((option) => (
+                                  <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                              </select>
+                              <p className="mt-1.5 text-xs text-gray-500">{selectedTeachingProgressOption.hint}</p>
+                            </div>
+
+                            <div>
+                              <label className="mb-1.5 block text-sm font-medium text-gray-700">Actual Teaching Type / Hình thức dạy</label>
+                              <select
+                                value={teachingActualTeachingType}
+                                onChange={(e) => setTeachingActualTeachingType(e.target.value as TeachingType)}
+                                disabled={teachingLogReadOnly}
+                                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500"
+                              >
+                                {TEACHING_TYPE_OPTIONS.map((option) => (
+                                  <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                              </select>
+                              <p className="mt-1.5 text-xs text-gray-500">Chọn loại buổi học thực tế để backend map đúng runtime progression.</p>
+                            </div>
+                          </div>
+
+                          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                            <span className="rounded-full border border-blue-200 bg-white px-2.5 py-1 font-semibold text-blue-700">
+                              {resolvedTeachingLogStatus ? `Log: ${resolvedTeachingLogStatus}` : (resolvedTeachingLogId ? "Chế độ chỉnh sửa" : "Chế độ tạo mới")}
+                            </span>
+                            <span className="rounded-full border border-emerald-200 bg-white px-2.5 py-1 font-semibold text-emerald-700">
+                              Tiến độ: {TEACHING_PROGRESS_LABELS[teachingProgressStatus]}
+                            </span>
+                            <span className="rounded-full border border-violet-200 bg-white px-2.5 py-1 font-semibold text-violet-700">
+                              Hình thức: {TEACHING_TYPE_LABELS[teachingActualTeachingType]}
+                            </span>
+                            {teachingLogRecord?.updatedAt ? (
+                              <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-gray-600">
+                                Cập nhật: {new Date(teachingLogRecord.updatedAt).toLocaleString("vi-VN")}
+                              </span>
+                            ) : null}
+                          </div>
+
+                          {teachingLogReadOnly ? (
+                            <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                              Teaching log đang ở trạng thái {resolvedTeachingLogStatus || "khóa"}. FE chỉ cho phép xem read-only và không gửi cập nhật mới.
+                            </div>
+                          ) : null}
+
+                          {teachingTemplateGuardMessage ? (
+                            <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                              {teachingTemplateGuardMessage}
+                            </div>
+                          ) : null}
+                        </div>
+
                         <div>
                           <div className="mb-2 flex items-center justify-between gap-3">
                             <label className="text-sm font-medium text-gray-700">
@@ -4504,10 +4921,24 @@ export default function TeacherAttendancePage() {
                             <div className="flex items-center gap-2">
                               <button
                                 type="button"
-                                onClick={() => setTeachingLogCompact((prev) => !prev)}
-                                className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100 cursor-pointer"
+                                onClick={() => focusTeachingActivity(activeTeachingActivityIndex - 1)}
+                                disabled={isFirstTeachingActivity}
+                                className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                               >
-                                {teachingLogCompact ? "Chế độ đầy đủ" : "Chế độ nhập gọn"}
+                                <ChevronLeft size={14} />
+                                Trước
+                              </button>
+                              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                                {activeTeachingActivityIndex + 1}/{Math.max(1, teachingActivityDrafts.length)}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => focusTeachingActivity(activeTeachingActivityIndex + 1)}
+                                disabled={isLastTeachingActivity}
+                                className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                Sau
+                                <ChevronRight size={14} />
                               </button>
                               <button
                                 type="button"
@@ -4515,344 +4946,165 @@ export default function TeacherAttendancePage() {
                                   setTeachingActivityDrafts((prev) => [...prev, createEmptyTeachingActivity()]);
                                   setActiveTeachingActivityIndex(teachingActivityDrafts.length);
                                 }}
-                                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 cursor-pointer"
+                                disabled={teachingLogReadOnly}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                               >
                                 <Plus size={14} />
-                                Thêm dòng
+                                Thêm activity
                               </button>
                             </div>
                           </div>
 
                           <p className="mb-3 text-xs text-gray-500">
-                            {teachingLogCompact
-                              ? "Đang ở chế độ nhập gọn: ẩn cột phụ để thao tác nhanh hơn."
-                              : "Đang ở chế độ đầy đủ: hiển thị toàn bộ cột tham chiếu."}
+                            Chỉ hiển thị một activity tại một thời điểm để teacher nhập nhanh và tập trung.
                           </p>
 
-                          {teachingLogCompact ? (
-                            <div className="space-y-3">
-                              {teachingActivityDrafts.map((activity, idx) => (
-                                <div
-                                  key={idx}
-                                  ref={(node) => { teachingActivityRowRefs.current[idx] = node; }}
-                                  onFocusCapture={() => setActiveTeachingActivityIndex(idx)}
-                                  onClick={() => setActiveTeachingActivityIndex(idx)}
-                                  className={`rounded-xl border p-3 transition-colors ${
-                                    activeTeachingActivityIndex === idx
-                                      ? "border-emerald-300 bg-emerald-50/40 shadow-sm"
-                                      : "border-gray-200 bg-white"
-                                  }`}
+                          <div
+                            ref={(node) => { teachingActivityRowRefs.current[activeTeachingActivityIndex] = node; }}
+                            className="rounded-xl border border-emerald-300 bg-emerald-50/40 p-3 shadow-sm"
+                          >
+                            <div className="mb-3 flex items-center justify-between gap-2">
+                              <p className="text-sm font-semibold text-gray-700">Hoạt động #{activeTeachingActivityIndex + 1}</p>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => handleInsertFromLessonPlanRow(activeTeachingActivityIndex, activeTeachingActivityIndex)}
+                                  disabled={teachingLogReadOnly}
+                                  className="inline-flex items-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-2 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-100 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                                  title="Chèn dữ liệu từ Lesson Plan"
                                 >
-                                  <div className="mb-3 flex items-center justify-between">
-                                    <p className="text-sm font-semibold text-gray-700">Hoạt động #{idx + 1}</p>
-                                    <div className="flex items-center gap-1.5">
-                                      <button
-                                        type="button"
-                                        onClick={() => handleInsertFromLessonPlanRow(idx, idx)}
-                                        className="inline-flex items-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-2 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-100 cursor-pointer"
-                                        title="Chèn dữ liệu từ Lesson Plan"
-                                      >
-                                        <GraduationCap size={13} />
-                                        <span>Chèn giáo án</span>
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => handleCopyFromSyllabusRow(idx)}
-                                        className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 cursor-pointer"
-                                        title="Sao chép từ Khung syllabus"
-                                      >
-                                        <ArrowRightLeft size={13} />
-                                        <span>Sao chép syllabus</span>
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          const updated = [...teachingActivityDrafts];
-                                          updated.splice(idx + 1, 0, { ...activity });
-                                          setTeachingActivityDrafts(updated);
-                                          setActiveTeachingActivityIndex(idx + 1);
-                                        }}
-                                        className="rounded-lg border border-blue-200 bg-blue-50 p-1.5 text-blue-700 hover:bg-blue-100 cursor-pointer"
-                                        title="Nhân bản dòng"
-                                      >
-                                        <Copy size={13} />
-                                      </button>
-                                      {teachingActivityDrafts.length > 1 && (
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            setTeachingActivityDrafts((prev) => prev.filter((_, i) => i !== idx));
-                                              setActiveTeachingActivityIndex((prev) => Math.max(0, Math.min(prev, teachingActivityDrafts.length - 2)));
-                                          }}
-                                          className="rounded-lg border border-red-200 bg-red-50 p-1.5 text-red-700 hover:bg-red-100 cursor-pointer"
-                                          title="Xóa dòng"
-                                        >
-                                          <Trash2 size={13} />
-                                        </button>
-                                      )}
-                                    </div>
-                                  </div>
+                                  <GraduationCap size={13} />
+                                  <span>Chèn giáo án</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopyFromSyllabusRow(activeTeachingActivityIndex)}
+                                  disabled={teachingLogReadOnly}
+                                  className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                                  title="Sao chép từ Khung syllabus"
+                                >
+                                  <ArrowRightLeft size={13} />
+                                  <span>Sao chép syllabus</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const updated = [...teachingActivityDrafts];
+                                    updated.splice(activeTeachingActivityIndex + 1, 0, { ...activeTeachingActivity });
+                                    setTeachingActivityDrafts(updated);
+                                    setActiveTeachingActivityIndex(activeTeachingActivityIndex + 1);
+                                  }}
+                                  disabled={teachingLogReadOnly}
+                                  className="rounded-lg border border-blue-200 bg-blue-50 p-1.5 text-blue-700 hover:bg-blue-100 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                                  title="Nhân bản activity"
+                                >
+                                  <Copy size={13} />
+                                </button>
+                                {teachingActivityDrafts.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setTeachingActivityDrafts((prev) => prev.filter((_, i) => i !== activeTeachingActivityIndex));
+                                      setActiveTeachingActivityIndex((prev) => Math.max(0, Math.min(prev, teachingActivityDrafts.length - 2)));
+                                    }}
+                                    disabled={teachingLogReadOnly}
+                                    className="rounded-lg border border-red-200 bg-red-50 p-1.5 text-red-700 hover:bg-red-100 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                                    title="Xóa activity"
+                                  >
+                                    <Trash2 size={13} />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
 
-                                  <div className="grid gap-3 md:grid-cols-2">
-                                    <div>
-                                      <label className="mb-1 block text-xs font-semibold text-gray-600">Thời lượng *</label>
-                                      <input
-                                        value={activity.time}
-                                        onChange={(e) => {
-                                          const updated = [...teachingActivityDrafts];
-                                          updated[idx] = { ...updated[idx], time: e.target.value };
-                                          setTeachingActivityDrafts(updated);
-                                        }}
-                                        className={`w-full rounded-lg border px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 ${
-                                          teachingActivityErrors[idx]?.time ? "border-red-300 bg-red-50 focus:ring-red-200" : "border-gray-200 bg-white focus:ring-red-100"
-                                        }`}
-                                        placeholder="5 phút"
-                                      />
-                                      {teachingActivityErrors[idx]?.time ? <p className="mt-1 text-[11px] text-red-600">{teachingActivityErrors[idx]?.time}</p> : null}
-                                    </div>
-                                    <div>
-                                      <label className="mb-1 block text-xs font-semibold text-gray-600">Hoạt động *</label>
-                                      <textarea
-                                        value={activity.classwork}
-                                        onChange={(e) => {
-                                          const updated = [...teachingActivityDrafts];
-                                          updated[idx] = { ...updated[idx], classwork: e.target.value };
-                                          setTeachingActivityDrafts(updated);
-                                        }}
-                                        rows={2}
-                                        className={`w-full rounded-lg border px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 ${
-                                          teachingActivityErrors[idx]?.classwork ? "border-red-300 bg-red-50 focus:ring-red-200" : "border-gray-200 bg-white focus:ring-red-100"
-                                        }`}
-                                        placeholder="Mô tả hoạt động chính"
-                                      />
-                                      {teachingActivityErrors[idx]?.classwork ? <p className="mt-1 text-[11px] text-red-600">{teachingActivityErrors[idx]?.classwork}</p> : null}
-                                    </div>
-                                    <div>
-                                      <label className="mb-1 block text-xs font-semibold text-gray-600">Học liệu *</label>
-                                      <textarea
-                                        value={activity.requiredMaterials}
-                                        onChange={(e) => {
-                                          const updated = [...teachingActivityDrafts];
-                                          updated[idx] = { ...updated[idx], requiredMaterials: e.target.value };
-                                          setTeachingActivityDrafts(updated);
-                                        }}
-                                        rows={2}
-                                        className={`w-full rounded-lg border px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 ${
-                                          teachingActivityErrors[idx]?.requiredMaterials ? "border-red-300 bg-red-50 focus:ring-red-200" : "border-gray-200 bg-white focus:ring-red-100"
-                                        }`}
-                                        placeholder="Flashcards, projector..."
-                                      />
-                                      {teachingActivityErrors[idx]?.requiredMaterials ? <p className="mt-1 text-[11px] text-red-600">{teachingActivityErrors[idx]?.requiredMaterials}</p> : null}
-                                    </div>
-                                    <div>
-                                      <label className="mb-1 block text-xs font-semibold text-gray-600">BTVN *</label>
-                                      <textarea
-                                        value={activity.homeworkRequiredMaterials}
-                                        onChange={(e) => {
-                                          const updated = [...teachingActivityDrafts];
-                                          updated[idx] = { ...updated[idx], homeworkRequiredMaterials: e.target.value };
-                                          setTeachingActivityDrafts(updated);
-                                        }}
-                                        rows={2}
-                                        className={`w-full rounded-lg border px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 ${
-                                          teachingActivityErrors[idx]?.homeworkRequiredMaterials ? "border-red-300 bg-red-50 focus:ring-red-200" : "border-gray-200 bg-white focus:ring-red-100"
-                                        }`}
-                                        placeholder="Bài tập về nhà"
-                                      />
-                                      {teachingActivityErrors[idx]?.homeworkRequiredMaterials ? <p className="mt-1 text-[11px] text-red-600">{teachingActivityErrors[idx]?.homeworkRequiredMaterials}</p> : null}
-                                    </div>
-                                    <div className="md:col-span-2">
-                                      <label className="mb-1 block text-xs font-semibold text-gray-600">Ghi chú</label>
-                                      <textarea
-                                        value={activity.extra}
-                                        onChange={(e) => {
-                                          const updated = [...teachingActivityDrafts];
-                                          updated[idx] = { ...updated[idx], extra: e.target.value };
-                                          setTeachingActivityDrafts(updated);
-                                        }}
-                                        rows={2}
-                                        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100"
-                                        placeholder="Ghi chú thêm"
-                                      />
-                                    </div>
-                                  </div>
+                            <div className="grid gap-3 md:grid-cols-2">
+                              <div>
+                                <label className="mb-1 block text-xs font-semibold text-gray-600">Thời lượng *</label>
+                                <input
+                                  value={activeTeachingActivity.time}
+                                  onChange={(e) => setActiveTeachingActivityField("time", e.target.value)}
+                                  readOnly={teachingLogReadOnly}
+                                  className={`w-full rounded-lg border px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 ${
+                                    activeTeachingActivityErrors.time ? "border-red-300 bg-red-50 focus:ring-red-200" : "border-gray-200 bg-white focus:ring-red-100"
+                                  }`}
+                                  placeholder="5 phút"
+                                />
+                                {activeTeachingActivityErrors.time ? <p className="mt-1 text-[11px] text-red-600">{activeTeachingActivityErrors.time}</p> : null}
+                              </div>
+                              <div>
+                                <label className="mb-1 block text-xs font-semibold text-gray-600">Hoạt động *</label>
+                                <textarea
+                                  value={activeTeachingActivity.classwork}
+                                  onChange={(e) => setActiveTeachingActivityField("classwork", e.target.value)}
+                                  readOnly={teachingLogReadOnly}
+                                  rows={2}
+                                  className={`w-full rounded-lg border px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 ${
+                                    activeTeachingActivityErrors.classwork ? "border-red-300 bg-red-50 focus:ring-red-200" : "border-gray-200 bg-white focus:ring-red-100"
+                                  }`}
+                                  placeholder="Mô tả hoạt động chính"
+                                />
+                                {activeTeachingActivityErrors.classwork ? <p className="mt-1 text-[11px] text-red-600">{activeTeachingActivityErrors.classwork}</p> : null}
+                              </div>
+                              <div>
+                                <label className="mb-1 block text-xs font-semibold text-gray-600">Học liệu *</label>
+                                <textarea
+                                  value={activeTeachingActivity.requiredMaterials}
+                                  onChange={(e) => setActiveTeachingActivityField("requiredMaterials", e.target.value)}
+                                  readOnly={teachingLogReadOnly}
+                                  rows={2}
+                                  className={`w-full rounded-lg border px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 ${
+                                    activeTeachingActivityErrors.requiredMaterials ? "border-red-300 bg-red-50 focus:ring-red-200" : "border-gray-200 bg-white focus:ring-red-100"
+                                  }`}
+                                  placeholder="Flashcards, projector..."
+                                />
+                                {activeTeachingActivityErrors.requiredMaterials ? <p className="mt-1 text-[11px] text-red-600">{activeTeachingActivityErrors.requiredMaterials}</p> : null}
+                              </div>
+                              <div>
+                                <label className="mb-1 block text-xs font-semibold text-gray-600">BTVN *</label>
+                                <textarea
+                                  value={activeTeachingActivity.homeworkRequiredMaterials}
+                                  onChange={(e) => setActiveTeachingActivityField("homeworkRequiredMaterials", e.target.value)}
+                                  readOnly={teachingLogReadOnly}
+                                  rows={2}
+                                  className={`w-full rounded-lg border px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 ${
+                                    activeTeachingActivityErrors.homeworkRequiredMaterials ? "border-red-300 bg-red-50 focus:ring-red-200" : "border-gray-200 bg-white focus:ring-red-100"
+                                  }`}
+                                  placeholder="Bài tập về nhà"
+                                />
+                                {activeTeachingActivityErrors.homeworkRequiredMaterials ? <p className="mt-1 text-[11px] text-red-600">{activeTeachingActivityErrors.homeworkRequiredMaterials}</p> : null}
+                              </div>
+                              <div className="md:col-span-2">
+                                <label className="mb-1 block text-xs font-semibold text-gray-600">Trang sách / Kỹ năng</label>
+                                <div className="grid gap-3 md:grid-cols-2">
+                                  <input
+                                    value={activeTeachingActivity.book}
+                                    onChange={(e) => setActiveTeachingActivityField("book", e.target.value)}
+                                    readOnly={teachingLogReadOnly}
+                                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100"
+                                    placeholder="Student's Book p.6"
+                                  />
+                                  <input
+                                    value={activeTeachingActivity.skills}
+                                    onChange={(e) => setActiveTeachingActivityField("skills", e.target.value)}
+                                    readOnly={teachingLogReadOnly}
+                                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100"
+                                    placeholder="Speaking & Reading"
+                                  />
                                 </div>
-                              ))}
+                              </div>
+                              <div className="md:col-span-2">
+                                <label className="mb-1 block text-xs font-semibold text-gray-600">Ghi chú</label>
+                                <textarea
+                                  value={activeTeachingActivity.extra}
+                                  onChange={(e) => setActiveTeachingActivityField("extra", e.target.value)}
+                                  readOnly={teachingLogReadOnly}
+                                  rows={2}
+                                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100 read-only:bg-gray-50"
+                                  placeholder="Ghi chú thêm"
+                                />
+                              </div>
                             </div>
-                          ) : (
-                            <div className="overflow-x-auto rounded-xl border border-gray-200">
-                              <table className="min-w-[1100px] border-collapse text-sm">
-                                <thead>
-                                  <tr className="bg-gray-50 text-gray-700">
-                                    <th className="border border-gray-200 px-3 py-2 text-left font-semibold w-10">#</th>
-                                    <th className="border border-gray-200 px-3 py-2 text-left font-semibold">Thời lượng *</th>
-                                    <th className="border border-gray-200 px-3 py-2 text-left font-semibold">Trang sách</th>
-                                    <th className="border border-gray-200 px-3 py-2 text-left font-semibold">Kỹ năng</th>
-                                    <th className="border border-gray-200 px-3 py-2 text-left font-semibold">Hoạt động *</th>
-                                    <th className="border border-gray-200 px-3 py-2 text-left font-semibold">Học liệu *</th>
-                                    <th className="border border-gray-200 px-3 py-2 text-left font-semibold">BTVN *</th>
-                                    <th className="border border-gray-200 px-3 py-2 text-left font-semibold">Ghi chú</th>
-                                    <th className="border border-gray-200 px-3 py-2 text-left font-semibold w-24"></th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {teachingActivityDrafts.map((activity, idx) => (
-                                    <tr
-                                      key={idx}
-                                      ref={(node) => { teachingActivityRowRefs.current[idx] = node; }}
-                                      onFocusCapture={() => setActiveTeachingActivityIndex(idx)}
-                                      onClick={() => setActiveTeachingActivityIndex(idx)}
-                                      className={`align-top transition-colors ${activeTeachingActivityIndex === idx ? "bg-emerald-50/40" : ""}`}
-                                    >
-                                      <td className="border border-gray-200 px-3 py-3 font-semibold text-gray-500">{idx + 1}</td>
-                                      <td className="border border-gray-200 p-1.5">
-                                        <input
-                                          value={activity.time}
-                                          onChange={(e) => {
-                                            const updated = [...teachingActivityDrafts];
-                                            updated[idx] = { ...updated[idx], time: e.target.value };
-                                            setTeachingActivityDrafts(updated);
-                                          }}
-                                          className={`w-full rounded-lg border px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 ${
-                                            teachingActivityErrors[idx]?.time ? "border-red-300 bg-red-50 focus:ring-red-200" : "border-transparent bg-white focus:ring-red-100"
-                                          }`}
-                                          placeholder="5 mins"
-                                        />
-                                      </td>
-                                      <td className="border border-gray-200 p-1.5">
-                                        <input
-                                          value={activity.book}
-                                          onChange={(e) => {
-                                            const updated = [...teachingActivityDrafts];
-                                            updated[idx] = { ...updated[idx], book: e.target.value };
-                                            setTeachingActivityDrafts(updated);
-                                          }}
-                                          className="w-full rounded-lg border border-transparent bg-white px-3 py-2 text-sm text-gray-700 focus:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-100"
-                                          placeholder="Student's Book p.6"
-                                        />
-                                      </td>
-                                      <td className="border border-gray-200 p-1.5">
-                                        <input
-                                          value={activity.skills}
-                                          onChange={(e) => {
-                                            const updated = [...teachingActivityDrafts];
-                                            updated[idx] = { ...updated[idx], skills: e.target.value };
-                                            setTeachingActivityDrafts(updated);
-                                          }}
-                                          className="w-full rounded-lg border border-transparent bg-white px-3 py-2 text-sm text-gray-700 focus:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-100"
-                                          placeholder="Speaking & Reading"
-                                        />
-                                      </td>
-                                      <td className="border border-gray-200 p-1.5">
-                                        <textarea
-                                          value={activity.classwork}
-                                          onChange={(e) => {
-                                            const updated = [...teachingActivityDrafts];
-                                            updated[idx] = { ...updated[idx], classwork: e.target.value };
-                                            setTeachingActivityDrafts(updated);
-                                          }}
-                                          rows={2}
-                                          className={`w-full rounded-lg border px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 ${
-                                            teachingActivityErrors[idx]?.classwork ? "border-red-300 bg-red-50 focus:ring-red-200" : "border-transparent bg-white focus:ring-red-100"
-                                          }`}
-                                          placeholder={"Warm-up\nVocabulary practice\nSpeaking activity"}
-                                        />
-                                      </td>
-                                      <td className="border border-gray-200 p-1.5">
-                                        <textarea
-                                          value={activity.requiredMaterials}
-                                          onChange={(e) => {
-                                            const updated = [...teachingActivityDrafts];
-                                            updated[idx] = { ...updated[idx], requiredMaterials: e.target.value };
-                                            setTeachingActivityDrafts(updated);
-                                          }}
-                                          rows={2}
-                                          className={`w-full rounded-lg border px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 ${
-                                            teachingActivityErrors[idx]?.requiredMaterials ? "border-red-300 bg-red-50 focus:ring-red-200" : "border-transparent bg-white focus:ring-red-100"
-                                          }`}
-                                          placeholder="Flashcards, workbook, projector"
-                                        />
-                                      </td>
-                                      <td className="border border-gray-200 p-1.5">
-                                        <textarea
-                                          value={activity.homeworkRequiredMaterials}
-                                          onChange={(e) => {
-                                            const updated = [...teachingActivityDrafts];
-                                            updated[idx] = { ...updated[idx], homeworkRequiredMaterials: e.target.value };
-                                            setTeachingActivityDrafts(updated);
-                                          }}
-                                          rows={2}
-                                          className={`w-full rounded-lg border px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 ${
-                                            teachingActivityErrors[idx]?.homeworkRequiredMaterials ? "border-red-300 bg-red-50 focus:ring-red-200" : "border-transparent bg-white focus:ring-red-100"
-                                          }`}
-                                          placeholder="Ex 1, 2, 3 page 7"
-                                        />
-                                      </td>
-                                      <td className="border border-gray-200 p-1.5">
-                                        <textarea
-                                          value={activity.extra}
-                                          onChange={(e) => {
-                                            const updated = [...teachingActivityDrafts];
-                                            updated[idx] = { ...updated[idx], extra: e.target.value };
-                                            setTeachingActivityDrafts(updated);
-                                          }}
-                                          rows={2}
-                                          className="w-full rounded-lg border border-transparent bg-white px-3 py-2 text-sm text-gray-700 focus:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-100"
-                                          placeholder="Not completed / issues / next-step note"
-                                        />
-                                      </td>
-                                      <td className="border border-gray-200 px-2 py-2">
-                                        <div className="flex flex-col gap-1.5">
-                                          <button
-                                            type="button"
-                                            onClick={() => handleInsertFromLessonPlanRow(idx, idx)}
-                                            className="rounded-lg border border-violet-200 bg-violet-50 p-1.5 text-violet-700 hover:bg-violet-100 cursor-pointer"
-                                            title="Chèn từ Lesson Plan"
-                                          >
-                                            <GraduationCap size={13} />
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={() => handleCopyFromSyllabusRow(idx)}
-                                            className="rounded-lg border border-indigo-200 bg-indigo-50 p-1.5 text-indigo-700 hover:bg-indigo-100 cursor-pointer"
-                                            title="Sao chép từ Khung syllabus"
-                                          >
-                                            <ArrowRightLeft size={13} />
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              const updated = [...teachingActivityDrafts];
-                                              updated.splice(idx + 1, 0, { ...activity });
-                                              setTeachingActivityDrafts(updated);
-                                              setActiveTeachingActivityIndex(idx + 1);
-                                            }}
-                                            className="rounded-lg border border-blue-200 bg-white p-1.5 text-blue-700 hover:bg-blue-50 cursor-pointer"
-                                            title="Nhân bản dòng"
-                                          >
-                                            <Copy size={13} />
-                                          </button>
-                                          {teachingActivityDrafts.length > 1 && (
-                                            <button
-                                              type="button"
-                                              onClick={() => {
-                                                setTeachingActivityDrafts((prev) => prev.filter((_, i) => i !== idx));
-                                                setActiveTeachingActivityIndex((prev) => Math.max(0, Math.min(prev, teachingActivityDrafts.length - 2)));
-                                              }}
-                                              className="rounded-lg border border-red-200 bg-white p-1.5 text-red-700 hover:bg-red-50 cursor-pointer"
-                                              title="Xóa"
-                                            >
-                                              <Trash2 size={13} />
-                                            </button>
-                                          )}
-                                        </div>
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          )}
+                          </div>
                         </div>
 
                         <div>
@@ -4860,6 +5112,7 @@ export default function TeacherAttendancePage() {
                           <textarea
                             value={teachingActualHomework}
                             onChange={(e) => setTeachingActualHomework(e.target.value)}
+                            readOnly={teachingLogReadOnly}
                             rows={2}
                             className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200"
                             placeholder="VD: Ex 1, 2, 3 page 7; học thuộc vocabulary của Unit 1"
@@ -4871,6 +5124,7 @@ export default function TeacherAttendancePage() {
                           <textarea
                             value={teachingTeacherNotes}
                             onChange={(e) => setTeachingTeacherNotes(e.target.value)}
+                            readOnly={teachingLogReadOnly}
                             rows={3}
                             className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200"
                             placeholder="VD: Một số học sinh nhầm mouse/mice; cần thêm 5 phút cho speaking ở buổi sau"
@@ -4888,110 +5142,133 @@ export default function TeacherAttendancePage() {
                     <ResizableHandle withHandle className="bg-gray-200/80" />
                     <ResizablePanel defaultSize={44} minSize={28}>
                     <aside className="h-full space-y-4">
-                      <div className="rounded-2xl border border-violet-100 bg-white shadow-sm">
-                        <div className="flex items-center justify-between gap-3 border-b border-violet-100 bg-gradient-to-r from-violet-50 to-white px-4 py-3">
+                      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 bg-gray-50 px-4 py-3">
                           <div>
-                            <div className="text-xs font-semibold uppercase tracking-wide text-violet-700">Lesson Plan / Giáo án</div>
-                            <div className="text-xs text-gray-600">Xem ngay giáo án chuẩn trong lúc nhập teaching log.</div>
+                            <div className="text-xs font-semibold uppercase tracking-wide text-gray-600">Tài liệu tham chiếu</div>
+                            <div className="text-xs text-gray-600">Giữ một khung tham chiếu duy nhất khi nhập teaching log.</div>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => setTeachingModalView("lessonPlan")}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-violet-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-50 cursor-pointer"
-                          >
-                            <GraduationCap size={13} />
-                            Mở riêng
-                          </button>
-                        </div>
-                        <div className="max-h-[500px] overflow-auto p-4">
-                          <div className="space-y-4">
-                            {lessonPlanReferenceActivities.length > 0 ? (
-                              <div className="rounded-xl border border-violet-200 bg-violet-50/40 p-3">
-                                <div className="mb-3 flex items-center justify-between gap-3">
-                                  <div>
-                                    <div className="text-xs font-semibold uppercase tracking-wide text-violet-700">Procedure tham chiếu</div>
-                                    <div className="text-[11px] text-gray-600">Chèn nhanh một dòng giáo án vào activity đang nhập.</div>
-                                  </div>
-                                  <span className="rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
-                                    Activity #{activeTeachingActivityIndex + 1}
-                                  </span>
+                          <div className="flex items-center gap-2">
+                            <div className="relative">
+                              <button
+                                type="button"
+                                onClick={() => setTeachingSyllabusSummaryPopoverOpen((prev) => !prev)}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 cursor-pointer"
+                              >
+                                <Search size={13} />
+                                Tóm tắt syllabus
+                              </button>
+                              {teachingSyllabusSummaryPopoverOpen ? (
+                                <div className="absolute right-0 top-10 z-20 w-[320px] rounded-xl border border-gray-200 bg-white p-3 shadow-xl">
+                                  <SyllabusSummaryPanel
+                                    description="Bản đồ nhanh để teacher xác định nội dung buổi học và đối chiếu khi cập nhật teaching log."
+                                    items={teachingSummaryItems}
+                                  />
                                 </div>
-
-                                <div className="space-y-2">
-                                  {lessonPlanReferenceActivities.map((reference, index) => (
-                                    <div
-                                      key={`lesson-plan-reference-${index}`}
-                                      onClick={() => focusTeachingActivity(index)}
-                                      className={`rounded-lg border p-2.5 cursor-pointer transition-colors ${
-                                        activeTeachingActivityIndex === index
-                                          ? "border-violet-300 bg-white shadow-sm"
-                                          : "border-violet-100 bg-white/80 hover:bg-white"
-                                      }`}
-                                    >
-                                      <div className="flex items-start justify-between gap-3">
-                                        <div className="min-w-0 flex-1">
-                                          <div className="text-xs font-semibold uppercase tracking-wide text-violet-700">
-                                            {reference.time || `Mục ${index + 1}`}
-                                          </div>
-                                          <div className="mt-1 whitespace-pre-wrap text-xs leading-5 text-gray-700">
-                                            {reference.classwork || reference.skills || "Không có mô tả chi tiết."}
-                                          </div>
-                                          {reference.requiredMaterials ? (
-                                            <div className="mt-2 line-clamp-3 whitespace-pre-wrap text-[11px] text-gray-500">
-                                              Học liệu: {reference.requiredMaterials}
-                                            </div>
-                                          ) : null}
-                                        </div>
-                                        <button
-                                          type="button"
-                                          onClick={(event) => {
-                                            event.stopPropagation();
-                                            handleInsertFromLessonPlanRow(index);
-                                          }}
-                                          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-violet-200 bg-white px-2 py-1.5 text-[11px] font-semibold text-violet-700 hover:bg-violet-100 cursor-pointer"
-                                          title="Chèn vào activity hiện tại"
-                                        >
-                                          <ArrowRightLeft size={12} />
-                                          Chèn vào activity hiện tại
-                                        </button>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            ) : null}
-
-                            {renderTeachingLessonPlanContent()}
-                          </div>
-                        </div>
-                      </div>
-
-                      {hasTeachingReferenceContent ? (
-                        <div className="rounded-2xl border border-blue-100 bg-white shadow-sm">
-                          <div className="flex items-center justify-between gap-3 border-b border-blue-100 bg-gradient-to-r from-blue-50 to-white px-4 py-3">
-                            <div>
-                              <div className="text-xs font-semibold uppercase tracking-wide text-blue-700">Syllabus / Khung buổi học</div>
-                              <div className="text-xs text-gray-600">Đối chiếu nhanh syllabus, giáo án dự kiến và học liệu khi ghi nhận thực tế.</div>
+                              ) : null}
                             </div>
                             <button
                               type="button"
-                              onClick={() => setTeachingModalView("syllabus")}
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-50 cursor-pointer"
+                              onClick={() => setTeachingQuickReferenceView("lessonPlan")}
+                              className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold cursor-pointer ${
+                                teachingQuickReferenceView === "lessonPlan"
+                                  ? "border-violet-200 bg-violet-100 text-violet-700"
+                                  : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                              }`}
+                            >
+                              <GraduationCap size={13} />
+                              Giáo án
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setTeachingQuickReferenceView("syllabus")}
+                              className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold cursor-pointer ${
+                                teachingQuickReferenceView === "syllabus"
+                                  ? "border-blue-200 bg-blue-100 text-blue-700"
+                                  : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                              }`}
                             >
                               <BookOpen size={13} />
+                              Syllabus
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setTeachingModalView(teachingQuickReferenceView)}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer"
+                            >
                               Mở riêng
                             </button>
                           </div>
-                          <div className="max-h-[540px] overflow-auto p-4">
-                            {renderTeachingReferenceTabs()}
-                          </div>
                         </div>
-                      ) : null}
 
-                      <SyllabusSummaryPanel
-                        description="Bản đồ nhanh để teacher xác định nội dung buổi học và đối chiếu khi cập nhật teaching log."
-                        items={teachingSummaryItems}
-                      />
+                        <div className="max-h-[620px] overflow-auto p-4">
+                          {teachingQuickReferenceView === "lessonPlan" ? (
+                            <div className="space-y-4">
+                              {lessonPlanReferenceActivities.length > 0 ? (
+                                <div className="rounded-xl border border-violet-200 bg-violet-50/40 p-3">
+                                  <div className="mb-3 flex items-center justify-between gap-3">
+                                    <div>
+                                      <div className="text-xs font-semibold uppercase tracking-wide text-violet-700">Procedure tham chiếu</div>
+                                      <div className="text-[11px] text-gray-600">Chèn nhanh vào activity đang nhập.</div>
+                                    </div>
+                                    <span className="rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                                      Activity #{activeTeachingActivityIndex + 1}
+                                    </span>
+                                  </div>
+
+                                  <div className="space-y-2">
+                                    {lessonPlanReferenceActivities.map((reference, index) => (
+                                      <div
+                                        key={`lesson-plan-reference-${index}`}
+                                        onClick={() => focusTeachingActivity(index)}
+                                        className={`rounded-lg border p-2.5 cursor-pointer transition-colors ${
+                                          activeTeachingActivityIndex === index
+                                            ? "border-violet-300 bg-white shadow-sm"
+                                            : "border-violet-100 bg-white/80 hover:bg-white"
+                                        }`}
+                                      >
+                                        <div className="flex items-start justify-between gap-3">
+                                          <div className="min-w-0 flex-1">
+                                            <div className="text-xs font-semibold uppercase tracking-wide text-violet-700">
+                                              {reference.time || `Mục ${index + 1}`}
+                                            </div>
+                                            <div className="mt-1 whitespace-pre-wrap text-xs leading-5 text-gray-700">
+                                              {reference.classwork || reference.skills || "Không có mô tả chi tiết."}
+                                            </div>
+                                          </div>
+                                          <button
+                                            type="button"
+                                            onClick={(event) => {
+                                              event.stopPropagation();
+                                              handleInsertFromLessonPlanRow(index);
+                                            }}
+                                            disabled={teachingLogReadOnly}
+                                            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-violet-200 bg-white px-2 py-1.5 text-[11px] font-semibold text-violet-700 hover:bg-violet-100 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                                            title="Chèn vào activity hiện tại"
+                                          >
+                                            <ArrowRightLeft size={12} />
+                                            Chèn
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              ) : null}
+
+                              {renderTeachingLessonPlanContent()}
+                            </div>
+                          ) : (
+                            <div className="space-y-4">
+                              {hasTeachingReferenceContent ? renderTeachingReferenceTabs() : (
+                                <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-600">
+                                  Chưa có dữ liệu syllabus tham chiếu cho buổi này.
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </aside>
                     </ResizablePanel>
                     </ResizablePanelGroup>
@@ -5013,11 +5290,15 @@ export default function TeacherAttendancePage() {
                       <button
                         type="button"
                         onClick={handleSubmitTeachingReport}
-                        disabled={teachingReportSubmitting || !teachingReportPlan}
+                        disabled={teachingReportSubmitting || !selectedSessionId || teachingLogReadOnly || Boolean(teachingTemplateGuardMessage)}
                         className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-gradient-to-r from-red-600 to-red-700 px-4 py-2 text-sm text-white hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {teachingReportSubmitting ? <Loader2 size={14} className="animate-spin" /> : null}
-                        Lưu Teaching Log
+                        {teachingLogReadOnly
+                          ? "Teaching Log đã khóa"
+                          : teachingTemplateGuardMessage
+                            ? "Thiếu planned template"
+                            : "Lưu Teaching Log"}
                       </button>
                     )}
                   </div>

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
@@ -11,10 +11,12 @@ import {
   BookOpenCheck,
   Building2,
   CheckCircle,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Eye,
   FileArchive,
+  GitBranch,
   FileText,
   Filter,
   GripVertical,
@@ -37,6 +39,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/lightswind/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/lightswind/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { getLevels, getModules } from "@/lib/api/academicProgressionService";
 import { getAllProgramsForDropdown } from "@/lib/api/programService";
@@ -69,6 +79,7 @@ import {
 import { getAllBranches } from "@/lib/api/branchService";
 import type { LevelDto, ModuleDto } from "@/types/academic-progression";
 import SyllabusDetailModalBody from "@/components/lesson-plans/SyllabusDetailModalBody";
+import SyllabusVersionsModal from "@/components/admin/syllabuses/SyllabusVersionsModal";
 
 type BranchLookupItem = {
   id?: string | null;
@@ -2221,14 +2232,25 @@ function AssignBranchModal({
     new Date().toISOString().slice(0, 10),
   );
   const [effectiveTo, setEffectiveTo] = useState("");
-  const [isActive, setIsActive] = useState(true);
+  const [assignmentAction, setAssignmentAction] = useState<"activate" | "deactivate">("activate");
   const [error, setError] = useState<string | null>(null);
+
+  const isActive = assignmentAction === "activate";
+  const selectedBranchName = branchOptions.find((branch) => branch.id === branchId)?.name ?? "Chưa chọn";
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
     if (!branchId) {
       setError("Chọn chi nhánh để gán syllabus.");
+      return;
+    }
+    if (!effectiveFrom) {
+      setError("Vui lòng nhập ngày hiệu lực từ.");
+      return;
+    }
+    if (assignmentAction === "deactivate" && !effectiveTo) {
+      setError("Khi ngừng áp dụng, cần nhập ngày hiệu lực đến.");
       return;
     }
 
@@ -2271,72 +2293,76 @@ function AssignBranchModal({
             <X size={18} />
           </button>
         </div>
+        <form onSubmit={handleSubmit} className="space-y-4 p-6">
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-700">
+            Backend sẽ tự suy ra programId và levelId từ syllabus; FE chỉ cần gửi syllabusId cùng hiệu lực assignment.
+          </div>
 
-        {/* Scrollable Content */}
-        <div className="max-h-[calc(100vh-280px)] overflow-y-auto">
-          <form
-            id="assignBranchForm"
-            onSubmit={handleSubmit}
-            className="space-y-4 p-6"
-          >
-            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
-              Backend sẽ tự suy ra programId và levelId từ syllabus; FE chỉ cần
-              gửi syllabusId cùng hiệu lực assignment.
-            </div>
-            <Field label="Chi nhánh *">
-              <Select
-                value={branchId || "__none__"}
-                onValueChange={(value) =>
-                  setBranchId(value === "__none__" ? "" : value)
-                }
+          <Field label="Bạn muốn làm gì?">
+            <div className="grid gap-2 md:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => setAssignmentAction("activate")}
+                className={`rounded-xl border px-3 py-2 text-left text-sm transition-colors cursor-pointer ${
+                  assignmentAction === "activate"
+                    ? "border-emerald-300 bg-emerald-50 text-emerald-800"
+                    : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                }`}
               >
-                <SelectTrigger className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200">
-                  <SelectValue placeholder="Chọn chi nhánh" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Chọn chi nhánh</SelectItem>
-                  {branchOptions.map((branch) => (
-                    <SelectItem key={branch.id} value={branch.id}>
-                      {branch.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Hiệu lực từ *">
-                <input
-                  type="date"
-                  value={effectiveFrom}
-                  onChange={(e) => setEffectiveFrom(e.target.value)}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-                />
-              </Field>
-              <Field label="Hiệu lực đến">
-                <input
-                  type="date"
-                  value={effectiveTo}
-                  onChange={(e) => setEffectiveTo(e.target.value)}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-                />
-              </Field>
+                <div className="font-semibold">Gán hoặc kích hoạt lại</div>
+                <div className="mt-0.5 text-xs text-gray-500">Syllabus được áp dụng cho chi nhánh đã chọn.</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAssignmentAction("deactivate");
+                  if (!effectiveTo) {
+                    setEffectiveTo(new Date().toISOString().slice(0, 10));
+                  }
+                }}
+                className={`rounded-xl border px-3 py-2 text-left text-sm transition-colors cursor-pointer ${
+                  assignmentAction === "deactivate"
+                    ? "border-amber-300 bg-amber-50 text-amber-800"
+                    : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                <div className="font-semibold">Gỡ khỏi chi nhánh</div>
+                <div className="mt-0.5 text-xs text-gray-500">Set không hoạt động để ngừng áp dụng assignment.</div>
+              </button>
             </div>
-            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={isActive}
-                onChange={(e) => setIsActive(e.target.checked)}
-                className="rounded"
-              />
-              Kích hoạt assignment ngay sau khi lưu
-            </label>
-            {error && <ErrorBox message={error} />}
-          </form>
-        </div>
+          </Field>
 
-        {/* Fixed Footer */}
-        <div className="border-t border-gray-200 bg-linear-to-r from-red-500/5 to-red-700/5 px-6 py-4">
-          <div className="flex items-center justify-between gap-3">
+          <Field label="Chi nhánh *">
+            <Select value={branchId || "__none__"} onValueChange={(value) => setBranchId(value === "__none__" ? "" : value)}>
+              <SelectTrigger className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-200">
+                <SelectValue placeholder="Chọn chi nhánh" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Chọn chi nhánh</SelectItem>
+                {branchOptions.map((branch) => <SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </Field>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label="Hiệu lực từ *">
+              <input type="date" value={effectiveFrom} onChange={(e) => setEffectiveFrom(e.target.value)} className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-200" />
+            </Field>
+            <Field label={assignmentAction === "deactivate" ? "Hiệu lực đến *" : "Hiệu lực đến"}>
+              <input type="date" value={effectiveTo} onChange={(e) => setEffectiveTo(e.target.value)} className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-200" />
+            </Field>
+          </div>
+
+          <div className={`rounded-xl border px-4 py-3 text-xs ${isActive ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-800"}`}>
+            <div className="font-semibold">Xác nhận trước khi lưu</div>
+            <div className="mt-1">Chi nhánh: {selectedBranchName}</div>
+            <div className="mt-1">Trạng thái assignment sau khi lưu: {isActive ? "Đang hoạt động" : "Ngừng áp dụng"}</div>
+            {assignmentAction === "deactivate" ? (
+              <div className="mt-1">Khuyến nghị nhập Hiệu lực đến để tránh syllabus tiếp tục hiển thị ở branch.</div>
+            ) : null}
+          </div>
+
+          {error && <ErrorBox message={error} />}
+          <div className="flex items-center justify-between gap-3 border-t border-gray-200 pt-4">
             <button
               type="button"
               onClick={onClose}
@@ -2346,19 +2372,14 @@ function AssignBranchModal({
             </button>
             <button
               type="submit"
-              form="assignBranchForm"
               disabled={loading}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-5 py-2.5 text-sm font-semibold text-white hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
             >
-              {loading ? (
-                <Loader2 size={16} className="animate-spin" />
-              ) : (
-                <BookOpenCheck size={16} />
-              )}
-              Gán vào chi nhánh
+              {loading ? <Loader2 size={16} className="animate-spin" /> : <BookOpenCheck size={16} />}
+              {isActive ? "Lưu gán chi nhánh" : "Lưu và ngừng áp dụng"}
             </button>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   );
@@ -2835,6 +2856,7 @@ export default function SyllabusesPage() {
   const [configTarget, setConfigTarget] = useState<ConfigTarget>(null);
   const [branchAssignTarget, setBranchAssignTarget] =
     useState<BranchAssignTarget>(null);
+  const [versionTarget, setVersionTarget] = useState<SyllabusListItem | null>(null);
   const [archiveImportResult, setArchiveImportResult] =
     useState<ArchiveImportResultView | null>(null);
 
@@ -3332,6 +3354,7 @@ export default function SyllabusesPage() {
 
   const inputCls =
     "rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200";
+  const lessonPlanWorkspaceHref = `/${locale}/portal/admin/documents/templates${filterProgramId ? `?programId=${encodeURIComponent(filterProgramId)}` : ""}`;
 
   return (
     <div className="min-h-screen space-y-6 bg-gray-50 p-4 md:p-2">
@@ -3365,7 +3388,108 @@ export default function SyllabusesPage() {
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-3 flex-shrink-0">
+        <div className="flex flex-wrap items-center gap-3 flex-shrink-0">
+          <DropdownMenu>
+            <DropdownMenuTrigger className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100 cursor-pointer">
+              <Upload size={16} /> Nhập dữ liệu
+              <ChevronDown size={14} />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="w-72 rounded-xl border border-gray-200 bg-white p-1 shadow-xl"
+            >
+              <DropdownMenuLabel className="px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">
+                Luồng import
+              </DropdownMenuLabel>
+              <DropdownMenuItem
+                onClick={() => setImportMode("word")}
+                className="cursor-pointer gap-3 rounded-lg px-3 py-2.5"
+              >
+                <FileText size={16} className="text-blue-600" />
+                <div>
+                  <div className="font-medium text-gray-900">Nhập Word</div>
+                  <div className="text-xs text-gray-500">
+                    Tạo syllabus từ một file Word.
+                  </div>
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setImportMode("archive")}
+                className="cursor-pointer gap-3 rounded-lg px-3 py-2.5"
+              >
+                <FileArchive size={16} className="text-violet-600" />
+                <div>
+                  <div className="font-medium text-gray-900">Nhập Zip</div>
+                  <div className="text-xs text-gray-500">
+                    Dùng cho gói dữ liệu syllabus đầy đủ.
+                  </div>
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setImportMode("lesson-plan-words")}
+                className="cursor-pointer gap-3 rounded-lg px-3 py-2.5"
+              >
+                <BookOpenCheck size={16} className="text-teal-600" />
+                <div>
+                  <div className="font-medium text-gray-900">
+                    Import Bài Dạy
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    Bổ sung file bài dạy vào syllabus đã có.
+                  </div>
+                </div>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 cursor-pointer">
+              <Settings2 size={16} /> Tiện ích
+              <ChevronDown size={14} />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="w-72 rounded-xl border border-gray-200 bg-white p-1 shadow-xl"
+            >
+              <DropdownMenuLabel className="px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">
+                Tác vụ phụ
+              </DropdownMenuLabel>
+              <DropdownMenuItem
+                onClick={() => {
+                  if (typeof window !== "undefined") {
+                    window.location.href = lessonPlanWorkspaceHref;
+                  }
+                }}
+                className="cursor-pointer gap-3 rounded-lg px-3 py-2.5"
+              >
+                <BookOpenCheck size={16} className="text-emerald-600" />
+                <div>
+                  <div className="font-medium text-gray-900">
+                    Mẫu giáo án chuẩn
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    Mở template chuẩn theo bộ lọc syllabus hiện tại.
+                  </div>
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="my-1 bg-gray-100" />
+              <DropdownMenuItem
+                onClick={() => setConfigTarget({ programId: "", levelId: "" })}
+                className="cursor-pointer gap-3 rounded-lg px-3 py-2.5"
+              >
+                <Settings2 size={16} className="text-indigo-600" />
+                <div>
+                  <div className="font-medium text-gray-900">
+                    Cấu hình import
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    Thiết lập rule import cho chương trình và level.
+                  </div>
+                </div>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <button
             type="button"
             onClick={() => setModal({ mode: "create" })}
@@ -3493,44 +3617,6 @@ export default function SyllabusesPage() {
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Secondary Actions */}
-      <div className="flex flex-wrap gap-2">
-        <a
-          href={`/${locale}/portal/admin/documents${filterProgramId ? `?programId=${encodeURIComponent(filterProgramId)}` : ""}`}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 hover:bg-emerald-100 cursor-pointer transition-colors"
-        >
-          <BookOpenCheck size={14} /> Kế hoạch bài dạy
-        </a>
-        <button
-          type="button"
-          onClick={() => setConfigTarget({ programId: "", levelId: "" })}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-medium text-indigo-700 hover:bg-indigo-100 cursor-pointer transition-colors"
-        >
-          <Settings2 size={14} /> Cấu hình import
-        </button>
-        <button
-          type="button"
-          onClick={() => setImportMode("word")}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-700 hover:bg-blue-100 cursor-pointer transition-colors"
-        >
-          <FileText size={14} /> Nhập Word
-        </button>
-        <button
-          type="button"
-          onClick={() => setImportMode("archive")}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-purple-200 bg-purple-50 px-3 py-2 text-xs font-medium text-purple-700 hover:bg-purple-100 cursor-pointer transition-colors"
-        >
-          <FileArchive size={14} /> Nhập Zip
-        </button>
-        <button
-          type="button"
-          onClick={() => setImportMode("lesson-plan-words")}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-xs font-medium text-teal-700 hover:bg-teal-100 cursor-pointer transition-colors"
-        >
-          <Upload size={14} /> Import Bài Dạy
-        </button>
       </div>
 
       {/* Table */}
@@ -3676,12 +3762,20 @@ export default function SyllabusesPage() {
                           <BookOpen size={14} />
                         </a>
                         <a
-                          href={`/${locale}/portal/admin/documents?programId=${encodeURIComponent(item.programId)}&syllabusId=${encodeURIComponent(item.id)}`}
-                          title="Giáo án"
+                          href={`/${locale}/portal/admin/documents/templates?programId=${encodeURIComponent(item.programId)}&syllabusId=${encodeURIComponent(item.id)}`}
+                          title="Mẫu giáo án chuẩn"
                           className="inline-flex items-center justify-center rounded-lg p-1.5 text-gray-400 hover:text-emerald-600 cursor-pointer transition-colors"
                         >
                           <BookOpenCheck size={14} />
                         </a>
+                        <button
+                          type="button"
+                          title="Phiên bản"
+                          onClick={() => setVersionTarget(item)}
+                          className="inline-flex items-center justify-center rounded-lg p-1.5 text-gray-400 hover:text-indigo-600 cursor-pointer transition-colors"
+                        >
+                          <GitBranch size={14} />
+                        </button>
                         <button
                           type="button"
                           title="Gán chi nhánh"
@@ -3821,6 +3915,12 @@ export default function SyllabusesPage() {
           }
         />
       )}
+      <SyllabusVersionsModal
+        open={!!versionTarget}
+        syllabusId={versionTarget?.id ?? ""}
+        syllabusTitle={versionTarget ? `[${versionTarget.code}] ${versionTarget.title}` : ""}
+        onClose={() => setVersionTarget(null)}
+      />
       {configTarget !== null && (
         <ImportConfigModal
           programOptions={programOptions}

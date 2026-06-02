@@ -4,6 +4,7 @@ import type {
   CreateTuitionPlan,
   CreateTuitionPlanResponse,
   TuitionPlan,
+  TuitionPlanSyllabusMapping,
   UpdateTuitionPlanRequest,
   UpdateTuitionPlanResponse,
 } from "@/types/admin/tuition_plan";
@@ -181,4 +182,53 @@ export async function getProgramsForBranch(branchId?: string): Promise<ProgramOp
       isMakeup: item?.isMakeup === undefined ? undefined : Boolean(item.isMakeup),
     }))
     .filter((x: ProgramOption) => x.id);
+}
+
+// ─── Package–Curriculum Mapping ───────────────────────────────────────────────
+
+function pickSyllabusMappings(payload: any): any[] {
+  if (Array.isArray(payload?.data?.items)) return payload.data.items;
+  if (Array.isArray(payload?.data?.syllabuses)) return payload.data.syllabuses;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.syllabuses)) return payload.syllabuses;
+  if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload)) return payload;
+  return [];
+}
+
+function mapToSyllabusMapping(item: any): TuitionPlanSyllabusMapping {
+  return {
+    id: String(item?.id ?? item?.mappingId ?? ""),
+    syllabusId: String(item?.syllabusId ?? ""),
+    syllabusCode: String(item?.syllabusCode ?? item?.code ?? ""),
+    syllabusTitle: String(item?.syllabusTitle ?? item?.title ?? ""),
+    syllabusVersion: String(item?.syllabusVersion ?? item?.version ?? ""),
+    levelName: String(item?.levelName ?? item?.level?.name ?? ""),
+    programName: String(item?.programName ?? item?.program?.name ?? ""),
+    isActive: Boolean(item?.isActive ?? true),
+    effectiveFrom: item?.effectiveFrom ?? null,
+    effectiveTo: item?.effectiveTo ?? null,
+    createdAt: String(item?.createdAt ?? ""),
+  };
+}
+
+export async function getTuitionPlanSyllabuses(tuitionPlanId: string): Promise<TuitionPlanSyllabusMapping[]> {
+  const response = await get<any>(ADMIN_ENDPOINTS.TUITION_PLANS_SYLLABUSES(tuitionPlanId));
+  return pickSyllabusMappings(response).map(mapToSyllabusMapping).filter((x) => x.syllabusId);
+}
+
+export async function addSyllabusToTuitionPlan(
+  tuitionPlanId: string,
+  payload: { syllabusId: string; effectiveFrom?: string | null; effectiveTo?: string | null; isActive?: boolean },
+): Promise<TuitionPlanSyllabusMapping> {
+  const response = await post<any>(ADMIN_ENDPOINTS.TUITION_PLANS_SYLLABUSES(tuitionPlanId), payload);
+  const d = response?.data ?? response;
+  return mapToSyllabusMapping(d);
+}
+
+export async function removeSyllabusFromTuitionPlan(
+  tuitionPlanId: string,
+  syllabusId: string,
+): Promise<void> {
+  await del<any>(ADMIN_ENDPOINTS.TUITION_PLANS_SYLLABUS_BY_ID(tuitionPlanId, syllabusId));
 }

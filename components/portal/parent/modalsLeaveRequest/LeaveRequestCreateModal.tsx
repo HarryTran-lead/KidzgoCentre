@@ -347,7 +347,7 @@ function buildLeaveRequestErrorMessage(error: unknown, fallback: string) {
     apiError?.data?.message;
 
   if (code === "LeaveRequest.ExceededMonthlyLeaveLimit") {
-    return "Học viên đã vượt quá giới hạn 2 buổi nghỉ trong tháng.";
+    return description ?? "Học viên đã vượt quá số buổi nghỉ tối đa trong tháng của lớp này.";
   }
 
   return description ?? getDomainErrorMessage(error, fallback);
@@ -1227,6 +1227,11 @@ export default function LeaveRequestCreateModal({
                     <AlertCircle size={14} /> {formErrors.reason}
                   </p>
                 )}
+              </div>
+
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+                Limit LeaveRequest hiện được backend đếm theo <span className="font-semibold">học viên + lớp + tháng</span> trên các đơn <span className="font-semibold">Pending/Approved</span>.
+                Nếu vượt mức của lớp đang chọn, hệ thống sẽ chặn tạo đơn trước khi lưu.
               </div>
             </div>
           </div>

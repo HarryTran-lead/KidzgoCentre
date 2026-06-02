@@ -34,12 +34,12 @@ import {
   updateAdminProgram,
   toggleProgramStatus,
   normalizeIsActive,
-  updateAdminProgramMonthlyLeaveLimit,
   extractProgramMonthlyLeaveLimit,
   assignBranchToProgram,
 } from "@/app/api/admin/programs";
 import type { CourseRow, CreateProgramRequest, ProgramDetail } from "@/types/admin/programs";
-import { getAllBranches } from "@/lib/api/branchService";
+import { getAllBranches, getBranchById } from "@/lib/api/branchService";
+import type { Branch } from "@/types/branch";
 import ConfirmModal from "@/components/ConfirmModal";
 import { useToast } from "@/hooks/use-toast";
 import { useBranchFilter } from "@/hooks/useBranchFilter";
@@ -66,10 +66,6 @@ function parseMonthlyLeaveLimitValue(value: string): number | null {
   return parsedValue;
 }
 
-function isProgramWithoutMonthlyLeaveLimit(value?: { isMakeup?: boolean | null; isSupplementary?: boolean | null } | null) {
-  return Boolean(value?.isMakeup || value?.isSupplementary);
-}
-
 function buildProgramCode(name: string, fallback = "PROGRAM"): string {
   const normalizedName = name
     .normalize("NFD")
@@ -82,19 +78,19 @@ function buildProgramCode(name: string, fallback = "PROGRAM"): string {
 }
 
 function getProgramTypeLabel(value: { isMakeup?: boolean | null; isSupplementary?: boolean | null }) {
-  if (value.isMakeup) return "Bù";
+  if (value.isMakeup) return "Bù (legacy)";
   if (value.isSupplementary) return "Phụ trợ";
   return "Chính";
 }
 
 function getProgramTypeDetailLabel(value: { isMakeup?: boolean | null; isSupplementary?: boolean | null }) {
-  if (value.isMakeup) return "Chương trình bù";
+  if (value.isMakeup) return "Chương trình bù (legacy)";
   if (value.isSupplementary) return "Chương trình phụ trợ";
   return "Chương trình chính";
 }
 
 function getProgramTypeBadgeClass(value: { isMakeup?: boolean | null; isSupplementary?: boolean | null }) {
-  if (value.isMakeup) return "bg-blue-100 text-blue-700 border border-blue-200";
+  if (value.isMakeup) return "bg-amber-100 text-amber-800 border border-amber-200";
   if (value.isSupplementary) return "bg-violet-100 text-violet-700 border border-violet-200";
   return "bg-gray-100 text-gray-600 border border-gray-200";
 }
@@ -220,9 +216,12 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
 
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof CourseFormData, string>> = {};
+    const effectiveFormData = mode === "create"
+      ? { ...formData, isMakeup: false }
+      : formData;
 
-    if (!formData.name.trim()) newErrors.name = t.validation.nameRequired;
-    if (formData.isMakeup && formData.isSupplementary) {
+    if (!effectiveFormData.name.trim()) newErrors.name = t.validation.nameRequired;
+    if (effectiveFormData.isMakeup && effectiveFormData.isSupplementary) {
       newErrors.isSupplementary = t.validation.cannotBothTypes;
     }
 
@@ -234,15 +233,13 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
     e?.preventDefault();
     if (!validateForm()) return;
 
-    const isNoLimitProgramType = isProgramWithoutMonthlyLeaveLimit(formData);
+    const effectiveFormData = mode === "create"
+      ? { ...formData, isMakeup: false }
+      : formData;
 
     try {
       setSubmitting(true);
-      const isSuccess = await onSubmit(
-        isNoLimitProgramType
-          ? { ...formData, maxLeavesPerMonth: null }
-          : formData
-      );
+      const isSuccess = await onSubmit(effectiveFormData);
       if (isSuccess !== false) {
         onClose();
       }
@@ -260,8 +257,6 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
       setErrors(prev => ({ ...prev, isSupplementary: undefined }));
     }
   };
-
-  const isNoLimitProgramType = isProgramWithoutMonthlyLeaveLimit(formData);
 
   if (!isOpen) return null;
 
@@ -336,6 +331,20 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
               {errors.name && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.name}</p>}
             </div>
 
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <FileText size={16} className="text-red-600" />
+                {t.modal.courseDescLabel}
+              </label>
+              <textarea
+                value={formData.description ?? ""}
+                onChange={(e) => handleChange("description", e.target.value)}
+                rows={3}
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 transition-all focus:outline-none focus:ring-2 focus:ring-red-300 resize-none"
+                placeholder={t.modal.courseDescPlaceholder}
+              />
+            </div>
+
             <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
               <div className="space-y-4">
                 <div className="space-y-1">
@@ -348,26 +357,47 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
                   </p>
                 </div>
 
-                <div className="grid gap-3 md:grid-cols-2">
-                <label className="inline-flex items-center gap-3 rounded-xl border border-blue-200 bg-white px-4 py-3 text-sm font-semibold text-gray-800">
-                  <input
-                    type="checkbox"
-                    checked={formData.isSupplementary}
-                    onChange={(e) => handleChange("isSupplementary", e.target.checked)}
-                    className="h-4 w-4 rounded border-violet-300 text-violet-600 focus:ring-violet-300"
-                  />
-                  <span className="text-sm">{formData.isSupplementary ? t.modal.supplementaryLabel : t.modal.supplementary}</span>
-                </label>
+                <div className={cn("grid gap-3", mode === "edit" ? "md:grid-cols-2" : "md:grid-cols-1")}>
+                  <label className="rounded-xl border border-violet-200 bg-white px-4 py-3 text-sm text-gray-800">
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={formData.isSupplementary}
+                        onChange={(e) => handleChange("isSupplementary", e.target.checked)}
+                        className="h-4 w-4 rounded border-violet-300 text-violet-600 focus:ring-violet-300"
+                      />
+                      <div className="space-y-1">
+                        <div className="text-sm font-semibold">
+                          {formData.isSupplementary ? t.modal.supplementaryLabel : t.modal.supplementary}
+                        </div>
+                        <p className="text-xs leading-5 text-gray-500">{t.modal.supplementaryHint}</p>
+                      </div>
+                    </div>
+                  </label>
 
-                <label className="inline-flex items-center gap-3 rounded-xl border border-blue-200 bg-white px-4 py-3 text-sm font-semibold text-gray-800">
-                  <input
-                    type="checkbox"
-                    checked={formData.isMakeup}
-                    onChange={(e) => handleChange("isMakeup", e.target.checked)}
-                    className="h-4 w-4 rounded border-blue-300 text-blue-600 focus:ring-blue-300"
-                  />
-                  <span className="text-sm">{formData.isMakeup ? t.modal.makeupLabel : t.modal.makeup}</span>
-                </label>
+                  {mode === "edit" && (
+                    <label className="rounded-xl border border-amber-200 bg-amber-50/50 px-4 py-3 text-sm text-gray-800">
+                      <div className="flex items-start gap-3">
+                        <input
+                          type="checkbox"
+                          checked={formData.isMakeup}
+                          onChange={(e) => handleChange("isMakeup", e.target.checked)}
+                          className="h-4 w-4 rounded border-amber-300 text-amber-600 focus:ring-amber-300"
+                        />
+                        <div className="space-y-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm font-semibold">
+                              {formData.isMakeup ? t.modal.makeupLabel : t.modal.makeup}
+                            </span>
+                            <span className="rounded-full border border-amber-300 bg-white px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-700">
+                              {t.modal.legacyBadge}
+                            </span>
+                          </div>
+                          <p className="text-xs leading-5 text-amber-700">{t.modal.makeupHint}</p>
+                        </div>
+                      </div>
+                    </label>
+                  )}
                 </div>
 
                 <div className="rounded-xl border border-dashed border-blue-200 bg-white/70 px-3 py-2 text-sm text-gray-700">
@@ -392,39 +422,6 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
                 )}
               </div>
             </div>
-
-            {/* Row: Giới hạn nghỉ */}
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 space-y-3">
-              <div className="flex items-start gap-3">
-                <AlertCircle size={16} className="mt-0.5 shrink-0 text-amber-600" />
-                <div>
-                  <div className="text-sm font-semibold text-amber-900">{t.modal.leaveLimitTitle}</div>
-                  <p className="text-xs text-amber-700 mt-0.5">
-                    {t.modal.leaveLimitDesc}
-                  </p>
-                </div>
-              </div>
-              <input
-                type="number"
-                min="1"
-                step="1"
-                value={isNoLimitProgramType ? "" : (formData.maxLeavesPerMonth ?? "")}
-                onChange={(e) => {
-                  if (isNoLimitProgramType) return;
-                  const v = e.target.value.trim();
-                  handleChange("maxLeavesPerMonth", v === "" ? null : Math.max(1, parseInt(v, 10) || 1));
-                }}
-                disabled={isNoLimitProgramType}
-                placeholder={isNoLimitProgramType ? "Không giới hạn cho chương trình bù/phụ trợ" : t.modal.leaveLimitPlaceholder}
-                className="w-full rounded-xl border text-sm border-amber-200 bg-white px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-300"
-              />
-              {isNoLimitProgramType && (
-                <p className="text-xs text-amber-700">
-                  Chương trình bù/phụ trợ mặc định không giới hạn ngày nghỉ theo tháng.
-                </p>
-              )}
-            </div>
-
 
           </form>
         </div>
@@ -821,6 +818,24 @@ export function ProgramsManagementPage({
   const t = messages.adminPages.courses;
   const pathname = usePathname() ?? "";
   const locale = pathname.split("/").filter(Boolean)[0] ?? "vi";
+  const isEnglish = locale === "en";
+  const headerSubtitle = isEnglish
+    ? "Parent workspace for programs. From here, continue to syllabuses and standard lesson templates."
+    : "Trang cha quản lý chương trình. Từ đây đi tiếp sang Giáo trình và Mẫu giáo án chuẩn.";
+  const scopeTitle = isEnglish ? "Management Scope" : "Phạm vi quản lý";
+  const scopeHint = isEnglish
+    ? "Choose whether you are reviewing all programs or only the current branch."
+    : "Chọn phạm vi đang quản lý: toàn hệ thống hoặc chi nhánh hiện tại.";
+  const curriculumRootLabel = isEnglish
+    ? "Programs & Curriculum"
+    : "Khung chương trình";
+  const childAreasLabel = isEnglish ? "Child areas" : "Màn con";
+  const syllabusesLabel = isEnglish ? "Syllabuses" : "Giáo trình";
+  const templatesLabel = isEnglish
+    ? "Standard Lesson Templates"
+    : "Mẫu giáo án chuẩn";
+  const systemScopeLabel = isEnglish ? "System-wide" : "Toàn hệ thống";
+  const branchScopeLabel = isEnglish ? "Current branch" : "Theo chi nhánh";
   const [isPageLoaded, setIsPageLoaded] = useState(false);
   const [q, setQ] = useState("");
   const [courses, setCourses] = useState<CourseRow[]>([]);
@@ -841,8 +856,8 @@ export function ProgramsManagementPage({
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedCourseDetail, setSelectedCourseDetail] = useState<ProgramDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
-  const [leaveLimitDraft, setLeaveLimitDraft] = useState("");
-  const [isSavingLeaveLimit, setIsSavingLeaveLimit] = useState(false);
+  const [branchOverview, setBranchOverview] = useState<Branch | null>(null);
+  const [branchOverviewLoading, setBranchOverviewLoading] = useState(false);
   const [showAssignBranchModal, setShowAssignBranchModal] = useState(false);
   const [assignBranchTargetId, setAssignBranchTargetId] = useState<string | null>(null);
   const [assignBranchTargetName, setAssignBranchTargetName] = useState<string>("");
@@ -880,8 +895,6 @@ export function ProgramsManagementPage({
   const closeDetailModal = () => {
     setShowDetailModal(false);
     setSelectedCourseDetail(null);
-    setLeaveLimitDraft("");
-    setIsSavingLeaveLimit(false);
   };
 
   useEffect(() => {
@@ -889,6 +902,35 @@ export function ProgramsManagementPage({
   }, []);
 
   const currentBranchId = getBranchQueryParam();
+
+  useEffect(() => {
+    if (activeViewMode !== "branch" || !currentBranchId) {
+      setBranchOverview(null);
+      setBranchOverviewLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setBranchOverviewLoading(true);
+
+    getBranchById(currentBranchId)
+      .then((response) => {
+        if (cancelled) return;
+        setBranchOverview(response?.data?.branch ?? null);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setBranchOverview(null);
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setBranchOverviewLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeViewMode, currentBranchId]);
 
   // Fetch programs with view mode
   useEffect(() => {
@@ -927,14 +969,26 @@ export function ProgramsManagementPage({
   const stats = useMemo(() => {
     const total = courses.length;
     const active = courses.filter(c => c.status === "Đang hoạt động").length;
-    const students = 0;
+    const studentsFromPrograms = courses.reduce((acc, course) => {
+      if (typeof course.studentCount === "number" && Number.isFinite(course.studentCount)) {
+        return acc + Math.max(0, Math.trunc(course.studentCount));
+      }
+      return acc;
+    }, 0);
+
+    const students =
+      studentsFromPrograms > 0
+        ? studentsFromPrograms
+        : activeViewMode === "branch"
+          ? (branchOverview?.totalStudents ?? 0)
+          : 0;
 
     return {
       total,
       active,
       students,
     };
-  }, [courses]);
+  }, [courses, activeViewMode, branchOverview?.totalStudents]);
 
   const rows = useMemo(() => {
     const kw = q.trim().toLowerCase();
@@ -971,16 +1025,6 @@ export function ProgramsManagementPage({
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const pagedRows = rows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
-  const isSelectedProgramNoLimit = isProgramWithoutMonthlyLeaveLimit(selectedCourseDetail);
-  const currentLeaveLimit = extractProgramMonthlyLeaveLimit(selectedCourseDetail);
-  const leaveLimitValue = Number(leaveLimitDraft);
-  const canSaveLeaveLimit =
-    !isSelectedProgramNoLimit &&
-    leaveLimitDraft.trim() !== "" &&
-    Number.isInteger(leaveLimitValue) &&
-    leaveLimitValue > 0 &&
-    leaveLimitValue !== currentLeaveLimit &&
-    !isSavingLeaveLimit;
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -1016,19 +1060,9 @@ export function ProgramsManagementPage({
         isSupplementary: data.isSupplementary,
       };
 
-      const created = await createAdminProgram(payload);
+      await createAdminProgram(payload);
 
       const warnings: string[] = [];
-
-      // Cấu hình giới hạn nghỉ nếu có và chỉ áp dụng cho chương trình chính
-      if (!isProgramWithoutMonthlyLeaveLimit(data) && data.maxLeavesPerMonth && data.maxLeavesPerMonth > 0 && created?.id && !created.id.startsWith("PROG-")) {
-        try {
-          await updateAdminProgramMonthlyLeaveLimit(created.id, data.maxLeavesPerMonth);
-        } catch (leaveLimitError: any) {
-          console.warn("Failed to set leave limit after create:", leaveLimitError);
-          warnings.push(leaveLimitError?.message || "chưa cấu hình được giới hạn nghỉ");
-        }
-      }
 
       try {
         const branchId = activeViewMode === "branch" ? currentBranchId : undefined;
@@ -1085,16 +1119,6 @@ export function ProgramsManagementPage({
       await updateAdminProgram(editingProgramId, payload);
 
       const warnings: string[] = [];
-
-      // Cập nhật giới hạn nghỉ nếu thay đổi, chỉ áp dụng cho chương trình chính
-      if (!isProgramWithoutMonthlyLeaveLimit(data) && data.maxLeavesPerMonth && data.maxLeavesPerMonth > 0) {
-        try {
-          await updateAdminProgramMonthlyLeaveLimit(editingProgramId, data.maxLeavesPerMonth);
-        } catch (leaveLimitError: any) {
-          console.warn("Failed to update leave limit:", leaveLimitError);
-          warnings.push(leaveLimitError?.message || "chưa cập nhật được giới hạn nghỉ");
-        }
-      }
 
       if (originalStatus && data.status !== originalStatus) {
         try {
@@ -1214,9 +1238,7 @@ export function ProgramsManagementPage({
           typeof detail.isSupplementary === "boolean"
             ? detail.isSupplementary
             : !!row.isSupplementary,
-        maxLeavesPerMonth: isProgramWithoutMonthlyLeaveLimit(detail)
-          ? null
-          : extractProgramMonthlyLeaveLimit(detail),
+        maxLeavesPerMonth: extractProgramMonthlyLeaveLimit(detail),
       };
 
       setEditingProgramId(row.id);
@@ -1237,16 +1259,9 @@ export function ProgramsManagementPage({
       setLoadingDetail(true);
       setShowDetailModal(true);
       setSelectedCourseDetail(null);
-      setLeaveLimitDraft("");
 
       const detail = await fetchAdminProgramDetail(row.id);
       setSelectedCourseDetail(detail);
-      const limit = extractProgramMonthlyLeaveLimit(detail);
-      setLeaveLimitDraft(
-        isProgramWithoutMonthlyLeaveLimit(detail)
-          ? ""
-          : (limit !== null ? String(limit) : "")
-      );
     } catch (err: any) {
       console.error("Failed to load program detail:", err);
       toast({
@@ -1257,79 +1272,6 @@ export function ProgramsManagementPage({
       closeDetailModal();
     } finally {
       setLoadingDetail(false);
-    }
-  };
-
-  const handleSaveMonthlyLeaveLimit = async () => {
-    if (!selectedCourseDetail?.id) return;
-
-    if (isProgramWithoutMonthlyLeaveLimit(selectedCourseDetail)) {
-      toast({
-        title: "Không áp dụng giới hạn",
-        description: "Chương trình bù/phụ trợ mặc định không giới hạn ngày nghỉ theo tháng.",
-        type: "warning",
-      });
-      return;
-    }
-
-    const maxLeavesPerMonth = Number(leaveLimitDraft);
-    if (!Number.isInteger(maxLeavesPerMonth) || maxLeavesPerMonth <= 0) {
-      toast({
-        title: t.validation.invalidLeaveLimit,
-        description: t.validation.invalidLeaveValue,
-        type: "warning",
-      });
-      return;
-    }
-
-    try {
-      setIsSavingLeaveLimit(true);
-
-      const updated = await updateAdminProgramMonthlyLeaveLimit(
-        selectedCourseDetail.id,
-        maxLeavesPerMonth
-      );
-
-      let refreshedDetail: ProgramDetail | null = null;
-      try {
-        refreshedDetail = await fetchAdminProgramDetail(selectedCourseDetail.id);
-      } catch (refreshError) {
-        console.warn("Failed to refresh program detail after leave limit update:", refreshError);
-      }
-
-      const nextLimit =
-        extractProgramMonthlyLeaveLimit(refreshedDetail) ??
-        updated.maxLeavesPerMonth ??
-        maxLeavesPerMonth;
-
-      const baseDetail = refreshedDetail ?? selectedCourseDetail;
-      setSelectedCourseDetail({
-        ...baseDetail,
-        maxLeavesPerMonth: nextLimit,
-        monthlyLeaveLimit: nextLimit,
-        programLeavePolicy: {
-          ...(baseDetail.programLeavePolicy ?? {}),
-          maxLeavesPerMonth: nextLimit,
-        },
-      });
-      setLeaveLimitDraft(String(nextLimit));
-
-      toast({
-        title: t.messages.leaveLimitUpdated,
-        description: t.messages.leaveLimitUpdateNote,
-        type: "success",
-      });
-    } catch (err: any) {
-      console.error("Failed to update monthly leave limit:", err);
-      toast({
-        title: "Không thể cập nhật",
-        description:
-          err?.message ||
-          "Không thể lưu số buổi nghỉ tối đa theo tháng cho chương trình này.",
-        type: "destructive",
-      });
-    } finally {
-      setIsSavingLeaveLimit(false);
     }
   };
 
@@ -1373,6 +1315,32 @@ export function ProgramsManagementPage({
   return (
     <>
       <div className="space-y-6 bg-gray-50 p-4 md:p-2 rounded-3xl">
+        <nav className="flex flex-wrap items-center gap-2 text-sm text-gray-500">
+          <span className="inline-flex items-center gap-2 rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-red-600">
+            {curriculumRootLabel}
+          </span>
+          <ChevronRight size={14} className="text-gray-300" />
+          <span className="font-semibold text-gray-700">{t.header.title}</span>
+          <span className="text-gray-300">•</span>
+          <span className="text-xs uppercase tracking-[0.14em] text-gray-400">
+            {childAreasLabel}
+          </span>
+          <Link
+            href={`/${locale}/portal/admin/syllabuses`}
+            className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100"
+          >
+            <BookOpenCheck size={12} />
+            {syllabusesLabel}
+          </Link>
+          <Link
+            href={`/${locale}/portal/admin/documents/templates`}
+            className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100"
+          >
+            <FileText size={12} />
+            {templatesLabel}
+          </Link>
+        </nav>
+
         {/* Title */}
         <div className={`flex flex-col md:flex-row md:items-center md:justify-between gap-4 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
           <div className="flex items-center gap-3">
@@ -1385,7 +1353,7 @@ export function ProgramsManagementPage({
               </h1>
               <p className="text-gray-600 mt-1 flex items-center gap-2">
                 <Sparkles size={14} className="text-red-600" />
-                {t.header.subtitle}
+                {headerSubtitle}
               </p>
             </div>
           </div>
@@ -1411,31 +1379,39 @@ export function ProgramsManagementPage({
         </div>
 
         {!hideViewModeSwitch && (
-          <div className="rounded-2xl border border-gray-200 bg-white p-2 inline-flex gap-2 w-fit">
-            <button
-              type="button"
-              onClick={() => setViewMode("system")}
-              className={cn(
-                "px-4 py-2 rounded-xl text-sm font-semibold transition-colors",
-                activeViewMode === "system"
-                  ? "bg-red-600 text-white"
-                  : "text-gray-600 hover:bg-gray-100"
-              )}
-            >
-              Tất cả chương trình
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("branch")}
-              className={cn(
-                "px-4 py-2 rounded-xl text-sm font-semibold transition-colors",
-                activeViewMode === "branch"
-                  ? "bg-emerald-600 text-white"
-                  : "text-gray-600 hover:bg-gray-100"
-              )}
-            >
-              Chương trình của chi nhánh hiện tại
-            </button>
+          <div className="inline-flex flex-col gap-3 rounded-2xl border border-red-200 bg-white p-3 shadow-sm">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">
+                {scopeTitle}
+              </div>
+              <div className="mt-1 text-sm text-gray-600">{scopeHint}</div>
+            </div>
+            <div className="inline-flex w-fit rounded-2xl border border-gray-200 bg-gray-50 p-1 gap-1">
+              <button
+                type="button"
+                onClick={() => setViewMode("system")}
+                className={cn(
+                  "px-4 py-2 rounded-xl text-sm font-semibold transition-colors",
+                  activeViewMode === "system"
+                    ? "bg-red-600 text-white shadow-sm"
+                    : "text-gray-600 hover:bg-white"
+                )}
+              >
+                {systemScopeLabel}
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("branch")}
+                className={cn(
+                  "px-4 py-2 rounded-xl text-sm font-semibold transition-colors",
+                  activeViewMode === "branch"
+                    ? "bg-emerald-600 text-white shadow-sm"
+                    : "text-gray-600 hover:bg-white"
+                )}
+              >
+                {branchScopeLabel}
+              </button>
+            </div>
           </div>
         )}
 
@@ -1481,13 +1457,78 @@ export function ProgramsManagementPage({
           </div>
         </div>
 
-        {/* Branch Filter Indicator */}
-        {selectedBranchId && activeViewMode === "branch" && (
-          <div className={`flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-red-50 to-red-100 border border-red-200 rounded-xl transition-all duration-700 delay-150 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-            <Building2 size={16} className="text-red-600" />
-            <span className="text-sm text-red-700 font-medium">
-              {t.filters.branchFiltered}
-            </span>
+        {/* Branch Overview */}
+        {currentBranchId && activeViewMode === "branch" && (
+          <div className={`rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 via-white to-emerald-50 p-4 shadow-sm transition-all duration-700 delay-150 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="space-y-3">
+                <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-red-600">
+                  <Building2 size={12} />
+                  Tổng quan chi nhánh
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-red-600 to-red-700 text-white shadow-sm">
+                    <Building2 size={18} />
+                  </div>
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="text-lg font-bold text-gray-900">
+                        {branchOverviewLoading
+                          ? "Đang tải chi nhánh..."
+                          : branchOverview?.name || "Chi nhánh đang chọn"}
+                      </h2>
+                      {branchOverview?.isActive === false ? (
+                        <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700">
+                          Tạm dừng
+                        </span>
+                      ) : (
+                        <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                          Đang hoạt động
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-1 text-sm text-gray-600">
+                      {branchOverview?.code ? `${branchOverview.code} • ` : ""}
+                      {branchOverview?.address || currentBranchId}
+                    </p>
+                    <p className="mt-2 text-sm font-medium text-red-700">
+                      {t.filters.branchFiltered}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div className="rounded-2xl border border-white bg-white/80 px-4 py-3 shadow-sm">
+                  <div className="text-xs uppercase tracking-[0.14em] text-gray-400">
+                    Chương trình
+                  </div>
+                  <div className="mt-1 text-2xl font-bold text-gray-900">{stats.total}</div>
+                </div>
+                <div className="rounded-2xl border border-white bg-white/80 px-4 py-3 shadow-sm">
+                  <div className="text-xs uppercase tracking-[0.14em] text-gray-400">
+                    Đang hoạt động
+                  </div>
+                  <div className="mt-1 text-2xl font-bold text-gray-900">{stats.active}</div>
+                </div>
+                <div className="rounded-2xl border border-white bg-white/80 px-4 py-3 shadow-sm">
+                  <div className="text-xs uppercase tracking-[0.14em] text-gray-400">
+                    Lớp học
+                  </div>
+                  <div className="mt-1 text-2xl font-bold text-gray-900">
+                    {branchOverview?.totalClasses ?? "-"}
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-white bg-white/80 px-4 py-3 shadow-sm">
+                  <div className="text-xs uppercase tracking-[0.14em] text-gray-400">
+                    Học viên
+                  </div>
+                  <div className="mt-1 text-2xl font-bold text-gray-900">
+                    {branchOverview?.totalStudents ?? "-"}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -1890,65 +1931,6 @@ export function ProgramsManagementPage({
                   </div>
 
                   {/* Grid: Số buổi, Học phí, Giá mỗi buổi */}
-                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 space-y-4">
-                    <div className="flex items-start gap-3">
-                      <AlertCircle size={18} className="mt-0.5 shrink-0 text-amber-600" />
-                      <div className="space-y-1">
-                        <h3 className="text-sm font-semibold text-amber-900">
-                          {t.modal.leaveLimitTitle}
-                        </h3>
-                        <p className="text-sm text-amber-800">
-                          {t.modal.leaveLimitDesc}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
-                      <div className="space-y-2">
-                        <label className="text-sm font-semibold text-gray-700">
-                          {t.modal.leaveCurrentLimit}
-                        </label>
-                        <div className="px-4 py-3 rounded-xl border border-amber-200 bg-white text-sm text-gray-900">
-                          {isSelectedProgramNoLimit
-                            ? "Không giới hạn"
-                            : (currentLeaveLimit !== null ? `${currentLeaveLimit} buổi / tháng` : t.modal.leaveCurrentLimit)}
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="text-sm font-semibold text-gray-700">
-                          {t.modal.leaveLimitLabel}
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          step="1"
-                          value={leaveLimitDraft}
-                          onChange={(e) => setLeaveLimitDraft(e.target.value)}
-                          placeholder={isSelectedProgramNoLimit ? "Không áp dụng cho chương trình bù/phụ trợ" : t.modal.leaveLimitPlaceholder}
-                          disabled={isSelectedProgramNoLimit}
-                          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-200"
-                        />
-                      </div>
-
-                      <div className="flex items-end">
-                        <button
-                          type="button"
-                          onClick={handleSaveMonthlyLeaveLimit}
-                          disabled={!canSaveLeaveLimit}
-                          className={cn(
-                            "w-full rounded-xl px-4 py-3 text-sm font-semibold transition-all md:w-auto",
-                            canSaveLeaveLimit
-                              ? "bg-gradient-to-r from-red-600 to-red-700 text-white hover:shadow-lg hover:shadow-red-500/25 cursor-pointer"
-                              : "bg-gray-100 text-gray-400 cursor-not-allowed"
-                          )}
-                        >
-                          {isSavingLeaveLimit ? t.messages.saving : t.modal.saveLeaveLimit}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">

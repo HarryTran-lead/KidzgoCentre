@@ -6,6 +6,8 @@ export type CourseRow = {
   fee: string;
   classes: string;
   students: string;
+  classCount?: number;
+  studentCount?: number;
   status: string;
   assignedBranchCount?: number;
   isMakeup?: boolean | null;

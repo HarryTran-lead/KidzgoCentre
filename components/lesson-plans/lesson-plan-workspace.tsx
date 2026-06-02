@@ -96,6 +96,7 @@ import {
   SessionLessonPlanDocument,
 } from "@/lib/api/lessonPlanService";
 import {
+  getBranchSyllabusAssignments,
   getSyllabusById,
   getSyllabuses,
   getUnitLessonPlans,
@@ -105,10 +106,13 @@ import {
 import { getAllProgramsForDropdown } from "@/lib/api/programService";
 import LessonPlanTemplateDocument from "@/components/lesson-plans/LessonPlanTemplateDocument";
 import { getTeacherClasses } from "@/lib/api/teacherService";
+import { getSessionById, getTeachingLog } from "@/lib/api/sessionService";
+import { useBranchFilter } from "@/hooks/useBranchFilter";
 
 type WorkspaceScope = "teacher" | "staff-management" | "admin";
 type WorkspacePresentation = "workspace" | "session-page";
 type ActiveTab = "templates" | "plans";
+type WorkspaceLockedTab = ActiveTab | null;
 type TemplateStatusFilter = "all" | "active" | "inactive" | "withAttachment";
 type PlanStatusFilter =
   | "all"
@@ -436,6 +440,173 @@ function pickSharedProgramTemplate(
     const bTime = new Date(b.updatedAt || b.createdAt || 0).getTime();
     return bTime - aTime;
   })[0];
+}
+
+function hasStructuredTemplateContent(
+  template?: LessonPlanTemplate | null,
+): boolean {
+  if (!template) return false;
+
+  return Boolean(
+    template.objectives ||
+      template.languageContent ||
+      template.vocabulary ||
+      template.grammar ||
+      template.teachingMethodology ||
+      template.teacherMaterials ||
+      template.studentMaterials ||
+      template.procedure ||
+      template.evaluation ||
+      template.homework,
+  );
+}
+
+function hasSessionTemplateLinkage(
+  session: Pick<
+    ClassLessonPlanSyllabusSession,
+    | "templateId"
+    | "templateTitle"
+    | "templateSyllabusContent"
+    | "plannedContent"
+    | "moduleId"
+    | "sessionIndexInModule"
+  >,
+): boolean {
+  return Boolean(
+    session.templateId ||
+      session.templateTitle ||
+      session.templateSyllabusContent ||
+      session.plannedContent ||
+      session.moduleId ||
+      session.sessionIndexInModule != null,
+  );
+}
+
+function needsRuntimeSessionHydration(
+  session: Pick<
+    ClassLessonPlanSyllabusSession,
+    | "lessonPlanId"
+    | "moduleId"
+    | "sessionIndexInModule"
+    | "templateId"
+    | "templateTitle"
+    | "templateSyllabusContent"
+    | "plannedContent"
+  >,
+): boolean {
+  if (!session.moduleId || session.sessionIndexInModule == null) {
+    return true;
+  }
+
+  return !Boolean(
+    session.lessonPlanId ||
+      session.templateId ||
+      session.templateTitle ||
+      session.templateSyllabusContent ||
+      session.plannedContent,
+  );
+}
+
+function pickSessionFallbackTemplate(
+  templates: LessonPlanTemplate[],
+  session: Pick<
+    ClassLessonPlanSyllabusSession,
+    "moduleId" | "sessionIndexInModule"
+  >,
+  sharedTemplate?: LessonPlanTemplate,
+): LessonPlanTemplate | undefined {
+  const moduleId = session.moduleId?.trim();
+
+  if (moduleId) {
+    const moduleTemplates = templates.filter(
+      (item) => item.moduleId?.trim() === moduleId,
+    );
+
+    if (moduleTemplates.length) {
+      const sessionOrder = session.sessionIndexInModule;
+      if (sessionOrder != null) {
+        const exactCandidates = moduleTemplates.filter((item) => {
+          if (item.sessionOrder != null && item.sessionOrder === sessionOrder) {
+            return true;
+          }
+          if (item.sessionIndex != null && item.sessionIndex === sessionOrder) {
+            return true;
+          }
+          if (
+            item.lessonOrderIndexInUnit != null &&
+            item.lessonOrderIndexInUnit === sessionOrder
+          ) {
+            return true;
+          }
+          if (
+            item.orderIndexInUnit != null &&
+            (item.orderIndexInUnit === sessionOrder ||
+              item.orderIndexInUnit + 1 === sessionOrder)
+          ) {
+            return true;
+          }
+          return false;
+        });
+
+        if (exactCandidates.length) {
+          return [...exactCandidates].sort(compareLessonsByBeOrder)[0];
+        }
+      }
+
+      return [...moduleTemplates].sort(compareLessonsByBeOrder)[0];
+    }
+  }
+
+  return sharedTemplate;
+}
+
+function extractLessonPlanSections(
+  content: string | null | undefined,
+  template?: LessonPlanTemplate | null,
+) {
+  const rawContent = String(content ?? template?.syllabusContent ?? "").trim();
+  const contentObj = asObject(parseJsonContent(rawContent));
+
+  return {
+    rawContent,
+    objectives:
+      pickStringValue(contentObj, ["objectives", "objective", "learningObjectives"]) ||
+      String(template?.objectives ?? "").trim(),
+    languageContent:
+      pickStringValue(contentObj, ["languageContent", "language", "languageFocus"]) ||
+      String(template?.languageContent ?? "").trim(),
+    vocabulary:
+      pickStringValue(contentObj, ["vocabulary", "vocab", "newWords"]) ||
+      String(template?.vocabulary ?? "").trim(),
+    grammar:
+      pickStringValue(contentObj, ["grammar", "grammarFocus"]) ||
+      String(template?.grammar ?? "").trim(),
+    methodology:
+      pickStringValue(contentObj, [
+        "teachingMethodology",
+        "methodology",
+        "teachingMethod",
+        "approach",
+      ]) || String(template?.teachingMethodology ?? "").trim(),
+    teacherMaterials:
+      pickStringValue(contentObj, ["teacherMaterials", "materialsForTeacher"]) ||
+      String(template?.teacherMaterials ?? "").trim(),
+    studentMaterials:
+      pickStringValue(contentObj, [
+        "studentMaterials",
+        "materialsForStudents",
+        "studentResources",
+      ]) || String(template?.studentMaterials ?? "").trim(),
+    procedure:
+      pickStringValue(contentObj, ["procedure", "teachingProcedure", "activities"]) ||
+      String(template?.procedure ?? "").trim(),
+    evaluation:
+      pickStringValue(contentObj, ["evaluation", "assessment", "checking"]) ||
+      String(template?.evaluation ?? "").trim(),
+    homework:
+      pickStringValue(contentObj, ["homework", "homeworkTasks", "homeworkNotes"]) ||
+      String(template?.homework ?? "").trim(),
+  };
 }
 
 function pickStringValue(
@@ -1216,9 +1387,11 @@ function getSyllabusSummaryItems(syllabus: ClassLessonPlanSyllabus | null) {
 export function LessonPlanWorkspace({
   scope,
   presentation = "workspace",
+  forcedTab = null,
 }: {
   scope: WorkspaceScope;
   presentation?: WorkspacePresentation;
+  forcedTab?: WorkspaceLockedTab;
 }) {
   const searchParams = useSearchParams();
   const requestedProgramId = searchParams?.get("programId")?.trim() || "";
@@ -1226,8 +1399,10 @@ export function LessonPlanWorkspace({
   const requestedModuleId = searchParams?.get("moduleId")?.trim() || "";
   const requestedClassId = searchParams?.get("classId")?.trim() || "";
   const requestedSessionId = searchParams?.get("sessionId")?.trim() || "";
+  const defaultTab: ActiveTab =
+    forcedTab ?? (scope === "teacher" ? "plans" : "templates");
   const [activeTab, setActiveTab] = useState<ActiveTab>(
-    scope === "teacher" ? "plans" : "templates",
+    defaultTab,
   );
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -1272,6 +1447,23 @@ export function LessonPlanWorkspace({
   const isTeacher = scope === "teacher";
   const isSessionPage = presentation === "session-page";
   const templatesAvailable = !isTeacher;
+  const { selectedBranchId, isLoaded: branchFilterLoaded } = useBranchFilter();
+  const headerCopy =
+    scope === "admin" && forcedTab === "templates"
+      ? {
+          title: "Mẫu giáo án chuẩn",
+          subtitle:
+            "Quản lý template chuẩn theo syllabus để tái sử dụng thống nhất trên toàn hệ thống.",
+          planSubtitle: scopeCopy.planSubtitle,
+        }
+      : scope === "admin" && forcedTab === "plans"
+        ? {
+            title: "Giáo án lớp",
+            subtitle:
+              "Theo dõi và rà soát giáo án vận hành theo lớp, buổi học và tình trạng báo cáo.",
+            planSubtitle: scopeCopy.planSubtitle,
+          }
+        : scopeCopy;
 
   const templateMap = useMemo(() => {
     return new Map(templates.map((item) => [item.id, item]));
@@ -1355,10 +1547,10 @@ export function LessonPlanWorkspace({
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      setActiveTab(scope === "teacher" ? "plans" : "templates");
+      setActiveTab(defaultTab);
     }, 0);
     return () => clearTimeout(timer);
-  }, [scope]);
+  }, [defaultTab]);
 
   useEffect(() => {
     if (requestedProgramId && requestedProgramId !== selectedProgramId) {
@@ -1472,6 +1664,36 @@ export function LessonPlanWorkspace({
       return;
     }
 
+    let allowedBranchSyllabusIds: Set<string> | null = null;
+    if (selectedBranchId) {
+      const branchAssignmentsResponse = await getBranchSyllabusAssignments(selectedBranchId);
+      if (!branchAssignmentsResponse.isSuccess) {
+        throw new Error(
+          extractMessage(branchAssignmentsResponse, "Không thể tải assignment syllabus theo chi nhánh."),
+        );
+      }
+
+      allowedBranchSyllabusIds = new Set(
+        branchAssignmentsResponse.data
+          .filter((item) => item.isActive)
+          .map((item) => item.syllabusId)
+          .filter((id): id is string => typeof id === "string" && id.trim().length > 0),
+      );
+
+      if (allowedBranchSyllabusIds.size === 0) {
+        setSyllabusOptions([]);
+        setTemplates([]);
+        return;
+      }
+    }
+
+    const shouldIncludeSyllabusId = (syllabusId?: string | null) => {
+      const normalized = (syllabusId || "").trim();
+      if (!normalized) return false;
+      if (!allowedBranchSyllabusIds) return true;
+      return allowedBranchSyllabusIds.has(normalized);
+    };
+
     const response = await getAllLessonPlanTemplates({
       pageNumber: 1,
       pageSize: 200,
@@ -1487,9 +1709,7 @@ export function LessonPlanWorkspace({
     const syllabusIdSet = new Set(
       legacyItems
         .map((item) => item.syllabusId)
-        .filter(
-          (id): id is string => typeof id === "string" && id.trim().length > 0,
-        ),
+        .filter((id): id is string => shouldIncludeSyllabusId(id)),
     );
 
     const legacyLooksIncomplete =
@@ -1507,9 +1727,12 @@ export function LessonPlanWorkspace({
     });
 
     if (syllabusResponse.isSuccess) {
-      syllabusCatalog = syllabusResponse.data.items;
-      setSyllabusOptions(syllabusResponse.data.items);
-      for (const syllabus of syllabusResponse.data.items) {
+      const visibleSyllabuses = allowedBranchSyllabusIds
+        ? syllabusResponse.data.items.filter((item) => allowedBranchSyllabusIds.has(item.id))
+        : syllabusResponse.data.items;
+      syllabusCatalog = visibleSyllabuses;
+      setSyllabusOptions(visibleSyllabuses);
+      for (const syllabus of visibleSyllabuses) {
         if (syllabus.id) {
           syllabusIdSet.add(syllabus.id);
         }
@@ -1518,12 +1741,14 @@ export function LessonPlanWorkspace({
       throw new Error(
         extractMessage(syllabusResponse, "Không thể tải danh sách syllabus."),
       );
+    } else if (allowedBranchSyllabusIds) {
+      setSyllabusOptions([]);
     }
 
-    if (selectedSyllabusId !== "all") {
+    if (selectedSyllabusId !== "all" && shouldIncludeSyllabusId(selectedSyllabusId)) {
       syllabusIdSet.add(selectedSyllabusId);
     }
-    if (requestedSyllabusId) {
+    if (requestedSyllabusId && shouldIncludeSyllabusId(requestedSyllabusId)) {
       syllabusIdSet.add(requestedSyllabusId);
     }
 
@@ -1680,7 +1905,11 @@ export function LessonPlanWorkspace({
       }
     }
 
-    setTemplates(merged.size > 0 ? Array.from(merged.values()) : legacyItems);
+    const finalTemplates = merged.size > 0 ? Array.from(merged.values()) : legacyItems;
+    const visibleTemplates = allowedBranchSyllabusIds
+      ? finalTemplates.filter((item) => shouldIncludeSyllabusId(item.syllabusId))
+      : finalTemplates;
+    setTemplates(visibleTemplates);
   };
 
   const loadClassSyllabus = async (classId: string) => {
@@ -1697,6 +1926,11 @@ export function LessonPlanWorkspace({
     }
 
     setClassSyllabus(response.data);
+
+    if (response.data?.sessions?.length) {
+      void enrichClassSyllabusWithRuntimeSessionData(response.data);
+      void enrichClassSyllabusWithTeachingLogs(response.data);
+    }
   };
 
   const refreshWorkspace = async (silent = false) => {
@@ -1742,6 +1976,16 @@ export function LessonPlanWorkspace({
     }, 0);
     return () => clearTimeout(timer);
   }, [scope]);
+
+  useEffect(() => {
+    if (!templatesAvailable) return;
+    if (!branchFilterLoaded) return;
+
+    const timer = setTimeout(() => {
+      void refreshWorkspaceRef.current(true);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [branchFilterLoaded, selectedBranchId, templatesAvailable]);
 
   useEffect(() => {
     if (!classOptions.length) {
@@ -1981,6 +2225,237 @@ export function LessonPlanWorkspace({
     setDetailState({ type: "template", loading: false, item: response.data });
   };
 
+  const getTeachingLogOrNull = async (sessionId: string) => {
+    try {
+      const response = await getTeachingLog(sessionId);
+      if (response.isSuccess === false || response.success === false) {
+        return null;
+      }
+
+      return response.data ?? null;
+    } catch {
+      return null;
+    }
+  };
+
+  const mergeTeachingLogIntoPlan = (plan: LessonPlan, teachingLog: Awaited<ReturnType<typeof getTeachingLogOrNull>>) => {
+    if (!teachingLog) return plan;
+
+    return {
+      ...plan,
+      actualContent: plan.actualContent ?? teachingLog.actualContent ?? null,
+      actualHomework: plan.actualHomework ?? teachingLog.actualHomework ?? null,
+      teacherNotes: plan.teacherNotes ?? teachingLog.teacherNote ?? null,
+      submittedBy: plan.submittedBy ?? teachingLog.submittedBy ?? null,
+      submittedAt: plan.submittedAt ?? teachingLog.submittedAt ?? null,
+      updatedAt: plan.updatedAt ?? teachingLog.updatedAt ?? plan.updatedAt,
+    };
+  };
+
+  const hydratePlanWithTeachingLog = async (plan: LessonPlan) => {
+    const sessionId = String(plan.sessionId ?? "").trim();
+    if (!sessionId) return plan;
+    if (plan.actualContent && plan.actualHomework && plan.teacherNotes) {
+      return plan;
+    }
+
+    const teachingLog = await getTeachingLogOrNull(sessionId);
+    return mergeTeachingLogIntoPlan(plan, teachingLog);
+  };
+
+  const enrichClassSyllabusWithTeachingLogs = async (syllabus: ClassLessonPlanSyllabus) => {
+    const candidates = syllabus.sessions.filter(
+      (session) => session.sessionId && !session.actualContent,
+    );
+
+    if (!candidates.length) return;
+
+    const results = await Promise.allSettled(
+      candidates.map(async (session) => {
+        const teachingLog = await getTeachingLogOrNull(session.sessionId);
+        if (!teachingLog?.actualContent && !teachingLog?.actualHomework && !teachingLog?.teacherNote) {
+          return null;
+        }
+
+        return {
+          sessionId: session.sessionId,
+          actualContent: teachingLog.actualContent ?? null,
+          actualHomework: teachingLog.actualHomework ?? null,
+          teacherNotes: teachingLog.teacherNote ?? null,
+        };
+      }),
+    );
+
+    const teachingLogBySessionId = new Map(
+      results
+        .filter(
+          (result): result is PromiseFulfilledResult<{ sessionId: string; actualContent: string | null; actualHomework: string | null; teacherNotes: string | null } | null> =>
+            result.status === "fulfilled" && Boolean(result.value?.sessionId),
+        )
+        .map((result) => [result.value!.sessionId, result.value!]),
+    );
+
+    if (!teachingLogBySessionId.size) return;
+
+    setClassSyllabus((prev) => {
+      if (!prev || prev.classId !== syllabus.classId) return prev;
+
+      return {
+        ...prev,
+        sessions: prev.sessions.map((session) => {
+          const teachingLog = teachingLogBySessionId.get(session.sessionId);
+          if (!teachingLog) return session;
+
+          return {
+            ...session,
+            actualContent: session.actualContent ?? teachingLog.actualContent ?? null,
+            actualHomework: session.actualHomework ?? teachingLog.actualHomework ?? null,
+            teacherNotes: session.teacherNotes ?? teachingLog.teacherNotes ?? null,
+          };
+        }),
+      };
+    });
+  };
+
+  const enrichClassSyllabusWithRuntimeSessionData = async (
+    syllabus: ClassLessonPlanSyllabus,
+  ) => {
+    const candidates = syllabus.sessions.filter(
+      (session) => session.sessionId && needsRuntimeSessionHydration(session),
+    );
+
+    if (!candidates.length) return;
+
+    const results = await Promise.allSettled(
+      candidates.map(async (session) => {
+        const [sessionResponse, documentResponse] = await Promise.allSettled([
+          getSessionById(session.sessionId),
+          getSessionLessonPlanDocument(session.sessionId),
+        ]);
+
+        const runtimeSession =
+          sessionResponse.status === "fulfilled" &&
+          sessionResponse.value.isSuccess
+            ? sessionResponse.value.data?.session ?? null
+            : null;
+
+        const runtimeDocument =
+          documentResponse.status === "fulfilled" &&
+          documentResponse.value.isSuccess
+            ? documentResponse.value.data ?? null
+            : null;
+
+        const runtimeTemplateId =
+          session.templateId ??
+          runtimeDocument?.document?.id ??
+          runtimeDocument?.lessonPlanTemplateId ??
+          runtimeDocument?.plannedLessonPlanTemplateId ??
+          runtimeDocument?.actualLessonPlanTemplateId ??
+          runtimeSession?.lessonPlanTemplateId ??
+          (runtimeSession as any)?.plannedLessonPlanTemplateId ??
+          runtimeSession?.actualLessonPlanTemplateId ??
+          null;
+
+        const runtimeTemplateTitle =
+          session.templateTitle ??
+          runtimeDocument?.document?.title ??
+          runtimeDocument?.plannedLessonTitle ??
+          runtimeDocument?.actualLessonTitle ??
+          runtimeSession?.plannedLessonTitle ??
+          runtimeSession?.actualLessonTitle ??
+          null;
+
+        const runtimeSyllabusContent =
+          session.templateSyllabusContent ??
+          runtimeDocument?.document?.syllabusContent ??
+          null;
+
+        const runtimeLessonPlanId =
+          session.lessonPlanId ??
+          (runtimeSession as any)?.lessonPlanId ??
+          null;
+
+        if (
+          !runtimeLessonPlanId &&
+          !runtimeSession?.moduleId &&
+          runtimeSession?.sessionIndexInModule == null &&
+          !runtimeTemplateId &&
+          !runtimeTemplateTitle &&
+          !runtimeSyllabusContent
+        ) {
+          return null;
+        }
+
+        return {
+          sessionId: session.sessionId,
+          lessonPlanId: runtimeLessonPlanId,
+          moduleId: session.moduleId ?? runtimeSession?.moduleId ?? runtimeDocument?.moduleId ?? null,
+          moduleName:
+            session.moduleName ??
+            (runtimeSession as any)?.moduleName ??
+            runtimeDocument?.moduleName ??
+            null,
+          sessionIndexInModule:
+            session.sessionIndexInModule ??
+            runtimeSession?.sessionIndexInModule ??
+            runtimeDocument?.sessionIndexInModule ??
+            null,
+          templateId: runtimeTemplateId,
+          templateTitle: runtimeTemplateTitle,
+          templateSyllabusContent: runtimeSyllabusContent,
+        };
+      }),
+    );
+
+    const runtimeBySessionId = new Map(
+      results
+        .filter(
+          (
+            result,
+          ): result is PromiseFulfilledResult<{
+            sessionId: string;
+            lessonPlanId: string | null;
+            moduleId: string | null;
+            moduleName: string | null;
+            sessionIndexInModule: number | null;
+            templateId: string | null;
+            templateTitle: string | null;
+            templateSyllabusContent: string | null;
+          } | null> => result.status === "fulfilled" && Boolean(result.value?.sessionId),
+        )
+        .map((result) => [result.value!.sessionId, result.value!]),
+    );
+
+    if (!runtimeBySessionId.size) return;
+
+    setClassSyllabus((prev) => {
+      if (!prev || prev.classId !== syllabus.classId) return prev;
+
+      return {
+        ...prev,
+        sessions: prev.sessions.map((session) => {
+          const runtime = runtimeBySessionId.get(session.sessionId);
+          if (!runtime) return session;
+
+          return {
+            ...session,
+            lessonPlanId: session.lessonPlanId ?? runtime.lessonPlanId ?? null,
+            moduleId: session.moduleId ?? runtime.moduleId ?? null,
+            moduleName: session.moduleName ?? runtime.moduleName ?? null,
+            sessionIndexInModule:
+              session.sessionIndexInModule ?? runtime.sessionIndexInModule ?? null,
+            templateId: session.templateId ?? runtime.templateId ?? null,
+            templateTitle: session.templateTitle ?? runtime.templateTitle ?? null,
+            templateSyllabusContent:
+              session.templateSyllabusContent ??
+              runtime.templateSyllabusContent ??
+              null,
+          };
+        }),
+      };
+    });
+  };
+
   const openPlanDetail = async (lessonPlanId: string) => {
     setDetailState({ type: "plan", loading: true, item: null });
 
@@ -1995,7 +2470,8 @@ export function LessonPlanWorkspace({
       return;
     }
 
-    setDetailState({ type: "plan", loading: false, item: response.data });
+    const hydratedPlan = await hydratePlanWithTeachingLog(response.data);
+    setDetailState({ type: "plan", loading: false, item: hydratedPlan });
   };
 
   const openSessionSyllabusDetail = useCallback(
@@ -2119,7 +2595,8 @@ export function LessonPlanWorkspace({
       return;
     }
 
-    setPlanModal({ mode: "edit", session, plan: response.data });
+    const hydratedPlan = await hydratePlanWithTeachingLog(response.data);
+    setPlanModal({ mode: "edit", session, plan: hydratedPlan });
   };
 
   const handleTemplateSubmit = async (
@@ -2528,19 +3005,39 @@ export function LessonPlanWorkspace({
             </div>
             <div>
               <h1 className="text-2xl md:text-2xl font-bold text-gray-900">
-                {scopeCopy.title}
+                {headerCopy.title}
               </h1>
               <p
                 className="text-gray-600 mt-1 flex items-center gap-2
 "
               >
                 <Sparkles size={14} className="text-red-600" />
-                {scopeCopy.subtitle}
+                {headerCopy.subtitle}
               </p>
+              {templatesAvailable && activeTab === "templates" ? (
+                <button
+                  type="button"
+                  onClick={openSyllabusWorkspace}
+                  className="mt-2 inline-flex items-center gap-2 text-sm font-medium text-red-600 transition-colors hover:text-red-700 cursor-pointer"
+                >
+                  <BookOpenCheck size={14} />
+                  Mở trang syllabus để thêm hoặc chỉnh dữ liệu nguồn
+                </button>
+              ) : null}
             </div>
           </div>
 
           <div className="flex flex-wrap gap-2">
+            {templatesAvailable && activeTab === "templates" ? (
+              <button
+                type="button"
+                onClick={() => setTemplateModal({ mode: "create" })}
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:shadow-lg cursor-pointer"
+              >
+                <Plus size={16} />
+                Tạo mẫu giáo án
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => refreshWorkspace(true)}
@@ -2552,32 +3049,11 @@ export function LessonPlanWorkspace({
               />
               Làm mới
             </button>
-
-            {templatesAvailable && activeTab === "templates" ? (
-              <>
-                <button
-                  type="button"
-                  onClick={openSyllabusWorkspace}
-                  className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100 cursor-pointer"
-                >
-                  <Upload size={16} />
-                  Nhập syllabus
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTemplateModal({ mode: "create" })}
-                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:shadow-lg cursor-pointer"
-                >
-                  <Plus size={16} />
-                  Tạo mẫu giáo án
-                </button>
-              </>
-            ) : null}
           </div>
         </div>
       </div>
 
-      {templatesAvailable ? (
+      {templatesAvailable && !forcedTab ? (
         <div
           className={cn(
             "inline-flex rounded-2xl border border-red-200 bg-white p-1 transition-all duration-500",
@@ -2666,7 +3142,7 @@ export function LessonPlanWorkspace({
                 size={16}
                 className="text-red-500 group-hover:scale-105 transition-transform"
               />
-              <span>Mở full syllabus</span>
+              <span>Mở trang syllabus</span>
             </button>
           </div>
 
@@ -5075,6 +5551,13 @@ function SyllabusView({
   const selectedSession = selectedSessionId
     ? items.find((s) => s.sessionId === selectedSessionId)
     : null;
+  const linkedSessionIndices = syllabus.sessions
+    .filter((session) => hasSessionTemplateLinkage(session))
+    .map((session) => session.sessionIndex)
+    .filter((index): index is number => Number.isFinite(index));
+  const lastLinkedSessionIndex = linkedSessionIndices.length
+    ? Math.max(...linkedSessionIndices)
+    : null;
 
   return (
     <div className="space-y-5">
@@ -5090,6 +5573,7 @@ function SyllabusView({
           onEdit={onEdit}
           onOpenPlanDetail={onOpenPlanDetail}
           onOpenTemplateDetail={onOpenTemplateDetail}
+          lastLinkedSessionIndex={lastLinkedSessionIndex}
         />
       )}
     </div>
@@ -5107,6 +5591,7 @@ function SessionDetailCard({
   onEdit,
   onOpenPlanDetail,
   onOpenTemplateDetail,
+  lastLinkedSessionIndex,
 }: {
   scope: WorkspaceScope;
   session: ClassLessonPlanSyllabusSession;
@@ -5117,16 +5602,51 @@ function SessionDetailCard({
   onEdit: (session: ClassLessonPlanSyllabusSession) => void;
   onOpenPlanDetail: (lessonPlanId: string) => void;
   onOpenTemplateDetail?: (templateId: string) => void;
+  lastLinkedSessionIndex?: number | null;
 }) {
+  const hasTemplateLinkage = hasSessionTemplateLinkage(session);
+  const allowSharedTemplateFallback = Boolean(
+    !session.templateId &&
+      sharedTemplate?.id &&
+      (session.templateTitle ||
+        session.templateSyllabusContent ||
+        session.plannedContent),
+  );
   const linkedTemplate = session.templateId
     ? templateMap.get(session.templateId)
     : undefined;
+  const fallbackTemplate = hasTemplateLinkage
+    ? pickSessionFallbackTemplate(
+        Array.from(templateMap.values()),
+        session,
+        allowSharedTemplateFallback ? sharedTemplate : undefined,
+      )
+    : undefined;
   const resolvedTemplate =
-    linkedTemplate || (session.templateId ? undefined : sharedTemplate);
+    linkedTemplate ||
+    fallbackTemplate;
+  const isSharedTemplateFallback = Boolean(
+    !session.templateId &&
+      fallbackTemplate?.id &&
+      sharedTemplate?.id &&
+      fallbackTemplate.id === sharedTemplate.id,
+  );
+  const templateBadgeLabel =
+    session.templateId || !isSharedTemplateFallback
+      ? "Có template"
+      : "Template chung";
+  const templateSubtitle =
+    session.templateId || !isSharedTemplateFallback
+      ? resolvedTemplate?.title
+      : `${resolvedTemplate?.title || "Template chung"} • áp dụng toàn bộ buổi`;
+  const templateHasStructuredContent = hasStructuredTemplateContent(
+    resolvedTemplate,
+  );
   const hasTemplate = Boolean(
     session.templateId ||
     session.templateSyllabusContent ||
-    resolvedTemplate?.syllabusContent,
+    resolvedTemplate?.syllabusContent ||
+    templateHasStructuredContent,
   );
   const hasReport = Boolean(session.actualContent);
   const isEditable = session.canEdit;
@@ -5142,11 +5662,24 @@ function SessionDetailCard({
     null;
   const plannedContentDisplay =
     normalizedPlannedContent || plannedContentFallback;
+  const canDisplayPlannedContent = Boolean(
+    plannedContentDisplay ||
+      (!normalizedPlannedContent && templateHasStructuredContent),
+  );
   const plannedContentSubtitle = normalizedPlannedContent
     ? "Giáo án sẽ được tạo hoặc cập nhật"
     : plannedContentFallback
       ? "Đang tham chiếu từ syllabus chuẩn"
       : "Giáo án sẽ được tạo hoặc cập nhật";
+  const showMissingLinkageNotice =
+    !hasReport &&
+    !hasTemplate &&
+    !canDisplayPlannedContent &&
+    !hasTemplateLinkage;
+  const linkageCoverageMessage =
+    lastLinkedSessionIndex && lastLinkedSessionIndex > 0
+      ? `Dữ liệu lớp hiện mới có curriculum/lesson-plan linkage tới buổi ${lastLinkedSessionIndex}, nên buổi ${session.sessionIndex} chưa resolve được nội dung.`
+      : "Backend chưa trả curriculum/lesson-plan linkage cho buổi này.";
 
   return (
     <div
@@ -5208,7 +5741,7 @@ function SessionDetailCard({
             {hasTemplate && (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-purple-100 to-purple-50 px-3 py-1.5 text-xs font-semibold text-purple-700 border border-purple-200/60 ring-1 ring-purple-400/20">
                 <FolderOpen size={12} />
-                {session.templateId ? "Có template" : "Template chung"}
+                {templateBadgeLabel}
               </span>
             )}
             {!hasReport && hasPlan && (
@@ -5326,7 +5859,8 @@ function SessionDetailCard({
           {(session.templateTitle ||
             resolvedTemplate?.title ||
             session.templateSyllabusContent ||
-            resolvedTemplate?.syllabusContent) && (
+            resolvedTemplate?.syllabusContent ||
+            templateHasStructuredContent) && (
             <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm flex flex-col ">
               {/* Title Header */}
               <div className="text-center px-8 py-4 bg-gradient-to-r from-purple-50 to-purple-50/50 border-b border-purple-200">
@@ -5350,11 +5884,7 @@ function SessionDetailCard({
                     <div className="text-sm font-bold tracking-[0.18em] text-purple-600">
                       {session.templateTitle || resolvedTemplate?.title}
                     </div>
-                    <p className="text-sm text-gray-500">
-                      {session.templateId
-                        ? resolvedTemplate?.title
-                        : `${resolvedTemplate?.title || "Template chung"} • áp dụng toàn bộ buổi`}
-                    </p>
+                    <p className="text-sm text-gray-500">{templateSubtitle}</p>
                   </div>
                 )}
               </div>
@@ -5362,20 +5892,24 @@ function SessionDetailCard({
               {/* Content Sections */}
               <div className="divide-y divide-gray-100">
                 {(() => {
-                  const syllabusContent = session.templateSyllabusContent || resolvedTemplate?.syllabusContent || '';
-                  const contentObj = asObject(parseJsonContent(syllabusContent));
-                  
-                  // Extract sections from parsed content
-                  const objectives = pickStringValue(contentObj, ['objectives', 'objective', 'learningObjectives']) || '';
-                  const languageContent = pickStringValue(contentObj, ['languageContent', 'language', 'languageFocus']) || '';
-                  const vocabulary = pickStringValue(contentObj, ['vocabulary', 'vocab', 'newWords']) || '';
-                  const grammar = pickStringValue(contentObj, ['grammar', 'grammarFocus']) || '';
-                  const methodology = pickStringValue(contentObj, ['teachingMethodology', 'methodology', 'teachingMethod', 'approach']) || '';
-                  const teacherMaterials = pickStringValue(contentObj, ['teacherMaterials', 'materialsForTeacher']) || '';
-                  const studentMaterials = pickStringValue(contentObj, ['studentMaterials', 'materialsForStudents', 'studentResources']) || '';
-                  const procedure = pickStringValue(contentObj, ['procedure', 'teachingProcedure', 'activities']) || '';
-                  const evaluation = pickStringValue(contentObj, ['evaluation', 'assessment', 'checking']) || '';
-                  const homework = pickStringValue(contentObj, ['homework', 'homeworkTasks', 'homeworkNotes']) || '';
+                  const {
+                    rawContent: syllabusContent,
+                    objectives,
+                    languageContent,
+                    vocabulary,
+                    grammar,
+                    methodology,
+                    teacherMaterials,
+                    studentMaterials,
+                    procedure,
+                    evaluation,
+                    homework,
+                  } = extractLessonPlanSections(
+                    session.templateSyllabusContent ||
+                      resolvedTemplate?.syllabusContent ||
+                      "",
+                    resolvedTemplate,
+                  );
 
                   return (
                     <>
@@ -5697,7 +6231,7 @@ function SessionDetailCard({
           )}
 
           {/* Document-style Planned Content Card */}
-          {plannedContentDisplay ? (
+          {canDisplayPlannedContent ? (
             <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm flex flex-col ">
               {/* Title Header */}
               <div className="text-center px-8 py-4 bg-gradient-to-r from-red-50 to-red-50/50 border-b border-red-200">
@@ -5729,19 +6263,22 @@ function SessionDetailCard({
               {/* Content Sections */}
               <div className="divide-y divide-gray-100">
                 {(() => {
-                  const contentObj = asObject(parseJsonContent(plannedContentDisplay));
-                  
-                  // Extract sections from parsed content
-                  const objectives = pickStringValue(contentObj, ['objectives', 'objective', 'learningObjectives']) || '';
-                  const languageContent = pickStringValue(contentObj, ['languageContent', 'language', 'languageFocus']) || '';
-                  const vocabulary = pickStringValue(contentObj, ['vocabulary', 'vocab', 'newWords']) || '';
-                  const grammar = pickStringValue(contentObj, ['grammar', 'grammarFocus']) || '';
-                  const methodology = pickStringValue(contentObj, ['teachingMethodology', 'methodology', 'teachingMethod', 'approach']) || '';
-                  const teacherMaterials = pickStringValue(contentObj, ['teacherMaterials', 'materialsForTeacher']) || '';
-                  const studentMaterials = pickStringValue(contentObj, ['studentMaterials', 'materialsForStudents', 'studentResources']) || '';
-                  const procedure = pickStringValue(contentObj, ['procedure', 'teachingProcedure', 'activities']) || '';
-                  const evaluation = pickStringValue(contentObj, ['evaluation', 'assessment', 'checking']) || '';
-                  const homework = pickStringValue(contentObj, ['homework', 'homeworkTasks', 'homeworkNotes']) || '';
+                  const {
+                    rawContent: plannedRawContent,
+                    objectives,
+                    languageContent,
+                    vocabulary,
+                    grammar,
+                    methodology,
+                    teacherMaterials,
+                    studentMaterials,
+                    procedure,
+                    evaluation,
+                    homework,
+                  } = extractLessonPlanSections(
+                    plannedContentDisplay,
+                    normalizedPlannedContent ? null : resolvedTemplate,
+                  );
 
                   return (
                     <>
@@ -5928,7 +6465,7 @@ function SessionDetailCard({
                             return sections;
                           };
                           
-                          const parsedSections = parseContentSections(plannedContentDisplay);
+                          const parsedSections = parseContentSections(plannedRawContent);
                           const hasAnySections = Object.values(parsedSections).some(v => v.trim());
                           
                           if (hasAnySections) {
@@ -6073,6 +6610,32 @@ function SessionDetailCard({
               />
             </ContentCard>
           )}
+
+          {showMissingLinkageNotice ? (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-5 text-sm text-amber-900 shadow-sm lg:col-span-2">
+              <div className="flex items-start gap-3">
+                <div className="rounded-full bg-amber-100 p-2 text-amber-700">
+                  <XCircle size={16} />
+                </div>
+                <div>
+                  <div className="font-semibold">
+                    Buổi này chưa được backend gắn module hoặc template.
+                  </div>
+                  <p className="mt-1 leading-6 text-amber-800">
+                    {linkageCoverageMessage}
+                  </p>
+                  <p className="mt-1 leading-6 text-amber-800">
+                    Payload hiện tại của session không có moduleId, sessionIndexInModule,
+                    templateId hay plannedContent, nên FE không thể xác định đúng syllabus
+                    hoặc giáo án cho buổi này.
+                  </p>
+                  <p className="mt-2 text-xs text-amber-700">
+                    Session ID: {session.sessionId}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           <ContentCard
             title={hasReport ? "Báo cáo buổi dạy" : "Nội dung thực tế"}
@@ -9405,7 +9968,7 @@ function DetailModal({
                     !hasTemplateContent && (
                       <div className="px-8 py-4">
                         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-                          Mẫu giáo án này chưa có dữ liệu syllabus chi tiết.
+                                  {plannedRawContent || 'Chưa có nội dung dự kiến.'}
                         </div>
                       </div>
                     )}

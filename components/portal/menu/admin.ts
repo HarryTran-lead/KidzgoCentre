@@ -44,15 +44,15 @@ export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     [t.groups.learning.classes.list, BookOpen, "/classes"],
   ];
   const curriculum: RawItem[] = [
-    [t.groups.curriculum.coursesSystem.list, GraduationCap, "/courses/system"],
-    [t.groups.curriculum.coursesBranch.list, GraduationCap, "/courses/branch"],
+    [t.groups.curriculum.coursesSystem.list, GraduationCap, "/courses"],
     [t.groups.curriculum.syllabuses.list, BookOpen, "/syllabuses"],
-    [t.groups.curriculum.lessonPlans.list, BookOpenCheck, "/documents"],
+    [t.groups.curriculum.lessonPlans.list, BookOpenCheck, "/documents/templates"],
     [t.groups.curriculum.academicProgression.list, Layers, "/academic-progression"],
   ];
   const opsItems: RawItem[] = [
     [t.groups.ops.rooms, Building2, "/rooms"],
     [t.groups.ops.schedule, CalendarRange, "/schedule"],
+    [t.groups.ops.documents, ClipboardCheck, "/documents/plans"],
     ["Tiến trình chuyển chương trình", Route, "/program-progressions"],
     [t.groups.ops.pauseEnrollments, CalendarClock, "/pause-enrollments"],
     [t.groups.ops.media, Image, "/media"],

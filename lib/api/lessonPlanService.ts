@@ -638,6 +638,7 @@ function normalizeLessonPlan(item: any): LessonPlan {
   const session = item?.session ?? item?.classSession ?? item?.timetableSession;
   const lessonClass = item?.class ?? item?.classroom;
   const template = item?.template ?? item?.lessonPlanTemplate ?? item?.linkedTemplate;
+  const teachingLog = item?.teachingLog ?? item?.TeachingLog ?? session?.teachingLog ?? session?.TeachingLog;
   const submittedByUser =
     item?.submittedByUser ??
     item?.submittedByProfile ??
@@ -673,10 +674,45 @@ function normalizeLessonPlan(item: any): LessonPlan {
     templateLevel: stringOr(item?.templateLevel, template?.level) || undefined,
     templateSessionIndex: numberFromUnknown(item?.templateSessionIndex, template?.sessionIndex),
     plannedContent: normalizeNullableString(item?.plannedContent, item?.planContent, item?.expectedContent),
-    actualContent: normalizeNullableString(item?.actualContent, item?.realContent, item?.deliveredContent),
-    actualHomework: normalizeNullableString(item?.actualHomework, item?.homework, item?.actualHomeWork),
-    teacherNotes: normalizeNullableString(item?.teacherNotes, item?.teacherNote, item?.note, item?.notes),
-    submittedBy: normalizeNullableString(item?.submittedBy, item?.submittedById, submittedByUser?.id, item?.updatedBy, item?.createdBy),
+    actualContent: normalizeNullableString(
+      item?.actualContent,
+      item?.realContent,
+      item?.deliveredContent,
+      teachingLog?.actualContent,
+      teachingLog?.ActualContent,
+      teachingLog?.realContent,
+      teachingLog?.deliveredContent,
+    ),
+    actualHomework: normalizeNullableString(
+      item?.actualHomework,
+      item?.homework,
+      item?.actualHomeWork,
+      teachingLog?.actualHomework,
+      teachingLog?.ActualHomework,
+      teachingLog?.homework,
+      teachingLog?.actualHomeWork,
+    ),
+    teacherNotes: normalizeNullableString(
+      item?.teacherNotes,
+      item?.teacherNote,
+      item?.note,
+      item?.notes,
+      teachingLog?.teacherNotes,
+      teachingLog?.TeacherNotes,
+      teachingLog?.teacherNote,
+      teachingLog?.TeacherNote,
+      teachingLog?.note,
+      teachingLog?.notes,
+    ),
+    submittedBy: normalizeNullableString(
+      item?.submittedBy,
+      item?.submittedById,
+      teachingLog?.submittedBy,
+      teachingLog?.SubmittedBy,
+      submittedByUser?.id,
+      item?.updatedBy,
+      item?.createdBy,
+    ),
     submittedByName:
       normalizeNullableString(
         item?.submittedByName,
@@ -689,15 +725,16 @@ function normalizeLessonPlan(item: any): LessonPlan {
         createdByUser?.name,
         item?.teacherName
       ),
-    submittedAt: dateOr(item?.submittedAt, item?.submissionDate, item?.submissionAt) || null,
+    submittedAt: dateOr(item?.submittedAt, item?.submissionDate, item?.submissionAt, teachingLog?.submittedAt, teachingLog?.SubmittedAt) || null,
     createdAt: dateOr(item?.createdAt),
-    updatedAt: dateOr(item?.updatedAt, item?.modifiedAt, item?.lastUpdatedAt),
+    updatedAt: dateOr(item?.updatedAt, item?.modifiedAt, item?.lastUpdatedAt, teachingLog?.updatedAt, teachingLog?.UpdatedAt),
   };
 }
 
 function normalizeSyllabusSession(item: any): ClassLessonPlanSyllabusSession {
   const template = item?.template ?? item?.Template ?? item?.lessonPlanTemplate ?? item?.LessonPlanTemplate ?? item?.linkedTemplate ?? item?.LinkedTemplate;
   const lessonPlan = item?.lessonPlan ?? item?.LessonPlan ?? item?.plan ?? item?.Plan;
+  const teachingLog = item?.teachingLog ?? item?.TeachingLog ?? lessonPlan?.teachingLog ?? lessonPlan?.TeachingLog;
   const syllabus = item?.syllabus ?? item?.Syllabus ?? template?.syllabus ?? template?.Syllabus;
 
   return {
@@ -802,7 +839,13 @@ function normalizeSyllabusSession(item: any): ClassLessonPlanSyllabusSession {
     actualContent: normalizeNullableString(
       item?.actualContent,
       item?.ActualContent,
+      item?.teachingLogActualContent,
+      item?.TeachingLogActualContent,
       item?.realContent,
+      teachingLog?.actualContent,
+      teachingLog?.ActualContent,
+      teachingLog?.realContent,
+      teachingLog?.deliveredContent,
       lessonPlan?.actualContent,
       lessonPlan?.ActualContent,
       lessonPlan?.realContent,
@@ -811,16 +854,32 @@ function normalizeSyllabusSession(item: any): ClassLessonPlanSyllabusSession {
     actualHomework: normalizeNullableString(
       item?.actualHomework,
       item?.ActualHomework,
+      item?.teachingLogActualHomework,
+      item?.TeachingLogActualHomework,
       item?.homework,
+      teachingLog?.actualHomework,
+      teachingLog?.ActualHomework,
+      teachingLog?.homework,
+      teachingLog?.actualHomeWork,
       lessonPlan?.actualHomework,
       lessonPlan?.ActualHomework,
       lessonPlan?.homework,
       lessonPlan?.actualHomeWork
     ),
     teacherNotes: normalizeNullableString(
+      item?.teacherNote,
+      item?.TeacherNote,
       item?.teacherNotes,
       item?.TeacherNotes,
+      item?.teachingLogTeacherNote,
+      item?.TeachingLogTeacherNote,
       item?.notes,
+      teachingLog?.teacherNote,
+      teachingLog?.TeacherNote,
+      teachingLog?.teacherNotes,
+      teachingLog?.TeacherNotes,
+      teachingLog?.notes,
+      teachingLog?.note,
       lessonPlan?.teacherNotes,
       lessonPlan?.TeacherNotes,
       lessonPlan?.teacherNote,

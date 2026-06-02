@@ -68,6 +68,20 @@ export interface UpdateTuitionPlanRequest {
   learningTicketTypeId?: string | null;
 }
 
+export interface TuitionPlanSyllabusMapping {
+  id: string;
+  syllabusId: string;
+  syllabusCode: string;
+  syllabusTitle: string;
+  syllabusVersion: string;
+  levelName: string;
+  programName: string;
+  isActive: boolean;
+  effectiveFrom?: string | null;
+  effectiveTo?: string | null;
+  createdAt: string;
+}
+
 export interface UpdateTuitionPlanResponse {
   id: string;
   branchId: string;

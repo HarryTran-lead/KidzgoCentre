@@ -94,8 +94,12 @@ function parsePositiveInteger(value: string): number | null {
   return parsed;
 }
 
-function isProgramWithoutMonthlyLeaveLimit(value?: { isMakeup?: boolean | null; isSupplementary?: boolean | null } | null) {
-  return Boolean(value?.isMakeup || value?.isSupplementary);
+function getLeaveLimitScopeHint(value?: { isMakeup?: boolean | null; isSupplementary?: boolean | null } | null) {
+  if (value?.isMakeup || value?.isSupplementary) {
+    return "Chương trình bù/phụ trợ vẫn dùng leave limit theo khung chương trình hiện tại; FE không còn coi đây là nhóm tự miễn giới hạn.";
+  }
+
+  return "Các level như Starter, Movers... hiện vẫn kế thừa giới hạn nghỉ từ khung chương trình đang chọn.";
 }
 
 function formatRelativeTime(value?: string | null) {
@@ -447,7 +451,7 @@ export default function SettingsPage() {
         if (cancelled) return;
 
         setProgramDetail(detail);
-        const defaultLimit = isProgramWithoutMonthlyLeaveLimit(detail) ? null : 2;
+        const defaultLimit = 2;
         const resolvedLimit = extractProgramMonthlyLeaveLimit(detail) ?? defaultLimit;
         setLeaveLimitDraft(resolvedLimit !== null ? String(resolvedLimit) : "");
       } catch (error) {
@@ -475,11 +479,11 @@ export default function SettingsPage() {
   }, [selectedProgramId]);
 
   const selectedProgramItem = programs.find((item) => item.id === selectedProgramId) ?? null;
-  const isSelectedProgramNoLimit = isProgramWithoutMonthlyLeaveLimit(programDetail ?? selectedProgramItem);
   const currentLeaveLimit = programDetail
     ? extractProgramMonthlyLeaveLimit(programDetail)
     : null;
-  const resolvedLeaveLimit = isSelectedProgramNoLimit ? null : (currentLeaveLimit ?? 2);
+  const resolvedLeaveLimit = currentLeaveLimit ?? 2;
+  const leaveLimitScopeHint = getLeaveLimitScopeHint(programDetail ?? selectedProgramItem);
   const selectedProgramName = selectedProgramItem?.name ?? "Chưa chọn chương trình";
 
   const parsedStars = parseNonNegativeInteger(gamificationDraft.checkInRewardStars);
@@ -495,7 +499,6 @@ export default function SettingsPage() {
 
   const hasLeaveLimitChanges =
     Boolean(selectedProgramId) &&
-    !isSelectedProgramNoLimit &&
     parsedLeaveLimit !== null &&
     parsedLeaveLimit !== resolvedLeaveLimit;
 
@@ -526,20 +529,7 @@ export default function SettingsPage() {
     }
 
     if (!programs.length && programsLoaded) {
-      items.push("Chưa có chương trình để cài đặt giới hạn nghỉ theo tháng.");
-    }
-
-    if (
-      selectedProgramId &&
-      !programDetailLoading &&
-      !programDetailError &&
-      currentLeaveLimit === null
-    ) {
-      if (isSelectedProgramNoLimit) {
-        items.push(`${selectedProgramName} là chương trình bù/phụ trợ nên mặc định không giới hạn ngày nghỉ theo tháng.`);
-      } else {
-        items.push(`${selectedProgramName} đang dùng mặc định 2 buổi/tháng, chưa có chính sách riêng.`);
-      }
+      items.push("Chưa có khung chương trình nào trên hệ thống.");
     }
 
     return Array.from(new Set(items));
@@ -570,18 +560,6 @@ export default function SettingsPage() {
       active: gamification !== null,
     },
     {
-      icon: <Clock3 size={16} />,
-      label: "Giới hạn nghỉ",
-      value: programDetailLoading
-        ? "Đang tải"
-        : isSelectedProgramNoLimit
-        ? "Không giới hạn"
-        : currentLeaveLimit !== null
-        ? `${currentLeaveLimit} buổi`
-        : "Mặc định 2 buổi",
-      active: isSelectedProgramNoLimit || currentLeaveLimit !== null,
-    },
-    {
       icon: <Bell size={16} />,
       label: "Mẫu thông báo",
       value: `${templates.length} mẫu`,
@@ -590,34 +568,6 @@ export default function SettingsPage() {
   ];
 
   const policyCards = [
-    {
-      id: "leave",
-      icon: <Clock3 className="h-5 w-5" />,
-      title: "Giới hạn nghỉ theo tháng",
-      desc: "Cấu hình số buổi nghỉ tối đa theo từng chương trình học.",
-      status:
-        programDetailLoading
-          ? "Đang đồng bộ"
-          : isSelectedProgramNoLimit
-          ? "Không áp dụng"
-          : currentLeaveLimit !== null
-          ? "Đã cấu hình"
-          : "Dùng mặc định",
-      tone: (isSelectedProgramNoLimit ? "emerald" : (currentLeaveLimit !== null ? "blue" : "amber")) as Tone,
-      features: [
-        `${programs.length} chương trình`,
-        selectedProgramName,
-        isSelectedProgramNoLimit
-          ? "Không giới hạn theo tháng"
-          : currentLeaveLimit !== null
-          ? `${currentLeaveLimit} buổi/tháng`
-          : "Dùng mặc định 2 buổi/tháng",
-      ],
-      footer: programDetailError
-        ? programDetailError
-        : `Chương trình đang xem: ${selectedProgramName}`,
-      href: `${adminBase}/courses`,
-    },
     {
       id: "gamification",
       icon: <Sparkles className="h-5 w-5" />,
@@ -736,7 +686,7 @@ export default function SettingsPage() {
         updatedSections.push("cấu hình gamification");
       }
 
-      if (hasLeaveLimitChanges && !isSelectedProgramNoLimit && parsedLeaveLimit !== null && selectedProgramId) {
+      if (hasLeaveLimitChanges && parsedLeaveLimit !== null && selectedProgramId) {
         await updateAdminProgramMonthlyLeaveLimit(selectedProgramId, parsedLeaveLimit);
         const refreshedDetail = await fetchAdminProgramDetail(selectedProgramId);
 
@@ -745,7 +695,7 @@ export default function SettingsPage() {
           String(extractProgramMonthlyLeaveLimit(refreshedDetail) ?? parsedLeaveLimit)
         );
         setProgramDetailError(null);
-        updatedSections.push("giới hạn nghỉ theo tháng");
+        updatedSections.push("limit LeaveRequest theo tháng");
       }
 
       setIsEditing(false);
@@ -963,48 +913,6 @@ export default function SettingsPage() {
                       </div>
                     )}
 
-                    {policy.id === "leave" && isEditing && (
-                      <div className="mt-4 grid gap-3 md:grid-cols-2">
-                        <div>
-                          <label className="block text-xs font-semibold text-gray-600 mb-2">
-                            Chương trình
-                          </label>
-                          <select
-                            value={selectedProgramId}
-                            disabled={!programs.length || programDetailLoading || isSaving}
-                            onChange={(event) => setSelectedProgramId(event.target.value)}
-                            className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
-                          >
-                            {!programs.length && <option value="">Chưa có chương trình</option>}
-                            {programs.map((program) => (
-                              <option key={program.id} value={program.id}>
-                                {program.name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-semibold text-gray-600 mb-2">
-                            Số buổi nghỉ / tháng
-                          </label>
-                          <input
-                            type="number"
-                            min={1}
-                            disabled={
-                              isSaving ||
-                              !selectedProgramId ||
-                              programDetailLoading ||
-                              isSelectedProgramNoLimit
-                            }
-                            value={leaveLimitDraft}
-                            onChange={(event) => setLeaveLimitDraft(event.target.value)}
-                            placeholder={isSelectedProgramNoLimit ? "Không áp dụng" : ""}
-                            className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 disabled:bg-gray-50 disabled:text-gray-500"
-                          />
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
 
