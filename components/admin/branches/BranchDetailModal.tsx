@@ -497,7 +497,7 @@ export default function BranchDetailModal({ isOpen, onClose, branch, userStats =
                 <div className="space-y-3">
                   {missingSyllabusMetadataCount > 0 && (
                     <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-800">
-                      Có {missingSyllabusMetadataCount} assignment chưa hiện đủ metadata như code, title, program hoặc level. Nếu backend không trả nested <strong>syllabus</strong> metadata trong <strong>GET /api/branches/{{id}}/syllabuses</strong>, FE chỉ có thể fallback theo <strong>syllabusId</strong>.
+                      Có {missingSyllabusMetadataCount} assignment chưa hiện đủ metadata như code, title, program hoặc level. Nếu backend không trả nested <strong>syllabus</strong> metadata trong <strong>GET /api/branches/{"{id}"}/syllabuses</strong>, FE chỉ có thể fallback theo <strong>syllabusId</strong>.
                     </div>
                   )}
                   {syllabuses.map((s) => {

@@ -9968,7 +9968,7 @@ function DetailModal({
                     !hasTemplateContent && (
                       <div className="px-8 py-4">
                         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-                                  {plannedRawContent || 'Chưa có nội dung dự kiến.'}
+                                  {state.item.syllabusContent || 'Chưa có nội dung dự kiến.'}
                         </div>
                       </div>
                     )}

@@ -82,7 +82,13 @@ export default function StudentBranchPanel({ studentId }: { studentId: string })
 
   // Transfer modal
   const [showTransferForm, setShowTransferForm] = useState(false);
-  const [transferForm, setTransferForm] = useState<Omit<BranchTransferRequest, "transferType"> & { transferType: "Permanent" | "Temporary" }>({
+  const [transferForm, setTransferForm] = useState<
+    Omit<BranchTransferRequest, "transferType" | "reason" | "notes"> & {
+      transferType: "Permanent" | "Temporary";
+      reason: string;
+      notes: string;
+    }
+  >({
     targetBranchId: "",
     effectiveDate: new Date().toISOString().slice(0, 10),
     reason: "",
@@ -104,7 +110,7 @@ export default function StudentBranchPanel({ studentId }: { studentId: string })
         getStudentHomeBranch(studentId),
         getStudentActiveBranch(studentId),
         getBranchTransferHistory(studentId),
-        getAllBranches({ isActive: true, pageSize: 200 }),
+        getAllBranches({ isActive: true, limit: 200 }),
       ]);
       if (home.status === "fulfilled") setHomeBranchState(home.value);
       if (active.status === "fulfilled") setActiveBranchState(active.value);
