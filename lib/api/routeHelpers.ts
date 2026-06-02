@@ -58,7 +58,7 @@ export async function parseJsonResponse(response: Response): Promise<{ data: any
  */
 export async function handleBackendResponse(
   response: Response,
-  context: { method: string; endpoint: string; id?: string }
+  context: { method: string; endpoint: string; id?: string; [key: string]: string | undefined }
 ): Promise<NextResponse> {
   const { data, error } = await parseJsonResponse(response);
 
@@ -102,7 +102,7 @@ export async function forwardToBackend(
   options: {
     method?: string;
     body?: any;
-    context?: { method: string; endpoint: string; id?: string };
+    context?: { method: string; endpoint: string; id?: string; [key: string]: string | undefined };
     timeoutMs?: number;
   } = {}
 ): Promise<NextResponse> {
