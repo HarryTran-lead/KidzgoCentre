@@ -33,6 +33,8 @@ import {
   Plus,
   Trash2,
   Copy,
+  Sparkles,
+  RefreshCw,
 } from "lucide-react";
 
 import {
@@ -73,6 +75,7 @@ import SyllabusDetailModalBody from "@/components/lesson-plans/SyllabusDetailMod
 import SyllabusSummaryPanel from "@/components/lesson-plans/SyllabusSummaryPanel";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/lightswind/resizable";
 import type { TeachingLog, TeachingProgressStatus, TeachingType } from "@/types/admin/sessions";
+import { cn } from "@/lib/utils";
 
 type FilterField = {
   date: string;
@@ -3710,6 +3713,18 @@ export default function TeacherAttendancePage() {
           }
         }
       }
+
+      // Load syllabus detail if requested
+      if (shouldOpenFullSyllabus && baseTeachingReportSession?.syllabusId) {
+        try {
+          const syllabusResp = await getSyllabusById(baseTeachingReportSession.syllabusId);
+          if (syllabusResp.isSuccess && syllabusResp.data) {
+            setTeachingSyllabusDetail(syllabusResp.data);
+          }
+        } catch (err: any) {
+          console.error("Error loading full syllabus detail:", err);
+        }
+      }
     } catch (err: any) {
       setTeachingReportError(err?.message || "Đã xảy ra lỗi khi tải thông tin giáo án.");
     } finally {
@@ -3733,6 +3748,26 @@ export default function TeacherAttendancePage() {
     teachingReportLoading,
                     handleOpenTeachingReport,
   ]);
+
+  useEffect(() => {
+    if (!teachingReportOpen) return;
+    if (teachingModalView !== "syllabus") return;
+    if (teachingSyllabusDetail) return;
+    if (!teachingSyllabusId) return;
+
+    const loadSyllabusDetail = async () => {
+      try {
+        const resp = await getSyllabusById(teachingSyllabusId);
+        if (resp.isSuccess && resp.data) {
+          setTeachingSyllabusDetail(resp.data);
+        }
+      } catch (err: any) {
+        console.error("Error loading syllabus detail:", err);
+      }
+    };
+
+    void loadSyllabusDetail();
+  }, [teachingReportOpen, teachingModalView, teachingSyllabusId, teachingSyllabusDetail]);
 
   const handleSubmitTeachingReport = useCallback(async () => {
     if (!selectedSessionId) return;
@@ -3953,139 +3988,140 @@ export default function TeacherAttendancePage() {
   }, [filteredRecords, selectedLesson?.lesson, selectedSessionId]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50/20 to-white p-4 md:p-6">
-      {/* Header */}
-      <div className={`mb-6 transition-all duration-700 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"}`}>
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
-            <CheckCheckIcon size={24} className="text-white" />
+    <div className="min-h-screen bg-gray-50 p-2 space-y-6">
+      <div className={`flex flex-col gap-4 transition-all duration-500 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2"}`}>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="rounded-2xl bg-gradient-to-r from-red-600 to-red-700 p-3 text-white shadow-lg">
+              <CheckCheckIcon size={25} />
+            </div>
+            <div>
+              <h1 className="text-2xl md:text-2xl font-bold text-gray-900">
+                Điểm danh lớp học
+              </h1>
+              <p className="text-gray-600 mt-1 flex items-center gap-2 ">
+                <Sparkles size={14} className="text-red-600" />
+                Quản lý chuyên cần và sắp xếp buổi bù
+              </p>
+            </div>
           </div>
-
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent">
-              Điểm danh lớp học
-            </h1>
-            <p className="text-gray-600 mt-1 text-sm">Quản lý chuyên cần và sắp xếp buổi bù</p>
-          </div>
+          {selectedSessionId && (
+            <button
+              onClick={handleChooseOtherSession}
+              className="px-4 py-2 border border-gray-400 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-all flex items-center justify-center gap-1.5 cursor-pointer bg-gray-50 whitespace-nowrap hover:scale-105"
+            >
+              <ChevronLeft size={16} />
+              <span>Buổi khác</span>
+            </button>
+          )}
         </div>
+      </div>
 
-        {!selectedSessionId && (
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-lg overflow-hidden mb-6">
-            {/* Header section */}
-            <div className="bg-gradient-to-r from-red-50 to-orange-50 px-6 py-4 border-b border-gray-200">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                <div>
-                  <h3 className="font-bold text-gray-900 text-lg flex items-center gap-2">
-                    <CalendarDays size={20} className="text-red-600" />
-                    Buổi học theo khoảng ngày
-                  </h3>
-                  <p className="text-sm text-gray-600 mt-1">Chọn buổi học để điểm danh ngay</p>
+      {!selectedSessionId && (
+        <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-6 shadow-sm overflow-hidden">
+          <div className="mb-6">
+            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <CalendarDays size={20} className="text-red-600" />
+              Buổi học theo khoảng ngày
+            </h3>
+            <p className="text-sm text-gray-600 mt-1">Chọn buổi học để điểm danh ngay</p>
+          </div>
+
+          {/* Date range picker */}
+          <div className="px-4 py-4 bg-white rounded-xl border border-gray-200 mb-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+              <div className="flex items-center gap-2 flex-1">
+                <div className="relative flex-1">
+                  <CalendarDays size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="date"
+                    value={dateRange.from}
+                    onChange={(e) => setDateRange((prev) => ({ ...prev, from: e.target.value }))}
+                    className="w-full pl-10 pr-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-red-300 focus:ring-1 focus:ring-red-300"
+                  />
                 </div>
+                <ArrowRightLeft size={16} className="text-gray-400" />
+                <div className="relative flex-1">
+                  <CalendarDays size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="date"
+                    value={dateRange.to}
+                    onChange={(e) => setDateRange((prev) => ({ ...prev, to: e.target.value }))}
+                    className="w-full pl-10 pr-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-red-300 focus:ring-1 focus:ring-red-300"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Filters */}
+          <div className="mb-4">
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Filter size={16} className="text-red-600" />
+                <span className="text-sm font-semibold text-gray-800">Lọc nâng cao</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 flex-1">
+                <input
+                  value={filters.date}
+                  onChange={(e) => handleFilterChange("date", e.target.value)}
+                  placeholder="Ngày"
+                  className="px-3 py-2 rounded-lg border border-gray-300 text-sm bg-white focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-300"
+                />
+                <input
+                  value={filters.time}
+                  onChange={(e) => handleFilterChange("time", e.target.value)}
+                  placeholder="Giờ"
+                  className="px-3 py-2 rounded-lg border border-gray-300 text-sm bg-white focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-300"
+                />
+                <input
+                  value={filters.session}
+                  onChange={(e) => handleFilterChange("session", e.target.value)}
+                  placeholder="Buổi học"
+                  className="px-3 py-2 rounded-lg border border-gray-300 text-sm bg-white focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-300"
+                />
+                <input
+                  value={filters.className}
+                  onChange={(e) => handleFilterChange("className", e.target.value)}
+                  placeholder="Lớp"
+                  className="px-3 py-2 rounded-lg border border-gray-300 text-sm bg-white focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-300"
+                />
+                <input
+                  value={filters.status}
+                  onChange={(e) => handleFilterChange("status", e.target.value)}
+                  placeholder="Trạng thái"
+                  className="px-3 py-2 rounded-lg border border-gray-300 text-sm bg-white focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-300"
+                />
+              </div>
+              {(filters.date || filters.time || filters.session || filters.className || filters.status) && (
                 <button
-                  onClick={fetchSessionData}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-red-300 transition-all cursor-pointer shadow-sm"
+                  onClick={clearFilters}
+                  className="inline-flex items-center gap-1 px-3 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-100 rounded-lg transition-colors font-medium"
                 >
-                  <RefreshCcw size={14} className="text-red-600" />
-                  Làm mới
+                  <X size={14} />
+                  Xóa lọc
                 </button>
-              </div>
-            </div>
-
-            {/* Date range picker */}
-            <div className="px-6 py-4 bg-white border-b border-gray-100">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                <div className="flex items-center gap-2 flex-1">
-                  <div className="relative flex-1">
-                    <CalendarDays size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                    <input
-                      type="date"
-                      value={dateRange.from}
-                      onChange={(e) => setDateRange((prev) => ({ ...prev, from: e.target.value }))}
-                      className="w-full pl-10 pr-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-red-300 focus:ring-1 focus:ring-red-300"
-                    />
-                  </div>
-                  <ArrowRightLeft size={16} className="text-gray-400" />
-                  <div className="relative flex-1">
-                    <CalendarDays size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                    <input
-                      type="date"
-                      value={dateRange.to}
-                      onChange={(e) => setDateRange((prev) => ({ ...prev, to: e.target.value }))}
-                      className="w-full pl-10 pr-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-red-300 focus:ring-1 focus:ring-red-300"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Filters */}
-            <div className="px-6 py-4 bg-gray-50/50 border-b border-gray-100">
-              <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <Filter size={16} className="text-gray-500" />
-                  <span className="text-sm font-medium text-gray-700">Lọc nâng cao</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 flex-1">
-                  <input
-                    value={filters.date}
-                    onChange={(e) => handleFilterChange("date", e.target.value)}
-                    placeholder="Ngày"
-                    className="px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-red-300 focus:ring-1 focus:ring-red-300"
-                  />
-                  <input
-                    value={filters.time}
-                    onChange={(e) => handleFilterChange("time", e.target.value)}
-                    placeholder="Giờ"
-                    className="px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-red-300 focus:ring-1 focus:ring-red-300"
-                  />
-                  <input
-                    value={filters.session}
-                    onChange={(e) => handleFilterChange("session", e.target.value)}
-                    placeholder="Buổi học"
-                    className="px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-red-300 focus:ring-1 focus:ring-red-300"
-                  />
-                  <input
-                    value={filters.className}
-                    onChange={(e) => handleFilterChange("className", e.target.value)}
-                    placeholder="Lớp"
-                    className="px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-red-300 focus:ring-1 focus:ring-red-300"
-                  />
-                  <input
-                    value={filters.status}
-                    onChange={(e) => handleFilterChange("status", e.target.value)}
-                    placeholder="Trạng thái"
-                    className="px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-red-300 focus:ring-1 focus:ring-red-300"
-                  />
-                </div>
-                {(filters.date || filters.time || filters.session || filters.className || filters.status) && (
-                  <button
-                    onClick={clearFilters}
-                    className="inline-flex items-center gap-1 px-3 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl transition-colors"
-                  >
-                    <X size={14} />
-                    Xóa lọc
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Session list */}
-            <div className="px-6 py-6">
-              {loading && (
-                <div className="text-center py-12">
-                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mb-3"></div>
-                  <p className="text-gray-500">Đang tải danh sách buổi học...</p>
-                </div>
               )}
+            </div>
+          </div>
 
-              {error && (
-                <div className="text-center py-8">
-                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-red-50 text-red-700 rounded-xl">
-                    <AlertCircle size={16} />
-                    {error}
-                  </div>
+          {/* Session list */}
+          <div>
+            {loading && (
+              <div className="text-center py-12">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mb-3"></div>
+                <p className="text-gray-500">Đang tải danh sách buổi học...</p>
+              </div>
+            )}
+
+            {error && (
+              <div className="text-center py-8">
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-red-50 text-red-700 rounded-xl">
+                  <AlertCircle size={16} />
+                  {error}
                 </div>
-              )}
+              </div>
+            )}
 
               {!loading && !error && filterSessions.length === 0 && (
                 <div className="text-center py-12">
@@ -4104,52 +4140,60 @@ export default function TeacherAttendancePage() {
                 </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 {filterSessions.map((session) => (
                   <button
                     key={session.id}
                     onClick={() => handleSessionSelect(session.id)}
-                    className={`group relative p-5 rounded-xl border-2 text-left transition-all duration-300 cursor-pointer ${session.id === selectedSessionId
-                        ? "border-red-400 bg-gradient-to-r from-red-50 to-red-100/50 shadow-lg shadow-red-100/50"
-                        : "border-gray-200 hover:border-red-300 hover:shadow-md hover:bg-red-50/30"
+                    className={`group relative p-6 rounded-2xl border-2 text-left transition-all duration-300 cursor-pointer overflow-hidden ${session.id === selectedSessionId
+                        ? "border-red-400 bg-gradient-to-br from-red-100 via-red-50 to-red-100 shadow-2xl shadow-red-300/40 scale-105"
+                        : "border-gray-200 hover:border-red-400 hover:shadow-xl hover:shadow-red-200/40 hover:bg-red-50 hover:scale-102"
                       }`}
                   >
-                    <div className="absolute top-3 right-3">
-                      <div className={`w-2 h-2 rounded-full ${session.id === selectedSessionId ? 'bg-red-500 animate-pulse' : 'bg-gray-300'}`}></div>
+                    {/* Animated background accent */}
+                    <div className={`absolute -top-20 -right-20 w-40 h-40 rounded-full opacity-0 group-hover:opacity-8 transition-all duration-500 ${session.id === selectedSessionId ? 'bg-red-400 opacity-10' : 'bg-red-300'}`}></div>
+                    
+
+                    {/* Status indicator */}
+                    <div className="absolute top-4 right-4">
+                      <div className={`w-3.5 h-3.5 rounded-full ${session.id === selectedSessionId ? 'bg-red-500 animate-pulse shadow-lg shadow-red-500/70' : 'bg-gray-300'}`}></div>
                     </div>
 
-                    <div className="flex items-start gap-3 mb-3">
-                      <div className={`p-2 rounded-lg bg-gradient-to-r ${session.color} shadow-md group-hover:scale-110 transition-transform`}>
-                        <BookOpen size={16} className="text-white" />
+                    {/* Header with icon and title */}
+                    <div className="flex items-start gap-3 mb-4 relative z-10">
+                      <div className="p-3 rounded-lg bg-gradient-to-br from-red-100 to-red-50 shadow-md shadow-red-200/50 group-hover:shadow-lg group-hover:shadow-red-300/60 group-hover:scale-110 transition-all duration-300 border border-red-200">
+                        <BookOpen size={20} className="text-red-700 font-bold" strokeWidth={2.5} />
                       </div>
-                      <div className="flex-1">
-                        <div className="font-semibold text-gray-900 line-clamp-1">{session.className}</div>
-                        <div className="text-xs text-gray-500 mt-0.5">{session.date}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-bold text-gray-900 line-clamp-1 text-base">{session.className}</div>
+                        <div className="text-xs text-gray-500 mt-1 font-medium">{session.date}</div>
                       </div>
                     </div>
 
-                    <div className="space-y-1.5">
-                      <div className="flex items-center gap-2 text-xs text-gray-600">
-                        <Clock size={12} className="text-gray-400" />
+                    {/* Divider */}
+                    <div className="h-px bg-gradient-to-r from-gray-200 via-gray-300 to-transparent my-3"></div>
+
+                    {/* Details section */}
+                    <div className="space-y-3 relative z-10">
+                      <div className="flex items-center gap-2.5 text-sm text-gray-700 font-semibold">
+                        <div className="p-2 rounded-lg bg-gradient-to-br from-blue-100 to-blue-50 border border-blue-200/50">
+                          <Clock size={14} className="text-blue-600 font-bold" strokeWidth={2} />
+                        </div>
                         <span>{session.time}</span>
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-gray-600">
-                        <MapPin size={12} className="text-gray-400" />
+                      <div className="flex items-center gap-2.5 text-sm text-gray-700 font-semibold">
+                        <div className="p-2 rounded-lg bg-gradient-to-br from-purple-100 to-purple-50 border border-purple-200/50">
+                          <MapPin size={14} className="text-purple-600 font-bold" strokeWidth={2} />
+                        </div>
                         <span className="line-clamp-1">{session.room}</span>
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-gray-600">
-                        <Users size={12} className="text-gray-400" />
+                      <div className="flex items-center gap-2.5 text-sm text-gray-700 font-semibold">
+                        <div className="p-2 rounded-lg bg-gradient-to-br from-emerald-100 to-emerald-50 border border-emerald-200/50">
+                          <Users size={14} className="text-emerald-600 font-bold" strokeWidth={2} />
+                        </div>
                         <span>{session.students} học viên</span>
                       </div>
                     </div>
-
-                    {session.status && (
-                      <div className="mt-3">
-                        <span className="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-emerald-100 text-emerald-700">
-                          {session.status}
-                        </span>
-                      </div>
-                    )}
                   </button>
                 ))}
               </div>
@@ -4160,21 +4204,13 @@ export default function TeacherAttendancePage() {
         {selectedSessionId && selectedLesson && (
           <>
             {/* Class Info Card */}
-            <div className={`relative overflow-hidden bg-gradient-to-br from-white via-red-50/20 to-white rounded-2xl border border-gray-200 shadow-sm mb-6 transition-all duration-700 delay-100 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+            <div className={`relative overflow-hidden bg-gradient-to-br from-red-50 via-red-50/40 to-white rounded-2xl border border-red-100 shadow-sm mb-6 transition-all duration-700 delay-100 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
               {/* Decorative accent bar */}
 
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 p-6">
-                {/* Left: Icon + Info */}
+              <div className="flex flex-col gap-5 p-6">
+                {/* Row 1: Class Info */}
                 <div className="flex items-center gap-5">
-                  <div className="relative flex-shrink-0">
-                    <div className="p-4 rounded-2xl bg-gradient-to-br from-red-600 to-red-700 text-white shadow-lg shadow-red-200">
-                      <BookOpen size={28} />
-                    </div>
-                    <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-xl bg-white border border-gray-200 shadow-sm flex items-center justify-center">
-                      <span className="text-xs font-bold text-red-600">{stats?.total || 0}</span>
-                    </div>
-                  </div>
-                  <div>
+                  <div className="flex-1">
                     {/* <div className="text-xs font-semibold text-red-600 uppercase tracking-wider mb-0.5">{selectedLesson.course}</div> */}
                     <h2 className="text-2xl font-bold text-gray-900">{selectedLesson.lesson}</h2>
                     <div className="flex flex-wrap items-center gap-4 mt-2">
@@ -4204,45 +4240,37 @@ export default function TeacherAttendancePage() {
                   </div>
                 </div>
 
-                {/* Right: Action buttons */}
-                <div className="flex flex-wrap items-center justify-end gap-3 flex-shrink-0">
+                {/* Row 2: All Buttons on One Row */}
+                <div className="border-t border-gray-200 pt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                   <button
                     onClick={handleBackToSchedule}
-                    className="px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800 transition-all flex items-center gap-2 cursor-pointer bg-white"
+                    className="px-3 py-1.5 border border-gray-400 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-all flex items-center justify-center gap-1.5 cursor-pointer bg-gray-50 whitespace-nowrap"
                   >
-                    <CalendarDays size={16} />
+                    <CalendarDays size={14} />
                     <span>Lịch giảng dạy</span>
                   </button>
 
                   <button
-                    onClick={handleChooseOtherSession}
-                    className="px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800 transition-all flex items-center gap-2 cursor-pointer bg-white"
-                  >
-                    <ChevronLeft size={16} />
-                    <span>Buổi khác</span>
-                  </button>
-
-                  <button
                     onClick={() => { void handleOpenTeachingReport("syllabus", { openFullSyllabus: true }); }}
-                    className="px-4 py-2.5 rounded-xl font-semibold flex items-center gap-2 transition-all shadow-sm hover:shadow-md bg-gradient-to-r from-blue-600 to-cyan-600 text-white hover:scale-[1.02] cursor-pointer"
+                    className="px-3 py-1.5 border border-blue-400 rounded-lg font-medium flex items-center justify-center gap-1.5 transition-all hover:shadow-sm text-sm text-blue-600 cursor-pointer bg-blue-50 whitespace-nowrap"
                   >
-                    <BookOpen size={16} />
+                    <BookOpen size={14} />
                     <span>Syllabus</span>
                   </button>
 
                   <button
                     onClick={() => { void handleOpenTeachingReport("lessonPlan"); }}
-                    className="px-4 py-2.5 rounded-xl font-semibold flex items-center gap-2 transition-all shadow-sm hover:shadow-md bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:scale-[1.02] cursor-pointer"
+                    className="px-3 py-1.5 border border-violet-400 rounded-lg font-medium flex items-center justify-center gap-1.5 transition-all hover:shadow-sm text-sm text-violet-600 cursor-pointer bg-violet-50 whitespace-nowrap"
                   >
-                    <GraduationCap size={16} />
+                    <GraduationCap size={14} />
                     <span>Xem giáo án</span>
                   </button>
 
                   <button
                     onClick={() => { void handleOpenTeachingReport("teachingLog"); }}
-                    className="px-4 py-2.5 rounded-xl font-semibold flex items-center gap-2 transition-all shadow-sm hover:shadow-md bg-gradient-to-r from-emerald-600 to-emerald-700 text-white hover:scale-[1.02] cursor-pointer"
+                    className="px-3 py-1.5 border border-emerald-400 rounded-lg font-medium flex items-center justify-center gap-1.5 transition-all hover:shadow-sm text-sm text-emerald-600 cursor-pointer bg-emerald-50 whitespace-nowrap"
                   >
-                    <ClipboardPen size={16} />
+                    <ClipboardPen size={14} />
                     <span>Xem teaching log</span>
                   </button>
 
@@ -4250,19 +4278,19 @@ export default function TeacherAttendancePage() {
                     onClick={handleSaveAll}
                     disabled={isSaving || !isSessionToday}
                     title={!isSessionToday ? "Chỉ có thể điểm danh trong ngày học" : undefined}
-                    className={`px-5 py-2.5 rounded-xl font-semibold flex items-center gap-2 transition-all shadow-sm hover:shadow-md ${isSaving || !isSessionToday
-                      ? "bg-gray-400 text-white cursor-not-allowed opacity-60"
-                      : "bg-gradient-to-r from-red-600 to-red-700 text-white hover:scale-[1.02] cursor-pointer"
+                    className={`px-3 py-1.5 rounded-lg font-medium flex items-center justify-center gap-1.5 transition-all text-sm whitespace-nowrap ${isSaving || !isSessionToday
+                      ? "bg-gray-200 text-gray-500 border border-gray-400 cursor-not-allowed"
+                      : "bg-red-50 text-red-600 border border-red-400 hover:shadow-sm cursor-pointer"
                       }`}
                   >
                     {isSaving ? (
                       <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-current"></div>
                         <span>Đang lưu...</span>
                       </>
                     ) : (
                       <>
-                        <CheckCircle size={18} />
+                        <CheckCircle size={14} />
                         <span>Lưu thay đổi</span>
                       </>
                     )}
@@ -4280,52 +4308,63 @@ export default function TeacherAttendancePage() {
             )}
 
             {/* Stats Cards */}
-            <div className={`grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 transition-all duration-700 delay-100 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
-              <div className="bg-gradient-to-br from-white to-red-50/50 rounded-2xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-all cursor-pointer">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Tổng học viên</div>
-                  <div className="p-2 rounded-lg bg-red-100">
-                    <Users size={20} className="text-red-600" />
+            <div className={`grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6 transition-all duration-700 delay-100 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+              <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102 cursor-pointer">
+                <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r from-red-600 to-red-700"></div>
+                <div className="relative flex items-center justify-between gap-3">
+                  <div className="p-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm flex-shrink-0">
+                    <Users size={20} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium text-gray-600 truncate">Tổng học viên</div>
+                    <div className="text-xl font-bold text-gray-900 leading-tight">{stats?.total || 0}</div>
                   </div>
                 </div>
-                <div className="text-3xl font-bold text-gray-900">{stats?.total || 0}</div>
               </div>
 
-              <div className="bg-gradient-to-br from-white to-emerald-50 rounded-2xl border border-emerald-200 p-5 shadow-sm hover:shadow-md transition-all cursor-pointer">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="text-sm font-semibold text-emerald-600 uppercase tracking-wide">Có mặt</div>
-                  <div className="p-2 rounded-lg bg-emerald-100">
-                    <CheckCircle size={20} className="text-emerald-600" />
+              <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102 cursor-pointer">
+                <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r from-emerald-500 to-teal-500"></div>
+                <div className="relative flex items-center justify-between gap-3">
+                  <div className="p-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-sm flex-shrink-0">
+                    <CheckCircle size={20} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium text-gray-600 truncate">Có mặt</div>
+                    <div className="text-xl font-bold text-gray-900 leading-tight">{stats?.present || 0}</div>
                   </div>
                 </div>
-                <div className="text-3xl font-bold text-emerald-600">{stats?.present || 0}</div>
               </div>
 
-              <div className="bg-gradient-to-br from-white to-amber-50 rounded-2xl border border-amber-200 p-5 shadow-sm hover:shadow-md transition-all cursor-pointer">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="text-sm font-semibold text-amber-600 uppercase tracking-wide">Vắng mặt</div>
-                  <div className="p-2 rounded-lg bg-amber-100">
-                    <Clock size={20} className="text-amber-600" />
+              <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102 cursor-pointer">
+                <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r from-amber-500 to-orange-500"></div>
+                <div className="relative flex items-center justify-between gap-3">
+                  <div className="p-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-sm flex-shrink-0">
+                    <Clock size={20} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium text-gray-600 truncate">Vắng mặt</div>
+                    <div className="text-xl font-bold text-gray-900 leading-tight">{stats?.absent || 0}</div>
                   </div>
                 </div>
-                <div className="text-3xl font-bold text-amber-600">{stats?.absent || 0}</div>
               </div>
 
-              <div className="bg-gradient-to-br from-white to-red-50/50 rounded-2xl border border-red-200 p-5 shadow-sm hover:shadow-md transition-all cursor-pointer">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="text-sm font-semibold text-red-600 uppercase tracking-wide">Tỷ lệ chuyên cần</div>
-                  <div className="p-2 rounded-lg bg-red-100">
-                    <TrendingUp size={20} className="text-red-600" />
+              <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102 cursor-pointer">
+                <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r from-blue-500 to-cyan-500"></div>
+                <div className="relative flex items-center justify-between gap-3">
+                  <div className="p-2 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-sm flex-shrink-0">
+                    <TrendingUp size={20} />
                   </div>
-                </div>
-                <div className="text-3xl font-bold text-red-600">
-                  {stats && stats.total > 0 ? Math.round((stats.present / stats.total) * 100) : 0}%
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium text-gray-600 truncate">Tỷ lệ chuyên cần</div>
+                    <div className="text-xl font-bold text-gray-900 leading-tight">
+                      {stats && stats.total > 0 ? Math.round((stats.present / stats.total) * 100) : 0}%
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </>
         )}
-      </div>
 
       {/* Main Content */}
       {selectedSessionId ? (
@@ -4663,29 +4702,28 @@ export default function TeacherAttendancePage() {
           {teachingReportOpen && createPortal(
             <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
               <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleCloseTeachingReport} />
-              <div className="relative flex w-full max-w-[94vw] xl:max-w-[1520px] max-h-[92vh] flex-col rounded-2xl border border-gray-100 bg-white shadow-2xl overflow-hidden">
-                {!shouldRenderSharedSyllabusBody && (
-                  <div className={`flex items-center justify-between px-5 py-4 flex-shrink-0 ${shouldRenderAdminStyleSyllabus ? "border-b border-red-200 bg-gradient-to-r from-red-600 to-red-700 text-white" : "border-b border-gray-100 bg-gradient-to-r from-red-50 to-white"}`}>
-                    <div className="flex items-center gap-2.5">
-                      <div className={`rounded-lg p-1.5 ${shouldRenderAdminStyleSyllabus ? "bg-white/15" : "bg-red-100"}`}>
-                        <GraduationCap size={18} className={shouldRenderAdminStyleSyllabus ? "text-white" : "text-red-600"} />
-                      </div>
-                      <div>
-                        <div className={`text-xs font-semibold uppercase tracking-wide ${shouldRenderAdminStyleSyllabus ? "text-red-100" : "text-gray-500"}`}>{teachingModalEyebrow}</div>
-                        <div className={`text-sm font-bold line-clamp-1 ${shouldRenderAdminStyleSyllabus ? "text-white" : "text-gray-900"}`}>
-                          {teachingModalTitle}
-                        </div>
+              <div className="relative flex w-full max-w-[85vw] xl:max-w-[1000px] max-h-[92vh] flex-col rounded-2xl border border-gray-100 bg-white shadow-2xl overflow-hidden">
+                {/* Header - Always show */}
+                <div className="flex items-center justify-between px-5 py-4 flex-shrink-0 border-b border-red-200 bg-gradient-to-r from-red-600 to-red-700 text-white">
+                  <div className="flex items-center gap-2.5">
+                    <div className="rounded-lg p-1.5 bg-white/15">
+                      <GraduationCap size={18} className="text-white" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-wide text-red-100">{teachingModalEyebrow}</div>
+                      <div className="text-sm font-bold line-clamp-1 text-white">
+                        {teachingModalTitle}
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={handleCloseTeachingReport}
-                      className={`rounded-lg p-1.5 transition cursor-pointer ${shouldRenderAdminStyleSyllabus ? "text-red-100 hover:bg-white/10 hover:text-white" : "text-gray-400 hover:bg-gray-100 hover:text-gray-700"}`}
-                    >
-                      <X size={18} />
-                    </button>
                   </div>
-                )}
+                  <button
+                    type="button"
+                    onClick={handleCloseTeachingReport}
+                    className="rounded-lg p-1.5 transition cursor-pointer text-red-100 hover:bg-white/10 hover:text-white"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
 
                 {/* Body */}
                 {teachingReportLoading ? (
@@ -4694,25 +4732,34 @@ export default function TeacherAttendancePage() {
                     Đang tải thông tin giáo án...
                   </div>
                 ) : shouldRenderSharedSyllabusBody ? (
-                  <div className="flex flex-1 flex-col overflow-hidden">
-                    <div className="border-b border-gray-100 bg-white px-5 py-3">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                          <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Điều hướng nhanh</div>
-                          <div className="text-sm text-gray-600">Chuyển nhanh giữa syllabus, giáo án và teaching log mà không phải đóng modal.</div>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          {renderTeachingSourceLink(
-                            syllabusSourceHref,
-                            syllabusSourceLabel,
-                            "Backend chưa trả attachment URL của syllabus để tải trực tiếp.",
-                            "blue",
-                          )}
-                          {renderTeachingModalViewSwitch()}
-                        </div>
-                      </div>
+                  <div className="flex-1 overflow-y-auto px-5 py-4 space-y-6">
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                      {selectedLesson?.moduleName && (
+                        <span className="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 font-semibold text-violet-700">
+                          {selectedLesson.moduleName}
+                        </span>
+                      )}
+                      {selectedLesson?.sessionIndexInModule != null && (
+                        <span className="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-gray-600">
+                          Buổi {selectedLesson.sessionIndexInModule} trong module
+                        </span>
+                      )}
+                      {selectedLesson?.teachingLogStatus && (
+                        <span className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 font-semibold text-blue-700">
+                          Log: {selectedLesson.teachingLogStatus}
+                        </span>
+                      )}
                     </div>
-                    <div className="flex-1 overflow-y-auto">
+
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-red-50/40 px-4 py-3">
+                      <div>
+                        <div className="text-xs font-semibold uppercase tracking-wide text-red-700">Workspace liên thông</div>
+                        <div className="text-sm ">Teacher có thể đổi view hoặc vừa nhập teaching log vừa xem syllabus và lesson plan trong cùng modal.</div>
+                      </div>
+                      {renderTeachingModalViewSwitch()}
+                    </div>
+
+                    <div className="border border-red-100 rounded-xl overflow-hidden">
                       <SyllabusDetailModalBody
                         detail={teachingSyllabusDetail}
                         enableCurriculumLessonFilter={Boolean(teachingCurriculumLessonFilter)}
@@ -4734,6 +4781,7 @@ export default function TeacherAttendancePage() {
                         collapseSupplementaryContent
                         hideCurriculumLessonSelect
                         supplementaryContentToggleLabel="Xem thông tin chung"
+                        hideHeader={true}
                         onClose={handleCloseTeachingReport}
                       />
                     </div>
@@ -4758,16 +4806,22 @@ export default function TeacherAttendancePage() {
                       )}
                     </div>
 
-                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-gray-50/70 px-4 py-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-red-50/40 px-4 py-3">
                       <div>
-                        <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Workspace liên thông</div>
-                        <div className="text-sm text-gray-600">Teacher có thể đổi view hoặc vừa nhập teaching log vừa xem syllabus và lesson plan trong cùng modal.</div>
+                        <div className="text-xs font-semibold uppercase tracking-wide text-red-700">Workspace liên thông</div>
+                        <div className="text-sm ">Teacher có thể đổi view hoặc vừa nhập teaching log vừa xem syllabus và lesson plan trong cùng modal.</div>
                       </div>
                       {renderTeachingModalViewSwitch()}
                     </div>
 
                     {(teachingModalView === "lessonPlan" || teachingModalView === "syllabus") && (
-                    <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_360px]">
+                    <div className="space-y-6">
+                      <SyllabusSummaryPanel
+                        description="Bản đồ nhanh để teacher xác định nội dung buổi học và đối chiếu khi cập nhật teaching log."
+                        items={teachingSummaryItems}
+                        horizontal={true}
+                      />
+
                       <section id="teaching-lesson-plan" className="rounded-2xl border border-emerald-100 bg-white shadow-sm">
                         <div className="border-b border-emerald-100 bg-gradient-to-r from-emerald-50 to-white px-5 py-4">
                           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -4822,14 +4876,6 @@ export default function TeacherAttendancePage() {
                           ) : null}
                         </div>
                       </section>
-
-                      <aside>
-                        <SyllabusSummaryPanel
-                          description="Bản đồ nhanh để teacher xác định nội dung buổi học và đối chiếu khi cập nhật teaching log."
-                          items={teachingSummaryItems}
-                        />
-                      </aside>
-
                     </div>
                     )}
 
@@ -5278,11 +5324,11 @@ export default function TeacherAttendancePage() {
 
                 {/* Footer Actions - sticky bottom */}
                 {!teachingReportLoading && (
-                  <div className="flex items-center justify-end gap-2 border-t border-gray-100 px-5 py-4">
+                  <div className="flex items-center justify-end gap-2 border-t border-gray-100 px-5 py-4 bg-white">
                     <button
                       type="button"
                       onClick={handleCloseTeachingReport}
-                      className="cursor-pointer rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                     >
                       Hủy
                     </button>
@@ -5291,7 +5337,7 @@ export default function TeacherAttendancePage() {
                         type="button"
                         onClick={handleSubmitTeachingReport}
                         disabled={teachingReportSubmitting || !selectedSessionId || teachingLogReadOnly || Boolean(teachingTemplateGuardMessage)}
-                        className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-gradient-to-r from-red-600 to-red-700 px-4 py-2 text-sm text-white hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-gradient-to-r from-red-600 to-red-700 px-4 py-2 text-sm font-medium text-white hover:shadow-lg transition-all disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {teachingReportSubmitting ? <Loader2 size={14} className="animate-spin" /> : null}
                         {teachingLogReadOnly
