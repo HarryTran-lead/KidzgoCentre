@@ -13,6 +13,7 @@ export async function POST(req: Request) {
     const levelId = searchParams.get("levelId");
     const code = searchParams.get("code");
     const version = searchParams.get("version");
+    const branchId = searchParams.get("branchId");
     const overwriteExisting = searchParams.get("overwriteExisting") ?? "true";
 
     if (!programId || !levelId || !code || !version) {
@@ -32,6 +33,9 @@ export async function POST(req: Request) {
     backendFormData.append("file", file);
 
     const query = new URLSearchParams({ programId, levelId, code, version, overwriteExisting });
+    if (branchId) {
+      query.append("branchId", branchId);
+    }
     const backendUrl = buildApiUrl(`${BACKEND_SYLLABUS_ENDPOINTS.IMPORT_ARCHIVE}?${query}`);
 
     const controller = new AbortController();
@@ -48,7 +52,25 @@ export async function POST(req: Request) {
       clearTimeout(timer);
     }
 
-    const data = await upstream.json().catch(() => ({}));
+    const data = await upstream.json().catch(() => {
+      if (upstream.status === 413) {
+        return {
+          isSuccess: false,
+          data: null,
+          title: "File quá lớn",
+          detail: `File ZIP (${Math.ceil(file.size / 1024 / 1024)} MB) vượt quá giới hạn upload của server. Cần tăng request body limit ở proxy/backend hoặc giảm kích thước archive.`,
+          message: "File ZIP vượt quá giới hạn upload của server.",
+          status: 413,
+        };
+      }
+
+      return {
+        isSuccess: false,
+        data: null,
+        message: `Backend trả về lỗi ${upstream.status} nhưng không có JSON response.`,
+        status: upstream.status,
+      };
+    });
     return NextResponse.json(data, { status: upstream.status });
   } catch (error) {
     const isAbort = error instanceof Error && error.name === "AbortError";
