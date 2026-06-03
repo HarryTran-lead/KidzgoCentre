@@ -43,19 +43,24 @@ export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     [t.groups.learning.classes.list, BookOpen, "/classes"],
   ];
   const curriculum: RawItem[] = [
-    [t.groups.curriculum.coursesSystem.list, GraduationCap, "/courses/system"],
-    [t.groups.curriculum.coursesBranch.list, GraduationCap, "/courses/branch"],
+    [t.groups.curriculum.coursesSystem.list, GraduationCap, "/courses"],
     [t.groups.curriculum.syllabuses.list, BookOpen, "/syllabuses"],
-    [t.groups.curriculum.lessonPlans.list, BookOpenCheck, "/documents"],
+    [t.groups.curriculum.lessonPlans.list, BookOpenCheck, "/documents/templates"],
     [t.groups.curriculum.academicProgression.list, Layers, "/academic-progression"],
   ];
   const opsItems: RawItem[] = [
     [t.groups.ops.rooms, Building2, "/rooms"],
     [t.groups.ops.schedule, CalendarRange, "/schedule"],
+    [t.groups.ops.documents, ClipboardCheck, "/documents/plans"],
     ["Tiến trình chuyển chương trình", Route, "/program-progressions"],
     [t.groups.ops.pauseEnrollments, CalendarClock, "/pause-enrollments"],
     [t.groups.ops.media, Image, "/media"],
     [t.groups.ops.reportRequests, Send, "/report-requests"],
+  ];
+  const ticketing: RawItem[] = [
+    [t.groups.ticketing.ticketTypes, Tag, "/ticket-types"],
+    [t.groups.ticketing.slotTypes, Layers, "/slot-types"],
+    [t.groups.ticketing.ticketSlotCompat, GitMerge, "/ticket-compatibility"],
   ];
   const system: RawItem[] = [
     [t.groups.system.accounts, Settings, "/accounts"],
@@ -68,9 +73,6 @@ export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     [t.groups.system.notifications, Bell, "/notifications"],
     [t.groups.system.settings, Settings, "/settings"],
     ["Cấu hình thanh toán", CreditCard, "/payment-setting"],
-    ["Loại vé học", Tag, "/ticket-types"],
-    ["Loại slot buổi học", Layers, "/slot-types"],
-    ["Tương thích vé — slot", GitMerge, "/ticket-compatibility"],
   ];
 
   // Create feedback group item
@@ -103,6 +105,7 @@ export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     makeGroup(root, t.groups.learning.title, GraduationCap, learning),
     makeGroup(root, t.groups.ops.title, Building2, opsItems),
     feedbackGroup,
+    makeGroup(root, t.groups.ticketing.title, Tag, ticketing),
     makeGroup(root, t.groups.system.title, Settings, system),
   ];
 }

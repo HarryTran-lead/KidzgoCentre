@@ -1,29 +1,33 @@
-import Link from "next/link";
-import LessonPlanWorkspace from "@/components/lesson-plans/lesson-plan-workspace";
+import { redirect } from "next/navigation";
 
-export default async function AdminDocumentsPage({ params }: { params: Promise<{ locale: string }> }) {
+export default async function AdminDocumentsPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { locale } = await params;
+  const resolvedSearchParams = await searchParams;
+  const tabValue = Array.isArray(resolvedSearchParams.tab)
+    ? resolvedSearchParams.tab[0]
+    : resolvedSearchParams.tab;
+  const targetSegment = tabValue === "plans" ? "plans" : "templates";
+  const forwardedQuery = new URLSearchParams();
 
-  return (
-    <div>
-      <div className="flex items-center gap-2 bg-white border-b border-gray-100 px-4 py-2.5 text-sm">
-        <Link
-          href={`/${locale}/portal/admin/courses`}
-          className="font-medium text-gray-500 hover:text-red-600 transition-colors"
-        >
-          Chương trình
-        </Link>
-        <span className="text-gray-400">/</span>
-        <Link
-          href={`/${locale}/portal/admin/syllabuses`}
-          className="font-medium text-gray-500 hover:text-red-600 transition-colors"
-        >
-          Syllabus
-        </Link>
-        <span className="text-gray-400">/</span>
-        <span className="font-medium text-gray-700">Mẫu giáo án</span>
-      </div>
-      <LessonPlanWorkspace scope="admin" />
-    </div>
+  for (const [key, rawValue] of Object.entries(resolvedSearchParams)) {
+    if (key === "tab") continue;
+    if (Array.isArray(rawValue)) {
+      for (const value of rawValue) {
+        if (value) forwardedQuery.append(key, value);
+      }
+      continue;
+    }
+    if (rawValue) forwardedQuery.set(key, rawValue);
+  }
+
+  const queryString = forwardedQuery.toString();
+  redirect(
+    `/${locale}/portal/admin/documents/${targetSegment}${queryString ? `?${queryString}` : ""}`,
   );
 }

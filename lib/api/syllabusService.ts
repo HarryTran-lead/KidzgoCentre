@@ -184,6 +184,24 @@ export interface AssignSyllabusToBranchRequest {
   isActive: boolean;
 }
 
+export interface BranchSyllabusAssignment {
+  curriculumAssignmentId?: string | null;
+  syllabusId: string;
+  syllabusCode?: string | null;
+  syllabusTitle?: string | null;
+  syllabusVersion?: string | null;
+  programId?: string | null;
+  programName?: string | null;
+  levelId?: string | null;
+  levelName?: string | null;
+  unitCount?: number | null;
+  sessionTemplateCount?: number | null;
+  assignedAt?: string | null;
+  isActive: boolean;
+  effectiveFrom?: string | null;
+  effectiveTo?: string | null;
+}
+
 // ─── Import Configuration Types ───────────────────────────────────────────────
 
 export interface ImportConfigRule {
@@ -322,6 +340,7 @@ export interface SyllabusDocument {
   status?: SyllabusDocumentStatus | null;
   sourceType?: SyllabusDocumentSourceType | null;
   sourceFileName?: string | null;
+  attachmentUrl?: string | null;
   parserVersion?: string | null;
   version: number;
   summary?: SyllabusDocumentSummary | null;
@@ -694,6 +713,7 @@ function normalizeSyllabusDocument(item: unknown): SyllabusDocument | null {
     status: (strAny(source.status, source.Status) || null) as SyllabusDocumentStatus | null,
     sourceType: (strAny(source.sourceType, source.SourceType) || null) as SyllabusDocumentSourceType | null,
     sourceFileName: strAny(source.sourceFileName, source.SourceFileName) || null,
+    attachmentUrl: strAny(source.attachmentUrl, source.AttachmentUrl) || null,
     parserVersion: strAny(source.parserVersion, source.ParserVersion) || null,
     version: Number(source.version ?? source.Version ?? 1),
     summary: summarySource
@@ -1403,6 +1423,101 @@ export async function assignSyllabusToBranch(
   }
 }
 
+export async function getBranchSyllabusAssignments(
+  branchId: string,
+): Promise<ServiceResponse<BranchSyllabusAssignment[]>> {
+  const token = getAccessToken();
+  if (!token) return { isSuccess: false, data: [], message: "Chưa đăng nhập." };
+
+  try {
+    const res = await fetch(BRANCH_ENDPOINTS.SYLLABUSES(branchId), {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) return errorResponse([], { response: res, data: json });
+
+    const payload = json?.data ?? json;
+    const rawItems = Array.isArray(payload?.syllabuses)
+      ? payload.syllabuses
+      : Array.isArray(payload?.items)
+        ? payload.items
+        : Array.isArray(payload)
+          ? payload
+          : [];
+
+    const items: BranchSyllabusAssignment[] = [];
+    for (const rawItem of rawItems) {
+      const source = (rawItem ?? {}) as Record<string, unknown>;
+      const nestedSyllabus = ((source.syllabus ?? source.Syllabus) ?? null) as Record<string, unknown> | null;
+      const syllabusSource = nestedSyllabus ?? source;
+      const syllabusId = strAny(
+        source.syllabusId,
+        source.SyllabusId,
+        nestedSyllabus?.id,
+        nestedSyllabus?.Id,
+        nestedSyllabus?.syllabusId,
+        nestedSyllabus?.SyllabusId,
+      ).trim();
+      if (!syllabusId) continue;
+
+      items.push({
+        curriculumAssignmentId: strAny(source.curriculumAssignmentId, source.CurriculumAssignmentId, source.id, source.Id) || null,
+        syllabusId,
+        syllabusCode: strAny(syllabusSource.code, syllabusSource.Code, source.code, source.Code) || null,
+        syllabusTitle: strAny(syllabusSource.title, syllabusSource.Title, source.title, source.Title) || null,
+        syllabusVersion: strAny(
+          syllabusSource.version,
+          syllabusSource.Version,
+          source.version,
+          source.Version,
+        ) || null,
+        programId: strAny(
+          syllabusSource.programId,
+          syllabusSource.ProgramId,
+          source.programId,
+          source.ProgramId,
+        ) || null,
+        programName: strAny(
+          syllabusSource.programName,
+          syllabusSource.ProgramName,
+          source.programName,
+          source.ProgramName,
+        ) || null,
+        levelId: strAny(
+          syllabusSource.levelId,
+          syllabusSource.LevelId,
+          source.levelId,
+          source.LevelId,
+        ) || null,
+        levelName: strAny(
+          syllabusSource.levelName,
+          syllabusSource.LevelName,
+          source.levelName,
+          source.LevelName,
+        ) || null,
+        unitCount: num(syllabusSource.unitCount ?? syllabusSource.UnitCount ?? source.unitCount ?? source.UnitCount),
+        sessionTemplateCount: num(
+          syllabusSource.sessionTemplateCount ??
+          syllabusSource.SessionTemplateCount ??
+          source.sessionTemplateCount ??
+          source.SessionTemplateCount,
+        ),
+        assignedAt: strAny(source.assignedAt, source.AssignedAt, source.createdAt, source.CreatedAt) || null,
+        isActive: bool(source.isActive ?? source.IsActive) ?? true,
+        effectiveFrom: strAny(source.effectiveFrom, source.EffectiveFrom) || null,
+        effectiveTo: strAny(source.effectiveTo, source.EffectiveTo) || null,
+      });
+    }
+
+    return { isSuccess: true, data: items, raw: json };
+  } catch (error) {
+    return errorResponse([], error);
+  }
+}
+
 // ─── Import Configuration ──────────────────────────────────────────────────────
 
 function normalizeRule(r: unknown): ImportConfigRule {
@@ -1576,6 +1691,138 @@ export async function upsertImportConfiguration(
     }
     const d = json?.data ?? json;
     return { isSuccess: true, data: d?.id ? normalizeImportConfig(d) : null };
+  } catch (error) {
+    return errorResponse(null, error);
+  }
+}
+
+// ─── Syllabus Versions ────────────────────────────────────────────────────────
+
+export interface SyllabusVersion {
+  id: string;
+  syllabusId: string;
+  versionTag: string;
+  label?: string | null;
+  notes?: string | null;
+  isActive: boolean;
+  createdAt?: string | null;
+  promotedAt?: string | null;
+  promotedBy?: string | null;
+}
+
+export interface CreateSyllabusVersionRequest {
+  versionTag: string;
+  label?: string | null;
+  notes?: string | null;
+}
+
+function normalizeVersion(v: unknown): SyllabusVersion {
+  const s = (v ?? {}) as Record<string, unknown>;
+  return {
+    id: str(s.id),
+    syllabusId: str(s.syllabusId),
+    versionTag: str(s.versionTag ?? s.version ?? s.tag),
+    label: str(s.label) || null,
+    notes: str(s.notes) || null,
+    isActive: Boolean(s.isActive),
+    createdAt: str(s.createdAt) || null,
+    promotedAt: str(s.promotedAt) || null,
+    promotedBy: str(s.promotedBy) || null,
+  };
+}
+
+export async function getSyllabusVersions(
+  syllabusId: string,
+): Promise<ServiceResponse<SyllabusVersion[]>> {
+  const token = getAccessToken();
+  if (!token) return { isSuccess: false, data: [], message: "Chưa đăng nhập." };
+  try {
+    const res = await fetch(SYLLABUS_ENDPOINTS.VERSIONS(syllabusId), {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) return errorResponse([], { response: res, data: json });
+    const payload = json?.data ?? json;
+    const items = Array.isArray(payload?.items) ? payload.items : Array.isArray(payload) ? payload : [];
+    return { isSuccess: true, data: items.map(normalizeVersion), raw: json };
+  } catch (error) {
+    return errorResponse([], error);
+  }
+}
+
+export async function createSyllabusVersion(
+  syllabusId: string,
+  body: CreateSyllabusVersionRequest,
+): Promise<ServiceResponse<SyllabusVersion | null>> {
+  const token = getAccessToken();
+  if (!token) return { isSuccess: false, data: null, message: "Chưa đăng nhập." };
+  try {
+    const res = await fetch(SYLLABUS_ENDPOINTS.VERSIONS(syllabusId), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) return errorResponse(null, { response: res, data: json });
+    const d = json?.data ?? json;
+    return { isSuccess: true, data: normalizeVersion(d), raw: json };
+  } catch (error) {
+    return errorResponse(null, error);
+  }
+}
+
+export async function promoteSyllabusVersion(
+  syllabusId: string,
+  versionId: string,
+): Promise<ServiceResponse<null>> {
+  const token = getAccessToken();
+  if (!token) return { isSuccess: false, data: null, message: "Chưa đăng nhập." };
+  try {
+    const res = await fetch(SYLLABUS_ENDPOINTS.VERSION_PROMOTE(syllabusId, versionId), {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) return errorResponse(null, { response: res, data: json });
+    return { isSuccess: true, data: null, message: str(json?.message) || undefined, raw: json };
+  } catch (error) {
+    return errorResponse(null, error);
+  }
+}
+
+export async function deleteSyllabusVersion(
+  syllabusId: string,
+  versionId: string,
+): Promise<ServiceResponse<null>> {
+  const token = getAccessToken();
+  if (!token) return { isSuccess: false, data: null, message: "Chưa đăng nhập." };
+  try {
+    const res = await fetch(SYLLABUS_ENDPOINTS.VERSION_BY_ID(syllabusId, versionId), {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) return errorResponse(null, { response: res, data: json });
+    return { isSuccess: true, data: null, raw: json };
+  } catch (error) {
+    return errorResponse(null, error);
+  }
+}
+
+export async function removeSyllabusFromBranch(
+  branchId: string,
+  assignmentId: string,
+): Promise<ServiceResponse<null>> {
+  const token = getAccessToken();
+  if (!token) return { isSuccess: false, data: null, message: "Chưa đăng nhập." };
+  try {
+    const res = await fetch(BRANCH_ENDPOINTS.SYLLABUS_ASSIGNMENT(branchId, assignmentId), {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) return errorResponse(null, { response: res, data: json });
+    return { isSuccess: true, data: null, raw: json };
   } catch (error) {
     return errorResponse(null, error);
   }

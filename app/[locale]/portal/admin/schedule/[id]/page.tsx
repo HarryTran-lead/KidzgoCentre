@@ -63,6 +63,107 @@ type TeachingLogData = {
   updatedAt?: string | null;
 };
 
+function pickFirstNonEmptyString(...values: unknown[]): string | null {
+  for (const value of values) {
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (trimmed) return trimmed;
+    }
+  }
+  return null;
+}
+
+function parseJsonObject(input: unknown): Record<string, any> | null {
+  if (!input) return null;
+  if (typeof input === "object" && !Array.isArray(input)) {
+    return input as Record<string, any>;
+  }
+  if (typeof input !== "string") return null;
+  const text = input.trim();
+  if (!text) return null;
+  try {
+    const parsed = JSON.parse(text);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, any>)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function normalizeTeachingLog(raw: any): TeachingLogData | null {
+  if (!raw || typeof raw !== "object") return null;
+
+  const contentObject = parseJsonObject(
+    raw?.actualContent ?? raw?.ActualContent ?? raw?.realContent ?? raw?.deliveredContent,
+  );
+
+  const activityText = Array.isArray(contentObject?.activities)
+    ? contentObject.activities
+        .map((activity: any) => {
+          if (!activity || typeof activity !== "object") return "";
+          const merged = [activity.classwork, activity.requiredMaterials, activity.homeworkRequiredMaterials]
+            .filter((value) => typeof value === "string" && value.trim())
+            .map((value) => String(value).trim())
+            .join("\n");
+          return merged;
+        })
+        .filter(Boolean)
+        .join("\n\n")
+    : "";
+
+  const homeworkFromContent = Array.isArray(contentObject?.homeworkNotes)
+    ? contentObject.homeworkNotes.join("\n")
+    : typeof contentObject?.homeworkNotes === "string"
+      ? contentObject.homeworkNotes
+      : null;
+
+  const notesFromContent = pickFirstNonEmptyString(
+    contentObject?.teacherNotes,
+    contentObject?.teacherNote,
+    contentObject?.notes,
+    contentObject?.note,
+  );
+
+  return {
+    teachingLogId: pickFirstNonEmptyString(raw?.teachingLogId, raw?.id, raw?.teachingLogID),
+    sessionId: pickFirstNonEmptyString(raw?.sessionId, raw?.SessionId),
+    plannedLessonPlanTemplateId: pickFirstNonEmptyString(raw?.plannedLessonPlanTemplateId, raw?.PlannedLessonPlanTemplateId),
+    plannedLessonTitle: pickFirstNonEmptyString(raw?.plannedLessonTitle, raw?.PlannedLessonTitle),
+    actualLessonPlanTemplateId: pickFirstNonEmptyString(raw?.actualLessonPlanTemplateId, raw?.ActualLessonPlanTemplateId),
+    actualLessonTitle: pickFirstNonEmptyString(raw?.actualLessonTitle, raw?.ActualLessonTitle),
+    teachingLogStatus: pickFirstNonEmptyString(raw?.teachingLogStatus, raw?.TeachingLogStatus, raw?.status),
+    progressStatus: pickFirstNonEmptyString(raw?.progressStatus, raw?.ProgressStatus),
+    actualTeachingType: pickFirstNonEmptyString(raw?.actualTeachingType, raw?.ActualTeachingType),
+    actualContent: pickFirstNonEmptyString(
+      raw?.actualContent,
+      raw?.ActualContent,
+      raw?.realContent,
+      raw?.deliveredContent,
+      activityText,
+    ),
+    actualHomework: pickFirstNonEmptyString(
+      raw?.actualHomework,
+      raw?.ActualHomework,
+      raw?.homework,
+      raw?.actualHomeWork,
+      homeworkFromContent,
+    ),
+    teacherNote: pickFirstNonEmptyString(
+      raw?.teacherNote,
+      raw?.TeacherNote,
+      raw?.teacherNotes,
+      raw?.TeacherNotes,
+      raw?.notes,
+      raw?.note,
+      notesFromContent,
+    ),
+    submittedBy: pickFirstNonEmptyString(raw?.submittedBy, raw?.SubmittedBy),
+    submittedAt: pickFirstNonEmptyString(raw?.submittedAt, raw?.SubmittedAt),
+    updatedAt: pickFirstNonEmptyString(raw?.updatedAt, raw?.UpdatedAt),
+  };
+}
+
 async function fetchTeachingLog(sessionId: string): Promise<TeachingLogData | null> {
   const token = getAccessToken();
   if (!token) return null;
@@ -72,7 +173,8 @@ async function fetchTeachingLog(sessionId: string): Promise<TeachingLogData | nu
     });
     if (!res.ok) return null;
     const json = await res.json();
-    return (json?.data ?? json) as TeachingLogData;
+    const payload = json?.data?.teachingLog ?? json?.teachingLog ?? json?.data ?? json;
+    return normalizeTeachingLog(payload);
   } catch {
     return null;
   }

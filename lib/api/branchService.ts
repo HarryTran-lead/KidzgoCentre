@@ -102,3 +102,35 @@ export async function updateBranchStatus(
 ): Promise<UpdateBranchStatusApiResponse> {
   return patch<UpdateBranchStatusApiResponse>(BRANCH_ENDPOINTS.UPDATE_STATUS(id), data);
 }
+
+// ─── Branch Programs ──────────────────────────────────────────────────────────
+
+export interface BranchProgramItem {
+  id: string;
+  programId: string;
+  programName: string;
+  programCode?: string | null;
+  isActive: boolean;
+  assignedAt?: string | null;
+}
+
+export async function getBranchPrograms(branchId: string): Promise<BranchProgramItem[]> {
+  const response = await get<any>(BRANCH_ENDPOINTS.PROGRAMS(branchId));
+  const payload = response?.data ?? response;
+  const items = Array.isArray(payload?.items) ? payload.items
+    : Array.isArray(payload?.programs) ? payload.programs
+    : Array.isArray(payload) ? payload
+    : [];
+  return items.map((item: any): BranchProgramItem => ({
+    id: String(item?.id ?? item?.programId ?? ""),
+    programId: String(item?.programId ?? item?.id ?? ""),
+    programName: String(item?.programName ?? item?.name ?? ""),
+    programCode: item?.programCode ?? item?.code ?? null,
+    isActive: Boolean(item?.isActive ?? true),
+    assignedAt: item?.assignedAt ?? null,
+  })).filter((x: BranchProgramItem) => x.programId);
+}
+
+export async function removeProgramFromBranch(branchId: string, programId: string): Promise<void> {
+  await del<any>(BRANCH_ENDPOINTS.PROGRAM_BY_ID(branchId, programId));
+}

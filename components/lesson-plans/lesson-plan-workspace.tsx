@@ -50,6 +50,11 @@ import {
   Users,
   X,
   XCircle,
+  Zap,
+  CheckCircle,
+  Tag,
+  Lightbulb,
+  ListChecks,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -91,6 +96,7 @@ import {
   SessionLessonPlanDocument,
 } from "@/lib/api/lessonPlanService";
 import {
+  getBranchSyllabusAssignments,
   getSyllabusById,
   getSyllabuses,
   getUnitLessonPlans,
@@ -99,12 +105,14 @@ import {
 } from "@/lib/api/syllabusService";
 import { getAllProgramsForDropdown } from "@/lib/api/programService";
 import LessonPlanTemplateDocument from "@/components/lesson-plans/LessonPlanTemplateDocument";
-import SyllabusSummaryPanel from "@/components/lesson-plans/SyllabusSummaryPanel";
 import { getTeacherClasses } from "@/lib/api/teacherService";
+import { getSessionById, getTeachingLog } from "@/lib/api/sessionService";
+import { useBranchFilter } from "@/hooks/useBranchFilter";
 
 type WorkspaceScope = "teacher" | "staff-management" | "admin";
 type WorkspacePresentation = "workspace" | "session-page";
 type ActiveTab = "templates" | "plans";
+type WorkspaceLockedTab = ActiveTab | null;
 type TemplateStatusFilter = "all" | "active" | "inactive" | "withAttachment";
 type PlanStatusFilter =
   | "all"
@@ -166,7 +174,10 @@ type DetailState =
   | null;
 
 type DetailModalState = Exclude<DetailState, null>;
-type SessionDocumentDetailState = Extract<DetailModalState, { type: "session-document" }>;
+type SessionDocumentDetailState = Extract<
+  DetailModalState,
+  { type: "session-document" }
+>;
 
 const COPY: Record<
   WorkspaceScope,
@@ -429,6 +440,173 @@ function pickSharedProgramTemplate(
     const bTime = new Date(b.updatedAt || b.createdAt || 0).getTime();
     return bTime - aTime;
   })[0];
+}
+
+function hasStructuredTemplateContent(
+  template?: LessonPlanTemplate | null,
+): boolean {
+  if (!template) return false;
+
+  return Boolean(
+    template.objectives ||
+      template.languageContent ||
+      template.vocabulary ||
+      template.grammar ||
+      template.teachingMethodology ||
+      template.teacherMaterials ||
+      template.studentMaterials ||
+      template.procedure ||
+      template.evaluation ||
+      template.homework,
+  );
+}
+
+function hasSessionTemplateLinkage(
+  session: Pick<
+    ClassLessonPlanSyllabusSession,
+    | "templateId"
+    | "templateTitle"
+    | "templateSyllabusContent"
+    | "plannedContent"
+    | "moduleId"
+    | "sessionIndexInModule"
+  >,
+): boolean {
+  return Boolean(
+    session.templateId ||
+      session.templateTitle ||
+      session.templateSyllabusContent ||
+      session.plannedContent ||
+      session.moduleId ||
+      session.sessionIndexInModule != null,
+  );
+}
+
+function needsRuntimeSessionHydration(
+  session: Pick<
+    ClassLessonPlanSyllabusSession,
+    | "lessonPlanId"
+    | "moduleId"
+    | "sessionIndexInModule"
+    | "templateId"
+    | "templateTitle"
+    | "templateSyllabusContent"
+    | "plannedContent"
+  >,
+): boolean {
+  if (!session.moduleId || session.sessionIndexInModule == null) {
+    return true;
+  }
+
+  return !Boolean(
+    session.lessonPlanId ||
+      session.templateId ||
+      session.templateTitle ||
+      session.templateSyllabusContent ||
+      session.plannedContent,
+  );
+}
+
+function pickSessionFallbackTemplate(
+  templates: LessonPlanTemplate[],
+  session: Pick<
+    ClassLessonPlanSyllabusSession,
+    "moduleId" | "sessionIndexInModule"
+  >,
+  sharedTemplate?: LessonPlanTemplate,
+): LessonPlanTemplate | undefined {
+  const moduleId = session.moduleId?.trim();
+
+  if (moduleId) {
+    const moduleTemplates = templates.filter(
+      (item) => item.moduleId?.trim() === moduleId,
+    );
+
+    if (moduleTemplates.length) {
+      const sessionOrder = session.sessionIndexInModule;
+      if (sessionOrder != null) {
+        const exactCandidates = moduleTemplates.filter((item) => {
+          if (item.sessionOrder != null && item.sessionOrder === sessionOrder) {
+            return true;
+          }
+          if (item.sessionIndex != null && item.sessionIndex === sessionOrder) {
+            return true;
+          }
+          if (
+            item.lessonOrderIndexInUnit != null &&
+            item.lessonOrderIndexInUnit === sessionOrder
+          ) {
+            return true;
+          }
+          if (
+            item.orderIndexInUnit != null &&
+            (item.orderIndexInUnit === sessionOrder ||
+              item.orderIndexInUnit + 1 === sessionOrder)
+          ) {
+            return true;
+          }
+          return false;
+        });
+
+        if (exactCandidates.length) {
+          return [...exactCandidates].sort(compareLessonsByBeOrder)[0];
+        }
+      }
+
+      return [...moduleTemplates].sort(compareLessonsByBeOrder)[0];
+    }
+  }
+
+  return sharedTemplate;
+}
+
+function extractLessonPlanSections(
+  content: string | null | undefined,
+  template?: LessonPlanTemplate | null,
+) {
+  const rawContent = String(content ?? template?.syllabusContent ?? "").trim();
+  const contentObj = asObject(parseJsonContent(rawContent));
+
+  return {
+    rawContent,
+    objectives:
+      pickStringValue(contentObj, ["objectives", "objective", "learningObjectives"]) ||
+      String(template?.objectives ?? "").trim(),
+    languageContent:
+      pickStringValue(contentObj, ["languageContent", "language", "languageFocus"]) ||
+      String(template?.languageContent ?? "").trim(),
+    vocabulary:
+      pickStringValue(contentObj, ["vocabulary", "vocab", "newWords"]) ||
+      String(template?.vocabulary ?? "").trim(),
+    grammar:
+      pickStringValue(contentObj, ["grammar", "grammarFocus"]) ||
+      String(template?.grammar ?? "").trim(),
+    methodology:
+      pickStringValue(contentObj, [
+        "teachingMethodology",
+        "methodology",
+        "teachingMethod",
+        "approach",
+      ]) || String(template?.teachingMethodology ?? "").trim(),
+    teacherMaterials:
+      pickStringValue(contentObj, ["teacherMaterials", "materialsForTeacher"]) ||
+      String(template?.teacherMaterials ?? "").trim(),
+    studentMaterials:
+      pickStringValue(contentObj, [
+        "studentMaterials",
+        "materialsForStudents",
+        "studentResources",
+      ]) || String(template?.studentMaterials ?? "").trim(),
+    procedure:
+      pickStringValue(contentObj, ["procedure", "teachingProcedure", "activities"]) ||
+      String(template?.procedure ?? "").trim(),
+    evaluation:
+      pickStringValue(contentObj, ["evaluation", "assessment", "checking"]) ||
+      String(template?.evaluation ?? "").trim(),
+    homework:
+      pickStringValue(contentObj, ["homework", "homeworkTasks", "homeworkNotes"]) ||
+      String(template?.homework ?? "").trim(),
+  };
 }
 
 function pickStringValue(
@@ -912,7 +1090,8 @@ type CurriculumTableRow = {
 function normalizeCurriculumTableText(value: unknown): string {
   if (value == null) return "";
   if (typeof value === "string") return value.replace(/\u0000/g, "").trim();
-  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (typeof value === "number" || typeof value === "boolean")
+    return String(value);
   if (Array.isArray(value)) {
     return value
       .map((item) => normalizeCurriculumTableText(item))
@@ -922,14 +1101,18 @@ function normalizeCurriculumTableText(value: unknown): string {
   }
   if (typeof value === "object") {
     const obj = value as Record<string, unknown>;
-    return ["text", "value", "name", "title", "label", "content"]
-      .map((key) => normalizeCurriculumTableText(obj[key]))
-      .find(Boolean) || "";
+    return (
+      ["text", "value", "name", "title", "label", "content"]
+        .map((key) => normalizeCurriculumTableText(obj[key]))
+        .find(Boolean) || ""
+    );
   }
   return "";
 }
 
-function extractCurriculumRowsFromSyllabusDetail(detail?: SyllabusDetail | null): CurriculumTableRow[] {
+function extractCurriculumRowsFromSyllabusDetail(
+  detail?: SyllabusDetail | null,
+): CurriculumTableRow[] {
   if (!detail) return [];
 
   const rowFromSessionTemplate = (item: unknown): CurriculumTableRow | null => {
@@ -964,7 +1147,9 @@ function extractCurriculumRowsFromSyllabusDetail(detail?: SyllabusDetail | null)
         normalizeCurriculumTableText(obj.teachersBook),
     };
 
-    const nonEmptyCount = Object.values(row).filter((value) => value.trim().length > 0).length;
+    const nonEmptyCount = Object.values(row).filter(
+      (value) => value.trim().length > 0,
+    ).length;
     return nonEmptyCount >= 2 ? row : null;
   };
 
@@ -979,19 +1164,79 @@ function extractCurriculumRowsFromSyllabusDetail(detail?: SyllabusDetail | null)
     return "";
   };
 
-  const rowFromRawObject = (obj: Record<string, unknown>): CurriculumTableRow | null => {
+  const rowFromRawObject = (
+    obj: Record<string, unknown>,
+  ): CurriculumTableRow | null => {
     const row: CurriculumTableRow = {
-      periods: pickByAliases(obj, ["periods", "period", "periodRange", "sessionRange", "week", "time"]),
-      topics: pickByAliases(obj, ["topics", "topic", "unit", "unitName", "sessionTopic"]),
-      lessons: pickByAliases(obj, ["lessons", "lesson", "lessonNo", "lessonNumber", "sessionNo", "sessionIndex", "sessionOrder"]),
-      contents: pickByAliases(obj, ["contents", "content", "objective", "objectives", "goals", "skills", "activity"]),
-      structures: pickByAliases(obj, ["structures", "structure", "languageFocus", "grammar", "pattern"]),
-      studentsBook: pickByAliases(obj, ["studentsBook", "studentBook", "studentsbook", "pupils", "pupilBook", "wbPage", "wbPages"]),
-      teachersBook: pickByAliases(obj, ["teachersBook", "teacherBook", "teachersbook", "tbPage", "tbPages", "teacherPage"]),
+      periods: pickByAliases(obj, [
+        "periods",
+        "period",
+        "periodRange",
+        "sessionRange",
+        "week",
+        "time",
+      ]),
+      topics: pickByAliases(obj, [
+        "topics",
+        "topic",
+        "unit",
+        "unitName",
+        "sessionTopic",
+      ]),
+      lessons: pickByAliases(obj, [
+        "lessons",
+        "lesson",
+        "lessonNo",
+        "lessonNumber",
+        "sessionNo",
+        "sessionIndex",
+        "sessionOrder",
+      ]),
+      contents: pickByAliases(obj, [
+        "contents",
+        "content",
+        "objective",
+        "objectives",
+        "goals",
+        "skills",
+        "activity",
+      ]),
+      structures: pickByAliases(obj, [
+        "structures",
+        "structure",
+        "languageFocus",
+        "grammar",
+        "pattern",
+      ]),
+      studentsBook: pickByAliases(obj, [
+        "studentsBook",
+        "studentBook",
+        "studentsbook",
+        "pupils",
+        "pupilBook",
+        "wbPage",
+        "wbPages",
+      ]),
+      teachersBook: pickByAliases(obj, [
+        "teachersBook",
+        "teacherBook",
+        "teachersbook",
+        "tbPage",
+        "tbPages",
+        "teacherPage",
+      ]),
     };
 
-    const nonEmptyCount = Object.values(row).filter((value) => value.trim().length > 0).length;
-    const hasSignal = Boolean(row.periods || row.topics || row.lessons || row.contents || row.structures);
+    const nonEmptyCount = Object.values(row).filter(
+      (value) => value.trim().length > 0,
+    ).length;
+    const hasSignal = Boolean(
+      row.periods ||
+      row.topics ||
+      row.lessons ||
+      row.contents ||
+      row.structures,
+    );
     return nonEmptyCount >= 2 && hasSignal ? row : null;
   };
 
@@ -1025,22 +1270,24 @@ function extractCurriculumRowsFromSyllabusDetail(detail?: SyllabusDetail | null)
 
   const source = rawRows.length > 0 ? rawRows : sessionTemplateRows;
   const seen = new Set<string>();
-  return source.filter((row) => {
-    const signature = [
-      row.periods,
-      row.topics,
-      row.lessons,
-      row.contents,
-      row.structures,
-      row.studentsBook,
-      row.teachersBook,
-    ]
-      .map((value) => value.replace(/\s+/g, " ").trim())
-      .join("|");
-    if (!signature || seen.has(signature)) return false;
-    seen.add(signature);
-    return true;
-  }).slice(0, 400);
+  return source
+    .filter((row) => {
+      const signature = [
+        row.periods,
+        row.topics,
+        row.lessons,
+        row.contents,
+        row.structures,
+        row.studentsBook,
+        row.teachersBook,
+      ]
+        .map((value) => value.replace(/\s+/g, " ").trim())
+        .join("|");
+      if (!signature || seen.has(signature)) return false;
+      seen.add(signature);
+      return true;
+    })
+    .slice(0, 400);
 }
 
 function getTemplateStats(templates: LessonPlanTemplate[]) {
@@ -1119,21 +1366,32 @@ function getSyllabusSummaryItems(syllabus: ClassLessonPlanSyllabus | null) {
   const sessions = syllabus?.sessions || [];
 
   return [
-    { label: "Lớp", value: syllabus?.classTitle || syllabus?.classCode || "Chưa chọn" },
+    {
+      label: "Lớp",
+      value: syllabus?.classTitle || syllabus?.classCode || "Chưa chọn",
+    },
     { label: "Chương trình", value: syllabus?.programName || "-" },
-    { label: "Metadata", value: syllabus?.syllabusMetadata || "-" },
+    { label: "Thông tin syllabus", value: syllabus?.syllabusMetadata || "-" },
     { label: "Tổng buổi", value: sessions.length },
-    { label: "Đã có lesson plan", value: sessions.filter((item) => item.lessonPlanId).length },
-    { label: "Đã có actual content", value: sessions.filter((item) => item.actualContent).length },
+    {
+      label: "Đã có giáo án",
+      value: sessions.filter((item) => item.lessonPlanId).length,
+    },
+    {
+      label: "Đã báo cáo",
+      value: sessions.filter((item) => item.actualContent).length,
+    },
   ];
 }
 
 export function LessonPlanWorkspace({
   scope,
   presentation = "workspace",
+  forcedTab = null,
 }: {
   scope: WorkspaceScope;
   presentation?: WorkspacePresentation;
+  forcedTab?: WorkspaceLockedTab;
 }) {
   const searchParams = useSearchParams();
   const requestedProgramId = searchParams?.get("programId")?.trim() || "";
@@ -1141,8 +1399,10 @@ export function LessonPlanWorkspace({
   const requestedModuleId = searchParams?.get("moduleId")?.trim() || "";
   const requestedClassId = searchParams?.get("classId")?.trim() || "";
   const requestedSessionId = searchParams?.get("sessionId")?.trim() || "";
+  const defaultTab: ActiveTab =
+    forcedTab ?? (scope === "teacher" ? "plans" : "templates");
   const [activeTab, setActiveTab] = useState<ActiveTab>(
-    scope === "teacher" ? "plans" : "templates",
+    defaultTab,
   );
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -1153,7 +1413,9 @@ export function LessonPlanWorkspace({
     useState<ClassLessonPlanSyllabus | null>(null);
   const [programOptions, setProgramOptions] = useState<Option[]>([]);
   const [classOptions, setClassOptions] = useState<Option[]>([]);
-  const [syllabusOptions, setSyllabusOptions] = useState<SyllabusListItem[]>([]);
+  const [syllabusOptions, setSyllabusOptions] = useState<SyllabusListItem[]>(
+    [],
+  );
 
   const [searchQuery, setSearchQuery] = useState("");
   const [templateStatusFilter, setTemplateStatusFilter] =
@@ -1174,13 +1436,34 @@ export function LessonPlanWorkspace({
   const [templateModal, setTemplateModal] = useState<TemplateModalState>(null);
   const [planModal, setPlanModal] = useState<PlanModalState>(null);
   const [detailState, setDetailState] = useState<DetailState>(null);
-  const [focusedSyllabusDetail, setFocusedSyllabusDetail] = useState<SyllabusDetail | null>(null);
+  const [sessionDetailId, setSessionDetailId] = useState<string | null>(null);
+  const [focusedSyllabusDetail, setFocusedSyllabusDetail] =
+    useState<SyllabusDetail | null>(null);
   const [focusedSyllabusLoading, setFocusedSyllabusLoading] = useState(false);
-  const [focusedSyllabusError, setFocusedSyllabusError] = useState<string | null>(null);
+  const [focusedSyllabusError, setFocusedSyllabusError] = useState<
+    string | null
+  >(null);
   const scopeCopy = COPY[scope];
   const isTeacher = scope === "teacher";
   const isSessionPage = presentation === "session-page";
   const templatesAvailable = !isTeacher;
+  const { selectedBranchId, isLoaded: branchFilterLoaded } = useBranchFilter();
+  const headerCopy =
+    scope === "admin" && forcedTab === "templates"
+      ? {
+          title: "Mẫu giáo án chuẩn",
+          subtitle:
+            "Quản lý template chuẩn theo syllabus để tái sử dụng thống nhất trên toàn hệ thống.",
+          planSubtitle: scopeCopy.planSubtitle,
+        }
+      : scope === "admin" && forcedTab === "plans"
+        ? {
+            title: "Giáo án lớp",
+            subtitle:
+              "Theo dõi và rà soát giáo án vận hành theo lớp, buổi học và tình trạng báo cáo.",
+            planSubtitle: scopeCopy.planSubtitle,
+          }
+        : scopeCopy;
 
   const templateMap = useMemo(() => {
     return new Map(templates.map((item) => [item.id, item]));
@@ -1194,7 +1477,9 @@ export function LessonPlanWorkspace({
     if (selectedProgramId === "all") {
       return syllabusOptions;
     }
-    return syllabusOptions.filter((item) => item.programId === selectedProgramId);
+    return syllabusOptions.filter(
+      (item) => item.programId === selectedProgramId,
+    );
   }, [selectedProgramId, syllabusOptions]);
 
   const filteredModuleOptions = useMemo(() => {
@@ -1214,11 +1499,11 @@ export function LessonPlanWorkspace({
       if (moduleMap.has(moduleId)) continue;
 
       const moduleName =
-        item.moduleName?.trim() ||
-        item.moduleCode?.trim() ||
-        "Chưa rõ module";
+        item.moduleName?.trim() || item.moduleCode?.trim() || "Chưa rõ module";
       const hint = [
-        item.moduleCode && item.moduleName && item.moduleCode !== item.moduleName
+        item.moduleCode &&
+        item.moduleName &&
+        item.moduleCode !== item.moduleName
           ? item.moduleCode
           : null,
         item.syllabusCode && item.syllabusVersion
@@ -1262,10 +1547,10 @@ export function LessonPlanWorkspace({
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      setActiveTab(scope === "teacher" ? "plans" : "templates");
+      setActiveTab(defaultTab);
     }, 0);
     return () => clearTimeout(timer);
-  }, [scope]);
+  }, [defaultTab]);
 
   useEffect(() => {
     if (requestedProgramId && requestedProgramId !== selectedProgramId) {
@@ -1275,7 +1560,8 @@ export function LessonPlanWorkspace({
 
   useEffect(() => {
     if (!requestedSyllabusId) return;
-    if (!syllabusOptions.some((item) => item.id === requestedSyllabusId)) return;
+    if (!syllabusOptions.some((item) => item.id === requestedSyllabusId))
+      return;
     if (requestedSyllabusId !== selectedSyllabusId) {
       setSelectedSyllabusId(requestedSyllabusId);
     }
@@ -1378,6 +1664,36 @@ export function LessonPlanWorkspace({
       return;
     }
 
+    let allowedBranchSyllabusIds: Set<string> | null = null;
+    if (selectedBranchId) {
+      const branchAssignmentsResponse = await getBranchSyllabusAssignments(selectedBranchId);
+      if (!branchAssignmentsResponse.isSuccess) {
+        throw new Error(
+          extractMessage(branchAssignmentsResponse, "Không thể tải assignment syllabus theo chi nhánh."),
+        );
+      }
+
+      allowedBranchSyllabusIds = new Set(
+        branchAssignmentsResponse.data
+          .filter((item) => item.isActive)
+          .map((item) => item.syllabusId)
+          .filter((id): id is string => typeof id === "string" && id.trim().length > 0),
+      );
+
+      if (allowedBranchSyllabusIds.size === 0) {
+        setSyllabusOptions([]);
+        setTemplates([]);
+        return;
+      }
+    }
+
+    const shouldIncludeSyllabusId = (syllabusId?: string | null) => {
+      const normalized = (syllabusId || "").trim();
+      if (!normalized) return false;
+      if (!allowedBranchSyllabusIds) return true;
+      return allowedBranchSyllabusIds.has(normalized);
+    };
+
     const response = await getAllLessonPlanTemplates({
       pageNumber: 1,
       pageSize: 200,
@@ -1393,7 +1709,7 @@ export function LessonPlanWorkspace({
     const syllabusIdSet = new Set(
       legacyItems
         .map((item) => item.syllabusId)
-        .filter((id): id is string => typeof id === "string" && id.trim().length > 0),
+        .filter((id): id is string => shouldIncludeSyllabusId(id)),
     );
 
     const legacyLooksIncomplete =
@@ -1401,7 +1717,8 @@ export function LessonPlanWorkspace({
       (response.data.templates.totalCount > legacyItems.length ||
         legacyItems.some(
           (item) =>
-            typeof item.syllabusId !== "string" || item.syllabusId.trim().length === 0,
+            typeof item.syllabusId !== "string" ||
+            item.syllabusId.trim().length === 0,
         ));
 
     const syllabusResponse = await getSyllabuses({
@@ -1410,9 +1727,12 @@ export function LessonPlanWorkspace({
     });
 
     if (syllabusResponse.isSuccess) {
-      syllabusCatalog = syllabusResponse.data.items;
-      setSyllabusOptions(syllabusResponse.data.items);
-      for (const syllabus of syllabusResponse.data.items) {
+      const visibleSyllabuses = allowedBranchSyllabusIds
+        ? syllabusResponse.data.items.filter((item) => allowedBranchSyllabusIds.has(item.id))
+        : syllabusResponse.data.items;
+      syllabusCatalog = visibleSyllabuses;
+      setSyllabusOptions(visibleSyllabuses);
+      for (const syllabus of visibleSyllabuses) {
         if (syllabus.id) {
           syllabusIdSet.add(syllabus.id);
         }
@@ -1421,20 +1741,21 @@ export function LessonPlanWorkspace({
       throw new Error(
         extractMessage(syllabusResponse, "Không thể tải danh sách syllabus."),
       );
+    } else if (allowedBranchSyllabusIds) {
+      setSyllabusOptions([]);
     }
 
-    if (selectedSyllabusId !== "all") {
+    if (selectedSyllabusId !== "all" && shouldIncludeSyllabusId(selectedSyllabusId)) {
       syllabusIdSet.add(selectedSyllabusId);
     }
-    if (requestedSyllabusId) {
+    if (requestedSyllabusId && shouldIncludeSyllabusId(requestedSyllabusId)) {
       syllabusIdSet.add(requestedSyllabusId);
     }
 
     const syllabusMetaMap = new Map(
-      (syllabusCatalog.length ? syllabusCatalog : syllabusOptions).map((item) => [
-        item.id,
-        item,
-      ]),
+      (syllabusCatalog.length ? syllabusCatalog : syllabusOptions).map(
+        (item) => [item.id, item],
+      ),
     );
 
     const syllabusIds = Array.from(syllabusIdSet);
@@ -1462,8 +1783,12 @@ export function LessonPlanWorkspace({
       const syllabusMeta = syllabusMetaMap.get(syllabusId);
       resolvedSyllabusIds.add(syllabusId);
       for (const [moduleIndex, moduleGroup] of (data.groups ?? []).entries()) {
-        for (const [unitIndex, unitGroup] of (moduleGroup.units ?? []).entries()) {
-          for (const [lessonIndex, lesson] of (unitGroup.lessons ?? []).entries()) {
+        for (const [unitIndex, unitGroup] of (
+          moduleGroup.units ?? []
+        ).entries()) {
+          for (const [lessonIndex, lesson] of (
+            unitGroup.lessons ?? []
+          ).entries()) {
             // Trust the nested API hierarchy first; item-level module/unit fields can lag behind.
             flattened.push({
               id: lesson.lessonPlanTemplateId,
@@ -1486,7 +1811,10 @@ export function LessonPlanWorkspace({
                 lesson.moduleOrderIndex ??
                 moduleIndex,
               lessonPlanUnitId:
-                unitGroup.unitId ?? lesson.unitId ?? lesson.lessonPlanUnitId ?? null,
+                unitGroup.unitId ??
+                lesson.unitId ??
+                lesson.lessonPlanUnitId ??
+                null,
               lessonPlanUnitName:
                 unitGroup.unitName ||
                 [unitGroup.unitNumber, unitGroup.unitTitle]
@@ -1500,9 +1828,13 @@ export function LessonPlanWorkspace({
               unitNumber: lesson.unitNumber ?? unitGroup.unitNumber ?? null,
               unitTitle: lesson.unitTitle ?? unitGroup.unitTitle ?? null,
               orderIndexInUnit:
-                lesson.lessonOrderIndexInUnit ?? lesson.orderIndexInUnit ?? lessonIndex,
+                lesson.lessonOrderIndexInUnit ??
+                lesson.orderIndexInUnit ??
+                lessonIndex,
               lessonOrderIndexInUnit:
-                lesson.lessonOrderIndexInUnit ?? lesson.orderIndexInUnit ?? lessonIndex,
+                lesson.lessonOrderIndexInUnit ??
+                lesson.orderIndexInUnit ??
+                lessonIndex,
               sessionOrder: lesson.sessionOrder ?? null,
               sourceFileName: lesson.sourceFileName ?? null,
               isActive: lesson.isActive,
@@ -1564,8 +1896,7 @@ export function LessonPlanWorkspace({
       if (shouldKeepLegacy && item.id && !merged.has(item.id)) {
         merged.set(item.id, {
           ...item,
-          syllabusCode:
-            item.syllabusCode ?? legacySyllabusMeta?.code ?? null,
+          syllabusCode: item.syllabusCode ?? legacySyllabusMeta?.code ?? null,
           syllabusVersion:
             item.syllabusVersion ?? legacySyllabusMeta?.version ?? null,
           syllabusTitle:
@@ -1574,7 +1905,11 @@ export function LessonPlanWorkspace({
       }
     }
 
-    setTemplates(merged.size > 0 ? Array.from(merged.values()) : legacyItems);
+    const finalTemplates = merged.size > 0 ? Array.from(merged.values()) : legacyItems;
+    const visibleTemplates = allowedBranchSyllabusIds
+      ? finalTemplates.filter((item) => shouldIncludeSyllabusId(item.syllabusId))
+      : finalTemplates;
+    setTemplates(visibleTemplates);
   };
 
   const loadClassSyllabus = async (classId: string) => {
@@ -1591,6 +1926,11 @@ export function LessonPlanWorkspace({
     }
 
     setClassSyllabus(response.data);
+
+    if (response.data?.sessions?.length) {
+      void enrichClassSyllabusWithRuntimeSessionData(response.data);
+      void enrichClassSyllabusWithTeachingLogs(response.data);
+    }
   };
 
   const refreshWorkspace = async (silent = false) => {
@@ -1636,6 +1976,16 @@ export function LessonPlanWorkspace({
     }, 0);
     return () => clearTimeout(timer);
   }, [scope]);
+
+  useEffect(() => {
+    if (!templatesAvailable) return;
+    if (!branchFilterLoaded) return;
+
+    const timer = setTimeout(() => {
+      void refreshWorkspaceRef.current(true);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [branchFilterLoaded, selectedBranchId, templatesAvailable]);
 
   useEffect(() => {
     if (!classOptions.length) {
@@ -1756,7 +2106,10 @@ export function LessonPlanWorkspace({
       if (selectedProgramId !== "all" && item.programId !== selectedProgramId) {
         return false;
       }
-      if (selectedSyllabusId !== "all" && item.syllabusId !== selectedSyllabusId) {
+      if (
+        selectedSyllabusId !== "all" &&
+        item.syllabusId !== selectedSyllabusId
+      ) {
         return false;
       }
       if (
@@ -1782,7 +2135,13 @@ export function LessonPlanWorkspace({
       }
       return true;
     });
-  }, [effectiveSelectedModuleId, selectedProgramId, selectedSyllabusId, templateStatusFilter, templates]);
+  }, [
+    effectiveSelectedModuleId,
+    selectedProgramId,
+    selectedSyllabusId,
+    templateStatusFilter,
+    templates,
+  ]);
 
   const filteredSessions = useMemo(() => {
     const keyword = searchQuery.trim().toLowerCase();
@@ -1866,6 +2225,237 @@ export function LessonPlanWorkspace({
     setDetailState({ type: "template", loading: false, item: response.data });
   };
 
+  const getTeachingLogOrNull = async (sessionId: string) => {
+    try {
+      const response = await getTeachingLog(sessionId);
+      if (response.isSuccess === false || response.success === false) {
+        return null;
+      }
+
+      return response.data ?? null;
+    } catch {
+      return null;
+    }
+  };
+
+  const mergeTeachingLogIntoPlan = (plan: LessonPlan, teachingLog: Awaited<ReturnType<typeof getTeachingLogOrNull>>) => {
+    if (!teachingLog) return plan;
+
+    return {
+      ...plan,
+      actualContent: plan.actualContent ?? teachingLog.actualContent ?? null,
+      actualHomework: plan.actualHomework ?? teachingLog.actualHomework ?? null,
+      teacherNotes: plan.teacherNotes ?? teachingLog.teacherNote ?? null,
+      submittedBy: plan.submittedBy ?? teachingLog.submittedBy ?? null,
+      submittedAt: plan.submittedAt ?? teachingLog.submittedAt ?? null,
+      updatedAt: plan.updatedAt ?? teachingLog.updatedAt ?? plan.updatedAt,
+    };
+  };
+
+  const hydratePlanWithTeachingLog = async (plan: LessonPlan) => {
+    const sessionId = String(plan.sessionId ?? "").trim();
+    if (!sessionId) return plan;
+    if (plan.actualContent && plan.actualHomework && plan.teacherNotes) {
+      return plan;
+    }
+
+    const teachingLog = await getTeachingLogOrNull(sessionId);
+    return mergeTeachingLogIntoPlan(plan, teachingLog);
+  };
+
+  const enrichClassSyllabusWithTeachingLogs = async (syllabus: ClassLessonPlanSyllabus) => {
+    const candidates = syllabus.sessions.filter(
+      (session) => session.sessionId && !session.actualContent,
+    );
+
+    if (!candidates.length) return;
+
+    const results = await Promise.allSettled(
+      candidates.map(async (session) => {
+        const teachingLog = await getTeachingLogOrNull(session.sessionId);
+        if (!teachingLog?.actualContent && !teachingLog?.actualHomework && !teachingLog?.teacherNote) {
+          return null;
+        }
+
+        return {
+          sessionId: session.sessionId,
+          actualContent: teachingLog.actualContent ?? null,
+          actualHomework: teachingLog.actualHomework ?? null,
+          teacherNotes: teachingLog.teacherNote ?? null,
+        };
+      }),
+    );
+
+    const teachingLogBySessionId = new Map(
+      results
+        .filter(
+          (result): result is PromiseFulfilledResult<{ sessionId: string; actualContent: string | null; actualHomework: string | null; teacherNotes: string | null } | null> =>
+            result.status === "fulfilled" && Boolean(result.value?.sessionId),
+        )
+        .map((result) => [result.value!.sessionId, result.value!]),
+    );
+
+    if (!teachingLogBySessionId.size) return;
+
+    setClassSyllabus((prev) => {
+      if (!prev || prev.classId !== syllabus.classId) return prev;
+
+      return {
+        ...prev,
+        sessions: prev.sessions.map((session) => {
+          const teachingLog = teachingLogBySessionId.get(session.sessionId);
+          if (!teachingLog) return session;
+
+          return {
+            ...session,
+            actualContent: session.actualContent ?? teachingLog.actualContent ?? null,
+            actualHomework: session.actualHomework ?? teachingLog.actualHomework ?? null,
+            teacherNotes: session.teacherNotes ?? teachingLog.teacherNotes ?? null,
+          };
+        }),
+      };
+    });
+  };
+
+  const enrichClassSyllabusWithRuntimeSessionData = async (
+    syllabus: ClassLessonPlanSyllabus,
+  ) => {
+    const candidates = syllabus.sessions.filter(
+      (session) => session.sessionId && needsRuntimeSessionHydration(session),
+    );
+
+    if (!candidates.length) return;
+
+    const results = await Promise.allSettled(
+      candidates.map(async (session) => {
+        const [sessionResponse, documentResponse] = await Promise.allSettled([
+          getSessionById(session.sessionId),
+          getSessionLessonPlanDocument(session.sessionId),
+        ]);
+
+        const runtimeSession =
+          sessionResponse.status === "fulfilled" &&
+          sessionResponse.value.isSuccess
+            ? sessionResponse.value.data?.session ?? null
+            : null;
+
+        const runtimeDocument =
+          documentResponse.status === "fulfilled" &&
+          documentResponse.value.isSuccess
+            ? documentResponse.value.data ?? null
+            : null;
+
+        const runtimeTemplateId =
+          session.templateId ??
+          runtimeDocument?.document?.id ??
+          runtimeDocument?.lessonPlanTemplateId ??
+          runtimeDocument?.plannedLessonPlanTemplateId ??
+          runtimeDocument?.actualLessonPlanTemplateId ??
+          runtimeSession?.lessonPlanTemplateId ??
+          (runtimeSession as any)?.plannedLessonPlanTemplateId ??
+          runtimeSession?.actualLessonPlanTemplateId ??
+          null;
+
+        const runtimeTemplateTitle =
+          session.templateTitle ??
+          runtimeDocument?.document?.title ??
+          runtimeDocument?.plannedLessonTitle ??
+          runtimeDocument?.actualLessonTitle ??
+          runtimeSession?.plannedLessonTitle ??
+          runtimeSession?.actualLessonTitle ??
+          null;
+
+        const runtimeSyllabusContent =
+          session.templateSyllabusContent ??
+          runtimeDocument?.document?.syllabusContent ??
+          null;
+
+        const runtimeLessonPlanId =
+          session.lessonPlanId ??
+          (runtimeSession as any)?.lessonPlanId ??
+          null;
+
+        if (
+          !runtimeLessonPlanId &&
+          !runtimeSession?.moduleId &&
+          runtimeSession?.sessionIndexInModule == null &&
+          !runtimeTemplateId &&
+          !runtimeTemplateTitle &&
+          !runtimeSyllabusContent
+        ) {
+          return null;
+        }
+
+        return {
+          sessionId: session.sessionId,
+          lessonPlanId: runtimeLessonPlanId,
+          moduleId: session.moduleId ?? runtimeSession?.moduleId ?? runtimeDocument?.moduleId ?? null,
+          moduleName:
+            session.moduleName ??
+            (runtimeSession as any)?.moduleName ??
+            runtimeDocument?.moduleName ??
+            null,
+          sessionIndexInModule:
+            session.sessionIndexInModule ??
+            runtimeSession?.sessionIndexInModule ??
+            runtimeDocument?.sessionIndexInModule ??
+            null,
+          templateId: runtimeTemplateId,
+          templateTitle: runtimeTemplateTitle,
+          templateSyllabusContent: runtimeSyllabusContent,
+        };
+      }),
+    );
+
+    const runtimeBySessionId = new Map(
+      results
+        .filter(
+          (
+            result,
+          ): result is PromiseFulfilledResult<{
+            sessionId: string;
+            lessonPlanId: string | null;
+            moduleId: string | null;
+            moduleName: string | null;
+            sessionIndexInModule: number | null;
+            templateId: string | null;
+            templateTitle: string | null;
+            templateSyllabusContent: string | null;
+          } | null> => result.status === "fulfilled" && Boolean(result.value?.sessionId),
+        )
+        .map((result) => [result.value!.sessionId, result.value!]),
+    );
+
+    if (!runtimeBySessionId.size) return;
+
+    setClassSyllabus((prev) => {
+      if (!prev || prev.classId !== syllabus.classId) return prev;
+
+      return {
+        ...prev,
+        sessions: prev.sessions.map((session) => {
+          const runtime = runtimeBySessionId.get(session.sessionId);
+          if (!runtime) return session;
+
+          return {
+            ...session,
+            lessonPlanId: session.lessonPlanId ?? runtime.lessonPlanId ?? null,
+            moduleId: session.moduleId ?? runtime.moduleId ?? null,
+            moduleName: session.moduleName ?? runtime.moduleName ?? null,
+            sessionIndexInModule:
+              session.sessionIndexInModule ?? runtime.sessionIndexInModule ?? null,
+            templateId: session.templateId ?? runtime.templateId ?? null,
+            templateTitle: session.templateTitle ?? runtime.templateTitle ?? null,
+            templateSyllabusContent:
+              session.templateSyllabusContent ??
+              runtime.templateSyllabusContent ??
+              null,
+          };
+        }),
+      };
+    });
+  };
+
   const openPlanDetail = async (lessonPlanId: string) => {
     setDetailState({ type: "plan", loading: true, item: null });
 
@@ -1880,70 +2470,75 @@ export function LessonPlanWorkspace({
       return;
     }
 
-    setDetailState({ type: "plan", loading: false, item: response.data });
+    const hydratedPlan = await hydratePlanWithTeachingLog(response.data);
+    setDetailState({ type: "plan", loading: false, item: hydratedPlan });
   };
 
-  const openSessionSyllabusDetail = useCallback(async (
-    session: ClassLessonPlanSyllabusSession,
-  ) => {
-    setDetailState({
-      type: "session-document",
-      loading: true,
-      item: null,
-      fallbackTemplate: null,
-      fallbackContent:
-        session.plannedContent || session.templateSyllabusContent || null,
-    });
-
-    let fallbackTemplate: LessonPlanTemplate | null = null;
-    let dedicatedDocument: SessionLessonPlanDocument | null = null;
-
-    const documentResponse = await getSessionLessonPlanDocument(session.sessionId);
-    if (documentResponse.isSuccess) {
-      dedicatedDocument = documentResponse.data;
-    } else if (documentResponse.status && documentResponse.status !== 404) {
+  const openSessionSyllabusDetail = useCallback(
+    async (session: ClassLessonPlanSyllabusSession) => {
       setDetailState({
         type: "session-document",
-        loading: false,
+        loading: true,
         item: null,
         fallbackTemplate: null,
         fallbackContent:
           session.plannedContent || session.templateSyllabusContent || null,
-        error: extractMessage(
-          documentResponse,
-          "Không thể tải syllabus theo buổi.",
-        ),
       });
-      return;
-    }
 
-    const resolvedTemplateId =
-      dedicatedDocument?.lessonPlanTemplateId ||
-      dedicatedDocument?.plannedLessonPlanTemplateId ||
-      dedicatedDocument?.actualLessonPlanTemplateId ||
-      session.templateId ||
-      null;
+      let fallbackTemplate: LessonPlanTemplate | null = null;
+      let dedicatedDocument: SessionLessonPlanDocument | null = null;
 
-    if (!dedicatedDocument?.document && resolvedTemplateId) {
-      const templateResponse = await getLessonPlanTemplateById(resolvedTemplateId);
-      if (templateResponse.isSuccess && templateResponse.data) {
-        fallbackTemplate = templateResponse.data;
+      const documentResponse = await getSessionLessonPlanDocument(
+        session.sessionId,
+      );
+      if (documentResponse.isSuccess) {
+        dedicatedDocument = documentResponse.data;
+      } else if (documentResponse.status && documentResponse.status !== 404) {
+        setDetailState({
+          type: "session-document",
+          loading: false,
+          item: null,
+          fallbackTemplate: null,
+          fallbackContent:
+            session.plannedContent || session.templateSyllabusContent || null,
+          error: extractMessage(
+            documentResponse,
+            "Không thể tải syllabus theo buổi.",
+          ),
+        });
+        return;
       }
-    }
 
-    if (!dedicatedDocument?.document && !fallbackTemplate) {
-      fallbackTemplate = templateMap.get(resolvedTemplateId || "") || null;
-    }
+      const resolvedTemplateId =
+        dedicatedDocument?.lessonPlanTemplateId ||
+        dedicatedDocument?.plannedLessonPlanTemplateId ||
+        dedicatedDocument?.actualLessonPlanTemplateId ||
+        session.templateId ||
+        null;
 
-    setDetailState({
-      type: "session-document",
-      loading: false,
-      item: dedicatedDocument,
-      fallbackTemplate,
-      fallbackContent:
-        session.plannedContent || session.templateSyllabusContent || null,
-    });
-  }, [templateMap]);
+      if (!dedicatedDocument?.document && resolvedTemplateId) {
+        const templateResponse =
+          await getLessonPlanTemplateById(resolvedTemplateId);
+        if (templateResponse.isSuccess && templateResponse.data) {
+          fallbackTemplate = templateResponse.data;
+        }
+      }
+
+      if (!dedicatedDocument?.document && !fallbackTemplate) {
+        fallbackTemplate = templateMap.get(resolvedTemplateId || "") || null;
+      }
+
+      setDetailState({
+        type: "session-document",
+        loading: false,
+        item: dedicatedDocument,
+        fallbackTemplate,
+        fallbackContent:
+          session.plannedContent || session.templateSyllabusContent || null,
+      });
+    },
+    [templateMap],
+  );
 
   useEffect(() => {
     if (!requestedSessionId || !classSyllabus?.sessions.length) return;
@@ -1958,7 +2553,8 @@ export function LessonPlanWorkspace({
       warnedMissingSessionRef.current = requestedSessionId;
       toast({
         title: "Không tìm thấy buổi học trong syllabus lớp",
-        description: "Buổi được chọn không còn nằm trong syllabus hiện tại của lớp này.",
+        description:
+          "Buổi được chọn không còn nằm trong syllabus hiện tại của lớp này.",
         variant: "warning",
       });
       return;
@@ -1999,7 +2595,8 @@ export function LessonPlanWorkspace({
       return;
     }
 
-    setPlanModal({ mode: "edit", session, plan: response.data });
+    const hydratedPlan = await hydratePlanWithTeachingLog(response.data);
+    setPlanModal({ mode: "edit", session, plan: hydratedPlan });
   };
 
   const handleTemplateSubmit = async (
@@ -2088,7 +2685,8 @@ export function LessonPlanWorkspace({
         classSyllabus?.syllabusId ||
         requestedSyllabusId ||
         "";
-      const targetClassId = selectedClassId || classSyllabus?.classId || requestedClassId || "";
+      const targetClassId =
+        selectedClassId || classSyllabus?.classId || requestedClassId || "";
 
       if (targetClassId) query.set("classId", targetClassId);
       if (targetSyllabusId) query.set("syllabusId", targetSyllabusId);
@@ -2101,7 +2699,8 @@ export function LessonPlanWorkspace({
       return;
     }
 
-    const portalScope = scope === "staff-management" ? "staff-management" : "admin";
+    const portalScope =
+      scope === "staff-management" ? "staff-management" : "admin";
     window.location.href = `/${locale}/portal/${portalScope}/syllabuses`;
   };
 
@@ -2174,7 +2773,9 @@ export function LessonPlanWorkspace({
   const focusedSession = useMemo(
     () =>
       requestedSessionId
-        ? classSyllabus?.sessions.find((session) => session.sessionId === requestedSessionId) ?? null
+        ? (classSyllabus?.sessions.find(
+            (session) => session.sessionId === requestedSessionId,
+          ) ?? null)
         : null,
     [classSyllabus, requestedSessionId],
   );
@@ -2210,7 +2811,9 @@ export function LessonPlanWorkspace({
         if (cancelled) return;
         if (!response.isSuccess || !response.data) {
           setFocusedSyllabusDetail(null);
-          setFocusedSyllabusError(extractMessage(response, "Không thể tải curriculum của syllabus."));
+          setFocusedSyllabusError(
+            extractMessage(response, "Không thể tải curriculum của syllabus."),
+          );
           return;
         }
 
@@ -2219,7 +2822,9 @@ export function LessonPlanWorkspace({
       .catch((error: unknown) => {
         if (cancelled) return;
         setFocusedSyllabusDetail(null);
-        setFocusedSyllabusError(toErrorMessage(error, "Không thể tải curriculum của syllabus."));
+        setFocusedSyllabusError(
+          toErrorMessage(error, "Không thể tải curriculum của syllabus."),
+        );
       })
       .finally(() => {
         if (!cancelled) {
@@ -2242,10 +2847,14 @@ export function LessonPlanWorkspace({
                 Syllabus theo buổi
               </div>
               <h1 className="text-2xl font-bold text-gray-900">
-                {focusedSession?.templateTitle || getSessionDisplay(focusedSession || { sessionIndex: 0, sessionDate: null })}
+                {focusedSession?.templateTitle ||
+                  getSessionDisplay(
+                    focusedSession || { sessionIndex: 0, sessionDate: null },
+                  )}
               </h1>
               <p className="text-sm text-gray-600">
-                Trang cố định cho syllabus của đúng buổi học được mở từ attendance. Không hiển thị popup trên trang này.
+                Trang cố định cho syllabus của đúng buổi học được mở từ
+                attendance. Không hiển thị popup trên trang này.
               </p>
             </div>
 
@@ -2271,12 +2880,21 @@ export function LessonPlanWorkspace({
             <InfoCard
               icon={CalendarDays}
               label="Buổi học"
-              value={focusedSession ? getSessionDisplay(focusedSession) : "Đang xác định buổi học"}
+              value={
+                focusedSession
+                  ? getSessionDisplay(focusedSession)
+                  : "Đang xác định buổi học"
+              }
             />
             <InfoCard
               icon={Layers}
               label="Module"
-              value={focusedSessionDetailState?.item?.moduleName || focusedSessionDetailState?.item?.moduleId || focusedSession?.moduleName || "-"}
+              value={
+                focusedSessionDetailState?.item?.moduleName ||
+                focusedSessionDetailState?.item?.moduleId ||
+                focusedSession?.moduleName ||
+                "-"
+              }
             />
             <InfoCard
               icon={ShieldCheck}
@@ -2291,17 +2909,23 @@ export function LessonPlanWorkspace({
                 Session syllabus detail
               </div>
               <h2 className="mt-1 text-lg font-bold text-gray-900">
-                {focusedSession?.templateTitle || focusedSession?.plannedContent || "Nội dung syllabus theo buổi"}
+                {focusedSession?.templateTitle ||
+                  focusedSession?.plannedContent ||
+                  "Nội dung syllabus theo buổi"}
               </h2>
               <p className="mt-1 text-sm text-gray-600">
-                Toàn bộ nội dung bên dưới là syllabus đã resolve cho buổi này, render trực tiếp trong trang riêng.
+                Toàn bộ nội dung bên dưới là syllabus đã resolve cho buổi này,
+                render trực tiếp trong trang riêng.
               </p>
             </div>
 
             <div className="p-6">
               {loading ? (
                 <div className="flex items-center justify-center py-16 text-gray-600">
-                  <Loader2 size={20} className="mr-3 animate-spin text-red-600" />
+                  <Loader2
+                    size={20}
+                    className="mr-3 animate-spin text-red-600"
+                  />
                   Đang tải syllabus buổi học...
                 </div>
               ) : !requestedSessionId ? (
@@ -2321,25 +2945,41 @@ export function LessonPlanWorkspace({
                 />
               ) : !focusedSessionDetailState ? (
                 <div className="flex items-center justify-center py-16 text-gray-600">
-                  <Loader2 size={20} className="mr-3 animate-spin text-red-600" />
+                  <Loader2
+                    size={20}
+                    className="mr-3 animate-spin text-red-600"
+                  />
                   Đang mở syllabus của buổi này...
                 </div>
               ) : focusedSessionDetailState.loading ? (
                 <div className="flex items-center justify-center py-16 text-gray-600">
-                  <Loader2 size={20} className="mr-3 animate-spin text-red-600" />
+                  <Loader2
+                    size={20}
+                    className="mr-3 animate-spin text-red-600"
+                  />
                   Đang tải chi tiết syllabus...
                 </div>
               ) : focusedSessionDetailState.error ? (
                 <ErrorBox message={focusedSessionDetailState.error} />
               ) : (
                 <div className="space-y-6">
-                  <SessionDocumentDetailContent state={focusedSessionDetailState} />
+                  <SessionDocumentDetailContent
+                    state={focusedSessionDetailState}
+                  />
                   <SessionCurriculumTable
                     rows={focusedCurriculumRows}
-                    currentRowIndex={focusedSession ? focusedSession.sessionIndex - 1 : -1}
+                    currentRowIndex={
+                      focusedSession ? focusedSession.sessionIndex - 1 : -1
+                    }
                     loading={focusedSyllabusLoading}
                     error={focusedSyllabusError}
-                    syllabusTitle={focusedSyllabusDetail?.title || focusedSessionDetailState.item?.document?.syllabusTitle || focusedSessionDetailState.fallbackTemplate?.syllabusTitle || "Syllabus hiện tại"}
+                    syllabusTitle={
+                      focusedSyllabusDetail?.title ||
+                      focusedSessionDetailState.item?.document?.syllabusTitle ||
+                      focusedSessionDetailState.fallbackTemplate
+                        ?.syllabusTitle ||
+                      "Syllabus hiện tại"
+                    }
                   />
                 </div>
               )}
@@ -2365,19 +3005,39 @@ export function LessonPlanWorkspace({
             </div>
             <div>
               <h1 className="text-2xl md:text-2xl font-bold text-gray-900">
-                {scopeCopy.title}
+                {headerCopy.title}
               </h1>
               <p
                 className="text-gray-600 mt-1 flex items-center gap-2
 "
               >
                 <Sparkles size={14} className="text-red-600" />
-                {scopeCopy.subtitle}
+                {headerCopy.subtitle}
               </p>
+              {templatesAvailable && activeTab === "templates" ? (
+                <button
+                  type="button"
+                  onClick={openSyllabusWorkspace}
+                  className="mt-2 inline-flex items-center gap-2 text-sm font-medium text-red-600 transition-colors hover:text-red-700 cursor-pointer"
+                >
+                  <BookOpenCheck size={14} />
+                  Mở trang syllabus để thêm hoặc chỉnh dữ liệu nguồn
+                </button>
+              ) : null}
             </div>
           </div>
 
           <div className="flex flex-wrap gap-2">
+            {templatesAvailable && activeTab === "templates" ? (
+              <button
+                type="button"
+                onClick={() => setTemplateModal({ mode: "create" })}
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:shadow-lg cursor-pointer"
+              >
+                <Plus size={16} />
+                Tạo mẫu giáo án
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => refreshWorkspace(true)}
@@ -2389,32 +3049,11 @@ export function LessonPlanWorkspace({
               />
               Làm mới
             </button>
-
-            {templatesAvailable && activeTab === "templates" ? (
-              <>
-                <button
-                  type="button"
-                  onClick={openSyllabusWorkspace}
-                  className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100 cursor-pointer"
-                >
-                  <Upload size={16} />
-                  Nhập syllabus
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTemplateModal({ mode: "create" })}
-                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:shadow-lg cursor-pointer"
-                >
-                  <Plus size={16} />
-                  Tạo mẫu giáo án
-                </button>
-              </>
-            ) : null}
           </div>
         </div>
       </div>
 
-      {templatesAvailable ? (
+      {templatesAvailable && !forcedTab ? (
         <div
           className={cn(
             "inline-flex rounded-2xl border border-red-200 bg-white p-1 transition-all duration-500",
@@ -2470,36 +3109,164 @@ export function LessonPlanWorkspace({
       />
 
       {activeTab === "plans" && classSyllabus ? (
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-          <div className="rounded-2xl border border-red-200 bg-white p-4 shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-red-600">
-                  Full syllabus
+        <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-5 shadow-sm transition-all duration-200 hover:shadow-md">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex-1">
+              {/* Header with subtle accent line */}
+              <div className="relative">
+                <div className="absolute -left-5 top-0 h-6 w-1 rounded-full bg-red-500" />
+                <div className="text-sm font-medium uppercase tracking-wide text-red-600">
+                  Syllabus tổng & chi tiết
                 </div>
-                <h2 className="mt-1 text-lg font-bold text-gray-900">
-                  {classSyllabus.classTitle || classSyllabus.classCode || "Syllabus lớp học"}
+                <h2 className="mt-2 text-2xl font-bold text-gray-900 leading-tight">
+                  {classSyllabus.classTitle ||
+                    classSyllabus.classCode ||
+                    "Syllabus lớp học"}
                 </h2>
-                <p className="mt-1 text-sm text-gray-600">
-                  Dòng bên trái là syllabus tổng; chọn từng buổi ở bảng bên dưới để xem syllabus/session detail tương ứng.
-                </p>
               </div>
-              <button
-                type="button"
-                onClick={openSyllabusWorkspace}
-                className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 transition-colors hover:bg-red-100 cursor-pointer"
-              >
-                <BookOpenCheck size={16} />
-                Mở full syllabus
-              </button>
+
+              {/* Description */}
+              <p className="mt-3 text-sm text-gray-500 leading-relaxed max-w-2xl">
+                Dòng bên trái là syllabus tổng; chọn từng buổi ở bảng bên dưới
+                để xem syllabus/session detail tương ứng.
+              </p>
             </div>
+
+            {/* Action button */}
+            <button
+              type="button"
+              onClick={openSyllabusWorkspace}
+              className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 transition-all hover:border-red-300 hover:bg-red-50 hover:shadow-sm cursor-pointer whitespace-nowrap group"
+            >
+              <BookOpenCheck
+                size={16}
+                className="text-red-500 group-hover:scale-105 transition-transform"
+              />
+              <span>Mở trang syllabus</span>
+            </button>
           </div>
 
-          <SyllabusSummaryPanel
-            title="Syllabus theo buổi"
-            description="Bản đồ nhanh để drill-down từ syllabus tổng xuống từng session và lesson plan tương ứng."
-            items={getSyllabusSummaryItems(classSyllabus)}
-          />
+          {/* Syllabus metadata tags */}
+          <div className="mt-4 flex flex-wrap gap-2">
+            {(() => {
+              const items = getSyllabusSummaryItems(classSyllabus);
+              
+              const getBadgeStyle = (label: string) => {
+                const labelLower = label.toLowerCase();
+                if (labelLower.includes("lớp")) return { bg: "bg-gradient-to-r from-blue-50 to-blue-100", border: "border-blue-300", text: "text-blue-700", icon: "Users" };
+                if (labelLower.includes("chương trình")) return { bg: "bg-gradient-to-r from-purple-50 to-purple-100", border: "border-purple-300", text: "text-purple-700", icon: "Layers" };
+                if (labelLower.includes("thông tin") || labelLower.includes("syllabus")) return { bg: "bg-gradient-to-r from-green-50 to-green-100", border: "border-green-300", text: "text-green-700", icon: "BookOpenCheck" };
+                if (labelLower.includes("tổng") || labelLower.includes("buổi")) return { bg: "bg-gradient-to-r from-orange-50 to-orange-100", border: "border-orange-300", text: "text-orange-700", icon: "Zap" };
+                if (labelLower.includes("giáo án")) return { bg: "bg-gradient-to-r from-cyan-50 to-cyan-100", border: "border-cyan-300", text: "text-cyan-700", icon: "CheckCircle" };
+                if (labelLower.includes("báo cáo")) return { bg: "bg-gradient-to-r from-emerald-50 to-emerald-100", border: "border-emerald-300", text: "text-emerald-700", icon: "CheckCircle" };
+                return { bg: "bg-gradient-to-r from-gray-50 to-gray-100", border: "border-gray-300", text: "text-gray-700", icon: "Tag" };
+              };
+              
+              return items
+                .filter((item) => {
+                  const value = item.value;
+                  if (value === null || value === undefined) return false;
+                  if (typeof value === "string")
+                    return value.trim().length > 0;
+                  return true;
+                })
+                .map((item) => {
+                  const style = getBadgeStyle(item.label);
+                  return (
+                    <span
+                      key={item.label}
+                      className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold border shadow-sm transition-all hover:shadow-md ${style.bg} ${style.border} ${style.text}`}
+                    >
+                      <span className="flex-shrink-0">
+                        {style.icon === "Users" && <Users size={14} />}
+                        {style.icon === "Layers" && <Layers size={14} />}
+                        {style.icon === "BookOpenCheck" && <BookOpenCheck size={14} />}
+                        {style.icon === "Zap" && <Zap size={14} />}
+                        {style.icon === "CheckCircle" && <CheckCircle size={14} />}
+                        {style.icon === "Tag" && <Tag size={14} />}
+                      </span>
+                      <span>
+                        {item.label}:
+                      </span>
+                      <span className="font-bold">{item.value}</span>
+                    </span>
+                  );
+                });
+            })()}
+          </div>
+
+          {/* Session Number Grid */}
+          {filteredSessions.length > 0 && (
+            <div className="mt-6 border-t border-red-100 pt-5">
+              <div className="flex items-baseline justify-between mb-4">
+                <h3 className="text-base font-semibold text-gray-900">
+                  Danh sách buổi học
+                </h3>
+                <span className="text-xs text-gray-400">
+                  {filteredSessions.length} buổi
+                </span>
+              </div>
+
+              <div className="grid grid-cols-6 gap-2 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-14 xl:grid-cols-16">
+                {filteredSessions.map((session) => {
+                  const hasPlan = Boolean(session.lessonPlanId);
+                  const hasReport = Boolean(session.actualContent);
+                  const isActive = sessionDetailId === session.sessionId;
+
+                  let buttonClasses =
+                    "relative flex h-10 items-center justify-center rounded-lg font-bold text-sm transition-all duration-200 cursor-pointer shadow-md ";
+
+                  if (isActive) {
+                    buttonClasses +=
+                      "bg-gradient-to-r from-red-600 to-red-500 text-white border border-red-700 hover:from-red-700 hover:to-red-600 hover:scale-105 ring-2 ring-red-400 ring-offset-2";
+                  } else if (hasReport) {
+                    buttonClasses +=
+                      "bg-gradient-to-br from-emerald-500 to-emerald-600 text-white border border-emerald-700 hover:from-emerald-600 hover:to-emerald-700 hover:scale-105 hover:shadow-lg";
+                  } else if (hasPlan) {
+                    buttonClasses +=
+                      "bg-gradient-to-br from-blue-500 to-blue-600 text-white border border-blue-700 hover:from-blue-600 hover:to-blue-700 hover:scale-105 hover:shadow-lg";
+                  } else {
+                    buttonClasses +=
+                      "bg-white text-gray-500 border-2 border-gray-300 hover:border-red-500 hover:text-red-600 hover:bg-red-50 hover:scale-105 hover:shadow-md";
+                  }
+
+                  return (
+                    <button
+                      key={session.sessionId}
+                      type="button"
+                      onClick={() => setSessionDetailId(session.sessionId)}
+                      className={buttonClasses}
+                      title={`Buổi ${session.sessionIndex}${hasPlan ? " - Có giáo án" : ""}${hasReport ? " - Đã báo cáo" : ""}`}
+                    >
+                      <span>{session.sessionIndex}</span>
+                      {hasReport && !isActive && (
+                        <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-yellow-300 ring-1 ring-white shadow-sm" />
+                      )}
+                      {hasPlan && !hasReport && !isActive && (
+                        <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-cyan-300 ring-1 ring-white shadow-sm" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Legend */}
+              <div className="mt-4 flex flex-wrap items-center gap-4 pt-2 text-xs">
+                <div className="flex items-center gap-1.5">
+                  <div className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                  <span className="text-gray-500">Đã báo cáo</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="h-2.5 w-2.5 rounded-full bg-blue-400" />
+                  <span className="text-gray-500">Có giáo án</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="h-2.5 w-2.5 rounded-full bg-gray-300" />
+                  <span className="text-gray-500">Chưa chuẩn bị</span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       ) : null}
 
@@ -2536,6 +3303,7 @@ export function LessonPlanWorkspace({
             onOpenTemplateDetail={
               templatesAvailable ? openTemplateDetail : undefined
             }
+            selectedSessionId={sessionDetailId}
           />
         )}
       </div>
@@ -2650,13 +3418,22 @@ function FilterBar({
 
                 const getTemplateCount = (filterStatus: typeof status) => {
                   return templates.filter((item) => {
-                    if (selectedProgramId !== "all" && item.programId !== selectedProgramId) {
+                    if (
+                      selectedProgramId !== "all" &&
+                      item.programId !== selectedProgramId
+                    ) {
                       return false;
                     }
-                    if (filterStatus === "active" && getTemplateStatus(item) !== "active") {
+                    if (
+                      filterStatus === "active" &&
+                      getTemplateStatus(item) !== "active"
+                    ) {
                       return false;
                     }
-                    if (filterStatus === "inactive" && getTemplateStatus(item) !== "inactive") {
+                    if (
+                      filterStatus === "inactive" &&
+                      getTemplateStatus(item) !== "inactive"
+                    ) {
                       return false;
                     }
                     if (filterStatus === "withAttachment" && !item.attachment) {
@@ -2880,14 +3657,24 @@ function SortableUnitRow({
   onDelete: (unit: LessonPlanUnit) => void;
   saving: string | null;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: unit.id });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: unit.id });
   const [editing, setEditing] = useState(false);
   const [draftName, setDraftName] = useState(unit.name);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { setDraftName(unit.name); }, [unit.name]);
-  useEffect(() => { if (editing) inputRef.current?.focus(); }, [editing]);
+  useEffect(() => {
+    setDraftName(unit.name);
+  }, [unit.name]);
+  useEffect(() => {
+    if (editing) inputRef.current?.focus();
+  }, [editing]);
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -2926,12 +3713,17 @@ function SortableUnitRow({
           onBlur={commit}
           onKeyDown={(e) => {
             if (e.key === "Enter") commit();
-            if (e.key === "Escape") { setDraftName(unit.name); setEditing(false); }
+            if (e.key === "Escape") {
+              setDraftName(unit.name);
+              setEditing(false);
+            }
           }}
           className="flex-1 text-sm border-b border-red-400 outline-none bg-transparent py-0.5"
         />
       ) : (
-        <span className="flex-1 text-sm text-gray-800 truncate">{unit.name}</span>
+        <span className="flex-1 text-sm text-gray-800 truncate">
+          {unit.name}
+        </span>
       )}
 
       <span className="text-[11px] text-gray-400 whitespace-nowrap flex-shrink-0">
@@ -2939,7 +3731,10 @@ function SortableUnitRow({
       </span>
 
       {saving === unit.id ? (
-        <Loader2 size={13} className="animate-spin text-gray-400 flex-shrink-0" />
+        <Loader2
+          size={13}
+          className="animate-spin text-gray-400 flex-shrink-0"
+        />
       ) : (
         <>
           <button
@@ -2955,7 +3750,11 @@ function SortableUnitRow({
             onClick={() => onDelete(unit)}
             disabled={unit.lessonCount > 0}
             className="text-gray-300 hover:text-red-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex-shrink-0 cursor-pointer"
-            title={unit.lessonCount > 0 ? `Không thể xóa: còn ${unit.lessonCount} bài` : "Xóa unit"}
+            title={
+              unit.lessonCount > 0
+                ? `Không thể xóa: còn ${unit.lessonCount} bài`
+                : "Xóa unit"
+            }
           >
             <Trash2 size={13} />
           </button>
@@ -2989,7 +3788,9 @@ function UnitManagerPanel({
 
   const sensors = useSensors(
     useSensor(PointerSensor),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
   );
 
   const load = useCallback(async () => {
@@ -2999,16 +3800,24 @@ function UnitManagerPanel({
     setLoading(false);
   }, [moduleId]);
 
-  useEffect(() => { if (isOpen) load(); }, [isOpen, load]);
+  useEffect(() => {
+    if (isOpen) load();
+  }, [isOpen, load]);
 
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
     const oldIndex = units.findIndex((u) => u.id === active.id);
     const newIndex = units.findIndex((u) => u.id === over.id);
-    const reordered = arrayMove(units, oldIndex, newIndex).map((u, i) => ({ ...u, orderIndex: i }));
+    const reordered = arrayMove(units, oldIndex, newIndex).map((u, i) => ({
+      ...u,
+      orderIndex: i,
+    }));
     setUnits(reordered);
-    await reorderLessonPlanUnits(moduleId, reordered.map((u) => ({ id: u.id, orderIndex: u.orderIndex })));
+    await reorderLessonPlanUnits(
+      moduleId,
+      reordered.map((u) => ({ id: u.id, orderIndex: u.orderIndex })),
+    );
     onChanged();
   }
 
@@ -3016,10 +3825,16 @@ function UnitManagerPanel({
     setSaving(unitId);
     const res = await updateLessonPlanUnit(unitId, { name });
     if (res.isSuccess) {
-      setUnits((prev) => prev.map((u) => u.id === unitId ? { ...u, name } : u));
+      setUnits((prev) =>
+        prev.map((u) => (u.id === unitId ? { ...u, name } : u)),
+      );
       onChanged();
     } else {
-      toast({ variant: "destructive", title: "Lỗi", description: res.message ?? "Không thể đổi tên." });
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: res.message ?? "Không thể đổi tên.",
+      });
     }
     setSaving(null);
   }
@@ -3031,7 +3846,11 @@ function UnitManagerPanel({
       setUnits((prev) => prev.filter((u) => u.id !== unit.id));
       onChanged();
     } else {
-      toast({ variant: "destructive", title: "Lỗi", description: res.message ?? "Không thể xóa unit." });
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: res.message ?? "Không thể xóa unit.",
+      });
     }
     setSaving(null);
   }
@@ -3047,7 +3866,11 @@ function UnitManagerPanel({
       onChanged();
       newInputRef.current?.focus();
     } else {
-      toast({ variant: "destructive", title: "Lỗi", description: res.message ?? "Không thể tạo unit." });
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: res.message ?? "Không thể tạo unit.",
+      });
     }
     setCreating(false);
   }
@@ -3065,9 +3888,15 @@ function UnitManagerPanel({
           <Settings2 size={17} className="text-red-600 flex-shrink-0" />
           <div className="flex-1 min-w-0">
             <p className="text-xs text-gray-400 font-medium">Quản lý Unit</p>
-            <p className="text-sm font-bold text-gray-900 truncate">{moduleName}</p>
+            <p className="text-sm font-bold text-gray-900 truncate">
+              {moduleName}
+            </p>
           </div>
-          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-700 cursor-pointer">
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-700 cursor-pointer"
+          >
             <X size={18} />
           </button>
         </div>
@@ -3080,10 +3909,19 @@ function UnitManagerPanel({
               <span className="text-sm">Đang tải...</span>
             </div>
           ) : units.length === 0 ? (
-            <p className="text-center text-sm text-gray-400 py-8">Chưa có unit nào.</p>
+            <p className="text-center text-sm text-gray-400 py-8">
+              Chưa có unit nào.
+            </p>
           ) : (
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-              <SortableContext items={units.map((u) => u.id)} strategy={verticalListSortingStrategy}>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={units.map((u) => u.id)}
+                strategy={verticalListSortingStrategy}
+              >
                 <div className="flex flex-col gap-2">
                   {units.map((unit) => (
                     <SortableUnitRow
@@ -3106,7 +3944,9 @@ function UnitManagerPanel({
             ref={newInputRef}
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleCreate();
+            }}
             placeholder="Tên unit mới (vd: UNIT 5: NATURE)"
             className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-red-400"
           />
@@ -3116,7 +3956,11 @@ function UnitManagerPanel({
             disabled={creating || !newName.trim()}
             className="flex items-center gap-1.5 px-3 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
           >
-            {creating ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+            {creating ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <Plus size={14} />
+            )}
             Tạo
           </button>
         </div>
@@ -3142,10 +3986,19 @@ function SortableLessonRow({
   onEdit: (item: LessonPlanTemplate) => void;
   onDelete: (item: LessonPlanTemplate) => void;
   isReal: boolean;
-  onSessionOrderChange: (item: LessonPlanTemplate, newOrder: number) => Promise<void>;
+  onSessionOrderChange: (
+    item: LessonPlanTemplate,
+    newOrder: number,
+  ) => Promise<void>;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: item.id });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id });
 
   const [editingSession, setEditingSession] = useState(false);
   const [sessionInput, setSessionInput] = useState("");
@@ -3173,7 +4026,11 @@ function SortableLessonRow({
   };
 
   return (
-    <tr ref={setNodeRef} style={style} className="hover:bg-red-50/30 transition-colors">
+    <tr
+      ref={setNodeRef}
+      style={style}
+      className="hover:bg-red-50/30 transition-colors"
+    >
       <td className="pl-16 pr-4 py-3">
         <div className="flex items-center gap-2">
           {isReal && (
@@ -3191,8 +4048,12 @@ function SortableLessonRow({
             <BookOpenCheck size={13} className="text-white" />
           </div>
           <div>
-            <div className="text-sm font-semibold text-gray-900">{getTemplateDisplayTitle(item)}</div>
-            <div className="mt-0.5 text-xs text-gray-400">{getTemplateDisplaySubtitle(item)}</div>
+            <div className="text-sm font-semibold text-gray-900">
+              {getTemplateDisplayTitle(item)}
+            </div>
+            <div className="mt-0.5 text-xs text-gray-400">
+              {getTemplateDisplaySubtitle(item)}
+            </div>
           </div>
         </div>
       </td>
@@ -3227,19 +4088,28 @@ function SortableLessonRow({
       </td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-1.5 flex-wrap">
-          <StatusBadge kind={getTemplateStatus(item) === "active" ? "success" : "muted"}>
+          <StatusBadge
+            kind={getTemplateStatus(item) === "active" ? "success" : "muted"}
+          >
             <div className="flex items-center gap-0.5">
               {getTemplateStatus(item) === "active" ? (
-                <><CheckCircle2 size={12} /><span>Hoạt động</span></>
+                <>
+                  <CheckCircle2 size={12} />
+                  <span>Hoạt động</span>
+                </>
               ) : (
-                <><XCircle size={12} /><span>Tạm ẩn</span></>
+                <>
+                  <XCircle size={12} />
+                  <span>Tạm ẩn</span>
+                </>
               )}
             </div>
           </StatusBadge>
           {item.attachment && (
             <StatusBadge kind="info">
               <div className="flex items-center gap-0.5">
-                <Paperclip size={12} /><span>File</span>
+                <Paperclip size={12} />
+                <span>File</span>
               </div>
             </StatusBadge>
           )}
@@ -3311,7 +4181,14 @@ function SortableModuleAccordionItem({
   onToggle: () => void;
   children: React.ReactNode;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: moduleKey });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: moduleKey });
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -3345,14 +4222,24 @@ function SortableModuleAccordionItem({
           <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-600 text-white text-[10px] font-bold flex-shrink-0">
             {modIdx + 1}
           </span>
-          <span className="text-sm font-semibold text-gray-800">{moduleName}</span>
+          <span className="text-sm font-semibold text-gray-800">
+            {moduleName}
+          </span>
           {moduleCode && (
-            <span className="text-xs text-gray-400 font-mono">({moduleCode})</span>
+            <span className="text-xs text-gray-400 font-mono">
+              ({moduleCode})
+            </span>
           )}
           <span className="ml-auto text-xs text-gray-400 whitespace-nowrap">
             {totalItems} mẫu · {unitCount} unit
             {orphanCount > 0 && (
-              <> · <span className="text-orange-400">{orphanCount} chưa phân unit</span></>
+              <>
+                {" "}
+                ·{" "}
+                <span className="text-orange-400">
+                  {orphanCount} chưa phân unit
+                </span>
+              </>
             )}
           </span>
         </button>
@@ -3373,7 +4260,12 @@ function SortableUnitAccordionItem({
   importing,
   children,
 }: {
-  unitGroup: { unitKey: string; displayName: string; isLegacy: boolean; items: { id: string }[] };
+  unitGroup: {
+    unitKey: string;
+    displayName: string;
+    isLegacy: boolean;
+    items: { id: string }[];
+  };
   moduleKey: string;
   isOpen: boolean;
   onToggle: () => void;
@@ -3383,7 +4275,14 @@ function SortableUnitAccordionItem({
   children: React.ReactNode;
 }) {
   const isReal = !unitGroup.isLegacy;
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
     id: unitGroup.unitKey,
     disabled: !isReal,
   });
@@ -3392,8 +4291,12 @@ function SortableUnitAccordionItem({
   const [saving, setSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { setDraftName(unitGroup.displayName); }, [unitGroup.displayName]);
-  useEffect(() => { if (editing) inputRef.current?.focus(); }, [editing]);
+  useEffect(() => {
+    setDraftName(unitGroup.displayName);
+  }, [unitGroup.displayName]);
+  useEffect(() => {
+    if (editing) inputRef.current?.focus();
+  }, [editing]);
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -3409,7 +4312,9 @@ function SortableUnitAccordionItem({
     try {
       await updateLessonPlanUnit(unitGroup.unitKey, { name: trimmed });
       await onChanged();
-    } catch { /* ignore */ } finally {
+    } catch {
+      /* ignore */
+    } finally {
       setSaving(false);
     }
   }
@@ -3420,7 +4325,9 @@ function SortableUnitAccordionItem({
     try {
       await deleteLessonPlanUnit(unitGroup.unitKey);
       await onChanged();
-    } catch { /* ignore */ } finally {
+    } catch {
+      /* ignore */
+    } finally {
       setSaving(false);
     }
   }
@@ -3462,23 +4369,35 @@ function SortableUnitAccordionItem({
               onChange={(e) => setDraftName(e.target.value)}
               onBlur={commitRename}
               onKeyDown={(e) => {
-                if (e.key === "Enter") { e.preventDefault(); commitRename(); }
-                if (e.key === "Escape") { setDraftName(unitGroup.displayName); setEditing(false); }
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  commitRename();
+                }
+                if (e.key === "Escape") {
+                  setDraftName(unitGroup.displayName);
+                  setEditing(false);
+                }
               }}
               onClick={(e) => e.stopPropagation()}
               className="flex-1 text-sm border-b border-red-400 outline-none bg-transparent py-0.5"
             />
           ) : (
             <>
-              <span className="text-sm font-medium text-gray-700 truncate">{unitGroup.displayName}</span>
+              <span className="text-sm font-medium text-gray-700 truncate">
+                {unitGroup.displayName}
+              </span>
               {unitGroup.isLegacy && (
-                <span className="text-[10px] text-orange-400 italic whitespace-nowrap ml-1">(chưa đồng bộ)</span>
+                <span className="text-[10px] text-orange-400 italic whitespace-nowrap ml-1">
+                  (chưa đồng bộ)
+                </span>
               )}
             </>
           )}
         </button>
         <div className="flex items-center gap-1.5 flex-shrink-0">
-          <span className="text-xs text-gray-400 whitespace-nowrap">{unitGroup.items.length} bài</span>
+          <span className="text-xs text-gray-400 whitespace-nowrap">
+            {unitGroup.items.length} bài
+          </span>
           {saving ? (
             <Loader2 size={12} className="animate-spin text-gray-400" />
           ) : isReal ? (
@@ -3496,7 +4415,11 @@ function SortableUnitAccordionItem({
                 onClick={handleDelete}
                 disabled={unitGroup.items.length > 0}
                 className="text-gray-200 hover:text-red-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                title={unitGroup.items.length > 0 ? `Còn ${unitGroup.items.length} bài, không thể xóa` : "Xóa unit"}
+                title={
+                  unitGroup.items.length > 0
+                    ? `Còn ${unitGroup.items.length} bài, không thể xóa`
+                    : "Xóa unit"
+                }
               >
                 <Trash2 size={12} />
               </button>
@@ -3507,7 +4430,11 @@ function SortableUnitAccordionItem({
                 className="text-gray-200 hover:text-blue-500 disabled:opacity-40 transition-colors cursor-pointer"
                 title="Import Word vào unit này"
               >
-                {importing ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+                {importing ? (
+                  <Loader2 size={12} className="animate-spin" />
+                ) : (
+                  <Upload size={12} />
+                )}
               </button>
             </>
           ) : null}
@@ -3532,16 +4459,23 @@ function TemplateTable({
   onRefresh: () => void;
 }) {
   const [expandedLevels, setExpandedLevels] = useState<Set<string>>(new Set());
-  const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
+  const [expandedModules, setExpandedModules] = useState<Set<string>>(
+    new Set(),
+  );
   const [expandedUnits, setExpandedUnits] = useState<Set<string>>(new Set());
 
   // Delete / Import-Word state
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [importTarget, setImportTarget] = useState<{ unitKey: string; moduleKey: string } | null>(null);
+  const [importTarget, setImportTarget] = useState<{
+    unitKey: string;
+    moduleKey: string;
+  } | null>(null);
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Session order reorder state (keyed by levelKey)
-  const [reorderingLevelId, setReorderingLevelId] = useState<string | null>(null);
+  const [reorderingLevelId, setReorderingLevelId] = useState<string | null>(
+    null,
+  );
 
   async function handleDeleteLesson(item: LessonPlanTemplate) {
     setDeletingId(item.id);
@@ -3551,15 +4485,24 @@ function TemplateTable({
       toast({ title: "Đã xóa", description: item.title });
       onRefresh();
     } else {
-      toast({ variant: "destructive", title: "Xóa thất bại", description: res.message ?? "Không thể xóa lesson." });
+      toast({
+        variant: "destructive",
+        title: "Xóa thất bại",
+        description: res.message ?? "Không thể xóa lesson.",
+      });
     }
   }
 
-  async function handleSessionOrderChange(item: LessonPlanTemplate, newOrder: number) {
+  async function handleSessionOrderChange(
+    item: LessonPlanTemplate,
+    newOrder: number,
+  ) {
     // Find the level this lesson belongs to so we can reorder the full level batch
     const levelGroup =
       levelGroups.find(
-        (lg) => lg.levelId === item.levelId && lg.syllabusId === (item.syllabusId ?? null),
+        (lg) =>
+          lg.levelId === item.levelId &&
+          lg.syllabusId === (item.syllabusId ?? null),
       ) ?? levelGroups.find((lg) => lg.levelId === item.levelId);
     if (!levelGroup?.levelId) {
       // No level context — fall back to individual update
@@ -3570,18 +4513,24 @@ function TemplateTable({
     // Collect all lessons in current display order for this level
     const modKeys = localModuleOrder[levelGroup.levelKey];
     const orderedMods = modKeys
-      ? modKeys.map((k) => levelGroup.modules.find((m) => m.moduleKey === k)).filter(Boolean) as ModuleGroup[]
+      ? (modKeys
+          .map((k) => levelGroup.modules.find((m) => m.moduleKey === k))
+          .filter(Boolean) as ModuleGroup[])
       : levelGroup.modules;
     const allLessons: LessonPlanTemplate[] = [];
     for (const mod of orderedMods) {
       const uKeys = localUnitOrder[mod.moduleKey];
       const orderedUnits = uKeys
-        ? uKeys.map((k) => mod.units.find((u) => u.unitKey === k)).filter(Boolean) as UnitGroup[]
+        ? (uKeys
+            .map((k) => mod.units.find((u) => u.unitKey === k))
+            .filter(Boolean) as UnitGroup[])
         : mod.units;
       for (const unit of orderedUnits) {
         const overrideIds = localLessonOrder[unit.unitKey];
         const unitItems = overrideIds
-          ? overrideIds.map((id) => unit.items.find((it) => it.id === id)).filter(Boolean) as LessonPlanTemplate[]
+          ? (overrideIds
+              .map((id) => unit.items.find((it) => it.id === id))
+              .filter(Boolean) as LessonPlanTemplate[])
           : unit.items;
         allLessons.push(...unitItems);
       }
@@ -3589,10 +4538,19 @@ function TemplateTable({
     }
     // Remove item from current position, insert at target slot, renumber 1…N
     const withoutItem = allLessons.filter((l) => l.id !== item.id);
-    const clampedOrder = Math.max(1, Math.min(newOrder, withoutItem.length + 1));
+    const clampedOrder = Math.max(
+      1,
+      Math.min(newOrder, withoutItem.length + 1),
+    );
     withoutItem.splice(clampedOrder - 1, 0, item);
-    const sessionItems = withoutItem.map((l, i) => ({ id: l.id, sessionOrder: i + 1 }));
-    await reorderLessonPlanTemplateSessionOrders(levelGroup.levelId, sessionItems);
+    const sessionItems = withoutItem.map((l, i) => ({
+      id: l.id,
+      sessionOrder: i + 1,
+    }));
+    await reorderLessonPlanTemplateSessionOrders(
+      levelGroup.levelId,
+      sessionItems,
+    );
     onRefresh();
   }
 
@@ -3603,26 +4561,36 @@ function TemplateTable({
 
   async function handleReorderSessionOrders(levelGroup: LevelGroup) {
     if (!levelGroup.levelId) {
-      toast({ variant: "destructive", title: "Lỗi", description: "Không tìm thấy levelId để cập nhật thứ tự." });
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Không tìm thấy levelId để cập nhật thứ tự.",
+      });
       return;
     }
     setReorderingLevelId(levelGroup.levelKey);
     // Collect all lessons in current display order (module → unit → lesson)
     const overrideModuleKeys = localModuleOrder[levelGroup.levelKey];
     const displayedModules = overrideModuleKeys
-      ? overrideModuleKeys.map((k) => levelGroup.modules.find((m) => m.moduleKey === k)).filter(Boolean) as ModuleGroup[]
+      ? (overrideModuleKeys
+          .map((k) => levelGroup.modules.find((m) => m.moduleKey === k))
+          .filter(Boolean) as ModuleGroup[])
       : levelGroup.modules;
     const items: { id: string; sessionOrder: number }[] = [];
     let order = 1;
     for (const mod of displayedModules) {
       const overrideUnitKeys = localUnitOrder[mod.moduleKey];
       const displayedUnits = overrideUnitKeys
-        ? overrideUnitKeys.map((k) => mod.units.find((u) => u.unitKey === k)).filter(Boolean) as UnitGroup[]
+        ? (overrideUnitKeys
+            .map((k) => mod.units.find((u) => u.unitKey === k))
+            .filter(Boolean) as UnitGroup[])
         : mod.units;
       for (const unit of displayedUnits) {
         const overrideIds = localLessonOrder[unit.unitKey];
         const displayedItems = overrideIds
-          ? overrideIds.map((id) => unit.items.find((it) => it.id === id)).filter(Boolean) as LessonPlanTemplate[]
+          ? (overrideIds
+              .map((id) => unit.items.find((it) => it.id === id))
+              .filter(Boolean) as LessonPlanTemplate[])
           : unit.items;
         for (const lesson of displayedItems) {
           items.push({ id: lesson.id, sessionOrder: order++ });
@@ -3632,33 +4600,56 @@ function TemplateTable({
         items.push({ id: orphan.id, sessionOrder: order++ });
       }
     }
-    const res = await reorderLessonPlanTemplateSessionOrders(levelGroup.levelId, items);
+    const res = await reorderLessonPlanTemplateSessionOrders(
+      levelGroup.levelId,
+      items,
+    );
     setReorderingLevelId(null);
     if (res.isSuccess) {
-      toast({ title: "Đã cập nhật thứ tự buổi", description: `${items.length} mẫu trong cấp độ ${levelGroup.levelName}` });
+      toast({
+        title: "Đã cập nhật thứ tự buổi",
+        description: `${items.length} mẫu trong cấp độ ${levelGroup.levelName}`,
+      });
       onRefresh();
     } else {
-      toast({ variant: "destructive", title: "Lỗi cập nhật thứ tự", description: res.message ?? "Không thể cập nhật thứ tự buổi." });
+      toast({
+        variant: "destructive",
+        title: "Lỗi cập nhật thứ tự",
+        description: res.message ?? "Không thể cập nhật thứ tự buổi.",
+      });
     }
   }
 
   // Local module order overrides keyed by levelKey → ordered moduleKeys (optimistic DnD)
-  const [localModuleOrder, setLocalModuleOrder] = useState<Record<string, string[]>>({});
+  const [localModuleOrder, setLocalModuleOrder] = useState<
+    Record<string, string[]>
+  >({});
   // Local unit order overrides keyed by moduleKey → ordered unitKeys (optimistic DnD)
-  const [localUnitOrder, setLocalUnitOrder] = useState<Record<string, string[]>>({});
+  const [localUnitOrder, setLocalUnitOrder] = useState<
+    Record<string, string[]>
+  >({});
   // Local lesson order overrides keyed by unitKey → ordered item IDs
-  const [localLessonOrder, setLocalLessonOrder] = useState<Record<string, string[]>>({});
+  const [localLessonOrder, setLocalLessonOrder] = useState<
+    Record<string, string[]>
+  >({});
   // Real BE unit order map: moduleId → LessonPlanUnit[] (sorted by orderIndex)
-  const [moduleUnitsMap, setModuleUnitsMap] = useState<Record<string, LessonPlanUnit[]>>({});
+  const [moduleUnitsMap, setModuleUnitsMap] = useState<
+    Record<string, LessonPlanUnit[]>
+  >({});
 
   // Load real unit orderIndex from BE for every module in items
   useEffect(() => {
-    const moduleIds = [...new Set(items.filter((i) => i.moduleId).map((i) => i.moduleId!))];
+    const moduleIds = [
+      ...new Set(items.filter((i) => i.moduleId).map((i) => i.moduleId!)),
+    ];
     if (moduleIds.length === 0) return;
     let cancelled = false;
     (async () => {
       const results = await Promise.allSettled(
-        moduleIds.map(async (id) => ({ id, units: (await getLessonPlanUnits(id)).data }))
+        moduleIds.map(async (id) => ({
+          id,
+          units: (await getLessonPlanUnits(id)).data,
+        })),
       );
       if (cancelled) return;
       const map: Record<string, LessonPlanUnit[]> = {};
@@ -3667,13 +4658,17 @@ function TemplateTable({
       }
       setModuleUnitsMap(map);
     })();
-    return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items]);
 
   const lessonSensors = useSensors(
     useSensor(PointerSensor),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
   );
 
   const toggleSet = (
@@ -3689,7 +4684,12 @@ function TemplateTable({
     });
   };
 
-  type UnitGroup = { unitKey: string; displayName: string; isLegacy: boolean; items: LessonPlanTemplate[] };
+  type UnitGroup = {
+    unitKey: string;
+    displayName: string;
+    isLegacy: boolean;
+    items: LessonPlanTemplate[];
+  };
   type ModuleGroup = {
     moduleKey: string;
     moduleName: string;
@@ -3731,7 +4731,8 @@ function TemplateTable({
         ? (beUnits.find((u) => u.id === realUnitId)?.name ?? null)
         : null;
       const unitKey = realUnitId ?? "";
-      const unitName = (item.lessonPlanUnitName ?? beUnitName ?? "").trim() || null;
+      const unitName =
+        (item.lessonPlanUnitName ?? beUnitName ?? "").trim() || null;
       const isLegacy = false;
       if (!levelMap.has(levelKey)) {
         levelMap.set(levelKey, {
@@ -3760,7 +4761,10 @@ function TemplateTable({
           totalItems: 0,
         };
         level.modules.push(mod);
-      } else if (mod.moduleOrderIndex == null && item.moduleOrderIndex != null) {
+      } else if (
+        mod.moduleOrderIndex == null &&
+        item.moduleOrderIndex != null
+      ) {
         mod.moduleOrderIndex = item.moduleOrderIndex;
       }
       if (!realUnitId || !unitName) {
@@ -3802,9 +4806,11 @@ function TemplateTable({
 
           const beUnits = moduleUnitsMap[mod.moduleKey] ?? [];
           const aBeOrder =
-            beUnits.find((u) => u.id === a.unitKey)?.orderIndex ?? Number.MAX_SAFE_INTEGER;
+            beUnits.find((u) => u.id === a.unitKey)?.orderIndex ??
+            Number.MAX_SAFE_INTEGER;
           const bBeOrder =
-            beUnits.find((u) => u.id === b.unitKey)?.orderIndex ?? Number.MAX_SAFE_INTEGER;
+            beUnits.find((u) => u.id === b.unitKey)?.orderIndex ??
+            Number.MAX_SAFE_INTEGER;
           return aBeOrder - bBeOrder;
         });
 
@@ -3832,373 +4838,668 @@ function TemplateTable({
 
   return (
     <>
-    <input
-      ref={fileInputRef}
-      type="file"
-      accept=".doc,.docx"
-      className="hidden"
-      onChange={async (e) => {
-        const file = e.target.files?.[0];
-        e.target.value = "";
-        if (!file || !importTarget) return;
-        setImporting(true);
-        const res = await importLessonPlanTemplateWord(importTarget.moduleKey, file, { lessonPlanUnitId: importTarget.unitKey });
-        if (res.isSuccess && res.data?.lessonPlanTemplateId) {
-          toast({ title: "Import thành công", description: res.data.title ?? "Đã thêm bài vào unit." });
-          onRefresh();
-        } else {
-          toast({ variant: "destructive", title: "Lỗi import Word", description: res.message ?? "Import thất bại." });
-        }
-        setImporting(false);
-        setImportTarget(null);
-      }}
-    />
-    <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-        <h2 className="font-semibold text-gray-900">Danh sách mẫu giáo án</h2>
-        <span className="text-sm text-gray-500">
-          {items.length} mẫu · {levelGroups.length} cấp độ
-        </span>
-      </div>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".doc,.docx"
+        className="hidden"
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (!file || !importTarget) return;
+          setImporting(true);
+          const res = await importLessonPlanTemplateWord(
+            importTarget.moduleKey,
+            file,
+            { lessonPlanUnitId: importTarget.unitKey },
+          );
+          if (res.isSuccess && res.data?.lessonPlanTemplateId) {
+            toast({
+              title: "Import thành công",
+              description: res.data.title ?? "Đã thêm bài vào unit.",
+            });
+            onRefresh();
+          } else {
+            toast({
+              variant: "destructive",
+              title: "Lỗi import Word",
+              description: res.message ?? "Import thất bại.",
+            });
+          }
+          setImporting(false);
+          setImportTarget(null);
+        }}
+      />
+      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+          <h2 className="font-semibold text-gray-900">Danh sách mẫu giáo án</h2>
+          <span className="text-sm text-gray-500">
+            {items.length} mẫu · {levelGroups.length} cấp độ
+          </span>
+        </div>
 
-      {/* Accordion */}
-      <div className="divide-y divide-gray-100">
-        {levelGroups.map((levelGroup) => {
-          const isLevelOpen = expandedLevels.has(levelGroup.levelKey);
-          return (
-            <div key={levelGroup.levelKey}>
-              {/* Level row */}
-              <button
-                type="button"
-                onClick={() => toggleSet(expandedLevels, setExpandedLevels, levelGroup.levelKey)}
-                className="w-full flex items-center gap-3 px-5 py-3.5 bg-gray-50 hover:bg-gray-100 transition-colors text-left cursor-pointer"
-              >
-                <ChevronRight
-                  size={16}
-                  className={cn(
-                    "flex-shrink-0 transition-transform text-gray-400",
-                    isLevelOpen && "rotate-90",
-                  )}
-                />
-                <GraduationCap size={17} className="text-red-600 flex-shrink-0" />
-                <span className="font-semibold text-gray-800 text-sm">
-                  {levelGroup.levelName}
-                </span>
-                {levelGroup.programName && (
-                  <span className="text-xs text-gray-400 font-normal">
-                    · {levelGroup.programName}
+        {/* Accordion */}
+        <div className="divide-y divide-gray-100">
+          {levelGroups.map((levelGroup) => {
+            const isLevelOpen = expandedLevels.has(levelGroup.levelKey);
+            return (
+              <div key={levelGroup.levelKey}>
+                {/* Level row */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    toggleSet(
+                      expandedLevels,
+                      setExpandedLevels,
+                      levelGroup.levelKey,
+                    )
+                  }
+                  className="w-full flex items-center gap-3 px-5 py-3.5 bg-gray-50 hover:bg-gray-100 transition-colors text-left cursor-pointer"
+                >
+                  <ChevronRight
+                    size={16}
+                    className={cn(
+                      "flex-shrink-0 transition-transform text-gray-400",
+                      isLevelOpen && "rotate-90",
+                    )}
+                  />
+                  <GraduationCap
+                    size={17}
+                    className="text-red-600 flex-shrink-0"
+                  />
+                  <span className="font-semibold text-gray-800 text-sm">
+                    {levelGroup.levelName}
                   </span>
-                )}
-                {(levelGroup.syllabusCode || levelGroup.syllabusVersion) && (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-[11px] font-semibold text-red-700">
-                    <span>{levelGroup.syllabusCode || "Syllabus"}</span>
-                    {levelGroup.syllabusVersion ? (
-                      <span className="text-red-500">{levelGroup.syllabusVersion}</span>
-                    ) : null}
-                  </span>
-                )}
-                <span className="ml-auto flex items-center gap-3 text-xs text-gray-400 font-medium whitespace-nowrap">
-                  {levelGroup.levelId && (
-                    <span
-                      role="button"
-                      onClick={(e) => { e.stopPropagation(); handleReorderSessionOrders(levelGroup); }}
-                      className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 transition-colors ${reorderingLevelId === levelGroup.levelKey ? "opacity-50 pointer-events-none" : ""}`}
-                      title="Cập nhật số thứ tự buổi cố định theo thứ tự hiện tại"
-                    >
-                      {reorderingLevelId === levelGroup.levelKey
-                        ? <Loader2 size={12} className="animate-spin" />
-                        : <RefreshCw size={12} />}
-                      Cập nhật thứ tự buổi
+                  {levelGroup.programName && (
+                    <span className="text-xs text-gray-400 font-normal">
+                      · {levelGroup.programName}
                     </span>
                   )}
-                  {levelGroup.totalItems} mẫu · {levelGroup.modules.length} module
-                </span>
-              </button>
+                  {(levelGroup.syllabusCode || levelGroup.syllabusVersion) && (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-[11px] font-semibold text-red-700">
+                      <span>{levelGroup.syllabusCode || "Syllabus"}</span>
+                      {levelGroup.syllabusVersion ? (
+                        <span className="text-red-500">
+                          {levelGroup.syllabusVersion}
+                        </span>
+                      ) : null}
+                    </span>
+                  )}
+                  <span className="ml-auto flex items-center gap-3 text-xs text-gray-400 font-medium whitespace-nowrap">
+                    {levelGroup.levelId && (
+                      <span
+                        role="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleReorderSessionOrders(levelGroup);
+                        }}
+                        className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 transition-colors ${reorderingLevelId === levelGroup.levelKey ? "opacity-50 pointer-events-none" : ""}`}
+                        title="Cập nhật số thứ tự buổi cố định theo thứ tự hiện tại"
+                      >
+                        {reorderingLevelId === levelGroup.levelKey ? (
+                          <Loader2 size={12} className="animate-spin" />
+                        ) : (
+                          <RefreshCw size={12} />
+                        )}
+                        Cập nhật thứ tự buổi
+                      </span>
+                    )}
+                    {levelGroup.totalItems} mẫu · {levelGroup.modules.length}{" "}
+                    module
+                  </span>
+                </button>
 
-              {isLevelOpen && (
-                <div className="divide-y divide-gray-100">
-                  <DndContext
-                    sensors={lessonSensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={(event) => {
-                      const { active, over } = event;
-                      if (!over || active.id === over.id) return;
-                      const overrideKeys = localModuleOrder[levelGroup.levelKey];
-                      const currentKeys = overrideKeys ?? levelGroup.modules.map((m) => m.moduleKey);
-                      const oldIdx = currentKeys.indexOf(String(active.id));
-                      const newIdx = currentKeys.indexOf(String(over.id));
-                      if (oldIdx < 0 || newIdx < 0) return;
-                      setLocalModuleOrder((prev) => ({
-                        ...prev,
-                        [levelGroup.levelKey]: arrayMove(currentKeys, oldIdx, newIdx),
-                      }));
-                    }}
-                  >
-                    <SortableContext
-                      items={levelGroup.modules.map((m) => m.moduleKey)}
-                      strategy={verticalListSortingStrategy}
+                {isLevelOpen && (
+                  <div className="divide-y divide-gray-100">
+                    <DndContext
+                      sensors={lessonSensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={(event) => {
+                        const { active, over } = event;
+                        if (!over || active.id === over.id) return;
+                        const overrideKeys =
+                          localModuleOrder[levelGroup.levelKey];
+                        const currentKeys =
+                          overrideKeys ??
+                          levelGroup.modules.map((m) => m.moduleKey);
+                        const oldIdx = currentKeys.indexOf(String(active.id));
+                        const newIdx = currentKeys.indexOf(String(over.id));
+                        if (oldIdx < 0 || newIdx < 0) return;
+                        setLocalModuleOrder((prev) => ({
+                          ...prev,
+                          [levelGroup.levelKey]: arrayMove(
+                            currentKeys,
+                            oldIdx,
+                            newIdx,
+                          ),
+                        }));
+                      }}
                     >
-                      {(() => {
-                        const overrideKeys = localModuleOrder[levelGroup.levelKey];
-                        const displayedModules = overrideKeys
-                          ? overrideKeys.map((k) => levelGroup.modules.find((m) => m.moduleKey === k)).filter(Boolean) as typeof levelGroup.modules
-                          : levelGroup.modules;
-                        return displayedModules.map((mod, modIdx) => {
-                          const isModOpen = expandedModules.has(mod.moduleKey);
-                          return (
-                            <SortableModuleAccordionItem
-                              key={mod.moduleKey}
-                              moduleKey={mod.moduleKey}
-                              moduleName={mod.moduleName}
-                              moduleCode={mod.moduleCode}
-                              totalItems={mod.totalItems}
-                              unitCount={mod.units.length}
-                              orphanCount={mod.orphans.length}
-                              modIdx={modIdx}
-                              isOpen={isModOpen}
-                              onToggle={() => toggleSet(expandedModules, setExpandedModules, mod.moduleKey)}
-                            >
-
-                        {isModOpen && (
-                          <div className="divide-y divide-gray-50 border-l-2 border-red-100">
-                            <DndContext
-                              sensors={lessonSensors}
-                              collisionDetection={closestCenter}
-                              onDragEnd={async (event) => {
-                                const { active, over } = event;
-                                if (!over || active.id === over.id) return;
-                                const overrideKeys = localUnitOrder[mod.moduleKey];
-                                const currentKeys = overrideKeys ?? mod.units.map((u) => u.unitKey);
-                                const oldIdx = currentKeys.indexOf(String(active.id));
-                                const newIdx = currentKeys.indexOf(String(over.id));
-                                if (oldIdx < 0 || newIdx < 0) return;
-                                const reorderedKeys = arrayMove(currentKeys, oldIdx, newIdx);
-                                setLocalUnitOrder((prev) => ({ ...prev, [mod.moduleKey]: reorderedKeys }));
-                                const realItems = reorderedKeys
-                                  .filter((k) => !k.includes("__title__"))
-                                  .map((k, i) => ({ id: k, orderIndex: i }));
-                                if (realItems.length > 0) {
-                                  await reorderLessonPlanUnits(mod.moduleKey, realItems);
-                                  const res = await getLessonPlanUnits(mod.moduleKey);
-                                  if (res.isSuccess) setModuleUnitsMap((prev) => ({ ...prev, [mod.moduleKey]: res.data }));
+                      <SortableContext
+                        items={levelGroup.modules.map((m) => m.moduleKey)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        {(() => {
+                          const overrideKeys =
+                            localModuleOrder[levelGroup.levelKey];
+                          const displayedModules = overrideKeys
+                            ? (overrideKeys
+                                .map((k) =>
+                                  levelGroup.modules.find(
+                                    (m) => m.moduleKey === k,
+                                  ),
+                                )
+                                .filter(Boolean) as typeof levelGroup.modules)
+                            : levelGroup.modules;
+                          return displayedModules.map((mod, modIdx) => {
+                            const isModOpen = expandedModules.has(
+                              mod.moduleKey,
+                            );
+                            return (
+                              <SortableModuleAccordionItem
+                                key={mod.moduleKey}
+                                moduleKey={mod.moduleKey}
+                                moduleName={mod.moduleName}
+                                moduleCode={mod.moduleCode}
+                                totalItems={mod.totalItems}
+                                unitCount={mod.units.length}
+                                orphanCount={mod.orphans.length}
+                                modIdx={modIdx}
+                                isOpen={isModOpen}
+                                onToggle={() =>
+                                  toggleSet(
+                                    expandedModules,
+                                    setExpandedModules,
+                                    mod.moduleKey,
+                                  )
                                 }
-                              }}
-                            >
-                              <SortableContext
-                                items={mod.units.map((u) => u.unitKey)}
-                                strategy={verticalListSortingStrategy}
                               >
-                                {(() => {
-                                  const overrideKeys = localUnitOrder[mod.moduleKey];
-                                  const displayedUnits = overrideKeys
-                                    ? overrideKeys.map((k) => mod.units.find((u) => u.unitKey === k)).filter(Boolean) as typeof mod.units
-                                    : mod.units;
-                                  return displayedUnits.map((unitGroup) => {
-                                    const isUnitOpen = expandedUnits.has(unitGroup.unitKey);
-                                    return (
-                                      <SortableUnitAccordionItem
-                                        key={unitGroup.unitKey}
-                                        unitGroup={unitGroup}
-                                        moduleKey={mod.moduleKey}
-                                        isOpen={isUnitOpen}
-                                        onToggle={() => toggleSet(expandedUnits, setExpandedUnits, unitGroup.unitKey)}
-                                        onChanged={async () => {
-                                          const res = await getLessonPlanUnits(mod.moduleKey);
-                                          if (res.isSuccess) setModuleUnitsMap((prev) => ({ ...prev, [mod.moduleKey]: res.data }));
-                                        }}
-                                        onImportWord={handleImportWordClick}
-                                        importing={importTarget?.unitKey === unitGroup.unitKey && importing}
-                                      >
-                                        {isUnitOpen && (() => {
-                                          const overrideIds = localLessonOrder[unitGroup.unitKey];
-                                          const displayItems = overrideIds
-                                            ? overrideIds.map((id) => unitGroup.items.find((it) => it.id === id)).filter(Boolean) as typeof unitGroup.items
-                                            : unitGroup.items;
-                                          const isReal = !unitGroup.isLegacy;
-
-                                          async function handleLessonDragEnd(event: DragEndEvent) {
-                                            const { active, over } = event;
-                                            if (!over || active.id === over.id) return;
-                                            const oldIdx = displayItems.findIndex((it) => it.id === active.id);
-                                            const newIdx = displayItems.findIndex((it) => it.id === over.id);
-                                            const reordered = arrayMove(displayItems, oldIdx, newIdx);
-                                            setLocalLessonOrder((prev) => ({
+                                {isModOpen && (
+                                  <div className="divide-y divide-gray-50 border-l-2 border-red-100">
+                                    <DndContext
+                                      sensors={lessonSensors}
+                                      collisionDetection={closestCenter}
+                                      onDragEnd={async (event) => {
+                                        const { active, over } = event;
+                                        if (!over || active.id === over.id)
+                                          return;
+                                        const overrideKeys =
+                                          localUnitOrder[mod.moduleKey];
+                                        const currentKeys =
+                                          overrideKeys ??
+                                          mod.units.map((u) => u.unitKey);
+                                        const oldIdx = currentKeys.indexOf(
+                                          String(active.id),
+                                        );
+                                        const newIdx = currentKeys.indexOf(
+                                          String(over.id),
+                                        );
+                                        if (oldIdx < 0 || newIdx < 0) return;
+                                        const reorderedKeys = arrayMove(
+                                          currentKeys,
+                                          oldIdx,
+                                          newIdx,
+                                        );
+                                        setLocalUnitOrder((prev) => ({
+                                          ...prev,
+                                          [mod.moduleKey]: reorderedKeys,
+                                        }));
+                                        const realItems = reorderedKeys
+                                          .filter(
+                                            (k) => !k.includes("__title__"),
+                                          )
+                                          .map((k, i) => ({
+                                            id: k,
+                                            orderIndex: i,
+                                          }));
+                                        if (realItems.length > 0) {
+                                          await reorderLessonPlanUnits(
+                                            mod.moduleKey,
+                                            realItems,
+                                          );
+                                          const res = await getLessonPlanUnits(
+                                            mod.moduleKey,
+                                          );
+                                          if (res.isSuccess)
+                                            setModuleUnitsMap((prev) => ({
                                               ...prev,
-                                              [unitGroup.unitKey]: reordered.map((it) => it.id),
+                                              [mod.moduleKey]: res.data,
                                             }));
-                                            await reorderLessonsInUnit(
-                                              unitGroup.unitKey,
-                                              reordered.map((it, i) => ({ id: it.id, orderIndexInUnit: i })),
-                                            );
-                                            // Auto-update sessionOrder across entire level (silent)
-                                            if (levelGroup.levelId) {
-                                              const modKeys = localModuleOrder[levelGroup.levelKey];
-                                              const orderedMods = modKeys
-                                                ? modKeys.map((k) => levelGroup.modules.find((m) => m.moduleKey === k)).filter(Boolean) as typeof levelGroup.modules
-                                                : levelGroup.modules;
-                                              const sessionItems: { id: string; sessionOrder: number }[] = [];
-                                              let order = 1;
-                                              for (const m of orderedMods) {
-                                                const uKeys = localUnitOrder[m.moduleKey];
-                                                const orderedUnits = uKeys
-                                                  ? uKeys.map((k) => m.units.find((u) => u.unitKey === k)).filter(Boolean) as typeof m.units
-                                                  : m.units;
-                                                for (const u of orderedUnits) {
-                                                  const isThisUnit = u.unitKey === unitGroup.unitKey;
-                                                  const unitItems = isThisUnit
-                                                    ? reordered
-                                                    : (localLessonOrder[u.unitKey]
-                                                        ? localLessonOrder[u.unitKey].map((id) => u.items.find((it) => it.id === id)).filter(Boolean) as typeof u.items
-                                                        : u.items);
-                                                  for (const lesson of unitItems) {
-                                                    sessionItems.push({ id: lesson.id, sessionOrder: order++ });
+                                        }
+                                      }}
+                                    >
+                                      <SortableContext
+                                        items={mod.units.map((u) => u.unitKey)}
+                                        strategy={verticalListSortingStrategy}
+                                      >
+                                        {(() => {
+                                          const overrideKeys =
+                                            localUnitOrder[mod.moduleKey];
+                                          const displayedUnits = overrideKeys
+                                            ? (overrideKeys
+                                                .map((k) =>
+                                                  mod.units.find(
+                                                    (u) => u.unitKey === k,
+                                                  ),
+                                                )
+                                                .filter(
+                                                  Boolean,
+                                                ) as typeof mod.units)
+                                            : mod.units;
+                                          return displayedUnits.map(
+                                            (unitGroup) => {
+                                              const isUnitOpen =
+                                                expandedUnits.has(
+                                                  unitGroup.unitKey,
+                                                );
+                                              return (
+                                                <SortableUnitAccordionItem
+                                                  key={unitGroup.unitKey}
+                                                  unitGroup={unitGroup}
+                                                  moduleKey={mod.moduleKey}
+                                                  isOpen={isUnitOpen}
+                                                  onToggle={() =>
+                                                    toggleSet(
+                                                      expandedUnits,
+                                                      setExpandedUnits,
+                                                      unitGroup.unitKey,
+                                                    )
                                                   }
-                                                }
-                                                for (const orphan of m.orphans) {
-                                                  sessionItems.push({ id: orphan.id, sessionOrder: order++ });
-                                                }
-                                              }
-                                              await reorderLessonPlanTemplateSessionOrders(levelGroup.levelId, sessionItems);
-                                              onRefresh();
-                                            }
-                                          }
-
-                                          return (
-                                            <div className="overflow-x-auto border-l-2 border-orange-100">
-                                              <DndContext
-                                                sensors={lessonSensors}
-                                                collisionDetection={closestCenter}
-                                                onDragEnd={handleLessonDragEnd}
-                                              >
-                                                <SortableContext
-                                                  items={displayItems.map((it) => it.id)}
-                                                  strategy={verticalListSortingStrategy}
+                                                  onChanged={async () => {
+                                                    const res =
+                                                      await getLessonPlanUnits(
+                                                        mod.moduleKey,
+                                                      );
+                                                    if (res.isSuccess)
+                                                      setModuleUnitsMap(
+                                                        (prev) => ({
+                                                          ...prev,
+                                                          [mod.moduleKey]:
+                                                            res.data,
+                                                        }),
+                                                      );
+                                                  }}
+                                                  onImportWord={
+                                                    handleImportWordClick
+                                                  }
+                                                  importing={
+                                                    importTarget?.unitKey ===
+                                                      unitGroup.unitKey &&
+                                                    importing
+                                                  }
                                                 >
-                                                  <table className="w-full">
-                                                    <tbody className="divide-y divide-gray-50">
-                                                      {displayItems.map((item) => (
-                                                        <SortableLessonRow
-                                                          key={item.id}
-                                                          item={item}
-                                                          onOpenAttachment={onOpenAttachment}
-                                                          onOpenDetail={onOpenDetail}
-                                                          onEdit={onEdit}
-                                                          onDelete={handleDeleteLesson}
-                                                          isReal={isReal}
-                                                          onSessionOrderChange={handleSessionOrderChange}
-                                                        />
-                                                      ))}
-                                                    </tbody>
-                                                  </table>
-                                                </SortableContext>
-                                              </DndContext>
-                                            </div>
+                                                  {isUnitOpen &&
+                                                    (() => {
+                                                      const overrideIds =
+                                                        localLessonOrder[
+                                                          unitGroup.unitKey
+                                                        ];
+                                                      const displayItems =
+                                                        overrideIds
+                                                          ? (overrideIds
+                                                              .map((id) =>
+                                                                unitGroup.items.find(
+                                                                  (it) =>
+                                                                    it.id ===
+                                                                    id,
+                                                                ),
+                                                              )
+                                                              .filter(
+                                                                Boolean,
+                                                              ) as typeof unitGroup.items)
+                                                          : unitGroup.items;
+                                                      const isReal =
+                                                        !unitGroup.isLegacy;
+
+                                                      async function handleLessonDragEnd(
+                                                        event: DragEndEvent,
+                                                      ) {
+                                                        const { active, over } =
+                                                          event;
+                                                        if (
+                                                          !over ||
+                                                          active.id === over.id
+                                                        )
+                                                          return;
+                                                        const oldIdx =
+                                                          displayItems.findIndex(
+                                                            (it) =>
+                                                              it.id ===
+                                                              active.id,
+                                                          );
+                                                        const newIdx =
+                                                          displayItems.findIndex(
+                                                            (it) =>
+                                                              it.id === over.id,
+                                                          );
+                                                        const reordered =
+                                                          arrayMove(
+                                                            displayItems,
+                                                            oldIdx,
+                                                            newIdx,
+                                                          );
+                                                        setLocalLessonOrder(
+                                                          (prev) => ({
+                                                            ...prev,
+                                                            [unitGroup.unitKey]:
+                                                              reordered.map(
+                                                                (it) => it.id,
+                                                              ),
+                                                          }),
+                                                        );
+                                                        await reorderLessonsInUnit(
+                                                          unitGroup.unitKey,
+                                                          reordered.map(
+                                                            (it, i) => ({
+                                                              id: it.id,
+                                                              orderIndexInUnit:
+                                                                i,
+                                                            }),
+                                                          ),
+                                                        );
+                                                        // Auto-update sessionOrder across entire level (silent)
+                                                        if (
+                                                          levelGroup.levelId
+                                                        ) {
+                                                          const modKeys =
+                                                            localModuleOrder[
+                                                              levelGroup
+                                                                .levelKey
+                                                            ];
+                                                          const orderedMods =
+                                                            modKeys
+                                                              ? (modKeys
+                                                                  .map((k) =>
+                                                                    levelGroup.modules.find(
+                                                                      (m) =>
+                                                                        m.moduleKey ===
+                                                                        k,
+                                                                    ),
+                                                                  )
+                                                                  .filter(
+                                                                    Boolean,
+                                                                  ) as typeof levelGroup.modules)
+                                                              : levelGroup.modules;
+                                                          const sessionItems: {
+                                                            id: string;
+                                                            sessionOrder: number;
+                                                          }[] = [];
+                                                          let order = 1;
+                                                          for (const m of orderedMods) {
+                                                            const uKeys =
+                                                              localUnitOrder[
+                                                                m.moduleKey
+                                                              ];
+                                                            const orderedUnits =
+                                                              uKeys
+                                                                ? (uKeys
+                                                                    .map((k) =>
+                                                                      m.units.find(
+                                                                        (u) =>
+                                                                          u.unitKey ===
+                                                                          k,
+                                                                      ),
+                                                                    )
+                                                                    .filter(
+                                                                      Boolean,
+                                                                    ) as typeof m.units)
+                                                                : m.units;
+                                                            for (const u of orderedUnits) {
+                                                              const isThisUnit =
+                                                                u.unitKey ===
+                                                                unitGroup.unitKey;
+                                                              const unitItems =
+                                                                isThisUnit
+                                                                  ? reordered
+                                                                  : localLessonOrder[
+                                                                        u
+                                                                          .unitKey
+                                                                      ]
+                                                                    ? (localLessonOrder[
+                                                                        u
+                                                                          .unitKey
+                                                                      ]
+                                                                        .map(
+                                                                          (
+                                                                            id,
+                                                                          ) =>
+                                                                            u.items.find(
+                                                                              (
+                                                                                it,
+                                                                              ) =>
+                                                                                it.id ===
+                                                                                id,
+                                                                            ),
+                                                                        )
+                                                                        .filter(
+                                                                          Boolean,
+                                                                        ) as typeof u.items)
+                                                                    : u.items;
+                                                              for (const lesson of unitItems) {
+                                                                sessionItems.push(
+                                                                  {
+                                                                    id: lesson.id,
+                                                                    sessionOrder:
+                                                                      order++,
+                                                                  },
+                                                                );
+                                                              }
+                                                            }
+                                                            for (const orphan of m.orphans) {
+                                                              sessionItems.push(
+                                                                {
+                                                                  id: orphan.id,
+                                                                  sessionOrder:
+                                                                    order++,
+                                                                },
+                                                              );
+                                                            }
+                                                          }
+                                                          await reorderLessonPlanTemplateSessionOrders(
+                                                            levelGroup.levelId,
+                                                            sessionItems,
+                                                          );
+                                                          onRefresh();
+                                                        }
+                                                      }
+
+                                                      return (
+                                                        <div className="overflow-x-auto border-l-2 border-orange-100">
+                                                          <DndContext
+                                                            sensors={
+                                                              lessonSensors
+                                                            }
+                                                            collisionDetection={
+                                                              closestCenter
+                                                            }
+                                                            onDragEnd={
+                                                              handleLessonDragEnd
+                                                            }
+                                                          >
+                                                            <SortableContext
+                                                              items={displayItems.map(
+                                                                (it) => it.id,
+                                                              )}
+                                                              strategy={
+                                                                verticalListSortingStrategy
+                                                              }
+                                                            >
+                                                              <table className="w-full">
+                                                                <tbody className="divide-y divide-gray-50">
+                                                                  {displayItems.map(
+                                                                    (item) => (
+                                                                      <SortableLessonRow
+                                                                        key={
+                                                                          item.id
+                                                                        }
+                                                                        item={
+                                                                          item
+                                                                        }
+                                                                        onOpenAttachment={
+                                                                          onOpenAttachment
+                                                                        }
+                                                                        onOpenDetail={
+                                                                          onOpenDetail
+                                                                        }
+                                                                        onEdit={
+                                                                          onEdit
+                                                                        }
+                                                                        onDelete={
+                                                                          handleDeleteLesson
+                                                                        }
+                                                                        isReal={
+                                                                          isReal
+                                                                        }
+                                                                        onSessionOrderChange={
+                                                                          handleSessionOrderChange
+                                                                        }
+                                                                      />
+                                                                    ),
+                                                                  )}
+                                                                </tbody>
+                                                              </table>
+                                                            </SortableContext>
+                                                          </DndContext>
+                                                        </div>
+                                                      );
+                                                    })()}
+                                                </SortableUnitAccordionItem>
+                                              );
+                                            },
                                           );
                                         })()}
-                                      </SortableUnitAccordionItem>
-                                    );
-                                  });
-                                })()}
-                              </SortableContext>
-                            </DndContext>
-                            {/* Orphan lessons — not yet assigned to a unit */}
-                            {mod.orphans.length > 0 && (
-                              <div>
-                                <div className="flex items-center gap-2 pl-14 pr-5 py-2 bg-orange-50/50 border-l-2 border-orange-300 text-xs text-orange-600 font-medium">
-                                  <BookOpenCheck size={12} className="flex-shrink-0" />
-                                  Chưa phân unit ({mod.orphans.length} bài)
-                                </div>
-                                <div className="overflow-x-auto border-l-2 border-orange-100">
-                                  <table className="w-full">
-                                    <tbody className="divide-y divide-gray-50">
-                                      {mod.orphans.map((item) => (
-                                        <tr
-                                          key={item.id}
-                                          className="hover:bg-orange-50/30 transition-colors"
-                                        >
-                                          <td className="pl-16 pr-4 py-3">
-                                            <div className="flex items-center gap-2">
-                                              <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-orange-400 flex items-center justify-center">
-                                                <BookOpenCheck size={13} className="text-white" />
-                                              </div>
-                                              <div>
-                                                <div className="text-sm font-semibold text-gray-900">
-                                                  {getTemplateDisplayTitle(item)}
-                                                </div>
-                                                <div className="mt-0.5 text-xs text-gray-400">
-                                                  {getTemplateDisplaySubtitle(item)}
-                                                </div>
-                                              </div>
-                                            </div>
-                                          </td>
-                                          <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
-                                            <div className="flex items-center gap-1.5">
-                                              <CalendarDays size={13} className="text-orange-400" />
-                                              <span>Buổi {item.sessionOrder ?? item.sessionIndex ?? "-"}</span>
-                                            </div>
-                                          </td>
-                                          <td className="px-4 py-3 text-right whitespace-nowrap">
-                                            <div className="flex justify-end items-center gap-2.5">
-                                              {item.attachment && (
-                                                <button
-                                                  type="button"
-                                                  onClick={() => onOpenAttachment(item.attachment)}
-                                                  className="text-blue-500 hover:text-blue-700 transition-colors cursor-pointer"
-                                                  title="Mở file"
+                                      </SortableContext>
+                                    </DndContext>
+                                    {/* Orphan lessons — not yet assigned to a unit */}
+                                    {mod.orphans.length > 0 && (
+                                      <div>
+                                        <div className="flex items-center gap-2 pl-14 pr-5 py-2 bg-orange-50/50 border-l-2 border-orange-300 text-xs text-orange-600 font-medium">
+                                          <BookOpenCheck
+                                            size={12}
+                                            className="flex-shrink-0"
+                                          />
+                                          Chưa phân unit ({mod.orphans.length}{" "}
+                                          bài)
+                                        </div>
+                                        <div className="overflow-x-auto border-l-2 border-orange-100">
+                                          <table className="w-full">
+                                            <tbody className="divide-y divide-gray-50">
+                                              {mod.orphans.map((item) => (
+                                                <tr
+                                                  key={item.id}
+                                                  className="hover:bg-orange-50/30 transition-colors"
                                                 >
-                                                  <Paperclip size={14} />
-                                                </button>
-                                              )}
-                                              <button
-                                                type="button"
-                                                onClick={() => onOpenDetail(item)}
-                                                className="text-gray-400 hover:text-red-600 transition-colors cursor-pointer"
-                                                title="Xem chi tiết"
-                                              >
-                                                <Eye size={14} />
-                                              </button>
-                                              <button
-                                                type="button"
-                                                onClick={() => onEdit(item)}
-                                                className="text-gray-400 hover:text-amber-600 transition-colors cursor-pointer"
-                                                title="Chỉnh sửa"
-                                              >
-                                                <Pencil size={14} />
-                                              </button>
-                                              <button
-                                                type="button"
-                                                onClick={() => handleDeleteLesson(item)}
-                                                className="text-gray-300 hover:text-red-500 transition-colors cursor-pointer"
-                                                title="Xóa lesson"
-                                              >
-                                                <Trash2 size={14} />
-                                              </button>
-                                            </div>
-                                          </td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                            </SortableModuleAccordionItem>
-                          );
-                        });
-                      })()}
-                    </SortableContext>
-                  </DndContext>
-                </div>
-              )}
-            </div>
-          );
-        })}
+                                                  <td className="pl-16 pr-4 py-3">
+                                                    <div className="flex items-center gap-2">
+                                                      <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-orange-400 flex items-center justify-center">
+                                                        <BookOpenCheck
+                                                          size={13}
+                                                          className="text-white"
+                                                        />
+                                                      </div>
+                                                      <div>
+                                                        <div className="text-sm font-semibold text-gray-900">
+                                                          {getTemplateDisplayTitle(
+                                                            item,
+                                                          )}
+                                                        </div>
+                                                        <div className="mt-0.5 text-xs text-gray-400">
+                                                          {getTemplateDisplaySubtitle(
+                                                            item,
+                                                          )}
+                                                        </div>
+                                                      </div>
+                                                    </div>
+                                                  </td>
+                                                  <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
+                                                    <div className="flex items-center gap-1.5">
+                                                      <CalendarDays
+                                                        size={13}
+                                                        className="text-orange-400"
+                                                      />
+                                                      <span>
+                                                        Buổi{" "}
+                                                        {item.sessionOrder ??
+                                                          item.sessionIndex ??
+                                                          "-"}
+                                                      </span>
+                                                    </div>
+                                                  </td>
+                                                  <td className="px-4 py-3 text-right whitespace-nowrap">
+                                                    <div className="flex justify-end items-center gap-2.5">
+                                                      {item.attachment && (
+                                                        <button
+                                                          type="button"
+                                                          onClick={() =>
+                                                            onOpenAttachment(
+                                                              item.attachment,
+                                                            )
+                                                          }
+                                                          className="text-blue-500 hover:text-blue-700 transition-colors cursor-pointer"
+                                                          title="Mở file"
+                                                        >
+                                                          <Paperclip
+                                                            size={14}
+                                                          />
+                                                        </button>
+                                                      )}
+                                                      <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                          onOpenDetail(item)
+                                                        }
+                                                        className="text-gray-400 hover:text-red-600 transition-colors cursor-pointer"
+                                                        title="Xem chi tiết"
+                                                      >
+                                                        <Eye size={14} />
+                                                      </button>
+                                                      <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                          onEdit(item)
+                                                        }
+                                                        className="text-gray-400 hover:text-amber-600 transition-colors cursor-pointer"
+                                                        title="Chỉnh sửa"
+                                                      >
+                                                        <Pencil size={14} />
+                                                      </button>
+                                                      <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                          handleDeleteLesson(
+                                                            item,
+                                                          )
+                                                        }
+                                                        className="text-gray-300 hover:text-red-500 transition-colors cursor-pointer"
+                                                        title="Xóa lesson"
+                                                      >
+                                                        <Trash2 size={14} />
+                                                      </button>
+                                                    </div>
+                                                  </td>
+                                                </tr>
+                                              ))}
+                                            </tbody>
+                                          </table>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </SortableModuleAccordionItem>
+                            );
+                          });
+                        })()}
+                      </SortableContext>
+                    </DndContext>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
-    </div>
-
     </>
   );
 }
@@ -4215,6 +5516,7 @@ function SyllabusView({
   onEdit,
   onOpenPlanDetail,
   onOpenTemplateDetail,
+  selectedSessionId,
 }: {
   scope: WorkspaceScope;
   syllabus: ClassLessonPlanSyllabus | null;
@@ -4226,6 +5528,7 @@ function SyllabusView({
   onEdit: (session: ClassLessonPlanSyllabusSession) => void;
   onOpenPlanDetail: (lessonPlanId: string) => void;
   onOpenTemplateDetail?: (templateId: string) => void;
+  selectedSessionId?: string | null;
 }) {
   if (!syllabus) {
     return (
@@ -4245,391 +5548,1154 @@ function SyllabusView({
     );
   }
 
+  const selectedSession = selectedSessionId
+    ? items.find((s) => s.sessionId === selectedSessionId)
+    : null;
+  const linkedSessionIndices = syllabus.sessions
+    .filter((session) => hasSessionTemplateLinkage(session))
+    .map((session) => session.sessionIndex)
+    .filter((index): index is number => Number.isFinite(index));
+  const lastLinkedSessionIndex = linkedSessionIndices.length
+    ? Math.max(...linkedSessionIndices)
+    : null;
+
   return (
     <div className="space-y-5">
-      {/* Modern Class Header Card */}
-      <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-red-600 via-red-600 to-red-700 p-6 shadow-xl transition-all duration-300 hover:shadow-2xl">
-        <div className="absolute -right-20 -top-20 h-40 w-40 rounded-full bg-white/10 blur-3xl" />
-        <div className="absolute -bottom-20 -left-20 h-40 w-40 rounded-full bg-white/5 blur-3xl" />
+      {/* Session Detail Card - Only show if a session is selected */}
+      {selectedSession && (
+        <SessionDetailCard
+          scope={scope}
+          session={selectedSession}
+          templateMap={templateMap}
+          sharedTemplate={sharedTemplate}
+          onOpenSessionSyllabus={onOpenSessionSyllabus}
+          onCreate={onCreate}
+          onEdit={onEdit}
+          onOpenPlanDetail={onOpenPlanDetail}
+          onOpenTemplateDetail={onOpenTemplateDetail}
+          lastLinkedSessionIndex={lastLinkedSessionIndex}
+        />
+      )}
+    </div>
+  );
+}
 
-        <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <div className="rounded-xl bg-white/20 p-2 backdrop-blur-sm">
-                <GraduationCap size={20} className="text-white" />
-              </div>
-              <span className="text-sm font-medium text-red-100">
-                Giáo án lớp học
+// Session Detail Card Component
+function SessionDetailCard({
+  scope,
+  session,
+  templateMap,
+  sharedTemplate,
+  onOpenSessionSyllabus,
+  onCreate,
+  onEdit,
+  onOpenPlanDetail,
+  onOpenTemplateDetail,
+  lastLinkedSessionIndex,
+}: {
+  scope: WorkspaceScope;
+  session: ClassLessonPlanSyllabusSession;
+  templateMap: Map<string, LessonPlanTemplate>;
+  sharedTemplate?: LessonPlanTemplate;
+  onOpenSessionSyllabus: (session: ClassLessonPlanSyllabusSession) => void;
+  onCreate: (session: ClassLessonPlanSyllabusSession) => void;
+  onEdit: (session: ClassLessonPlanSyllabusSession) => void;
+  onOpenPlanDetail: (lessonPlanId: string) => void;
+  onOpenTemplateDetail?: (templateId: string) => void;
+  lastLinkedSessionIndex?: number | null;
+}) {
+  const hasTemplateLinkage = hasSessionTemplateLinkage(session);
+  const allowSharedTemplateFallback = Boolean(
+    !session.templateId &&
+      sharedTemplate?.id &&
+      (session.templateTitle ||
+        session.templateSyllabusContent ||
+        session.plannedContent),
+  );
+  const linkedTemplate = session.templateId
+    ? templateMap.get(session.templateId)
+    : undefined;
+  const fallbackTemplate = hasTemplateLinkage
+    ? pickSessionFallbackTemplate(
+        Array.from(templateMap.values()),
+        session,
+        allowSharedTemplateFallback ? sharedTemplate : undefined,
+      )
+    : undefined;
+  const resolvedTemplate =
+    linkedTemplate ||
+    fallbackTemplate;
+  const isSharedTemplateFallback = Boolean(
+    !session.templateId &&
+      fallbackTemplate?.id &&
+      sharedTemplate?.id &&
+      fallbackTemplate.id === sharedTemplate.id,
+  );
+  const templateBadgeLabel =
+    session.templateId || !isSharedTemplateFallback
+      ? "Có template"
+      : "Template chung";
+  const templateSubtitle =
+    session.templateId || !isSharedTemplateFallback
+      ? resolvedTemplate?.title
+      : `${resolvedTemplate?.title || "Template chung"} • áp dụng toàn bộ buổi`;
+  const templateHasStructuredContent = hasStructuredTemplateContent(
+    resolvedTemplate,
+  );
+  const hasTemplate = Boolean(
+    session.templateId ||
+    session.templateSyllabusContent ||
+    resolvedTemplate?.syllabusContent ||
+    templateHasStructuredContent,
+  );
+  const hasReport = Boolean(session.actualContent);
+  const isEditable = session.canEdit;
+  const hasPlan = Boolean(session.lessonPlanId);
+  const normalizedPlannedContent =
+    !isTrivialPlannedContent(session.plannedContent) &&
+    hasDisplayablePayload(session.plannedContent)
+      ? session.plannedContent
+      : null;
+  const plannedContentFallback =
+    session.templateSyllabusContent ||
+    resolvedTemplate?.syllabusContent ||
+    null;
+  const plannedContentDisplay =
+    normalizedPlannedContent || plannedContentFallback;
+  const canDisplayPlannedContent = Boolean(
+    plannedContentDisplay ||
+      (!normalizedPlannedContent && templateHasStructuredContent),
+  );
+  const plannedContentSubtitle = normalizedPlannedContent
+    ? "Giáo án sẽ được tạo hoặc cập nhật"
+    : plannedContentFallback
+      ? "Đang tham chiếu từ syllabus chuẩn"
+      : "Giáo án sẽ được tạo hoặc cập nhật";
+  const showMissingLinkageNotice =
+    !hasReport &&
+    !hasTemplate &&
+    !canDisplayPlannedContent &&
+    !hasTemplateLinkage;
+  const linkageCoverageMessage =
+    lastLinkedSessionIndex && lastLinkedSessionIndex > 0
+      ? `Dữ liệu lớp hiện mới có curriculum/lesson-plan linkage tới buổi ${lastLinkedSessionIndex}, nên buổi ${session.sessionIndex} chưa resolve được nội dung.`
+      : "Backend chưa trả curriculum/lesson-plan linkage cho buổi này.";
+
+  return (
+    <div
+      className={cn(
+        "group rounded-3xl transition-all duration-300 overflow-hidden",
+        hasReport
+          ? "bg-gradient-to-br from-emerald-50/80 via-white to-emerald-50/40 shadow-lg hover:shadow-xl"
+          : "bg-gradient-to-br from-white via-red-50/20 to-white shadow-md hover:shadow-xl",
+      )}
+    >
+
+
+      {/* Session Header */}
+      <div className="flex flex-col gap-5 border-b border-gray-100/50 px-7 py-6 lg:flex-row lg:items-start lg:justify-between">
+        {/* Left: Session Info & Badges */}
+        <div className="flex-1 space-y-4">
+          <div className="flex items-start gap-4">
+            {/* Session Number Badge */}
+            <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-red-500 to-red-600 shadow-lg ring-2 ring-red-500/20">
+              <span className="text-xl font-bold text-white">
+                {session.sessionIndex}
               </span>
             </div>
-            <div>
-              <h3 className="text-2xl font-bold text-white">
-                {syllabus.classCode || "Lớp chưa có mã"}
-              </h3>
-              {syllabus.classTitle && (
-                <p className="mt-1 text-base text-red-100">
-                  {syllabus.classTitle}
+
+            {/* Session Title & Date */}
+            <div className="pt-1">
+              <h4 className="text-2xl font-bold text-gray-900">
+                Buổi {session.sessionIndex}
+              </h4>
+              {normalizeDateValue(session.sessionDate) && (
+                <p className="mt-1 text-sm font-medium text-gray-500 flex items-center gap-1.5">
+                  <CalendarDays size={14} className="text-gray-400" />
+                  {formatDate(session.sessionDate, true)}
                 </p>
               )}
             </div>
-            <div className="flex flex-wrap gap-2 pt-2">
-              {syllabus.programName && (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-xs font-medium text-white backdrop-blur-sm">
-                  <BookOpenCheck size={12} />
-                  {syllabus.programName}
-                </span>
-              )}
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-xs font-medium text-white backdrop-blur-sm">
-                <CalendarDays size={12} />
-                {items.length} buổi học
-              </span>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-xs font-medium text-white backdrop-blur-sm">
-                <FileText size={12} />
-                {items.filter((s) => s.lessonPlanId).length}/{items.length} có
-                giáo án
-              </span>
-            </div>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <div className="rounded-xl bg-white/15 px-4 py-2 backdrop-blur-sm">
-              <div className="text-xs font-medium text-red-100">
-                Quyền truy cập
-              </div>
-              <div className="text-sm font-semibold text-white">
-                {scope === "teacher" ? "Giáo viên" : "Quản lý"}
-              </div>
-            </div>
+          {/* Status Badges - Horizontal scrollable */}
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {isEditable && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-emerald-100 to-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 border border-emerald-200/60 ring-1 ring-emerald-400/20">
+                <Pencil size={12} />
+                Có thể sửa
+              </span>
+            )}
+            {hasReport && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-emerald-100 to-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 border border-emerald-200/60 ring-1 ring-emerald-400/20">
+                <CheckCircle2 size={12} />
+                Đã báo cáo
+              </span>
+            )}
+            {hasPlan && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-blue-100 to-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 border border-blue-200/60 ring-1 ring-blue-400/20">
+                <FileText size={12} />
+                Có giáo án
+              </span>
+            )}
+            {hasTemplate && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-purple-100 to-purple-50 px-3 py-1.5 text-xs font-semibold text-purple-700 border border-purple-200/60 ring-1 ring-purple-400/20">
+                <FolderOpen size={12} />
+                {templateBadgeLabel}
+              </span>
+            )}
+            {!hasReport && hasPlan && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-100 to-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 border border-amber-200/60 ring-1 ring-amber-400/20">
+                <Clock3 size={12} />
+                Chưa báo cáo
+              </span>
+            )}
           </div>
         </div>
 
-        {syllabus.syllabusMetadata ? (
-          <details className="relative mt-5 group">
-            <summary className="cursor-pointer rounded-xl bg-white/10 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-white/20">
-              📋 Xem thông tin chung của syllabus
-            </summary>
-            <div className="mt-3 rounded-xl bg-white/10 p-4 backdrop-blur-sm">
-              <StructuredContent
-                value={syllabus.syllabusMetadata}
-                placeholder="Chưa có metadata."
-              />
-            </div>
-          </details>
-        ) : null}
+        {/* Right: Action Buttons */}
+        <div className="flex flex-wrap gap-2 lg:justify-end">
+          <button
+            type="button"
+            onClick={() => onOpenSessionSyllabus(session)}
+            className="inline-flex items-center gap-2 rounded-xl border border-gray-300/60 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-all hover:border-red-300 hover:bg-red-50 hover:text-red-700 hover:shadow-md cursor-pointer"
+          >
+            <BookOpenCheck size="16" />
+            Xem syllabus
+          </button>
+
+          {resolvedTemplate?.id && onOpenTemplateDetail && (
+            <button
+              type="button"
+              onClick={() => onOpenTemplateDetail(resolvedTemplate.id)}
+              className="inline-flex items-center gap-2 rounded-xl border border-gray-300/60 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-all hover:border-purple-300 hover:bg-purple-50 hover:text-purple-700 hover:shadow-md cursor-pointer"
+            >
+              <FolderOpen size="16" />
+              Template
+            </button>
+          )}
+
+          {hasPlan ? (
+            <button
+              type="button"
+              onClick={() => onOpenPlanDetail(session.lessonPlanId!)}
+              className="inline-flex items-center gap-2 rounded-xl border border-gray-300/60 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-all hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 hover:shadow-md cursor-pointer"
+            >
+              <Eye size="16" />
+              Chi tiết
+            </button>
+          ) : null}
+
+          {session.canEdit && (
+            scope === "teacher" ? (
+              <button
+                type="button"
+                onClick={() =>
+                  session.lessonPlanId ? onEdit(session) : onCreate(session)
+                }
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg cursor-pointer transition-all border border-transparent",
+                  hasReport
+                    ? "bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800"
+                    : "bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800",
+                )}
+              >
+                <ClipboardPen size={15} />
+                {hasReport ? "Cập nhật" : "Điền giáo án"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() =>
+                  session.lessonPlanId ? onEdit(session) : onCreate(session)
+                }
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg hover:from-red-700 hover:to-red-800 cursor-pointer transition-all border border-transparent"
+              >
+                {session.lessonPlanId ? (
+                  <Pencil size={15} />
+                ) : (
+                  <FilePlus2 size={15} />
+                )}
+                {session.lessonPlanId ? "Sửa" : "Tạo"}
+              </button>
+            )
+          )}
+        </div>
       </div>
 
-      {/* Session Cards Grid */}
-      <div className="grid gap-5">
-        {items.map((session) => {
-          const linkedTemplate = session.templateId
-            ? templateMap.get(session.templateId)
-            : undefined;
-          const resolvedTemplate =
-            linkedTemplate || (session.templateId ? undefined : sharedTemplate);
-          const hasTemplate = Boolean(
-            session.templateId ||
-            session.templateSyllabusContent ||
-            resolvedTemplate?.syllabusContent,
-          );
-          const hasReport = Boolean(session.actualContent);
-          const isEditable = session.canEdit;
-          const hasPlan = Boolean(session.lessonPlanId);
-          const normalizedPlannedContent =
-            !isTrivialPlannedContent(session.plannedContent) &&
-            hasDisplayablePayload(session.plannedContent)
-              ? session.plannedContent
-              : null;
-          const plannedContentFallback =
+      {/* Teacher Info - Modern Bar */}
+      <div className="border-b border-gray-100/50 bg-gradient-to-r from-gray-50/60 to-transparent px-7 py-4">
+        <div className="flex flex-wrap gap-6 text-sm">
+          <div className="flex items-center gap-3">
+            <div className="rounded-lg bg-gradient-to-br from-red-100 to-red-50 p-2 ring-1 ring-red-200/50">
+              <Users size="15" className="text-red-600" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-500  tracking-wide">Giáo viên dự kiến</p>
+              <p className="font-semibold text-gray-900">
+                {session.plannedTeacherName || "—"}
+              </p>
+            </div>
+          </div>
+          {session.actualTeacherName && (
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-gradient-to-br from-emerald-100 to-emerald-50 p-2 ring-1 ring-emerald-200/50">
+                <Users size="15" className="text-emerald-600" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-500  tracking-wide">Giáo viên thực tế</p>
+                <p className="font-semibold text-gray-900">
+                  {session.actualTeacherName}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Content Grid */}
+      <div className="p-7">
+        <div className="grid gap-5 lg:grid-cols-2">
+          {(session.templateTitle ||
+            resolvedTemplate?.title ||
             session.templateSyllabusContent ||
             resolvedTemplate?.syllabusContent ||
-            null;
-          const plannedContentDisplay =
-            normalizedPlannedContent || plannedContentFallback;
-          const plannedContentSubtitle = normalizedPlannedContent
-            ? "Giáo án sẽ được tạo hoặc cập nhật"
-            : plannedContentFallback
-              ? "Đang tham chiếu từ syllabus chuẩn"
-              : "Giáo án sẽ được tạo hoặc cập nhật";
-
-          return (
-            <div
-              key={session.sessionId}
-              className={cn(
-                "group rounded-2xl border transition-all duration-300 hover:shadow-lg",
-                hasReport
-                  ? "border-emerald-200 bg-gradient-to-br from-emerald-50/50 to-white"
-                  : "border-red-100 bg-white hover:border-red-200",
-              )}
-            >
-              {/* Session Header */}
-              <div className="flex flex-col gap-4 border-b border-gray-100 px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-red-500 to-red-600 shadow-md">
-                    <span className="text-lg font-bold text-white">
-                      {session.sessionIndex}
-                    </span>
-                  </div>
-
-                  <div>
-                    <h4 className="text-lg font-semibold text-gray-900">
-                      Buổi {session.sessionIndex}
-                    </h4>
-                    {normalizeDateValue(session.sessionDate) && (
-                      <p className="text-sm text-gray-500">
-                        {formatDate(session.sessionDate, true)}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="flex flex-wrap gap-1.5">
-                    {isEditable && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700">
-                        <Pencil size={11} />
-                        Có thể sửa
-                      </span>
-                    )}
-                    {hasPlan && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-700">
-                        <FileText size={11} />
-                        Có giáo án
-                      </span>
-                    )}
-                    {hasTemplate && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2.5 py-1 text-xs font-medium text-purple-700">
-                        <FolderOpen size={11} />
-                        {session.templateId ? "Có template" : "Template chung"}
-                      </span>
-                    )}
-                    {hasReport && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700">
-                        <ClipboardPen size={11} />
-                        Đã báo cáo
-                      </span>
-                    )}
-                    {!hasReport && hasPlan && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700">
-                        <Clock3 size={11} />
-                        Chưa báo cáo
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => onOpenSessionSyllabus(session)}
-                    className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 transition-all hover:border-red-200 hover:bg-red-50 hover:text-red-700"
-                  >
-                    <BookOpenCheck size="16" />
-                    Xem syllabus buổi
-                  </button>
-
-                  {resolvedTemplate?.id && onOpenTemplateDetail && (
-                    <button
-                      type="button"
-                      onClick={() => onOpenTemplateDetail(resolvedTemplate.id)}
-                      className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 transition-all hover:border-purple-200 hover:bg-purple-50 hover:text-purple-700"
-                    >
-                      <FolderOpen size="16" />
-                      Xem template gốc
-                    </button>
-                  )}
-
-                  {hasPlan ? (
-                    <button
-                      type="button"
-                      onClick={() => onOpenPlanDetail(session.lessonPlanId!)}
-                      className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
-                    >
-                      <Eye size="16" />
-                      Chi tiết
-                    </button>
-                  ) : null}
-                  {session.canEdit ? (
-                    scope === "teacher" ? (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          session.lessonPlanId
-                            ? onEdit(session)
-                            : onCreate(session)
-                        }
-                        className={cn(
-                          "inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-white hover:shadow-lg cursor-pointer",
-                          hasReport
-                            ? "bg-gradient-to-r from-emerald-600 to-emerald-700"
-                            : "bg-gradient-to-r from-red-600 to-red-700",
-                        )}
-                      >
-                        <ClipboardPen size={15} />
-                        {hasReport ? "Cập nhật giáo án" : "Điền giáo án"}
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          session.lessonPlanId
-                            ? onEdit(session)
-                            : onCreate(session)
-                        }
-                        className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-3 py-2 text-sm font-semibold text-white hover:shadow-lg cursor-pointer"
-                      >
-                        {session.lessonPlanId ? (
-                          <Pencil size={15} />
-                        ) : (
-                          <FilePlus2 size={15} />
-                        )}
-                        {session.lessonPlanId ? "Sửa giáo án" : "Tạo giáo án"}
-                      </button>
-                    )
-                  ) : null}
-                  {!session.canEdit &&
-                  (session.actualContent ||
-                    session.actualHomework ||
-                    session.teacherNotes) ? (
-                    <span className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
-                      <CheckCircle2 size={15} />
-                      Đã báo cáo
-                    </span>
-                  ) : null}
-                </div>
+            templateHasStructuredContent) && (
+            <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm flex flex-col ">
+              {/* Title Header */}
+              <div className="text-center px-8 py-4 bg-gradient-to-r from-purple-50 to-purple-50/50 border-b border-purple-200">
+                <h3 className="text-lg font-bold text-gray-900">Syllabus chuẩn</h3>
               </div>
 
-              {/* Teacher Info */}
-              <div className="border-b border-gray-100 bg-gray-50/50 px-6 py-3">
-                <div className="flex flex-wrap gap-6 text-sm">
-                  <div className="flex items-center gap-2">
-                    <div className="rounded-lg bg-red-100 p-1">
-                      <Users size="14" className="text-red-600" />
-                    </div>
-                    <span className="text-gray-600">Giáo viên dự kiến:</span>
-                    <span className="font-medium text-gray-900">
-                      {session.plannedTeacherName || "-"}
-                    </span>
+              {/* Document header */}
+              <div className="px-8 pt-5 pb-5 bg-gradient-to-b from-gray-50 to-white border-b border-gray-200">
+                <div className="flex justify-between text-[11px] text-gray-400 font-mono mb-4 pb-3 border-b border-dashed border-gray-300">
+                  <div className="space-y-1">
+                    <div>Date of preparation: ......./......../20......</div>
+                    <div>Date of teaching:&nbsp;&nbsp;&nbsp;&nbsp;......./......../20......</div>
                   </div>
-                  {session.actualTeacherName && (
-                    <div className="flex items-center gap-2">
-                      <div className="rounded-lg bg-emerald-100 p-1">
-                        <Users size="14" className="text-emerald-600" />
-                      </div>
-                      <span className="text-gray-600">Giáo viên thực tế:</span>
-                      <span className="font-medium text-gray-900">
-                        {session.actualTeacherName}
-                      </span>
-                    </div>
-                  )}
+                  <div className="space-y-1 text-right">
+                    <div>Teacher: <span className="font-sans font-medium text-gray-600">..............</span></div>
+                    <div>Class: ..............</div>
+                  </div>
                 </div>
+                {(session.templateTitle || resolvedTemplate?.title) && (
+                  <div className="text-center space-y-1.5 py-1">
+                    <div className="text-sm font-bold tracking-[0.18em] text-purple-600">
+                      {session.templateTitle || resolvedTemplate?.title}
+                    </div>
+                    <p className="text-sm text-gray-500">{templateSubtitle}</p>
+                  </div>
+                )}
               </div>
 
-              {/* Content Grid */}
-              <div className="p-6">
-                <div className="grid gap-5 lg:grid-cols-2">
-                  {(session.templateTitle ||
-                    resolvedTemplate?.title ||
+              {/* Content Sections */}
+              <div className="divide-y divide-gray-100">
+                {(() => {
+                  const {
+                    rawContent: syllabusContent,
+                    objectives,
+                    languageContent,
+                    vocabulary,
+                    grammar,
+                    methodology,
+                    teacherMaterials,
+                    studentMaterials,
+                    procedure,
+                    evaluation,
+                    homework,
+                  } = extractLessonPlanSections(
                     session.templateSyllabusContent ||
-                    resolvedTemplate?.syllabusContent) && (
-                    <ContentCard
-                      title="Syllabus chuẩn"
-                      subtitle={
-                        session.templateTitle ||
-                        (session.templateId
-                          ? resolvedTemplate?.title
-                          : `${resolvedTemplate?.title || "Template chung"} • áp dụng toàn bộ buổi`) ||
-                        "Nội dung template"
-                      }
-                      icon={<FolderOpen size="16" />}
-                      gradient="from-purple-50 to-white"
-                      borderColor="purple"
-                    >
-                      <StructuredContent
-                        value={
-                          session.templateSyllabusContent ||
-                          resolvedTemplate?.syllabusContent
-                        }
-                        placeholder="Chưa có nội dung template."
-                      />
-                    </ContentCard>
-                  )}
+                      resolvedTemplate?.syllabusContent ||
+                      "",
+                    resolvedTemplate,
+                  );
 
-                  <ContentCard
-                    title="Giáo án dự kiến"
-                    subtitle={plannedContentSubtitle}
-                    icon={<FileText size="16" />}
-                    gradient="from-red-50 to-white"
-                    borderColor="red"
-                  >
-                    <StructuredContent
-                      value={plannedContentDisplay}
-                      placeholder="Chưa có nội dung dự kiến."
-                    />
-                  </ContentCard>
-
-                  <ContentCard
-                    title={hasReport ? "Báo cáo buổi dạy" : "Nội dung thực tế"}
-                    subtitle={
-                      hasReport && session.actualTeacherName
-                        ? `Giáo viên: ${session.actualTeacherName}`
-                        : "Nội dung đã dạy thực tế"
-                    }
-                    icon={<ClipboardPen size="16" />}
-                    gradient={
-                      hasReport
-                        ? "from-emerald-50 to-white"
-                        : "from-gray-50 to-white"
-                    }
-                    borderColor={hasReport ? "emerald" : "gray"}
-                    badge={
-                      hasReport
-                        ? { text: "Đã báo cáo", color: "emerald" }
-                        : undefined
-                    }
-                  >
-                    <StructuredContent
-                      value={session.actualContent}
-                      placeholder="Chưa có nội dung thực tế."
-                    />
-                  </ContentCard>
-
-                  {(session.actualHomework || session.teacherNotes) && (
-                    <ContentCard
-                      title="Bài tập & Ghi chú"
-                      subtitle="Sau buổi học"
-                      icon={<Paperclip size="16" />}
-                      gradient="from-amber-50 to-white"
-                      borderColor="amber"
-                    >
-                      <div className="space-y-3">
-                        {session.actualHomework && (
-                          <div>
-                            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-amber-700">
-                              Bài tập về nhà
-                            </div>
-                            <StructuredContent
-                              value={session.actualHomework}
-                              placeholder=""
-                            />
+                  return (
+                    <>
+                      {/* A. Objectives */}
+                      {objectives && (
+                        <div className="flex">
+                          <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-emerald-50/70 border-r border-emerald-100">
+                            <span className="text-sm font-extrabold text-emerald-700">A</span>
                           </div>
-                        )}
-                        {session.teacherNotes && (
-                          <div>
-                            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-amber-700">
-                              Ghi chú giáo viên
-                            </div>
-                            <StructuredContent
-                              value={session.teacherNotes}
-                              placeholder=""
-                            />
+                          <div className="flex-1 px-6 py-4">
+                            <div className="text-[10px] font-bold tracking-[0.15em] text-emerald-700 mb-2">Objectives</div>
+                            <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{formatDetailsText(objectives)}</div>
                           </div>
-                        )}
-                      </div>
-                    </ContentCard>
-                  )}
+                        </div>
+                      )}
+
+                      {/* B. Language content */}
+                      {(languageContent || vocabulary || grammar) && (
+                        <div className="flex">
+                          <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-blue-50/70 border-r border-blue-100">
+                            <span className="text-sm font-extrabold text-blue-700">B</span>
+                          </div>
+                          <div className="flex-1 px-6 py-4">
+                            <div className="text-[10px] font-bold tracking-[0.15em] text-blue-700 mb-2">Language content</div>
+                            {languageContent && <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6 mb-2">{formatDetailsText(languageContent)}</div>}
+                            {vocabulary && <div className="text-sm text-gray-700 mb-1 whitespace-pre-wrap"><span className="font-semibold text-blue-600">Vocabulary: </span>{formatDetailsText(vocabulary)}</div>}
+                            {grammar && <div className="text-sm text-gray-700 whitespace-pre-wrap"><span className="font-semibold text-blue-600">Grammar: </span>{formatDetailsText(grammar)}</div>}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* C. Teaching methodology */}
+                      {methodology && (
+                        <div className="flex">
+                          <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-orange-50/70 border-r border-orange-100">
+                            <span className="text-sm font-extrabold text-orange-700">C</span>
+                          </div>
+                          <div className="flex-1 px-6 py-4">
+                            <div className="text-[10px] font-bold tracking-[0.15em] text-orange-700 mb-2">Teaching methodology</div>
+                            <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{formatDetailsText(methodology)}</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* D. Materials for teacher */}
+                      {teacherMaterials && (
+                        <div className="flex">
+                          <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-amber-50/70 border-r border-amber-100">
+                            <span className="text-sm font-extrabold text-amber-700">D</span>
+                          </div>
+                          <div className="flex-1 px-6 py-4">
+                            <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-amber-700 mb-2">Materials for teacher</div>
+                            <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{formatDetailsText(teacherMaterials)}</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* E. Materials for students */}
+                      {studentMaterials && (
+                        <div className="flex">
+                          <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-yellow-50/70 border-r border-yellow-100">
+                            <span className="text-sm font-extrabold text-yellow-600">E</span>
+                          </div>
+                          <div className="flex-1 px-6 py-4">
+                            <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-yellow-700 mb-2">Materials for students</div>
+                            <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{formatDetailsText(studentMaterials)}</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* F. Procedure */}
+                      {procedure && (
+                        <div className="flex">
+                          <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-teal-50/70 border-r border-teal-100">
+                            <span className="text-sm font-extrabold text-teal-700">F</span>
+                          </div>
+                          <div className="flex-1 px-6 py-4">
+                            <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-teal-700 mb-3">Procedure</div>
+                            {(() => {
+                              const rows = parseProcedureRows(procedure);
+                              if (rows.length === 0) {
+                                return (
+                                  <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{procedure}</div>
+                                );
+                              }
+                              return (
+                                <div className="rounded-xl border border-teal-200 overflow-hidden">
+                                  <div className="grid grid-cols-[3rem_10rem_1fr] bg-teal-50 border-b border-teal-200 text-[11px] font-semibold text-teal-700">
+                                    <div className="px-2 py-2 text-center border-r border-teal-200">Stages</div>
+                                    <div className="px-3 py-2 text-center border-r border-teal-200">Step</div>
+                                    <div className="px-3 py-2 text-left">Details</div>
+                                  </div>
+                                  <div className="divide-y divide-gray-100">
+                                    {rows.map((row, i) => (
+                                      <div key={i} className={cn("grid grid-cols-[3rem_10rem_1fr]", i % 2 === 0 ? "bg-white" : "bg-gray-50/50")}>
+                                        <div className="px-2 py-3 text-center text-sm font-bold text-gray-600 border-r border-gray-100 flex items-start justify-center pt-3">{row.stage}</div>
+                                        <div className="px-3 py-3 text-sm font-semibold text-gray-700 border-r border-gray-100 leading-5">{row.step}</div>
+                                        <div className="px-3 py-3 text-sm text-gray-700 leading-6 whitespace-pre-wrap">{formatDetailsText(row.details)}</div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* G. Evaluation */}
+                      {evaluation && (
+                        <div className="flex">
+                          <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-red-50/70 border-r border-red-100">
+                            <span className="text-sm font-extrabold text-red-700">G</span>
+                          </div>
+                          <div className="flex-1 px-6 py-4">
+                            <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-red-700 mb-2">Evaluation</div>
+                            <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{formatDetailsText(evaluation)}</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* H. Homework */}
+                      {homework && (
+                        <div className="flex">
+                          <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-pink-50/70 border-r border-pink-100">
+                            <span className="text-sm font-extrabold text-pink-700">H</span>
+                          </div>
+                          <div className="flex-1 px-6 py-4">
+                            <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-pink-700 mb-2">Homework</div>
+                            <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{formatDetailsText(homework)}</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Fallback for unstructured content */}
+                      {!objectives && !languageContent && !vocabulary && !grammar && !methodology && !teacherMaterials && !studentMaterials && !procedure && !evaluation && !homework && (
+                        (() => {
+                          // Parse plain text content for sections using keyword positions
+                          const parseContentSections = (text: string) => {
+                            const sections: Record<string, string> = {};
+                            
+                            // Define section keywords and their order
+                            const sectionKeywords = [
+                              { key: 'objectives', keywords: ['objectives', 'by the end of the lesson'] },
+                              { key: 'language', keywords: ['language content:', 'vocabulary:', 'grammar:'] },
+                              { key: 'methodology', keywords: ['teaching methodology', 'methodology'] },
+                              { key: 'teacherMaterials', keywords: ['materials for teacher'] },
+                              { key: 'studentMaterials', keywords: ['materials for students', 'materials for student'] },
+                              { key: 'procedure', keywords: ['procedure', 'stages |', 'stage'] },
+                              { key: 'evaluation', keywords: ['evaluation', 'assessment'] }
+                            ];
+                            
+                            // Find all section positions
+                            const sectionPositions: Array<{key: string; start: number; keyword: string}> = [];
+                            
+                            for (const section of sectionKeywords) {
+                              for (const keyword of section.keywords) {
+                                const index = text.toLowerCase().indexOf(keyword.toLowerCase());
+                                if (index !== -1) {
+                                  sectionPositions.push({key: section.key, start: index, keyword});
+                                  break; // Use first matching keyword
+                                }
+                              }
+                            }
+                            
+                            // Sort by position
+                            sectionPositions.sort((a, b) => a.start - b.start);
+                            
+                            // Extract content for each section
+                            for (let i = 0; i < sectionPositions.length; i++) {
+                              const current = sectionPositions[i];
+                              const next = sectionPositions[i + 1];
+                              const endPos = next ? next.start : text.length;
+                              const content = text.substring(current.start, endPos).trim();
+                              
+                              // Remove the keyword from the beginning
+                              const cleanedContent = content.replace(new RegExp(`^${current.keyword}[:\\s]*`, 'i'), '').trim();
+                              
+                              if (cleanedContent) {
+                                sections[current.key] = cleanedContent;
+                              }
+                            }
+                            
+                            return sections;
+                          };
+                          
+                          const parsedSections = parseContentSections(syllabusContent);
+                          const hasAnySections = Object.values(parsedSections).some(v => v.trim());
+                          
+                          if (hasAnySections) {
+                            return (
+                              <>
+                                {parsedSections.objectives && (
+                                  <div className="flex">
+                                    <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-emerald-50/70 border-r border-emerald-100">
+                                      <span className="text-sm font-extrabold text-emerald-700">A</span>
+                                    </div>
+                                    <div className="flex-1 px-6 py-4">
+                                      <div className="text-[10px] font-bold tracking-[0.15em] text-emerald-700 mb-2">Objectives</div>
+                                      <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{formatDetailsText(parsedSections.objectives)}</div>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {parsedSections.language && (
+                                  <div className="flex">
+                                    <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-blue-50/70 border-r border-blue-100">
+                                      <span className="text-sm font-extrabold text-blue-700">B</span>
+                                    </div>
+                                    <div className="flex-1 px-6 py-4">
+                                      <div className="text-[10px] font-bold tracking-[0.15em] text-blue-700 mb-2">Language content</div>
+                                      <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{formatDetailsText(parsedSections.language)}</div>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {parsedSections.methodology && (
+                                  <div className="flex">
+                                    <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-orange-50/70 border-r border-orange-100">
+                                      <span className="text-sm font-extrabold text-orange-700">C</span>
+                                    </div>
+                                    <div className="flex-1 px-6 py-4">
+                                      <div className="text-[10px] font-bold tracking-[0.15em] text-orange-700 mb-2">Teaching methodology</div>
+                                      <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{formatDetailsText(parsedSections.methodology)}</div>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {parsedSections.teacherMaterials && (
+                                  <div className="flex">
+                                    <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-amber-50/70 border-r border-amber-100">
+                                      <span className="text-sm font-extrabold text-amber-700">D</span>
+                                    </div>
+                                    <div className="flex-1 px-6 py-4">
+                                      <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-amber-700 mb-2">Materials for teacher</div>
+                                      <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{formatDetailsText(parsedSections.teacherMaterials)}</div>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {parsedSections.studentMaterials && (
+                                  <div className="flex">
+                                    <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-yellow-50/70 border-r border-yellow-100">
+                                      <span className="text-sm font-extrabold text-yellow-600">E</span>
+                                    </div>
+                                    <div className="flex-1 px-6 py-4">
+                                      <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-yellow-700 mb-2">Materials for students</div>
+                                      <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{formatDetailsText(parsedSections.studentMaterials)}</div>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {parsedSections.procedure && (
+                                  <div className="flex">
+                                    <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-teal-50/70 border-r border-teal-100">
+                                      <span className="text-sm font-extrabold text-teal-700">F</span>
+                                    </div>
+                                    <div className="flex-1 px-6 py-4">
+                                      <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-teal-700 mb-3">Procedure</div>
+                                      {(() => {
+                                        const rows = parseProcedureRows(parsedSections.procedure);
+                                        if (rows.length === 0) {
+                                          return (
+                                            <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{parsedSections.procedure}</div>
+                                          );
+                                        }
+                                        return (
+                                          <div className="rounded-xl border border-teal-200 overflow-hidden">
+                                            <div className="grid grid-cols-[3rem_10rem_1fr] bg-teal-50 border-b border-teal-200 text-[11px] font-semibold text-teal-700">
+                                              <div className="px-2 py-2 text-center border-r border-teal-200">Stages</div>
+                                              <div className="px-3 py-2 text-center border-r border-teal-200">Step</div>
+                                              <div className="px-3 py-2 text-left">Details</div>
+                                            </div>
+                                            <div className="divide-y divide-gray-100">
+                                              {rows.map((row, i) => (
+                                                <div key={i} className={cn("grid grid-cols-[3rem_10rem_1fr]", i % 2 === 0 ? "bg-white" : "bg-gray-50/50")}>
+                                                  <div className="px-2 py-3 text-center text-sm font-bold text-gray-600 border-r border-gray-100 flex items-start justify-center pt-3">{row.stage}</div>
+                                                  <div className="px-3 py-3 text-sm font-semibold text-gray-700 border-r border-gray-100 leading-5">{row.step}</div>
+                                                  <div className="px-3 py-3 text-sm text-gray-700 leading-6 whitespace-pre-wrap">{formatDetailsText(row.details)}</div>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        );
+                                      })()}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {parsedSections.evaluation && (
+                                  <div className="flex">
+                                    <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-red-50/70 border-r border-red-100">
+                                      <span className="text-sm font-extrabold text-red-700">G</span>
+                                    </div>
+                                    <div className="flex-1 px-6 py-4">
+                                      <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-red-700 mb-2">Evaluation</div>
+                                      <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{formatDetailsText(parsedSections.evaluation)}</div>
+                                    </div>
+                                  </div>
+                                )}
+                              </>
+                            );
+                          } else {
+                            return (
+                              <div className="px-6 py-4">
+                                <div className="text-sm text-gray-700 leading-6">
+                                  {syllabusContent || 'Chưa có nội dung template.'}
+                                </div>
+                              </div>
+                            );
+                          }
+                        })()
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
+
+          {/* Document-style Planned Content Card */}
+          {canDisplayPlannedContent ? (
+            <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm flex flex-col ">
+              {/* Title Header */}
+              <div className="text-center px-8 py-4 bg-gradient-to-r from-red-50 to-red-50/50 border-b border-red-200">
+                <h3 className="text-lg font-bold text-gray-900">Giáo án Dự kiến</h3>
+              </div>
+
+              {/* Document header */}
+              <div className="px-8 pt-5 pb-5 bg-gradient-to-b from-gray-50 to-white border-b border-gray-200">
+                <div className="flex justify-between text-[11px] text-gray-400 font-mono mb-4 pb-3 border-b border-dashed border-gray-300">
+                  <div className="space-y-1">
+                    <div>Date of preparation: ......./......../20......</div>
+                    <div>Date of teaching:&nbsp;&nbsp;&nbsp;&nbsp;......./......../20......</div>
+                  </div>
+                  <div className="space-y-1 text-right">
+                    <div>Teacher: <span className="font-sans font-medium text-gray-600">..............</span></div>
+                    <div>Class: ..............</div>
+                  </div>
+                </div>
+                {(session.templateTitle || resolvedTemplate?.title) && (
+                  <div className="text-center space-y-1.5 py-1">
+                    <div className="text-sm font-bold tracking-[0.18em] text-red-600">
+                      {session.templateTitle || resolvedTemplate?.title}
+                    </div>
+                    <p className="text-sm text-gray-500">{plannedContentSubtitle}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Content Sections */}
+              <div className="divide-y divide-gray-100">
+                {(() => {
+                  const {
+                    rawContent: plannedRawContent,
+                    objectives,
+                    languageContent,
+                    vocabulary,
+                    grammar,
+                    methodology,
+                    teacherMaterials,
+                    studentMaterials,
+                    procedure,
+                    evaluation,
+                    homework,
+                  } = extractLessonPlanSections(
+                    plannedContentDisplay,
+                    normalizedPlannedContent ? null : resolvedTemplate,
+                  );
+
+                  return (
+                    <>
+                      {/* A. Objectives */}
+                      {objectives && (
+                        <div className="flex">
+                          <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-emerald-50/70 border-r border-emerald-100">
+                            <span className="text-sm font-extrabold text-emerald-700">A</span>
+                          </div>
+                          <div className="flex-1 px-6 py-4">
+                            <div className="text-[10px] font-bold tracking-[0.15em] text-emerald-700 mb-2">Objectives</div>
+                            <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{formatDetailsText(objectives)}</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* B. Language content */}
+                      {(languageContent || vocabulary || grammar) && (
+                        <div className="flex">
+                          <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-blue-50/70 border-r border-blue-100">
+                            <span className="text-sm font-extrabold text-blue-700">B</span>
+                          </div>
+                          <div className="flex-1 px-6 py-4">
+                            <div className="text-[10px] font-bold tracking-[0.15em] text-blue-700 mb-2">Language content</div>
+                            {languageContent && <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6 mb-2">{formatDetailsText(languageContent)}</div>}
+                            {vocabulary && <div className="text-sm text-gray-700 mb-1 whitespace-pre-wrap"><span className="font-semibold text-blue-600">Vocabulary: </span>{formatDetailsText(vocabulary)}</div>}
+                            {grammar && <div className="text-sm text-gray-700 whitespace-pre-wrap"><span className="font-semibold text-blue-600">Grammar: </span>{formatDetailsText(grammar)}</div>}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* C. Teaching methodology */}
+                      {methodology && (
+                        <div className="flex">
+                          <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-orange-50/70 border-r border-orange-100">
+                            <span className="text-sm font-extrabold text-orange-700">C</span>
+                          </div>
+                          <div className="flex-1 px-6 py-4">
+                            <div className="text-[10px] font-bold tracking-[0.15em] text-orange-700 mb-2">Teaching methodology</div>
+                            <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{formatDetailsText(methodology)}</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* D. Materials for teacher */}
+                      {teacherMaterials && (
+                        <div className="flex">
+                          <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-amber-50/70 border-r border-amber-100">
+                            <span className="text-sm font-extrabold text-amber-700">D</span>
+                          </div>
+                          <div className="flex-1 px-6 py-4">
+                            <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-amber-700 mb-2">Materials for teacher</div>
+                            <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{formatDetailsText(teacherMaterials)}</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* E. Materials for students */}
+                      {studentMaterials && (
+                        <div className="flex">
+                          <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-yellow-50/70 border-r border-yellow-100">
+                            <span className="text-sm font-extrabold text-yellow-600">E</span>
+                          </div>
+                          <div className="flex-1 px-6 py-4">
+                            <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-yellow-700 mb-2">Materials for students</div>
+                            <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{formatDetailsText(studentMaterials)}</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* F. Procedure */}
+                      {procedure && (
+                        <div className="flex">
+                          <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-teal-50/70 border-r border-teal-100">
+                            <span className="text-sm font-extrabold text-teal-700">F</span>
+                          </div>
+                          <div className="flex-1 px-6 py-4">
+                            <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-teal-700 mb-3">Procedure</div>
+                            {(() => {
+                              const rows = parseProcedureRows(procedure);
+                              if (rows.length === 0) {
+                                return (
+                                  <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{procedure}</div>
+                                );
+                              }
+                              return (
+                                <div className="rounded-xl border border-teal-200 overflow-hidden">
+                                  <div className="grid grid-cols-[3rem_10rem_1fr] bg-teal-50 border-b border-teal-200 text-[11px] font-semibold text-teal-700">
+                                    <div className="px-2 py-2 text-center border-r border-teal-200">Stages</div>
+                                    <div className="px-3 py-2 text-center border-r border-teal-200">Step</div>
+                                    <div className="px-3 py-2 text-left">Details</div>
+                                  </div>
+                                  <div className="divide-y divide-gray-100">
+                                    {rows.map((row, i) => (
+                                      <div key={i} className={cn("grid grid-cols-[3rem_10rem_1fr]", i % 2 === 0 ? "bg-white" : "bg-gray-50/50")}>
+                                        <div className="px-2 py-3 text-center text-sm font-bold text-gray-600 border-r border-gray-100 flex items-start justify-center pt-3">{row.stage}</div>
+                                        <div className="px-3 py-3 text-sm font-semibold text-gray-700 border-r border-gray-100 leading-5">{row.step}</div>
+                                        <div className="px-3 py-3 text-sm text-gray-700 leading-6 whitespace-pre-wrap">{formatDetailsText(row.details)}</div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* G. Evaluation */}
+                      {evaluation && (
+                        <div className="flex">
+                          <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-red-50/70 border-r border-red-100">
+                            <span className="text-sm font-extrabold text-red-700">G</span>
+                          </div>
+                          <div className="flex-1 px-6 py-4">
+                            <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-red-700 mb-2">Evaluation</div>
+                            <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{formatDetailsText(evaluation)}</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* H. Homework */}
+                      {homework && (
+                        <div className="flex">
+                          <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-pink-50/70 border-r border-pink-100">
+                            <span className="text-sm font-extrabold text-pink-700">H</span>
+                          </div>
+                          <div className="flex-1 px-6 py-4">
+                            <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-pink-700 mb-2">Homework</div>
+                            <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{formatDetailsText(homework)}</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Fallback for unstructured content */}
+                      {!objectives && !languageContent && !vocabulary && !grammar && !methodology && !teacherMaterials && !studentMaterials && !procedure && !evaluation && !homework && (
+                        (() => {
+                          // Parse plain text content for sections using keyword positions
+                          const parseContentSections = (text: string) => {
+                            const sections: Record<string, string> = {};
+                            
+                            // Define section keywords and their order
+                            const sectionKeywords = [
+                              { key: 'objectives', keywords: ['objectives', 'by the end of the lesson'] },
+                              { key: 'language', keywords: ['language content:', 'vocabulary:', 'grammar:'] },
+                              { key: 'methodology', keywords: ['teaching methodology', 'methodology'] },
+                              { key: 'teacherMaterials', keywords: ['materials for teacher'] },
+                              { key: 'studentMaterials', keywords: ['materials for students', 'materials for student'] },
+                              { key: 'procedure', keywords: ['procedure', 'stages |', 'stage'] },
+                              { key: 'evaluation', keywords: ['evaluation', 'assessment'] }
+                            ];
+                            
+                            // Find all section positions
+                            const sectionPositions: Array<{key: string; start: number; keyword: string}> = [];
+                            
+                            for (const section of sectionKeywords) {
+                              for (const keyword of section.keywords) {
+                                const index = text.toLowerCase().indexOf(keyword.toLowerCase());
+                                if (index !== -1) {
+                                  sectionPositions.push({key: section.key, start: index, keyword});
+                                  break; // Use first matching keyword
+                                }
+                              }
+                            }
+                            
+                            // Sort by position
+                            sectionPositions.sort((a, b) => a.start - b.start);
+                            
+                            // Extract content for each section
+                            for (let i = 0; i < sectionPositions.length; i++) {
+                              const current = sectionPositions[i];
+                              const next = sectionPositions[i + 1];
+                              const endPos = next ? next.start : text.length;
+                              const content = text.substring(current.start, endPos).trim();
+                              
+                              // Remove the keyword from the beginning
+                              const cleanedContent = content.replace(new RegExp(`^${current.keyword}[:\\s]*`, 'i'), '').trim();
+                              
+                              if (cleanedContent) {
+                                sections[current.key] = cleanedContent;
+                              }
+                            }
+                            
+                            return sections;
+                          };
+                          
+                          const parsedSections = parseContentSections(plannedRawContent);
+                          const hasAnySections = Object.values(parsedSections).some(v => v.trim());
+                          
+                          if (hasAnySections) {
+                            return (
+                              <>
+                                {parsedSections.objectives && (
+                                  <div className="flex">
+                                    <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-emerald-50/70 border-r border-emerald-100">
+                                      <span className="text-sm font-extrabold text-emerald-700">A</span>
+                                    </div>
+                                    <div className="flex-1 px-6 py-4">
+                                      <div className="text-[10px] font-bold tracking-[0.15em] text-emerald-700 mb-2">Objectives</div>
+                                      <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{formatDetailsText(parsedSections.objectives)}</div>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {parsedSections.language && (
+                                  <div className="flex">
+                                    <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-blue-50/70 border-r border-blue-100">
+                                      <span className="text-sm font-extrabold text-blue-700">B</span>
+                                    </div>
+                                    <div className="flex-1 px-6 py-4">
+                                      <div className="text-[10px] font-bold tracking-[0.15em] text-blue-700 mb-2">Language content</div>
+                                      <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{formatDetailsText(parsedSections.language)}</div>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {parsedSections.methodology && (
+                                  <div className="flex">
+                                    <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-orange-50/70 border-r border-orange-100">
+                                      <span className="text-sm font-extrabold text-orange-700">C</span>
+                                    </div>
+                                    <div className="flex-1 px-6 py-4">
+                                      <div className="text-[10px] font-bold tracking-[0.15em] text-orange-700 mb-2">Teaching methodology</div>
+                                      <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{formatDetailsText(parsedSections.methodology)}</div>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {parsedSections.teacherMaterials && (
+                                  <div className="flex">
+                                    <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-amber-50/70 border-r border-amber-100">
+                                      <span className="text-sm font-extrabold text-amber-700">D</span>
+                                    </div>
+                                    <div className="flex-1 px-6 py-4">
+                                      <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-amber-700 mb-2">Materials for teacher</div>
+                                      <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{formatDetailsText(parsedSections.teacherMaterials)}</div>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {parsedSections.studentMaterials && (
+                                  <div className="flex">
+                                    <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-yellow-50/70 border-r border-yellow-100">
+                                      <span className="text-sm font-extrabold text-yellow-600">E</span>
+                                    </div>
+                                    <div className="flex-1 px-6 py-4">
+                                      <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-yellow-700 mb-2">Materials for students</div>
+                                      <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{formatDetailsText(parsedSections.studentMaterials)}</div>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {parsedSections.procedure && (
+                                  <div className="flex">
+                                    <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-teal-50/70 border-r border-teal-100">
+                                      <span className="text-sm font-extrabold text-teal-700">F</span>
+                                    </div>
+                                    <div className="flex-1 px-6 py-4">
+                                      <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-teal-700 mb-3">Procedure</div>
+                                      {(() => {
+                                        const rows = parseProcedureRows(parsedSections.procedure);
+                                        if (rows.length === 0) {
+                                          return (
+                                            <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{parsedSections.procedure}</div>
+                                          );
+                                        }
+                                        return (
+                                          <div className="rounded-xl border border-teal-200 overflow-hidden">
+                                            <div className="grid grid-cols-[3rem_10rem_1fr] bg-teal-50 border-b border-teal-200 text-[11px] font-semibold text-teal-700">
+                                              <div className="px-2 py-2 text-center border-r border-teal-200">Stages</div>
+                                              <div className="px-3 py-2 text-center border-r border-teal-200">Step</div>
+                                              <div className="px-3 py-2 text-left">Details</div>
+                                            </div>
+                                            <div className="divide-y divide-gray-100">
+                                              {rows.map((row, i) => (
+                                                <div key={i} className={cn("grid grid-cols-[3rem_10rem_1fr]", i % 2 === 0 ? "bg-white" : "bg-gray-50/50")}>
+                                                  <div className="px-2 py-3 text-center text-sm font-bold text-gray-600 border-r border-gray-100 flex items-start justify-center pt-3">{row.stage}</div>
+                                                  <div className="px-3 py-3 text-sm font-semibold text-gray-700 border-r border-gray-100 leading-5">{row.step}</div>
+                                                  <div className="px-3 py-3 text-sm text-gray-700 leading-6 whitespace-pre-wrap">{formatDetailsText(row.details)}</div>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        );
+                                      })()}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {parsedSections.evaluation && (
+                                  <div className="flex">
+                                    <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-red-50/70 border-r border-red-100">
+                                      <span className="text-sm font-extrabold text-red-700">G</span>
+                                    </div>
+                                    <div className="flex-1 px-6 py-4">
+                                      <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-red-700 mb-2">Evaluation</div>
+                                      <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{formatDetailsText(parsedSections.evaluation)}</div>
+                                    </div>
+                                  </div>
+                                )}
+                              </>
+                            );
+                          }
+                          
+                          // If no sections detected, show as plain text
+                          return (
+                            <div className="px-8 py-6">
+                              <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{plannedContentDisplay}</div>
+                            </div>
+                          );
+                        })()
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
+          ) : (
+            <ContentCard
+              title="Giáo án dự kiến"
+              subtitle={plannedContentSubtitle}
+              icon={<FileText size="18" />}
+              gradient="from-red-50/80 to-white"
+              borderColor="red"
+            >
+              <StructuredContent
+                value={plannedContentDisplay}
+                placeholder="Chưa có nội dung dự kiến."
+              />
+            </ContentCard>
+          )}
+
+          {showMissingLinkageNotice ? (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-5 text-sm text-amber-900 shadow-sm lg:col-span-2">
+              <div className="flex items-start gap-3">
+                <div className="rounded-full bg-amber-100 p-2 text-amber-700">
+                  <XCircle size={16} />
+                </div>
+                <div>
+                  <div className="font-semibold">
+                    Buổi này chưa được backend gắn module hoặc template.
+                  </div>
+                  <p className="mt-1 leading-6 text-amber-800">
+                    {linkageCoverageMessage}
+                  </p>
+                  <p className="mt-1 leading-6 text-amber-800">
+                    Payload hiện tại của session không có moduleId, sessionIndexInModule,
+                    templateId hay plannedContent, nên FE không thể xác định đúng syllabus
+                    hoặc giáo án cho buổi này.
+                  </p>
+                  <p className="mt-2 text-xs text-amber-700">
+                    Session ID: {session.sessionId}
+                  </p>
                 </div>
               </div>
             </div>
-          );
-        })}
+          ) : null}
+
+          <ContentCard
+            title={hasReport ? "Báo cáo buổi dạy" : "Nội dung thực tế"}
+            subtitle={
+              hasReport && session.actualTeacherName
+                ? `Giáo viên: ${session.actualTeacherName}`
+                : "Nội dung đã dạy thực tế"
+            }
+            icon={<ClipboardPen size="18" />}
+            gradient={
+              hasReport ? "from-emerald-50/80 to-white" : "from-gray-50/80 to-white"
+            }
+            borderColor={hasReport ? "emerald" : "gray"}
+            badge={
+              hasReport ? { text: "Đã báo cáo", color: "emerald" } : undefined
+            }
+          >
+            <StructuredContent
+              value={session.actualContent}
+              placeholder="Chưa có nội dung thực tế."
+            />
+          </ContentCard>
+
+          {(session.actualHomework || session.teacherNotes) && (
+            <ContentCard
+              title="Bài tập & Ghi chú"
+              subtitle="Sau buổi học"
+              icon={<Paperclip size="18" />}
+              gradient="from-amber-50/80 to-white"
+              borderColor="amber"
+            >
+              <div className="space-y-4">
+                {session.actualHomework && (
+                  <div>
+                    <div className="mb-2 flex items-center gap-1.5 text-xs font-bold tracking-widest text-amber-700 uppercase">
+                      <ListChecks size={14} className="text-amber-600" />
+                      Bài tập về nhà
+                    </div>
+                    <StructuredContent
+                      value={session.actualHomework}
+                      placeholder=""
+                    />
+                  </div>
+                )}
+                {session.teacherNotes && (
+                  <div className={session.actualHomework ? "border-t border-amber-200/50 pt-4" : ""}>
+                    <div className="mb-2 flex items-center gap-1.5 text-xs font-bold tracking-widest text-amber-700 uppercase">
+                      <Lightbulb size={14} className="text-amber-600" />
+                      Ghi chú giáo viên
+                    </div>
+                    <StructuredContent
+                      value={session.teacherNotes}
+                      placeholder=""
+                    />
+                  </div>
+                )}
+              </div>
+            </ContentCard>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -5130,216 +7196,515 @@ function TemplateFormModal({
   return (
     <ModalFrame
       title={isEdit ? "Cập nhật template" : "Tạo template"}
-      subtitle={isEdit ? "Chỉnh sửa mẫu giáo án hiện có" : "Tạo mậu giáo án mới cho chương trình"}
+      subtitle={
+        isEdit
+          ? "Chỉnh sửa mẫu giáo án hiện có"
+          : "Tạo mậu giáo án mới cho chương trình"
+      }
       icon={FolderOpen}
       onClose={onClose}
       widthClass="max-w-5xl"
     >
       <form onSubmit={handleSubmit} className="flex flex-col max-h-[80vh]">
         <div className="flex-1 overflow-y-auto space-y-5 p-6">
-        <div className="grid gap-4 md:grid-cols-2">
-          <Field label="Chương trình">
-            <Select value={programId} onValueChange={setProgramId} disabled={isEdit}>
-              <SelectTrigger className="w-full rounded-xl">
-                <SelectValue placeholder="Chọn chương trình" />
-              </SelectTrigger>
-              <SelectContent>
-                {programOptions.map((item) => (
-                  <SelectItem key={item.id} value={item.id}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label="Chương trình">
+              <Select
+                value={programId}
+                onValueChange={setProgramId}
+                disabled={isEdit}
+              >
+                <SelectTrigger className="w-full rounded-xl">
+                  <SelectValue placeholder="Chọn chương trình" />
+                </SelectTrigger>
+                <SelectContent>
+                  {programOptions.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
 
-          <Field label="Cấp độ">
-            <input
-              value={level}
-              onChange={(event) => setLevel(event.target.value)}
-              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-              placeholder="Ví dụ: Starters"
-            />
-          </Field>
+            <Field label="Cấp độ">
+              <input
+                value={level}
+                onChange={(event) => setLevel(event.target.value)}
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+                placeholder="Ví dụ: Starters"
+              />
+            </Field>
 
-          <Field label="Tiêu đề session">
-            <input
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-              placeholder="Ví dụ: Warm Up"
-            />
-          </Field>
+            <Field label="Tiêu đề session">
+              <input
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+                placeholder="Ví dụ: Warm Up"
+              />
+            </Field>
 
-          <Field label="Phạm vi áp dụng">
-            <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-              Template này dùng chung cho toàn bộ buổi của chương trình và được
-              neo tại Buổi 1.
-            </div>
-          </Field>
-        </div>
-
-        {/* Metadata chung */}
-        <div className="rounded-2xl border border-gray-200 bg-red-50/40 p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="text-sm font-semibold text-red-700">
-              Thông tin chung của Syllabus
-            </div>
-            <StatusBadge kind="info">syllabusMetadata</StatusBadge>
+            <Field label="Phạm vi áp dụng">
+              <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                Template này dùng chung cho toàn bộ buổi của chương trình và
+                được neo tại Buổi 1.
+              </div>
+            </Field>
           </div>
 
-          {/* Reference panel: show original plain text when it was not stored as JSON.
+          {/* Metadata chung */}
+          <div className="rounded-2xl border border-gray-200 bg-red-50/40 p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-semibold text-red-700">
+                Thông tin chung của Syllabus
+              </div>
+              <StatusBadge kind="info">syllabusMetadata</StatusBadge>
+            </div>
+
+            {/* Reference panel: show original plain text when it was not stored as JSON.
               Source may be syllabusMetadata or syllabusContent (when metadata was absent). */}
-          {(() => {
-            const refText =
-              !metadataSeed && initialValue?.syllabusMetadata
-                ? initialValue.syllabusMetadata
-                : !contentSeed && !metadataSeed && initialValue?.syllabusContent
-                  ? initialValue.syllabusContent
-                  : null;
-            return refText ? (
-              <details className="rounded-xl border border-amber-300 bg-amber-50">
-                <summary className="cursor-pointer select-none px-4 py-2 text-xs font-semibold text-amber-800">
-                  📋 Dữ liệu gốc (plain text) — các trường bên dưới đã được tự
-                  động điền từ đây
+            {(() => {
+              const refText =
+                !metadataSeed && initialValue?.syllabusMetadata
+                  ? initialValue.syllabusMetadata
+                  : !contentSeed &&
+                      !metadataSeed &&
+                      initialValue?.syllabusContent
+                    ? initialValue.syllabusContent
+                    : null;
+              return refText ? (
+                <details className="rounded-xl border border-amber-300 bg-amber-50">
+                  <summary className="cursor-pointer select-none px-4 py-2 text-xs font-semibold text-amber-800">
+                    📋 Dữ liệu gốc (plain text) — các trường bên dưới đã được tự
+                    động điền từ đây
+                  </summary>
+                  <div className="whitespace-pre-wrap border-t border-amber-200 px-4 py-3 text-xs leading-6 text-amber-900 font-mono">
+                    {refText}
+                  </div>
+                </details>
+              ) : null;
+            })()}
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label="Ngày học">
+                <input
+                  value={dayLabel}
+                  onChange={(event) => setDayLabel(event.target.value)}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+                  placeholder="Ví dụ: Monday and Saturday"
+                />
+              </Field>
+
+              <Field label="Thời lượng">
+                <input
+                  value={durationLabel}
+                  onChange={(event) => setDurationLabel(event.target.value)}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+                  placeholder="Ví dụ: 11/07/2022 - 2022"
+                />
+              </Field>
+            </div>
+
+            <Field label="Thông tin chung">
+              <textarea
+                value={generalInformation}
+                onChange={(event) => setGeneralInformation(event.target.value)}
+                rows={3}
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+                placeholder="Nhập mô tả chung của syllabus"
+              />
+            </Field>
+
+            <Field label="Tài liệu giảng dạy">
+              <p className="mb-2 text-xs text-gray-500">
+                Nhập theo bảng 2 cột: Tên tài liệu và Link hoặc file.
+              </p>
+              <div className="space-y-3 rounded-xl border border-gray-200 bg-white p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={addTeachingMaterial}
+                    className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 cursor-pointer"
+                  >
+                    + Thêm tài liệu
+                  </button>
+                </div>
+
+                <div className="overflow-x-auto rounded-xl border border-gray-200">
+                  <table className="min-w-[760px] w-full border-collapse text-sm">
+                    <thead>
+                      <tr className="bg-gray-50 text-gray-700">
+                        <th className="border border-gray-200 px-3 py-2 text-left font-semibold w-1/3">
+                          Tên tài liệu
+                        </th>
+                        <th className="border border-gray-200 px-3 py-2 text-left font-semibold">
+                          Link hoặc file
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {teachingMaterialDrafts.map((item, index) => (
+                        <tr
+                          key={`material-draft-${index}`}
+                          className="align-top"
+                        >
+                          <td className="border border-gray-200 p-2">
+                            <div className="mb-1 text-xs font-semibold text-gray-500">
+                              #{index + 1}
+                            </div>
+                            <input
+                              value={item.title}
+                              onChange={(event) =>
+                                updateTeachingMaterial(index, {
+                                  title: event.target.value,
+                                })
+                              }
+                              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+                              placeholder="Ví dụ: Handbook for Reading"
+                            />
+                          </td>
+                          <td className="border border-gray-200 p-2">
+                            <textarea
+                              value={item.resource}
+                              onChange={(event) =>
+                                updateTeachingMaterial(index, {
+                                  resource: event.target.value,
+                                })
+                              }
+                              rows={2}
+                              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+                              placeholder="Nhập link https://... hoặc ghi Đã gửi file"
+                            />
+                            <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <label className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100">
+                                  {uploadingMaterialIndex === index ? (
+                                    <Loader2
+                                      size={12}
+                                      className="animate-spin"
+                                    />
+                                  ) : (
+                                    <Upload size={12} />
+                                  )}
+                                  {uploadingMaterialIndex === index
+                                    ? "Đang tải..."
+                                    : "Tải file"}
+                                  <input
+                                    type="file"
+                                    className="hidden"
+                                    disabled={uploadingMaterialIndex !== null}
+                                    onChange={(event) => {
+                                      const file =
+                                        event.target.files?.[0] || null;
+                                      void uploadTeachingMaterial(index, file);
+                                      event.currentTarget.value = "";
+                                    }}
+                                  />
+                                </label>
+                                {extractFirstHttpUrl(item.resource) && (
+                                  <a
+                                    href={buildFileUrl(
+                                      extractFirstHttpUrl(item.resource),
+                                    )}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100"
+                                  >
+                                    <Paperclip size={12} />
+                                    Mở link
+                                  </a>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => removeTeachingMaterial(index)}
+                                className="rounded-lg border border-red-200 bg-white px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-50 cursor-pointer"
+                              >
+                                Xóa dòng
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <details className="rounded-lg border border-gray-200 bg-gray-50">
+                  <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-gray-600">
+                    Xem dữ liệu text tương thích backend
+                  </summary>
+                  <div className="border-t border-gray-200 px-3 py-2">
+                    <textarea
+                      value={teachingMaterialsText}
+                      onChange={(event) =>
+                        setTeachingMaterialsText(event.target.value)
+                      }
+                      rows={4}
+                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+                      placeholder="Hệ thống tự sinh từ danh sách Link/File ở trên"
+                    />
+                  </div>
+                </details>
+              </div>
+            </Field>
+
+            <Field label="Ghi chú">
+              <textarea
+                value={sheetNote}
+                onChange={(event) => setSheetNote(event.target.value)}
+                rows={2}
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+                placeholder="Ví dụ: Course book accounts for 80% of the lesson..."
+              />
+            </Field>
+          </div>
+
+          {/* Nội dung session */}
+          <div className="rounded-2xl border border-gray-200 bg-blue-50/30 p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-semibold text-blue-700">
+                Nội dung session
+              </div>
+              <StatusBadge kind="info">syllabusContent</StatusBadge>
+            </div>
+
+            {/* Reference panel: show original plain text syllabusContent when not JSON */}
+            {initialValue?.syllabusContent && !contentSeed ? (
+              <details className="rounded-xl border border-blue-300 bg-blue-50">
+                <summary className="cursor-pointer select-none px-4 py-2 text-xs font-semibold text-blue-800">
+                  📋 Dữ liệu gốc (plain text) — tham khảo để điền vào form bên
+                  dưới
                 </summary>
-                <div className="whitespace-pre-wrap border-t border-amber-200 px-4 py-3 text-xs leading-6 text-amber-900 font-mono">
-                  {refText}
+                <div className="whitespace-pre-wrap border-t border-blue-200 px-4 py-3 text-xs leading-6 text-blue-900 font-mono">
+                  {initialValue.syllabusContent}
                 </div>
               </details>
-            ) : null;
-          })()}
+            ) : null}
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <Field label="Ngày học">
+            <Field label="Teacher">
               <input
-                value={dayLabel}
-                onChange={(event) => setDayLabel(event.target.value)}
+                value={teacherName}
+                onChange={(event) => setTeacherName(event.target.value)}
                 className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-                placeholder="Ví dụ: Monday and Saturday"
+                placeholder="Ví dụ: Vietnamese Teacher"
               />
             </Field>
 
-            <Field label="Thời lượng">
-              <input
-                value={durationLabel}
-                onChange={(event) => setDurationLabel(event.target.value)}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-                placeholder="Ví dụ: 11/07/2022 - 2022"
-              />
-            </Field>
-          </div>
+            <div className="rounded-2xl border border-amber-200 bg-amber-50/40 p-4 space-y-4">
+              <div className="text-sm font-semibold text-amber-800">
+                Homework block
+              </div>
+              <div className="grid gap-4 md:grid-cols-3">
+                <Field label="Homework label">
+                  <input
+                    value={homeworkLabel}
+                    onChange={(event) => setHomeworkLabel(event.target.value)}
+                    className="w-full rounded-xl border border-amber-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-200"
+                    placeholder="HOMEWORK"
+                  />
+                </Field>
 
-          <Field label="Thông tin chung">
-            <textarea
-              value={generalInformation}
-              onChange={(event) => setGeneralInformation(event.target.value)}
-              rows={3}
-              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-              placeholder="Nhập mô tả chung của syllabus"
-            />
-          </Field>
+                <Field label="Required materials">
+                  <textarea
+                    value={homeworkMaterialsText}
+                    onChange={(event) =>
+                      setHomeworkMaterialsText(event.target.value)
+                    }
+                    rows={3}
+                    className="w-full rounded-xl border border-amber-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-200"
+                    placeholder={"Pages 80,81,82\nVideo repeat"}
+                  />
+                </Field>
 
-          <Field label="Tài liệu giảng dạy">
-            <p className="mb-2 text-xs text-gray-500">
-              Nhập theo bảng 2 cột: Tên tài liệu và Link hoặc file.
-            </p>
-            <div className="space-y-3 rounded-xl border border-gray-200 bg-white p-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={addTeachingMaterial}
-                  className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 cursor-pointer"
-                >
-                  + Thêm tài liệu
-                </button>
+                <Field label="Extra / Note">
+                  <textarea
+                    value={homeworkNotesText}
+                    onChange={(event) =>
+                      setHomeworkNotesText(event.target.value)
+                    }
+                    rows={3}
+                    className="w-full rounded-xl border border-amber-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-200"
+                    placeholder={
+                      "1. Quay video đọc bài...\n2. Chụp phần bài làm..."
+                    }
+                  />
+                </Field>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-blue-100 bg-white p-4">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                <div className="text-sm font-semibold text-blue-700">
+                  Activities
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {TEMPLATE_ACTIVITY_PRESETS.map((preset) => (
+                    <button
+                      key={preset.key}
+                      type="button"
+                      onClick={() => addPresetActivity(preset.key)}
+                      className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800 hover:bg-amber-100 cursor-pointer"
+                    >
+                      + {preset.label}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={addActivity}
+                    className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 cursor-pointer"
+                  >
+                    <Plus size={14} />
+                    Thêm trống
+                  </button>
+                </div>
               </div>
 
-              <div className="overflow-x-auto rounded-xl border border-gray-200">
-                <table className="min-w-[760px] w-full border-collapse text-sm">
+              <div className="overflow-x-auto rounded-xl border border-gray-300">
+                <table className="min-w-[1100px] border-collapse text-sm">
                   <thead>
-                    <tr className="bg-gray-50 text-gray-700">
-                      <th className="border border-gray-200 px-3 py-2 text-left font-semibold w-1/3">
-                        Tên tài liệu
+                    <tr className="bg-amber-50 text-gray-700">
+                      <th className="border border-gray-300 px-3 py-2 text-left font-semibold">
+                        #
                       </th>
-                      <th className="border border-gray-200 px-3 py-2 text-left font-semibold">
-                        Link hoặc file
+                      <th className="border border-gray-300 px-3 py-2 text-left font-semibold">
+                        Time
+                      </th>
+                      <th className="border border-gray-300 px-3 py-2 text-left font-semibold">
+                        Book
+                      </th>
+                      <th className="border border-gray-300 px-3 py-2 text-left font-semibold">
+                        Skills
+                      </th>
+                      <th className="border border-gray-300 px-3 py-2 text-left font-semibold">
+                        Classwork
+                      </th>
+                      <th className="border border-gray-300 px-3 py-2 text-left font-semibold">
+                        Required Materials
+                      </th>
+                      <th className="border border-gray-300 px-3 py-2 text-left font-semibold">
+                        Homework Materials
+                      </th>
+                      <th className="border border-gray-300 px-3 py-2 text-left font-semibold">
+                        Extra / Note
+                      </th>
+                      <th className="border border-gray-300 px-3 py-2 text-left font-semibold">
+                        Thao tác
                       </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {teachingMaterialDrafts.map((item, index) => (
-                      <tr key={`material-draft-${index}`} className="align-top">
-                        <td className="border border-gray-200 p-2">
-                          <div className="mb-1 text-xs font-semibold text-gray-500">
-                            #{index + 1}
-                          </div>
+                    {activities.map((activity, index) => (
+                      <tr key={index} className="align-top">
+                        <td className="border border-gray-300 px-3 py-3 font-semibold text-gray-600">
+                          {index + 1}
+                        </td>
+                        <td className="border border-gray-300 p-1.5">
                           <input
-                            value={item.title}
+                            value={activity.time}
                             onChange={(event) =>
-                              updateTeachingMaterial(index, {
-                                title: event.target.value,
-                              })
+                              updateActivity(index, "time", event.target.value)
                             }
-                            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-                            placeholder="Ví dụ: Handbook for Reading"
+                            className="w-20 rounded-lg border border-transparent bg-white px-2 py-2 text-sm focus:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-100"
+                            placeholder="5 mins"
                           />
                         </td>
-                        <td className="border border-gray-200 p-2">
-                          <textarea
-                            value={item.resource}
+                        <td className="border border-gray-300 p-1.5">
+                          <input
+                            value={activity.book}
                             onChange={(event) =>
-                              updateTeachingMaterial(index, {
-                                resource: event.target.value,
-                              })
+                              updateActivity(index, "book", event.target.value)
+                            }
+                            className="w-full rounded-lg border border-transparent bg-white px-2 py-2 text-sm focus:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-100"
+                            placeholder="B1 DESTINATION"
+                          />
+                        </td>
+                        <td className="border border-gray-300 p-1.5">
+                          <input
+                            value={activity.skills}
+                            onChange={(event) =>
+                              updateActivity(
+                                index,
+                                "skills",
+                                event.target.value,
+                              )
+                            }
+                            className="w-full rounded-lg border border-transparent bg-white px-2 py-2 text-sm focus:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-100"
+                            placeholder="Speaking"
+                          />
+                        </td>
+                        <td className="border border-gray-300 p-1.5">
+                          <textarea
+                            value={activity.classwork}
+                            onChange={(event) =>
+                              updateActivity(
+                                index,
+                                "classwork",
+                                event.target.value,
+                              )
                             }
                             rows={2}
-                            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-                            placeholder="Nhập link https://... hoặc ghi Đã gửi file"
+                            className="w-full rounded-lg border border-transparent bg-white px-2 py-2 text-sm focus:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-100"
+                            placeholder={"WARM UP\nHomework Correction"}
                           />
-                          <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-                            <div className="flex items-center gap-2">
-                              <label className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100">
-                                {uploadingMaterialIndex === index ? (
-                                  <Loader2 size={12} className="animate-spin" />
-                                ) : (
-                                  <Upload size={12} />
-                                )}
-                                {uploadingMaterialIndex === index
-                                  ? "Đang tải..."
-                                  : "Tải file"}
-                                <input
-                                  type="file"
-                                  className="hidden"
-                                  disabled={uploadingMaterialIndex !== null}
-                                  onChange={(event) => {
-                                    const file =
-                                      event.target.files?.[0] || null;
-                                    void uploadTeachingMaterial(index, file);
-                                    event.currentTarget.value = "";
-                                  }}
-                                />
-                              </label>
-                              {extractFirstHttpUrl(item.resource) && (
-                                <a
-                                  href={buildFileUrl(
-                                    extractFirstHttpUrl(item.resource),
-                                  )}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100"
-                                >
-                                  <Paperclip size={12} />
-                                  Mở link
-                                </a>
-                              )}
-                            </div>
+                        </td>
+                        <td className="border border-gray-300 p-1.5">
+                          <textarea
+                            value={activity.requiredMaterials}
+                            onChange={(event) =>
+                              updateActivity(
+                                index,
+                                "requiredMaterials",
+                                event.target.value,
+                              )
+                            }
+                            rows={2}
+                            className="w-full rounded-lg border border-transparent bg-white px-2 py-2 text-sm focus:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-100"
+                            placeholder="page 101,102"
+                          />
+                        </td>
+                        <td className="border border-gray-300 p-1.5">
+                          <textarea
+                            value={activity.homeworkRequiredMaterials}
+                            onChange={(event) =>
+                              updateActivity(
+                                index,
+                                "homeworkRequiredMaterials",
+                                event.target.value,
+                              )
+                            }
+                            rows={2}
+                            className="w-full rounded-lg border border-transparent bg-white px-2 py-2 text-sm focus:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-100"
+                            placeholder="HOMEWORK"
+                          />
+                        </td>
+                        <td className="border border-gray-300 p-1.5">
+                          <textarea
+                            value={activity.extra}
+                            onChange={(event) =>
+                              updateActivity(index, "extra", event.target.value)
+                            }
+                            rows={2}
+                            className="w-full rounded-lg border border-transparent bg-white px-2 py-2 text-sm focus:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-100"
+                            placeholder="Handbook 88,89"
+                          />
+                        </td>
+                        <td className="border border-gray-300 px-2 py-2">
+                          <div className="flex flex-col gap-2">
                             <button
                               type="button"
-                              onClick={() => removeTeachingMaterial(index)}
-                              className="rounded-lg border border-red-200 bg-white px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-50 cursor-pointer"
+                              onClick={() => duplicateActivity(index)}
+                              className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-50 cursor-pointer"
                             >
-                              Xóa dòng
+                              Clone
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeActivity(index)}
+                              className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 cursor-pointer"
+                            >
+                              Xóa
                             </button>
                           </div>
                         </td>
@@ -5348,342 +7713,65 @@ function TemplateFormModal({
                   </tbody>
                 </table>
               </div>
-
-              <details className="rounded-lg border border-gray-200 bg-gray-50">
-                <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-gray-600">
-                  Xem dữ liệu text tương thích backend
-                </summary>
-                <div className="border-t border-gray-200 px-3 py-2">
-                  <textarea
-                    value={teachingMaterialsText}
-                    onChange={(event) =>
-                      setTeachingMaterialsText(event.target.value)
-                    }
-                    rows={4}
-                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-                    placeholder="Hệ thống tự sinh từ danh sách Link/File ở trên"
-                  />
-                </div>
-              </details>
             </div>
-          </Field>
-
-          <Field label="Ghi chú">
-            <textarea
-              value={sheetNote}
-              onChange={(event) => setSheetNote(event.target.value)}
-              rows={2}
-              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-              placeholder="Ví dụ: Course book accounts for 80% of the lesson..."
-            />
-          </Field>
-        </div>
-
-        {/* Nội dung session */}
-        <div className="rounded-2xl border border-gray-200 bg-blue-50/30 p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="text-sm font-semibold text-blue-700">
-              Nội dung session
-            </div>
-            <StatusBadge kind="info">syllabusContent</StatusBadge>
           </div>
 
-          {/* Reference panel: show original plain text syllabusContent when not JSON */}
-          {initialValue?.syllabusContent && !contentSeed ? (
-            <details className="rounded-xl border border-blue-300 bg-blue-50">
-              <summary className="cursor-pointer select-none px-4 py-2 text-xs font-semibold text-blue-800">
-                📋 Dữ liệu gốc (plain text) — tham khảo để điền vào form bên
-                dưới
-              </summary>
-              <div className="whitespace-pre-wrap border-t border-blue-200 px-4 py-3 text-xs leading-6 text-blue-900 font-mono">
-                {initialValue.syllabusContent}
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label="Source file name">
+              <input
+                value={sourceFileName}
+                onChange={(event) => setSourceFileName(event.target.value)}
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+                placeholder="syllabus_template_1_mau.xlsx"
+              />
+            </Field>
+
+            <Field label="Attachment URL">
+              <input
+                value={attachment}
+                onChange={(event) => setAttachment(event.target.value)}
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+                placeholder="https://..."
+              />
+            </Field>
+          </div>
+
+          <Field label="Tải file attachment">
+            <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-red-200 bg-red-50/60 px-4 py-3 text-sm text-gray-600 hover:bg-red-50">
+              <Upload size={16} className="text-red-600" />
+              <span>
+                {selectedFile
+                  ? selectedFile.name
+                  : "Chọn file để upload vào attachment"}
+              </span>
+              <input
+                type="file"
+                className="hidden"
+                onChange={(event) =>
+                  setSelectedFile(event.target.files?.[0] || null)
+                }
+              />
+            </label>
+          </Field>
+
+          {isEdit ? (
+            <Field label="Trạng thái">
+              <div className="grid grid-cols-2 gap-3">
+                <ToggleButton
+                  active={isActive}
+                  onClick={() => setIsActive(true)}
+                  label="Đang hoạt động"
+                />
+                <ToggleButton
+                  active={!isActive}
+                  onClick={() => setIsActive(false)}
+                  label="Tạm ẩn"
+                />
               </div>
-            </details>
+            </Field>
           ) : null}
 
-          <Field label="Teacher">
-            <input
-              value={teacherName}
-              onChange={(event) => setTeacherName(event.target.value)}
-              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-              placeholder="Ví dụ: Vietnamese Teacher"
-            />
-          </Field>
-
-          <div className="rounded-2xl border border-amber-200 bg-amber-50/40 p-4 space-y-4">
-            <div className="text-sm font-semibold text-amber-800">
-              Homework block
-            </div>
-            <div className="grid gap-4 md:grid-cols-3">
-              <Field label="Homework label">
-                <input
-                  value={homeworkLabel}
-                  onChange={(event) => setHomeworkLabel(event.target.value)}
-                  className="w-full rounded-xl border border-amber-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-200"
-                  placeholder="HOMEWORK"
-                />
-              </Field>
-
-              <Field label="Required materials">
-                <textarea
-                  value={homeworkMaterialsText}
-                  onChange={(event) =>
-                    setHomeworkMaterialsText(event.target.value)
-                  }
-                  rows={3}
-                  className="w-full rounded-xl border border-amber-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-200"
-                  placeholder={"Pages 80,81,82\nVideo repeat"}
-                />
-              </Field>
-
-              <Field label="Extra / Note">
-                <textarea
-                  value={homeworkNotesText}
-                  onChange={(event) => setHomeworkNotesText(event.target.value)}
-                  rows={3}
-                  className="w-full rounded-xl border border-amber-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-200"
-                  placeholder={
-                    "1. Quay video đọc bài...\n2. Chụp phần bài làm..."
-                  }
-                />
-              </Field>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-blue-100 bg-white p-4">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-              <div className="text-sm font-semibold text-blue-700">
-                Activities
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {TEMPLATE_ACTIVITY_PRESETS.map((preset) => (
-                  <button
-                    key={preset.key}
-                    type="button"
-                    onClick={() => addPresetActivity(preset.key)}
-                    className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800 hover:bg-amber-100 cursor-pointer"
-                  >
-                    + {preset.label}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  onClick={addActivity}
-                  className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 cursor-pointer"
-                >
-                  <Plus size={14} />
-                  Thêm trống
-                </button>
-              </div>
-            </div>
-
-            <div className="overflow-x-auto rounded-xl border border-gray-300">
-              <table className="min-w-[1100px] border-collapse text-sm">
-                <thead>
-                  <tr className="bg-amber-50 text-gray-700">
-                    <th className="border border-gray-300 px-3 py-2 text-left font-semibold">
-                      #
-                    </th>
-                    <th className="border border-gray-300 px-3 py-2 text-left font-semibold">
-                      Time
-                    </th>
-                    <th className="border border-gray-300 px-3 py-2 text-left font-semibold">
-                      Book
-                    </th>
-                    <th className="border border-gray-300 px-3 py-2 text-left font-semibold">
-                      Skills
-                    </th>
-                    <th className="border border-gray-300 px-3 py-2 text-left font-semibold">
-                      Classwork
-                    </th>
-                    <th className="border border-gray-300 px-3 py-2 text-left font-semibold">
-                      Required Materials
-                    </th>
-                    <th className="border border-gray-300 px-3 py-2 text-left font-semibold">
-                      Homework Materials
-                    </th>
-                    <th className="border border-gray-300 px-3 py-2 text-left font-semibold">
-                      Extra / Note
-                    </th>
-                    <th className="border border-gray-300 px-3 py-2 text-left font-semibold">
-                      Thao tác
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {activities.map((activity, index) => (
-                    <tr key={index} className="align-top">
-                      <td className="border border-gray-300 px-3 py-3 font-semibold text-gray-600">
-                        {index + 1}
-                      </td>
-                      <td className="border border-gray-300 p-1.5">
-                        <input
-                          value={activity.time}
-                          onChange={(event) =>
-                            updateActivity(index, "time", event.target.value)
-                          }
-                          className="w-20 rounded-lg border border-transparent bg-white px-2 py-2 text-sm focus:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-100"
-                          placeholder="5 mins"
-                        />
-                      </td>
-                      <td className="border border-gray-300 p-1.5">
-                        <input
-                          value={activity.book}
-                          onChange={(event) =>
-                            updateActivity(index, "book", event.target.value)
-                          }
-                          className="w-full rounded-lg border border-transparent bg-white px-2 py-2 text-sm focus:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-100"
-                          placeholder="B1 DESTINATION"
-                        />
-                      </td>
-                      <td className="border border-gray-300 p-1.5">
-                        <input
-                          value={activity.skills}
-                          onChange={(event) =>
-                            updateActivity(index, "skills", event.target.value)
-                          }
-                          className="w-full rounded-lg border border-transparent bg-white px-2 py-2 text-sm focus:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-100"
-                          placeholder="Speaking"
-                        />
-                      </td>
-                      <td className="border border-gray-300 p-1.5">
-                        <textarea
-                          value={activity.classwork}
-                          onChange={(event) =>
-                            updateActivity(
-                              index,
-                              "classwork",
-                              event.target.value,
-                            )
-                          }
-                          rows={2}
-                          className="w-full rounded-lg border border-transparent bg-white px-2 py-2 text-sm focus:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-100"
-                          placeholder={"WARM UP\nHomework Correction"}
-                        />
-                      </td>
-                      <td className="border border-gray-300 p-1.5">
-                        <textarea
-                          value={activity.requiredMaterials}
-                          onChange={(event) =>
-                            updateActivity(
-                              index,
-                              "requiredMaterials",
-                              event.target.value,
-                            )
-                          }
-                          rows={2}
-                          className="w-full rounded-lg border border-transparent bg-white px-2 py-2 text-sm focus:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-100"
-                          placeholder="page 101,102"
-                        />
-                      </td>
-                      <td className="border border-gray-300 p-1.5">
-                        <textarea
-                          value={activity.homeworkRequiredMaterials}
-                          onChange={(event) =>
-                            updateActivity(
-                              index,
-                              "homeworkRequiredMaterials",
-                              event.target.value,
-                            )
-                          }
-                          rows={2}
-                          className="w-full rounded-lg border border-transparent bg-white px-2 py-2 text-sm focus:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-100"
-                          placeholder="HOMEWORK"
-                        />
-                      </td>
-                      <td className="border border-gray-300 p-1.5">
-                        <textarea
-                          value={activity.extra}
-                          onChange={(event) =>
-                            updateActivity(index, "extra", event.target.value)
-                          }
-                          rows={2}
-                          className="w-full rounded-lg border border-transparent bg-white px-2 py-2 text-sm focus:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-100"
-                          placeholder="Handbook 88,89"
-                        />
-                      </td>
-                      <td className="border border-gray-300 px-2 py-2">
-                        <div className="flex flex-col gap-2">
-                          <button
-                            type="button"
-                            onClick={() => duplicateActivity(index)}
-                            className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-50 cursor-pointer"
-                          >
-                            Clone
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => removeActivity(index)}
-                            className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 cursor-pointer"
-                          >
-                            Xóa
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <Field label="Source file name">
-            <input
-              value={sourceFileName}
-              onChange={(event) => setSourceFileName(event.target.value)}
-              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-              placeholder="syllabus_template_1_mau.xlsx"
-            />
-          </Field>
-
-          <Field label="Attachment URL">
-            <input
-              value={attachment}
-              onChange={(event) => setAttachment(event.target.value)}
-              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-              placeholder="https://..."
-            />
-          </Field>
-        </div>
-
-        <Field label="Tải file attachment">
-          <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-red-200 bg-red-50/60 px-4 py-3 text-sm text-gray-600 hover:bg-red-50">
-            <Upload size={16} className="text-red-600" />
-            <span>
-              {selectedFile
-                ? selectedFile.name
-                : "Chọn file để upload vào attachment"}
-            </span>
-            <input
-              type="file"
-              className="hidden"
-              onChange={(event) =>
-                setSelectedFile(event.target.files?.[0] || null)
-              }
-            />
-          </label>
-        </Field>
-
-        {isEdit ? (
-          <Field label="Trạng thái">
-            <div className="grid grid-cols-2 gap-3">
-              <ToggleButton
-                active={isActive}
-                onClick={() => setIsActive(true)}
-                label="Đang hoạt động"
-              />
-              <ToggleButton
-                active={!isActive}
-                onClick={() => setIsActive(false)}
-                label="Tạm ẩn"
-              />
-            </div>
-          </Field>
-        ) : null}
-
-        {error ? <ErrorBox message={error} /> : null}
+          {error ? <ErrorBox message={error} /> : null}
         </div>
 
         <div className="flex-shrink-0 border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-6">
@@ -5710,7 +7798,11 @@ function TemplateFormModal({
                 disabled={submitting}
                 className="group inline-flex items-center gap-2 rounded-xl px-5 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:shadow-lg text-white font-semibold cursor-pointer transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
               >
-                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FolderOpen size={14} />}
+                {submitting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <FolderOpen size={14} />
+                )}
                 {isEdit ? "Lưu template" : "Tạo template"}
               </button>
             </div>
@@ -6320,6 +8412,10 @@ function PlanFormModal({
     }
   };
 
+  const subtitle = `${
+    classSyllabus?.classCode || classSyllabus?.classTitle || "-"
+  } • ${getSessionDisplay(session)}`;
+
   return (
     <ModalFrame
       title={
@@ -6331,14 +8427,16 @@ function PlanFormModal({
             ? "Cập nhật giáo án"
             : "Tạo giáo án"
       }
+      subtitle={subtitle}
       icon={isTeacher ? ClipboardPen : FilePlus2}
       onClose={onClose}
       widthClass={
         hasStructuredStarter || hasStructuredPlanner ? "max-w-6xl" : "max-w-4xl"
       }
     >
-      <form onSubmit={handleSubmit} className="space-y-5 p-6">
-        <div className="grid gap-4 md:grid-cols-2">
+      <div className="flex flex-col max-h-[80vh]">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto space-y-5 p-6">
+          <div className="grid gap-4 md:grid-cols-2">
           <InfoCard
             icon={Users}
             label="Lớp học"
@@ -6414,7 +8512,7 @@ function PlanFormModal({
 
                 {/* Activities table with editable cells */}
                 <div className="overflow-hidden rounded-2xl border border-gray-300 bg-white shadow-sm">
-                  <div className="border-b border-gray-300 bg-amber-50 px-4 py-3 text-sm font-bold uppercase tracking-wide text-gray-900">
+                  <div className="border-b border-gray-300 bg-amber-50 px-4 py-3 text-sm font-bold  tracking-wide text-gray-900">
                     Activities
                   </div>
                   <div className="overflow-x-auto">
@@ -6585,19 +8683,19 @@ function PlanFormModal({
                   linesFromUnknown(starterData!.homeworkMaterials).length ||
                   linesFromUnknown(starterData!.homeworkNotes).length ? (
                     <div className="border-t border-gray-300 bg-amber-50/40 p-4">
-                      <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      <div className="mb-3 text-xs font-semibold  tracking-wide text-gray-500">
                         Homework block (teacher được chỉnh Required materials +
                         Extra/Note)
                       </div>
                       <div className="grid gap-3 lg:grid-cols-3">
                         <div className="rounded-xl border border-gray-300 bg-white p-3">
-                          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          <div className="mb-1 text-xs font-semibold  tracking-wide text-gray-500">
                             Label
                           </div>
                           <SheetCellValue value={starterData!.homeworkLabel} />
                         </div>
                         <div className="rounded-xl border border-gray-300 bg-white p-3">
-                          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          <div className="mb-1 text-xs font-semibold  tracking-wide text-gray-500">
                             Required materials
                           </div>
                           <textarea
@@ -6611,7 +8709,7 @@ function PlanFormModal({
                           />
                         </div>
                         <div className="rounded-xl border border-gray-300 bg-white p-3">
-                          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          <div className="mb-1 text-xs font-semibold  tracking-wide text-gray-500">
                             Extra / Note
                           </div>
                           <textarea
@@ -6632,7 +8730,7 @@ function PlanFormModal({
                   {Array.isArray(starterData!.notes) &&
                   starterData!.notes.length > 0 ? (
                     <div className="border-t border-gray-300 bg-white px-4 py-3">
-                      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      <div className="mb-2 text-xs font-semibold  tracking-wide text-gray-500">
                         Notes (chỉ đọc)
                       </div>
                       <SpreadsheetList value={starterData!.notes} />
@@ -7063,34 +9161,44 @@ function PlanFormModal({
         )}
 
         {error ? <ErrorBox message={error} /> : null}
+        </form>
 
-        <ModalActions
-          onClose={onClose}
-          submitting={submitting}
-          submitLabel={
-            isTeacher
-              ? "Lưu nội dung buổi dạy"
-              : isEdit
-                ? "Lưu giáo án"
-                : "Tạo giáo án"
-          }
-          showReset={false}
-        />
-      </form>
+        <div className="flex-shrink-0 border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-5">
+          <ModalActions
+            onClose={onClose}
+            submitting={submitting}
+            submitLabel={
+              isTeacher
+                ? "Lưu nội dung buổi dạy"
+                : isEdit
+                  ? "Lưu giáo án"
+                  : "Tạo giáo án"
+            }
+            showReset={false}
+          />
+        </div>
+      </div>
     </ModalFrame>
   );
 }
 
-function parseProcedureRows(text: string): { stage: string; step: string; details: string }[] {
+function parseProcedureRows(
+  text: string,
+): { stage: string; step: string; details: string }[] {
   if (!text?.trim()) return [];
   // Strip the "Stages | Step | Details" header row emitted by Word export
-  const cleaned = text.replace(/^\s*Stages\s*\|\s*Step\s*\|\s*Details\s*/i, "").trim();
+  const cleaned = text
+    .replace(/^\s*Stages\s*\|\s*Step\s*\|\s*Details\s*/i, "")
+    .trim();
   const rows: { stage: string; step: string; details: string }[] = [];
   // Each row: {N} | {step text} | {details text until next N |}
-  const rowRegex = /(\d+)\s*\|\s*([^|]+?)\s*\|\s*([\s\S]*?)(?=\s+\d+\s*\||\s*$)/g;
+  const rowRegex =
+    /(\d+)\s*\|\s*([^|]+?)\s*\|\s*([\s\S]*?)(?=\s+\d+\s*\||\s*$)/g;
   let m: RegExpExecArray | null;
+  let rowIndex = 0;
   while ((m = rowRegex.exec(cleaned)) !== null) {
-    rows.push({ stage: m[1].trim(), step: m[2].trim(), details: m[3].trim() });
+    rows.push({ stage: String(rowIndex + 1), step: m[2].trim(), details: m[3].trim() });
+    rowIndex++;
   }
   return rows;
 }
@@ -7098,12 +9206,19 @@ function parseProcedureRows(text: string): { stage: string; step: string; detail
 /** Insert line breaks before Roman-numeral section markers (I., II., III. …) and numbered items */
 function formatDetailsText(text: string): string {
   if (!text?.trim()) return text;
-  return text
-    // newline before Roman numerals: I. II. III. IV. V. VI. VII. VIII. IX. X.
-    .replace(/[ \t]+((?:I{1,3}|IV|VI{0,3}|IX|X{1,3}I{0,3}|X))\s*\.\s+/g, "\n$1. ")
-    // newline before numbered sub-items followed by uppercase or * or -
-    .replace(/[ \t]+(\d+)\.\s+([A-Z*\-])/g, "\n$1. $2")
-    .trim();
+  return (
+    text
+      // newline before Roman numerals: I. II. III. IV. V. VI. VII. VIII. IX. X.
+      .replace(
+        /[ \t]+((?:I{1,3}|IV|VI{0,3}|IX|X{1,3}I{0,3}|X))\s*\.\s+/g,
+        "\n$1. ",
+      )
+      // newline before numbered sub-items followed by uppercase or * or -
+      .replace(/[ \t]+(\d+)\.\s+([A-Z*\-])/g, "\n$1. $2")
+      // newline before bullet items starting with -
+      .replace(/[ \t]+\-\s+/g, "\n- ")
+      .trim()
+  );
 }
 
 function DetailModal({
@@ -7204,7 +9319,11 @@ function DetailModal({
   const resolvedVocabulary =
     state.type === "template" && state.item
       ? (state.item.vocabulary ??
-        pickStringValue(templateContentObject, ["vocabulary", "vocab", "newWords"]))
+        pickStringValue(templateContentObject, [
+          "vocabulary",
+          "vocab",
+          "newWords",
+        ]))
       : "";
   const resolvedGrammar =
     state.type === "template" && state.item
@@ -7242,7 +9361,10 @@ function DetailModal({
   const resolvedProcedure =
     state.type === "template" && state.item
       ? (state.item.procedure ??
-        (pickStringValue(templateContentObject, ["procedure", "teachingProcedure"]) ||
+        (pickStringValue(templateContentObject, [
+          "procedure",
+          "teachingProcedure",
+        ]) ||
           fallbackActivityProcedureText))
       : "";
   const resolvedEvaluation =
@@ -7273,20 +9395,68 @@ function DetailModal({
           "notes",
         ]))
       : "";
-  const structuredContentFields: { label: string; value: string; accent: string }[] =
+  const structuredContentFields: {
+    label: string;
+    value: string;
+    accent: string;
+  }[] =
     state.type === "template" && state.item
       ? [
-          { label: "Mục tiêu", value: resolvedObjectives ?? "", accent: "text-emerald-700" },
-          { label: "Nội dung ngôn ngữ", value: resolvedLanguageContent ?? "", accent: "text-blue-700" },
-          { label: "Từ vựng", value: resolvedVocabulary ?? "", accent: "text-violet-700" },
-          { label: "Ngữ pháp", value: resolvedGrammar ?? "", accent: "text-indigo-700" },
-          { label: "Phương pháp giảng dạy", value: resolvedMethodology ?? "", accent: "text-orange-700" },
-          { label: "Tài liệu giáo viên", value: resolvedTeacherMaterials ?? "", accent: "text-amber-700" },
-          { label: "Tài liệu học sinh", value: resolvedStudentMaterials ?? "", accent: "text-yellow-700" },
-          { label: "Quy trình dạy học", value: resolvedProcedure ?? "", accent: "text-teal-700" },
-          { label: "Đánh giá", value: resolvedEvaluation ?? "", accent: "text-red-700" },
-          { label: "Bài tập về nhà", value: resolvedHomework ?? "", accent: "text-pink-700" },
-          { label: "Ghi chú giáo viên", value: resolvedTeacherNote ?? "", accent: "text-gray-600" },
+          {
+            label: "Mục tiêu",
+            value: resolvedObjectives ?? "",
+            accent: "text-emerald-700",
+          },
+          {
+            label: "Nội dung ngôn ngữ",
+            value: resolvedLanguageContent ?? "",
+            accent: "text-blue-700",
+          },
+          {
+            label: "Từ vựng",
+            value: resolvedVocabulary ?? "",
+            accent: "text-violet-700",
+          },
+          {
+            label: "Ngữ pháp",
+            value: resolvedGrammar ?? "",
+            accent: "text-indigo-700",
+          },
+          {
+            label: "Phương pháp giảng dạy",
+            value: resolvedMethodology ?? "",
+            accent: "text-orange-700",
+          },
+          {
+            label: "Tài liệu giáo viên",
+            value: resolvedTeacherMaterials ?? "",
+            accent: "text-amber-700",
+          },
+          {
+            label: "Tài liệu học sinh",
+            value: resolvedStudentMaterials ?? "",
+            accent: "text-yellow-700",
+          },
+          {
+            label: "Quy trình dạy học",
+            value: resolvedProcedure ?? "",
+            accent: "text-teal-700",
+          },
+          {
+            label: "Đánh giá",
+            value: resolvedEvaluation ?? "",
+            accent: "text-red-700",
+          },
+          {
+            label: "Bài tập về nhà",
+            value: resolvedHomework ?? "",
+            accent: "text-pink-700",
+          },
+          {
+            label: "Ghi chú giáo viên",
+            value: resolvedTeacherNote ?? "",
+            accent: "text-gray-600",
+          },
         ].filter((f) => f.value.trim())
       : [];
   const hasStructuredFields = structuredContentFields.length > 0;
@@ -7360,412 +9530,569 @@ function DetailModal({
     >
       <div className="flex flex-col max-h-[80vh]">
         <div className="flex-1 overflow-y-auto space-y-5 p-6">
-        {state.type === "template" && state.item ? (
-          <>
-            {/* Document-style lesson plan */}
-            <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm">
-
-              {/* Document header */}
-              <div className="px-8 pt-5 pb-5 bg-gradient-to-b from-gray-50 to-white border-b border-gray-200">
-                <div className="flex justify-between text-[11px] text-gray-400 font-mono mb-4 pb-3 border-b border-dashed border-gray-300">
-                  <div className="space-y-1">
-                    <div>Date of preparation: ......./......../20......</div>
-                    <div>Date of teaching:&nbsp;&nbsp;&nbsp;&nbsp;......./......../20......</div>
-                  </div>
-                  <div className="space-y-1 text-right">
-                    <div>Teacher: <span className="font-sans font-medium text-gray-600">{state.item.createdByName || "............"}</span></div>
-                    <div>Class: .............</div>
-                  </div>
-                </div>
-                <div className="text-center space-y-1.5 py-1">
-                  {(state.item.moduleName || state.item.moduleCode) && (
-                    <div className="text-xs font-bold uppercase tracking-[0.18em] text-red-600">
-                      {state.item.moduleName || state.item.moduleCode}
+          {state.type === "template" && state.item ? (
+            <>
+              {/* Document-style lesson plan */}
+              <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm">
+                {/* Document header */}
+                <div className="px-8 pt-5 pb-5 bg-gradient-to-b from-gray-50 to-white border-b border-gray-200">
+                  <div className="flex justify-between text-[11px] text-gray-400 font-mono mb-4 pb-3 border-b border-dashed border-gray-300">
+                    <div className="space-y-1">
+                      <div>Date of preparation: ......./......../20......</div>
+                      <div>
+                        Date of
+                        teaching:&nbsp;&nbsp;&nbsp;&nbsp;......./......../20......
+                      </div>
                     </div>
-                  )}
-                  <h2 className="text-base font-bold text-gray-900">{state.item.title}</h2>
-                  <div className="text-sm text-gray-500 flex items-center justify-center gap-3 flex-wrap">
-                    <span>Lesson {state.item.sessionOrder ?? state.item.sessionIndex ?? "-"}</span>
-                    {state.item.levelName && <span>• {state.item.levelName}</span>}
-                    {state.item.programName && <span className="text-gray-400">• {state.item.programName}</span>}
+                    <div className="space-y-1 text-right">
+                      <div>
+                        Teacher:{" "}
+                        <span className="font-sans font-medium text-gray-600">
+                          {state.item.createdByName || "............"}
+                        </span>
+                      </div>
+                      <div>Class: .............</div>
+                    </div>
                   </div>
-                  <div className="pt-1 flex items-center justify-center gap-3 text-xs text-gray-400">
-                    <span>Tạo bởi {state.item.createdByName || "-"}</span>
-                    <span>•</span>
-                    <span>{formatDate(state.item.updatedAt || state.item.createdAt, true)}</span>
+                  <div className="text-center space-y-1.5 py-1">
+                    {(state.item.moduleName || state.item.moduleCode) && (
+                      <div className="text-xs font-bold  tracking-[0.18em] text-red-600">
+                        {state.item.moduleName || state.item.moduleCode}
+                      </div>
+                    )}
+                    <h2 className="text-base font-bold text-gray-900">
+                      {state.item.title}
+                    </h2>
+                    <div className="text-sm text-gray-500 flex items-center justify-center gap-3 flex-wrap">
+                      <span>
+                        Lesson{" "}
+                        {state.item.sessionOrder ??
+                          state.item.sessionIndex ??
+                          "-"}
+                      </span>
+                      {state.item.levelName && (
+                        <span>• {state.item.levelName}</span>
+                      )}
+                      {state.item.programName && (
+                        <span className="text-gray-400">
+                          • {state.item.programName}
+                        </span>
+                      )}
+                    </div>
+                    <div className="pt-1 flex items-center justify-center gap-3 text-xs text-gray-400">
+                      <span>Tạo bởi {state.item.createdByName || "-"}</span>
+                      <span>•</span>
+                      <span>
+                        {formatDate(
+                          state.item.updatedAt || state.item.createdAt,
+                          true,
+                        )}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Sections A–H */}
-              <div className="divide-y divide-gray-100">
-
-                {/* 0. Thông tin chung của Syllabus (mirrors the edit form section) */}
-                {(() => {
-                  const rawMeta = state.item.syllabusMetadata;
-                  if (!rawMeta?.trim()) return null;
-                  // Try JSON first (saved by the edit form), then plain text
-                  const jsonParsed = parseJsonContent(rawMeta) as Record<string, unknown> | null;
-                  const day: string = (jsonParsed?.day as string) || "";
-                  const duration: string = (jsonParsed?.duration as string) || "";
-                  const generalInfo: string = (jsonParsed?.generalInformation as string) || "";
-                  const materials: string[] = Array.isArray(jsonParsed?.teachingMaterials)
-                    ? (jsonParsed!.teachingMaterials as unknown[]).map(String).filter(Boolean)
-                    : [];
-                  const note: string = (jsonParsed?.note as string) || "";
-                  // Fallback: parse plain text
-                  const plain = !jsonParsed ? parsePlainMetadataText(rawMeta) : null;
-                  const pDay = day || plain?.day || "";
-                  const pDuration = duration || plain?.duration || "";
-                  const pInfo = generalInfo || plain?.generalInformation || "";
-                  const pMaterials = materials.length
-                    ? materials
-                    : plain?.teachingMaterialsText
-                      ? plain.teachingMaterialsText.split("\n").filter(Boolean)
+                {/* Sections A–H */}
+                <div className="divide-y divide-gray-100">
+                  {/* 0. Thông tin chung của Syllabus (mirrors the edit form section) */}
+                  {(() => {
+                    const rawMeta = state.item.syllabusMetadata;
+                    if (!rawMeta?.trim()) return null;
+                    // Try JSON first (saved by the edit form), then plain text
+                    const jsonParsed = parseJsonContent(rawMeta) as Record<
+                      string,
+                      unknown
+                    > | null;
+                    const day: string = (jsonParsed?.day as string) || "";
+                    const duration: string =
+                      (jsonParsed?.duration as string) || "";
+                    const generalInfo: string =
+                      (jsonParsed?.generalInformation as string) || "";
+                    const materials: string[] = Array.isArray(
+                      jsonParsed?.teachingMaterials,
+                    )
+                      ? (jsonParsed!.teachingMaterials as unknown[])
+                          .map(String)
+                          .filter(Boolean)
                       : [];
-                  const pNote = note || plain?.note || "";
-                  const hasMeta = pDay || pDuration || pInfo || pMaterials.length || pNote;
-                  if (!hasMeta) return null;
-                  const materialItems = pMaterials.map((line) => parseTeachingMaterialLine(line, 0));
-                  return (
-                    <div className="px-8 py-5 bg-blue-50/40 border-b border-blue-100">
-                      <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-blue-700 mb-4">Thông tin chung của Syllabus</div>
-                      {(pDay || pDuration) && (
-                        <div className="grid grid-cols-2 gap-4 mb-3">
-                          {pDay && (
-                            <div>
-                              <div className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Ngày học</div>
-                              <div className="text-sm text-gray-700">{pDay}</div>
-                            </div>
-                          )}
-                          {pDuration && (
-                            <div>
-                              <div className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Thời lượng</div>
-                              <div className="text-sm text-gray-700">{pDuration}</div>
-                            </div>
-                          )}
+                    const note: string = (jsonParsed?.note as string) || "";
+                    // Fallback: parse plain text
+                    const plain = !jsonParsed
+                      ? parsePlainMetadataText(rawMeta)
+                      : null;
+                    const pDay = day || plain?.day || "";
+                    const pDuration = duration || plain?.duration || "";
+                    const pInfo =
+                      generalInfo || plain?.generalInformation || "";
+                    const pMaterials = materials.length
+                      ? materials
+                      : plain?.teachingMaterialsText
+                        ? plain.teachingMaterialsText
+                            .split("\n")
+                            .filter(Boolean)
+                        : [];
+                    const pNote = note || plain?.note || "";
+                    const hasMeta =
+                      pDay || pDuration || pInfo || pMaterials.length || pNote;
+                    if (!hasMeta) return null;
+                    const materialItems = pMaterials.map((line) =>
+                      parseTeachingMaterialLine(line, 0),
+                    );
+                    return (
+                      <div className="px-8 py-5 bg-blue-50/40 border-b border-blue-100">
+                        <div className="text-[10px] font-bold  tracking-[0.15em] text-blue-700 mb-4">
+                          Thông tin chung của Syllabus
                         </div>
-                      )}
-                      {pInfo && (
-                        <div className="mb-3">
-                          <div className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Thông tin chung</div>
-                          <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{pInfo}</div>
-                        </div>
-                      )}
-                      {materialItems.length > 0 && (
-                        <div className="mb-3">
-                          <div className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Tài liệu giảng dạy</div>
-                          <div className="rounded-xl border border-blue-200 overflow-hidden">
-                            <div className="grid grid-cols-[1fr_1fr] bg-blue-50 border-b border-blue-200 text-[11px] font-semibold text-blue-700">
-                              <div className="px-3 py-2 border-r border-blue-200">Tên tài liệu</div>
-                              <div className="px-3 py-2">Link hoặc file</div>
-                            </div>
-                            <div className="divide-y divide-gray-100">
-                              {materialItems.map((mat, i) => (
-                                <div key={i} className="grid grid-cols-[1fr_1fr]">
-                                  <div className="px-3 py-2 text-sm text-gray-700 border-r border-gray-100 font-medium">{mat.title || `Tài liệu ${i + 1}`}</div>
-                                  <div className="px-3 py-2 text-sm text-gray-600 break-all">{renderLinkifiedText(mat.resource)}</div>
+                        {(pDay || pDuration) && (
+                          <div className="grid grid-cols-2 gap-4 mb-3">
+                            {pDay && (
+                              <div>
+                                <div className="text-[10px] font-semibold text-gray-500  tracking-wide mb-1">
+                                  Ngày học
                                 </div>
-                              ))}
+                                <div className="text-sm text-gray-700">
+                                  {pDay}
+                                </div>
+                              </div>
+                            )}
+                            {pDuration && (
+                              <div>
+                                <div className="text-[10px] font-semibold text-gray-500  tracking-wide mb-1">
+                                  Thời lượng
+                                </div>
+                                <div className="text-sm text-gray-700">
+                                  {pDuration}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {pInfo && (
+                          <div className="mb-3">
+                            <div className="text-[10px] font-semibold text-gray-500  tracking-wide mb-1">
+                              Thông tin chung
+                            </div>
+                            <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">
+                              {pInfo}
                             </div>
                           </div>
-                        </div>
-                      )}
-                      {pNote && (
-                        <div>
-                          <div className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Ghi chú</div>
-                          <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{pNote}</div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-
-                {/* A. Objectives */}
-                {resolvedObjectives && (
-                  <div className="flex">
-                    <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-emerald-50/70 border-r border-emerald-100">
-                      <span className="text-sm font-extrabold text-emerald-700">A</span>
-                    </div>
-                    <div className="flex-1 px-6 py-4">
-                      <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-emerald-700 mb-2">Objectives</div>
-                      <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{resolvedObjectives}</div>
-                    </div>
-                  </div>
-                )}
-
-                {/* B. Language content */}
-                {(resolvedLanguageContent || resolvedVocabulary || resolvedGrammar) && (
-                  <div className="flex">
-                    <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-blue-50/70 border-r border-blue-100">
-                      <span className="text-sm font-extrabold text-blue-700">B</span>
-                    </div>
-                    <div className="flex-1 px-6 py-4">
-                      <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-blue-700 mb-2">Language content</div>
-                      {resolvedLanguageContent && (
-                        <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6 mb-2">{resolvedLanguageContent}</div>
-                      )}
-                      {resolvedVocabulary && (
-                        <div className="text-sm text-gray-700 mb-1">
-                          <span className="font-semibold text-blue-600">Vocabulary: </span>{resolvedVocabulary}
-                        </div>
-                      )}
-                      {resolvedGrammar && (
-                        <div className="text-sm text-gray-700">
-                          <span className="font-semibold text-blue-600">Grammar: </span>{resolvedGrammar}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* C. Teaching methodology */}
-                {resolvedMethodology && (
-                  <div className="flex">
-                    <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-orange-50/70 border-r border-orange-100">
-                      <span className="text-sm font-extrabold text-orange-700">C</span>
-                    </div>
-                    <div className="flex-1 px-6 py-4">
-                      <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-orange-700 mb-2">Teaching methodology</div>
-                      <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{resolvedMethodology}</div>
-                    </div>
-                  </div>
-                )}
-
-                {/* D. Materials for teacher */}
-                {resolvedTeacherMaterials && (
-                  <div className="flex">
-                    <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-amber-50/70 border-r border-amber-100">
-                      <span className="text-sm font-extrabold text-amber-700">D</span>
-                    </div>
-                    <div className="flex-1 px-6 py-4">
-                      <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-amber-700 mb-2">Materials for teacher</div>
-                      <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{resolvedTeacherMaterials}</div>
-                    </div>
-                  </div>
-                )}
-
-                {/* E. Materials for students */}
-                {resolvedStudentMaterials && (
-                  <div className="flex">
-                    <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-yellow-50/70 border-r border-yellow-100">
-                      <span className="text-sm font-extrabold text-yellow-600">E</span>
-                    </div>
-                    <div className="flex-1 px-6 py-4">
-                      <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-yellow-700 mb-2">Materials for students</div>
-                      <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{resolvedStudentMaterials}</div>
-                    </div>
-                  </div>
-                )}
-
-                {/* F. Procedure */}
-                {resolvedProcedure && (
-                  <div className="flex">
-                    <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-teal-50/70 border-r border-teal-100">
-                      <span className="text-sm font-extrabold text-teal-700">F</span>
-                    </div>
-                    <div className="flex-1 px-6 py-4">
-                      <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-teal-700 mb-3">Procedure</div>
-                      {(() => {
-                        const rows = parseProcedureRows(resolvedProcedure);
-                        if (rows.length === 0) {
-                          return <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{resolvedProcedure}</div>;
-                        }
-                        return (
-                          <div className="rounded-xl border border-teal-200 overflow-hidden">
-                            <div className="grid grid-cols-[3rem_10rem_1fr] bg-teal-50 border-b border-teal-200 text-[11px] font-semibold text-teal-700">
-                              <div className="px-2 py-2 text-center border-r border-teal-200">Stages</div>
-                              <div className="px-3 py-2 text-center border-r border-teal-200">Step</div>
-                              <div className="px-3 py-2 text-left">Details</div>
+                        )}
+                        {materialItems.length > 0 && (
+                          <div className="mb-3">
+                            <div className="text-[10px] font-semibold text-gray-500  tracking-wide mb-2">
+                              Tài liệu giảng dạy
                             </div>
-                            <div className="divide-y divide-gray-100">
-                              {rows.map((row, i) => (
-                                <div key={i} className={cn("grid grid-cols-[3rem_10rem_1fr]", i % 2 === 0 ? "bg-white" : "bg-gray-50/50")}>
-                                  <div className="px-2 py-3 text-center text-sm font-bold text-gray-600 border-r border-gray-100 flex items-start justify-center pt-3">{row.stage}</div>
-                                  <div className="px-3 py-3 text-sm font-semibold text-gray-700 border-r border-gray-100 leading-5">{row.step}</div>
-                                  <div className="px-3 py-3 text-sm text-gray-700 leading-6 whitespace-pre-wrap">{formatDetailsText(row.details)}</div>
+                            <div className="rounded-xl border border-blue-200 overflow-hidden">
+                              <div className="grid grid-cols-[1fr_1fr] bg-blue-50 border-b border-blue-200 text-[11px] font-semibold text-blue-700">
+                                <div className="px-3 py-2 border-r border-blue-200">
+                                  Tên tài liệu
                                 </div>
-                              ))}
+                                <div className="px-3 py-2">Link hoặc file</div>
+                              </div>
+                              <div className="divide-y divide-gray-100">
+                                {materialItems.map((mat, i) => (
+                                  <div
+                                    key={i}
+                                    className="grid grid-cols-[1fr_1fr]"
+                                  >
+                                    <div className="px-3 py-2 text-sm text-gray-700 border-r border-gray-100 font-medium">
+                                      {mat.title || `Tài liệu ${i + 1}`}
+                                    </div>
+                                    <div className="px-3 py-2 text-sm text-gray-600 break-all">
+                                      {renderLinkifiedText(mat.resource)}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
                           </div>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                )}
+                        )}
+                        {pNote && (
+                          <div>
+                            <div className="text-[10px] font-semibold text-gray-500  tracking-wide mb-1">
+                              Ghi chú
+                            </div>
+                            <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">
+                              {pNote}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
 
-                {/* G. Evaluation */}
-                {resolvedEvaluation && (
-                  <div className="flex">
-                    <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-red-50/70 border-r border-red-100">
-                      <span className="text-sm font-extrabold text-red-700">G</span>
+                  {/* A. Objectives */}
+                  {resolvedObjectives && (
+                    <div className="flex">
+                      <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-emerald-50/70 border-r border-emerald-100">
+                        <span className="text-sm font-extrabold text-emerald-700">
+                          A
+                        </span>
+                      </div>
+                      <div className="flex-1 px-6 py-4">
+                        <div className="text-[10px] font-bold  tracking-[0.15em] text-emerald-700 mb-2">
+                          Objectives
+                        </div>
+                        <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">
+                          {resolvedObjectives}
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex-1 px-6 py-4">
-                      <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-red-700 mb-2">Evaluation</div>
-                      <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{resolvedEvaluation}</div>
-                    </div>
-                  </div>
-                )}
+                  )}
 
-                {/* H. Homework */}
-                {resolvedHomework && (
-                  <div className="flex">
-                    <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-pink-50/70 border-r border-pink-100">
-                      <span className="text-sm font-extrabold text-pink-700">H</span>
+                  {/* B. Language content */}
+                  {(resolvedLanguageContent ||
+                    resolvedVocabulary ||
+                    resolvedGrammar) && (
+                    <div className="flex">
+                      <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-blue-50/70 border-r border-blue-100">
+                        <span className="text-sm font-extrabold text-blue-700">
+                          B
+                        </span>
+                      </div>
+                      <div className="flex-1 px-6 py-4">
+                        <div className="text-[10px] font-bold  tracking-[0.15em] text-blue-700 mb-2">
+                          Language content
+                        </div>
+                        {resolvedLanguageContent && (
+                          <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6 mb-2">
+                            {resolvedLanguageContent}
+                          </div>
+                        )}
+                        {resolvedVocabulary && (
+                          <div className="text-sm text-gray-700 mb-1">
+                            <span className="font-semibold text-blue-600">
+                              Vocabulary:{" "}
+                            </span>
+                            {resolvedVocabulary}
+                          </div>
+                        )}
+                        {resolvedGrammar && (
+                          <div className="text-sm text-gray-700">
+                            <span className="font-semibold text-blue-600">
+                              Grammar:{" "}
+                            </span>
+                            {resolvedGrammar}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex-1 px-6 py-4">
-                      <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-pink-700 mb-2">Homework</div>
-                      <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{resolvedHomework}</div>
-                    </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Teacher note */}
-                {resolvedTeacherNote && (
-                  <div className="px-8 py-4 bg-yellow-50/50 border-t border-yellow-100">
-                    <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-yellow-700 mb-2">Teacher Note</div>
-                    <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{resolvedTeacherNote}</div>
-                  </div>
-                )}
-
-                {/* Raw source reference: always available when syllabusContent exists */}
-                {hasTemplateContent && (
-                  <div className="px-8 py-4 border-t border-gray-100 bg-slate-50/70">
-                    <details>
-                      <summary className="cursor-pointer text-[11px] font-bold uppercase tracking-[0.15em] text-slate-700">
-                        Nội dung gốc từ file import
-                      </summary>
-                      <div className="mt-3 whitespace-pre-wrap text-sm text-gray-700 leading-6">{state.item.syllabusContent}</div>
-                    </details>
-                  </div>
-                )}
-                {!hasStructuredFields && !hasTemplateMetadata && !hasTemplateContent && (
-                  <div className="px-8 py-4">
-                    <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-                      Mẫu giáo án này chưa có dữ liệu syllabus chi tiết.
+                  {/* C. Teaching methodology */}
+                  {resolvedMethodology && (
+                    <div className="flex">
+                      <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-orange-50/70 border-r border-orange-100">
+                        <span className="text-sm font-extrabold text-orange-700">
+                          C
+                        </span>
+                      </div>
+                      <div className="flex-1 px-6 py-4">
+                        <div className="text-[10px] font-bold  tracking-[0.15em] text-orange-700 mb-2">
+                          Teaching methodology
+                        </div>
+                        <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">
+                          {resolvedMethodology}
+                        </div>
+                      </div>
                     </div>
+                  )}
+
+                  {/* D. Materials for teacher */}
+                  {resolvedTeacherMaterials && (
+                    <div className="flex">
+                      <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-amber-50/70 border-r border-amber-100">
+                        <span className="text-sm font-extrabold text-amber-700">
+                          D
+                        </span>
+                      </div>
+                      <div className="flex-1 px-6 py-4">
+                        <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-amber-700 mb-2">
+                          Materials for teacher
+                        </div>
+                        <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">
+                          {resolvedTeacherMaterials}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* E. Materials for students */}
+                  {resolvedStudentMaterials && (
+                    <div className="flex">
+                      <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-yellow-50/70 border-r border-yellow-100">
+                        <span className="text-sm font-extrabold text-yellow-600">
+                          E
+                        </span>
+                      </div>
+                      <div className="flex-1 px-6 py-4">
+                        <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-yellow-700 mb-2">
+                          Materials for students
+                        </div>
+                        <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">
+                          {resolvedStudentMaterials}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* F. Procedure */}
+                  {resolvedProcedure && (
+                    <div className="flex">
+                      <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-teal-50/70 border-r border-teal-100">
+                        <span className="text-sm font-extrabold text-teal-700">
+                          F
+                        </span>
+                      </div>
+                      <div className="flex-1 px-6 py-4">
+                        <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-teal-700 mb-3">
+                          Procedure
+                        </div>
+                        {(() => {
+                          const rows = parseProcedureRows(resolvedProcedure);
+                          if (rows.length === 0) {
+                            return (
+                              <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">
+                                {resolvedProcedure}
+                              </div>
+                            );
+                          }
+                          return (
+                            <div className="rounded-xl border border-teal-200 overflow-hidden">
+                              <div className="grid grid-cols-[3rem_10rem_1fr] bg-teal-50 border-b border-teal-200 text-[11px] font-semibold text-teal-700">
+                                <div className="px-2 py-2 text-center border-r border-teal-200">
+                                  Stages
+                                </div>
+                                <div className="px-3 py-2 text-center border-r border-teal-200">
+                                  Step
+                                </div>
+                                <div className="px-3 py-2 text-left">
+                                  Details
+                                </div>
+                              </div>
+                              <div className="divide-y divide-gray-100">
+                                {rows.map((row, i) => (
+                                  <div
+                                    key={i}
+                                    className={cn(
+                                      "grid grid-cols-[3rem_10rem_1fr]",
+                                      i % 2 === 0
+                                        ? "bg-white"
+                                        : "bg-gray-50/50",
+                                    )}
+                                  >
+                                    <div className="px-2 py-3 text-center text-sm font-bold text-gray-600 border-r border-gray-100 flex items-start justify-center pt-3">
+                                      {row.stage}
+                                    </div>
+                                    <div className="px-3 py-3 text-sm font-semibold text-gray-700 border-r border-gray-100 leading-5">
+                                      {row.step}
+                                    </div>
+                                    <div className="px-3 py-3 text-sm text-gray-700 leading-6 whitespace-pre-wrap">
+                                      {formatDetailsText(row.details)}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* G. Evaluation */}
+                  {resolvedEvaluation && (
+                    <div className="flex">
+                      <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-red-50/70 border-r border-red-100">
+                        <span className="text-sm font-extrabold text-red-700">
+                          G
+                        </span>
+                      </div>
+                      <div className="flex-1 px-6 py-4">
+                        <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-red-700 mb-2">
+                          Evaluation
+                        </div>
+                        <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">
+                          {resolvedEvaluation}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* H. Homework */}
+                  {resolvedHomework && (
+                    <div className="flex">
+                      <div className="w-14 flex-shrink-0 flex flex-col items-center pt-4 pb-4 bg-pink-50/70 border-r border-pink-100">
+                        <span className="text-sm font-extrabold text-pink-700">
+                          H
+                        </span>
+                      </div>
+                      <div className="flex-1 px-6 py-4">
+                        <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-pink-700 mb-2">
+                          Homework
+                        </div>
+                        <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">
+                          {resolvedHomework}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Teacher note */}
+                  {resolvedTeacherNote && (
+                    <div className="px-8 py-4 bg-yellow-50/50 border-t border-yellow-100">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-yellow-700 mb-2">
+                        Teacher Note
+                      </div>
+                      <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">
+                        {resolvedTeacherNote}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Raw source reference: always available when syllabusContent exists */}
+                  {hasTemplateContent && (
+                    <div className="px-8 py-4 border-t border-gray-100 bg-slate-50/70">
+                      <details>
+                        <summary className="cursor-pointer text-[11px] font-bold uppercase tracking-[0.15em] text-slate-700">
+                          Nội dung gốc từ file import
+                        </summary>
+                        <div className="mt-3 whitespace-pre-wrap text-sm text-gray-700 leading-6">
+                          {state.item.syllabusContent}
+                        </div>
+                      </details>
+                    </div>
+                  )}
+                  {!hasStructuredFields &&
+                    !hasTemplateMetadata &&
+                    !hasTemplateContent && (
+                      <div className="px-8 py-4">
+                        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                                  {state.item.syllabusContent || 'Chưa có nội dung dự kiến.'}
+                        </div>
+                      </div>
+                    )}
+                </div>
+
+                {/* Footer */}
+                {(state.item.sourceFileName || state.item.attachment) && (
+                  <div className="px-8 py-3 bg-gray-50 border-t border-gray-200 flex items-center gap-4">
+                    {state.item.sourceFileName && (
+                      <div className="text-xs text-gray-500 flex-1 truncate">
+                        <span className="font-medium">Nguồn:</span>{" "}
+                        {state.item.sourceFileName}
+                      </div>
+                    )}
+                    {state.item.attachment && (
+                      <button
+                        type="button"
+                        onClick={() => onOpenAttachment(state.item!.attachment)}
+                        className="ml-auto inline-flex flex-shrink-0 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 cursor-pointer"
+                      >
+                        <Paperclip size={12} />
+                        Mở file đính kèm
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
-
-              {/* Footer */}
-              {(state.item.sourceFileName || state.item.attachment) && (
-                <div className="px-8 py-3 bg-gray-50 border-t border-gray-200 flex items-center gap-4">
-                  {state.item.sourceFileName && (
-                    <div className="text-xs text-gray-500 flex-1 truncate">
-                      <span className="font-medium">Nguồn:</span> {state.item.sourceFileName}
-                    </div>
+            </>
+          ) : state.type === "plan" && state.item ? (
+            <>
+              <div className="grid gap-4 md:grid-cols-2">
+                <InfoCard
+                  icon={Users}
+                  label="Lớp học"
+                  value={
+                    state.item.classTitle ||
+                    state.item.classCode ||
+                    state.item.classId ||
+                    "-"
+                  }
+                />
+                <InfoCard
+                  icon={CalendarDays}
+                  label="Buổi học"
+                  value={
+                    state.item.sessionTitle ||
+                    formatDate(state.item.sessionDate, true)
+                  }
+                />
+                <InfoCard
+                  icon={ShieldCheck}
+                  label="Người cập nhật"
+                  value={state.item.submittedByName || "-"}
+                />
+                <InfoCard
+                  icon={Clock3}
+                  label="Thời gian"
+                  value={formatDate(
+                    state.item.updatedAt ||
+                      state.item.createdAt ||
+                      state.item.submittedAt,
+                    true,
                   )}
-                  {state.item.attachment && (
-                    <button
-                      type="button"
-                      onClick={() => onOpenAttachment(state.item!.attachment)}
-                      className="ml-auto inline-flex flex-shrink-0 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 cursor-pointer"
-                    >
-                      <Paperclip size={12} />
-                      Mở file đính kèm
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          </>
-        ) : state.type === "plan" && state.item ? (
-          <>
-            <div className="grid gap-4 md:grid-cols-2">
-              <InfoCard
-                icon={Users}
-                label="Lớp học"
-                value={
-                  state.item.classTitle ||
-                  state.item.classCode ||
-                  state.item.classId ||
-                  "-"
-                }
-              />
-              <InfoCard
-                icon={CalendarDays}
-                label="Buổi học"
-                value={
-                  state.item.sessionTitle ||
-                  formatDate(state.item.sessionDate, true)
-                }
-              />
-              <InfoCard
-                icon={ShieldCheck}
-                label="Người cập nhật"
-                value={state.item.submittedByName || "-"}
-              />
-              <InfoCard
-                icon={Clock3}
-                label="Thời gian"
-                value={formatDate(
-                  state.item.updatedAt ||
-                    state.item.createdAt ||
-                    state.item.submittedAt,
-                  true,
-                )}
-              />
-            </div>
-            <div className="grid gap-4 xl:grid-cols-2">
-              <ContentPanel
-                title="plannedContent"
-                value={state.item.plannedContent}
-                accent="text-red-700"
-              />
-              <ContentPanel
-                title="actualContent"
-                value={state.item.actualContent}
-                accent="text-emerald-700"
-              />
-              <ContentPanel
-                title="actualHomework"
-                value={state.item.actualHomework}
-                accent="text-amber-700"
-              />
-              <ContentPanel
-                title="teacherNotes"
-                value={state.item.teacherNotes}
-                accent="text-gray-700"
-              />
-            </div>
-
-            <div className="rounded-2xl border border-gray-200 bg-white p-5">
-              <div className="mb-3 text-sm font-semibold text-red-600">
-                Template liên kết
+                />
               </div>
-              {state.item.templateId ? (
-                <div className="space-y-2 text-sm text-gray-700">
-                  <div>
-                    {linkedTemplate?.title ||
-                      state.item.templateTitle ||
-                      "Template đã gắn"}
-                  </div>
-                  <div className="text-gray-500">
-                    {state.item.templateLevel || linkedTemplate?.level
-                      ? `Level ${state.item.templateLevel || linkedTemplate?.level}`
-                      : "Không có level"}
-                    {state.item.templateSessionIndex ||
-                    linkedTemplate?.sessionIndex
-                      ? ` • Buổi ${state.item.templateSessionIndex || linkedTemplate?.sessionIndex}`
-                      : ""}
-                  </div>
+              <div className="grid gap-4 xl:grid-cols-2">
+                <ContentPanel
+                  title="plannedContent"
+                  value={state.item.plannedContent}
+                  accent="text-red-700"
+                />
+                <ContentPanel
+                  title="actualContent"
+                  value={state.item.actualContent}
+                  accent="text-emerald-700"
+                />
+                <ContentPanel
+                  title="actualHomework"
+                  value={state.item.actualHomework}
+                  accent="text-amber-700"
+                />
+                <ContentPanel
+                  title="teacherNotes"
+                  value={state.item.teacherNotes}
+                  accent="text-gray-700"
+                />
+              </div>
+
+              <div className="rounded-2xl border border-gray-200 bg-white p-5">
+                <div className="mb-3 text-sm font-semibold text-red-600">
+                  Template liên kết
                 </div>
-              ) : (
-                <div className="text-sm text-gray-500">
-                  Giáo án này chưa gắn mẫu giáo án.
-                </div>
-              )}
-            </div>
-          </>
-        ) : state.type === "session-document" ? (
-          <SessionDocumentDetailContent state={state} />
-        ) : (
-          <EmptyState
-            title="Không có dữ liệu chi tiết"
-            subtitle="Backend không trả về bản ghi phù hợp."
-          />
-        )}
+                {state.item.templateId ? (
+                  <div className="space-y-2 text-sm text-gray-700">
+                    <div>
+                      {linkedTemplate?.title ||
+                        state.item.templateTitle ||
+                        "Template đã gắn"}
+                    </div>
+                    <div className="text-gray-500">
+                      {state.item.templateLevel || linkedTemplate?.level
+                        ? `Level ${state.item.templateLevel || linkedTemplate?.level}`
+                        : "Không có level"}
+                      {state.item.templateSessionIndex ||
+                      linkedTemplate?.sessionIndex
+                        ? ` • Buổi ${state.item.templateSessionIndex || linkedTemplate?.sessionIndex}`
+                        : ""}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-500">
+                    Giáo án này chưa gắn mẫu giáo án.
+                  </div>
+                )}
+              </div>
+            </>
+          ) : state.type === "session-document" ? (
+            <SessionDocumentDetailContent state={state} />
+          ) : (
+            <EmptyState
+              title="Không có dữ liệu chi tiết"
+              subtitle="Backend không trả về bản ghi phù hợp."
+            />
+          )}
         </div>
 
         <div className="flex-shrink-0 border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-6">
@@ -7784,7 +10111,11 @@ function DetailModal({
   );
 }
 
-function SessionDocumentDetailContent({ state }: { state: SessionDocumentDetailState }) {
+function SessionDocumentDetailContent({
+  state,
+}: {
+  state: SessionDocumentDetailState;
+}) {
   return (
     <>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -7843,7 +10174,8 @@ function SessionCurriculumTable({
   error: string | null;
   syllabusTitle: string;
 }) {
-  const hasHighlightedRow = currentRowIndex >= 0 && currentRowIndex < rows.length;
+  const hasHighlightedRow =
+    currentRowIndex >= 0 && currentRowIndex < rows.length;
 
   return (
     <div className="rounded-2xl border border-red-200 bg-white shadow-sm overflow-hidden">
@@ -7853,9 +10185,12 @@ function SessionCurriculumTable({
             <div className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">
               Curriculum của syllabus
             </div>
-            <h3 className="mt-1 text-lg font-bold text-gray-900">{syllabusTitle}</h3>
+            <h3 className="mt-1 text-lg font-bold text-gray-900">
+              {syllabusTitle}
+            </h3>
             <p className="mt-1 text-sm text-gray-600">
-              Bảng curriculum đầy đủ của syllabus. Dòng đang tô là buổi hiện tại teacher đang mở.
+              Bảng curriculum đầy đủ của syllabus. Dòng đang tô là buổi hiện tại
+              teacher đang mở.
             </p>
           </div>
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800">
@@ -7881,7 +10216,8 @@ function SessionCurriculumTable({
           <div className="space-y-3">
             {hasHighlightedRow ? (
               <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                Đang đối chiếu theo dòng curriculum số <strong>{currentRowIndex + 1}</strong> của syllabus.
+                Đang đối chiếu theo dòng curriculum số{" "}
+                <strong>{currentRowIndex + 1}</strong> của syllabus.
               </div>
             ) : null}
 
@@ -7889,14 +10225,30 @@ function SessionCurriculumTable({
               <table className="min-w-[1220px] w-full border-collapse text-sm">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">#</th>
-                    <th className="border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">Periods</th>
-                    <th className="border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">Topics</th>
-                    <th className="border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">Lessons</th>
-                    <th className="border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">Contents</th>
-                    <th className="border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">Structures</th>
-                    <th className="border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">Student's book</th>
-                    <th className="border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">Teacher's book</th>
+                    <th className="border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
+                      #
+                    </th>
+                    <th className="border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
+                      Periods
+                    </th>
+                    <th className="border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
+                      Topics
+                    </th>
+                    <th className="border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
+                      Lessons
+                    </th>
+                    <th className="border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
+                      Contents
+                    </th>
+                    <th className="border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
+                      Structures
+                    </th>
+                    <th className="border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
+                      Student's book
+                    </th>
+                    <th className="border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
+                      Teacher's book
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -7908,17 +10260,42 @@ function SessionCurriculumTable({
                         key={`${row.periods}-${row.topics}-${row.lessons}-${rowIndex}`}
                         className={cn(
                           "align-top border-b border-gray-100",
-                          isCurrentRow ? "bg-emerald-50/70" : rowIndex % 2 === 0 ? "bg-white" : "bg-gray-50/45",
+                          isCurrentRow
+                            ? "bg-emerald-50/70"
+                            : rowIndex % 2 === 0
+                              ? "bg-white"
+                              : "bg-gray-50/45",
                         )}
                       >
-                        <td className={cn("px-3 py-3 text-xs font-semibold text-gray-500", isCurrentRow && "text-emerald-700")}>{rowIndex + 1}</td>
-                        <td className="px-3 py-3 whitespace-pre-wrap text-gray-700">{row.periods || "—"}</td>
-                        <td className="px-3 py-3 whitespace-pre-wrap text-gray-700">{row.topics || "—"}</td>
-                        <td className="px-3 py-3 whitespace-pre-wrap text-gray-700">{row.lessons || "—"}</td>
-                        <td className="px-3 py-3 whitespace-pre-wrap text-gray-700">{row.contents || "—"}</td>
-                        <td className="px-3 py-3 whitespace-pre-wrap text-gray-700">{row.structures || "—"}</td>
-                        <td className="px-3 py-3 whitespace-pre-wrap text-gray-700">{row.studentsBook || "—"}</td>
-                        <td className="px-3 py-3 whitespace-pre-wrap text-gray-700">{row.teachersBook || "—"}</td>
+                        <td
+                          className={cn(
+                            "px-3 py-3 text-xs font-semibold text-gray-500",
+                            isCurrentRow && "text-emerald-700",
+                          )}
+                        >
+                          {rowIndex + 1}
+                        </td>
+                        <td className="px-3 py-3 whitespace-pre-wrap text-gray-700">
+                          {row.periods || "—"}
+                        </td>
+                        <td className="px-3 py-3 whitespace-pre-wrap text-gray-700">
+                          {row.topics || "—"}
+                        </td>
+                        <td className="px-3 py-3 whitespace-pre-wrap text-gray-700">
+                          {row.lessons || "—"}
+                        </td>
+                        <td className="px-3 py-3 whitespace-pre-wrap text-gray-700">
+                          {row.contents || "—"}
+                        </td>
+                        <td className="px-3 py-3 whitespace-pre-wrap text-gray-700">
+                          {row.structures || "—"}
+                        </td>
+                        <td className="px-3 py-3 whitespace-pre-wrap text-gray-700">
+                          {row.studentsBook || "—"}
+                        </td>
+                        <td className="px-3 py-3 whitespace-pre-wrap text-gray-700">
+                          {row.teachersBook || "—"}
+                        </td>
                       </tr>
                     );
                   })}
@@ -7963,7 +10340,7 @@ function ModalActions({
   showReset?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-t border-gray-200 pt-4">
+    <div className="flex items-center justify-between gap-3">
       <button
         type="button"
         onClick={onClose}
@@ -8181,7 +10558,9 @@ function ModalFrame({
               </div>
               <div>
                 <h2 className="text-xl font-bold text-white">{title}</h2>
-                {subtitle && <p className="text-sm text-white/80 mt-1">{subtitle}</p>}
+                {subtitle && (
+                  <p className="text-sm text-white/80 mt-1">{subtitle}</p>
+                )}
               </div>
             </div>
             <button

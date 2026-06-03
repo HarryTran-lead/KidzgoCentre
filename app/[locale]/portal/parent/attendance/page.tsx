@@ -848,7 +848,12 @@ export default function ParentAttendancePage() {
       const code = apiError?.code ?? apiError?.title ?? apiError?.data?.code ?? apiError?.data?.title;
 
       if (code === "LeaveRequest.ExceededMonthlyLeaveLimit") {
-        setError("Học viên đã vượt quá giới hạn 2 buổi nghỉ trong tháng.");
+        setError(
+          apiError?.description ??
+            apiError?.detail ??
+            apiError?.message ??
+            "Học viên đã vượt quá số buổi nghỉ tối đa trong tháng của lớp này.",
+        );
       } else {
         setError(getDomainErrorMessage(err, "Tạo đơn thất bại. Vui lòng thử lại."));
       }
@@ -899,7 +904,7 @@ export default function ParentAttendancePage() {
             <h1 className="text-2xl md:text-2xl font-extrabold text-gray-900">Xin nghỉ & Điểm danh</h1>
             <p className="text-gray-600 mt-1 flex items-center gap-2">
               <Sparkles size={14} className="text-red-600" />
-              Tạo đơn xin nghỉ cho học viên và theo dõi trạng thái duyệt.
+              Tạo LeaveRequest cho học viên và theo dõi trạng thái duyệt theo từng lớp.
             </p>
           </div>
         </div>
@@ -1064,6 +1069,9 @@ export default function ParentAttendancePage() {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">Đơn nghỉ</h2>
+                <div className="mt-1 text-xs text-gray-500">
+                  Limit LeaveRequest hiện được tính theo từng lớp trong tháng, không dùng chung giữa nhiều lớp.
+                </div>
                 {requestsLoading ? <div className="text-sm text-gray-500 mt-1">Đang tải…</div> : null}
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-600">

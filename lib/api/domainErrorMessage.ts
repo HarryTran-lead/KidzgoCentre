@@ -28,7 +28,7 @@ const CODE_TO_VIETNAMESE_MESSAGE: Record<string, string> = {
   "LeaveRequest.CannotCancelPastDate": "Không thể hủy đơn xin nghỉ khi buổi học đã qua.",
   "LeaveRequest.CannotCancelApproved": "Không thể hủy đơn xin nghỉ đã được xử lý.",
   "LeaveRequest.InvalidDateRange": "Khoảng ngày nghỉ không hợp lệ.",
-  "LeaveRequest.ExceededMonthlyLeaveLimit": "Học viên đã vượt quá giới hạn số buổi nghỉ trong tháng.",
+  "LeaveRequest.ExceededMonthlyLeaveLimit": "Học viên đã vượt quá số buổi nghỉ tối đa trong tháng của lớp này.",
 
   // Pause Enrollment Request
   "PauseEnrollmentRequest.NotFound": "Không tìm thấy yêu cầu bảo lưu.",

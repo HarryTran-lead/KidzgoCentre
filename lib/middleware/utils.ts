@@ -6,6 +6,18 @@
 
 import type { NextRequest } from "next/server";
 
+function pickClaimString(payload: Record<string, any>, keys: string[]): string | null {
+  for (const key of keys) {
+    const value = payload[key];
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (trimmed) return trimmed;
+    }
+  }
+
+  return null;
+}
+
 /**
  * Extract token from request (cookie or header)
  */
@@ -58,15 +70,35 @@ export function extractUserInfo(payload: Record<string, any>): {
   role: string;
   email?: string;
 } | null {
-  const userId = payload.sub || payload.userId || payload.id || payload.user_id;
-  const role = payload.role || payload.userRole || payload.user_role;
+  const userId = pickClaimString(payload, [
+    "sub",
+    "userId",
+    "id",
+    "user_id",
+    "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier",
+    "nameidentifier",
+    "nameid",
+  ]);
+
+  const role = pickClaimString(payload, [
+    "role",
+    "userRole",
+    "user_role",
+    "http://schemas.microsoft.com/ws/2008/06/identity/claims/role",
+    "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/role",
+  ]);
+
+  const email = pickClaimString(payload, [
+    "email",
+    "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress",
+  ]);
   
   if (!userId || !role) return null;
   
   return {
     userId,
     role,
-    email: payload.email,
+    email: email ?? undefined,
   };
 }
 

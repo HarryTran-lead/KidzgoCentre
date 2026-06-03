@@ -20,10 +20,10 @@ export const menuAdmin = {
       },
       curriculum: {
         title: "Chương trình",
-        coursesSystem: { list: "Chương trình toàn hệ thống" },
+        coursesSystem: { list: "Chương trình" },
         coursesBranch: { list: "Chương trình theo chi nhánh" },
-        syllabuses: { list: "Giáo trình (Syllabus)" },
-        lessonPlans: { list: "Mẫu giáo án" },
+        syllabuses: { list: "Giáo trình" },
+        lessonPlans: { list: "Mẫu giáo án chuẩn" },
         academicProgression: { list: "Tiến trình học thuật" },
       },
       ops: {
@@ -37,7 +37,7 @@ export const menuAdmin = {
           monthlyReport: "Báo cáo theo tháng",
           sessionReport: "Báo cáo theo buổi",
         },
-        documents: "Giáo án & Tài liệu",
+        documents: "Giáo án lớp",
         teachingMaterials: "Tài liệu giảng dạy",
         media: "Truyền thông & Kiểm duyệt",
         reportRequests: "Yêu cầu báo cáo",
@@ -46,6 +46,12 @@ export const menuAdmin = {
         title: "Tài chính",
         cashbook: "Sổ quỹ",
         payroll: "Bảng lương",
+      },
+      ticketing: {
+        title: "Vé học & Slot",
+        ticketTypes: "Loại vé học",
+        slotTypes: "Loại slot buổi học",
+        ticketSlotCompat: "Tương thích vé — slot",
       },
       system: {
         title: "Hệ thống",
@@ -82,10 +88,10 @@ export const menuAdmin = {
       },
       curriculum: {
         title: "Programs & Curriculum",
-        coursesSystem: { list: "System Programs" },
+        coursesSystem: { list: "Programs" },
         coursesBranch: { list: "Branch Programs" },
         syllabuses: { list: "Syllabuses" },
-        lessonPlans: { list: "Lesson Plans" },
+        lessonPlans: { list: "Standard Lesson Templates" },
         academicProgression: { list: "Academic Progress" },
       },
       ops: {
@@ -99,7 +105,7 @@ export const menuAdmin = {
           monthlyReport: "Monthly Report",
           sessionReport: "Session Report",
         },
-        documents: "Lesson Plans & Materials",
+        documents: "Class Lesson Plans",
         teachingMaterials: "Teaching Materials",
         media: "Media & Moderation",
         reportRequests: "Report Requests",
@@ -108,6 +114,12 @@ export const menuAdmin = {
         title: "Finance",
         cashbook: "Cashbook",
         payroll: "Payroll",
+      },
+      ticketing: {
+        title: "Tickets & Slots",
+        ticketTypes: "Ticket Types",
+        slotTypes: "Session Slot Types",
+        ticketSlotCompat: "Ticket-Slot Compatibility",
       },
       system: {
         title: "System",

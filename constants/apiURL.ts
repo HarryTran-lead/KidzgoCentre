@@ -211,6 +211,9 @@ export const SYLLABUS_ENDPOINTS = {
   IMPORT_ARCHIVE: '/api/syllabuses/import-archive',
   IMPORT_CONFIGURATION: '/api/syllabuses/import-configuration',
   IMPORT_LESSON_PLAN_WORDS: '/api/syllabuses/import-lesson-plan-words',
+  VERSIONS: (id: string) => `/api/syllabuses/${id}/versions`,
+  VERSION_BY_ID: (id: string, versionId: string) => `/api/syllabuses/${id}/versions/${versionId}`,
+  VERSION_PROMOTE: (id: string, versionId: string) => `/api/syllabuses/${id}/versions/${versionId}/promote`,
 } as const;
 
 export const MAKEUP_CREDIT_ENDPOINTS = {
@@ -291,6 +294,9 @@ export const BACKEND_SYLLABUS_ENDPOINTS = {
   IMPORT_CONFIGURATION: '/syllabuses/import-configuration',
   IMPORT_LESSON_PLAN_WORDS: '/syllabuses/import-lesson-plan-words',
   GET_STUDENTS: (id: string) => `/classes/${id}/students`,
+  VERSIONS: (id: string) => `/syllabuses/${id}/versions`,
+  VERSION_BY_ID: (id: string, versionId: string) => `/syllabuses/${id}/versions/${versionId}`,
+  VERSION_PROMOTE: (id: string, versionId: string) => `/syllabuses/${id}/versions/${versionId}/promote`,
 } as const;
 
 export const BACKEND_MAKEUP_CREDIT_ENDPOINTS = {
@@ -345,6 +351,9 @@ export const BRANCH_ENDPOINTS = {
   GET_ALL_PUBLIC: '/api/branches/all', // For all roles (staff, teacher, etc.)
   GET_BY_ID: (id: string) => `/api/branches/${id}`,
   SYLLABUSES: (id: string) => `/api/branches/${id}/syllabuses`,
+  SYLLABUS_ASSIGNMENT: (id: string, assignmentId: string) => `/api/branches/${id}/syllabuses/${assignmentId}`,
+  PROGRAMS: (id: string) => `/api/branches/${id}/programs`,
+  PROGRAM_BY_ID: (id: string, programId: string) => `/api/branches/${id}/programs/${programId}`,
   CREATE: '/api/branches',
   UPDATE: (id: string) => `/api/branches/${id}`,
   DELETE: (id: string) => `/api/branches/${id}`,
@@ -356,6 +365,9 @@ export const BACKEND_BRANCH_ENDPOINTS = {
   GET_ALL: '/branches',
   GET_BY_ID: (id: string) => `/branches/${id}`,
   SYLLABUSES: (id: string) => `/branches/${id}/syllabuses`,
+  SYLLABUS_ASSIGNMENT: (id: string, assignmentId: string) => `/branches/${id}/syllabuses/${assignmentId}`,
+  PROGRAMS: (id: string) => `/branches/${id}/programs`,
+  PROGRAM_BY_ID: (id: string, programId: string) => `/branches/${id}/programs/${programId}`,
   CREATE: '/branches',
   UPDATE: (id: string) => `/branches/${id}`,
   DELETE: (id: string) => `/branches/${id}`,
@@ -680,6 +692,9 @@ export const ADMIN_ENDPOINTS = {
   TUITION_PLANS_BY_ID: (id: string) => `/api/tuition-plans/${id}`,
   TUITION_PLANS_TOGGLE_STATUS: (id: string) => `/api/tuition-plans/${id}/toggle-status`,
   TUITION_PLANS_DEACTIVATE: (id: string) => `/api/tuition-plans/${id}/deactivate`,
+  TUITION_PLANS_SYLLABUSES: (id: string) => `/api/tuition-plans/${id}/syllabuses`,
+  TUITION_PLANS_SYLLABUS_BY_ID: (id: string, syllabusId: string) => `/api/tuition-plans/${id}/syllabuses/${syllabusId}`,
+  CLASSES_CAPACITY: (id: string) => `/api/classes/${id}/capacity`,
   CLASSROOMS: '/api/classrooms',
   CLASSROOMS_TOGGLE_STATUS: (id: string) => `/api/classrooms/${id}/toggle-status`,
   SESSIONS: '/api/sessions',
@@ -932,6 +947,9 @@ export const BACKEND_ADMIN_ENDPOINTS = {
   TUITION_PLANS_BY_ID: (id: string) => `/tuition-plans/${id}`,
   TUITION_PLANS_TOGGLE_STATUS: (id: string) => `/tuition-plans/${id}/toggle-status`,
   TUITION_PLANS_DEACTIVATE: (id: string) => `/tuition-plans/${id}/deactivate`,
+  TUITION_PLANS_SYLLABUSES: (id: string) => `/tuition-plans/${id}/syllabuses`,
+  TUITION_PLANS_SYLLABUS_BY_ID: (id: string, syllabusId: string) => `/tuition-plans/${id}/syllabuses/${syllabusId}`,
+  CLASSES_CAPACITY: (id: string) => `/classes/${id}/capacity`,
   LESSON_PLAN_TEMPLATES: '/lesson-plan-templates',
   LESSON_PLAN_TEMPLATES_BY_ID: (id: string) => `/lesson-plan-templates/${id}`,
   LESSON_PLAN_TEMPLATES_IMPORT: '/lesson-plan-templates/import',
@@ -1146,6 +1164,22 @@ export const OVERVIEW_ENDPOINTS = {
 // Backend Dashboard Overview Endpoints (Next.js API Routes → Backend API)
 export const BACKEND_OVERVIEW_ENDPOINTS = {
   ADMIN: '/me/admin/overview',
+} as const;
+
+// Student Branch Endpoints (Client-side → Next.js API Routes)
+export const STUDENT_BRANCH_ENDPOINTS = {
+  HOME_BRANCH: (studentId: string) => `/api/students/${studentId}/home-branch`,
+  ACTIVE_BRANCH: (studentId: string) => `/api/students/${studentId}/active-branch`,
+  BRANCH_TRANSFER: (studentId: string) => `/api/students/${studentId}/branch-transfer`,
+  BRANCH_TRANSFER_HISTORY: (studentId: string) => `/api/students/${studentId}/branch-transfer/history`,
+} as const;
+
+// Backend Student Branch Endpoints (Next.js API Routes → Backend API)
+export const BACKEND_STUDENT_BRANCH_ENDPOINTS = {
+  HOME_BRANCH: (studentId: string) => `/students/${studentId}/home-branch`,
+  ACTIVE_BRANCH: (studentId: string) => `/students/${studentId}/active-branch`,
+  BRANCH_TRANSFER: (studentId: string) => `/students/${studentId}/branch-transfer`,
+  BRANCH_TRANSFER_HISTORY: (studentId: string) => `/students/${studentId}/branch-transfer/history`,
 } as const;
 
 // Dashboard Endpoints (Client-side → Next.js API Routes)

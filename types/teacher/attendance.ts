@@ -51,11 +51,14 @@ export type LessonDetail = {
   sessionIndexInModule?: number | null;
   moduleName?: string | null;
   moduleId?: string | null;
+  templateId?: string | null;
   lessonPlanTemplateId?: string | null;
   plannedLessonPlanTemplateId?: string | null;
   actualLessonPlanTemplateId?: string | null;
+  teachingLogId?: string | null;
   teachingLogStatus?: string | null;
   teachingProgressStatus?: string | null;
+  actualTeachingType?: string | null;
 };
 
 export type AttendanceSummaryApi = {

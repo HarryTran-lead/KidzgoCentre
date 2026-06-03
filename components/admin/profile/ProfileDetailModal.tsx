@@ -5,6 +5,7 @@ import { X, User, Mail, Calendar, CheckCircle, XCircle, Shield, Loader2, UserCir
 import { getProfileById } from "@/lib/api/profileService";
 import type { Profile } from "@/types/profile";
 import { toast } from "@/hooks/use-toast";
+import StudentBranchPanel from "@/components/admin/accounts/StudentBranchPanel";
 
 interface ProfileDetailModalProps {
   isOpen: boolean;
@@ -182,11 +183,19 @@ export default function ProfileDetailModal({
               )}
 
               {profile.profileType === "Student" && (
-                <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg">
-                  <p className="text-sm text-blue-800">
-                    <strong>Lưu ý:</strong> Profile Student được quản lý thông qua tài khoản Parent liên kết. 
-                    Student không có tài khoản đăng nhập riêng.
-                  </p>
+                <div className="space-y-3">
+                  <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg">
+                    <p className="text-sm text-blue-800">
+                      <strong>Lưu ý:</strong> Profile Student được quản lý thông qua tài khoản Parent liên kết. 
+                      Student không có tài khoản đăng nhập riêng.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-base font-semibold text-gray-800 border-b pb-2 flex items-center gap-2">
+                      <span>🏢</span> Chi nhánh học viên
+                    </h3>
+                    <StudentBranchPanel studentId={profile.id} />
+                  </div>
                 </div>
               )}
             </div>

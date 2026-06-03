@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   BookOpen,
   ChevronDown,
@@ -116,6 +116,7 @@ function ModuleTypeBadge({ type }: { type: ModuleType }) {
 // Level Card Component - Cân đối và hiện đại
 function LevelCard({
   level,
+  programName,
   isExpanded,
   modules,
   isLoadingModules,
@@ -126,6 +127,7 @@ function LevelCard({
   onEditModule,
 }: {
   level: LevelDto;
+  programName: string;
   isExpanded: boolean;
   modules: ModuleDto[];
   isLoadingModules: boolean;
@@ -168,6 +170,11 @@ function LevelCard({
             {/* Level Name */}
             <span className="font-semibold text-gray-800 truncate max-w-[200px] md:max-w-none">
               {level.name}
+            </span>
+
+            {/* Program Badge */}
+            <span className="shrink-0 rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-700">
+              {programName}
             </span>
 
             {/* Status Badge */}
@@ -391,6 +398,9 @@ export default function LevelModuleWorkspace({ roleMode, programId }: Props) {
     {},
   );
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedProgramFilter, setSelectedProgramFilter] = useState(
+    programId || "all",
+  );
   const [error, setError] = useState<string | null>(null);
   const [programs, setPrograms] = useState<ProgramOption[]>([]);
 
@@ -424,6 +434,82 @@ export default function LevelModuleWorkspace({ roleMode, programId }: Props) {
     useState<Omit<CreateModuleRequest, "levelId">>(EMPTY_MODULE_FORM);
   const [moduleFormSaving, setModuleFormSaving] = useState(false);
   const [moduleFormError, setModuleFormError] = useState<string | null>(null);
+
+  const programNameById = useMemo(
+    () =>
+      new Map(
+        programs
+          .filter((prog) => prog.id && prog.name)
+          .map((prog) => [prog.id, prog.name]),
+      ),
+    [programs],
+  );
+
+  const getProgramName = useCallback(
+    (level: LevelDto) =>
+      level.programName?.trim() ||
+      programNameById.get(level.programId) ||
+      "Chưa rõ chương trình",
+    [programNameById],
+  );
+
+  const programFilterOptions = useMemo(() => {
+    const mapped = new Map<string, string>();
+
+    for (const prog of programs) {
+      if (prog.id && prog.name) {
+        mapped.set(prog.id, prog.name);
+      }
+    }
+
+    for (const level of levels) {
+      if (!level.programId || mapped.has(level.programId)) continue;
+      mapped.set(level.programId, getProgramName(level));
+    }
+
+    return Array.from(mapped.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name, "vi"));
+  }, [getProgramName, levels, programs]);
+
+  const filteredLevels = useMemo(() => {
+    if (selectedProgramFilter === "all") {
+      return levels;
+    }
+    return levels.filter((level) => level.programId === selectedProgramFilter);
+  }, [levels, selectedProgramFilter]);
+
+  const groupedLevels = useMemo(() => {
+    const groupedMap = new Map<
+      string,
+      { programId: string; programName: string; levels: LevelDto[] }
+    >();
+
+    for (const level of filteredLevels) {
+      const key = level.programId || "unknown";
+      const current = groupedMap.get(key);
+      if (current) {
+        current.levels.push(level);
+        continue;
+      }
+
+      groupedMap.set(key, {
+        programId: level.programId,
+        programName: getProgramName(level),
+        levels: [level],
+      });
+    }
+
+    return Array.from(groupedMap.values()).sort((a, b) =>
+      a.programName.localeCompare(b.programName, "vi"),
+    );
+  }, [filteredLevels, getProgramName]);
+
+  useEffect(() => {
+    if (programId) {
+      setSelectedProgramFilter(programId);
+    }
+  }, [programId]);
 
   const loadLevels = useCallback(async () => {
     setLoadingLevels(true);
@@ -581,7 +667,7 @@ export default function LevelModuleWorkspace({ roleMode, programId }: Props) {
   };
 
   const totalModules = Object.values(modules).flat().length;
-  const activeLevels = levels.filter((l) => l.isActive).length;
+  const activeLevels = filteredLevels.filter((l) => l.isActive).length;
 
   return (
     <div className="min-h-screen bg-gray-50 ">
@@ -624,7 +710,7 @@ export default function LevelModuleWorkspace({ roleMode, programId }: Props) {
                 <Layers size={18} className="text-white" />
               </div>
               <span className="text-2xl font-bold text-gray-800">
-                {levels.length}
+                {filteredLevels.length}
               </span>
             </div>
             <p className="mt-2 text-sm font-semibold text-gray-700">
@@ -662,7 +748,7 @@ export default function LevelModuleWorkspace({ roleMode, programId }: Props) {
                 <CheckCircle2 size={18} className="text-white" />
               </div>
               <span className="text-2xl font-bold text-gray-800">
-                {levels.filter((l) => l.isActive).length}
+                {activeLevels}
               </span>
             </div>
             <p className="mt-2 text-sm font-semibold text-gray-700">
@@ -695,15 +781,36 @@ export default function LevelModuleWorkspace({ roleMode, programId }: Props) {
           </div>
         </div>
 
-        {/* Search Bar */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-          <input
-            className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-4 text-sm focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-100 transition-all"
-            placeholder="Tìm kiếm Level theo tên hoặc mã..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        {/* Search and quick filters */}
+        <div className="grid gap-3 md:grid-cols-[240px_minmax(0,1fr)]">
+          <div className="rounded-xl border border-gray-200 bg-white px-3 py-2.5">
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+              Chương trình
+            </label>
+            <select
+              value={selectedProgramFilter}
+              onChange={(e) => setSelectedProgramFilter(e.target.value)}
+              disabled={Boolean(programId)}
+              className="w-full bg-transparent text-sm text-gray-700 focus:outline-none"
+            >
+              <option value="all">Tất cả chương trình</option>
+              {programFilterOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <input
+              className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-4 text-sm focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-100 transition-all"
+              placeholder="Tìm kiếm Level theo tên hoặc mã..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
         </div>
 
         {/* Error Alert */}
@@ -725,16 +832,20 @@ export default function LevelModuleWorkspace({ roleMode, programId }: Props) {
               Đang tải danh sách Level...
             </p>
           </div>
-        ) : levels.length === 0 ? (
+        ) : filteredLevels.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-white py-16">
             <div className="rounded-full bg-gray-100 p-4 mb-4">
               <FolderTree size={32} className="text-gray-400" />
             </div>
             <p className="text-sm font-medium text-gray-500">
-              Chưa có Level nào
+              {levels.length === 0
+                ? "Chưa có Level nào"
+                : "Không có Level nào khớp bộ lọc"}
             </p>
             <p className="text-xs text-gray-400 mt-1">
-              Hãy thêm Level đầu tiên để bắt đầu
+              {levels.length === 0
+                ? "Hãy thêm Level đầu tiên để bắt đầu"
+                : "Hãy thử đổi chương trình hoặc từ khóa tìm kiếm"}
             </p>
             {roleMode === "admin" && (
               <button
@@ -747,20 +858,37 @@ export default function LevelModuleWorkspace({ roleMode, programId }: Props) {
             )}
           </div>
         ) : (
-          <div className="space-y-3">
-            {levels.map((level) => (
-              <LevelCard
-                key={level.id}
-                level={level}
-                isExpanded={expandedLevels.has(level.id)}
-                modules={modules[level.id] || []}
-                isLoadingModules={loadingModules[level.id] || false}
-                roleMode={roleMode}
-                onToggle={() => toggleLevel(level.id)}
-                onEditLevel={() => openEditLevel(level)}
-                onAddModule={() => openCreateModule(level.id)}
-                onEditModule={(mod) => openEditModule(mod)}
-              />
+          <div className="space-y-6">
+            {groupedLevels.map((group) => (
+              <section key={group.programId || group.programName} className="space-y-3">
+                <div className="flex items-center justify-between rounded-xl border border-red-200 bg-gradient-to-r from-red-50 to-white px-4 py-2.5">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-red-700">
+                    <Layers size={14} className="text-red-500" />
+                    <span>{group.programName}</span>
+                  </div>
+                  <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-gray-600 border border-red-100">
+                    {group.levels.length} level
+                  </span>
+                </div>
+
+                <div className="space-y-3">
+                  {group.levels.map((level) => (
+                    <LevelCard
+                      key={level.id}
+                      level={level}
+                      programName={getProgramName(level)}
+                      isExpanded={expandedLevels.has(level.id)}
+                      modules={modules[level.id] || []}
+                      isLoadingModules={loadingModules[level.id] || false}
+                      roleMode={roleMode}
+                      onToggle={() => toggleLevel(level.id)}
+                      onEditLevel={() => openEditLevel(level)}
+                      onAddModule={() => openCreateModule(level.id)}
+                      onEditModule={(mod) => openEditModule(mod)}
+                    />
+                  ))}
+                </div>
+              </section>
             ))}
           </div>
         )}
