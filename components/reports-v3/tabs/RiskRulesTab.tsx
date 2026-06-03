@@ -265,7 +265,7 @@ export default function RiskRulesTab({
   return (
     <div className="grid gap-6 [grid-template-columns:minmax(0,7fr)_minmax(0,3fr)] max-[1400px]:grid-cols-1">
       <SectionCard
-        title="Luật rủi ro tự động (8 luật cố định)"
+        title="Cấu hình rủi ro tự động (8 luật cố định)"
         subtitle="Chọn luật bên trái, chỉnh ngưỡng bằng form trực quan bên phải rồi lưu. Không cần chỉnh JSON thủ công."
         icon={<ShieldAlert size={18} />}
       >
@@ -318,7 +318,7 @@ export default function RiskRulesTab({
                           {draft.isActive ? "Đang bật" : "Đang tắt"}
                         </span>
                       </div>
-                      <div className="mt-1 text-xs text-gray-500">{meta?.summary || "Luật rủi ro hệ thống."}</div>
+                      <div className="mt-1 text-xs text-gray-500">{meta?.summary || "Cấu hình rủi ro hệ thống."}</div>
                       <div className="mt-2 text-xs text-gray-600">Điểm cảnh báo: <span className="font-semibold">{draft.score || item.score}</span></div>
                     </button>
                   );
@@ -330,7 +330,7 @@ export default function RiskRulesTab({
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <div className="text-lg font-semibold text-gray-900">{selectedMeta?.title || formatRiskType(selectedRule.riskType)}</div>
-                      <div className="mt-1 text-sm text-gray-600">{selectedMeta?.summary || "Luật rủi ro hệ thống."}</div>
+                      <div className="mt-1 text-sm text-gray-600">{selectedMeta?.summary || "Cấu hình rủi ro hệ thống."}</div>
                       <div className="mt-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-700">
                         {selectedMeta?.impact || "Luật này ảnh hưởng trực tiếp tới cảnh báo và đề xuất trong tab Báo cáo."}
                       </div>
@@ -435,7 +435,7 @@ export default function RiskRulesTab({
                     className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white"
                   >
                     <CheckCircle2 size={14} />
-                    Lưu luật đang chọn
+                    Lưu cấu hình đang chọn
                   </button>
                 </div>
               ) : (
@@ -444,7 +444,7 @@ export default function RiskRulesTab({
             </div>
           </div>
         ) : (
-          <EmptyState title="Chưa có luật rủi ro" description="Backend chưa trả về cấu hình luật rủi ro nào cho Báo cáo V3." />
+          <EmptyState title="Chưa có cấu hình rủi ro" description="Backend chưa trả về cấu hình rủi ro nào cho Báo cáo V3." />
         )}
       </SectionCard>
 
@@ -456,8 +456,8 @@ export default function RiskRulesTab({
         <div className="space-y-2 text-sm text-gray-700">
           <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2">1. Chọn luật cần chỉnh ở danh sách bên trái.</div>
           <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2">2. Điều chỉnh điểm cảnh báo và ngưỡng bằng thanh kéo hoặc ô số.</div>
-          <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2">3. Bấm <span className="font-semibold">Lưu luật đang chọn</span> để áp dụng.</div>
-          <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2">4. Kiểm tra lại tab Báo cáo/Theo dõi để xác nhận cảnh báo hiển thị đúng.</div>
+          <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2">3. Bấm <span className="font-semibold">Lưu cấu hình đang chọn</span> để áp dụng.</div>
+          <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2">4. Kiểm tra lại tab Báo cáo/Thông báo rủi ro để xác nhận cảnh báo hiển thị đúng.</div>
         </div>
       </SectionCard>
     </div>

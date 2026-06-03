@@ -667,20 +667,29 @@ export default function StaffRegistrationOverview({
 
   const filteredUpgradeTuitionPlans = useMemo(() => {
     const targetProgramId = selectedActionRegistration?.programId || "";
+    const targetLevelId = selectedActionRegistration?.levelId || "";
     return upgradeTuitionPlans.filter((p) => {
       if (!p.isActive) return false;
-      if (!targetProgramId) return true;
-      return p.programId === targetProgramId;
+      if (targetProgramId && p.programId !== targetProgramId) return false;
+      if (targetLevelId && p.levelId !== targetLevelId) return false;
+      return true;
     });
-  }, [upgradeTuitionPlans, selectedActionRegistration?.programId]);
+  }, [upgradeTuitionPlans, selectedActionRegistration?.programId, selectedActionRegistration?.levelId]);
 
   const hasSecondaryTrack = useMemo(
     () =>
       Boolean(
         selectedActionRegistration?.secondaryProgramId ||
-          suggestedClasses?.secondaryProgramId,
+          selectedActionRegistration?.secondaryLevelId ||
+          suggestedClasses?.secondaryProgramId ||
+          suggestedClasses?.secondaryLevelId,
       ),
-    [selectedActionRegistration?.secondaryProgramId, suggestedClasses?.secondaryProgramId],
+    [
+      selectedActionRegistration?.secondaryProgramId,
+      selectedActionRegistration?.secondaryLevelId,
+      suggestedClasses?.secondaryProgramId,
+      suggestedClasses?.secondaryLevelId,
+    ],
   );
 
   const activeSuggestedClasses =
@@ -704,15 +713,18 @@ export default function StaffRegistrationOverview({
         const programName = String(
           cls?.programName || cls?.program?.name || "",
         );
+        const levelName = String(cls?.levelName || cls?.courseLevel || cls?.level?.name || "");
         const safeRemaining =
           typeof remainingSlots === "number" ? Math.max(0, remainingSlots) : null;
         return {
           id: classId,
           programId,
           programName,
+          levelId: String(cls?.levelId || cls?.level?.id || ""),
+          levelName,
           remainingSlots: safeRemaining,
           disabled: safeRemaining !== null && safeRemaining <= 0,
-          label: `${className} • Còn chỗ: ${safeRemaining ?? "-"} • Lịch: ${scheduleLabel}`,
+          label: `${className} • ${levelName || "Chưa rõ trình độ"} • Còn chỗ: ${safeRemaining ?? "-"} • Lịch: ${scheduleLabel}`,
         };
       }),
     [manualClasses],
@@ -748,7 +760,8 @@ export default function StaffRegistrationOverview({
             defaultWeeklyPattern: buildDefaultWeeklyPatternFromClass(cls),
             programId: String(cls?.programId || cls?.program?.id || ""),
             programName: String(cls?.programName || cls?.program?.name || ""),
-            levelName: String(cls?.levelName || cls?.courseLevel || ""),
+            levelId: String(cls?.levelId || cls?.level?.id || ""),
+            levelName: String(cls?.levelName || cls?.courseLevel || cls?.level?.name || ""),
           };
         })
         .filter((item) => {
@@ -756,12 +769,20 @@ export default function StaffRegistrationOverview({
 
           const targetProgramId =
             transferTrack === "secondary"
-              ? String(selectedActionRegistration?.secondaryProgramId || "")
+              ? String(selectedActionRegistration?.secondaryProgramId || selectedActionRegistration?.programId || "")
               : String(selectedActionRegistration?.programId || "");
           const targetProgramName =
             transferTrack === "secondary"
-              ? String(selectedActionRegistration?.secondaryProgramName || "")
+              ? String(selectedActionRegistration?.secondaryProgramName || selectedActionRegistration?.programName || "")
               : String(selectedActionRegistration?.programName || "");
+          const targetLevelId =
+            transferTrack === "secondary"
+              ? String(selectedActionRegistration?.secondaryLevelId || "")
+              : String(selectedActionRegistration?.levelId || "");
+          const targetLevelName =
+            transferTrack === "secondary"
+              ? String(selectedActionRegistration?.secondaryLevelName || "")
+              : String(selectedActionRegistration?.levelName || "");
 
           const sameProgramById = targetProgramId
             ? item.programId === targetProgramId
@@ -772,6 +793,13 @@ export default function StaffRegistrationOverview({
 
           if (!sameProgramById || !sameProgramByName) return false;
 
+          const sameLevelById = targetLevelId ? item.levelId === targetLevelId : true;
+          const sameLevelByName = !targetLevelId && targetLevelName
+            ? normalizeText(item.levelName) === normalizeText(targetLevelName)
+            : true;
+
+          if (!sameLevelById || !sameLevelByName) return false;
+
           const currentClassId =
             transferTrack === "secondary"
               ? String(selectedActionRegistration?.secondaryClassId || "")
@@ -780,7 +808,20 @@ export default function StaffRegistrationOverview({
 
           return String(item.status || "").toLowerCase() !== "cancelled";
         }),
-    [transferClasses, transferTrack, selectedActionRegistration?.classId, selectedActionRegistration?.secondaryClassId],
+    [
+      transferClasses,
+      transferTrack,
+      selectedActionRegistration?.classId,
+      selectedActionRegistration?.secondaryClassId,
+      selectedActionRegistration?.programId,
+      selectedActionRegistration?.programName,
+      selectedActionRegistration?.levelId,
+      selectedActionRegistration?.levelName,
+      selectedActionRegistration?.secondaryProgramId,
+      selectedActionRegistration?.secondaryProgramName,
+      selectedActionRegistration?.secondaryLevelId,
+      selectedActionRegistration?.secondaryLevelName,
+    ],
   );
 
   const registrationStatusCounts = useMemo(() => {
@@ -1960,8 +2001,16 @@ export default function StaffRegistrationOverview({
         setManualSecondarySessionPattern={setManualSecondarySessionPattern}
         manualPrimaryProgramId={selectedActionRegistration?.programId || ""}
         manualPrimaryProgramName={selectedActionRegistration?.programName || ""}
-        manualSecondaryProgramId={selectedActionRegistration?.secondaryProgramId || ""}
+        manualPrimaryLevelId={selectedActionRegistration?.levelId || ""}
+        manualPrimaryLevelName={selectedActionRegistration?.levelName || ""}
+        manualSecondaryProgramId={
+          selectedActionRegistration?.secondaryProgramId ||
+          selectedActionRegistration?.programId ||
+          ""
+        }
         manualSecondaryProgramName={selectedActionRegistration?.secondaryProgramName || ""}
+        manualSecondaryLevelId={selectedActionRegistration?.secondaryLevelId || ""}
+        manualSecondaryLevelName={selectedActionRegistration?.secondaryLevelName || ""}
         handleAssignManualClasses={handleAssignManualClasses}
       />
 

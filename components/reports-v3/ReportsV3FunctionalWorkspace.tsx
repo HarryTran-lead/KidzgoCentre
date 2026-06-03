@@ -117,6 +117,10 @@ const RECOMMENDATION_ROLE_LABELS: Record<string, string> = {
   academic_manager: "Quản lý học thuật",
   cs: "Chăm sóc khách hàng",
   admin: "Quản trị viên",
+  "1": "Giáo viên",
+  "2": "Quản lý học thuật",
+  "3": "Chăm sóc khách hàng",
+  "4": "Quản trị viên",
 };
 
 const INSIGHT_TYPE_LABELS: Record<string, string> = {
@@ -201,11 +205,11 @@ function getErrMsg(error: unknown, fallback: string) {
   return extractApiError(error, fallback);
 }
 
-function normalizeText(value?: string | null) {
+function normalizeText(value?: string | number | null) {
   return String(value ?? "").trim().toLowerCase();
 }
 
-function normalizeCodeKey(value?: string | null) {
+function normalizeCodeKey(value?: string | number | null) {
   const normalized = String(value ?? "").trim();
   if (!normalized) return "";
   return normalized
@@ -262,7 +266,7 @@ function formatDateTime(value?: string | null) {
   return date.toLocaleString("vi-VN");
 }
 
-function prettifyCode(value?: string | null) {
+function prettifyCode(value?: string | number | null) {
   const normalized = String(value ?? "").trim();
   if (!normalized) return "Không xác định";
   return normalized
@@ -290,8 +294,17 @@ function formatShareChannel(value?: string | null) {
   return SHARE_CHANNEL_LABELS[key as ReportShareChannel] || prettifyCode(value);
 }
 
-function formatRecommendationRole(value?: string | null) {
+function normalizeRecommendationRoleKey(value?: string | number | null) {
   const key = normalizeText(value);
+  if (key === "1") return "teacher";
+  if (key === "2") return "academic_manager";
+  if (key === "3") return "cs";
+  if (key === "4") return "admin";
+  return key;
+}
+
+function formatRecommendationRole(value?: string | number | null) {
+  const key = normalizeRecommendationRoleKey(value);
   return RECOMMENDATION_ROLE_LABELS[key] || prettifyCode(value);
 }
 
@@ -320,6 +333,31 @@ function reportTypeTone(value?: string | null) {
 
 function dedupeOptions(options: Option[]) {
   return Array.from(new Map(options.map((option) => [option.id, option])).values());
+}
+
+function mergeRiskAlerts(...groups: Array<RiskAlertDto[] | undefined>) {
+  const merged = new Map<string, RiskAlertDto>();
+
+  groups.forEach((items) => {
+    items?.forEach((item, index) => {
+      const key = item.id || `${item.studentId || "class"}-${item.riskType}-${item.reason}-${index}`;
+      const current = merged.get(key);
+      merged.set(
+        key,
+        current
+          ? {
+              ...item,
+              ...current,
+              studentName: current.studentName || item.studentName,
+              className: current.className || item.className,
+              branchName: current.branchName || item.branchName,
+            }
+          : item,
+      );
+    });
+  });
+
+  return Array.from(merged.values());
 }
 
 function notNull<T>(value: T | null): value is T {
@@ -475,7 +513,6 @@ export default function ReportsV3FunctionalWorkspace({ role }: { role: InternalR
     const base: Array<{ id: WorkspaceTab; label: string; icon: React.ReactNode }> = [
       { id: "dashboard", label: "Tổng quan", icon: <BarChart3 size={16} /> },
       { id: "reports", label: "Báo cáo", icon: <FileBarChart size={16} /> },
-      { id: "follow-up", label: "Theo dõi", icon: <BellRing size={16} /> },
     ];
 
     if (canManageCatalog) {
@@ -484,8 +521,10 @@ export default function ReportsV3FunctionalWorkspace({ role }: { role: InternalR
     }
 
     if (canEditRiskRules) {
-      base.push({ id: "risk-rules", label: "Luật rủi ro", icon: <ShieldAlert size={16} /> });
+      base.push({ id: "risk-rules", label: "Cấu hình rủi ro", icon: <ShieldAlert size={16} /> });
     }
+
+    base.push({ id: "follow-up", label: "Thông báo rủi ro", icon: <BellRing size={16} /> });
 
     return base;
   }, [canEditRiskRules, canManageCatalog]);
@@ -656,7 +695,7 @@ export default function ReportsV3FunctionalWorkspace({ role }: { role: InternalR
         getClassRiskAlerts(selectedClassId, { page: 1, pageSize: 100 }),
       ]);
       setClassDashboard(dashboard);
-      setRiskAlerts(alerts.items);
+      setRiskAlerts(mergeRiskAlerts(alerts.items, dashboard.riskAlerts));
     } finally {
       setLoadingFollowUp(false);
     }
@@ -787,8 +826,23 @@ export default function ReportsV3FunctionalWorkspace({ role }: { role: InternalR
     });
   }, [reportSearch, reportStatusFilter, reportTypeFilter, reports]);
 
+  const studentNameById = useMemo(
+    () => new Map(studentOptions.map((item) => [item.id, item.label])),
+    [studentOptions],
+  );
+
+  const riskAlertsWithStudentNames = useMemo(
+    () => riskAlerts.map((item) => {
+      const studentId = String(item.studentId ?? "").trim();
+      if (!studentId || item.studentName) return item;
+      const studentName = studentNameById.get(studentId);
+      return studentName ? { ...item, studentName } : item;
+    }),
+    [riskAlerts, studentNameById],
+  );
+
   const csRecommendations = useMemo(
-    () => recommendations.filter((item) => normalizeText(item.assignedRole) === "cs"),
+    () => recommendations.filter((item) => normalizeRecommendationRoleKey(item.assignedRole) === "cs"),
     [recommendations],
   );
   const pendingRecommendations = useMemo(
@@ -796,8 +850,8 @@ export default function ReportsV3FunctionalWorkspace({ role }: { role: InternalR
     [recommendations],
   );
   const openRiskAlerts = useMemo(
-    () => riskAlerts.filter((item) => normalizeText(item.status) === "open"),
-    [riskAlerts],
+    () => riskAlertsWithStudentNames.filter((item) => normalizeText(item.status) === "open"),
+    [riskAlertsWithStudentNames],
   );
 
   const handleGenerate = async () => {
@@ -1049,10 +1103,10 @@ export default function ReportsV3FunctionalWorkspace({ role }: { role: InternalR
         score: Number(draft.score || 0),
         parametersJson: draft.parametersJson,
       });
-      toast.success({ title: "Đã lưu luật", description: `Luật rủi ro ${formatRiskType(riskType)} đã được cập nhật.` });
+      toast.success({ title: "Đã lưu cấu hình", description: `Cấu hình rủi ro ${formatRiskType(riskType)} đã được cập nhật.` });
       await loadRiskRules();
     } catch (error) {
-      toast.destructive({ title: "Lưu luật rủi ro thất bại", description: getErrMsg(error, "Không thể lưu luật rủi ro.") });
+      toast.destructive({ title: "Lưu cấu hình rủi ro thất bại", description: getErrMsg(error, "Không thể lưu cấu hình rủi ro.") });
     }
   };
 
@@ -1274,7 +1328,7 @@ export default function ReportsV3FunctionalWorkspace({ role }: { role: InternalR
       {!loadingBoot && activeTab === "follow-up" ? (
         <FollowUpTab
           loadingFollowUp={loadingFollowUp}
-          riskAlerts={riskAlerts}
+          riskAlerts={riskAlertsWithStudentNames}
           recommendations={recommendations}
           formatRiskType={formatRiskType}
           statusTone={statusTone}

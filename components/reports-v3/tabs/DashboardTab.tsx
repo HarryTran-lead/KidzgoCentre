@@ -63,6 +63,15 @@ type DashboardTabProps = {
   branchDashboard: BranchDashboardResponse | null;
 };
 
+function getWeakStudentDetails(value: ClassAcademicDashboardResponse["weakStudents"]) {
+  return Array.isArray(value) ? value : [];
+}
+
+function getWeakStudentCount(dashboard: ClassAcademicDashboardResponse) {
+  if (Array.isArray(dashboard.weakStudents)) return dashboard.weakStudents.length;
+  return dashboard.weakStudents ?? dashboard.riskStudents;
+}
+
 export default function DashboardTab({
   reportCount,
   openRiskAlertsCount,
@@ -77,6 +86,13 @@ export default function DashboardTab({
   selectedBranchId,
   branchDashboard,
 }: DashboardTabProps) {
+  const weakStudentDetails = classDashboard ? getWeakStudentDetails(classDashboard.weakStudents) : [];
+  const weakStudentCount = classDashboard ? getWeakStudentCount(classDashboard) : undefined;
+  const classPacing = classDashboard?.classPacing;
+  const reviewRatio = classPacing?.reviewRatioPercent ?? classPacing?.reviewRatio;
+  const plannedProgress = classPacing?.plannedProgressPercent ?? classPacing?.plannedProgress;
+  const actualProgress = classPacing?.actualProgressPercent ?? classPacing?.actualProgress;
+
   return (
     <div className="grid gap-6 [grid-template-columns:minmax(0,7fr)_minmax(0,3fr)] max-[1400px]:grid-cols-1">
       <div className="space-y-6">
@@ -95,17 +111,20 @@ export default function DashboardTab({
                   <div className="text-sm font-semibold text-gray-900">{classDashboard.className || "Lớp học"}</div>
                   <div className="mt-3 grid gap-2 text-sm text-gray-700">
                     <div>Tổng học viên: <span className="font-semibold">{formatScalar(classDashboard.totalStudents)}</span></div>
-                    <div>Học viên có rủi ro: <span className="font-semibold">{formatScalar(classDashboard.riskStudents)}</span></div>
+                    <div>Học viên yếu: <span className="font-semibold">{formatScalar(weakStudentCount)}</span></div>
+                    <div>Học viên chậm tiến độ: <span className="font-semibold">{formatScalar(classDashboard.delayedStudents)}</span></div>
                     <div>Đánh giá chưa đạt: <span className="font-semibold">{formatScalar(classDashboard.failedAssessments)}</span></div>
                     <div>Cần hỗ trợ bổ sung: <span className="font-semibold">{formatScalar(classDashboard.remedialRequired)}</span></div>
-                    <div>Tỷ lệ ôn tập: <span className="font-semibold">{formatPercent(classDashboard.classPacing?.reviewRatio)}</span></div>
-                    <div>Rủi ro chậm giáo trình: <span className="font-semibold">{formatScalar(classDashboard.classPacing?.curriculumDelayRisk)}</span></div>
+                    <div>Tỷ lệ ôn tập: <span className="font-semibold">{formatPercent(reviewRatio)}</span></div>
+                    <div>Tiến độ kế hoạch: <span className="font-semibold">{formatPercent(plannedProgress)}</span></div>
+                    <div>Tiến độ thực tế: <span className="font-semibold">{formatPercent(actualProgress)}</span></div>
+                    <div>Rủi ro chậm giáo trình: <span className="font-semibold">{formatScalar(classPacing?.curriculumDelayRisk)}</span></div>
                   </div>
                 </div>
                 <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
                   <div className="text-sm font-semibold text-gray-900">Học viên cần hỗ trợ</div>
                   <div className="mt-3 space-y-2">
-                    {classDashboard.weakStudents?.length ? classDashboard.weakStudents.map((item, index) => (
+                    {weakStudentDetails.length ? weakStudentDetails.map((item, index) => (
                       <div key={`${item.studentId || index}`} className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm">
                         <div className="font-medium text-gray-900">{item.studentName || "Học viên"}</div>
                         <div className="text-gray-600">{item.reason || "Chưa có lý do chi tiết"}</div>

@@ -475,6 +475,14 @@ export const LEARNING_TICKET_ENDPOINTS = {
   BALANCE: (studentProfileId: string) => `/api/students/${studentProfileId}/tickets/balance`,
   LEDGER: (studentProfileId: string) => `/api/students/${studentProfileId}/tickets/ledger`,
   COMPATIBLE: (studentProfileId: string) => `/api/students/${studentProfileId}/tickets/compatible`,
+  COMPATIBLE_TICKETS: (studentProfileId: string) => `/api/students/${studentProfileId}/compatible-tickets`,
+} as const;
+
+export const BACKEND_LEARNING_TICKET_ENDPOINTS = {
+  BALANCE: (studentProfileId: string) => `/students/${studentProfileId}/tickets/balance`,
+  LEDGER: (studentProfileId: string) => `/students/${studentProfileId}/tickets/ledger`,
+  COMPATIBLE: (studentProfileId: string) => `/students/${studentProfileId}/tickets/compatible`,
+  COMPATIBLE_TICKETS: (studentProfileId: string) => `/students/${studentProfileId}/compatible-tickets`,
 } as const;
 
 // Phase 1.5 — Learning Ticket Type Endpoints

@@ -43,7 +43,7 @@ type ReportsTabProps = {
   formatInsightType: (value?: string | null) => string;
   formatRiskType: (value?: string | null) => string;
   formatRiskSeverity: (value?: string | null) => string;
-  formatRecommendationRole: (value?: string | null) => string;
+  formatRecommendationRole: (value?: string | number | null) => string;
   formatShareChannel: (value?: string | null) => string;
   reportTypeTone: (value?: string | null) => string;
   normalizeText: (value?: string | null) => string;
@@ -187,7 +187,19 @@ export default function ReportsTab({
                 <div className="mt-3 space-y-2">
                   {reportDetail.recommendations?.length ? reportDetail.recommendations.map((item) => (
                     <div key={item.id} className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
-                      <div className="font-medium text-gray-900">{formatRecommendationRole(item.assignedRole)}</div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="font-medium text-gray-900">{formatRecommendationRole(item.assignedRole)}</div>
+                        {item.recommendationType ? (
+                          <span className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[11px] font-semibold text-violet-700">
+                            {formatRiskType(item.recommendationType)}
+                          </span>
+                        ) : null}
+                        {item.priority ? (
+                          <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                            Ưu tiên: {formatRiskSeverity(item.priority)}
+                          </span>
+                        ) : null}
+                      </div>
                       <div className="mt-1">{localizeUiText(item.content)}</div>
                     </div>
                   )) : <div className="text-sm text-gray-500">Chưa có đề xuất trong chi tiết.</div>}

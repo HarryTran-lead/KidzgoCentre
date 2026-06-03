@@ -9,7 +9,6 @@ import {
   ClipboardCheck,
   CreditCard,
   FileText,
-  Folder,
   GitMerge,
   GraduationCap,
   HelpCircle,
@@ -90,7 +89,7 @@ export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
         href: root + "/feedback/session",
       },
       {
-        label: "Báo cáo V3",
+        label: "Tổng quan báo cáo",
         icon: BarChart3,
         href: root + "/reports-v3",
       },

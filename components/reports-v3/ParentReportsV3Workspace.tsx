@@ -21,6 +21,7 @@ import {
   getStudentReports,
   markReportViewed,
 } from "@/lib/api/reportsV3Service";
+import { formatScalar as formatScalarLocalized, localizeUiText } from "@/components/reports-v3/tabs/shared";
 import type {
   ParentReportViewResponse,
   ReportsV3Snapshot,
@@ -55,9 +56,13 @@ function formatPercent(value?: number | null) {
 }
 
 function formatScalar(value?: string | number | boolean | null) {
-  if (value === null || value === undefined || value === "") return "—";
-  if (typeof value === "boolean") return value ? "Có" : "Không";
-  return String(value);
+  return formatScalarLocalized(value);
+}
+
+function localizeMaybeText(value?: string | null) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  return localizeUiText(raw);
 }
 
 function normalizeText(value?: string | null) {
@@ -151,7 +156,7 @@ function ParentSnapshotCard({ snapshot }: { snapshot?: ReportsV3Snapshot | null 
       </div>
       <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 md:col-span-2">
         <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Thông điệp gửi phụ huynh</div>
-        <div className="mt-2 text-sm text-gray-700">{snapshot.parent_message || "Giáo viên chưa để lại thông điệp riêng cho phụ huynh."}</div>
+        <div className="mt-2 text-sm text-gray-700">{localizeMaybeText(snapshot.parent_message) || "Giáo viên chưa để lại thông điệp riêng cho phụ huynh."}</div>
       </div>
     </div>
   );
@@ -166,9 +171,27 @@ function ParentReportDetail({ report }: { report?: StudentReportDetailDto | null
     );
   }
 
-  const strengths = report.snapshot?.strengths ?? report.insights?.filter((item) => String(item.insightType).toLowerCase() === "strength").map((item) => item.content) ?? [];
-  const weaknesses = report.snapshot?.weaknesses ?? report.insights?.filter((item) => String(item.insightType).toLowerCase() === "weakness").map((item) => item.content) ?? [];
-  const recommendations = report.recommendations?.map((item) => item.content) ?? report.snapshot?.recommendations ?? [];
+  const strengths = (
+    report.snapshot?.strengths
+    ?? report.insights?.filter((item) => String(item.insightType).toLowerCase() === "strength").map((item) => item.content)
+    ?? []
+  )
+    .map((item) => localizeMaybeText(item))
+    .filter(Boolean);
+  const weaknesses = (
+    report.snapshot?.weaknesses
+    ?? report.insights?.filter((item) => String(item.insightType).toLowerCase() === "weakness").map((item) => item.content)
+    ?? []
+  )
+    .map((item) => localizeMaybeText(item))
+    .filter(Boolean);
+  const recommendations = (
+    report.recommendations?.map((item) => item.content)
+    ?? report.snapshot?.recommendations
+    ?? []
+  )
+    .map((item) => localizeMaybeText(item))
+    .filter(Boolean);
 
   return (
     <div className="space-y-4">
@@ -208,7 +231,7 @@ function ParentReportDetail({ report }: { report?: StudentReportDetailDto | null
 
       <div className="rounded-2xl border border-gray-200 bg-white p-4">
         <div className="text-sm font-semibold text-gray-900">Tóm tắt</div>
-        <div className="mt-2 text-sm text-gray-700">{report.summaryText || report.snapshot?.parent_message || "Chưa có phần tóm tắt cho báo cáo này."}</div>
+        <div className="mt-2 text-sm text-gray-700">{localizeMaybeText(report.summaryText || report.snapshot?.parent_message) || "Chưa có phần tóm tắt cho báo cáo này."}</div>
       </div>
     </div>
   );
@@ -398,7 +421,7 @@ export default function ParentReportsV3Workspace() {
                   <ParentSnapshotCard snapshot={parentReport?.snapshot} />
                   <div className="rounded-2xl border border-gray-200 bg-white p-4">
                     <div className="text-sm font-semibold text-gray-900">Thông điệp tổng kết</div>
-                    <div className="mt-2 text-sm text-gray-700">{parentReport?.summaryText || parentReport?.snapshot?.parent_message || "Chưa có lời nhắn tổng kết."}</div>
+                    <div className="mt-2 text-sm text-gray-700">{localizeMaybeText(parentReport?.summaryText || parentReport?.snapshot?.parent_message) || "Chưa có lời nhắn tổng kết."}</div>
                   </div>
                 </div>
               ) : (

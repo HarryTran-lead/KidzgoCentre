@@ -14,6 +14,10 @@ const SCALAR_TEXT_MAP: Record<string, string> = {
   pending: "Chờ xử lý",
   processing: "Đang xử lý",
   completed: "Hoàn thành",
+  notstarted: "Chưa bắt đầu",
+  not_started: "Chưa bắt đầu",
+  inprogress: "Đang học",
+  in_progress: "Đang học",
   pass: "Đạt",
   fail: "Không đạt",
   yes: "Có",
@@ -75,6 +79,22 @@ const REGEX_TEXT_MAP: Array<{ pattern: RegExp; replace: string }> = [
   {
     pattern: /Class progress \(([^)]+)\) is behind expected progress \(([^)]+)\)\./g,
     replace: "Tiến độ lớp ($1) đang chậm hơn tiến độ kỳ vọng ($2).",
+  },
+  {
+    pattern: /Attendance\s+([\d.]+)%\s*,\s*completion\s+([\d.]+)%\./gi,
+    replace: "Điểm danh $1%, hoàn thành $2%.",
+  },
+  {
+    pattern: /Strengths:/gi,
+    replace: "Điểm mạnh:",
+  },
+  {
+    pattern: /Weaknesses:/gi,
+    replace: "Điểm cần hỗ trợ:",
+  },
+  {
+    pattern: /Recommendations?:/gi,
+    replace: "Đề xuất:",
   },
 ];
 
@@ -167,6 +187,7 @@ export function SnapshotSummary({ snapshot }: { snapshot?: ReportsV3Snapshot | n
         <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Tiến độ học tập</div>
         <div className="mt-2 text-sm text-gray-700">Mức hoàn thành: <span className="font-semibold">{formatPercent(progress?.completion_percent)}</span></div>
         <div className="mt-1 text-sm text-gray-700">Bài học hiện tại: {formatScalar(progress?.current_lesson)}</div>
+        <div className="mt-1 text-sm text-gray-700">Trạng thái học tập: {formatScalar(progress?.current_status)}</div>
         <div className="mt-1 text-sm text-gray-700">Điều kiện lên lớp: {formatScalar(progress?.promotion_status)}</div>
       </div>
       <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">

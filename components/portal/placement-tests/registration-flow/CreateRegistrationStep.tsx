@@ -199,16 +199,24 @@ export default function CreateRegistrationStep({
                       <label className="text-xs font-medium text-gray-600 block mb-1">Gói học</label>
                       <Select value={tuitionPlanId} onValueChange={(val) => setTuitionPlanId(val)}>
                         <SelectTrigger className="w-full rounded-xl border border-gray-200 bg-white text-sm transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-100">
-                          <SelectValue placeholder="Chọn gói học" />
+                          <SelectValue placeholder={levelId ? "Chọn gói học" : "Chọn trình độ trước"} />
                         </SelectTrigger>
                         <SelectContent>
                           {filteredTuitionPlans.map((p) => (
                             <SelectItem key={p.id} value={p.id}>
-                              {p.name} <span className="text-gray-400 text-xs ml-1">({p.totalSessions} buổi)</span>
+                              {p.name}
+                              <span className="text-gray-400 text-xs ml-1">
+                                ({p.totalSessions} buổi{p.levelName ? ` • ${p.levelName}` : ""})
+                              </span>
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
+                      {programId && levelId && filteredTuitionPlans.length === 0 && (
+                        <p className="mt-1.5 text-xs text-amber-700">
+                          Trình độ này chưa có gói học đang hoạt động.
+                        </p>
+                      )}
                     </div>
 
                     {/* Ngày bắt đầu */}

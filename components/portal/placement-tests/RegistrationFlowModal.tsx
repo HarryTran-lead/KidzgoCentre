@@ -263,8 +263,12 @@ export default function RegistrationFlowModal({
       preferredSchedule?: string;
       programId: string;
       programName: string;
+      levelId?: string;
+      levelName?: string;
       secondaryProgramId?: string;
       secondaryProgramName?: string;
+      secondaryLevelId?: string;
+      secondaryLevelName?: string;
       tuitionPlanId: string;
       tuitionPlanName: string;
       className?: string;
@@ -441,7 +445,9 @@ export default function RegistrationFlowModal({
           disabled: safeRemaining !== null && safeRemaining <= 0,
           programId: String(cls?.programId || cls?.program?.id || ""),
           programName: String(cls?.programName || cls?.program?.name || ""),
-          label: `${className} • Còn chỗ: ${safeRemaining ?? "-"} • Lịch: ${scheduleLabel}`,
+          levelId: String(cls?.levelId || cls?.level?.id || ""),
+          levelName: String(cls?.levelName || cls?.courseLevel || cls?.level?.name || ""),
+          label: `${className} • ${String(cls?.levelName || cls?.courseLevel || cls?.level?.name || "Chưa rõ trình độ")} • Còn chỗ: ${safeRemaining ?? "-"} • Lịch: ${scheduleLabel}`,
         };
       }),
     [manualClasses],
@@ -577,10 +583,10 @@ export default function RegistrationFlowModal({
   const filteredTuitionPlans = useMemo(() => {
     return tuitionPlans.filter((p) => {
       if (!p.isActive) return false;
-      if (!programId) return true;
-      return p.programId === programId;
+      if (!programId || !levelId) return false;
+      return p.programId === programId && p.levelId === levelId;
     });
-  }, [tuitionPlans, programId]);
+  }, [tuitionPlans, programId, levelId]);
 
   const selectedRegistration = useMemo(
     () => registrationOptions.find((item) => item.id === registrationId),
@@ -591,10 +597,16 @@ export default function RegistrationFlowModal({
 
   const selectedRegistrationProgramId = selectedRegistration?.programId || "";
   const selectedRegistrationProgramName = selectedRegistration?.programName || "";
+  const selectedRegistrationLevelId = selectedRegistration?.levelId || "";
+  const selectedRegistrationLevelName = selectedRegistration?.levelName || "";
   const selectedRegistrationSecondaryProgramId =
     selectedRegistration?.secondaryProgramId || "";
   const selectedRegistrationSecondaryProgramName =
     selectedRegistration?.secondaryProgramName || "";
+  const selectedRegistrationSecondaryLevelId =
+    selectedRegistration?.secondaryLevelId || "";
+  const selectedRegistrationSecondaryLevelName =
+    selectedRegistration?.secondaryLevelName || "";
 
   const secondaryPrograms = useMemo(() => {
     return programs.filter((program) => {
@@ -671,11 +683,7 @@ export default function RegistrationFlowModal({
           (planItems || []).find((p) => p.isActive)?.programId || "";
         const nextProgramId = recommendedProgram?.programId || firstProgramId;
         setProgramId(nextProgramId);
-
-        const firstPlan = (planItems || []).find(
-          (p) => p.isActive && p.programId === nextProgramId,
-        );
-        setTuitionPlanId(firstPlan?.id || "");
+        setTuitionPlanId("");
         setIsSecondaryEnabled(Boolean(test?.secondaryLevelRecommendationId));
         setSecondaryProgramId("");
         setSecondaryLevelId(String(test?.secondaryLevelRecommendationId || ""));
@@ -793,8 +801,12 @@ export default function RegistrationFlowModal({
               preferredSchedule: String(r.preferredSchedule || ""),
               programId: String(r.programId || ""),
               programName: String(r.programName || ""),
-              secondaryProgramId: String(r.secondaryLevelId || ""),
-              secondaryProgramName: String(r.secondaryLevelName || ""),
+              levelId: String(r.levelId || ""),
+              levelName: String(r.levelName || ""),
+              secondaryProgramId: String(r.secondaryProgramId || ""),
+              secondaryProgramName: String(r.secondaryProgramName || ""),
+              secondaryLevelId: String(r.secondaryLevelId || ""),
+              secondaryLevelName: String(r.secondaryLevelName || ""),
               tuitionPlanId: String(r.tuitionPlanId || ""),
               tuitionPlanName: String(r.tuitionPlanName || ""),
               className: String(r.className || ""),
@@ -888,11 +900,12 @@ export default function RegistrationFlowModal({
           const hasSuggestedPrimaryLevel = suggestedPrimaryLevelId
             ? items.some((item) => String(item?.id || "") === suggestedPrimaryLevelId)
             : false;
+          const fallbackLevelId = items.length ? String(items[0].id || "") : "";
 
           if (hasSuggestedPrimaryLevel) {
             setLevelId(suggestedPrimaryLevelId);
-          } else if (!levelId && items.length) {
-            setLevelId(String(items[0].id || ""));
+          } else {
+            setLevelId(fallbackLevelId);
           }
         } catch (e) {
           if (cancelled) return;
@@ -926,21 +939,25 @@ export default function RegistrationFlowModal({
   }, [test?.studentProfileId, registrationId, registrationOptions]);
 
   useEffect(() => {
-    if (!programId) {
+    if (!programId || !levelId) {
       setTuitionPlanId("");
       return;
     }
 
     const match = tuitionPlans.find(
-      (p) => p.id === tuitionPlanId && p.programId === programId && p.isActive,
+      (p) =>
+        p.id === tuitionPlanId &&
+        p.programId === programId &&
+        p.levelId === levelId &&
+        p.isActive,
     );
     if (!match) {
       const first = tuitionPlans.find(
-        (p) => p.programId === programId && p.isActive,
+        (p) => p.programId === programId && p.levelId === levelId && p.isActive,
       );
       setTuitionPlanId(first?.id || "");
     }
-  }, [programId, tuitionPlanId, tuitionPlans]);
+  }, [programId, levelId, tuitionPlanId, tuitionPlans]);
 
   useEffect(() => {
     if (selectedDays.length === 0) {
@@ -1047,6 +1064,12 @@ export default function RegistrationFlowModal({
             programName:
               tuitionPlans.find((p) => p.programId === programId)?.programName ||
               "",
+            levelId,
+            levelName: levels.find((item) => String(item.id) === levelId)?.name || "",
+            secondaryLevelId: isSecondaryEnabled ? secondaryLevelId : "",
+            secondaryLevelName: isSecondaryEnabled
+              ? levels.find((item) => String(item.id) === secondaryLevelId)?.name || ""
+              : "",
             tuitionPlanId,
             tuitionPlanName:
               tuitionPlans.find((p) => p.id === tuitionPlanId)?.name || "",
@@ -1304,46 +1327,77 @@ export default function RegistrationFlowModal({
           return status !== "cancelled" && status !== "completed";
         });
 
-      const countClassesByProgram = (
+      const countClassesByProgramAndLevel = (
         targetProgramId?: string,
         targetProgramName?: string,
+        targetLevelId?: string,
+        targetLevelName?: string,
       ) => {
         const normalizedTargetProgramId = String(targetProgramId || "").trim();
         const normalizedTargetProgramName = normalizeText(targetProgramName);
+        const normalizedTargetLevelId = String(targetLevelId || "").trim();
+        const normalizedTargetLevelName = normalizeText(targetLevelName);
 
         return items.filter((item) => {
           const itemProgramId = String(item?.programId || item?.program?.id || "").trim();
           const itemProgramName = normalizeText(
             String(item?.programName || item?.program?.name || ""),
           );
+          const itemLevelId = String(item?.levelId || item?.level?.id || "").trim();
+          const itemLevelName = normalizeText(
+            String(item?.levelName || item?.courseLevel || item?.level?.name || ""),
+          );
 
-          if (normalizedTargetProgramId) {
-            return itemProgramId === normalizedTargetProgramId;
-          }
+          const sameProgramById = normalizedTargetProgramId
+            ? itemProgramId === normalizedTargetProgramId
+            : true;
+          const sameProgramByName =
+            !normalizedTargetProgramId && normalizedTargetProgramName
+              ? itemProgramName === normalizedTargetProgramName
+              : true;
+          const sameLevelById = normalizedTargetLevelId
+            ? itemLevelId === normalizedTargetLevelId
+            : true;
+          const sameLevelByName =
+            !normalizedTargetLevelId && normalizedTargetLevelName
+              ? itemLevelName === normalizedTargetLevelName
+              : true;
 
-          if (normalizedTargetProgramName) {
-            return itemProgramName === normalizedTargetProgramName;
-          }
-
-          return true;
+          return sameProgramById && sameProgramByName && sameLevelById && sameLevelByName;
         }).length;
       };
 
       const primaryProgramFilterId = selectedRegistrationProgramId || programId;
+      const primaryLevelFilterId = selectedRegistrationLevelId || levelId;
       const secondaryProgramFilterId =
         selectedRegistrationSecondaryProgramId ||
         secondaryProgramId ||
         suggestedClasses?.secondaryProgramId ||
+        selectedRegistrationProgramId ||
+        programId ||
         "";
-      const primaryFilteredCount = countClassesByProgram(
+      const secondaryLevelFilterId =
+        selectedRegistrationSecondaryLevelId ||
+        secondaryLevelId ||
+        suggestedClasses?.secondaryLevelId ||
+        "";
+      const primaryFilteredCount = countClassesByProgramAndLevel(
         primaryProgramFilterId,
         selectedRegistrationProgramName,
+        primaryLevelFilterId,
+        selectedRegistrationLevelName || levels.find((item) => String(item.id) === primaryLevelFilterId)?.name || "",
       );
       const secondaryFilteredCount = hasSecondaryTrack
-        ? countClassesByProgram(
+        ? countClassesByProgramAndLevel(
             secondaryProgramFilterId,
             selectedRegistrationSecondaryProgramName ||
               suggestedClasses?.secondaryProgramName ||
+              selectedRegistrationProgramName ||
+              "",
+            secondaryLevelFilterId,
+            selectedRegistrationSecondaryLevelName ||
+              suggestedClasses?.secondaryLevelName ||
+              levels.find((item) => String(item.id) === secondaryLevelFilterId)?.name ||
               "",
           )
         : 0;
@@ -1573,7 +1627,7 @@ export default function RegistrationFlowModal({
                 <AlertCircle size={18} className="mt-0.5 shrink-0 text-amber-600" />
                 <div className="text-sm text-amber-800">
                   Placement test này chưa có Student Profile. Vui lòng dùng chức
-                  năng "Tạo tài khoản & Profile" trước khi tạo đăng ký.
+                  năng &quot;Tạo tài khoản & Profile&quot; trước khi tạo đăng ký.
                 </div>
               </div>
             )}
@@ -1680,15 +1734,36 @@ export default function RegistrationFlowModal({
                         setManualSecondaryClassId={setManualSecondaryClassId}
                         manualPrimaryProgramId={selectedRegistrationProgramId || programId}
                         manualPrimaryProgramName={selectedRegistrationProgramName}
+                        manualPrimaryLevelId={selectedRegistrationLevelId || levelId}
+                        manualPrimaryLevelName={
+                          selectedRegistrationLevelName ||
+                          levels.find((item) => String(item.id) === levelId)?.name ||
+                          ""
+                        }
                         manualSecondaryProgramId={
                           selectedRegistrationSecondaryProgramId ||
                           secondaryProgramId ||
                           suggestedClasses?.secondaryProgramId ||
+                          selectedRegistrationProgramId ||
+                          programId ||
                           ""
                         }
                         manualSecondaryProgramName={
                           selectedRegistrationSecondaryProgramName ||
                           suggestedClasses?.secondaryProgramName ||
+                          selectedRegistrationProgramName ||
+                          ""
+                        }
+                        manualSecondaryLevelId={
+                          selectedRegistrationSecondaryLevelId ||
+                          secondaryLevelId ||
+                          suggestedClasses?.secondaryLevelId ||
+                          ""
+                        }
+                        manualSecondaryLevelName={
+                          selectedRegistrationSecondaryLevelName ||
+                          suggestedClasses?.secondaryLevelName ||
+                          levels.find((item) => String(item.id) === secondaryLevelId)?.name ||
                           ""
                         }
                         preferredSchedule={selectedRegistrationPreferredSchedule}
@@ -1736,15 +1811,36 @@ export default function RegistrationFlowModal({
                     setManualSecondaryClassId={setManualSecondaryClassId}
                     manualPrimaryProgramId={selectedRegistrationProgramId || programId}
                     manualPrimaryProgramName={selectedRegistrationProgramName}
+                    manualPrimaryLevelId={selectedRegistrationLevelId || levelId}
+                    manualPrimaryLevelName={
+                      selectedRegistrationLevelName ||
+                      levels.find((item) => String(item.id) === levelId)?.name ||
+                      ""
+                    }
                     manualSecondaryProgramId={
                       selectedRegistrationSecondaryProgramId ||
                       secondaryProgramId ||
                       suggestedClasses?.secondaryProgramId ||
+                      selectedRegistrationProgramId ||
+                      programId ||
                       ""
                     }
                     manualSecondaryProgramName={
                       selectedRegistrationSecondaryProgramName ||
                       suggestedClasses?.secondaryProgramName ||
+                      selectedRegistrationProgramName ||
+                      ""
+                    }
+                    manualSecondaryLevelId={
+                      selectedRegistrationSecondaryLevelId ||
+                      secondaryLevelId ||
+                      suggestedClasses?.secondaryLevelId ||
+                      ""
+                    }
+                    manualSecondaryLevelName={
+                      selectedRegistrationSecondaryLevelName ||
+                      suggestedClasses?.secondaryLevelName ||
+                      levels.find((item) => String(item.id) === secondaryLevelId)?.name ||
                       ""
                     }
                     preferredSchedule={selectedRegistrationPreferredSchedule}

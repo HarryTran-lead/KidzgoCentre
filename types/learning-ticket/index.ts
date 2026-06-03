@@ -35,3 +35,31 @@ export interface CompatibleTicketCheckResponse {
   ticketTypeCode: string | null;
   reason: string;
 }
+
+export interface CompatibleLearningTicketItem {
+  id?: string | null;
+  ticketItemId?: string | null;
+  ticketTypeId?: string | null;
+  ticketTypeCode?: string | null;
+  ticketTypeName?: string | null;
+  learningTicketTypeId?: string | null;
+  learningTicketTypeCode?: string | null;
+  learningTicketTypeName?: string | null;
+  name?: string | null;
+  available?: number | null;
+  consumed?: number | null;
+  totalGranted?: number | null;
+  remaining?: number | null;
+  quantity?: number | null;
+  reason?: string | null;
+  expiresAt?: string | null;
+  programId?: string | null;
+  programName?: string | null;
+  levelId?: string | null;
+  levelName?: string | null;
+  [key: string]: unknown;
+}
+
+export interface CompatibleLearningTicketsResponse {
+  items: CompatibleLearningTicketItem[];
+}
