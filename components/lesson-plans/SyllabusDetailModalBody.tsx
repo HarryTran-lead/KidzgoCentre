@@ -138,6 +138,7 @@ export default function SyllabusDetailModalBody({
   collapseSupplementaryContent = false,
   supplementaryContentToggleLabel = "Xem thông tin syllabus",
   hideCurriculumLessonSelect = false,
+  hideHeader = false,
 }: {
   detail: SyllabusDetail | null;
   loading?: boolean;
@@ -151,6 +152,7 @@ export default function SyllabusDetailModalBody({
   collapseSupplementaryContent?: boolean;
   supplementaryContentToggleLabel?: string;
   hideCurriculumLessonSelect?: boolean;
+  hideHeader?: boolean;
 }) {
   const [showFullSyllabusTable, setShowFullSyllabusTable] = useState(false);
   const [selectedLessonFilter, setSelectedLessonFilter] = useState("");
@@ -159,6 +161,7 @@ export default function SyllabusDetailModalBody({
   if (loading) {
     return (
       <>
+        {!hideHeader && (
         <div className="flex items-start justify-between rounded-t-2xl bg-gradient-to-r from-red-600 to-red-700 px-6 py-5">
           <div className="flex items-start gap-3 min-w-0">
             <div className="rounded-xl bg-white/20 p-2.5 shrink-0">
@@ -175,6 +178,7 @@ export default function SyllabusDetailModalBody({
             </button>
           ) : null}
         </div>
+        )}
         <div className="flex items-center justify-center px-6 py-16 text-gray-600">
           <Loader2 size={20} className="mr-3 animate-spin text-red-600" />
           Đang tải chi tiết syllabus...
@@ -1100,6 +1104,7 @@ export default function SyllabusDetailModalBody({
 
   return (
     <>
+      {!hideHeader && (
       <div className="flex items-start justify-between rounded-t-2xl bg-gradient-to-r from-red-600 to-red-700 px-6 py-5">
         <div className="flex items-start gap-3 min-w-0">
           <div className="rounded-xl bg-white/20 p-2.5 shrink-0"><BookOpen size={20} className="text-white" /></div>
@@ -1131,6 +1136,7 @@ export default function SyllabusDetailModalBody({
           </div>
         ) : null}
       </div>
+      )}
 
       <div className="flex-1 overflow-y-auto p-6 space-y-5">
         <div className="grid grid-cols-4 gap-3">
