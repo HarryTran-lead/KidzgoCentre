@@ -83,19 +83,19 @@ export default function ConfirmModal({
       onClick={handleCancel}
     >
       <div
-        className="relative w-full max-w-md overflow-hidden border border-red-200 bg-white shadow-2xl animate-in zoom-in-95 duration-200"
+        className="relative w-full max-w-md overflow-hidden rounded-3xl border border-red-200 bg-red-50 shadow-2xl animate-in zoom-in-95 duration-200"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="confirm-modal-title"
       >
-        <div className="absolute inset-x-0 top-0 h-1.5 bg-linear-to-r from-red-600 via-red-500 to-red-700" />
+
 
         <div className="absolute right-4 top-4 z-10">
           <button
             onClick={handleCancel}
             disabled={isLoading}
-            className="cursor-pointer rounded-xl border border-red-200 bg-white p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+            className="cursor-pointer rounded-xl bg-red-600 p-2 text-white transition-all duration-200 hover:bg-red-700 hover:scale-110 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
             aria-label="Đóng"
           >
             <X className="h-5 w-5" />

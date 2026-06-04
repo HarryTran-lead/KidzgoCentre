@@ -19,6 +19,7 @@ import type {
   RegistrationStatus,
   SuggestedClass,
   SuggestedClassBucket,
+  TransferBranchRequest,
   UpdateRegistrationRequest,
   WeeklyPatternEntry,
 } from "@/types/registration";
@@ -1039,6 +1040,24 @@ export async function transferRegistrationClass(
     requestBody,
   );
   return ensureRegistrationActionSuccess(response, "Không thể chuyển lớp cho đăng ký");
+}
+
+export async function transferRegistrationBranch(
+  id: string,
+  payload: TransferBranchRequest,
+): Promise<RegistrationActionResponse> {
+  const weeklyPattern = normalizeWeeklyPattern(payload.weeklyPattern);
+  const requestBody: TransferBranchRequest = {
+    ...payload,
+    reason: payload.reason?.trim() || undefined,
+    weeklyPattern: weeklyPattern || [],
+  };
+
+  const response = await post<RegistrationActionResponse>(
+    REGISTRATION_ENDPOINTS.TRANSFER_BRANCH(id),
+    requestBody,
+  );
+  return ensureRegistrationActionSuccess(response, "Không thể chuyển chi nhánh cho đăng ký");
 }
 
 export async function upgradeRegistration(

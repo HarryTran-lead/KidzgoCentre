@@ -16,6 +16,9 @@ import {
   CircleCheckBig,
   Sparkles,
   Wallet,
+  Building2,
+  MapPin,
+  CheckCircle,
 } from "lucide-react";
 import type { DashboardOverallResponse, StatusBreakdownItem } from "@/types/dashboard";
 import KpiCard from "./KpiCard";
@@ -25,13 +28,30 @@ import DashboardLineChart, { type LineChartDatum } from "./LineChart";
 import FunnelChart from "./FunnelChart";
 
 interface DashboardPageProps {
-  data: Partial<DashboardOverallResponse> | null;
+  data: (Partial<DashboardOverallResponse> & {
+    branches?: {
+      totalBranches: number;
+      activeBranches: number;
+      totalStudents: number;
+      totalTeachers: number;
+      totalClasses: number;
+      branchesData: Array<{
+        id: string;
+        name: string;
+        address?: string;
+        isActive: boolean;
+        studentCount: number;
+        teacherCount: number;
+        classCount: number;
+      }>;
+    };
+  }) | null;
   loading?: boolean;
   error?: string | null;
   onRefresh?: () => void;
 }
 
-type DashboardTab = "overview" | "leads" | "academic" | "hr";
+type DashboardTab = "overview" | "leads" | "academic" | "hr" | "branches";
 
 // Updated color palette: Red and Gray theme
 const CHART_COLORS = ["#dc2626", "#404040", "#171717", "#991b1b", "#4b5563", "#6b7280", "#9ca3af"];
@@ -207,7 +227,6 @@ function TabButton({
 export default function DashboardPage({ data, loading = false, error, onRefresh }: DashboardPageProps) {
   const { messages } = usePageI18n();
   const t = messages.adminPages.dashboard;
-  const [selectedRange, setSelectedRange] = useState("30d");
   const [activeTab, setActiveTab] = useState<DashboardTab>("overview");
 
   const students = data?.students;
@@ -225,7 +244,6 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
   const totalLeads = num(leads?.total, leads?.totalLeads);
   const conversionRate = percent(leads?.conversionRate);
   const attendanceRate = percent(attendance?.attendanceRate);
-  const totalStaff = num(humanResources?.totalStaff);
 
   const leadsBreakdown = useMemo(() => mapBreakdownToBar(leads?.statusBreakdown), [leads?.statusBreakdown]);
   const leadsLine = useMemo(() => mapBreakdownToLine(leads?.statusBreakdown), [leads?.statusBreakdown]);
@@ -337,11 +355,12 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
       </div> */}
 
       {/* Tab buttons with red gradient */}
-      <div className="sticky top-2 z-10 flex w-full flex-wrap gap-2 rounded-2xl border border-gray-200/80 bg-white/95 p-2 shadow-sm backdrop-blur">
-        <TabButton active={activeTab === "overview"} label={t.tabs.overview} onClick={() => setActiveTab("overview")} />
-        <TabButton active={activeTab === "leads"} label={t.tabs.leads} onClick={() => setActiveTab("leads")} />
-        <TabButton active={activeTab === "academic"} label={t.tabs.academic} onClick={() => setActiveTab("academic")} />
-        <TabButton active={activeTab === "hr"} label={t.tabs.hr} onClick={() => setActiveTab("hr")} />
+      <div className=" top-2 z-10 flex w-full flex-wrap gap-2 rounded-2xl border border-gray-200/80 bg-white/95 p-2 shadow-sm backdrop-blur">
+        <TabButton active={activeTab === "overview"} label="Tổng quan" onClick={() => setActiveTab("overview")} />
+        <TabButton active={activeTab === "leads"} label="Khách hàng tiềm năng" onClick={() => setActiveTab("leads")} />
+        <TabButton active={activeTab === "academic"} label="Học vụ" onClick={() => setActiveTab("academic")} />
+        <TabButton active={activeTab === "hr"} label="Nhân sự" onClick={() => setActiveTab("hr")} />
+        <TabButton active={activeTab === "branches"} label="Chi nhánh" onClick={() => setActiveTab("branches")} />
       </div>
 
       {activeTab === "overview" ? (
@@ -485,6 +504,128 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
               <DashboardLineChart data={hrTrendLine} height={220} strokeColor="#0f766e" />
               <Legend data={hrTrendLine} />
             </ChartCard>
+          </section>
+        </div>
+      ) : null}
+
+      {activeTab === "branches" ? (
+        <div className="space-y-6">
+          <section>
+            <SectionTitle title="Tổng quan chi nhánh" subtitle="Thông tin tổng hợp về toàn bộ chi nhánh trong hệ thống" />
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <KpiCard title="Tổng chi nhánh" value={formatNumber(data?.branches?.totalBranches || 0)} icon={<Building2 size={18} />} colorScheme="red" />
+              <KpiCard title="Chi nhánh hoạt động" value={formatNumber(data?.branches?.activeBranches || 0)} icon={<CheckCircle size={18} />} colorScheme="emerald" />
+              <KpiCard title="Tổng học viên" value={formatNumber(data?.branches?.totalStudents || 0)} icon={<GraduationCap size={18} />} colorScheme="blue" />
+              <KpiCard title="Tổng giáo viên" value={formatNumber(data?.branches?.totalTeachers || 0)} icon={<Users size={18} />} colorScheme="amber" />
+            </div>
+          </section>
+
+          <section className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+            {data?.branches?.branchesData && Array.isArray(data.branches.branchesData) && data.branches.branchesData.length > 0 ? (
+              <>
+                <ChartCard title="Học viên theo chi nhánh" rightContent={`Tổng: ${formatNumber(data?.branches?.totalStudents || 0)}`}>
+                  <DashboardBarChart 
+                    data={data.branches.branchesData.map((branch, idx) => ({
+                      label: branch.name,
+                      value: branch.studentCount || 0,
+                      color: CHART_COLORS[idx % CHART_COLORS.length],
+                    }))}
+                    height={240}
+                  />
+                </ChartCard>
+
+                <ChartCard title="Giáo viên theo chi nhánh" rightContent={`Tổng: ${formatNumber(data?.branches?.totalTeachers || 0)}`}>
+                  <DashboardBarChart 
+                    data={data.branches.branchesData.map((branch, idx) => ({
+                      label: branch.name,
+                      value: branch.teacherCount || 0,
+                      color: CHART_COLORS[idx % CHART_COLORS.length],
+                    }))}
+                    height={240}
+                  />
+                </ChartCard>
+
+                <ChartCard title="Lớp học theo chi nhánh" rightContent={`Tổng: ${formatNumber(data?.branches?.totalClasses || 0)}`}>
+                  <DashboardBarChart 
+                    data={data.branches.branchesData.map((branch, idx) => ({
+                      label: branch.name,
+                      value: branch.classCount || 0,
+                      color: CHART_COLORS[idx % CHART_COLORS.length],
+                    }))}
+                    height={240}
+                  />
+                </ChartCard>
+              </>
+            ) : (
+              <div className="col-span-full">
+                <EmptyBlock text="Không có dữ liệu chi nhánh" />
+              </div>
+            )}
+          </section>
+
+          <section>
+            <div className="rounded-2xl border border-gray-200/80 bg-white p-6">
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <Building2 size={20} className="text-red-600" />
+                  Chi tiết chi nhánh
+                </h3>
+                <p className="mt-1 text-sm text-gray-500">Thông tin chi tiết của từng chi nhánh</p>
+              </div>
+
+              {data?.branches?.branchesData && Array.isArray(data.branches.branchesData) && data.branches.branchesData.length > 0 ? (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {data.branches.branchesData.map((branch: {
+                    id: string;
+                    name: string;
+                    address?: string;
+                    isActive: boolean;
+                    studentCount: number;
+                    teacherCount: number;
+                    classCount: number;
+                  }) => (
+                    <div
+                      key={branch.id}
+                      className="rounded-xl border border-gray-200 bg-linear-to-br from-white to-gray-50 p-4 hover:border-red-300 hover:shadow-md transition-all"
+                    >
+                      <div className="flex items-start justify-between gap-3 mb-4">
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-gray-900">{branch.name}</h4>
+                          <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
+                            <MapPin size={14} />
+                            {branch.address || "Không xác định"}
+                          </p>
+                        </div>
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${
+                          branch.isActive
+                            ? "bg-green-100 text-green-700"
+                            : "bg-gray-100 text-gray-700"
+                        }`}>
+                          {branch.isActive ? "Hoạt động" : "Không hoạt động"}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="rounded-lg bg-blue-50 p-2 text-center">
+                          <p className="text-2xl font-bold text-blue-600">{branch.studentCount || 0}</p>
+                          <p className="text-xs text-blue-600 mt-1">Học viên</p>
+                        </div>
+                        <div className="rounded-lg bg-purple-50 p-2 text-center">
+                          <p className="text-2xl font-bold text-purple-600">{branch.teacherCount || 0}</p>
+                          <p className="text-xs text-purple-600 mt-1">Giáo viên</p>
+                        </div>
+                        <div className="rounded-lg bg-amber-50 p-2 text-center">
+                          <p className="text-2xl font-bold text-amber-600">{branch.classCount || 0}</p>
+                          <p className="text-xs text-amber-600 mt-1">Lớp học</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <EmptyBlock text="Không có dữ liệu chi nhánh" />
+              )}
+            </div>
           </section>
         </div>
       ) : null}

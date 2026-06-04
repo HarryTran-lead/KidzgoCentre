@@ -29,6 +29,13 @@ type EnvelopeLike<T> = {
 
 type ListFilterParams = QueryParams;
 
+const RECOMMENDATION_ROLE_BY_CODE: Record<string, string> = {
+  "1": "teacher",
+  "2": "academic_manager",
+  "3": "cs",
+  "4": "admin",
+};
+
 function unwrapData<T>(payload: unknown): T {
   const direct = payload as EnvelopeLike<T> | undefined;
   const level1 = direct?.data as unknown;
@@ -75,20 +82,206 @@ function pickPagedResult<T>(payload: unknown): PagedResult<T> {
   };
 }
 
+function toRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+  return value as Record<string, unknown>;
+}
+
+function pickOptionalString(...values: unknown[]): string | undefined {
+  for (const value of values) {
+    if (value === null || value === undefined) continue;
+    if (typeof value === "boolean") continue;
+    const text = String(value).trim();
+    if (text) return text;
+  }
+  return undefined;
+}
+
+function pickNullableString(...values: unknown[]): string | null | undefined {
+  let hasNull = false;
+  for (const value of values) {
+    if (value === null) {
+      hasNull = true;
+      continue;
+    }
+    if (value === undefined) continue;
+    if (typeof value === "boolean") continue;
+    const text = String(value).trim();
+    if (text) return text;
+  }
+  return hasNull ? null : undefined;
+}
+
+function pickOptionalBoolean(...values: unknown[]): boolean | undefined {
+  for (const value of values) {
+    if (typeof value === "boolean") return value;
+    if (typeof value === "number") return value !== 0;
+    if (typeof value === "string") {
+      const key = value.trim().toLowerCase();
+      if (key === "true" || key === "1") return true;
+      if (key === "false" || key === "0") return false;
+    }
+  }
+  return undefined;
+}
+
+function pickOptionalNumber(...values: unknown[]): number | undefined {
+  for (const value of values) {
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    if (typeof value === "string") {
+      const parsed = Number(value.trim());
+      if (Number.isFinite(parsed)) return parsed;
+    }
+  }
+  return undefined;
+}
+
+function normalizeRecommendationRole(value: unknown): string {
+  const raw = pickOptionalString(value)?.toLowerCase() ?? "";
+  if (!raw) return "teacher";
+  return RECOMMENDATION_ROLE_BY_CODE[raw] || raw;
+}
+
+function normalizeRiskAlert(item: unknown): RiskAlertDto {
+  const row = toRecord(item);
+  const student = toRecord(row.student ?? row.studentProfile ?? row.profile);
+  return {
+    id: pickOptionalString(row.id, row.riskAlertId, row.alertId, row.key) || "",
+    studentId: pickNullableString(row.studentId, row.studentProfileId),
+    studentName: pickOptionalString(
+      row.studentName,
+      row.fullName,
+      row.studentDisplayName,
+      student.studentName,
+      student.fullName,
+      student.displayName,
+      student.name,
+    ),
+    classId: pickNullableString(row.classId),
+    className: pickOptionalString(row.className),
+    branchId: pickNullableString(row.branchId),
+    branchName: pickOptionalString(row.branchName),
+    reportPeriodId: pickNullableString(row.reportPeriodId, row.periodId),
+    riskType: pickOptionalString(row.riskType, row.type, row.recommendationType) || "UnknownRisk",
+    severity: pickOptionalString(row.severity, row.priority, row.level) || "Low",
+    reason: pickOptionalString(row.reason, row.content, row.message, row.description) || "Không có mô tả rủi ro.",
+    source: pickNullableString(row.source, row.sourceType),
+    status: pickOptionalString(row.status, row.state) || "Open",
+    createdAt: pickOptionalString(row.createdAt),
+    resolvedAt: pickNullableString(row.resolvedAt, row.completedAt, row.completed),
+  };
+}
+
+function normalizeClassAcademicDashboard(payload: ClassAcademicDashboardResponse): ClassAcademicDashboardResponse {
+  const pacing = toRecord(payload.classPacing);
+  const weakStudentCount = Array.isArray(payload.weakStudents) ? payload.weakStudents.length : payload.weakStudents;
+  const reviewRatio = pickOptionalNumber(pacing.reviewRatio, pacing.reviewRatioPercent);
+  const actualProgress = pickOptionalNumber(pacing.actualProgress, pacing.actualProgressPercent);
+  const plannedProgress = pickOptionalNumber(pacing.plannedProgress, pacing.plannedProgressPercent);
+
+  return {
+    ...payload,
+    totalStudents: pickOptionalNumber(payload.totalStudents) ?? payload.totalStudents,
+    riskStudents: pickOptionalNumber(payload.riskStudents, weakStudentCount, payload.delayedStudents) ?? payload.riskStudents,
+    delayedStudents: pickOptionalNumber(payload.delayedStudents) ?? payload.delayedStudents,
+    failedAssessments: pickOptionalNumber(payload.failedAssessments) ?? payload.failedAssessments,
+    remedialRequired: pickOptionalNumber(payload.remedialRequired) ?? payload.remedialRequired,
+    classPacing: payload.classPacing
+      ? {
+          ...payload.classPacing,
+          reviewRatio: reviewRatio ?? payload.classPacing.reviewRatio,
+          reviewRatioPercent: pickOptionalNumber(pacing.reviewRatioPercent, reviewRatio) ?? payload.classPacing.reviewRatioPercent,
+          actualProgress: actualProgress ?? payload.classPacing.actualProgress,
+          actualProgressPercent: pickOptionalNumber(pacing.actualProgressPercent, actualProgress) ?? payload.classPacing.actualProgressPercent,
+          plannedProgress: plannedProgress ?? payload.classPacing.plannedProgress,
+          plannedProgressPercent: pickOptionalNumber(pacing.plannedProgressPercent, plannedProgress) ?? payload.classPacing.plannedProgressPercent,
+          curriculumDelayRisk:
+            pickOptionalBoolean(pacing.curriculumDelayRisk) ?? payload.classPacing.curriculumDelayRisk,
+        }
+      : payload.classPacing,
+    riskAlerts: Array.isArray(payload.riskAlerts) ? payload.riskAlerts.map(normalizeRiskAlert) : payload.riskAlerts,
+    recommendations: Array.isArray(payload.recommendations)
+      ? payload.recommendations.map(normalizeRecommendation)
+      : payload.recommendations,
+  };
+}
+
+function normalizeRecommendation(item: unknown): RecommendationDto {
+  const row = toRecord(item);
+  const completedAt = pickNullableString(row.completedAt, row.completed, row.resolvedAt);
+  return {
+    id: pickOptionalString(row.id, row.recommendationId, row.key) || "",
+    studentId: pickNullableString(row.studentId, row.studentProfileId),
+    studentName: pickOptionalString(row.studentName, row.fullName, row.studentDisplayName),
+    classId: pickNullableString(row.classId),
+    className: pickOptionalString(row.className),
+    recommendationType: pickNullableString(row.recommendationType, row.type, row.riskType),
+    content: pickOptionalString(row.content, row.reason, row.description) || "",
+    priority: pickNullableString(row.priority),
+    assignedRole: normalizeRecommendationRole(row.assignedRole ?? row.role ?? row.assigneeRole),
+    status: pickOptionalString(row.status, row.state) || "Pending",
+    dueAt: pickNullableString(row.dueAt),
+    isOverdue: pickOptionalBoolean(row.isOverdue),
+    createdAt: pickOptionalString(row.createdAt),
+    completed: completedAt ?? null,
+    completedAt,
+  };
+}
+
+function normalizeReportListItem(item: StudentReportListItemDto): StudentReportListItemDto {
+  return {
+    ...item,
+    studentId: String(item.studentId ?? "").trim(),
+    classId: item.classId ?? undefined,
+    branchId: item.branchId ?? undefined,
+  };
+}
+
+function normalizeReportDetail(detail: StudentReportDetailDto): StudentReportDetailDto {
+  return {
+    ...detail,
+    risks: Array.isArray(detail.risks) ? detail.risks.map(normalizeRiskAlert) : detail.risks,
+    recommendations: Array.isArray(detail.recommendations)
+      ? detail.recommendations.map(normalizeRecommendation)
+      : detail.recommendations,
+  };
+}
+
+function normalizeParentReport(response: ParentReportViewResponse): ParentReportViewResponse {
+  return {
+    ...response,
+    recommendations: Array.isArray(response.recommendations)
+      ? response.recommendations.map(normalizeRecommendation)
+      : response.recommendations,
+  };
+}
+
+function mapPagedItems<T>(result: PagedResult<T>, mapper: (item: T) => T): PagedResult<T> {
+  return {
+    ...result,
+    items: result.items.map(mapper),
+  };
+}
+
 export async function generateReport(payload: GenerateReportRequest): Promise<GenerateReportResponse> {
   return unwrapData<GenerateReportResponse>(await post(REPORTS_V3_ENDPOINTS.GENERATE, payload));
 }
 
 export async function getStudentReportById(reportId: string): Promise<StudentReportDetailDto> {
-  return unwrapData<StudentReportDetailDto>(await get(REPORTS_V3_ENDPOINTS.BY_ID(reportId)));
+  return normalizeReportDetail(unwrapData<StudentReportDetailDto>(await get(REPORTS_V3_ENDPOINTS.BY_ID(reportId))));
 }
 
 export async function getStudentReports(
   studentId: string,
   params?: ListFilterParams,
 ): Promise<PagedResult<StudentReportListItemDto>> {
-  return pickPagedResult<StudentReportListItemDto>(
-    await get(`${REPORTS_V3_ENDPOINTS.STUDENT_REPORTS(studentId)}${buildQueryString(params)}`),
+  return mapPagedItems(
+    pickPagedResult<StudentReportListItemDto>(
+      await get(`${REPORTS_V3_ENDPOINTS.STUDENT_REPORTS(studentId)}${buildQueryString(params)}`),
+    ),
+    normalizeReportListItem,
   );
 }
 
@@ -96,21 +289,28 @@ export async function getLatestStudentReport(
   studentId: string,
   params?: Pick<ListFilterParams, "reportType">,
 ): Promise<StudentReportDetailDto> {
-  return unwrapData<StudentReportDetailDto>(
-    await get(`${REPORTS_V3_ENDPOINTS.STUDENT_REPORTS_LATEST(studentId)}${buildQueryString(params)}`),
+  return normalizeReportDetail(
+    unwrapData<StudentReportDetailDto>(
+      await get(`${REPORTS_V3_ENDPOINTS.STUDENT_REPORTS_LATEST(studentId)}${buildQueryString(params)}`),
+    ),
   );
 }
 
 export async function getParentReport(studentId: string): Promise<ParentReportViewResponse> {
-  return unwrapData<ParentReportViewResponse>(await get(REPORTS_V3_ENDPOINTS.STUDENT_PARENT_REPORT(studentId)));
+  return normalizeParentReport(
+    unwrapData<ParentReportViewResponse>(await get(REPORTS_V3_ENDPOINTS.STUDENT_PARENT_REPORT(studentId))),
+  );
 }
 
 export async function getStudentRecommendations(
   studentId: string,
   params?: ListFilterParams,
 ): Promise<PagedResult<RecommendationDto>> {
-  return pickPagedResult<RecommendationDto>(
-    await get(`${REPORTS_V3_ENDPOINTS.STUDENT_RECOMMENDATIONS(studentId)}${buildQueryString(params)}`),
+  return mapPagedItems(
+    pickPagedResult<RecommendationDto>(
+      await get(`${REPORTS_V3_ENDPOINTS.STUDENT_RECOMMENDATIONS(studentId)}${buildQueryString(params)}`),
+    ),
+    normalizeRecommendation,
   );
 }
 
@@ -118,17 +318,22 @@ export async function getClassAcademicDashboard(
   classId: string,
   params?: Pick<ListFilterParams, "periodId">,
 ): Promise<ClassAcademicDashboardResponse> {
-  return unwrapData<ClassAcademicDashboardResponse>(
+  const payload = unwrapData<ClassAcademicDashboardResponse>(
     await get(`${REPORTS_V3_ENDPOINTS.CLASS_ACADEMIC_DASHBOARD(classId)}${buildQueryString(params)}`),
   );
+
+  return normalizeClassAcademicDashboard(payload);
 }
 
 export async function getClassRiskAlerts(
   classId: string,
   params?: ListFilterParams,
 ): Promise<PagedResult<RiskAlertDto>> {
-  return pickPagedResult<RiskAlertDto>(
-    await get(`${REPORTS_V3_ENDPOINTS.CLASS_RISK_ALERTS(classId)}${buildQueryString(params)}`),
+  return mapPagedItems(
+    pickPagedResult<RiskAlertDto>(
+      await get(`${REPORTS_V3_ENDPOINTS.CLASS_RISK_ALERTS(classId)}${buildQueryString(params)}`),
+    ),
+    normalizeRiskAlert,
   );
 }
 

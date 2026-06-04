@@ -487,6 +487,14 @@ export const LEARNING_TICKET_ENDPOINTS = {
   BALANCE: (studentProfileId: string) => `/api/students/${studentProfileId}/tickets/balance`,
   LEDGER: (studentProfileId: string) => `/api/students/${studentProfileId}/tickets/ledger`,
   COMPATIBLE: (studentProfileId: string) => `/api/students/${studentProfileId}/tickets/compatible`,
+  COMPATIBLE_TICKETS: (studentProfileId: string) => `/api/students/${studentProfileId}/compatible-tickets`,
+} as const;
+
+export const BACKEND_LEARNING_TICKET_ENDPOINTS = {
+  BALANCE: (studentProfileId: string) => `/students/${studentProfileId}/tickets/balance`,
+  LEDGER: (studentProfileId: string) => `/students/${studentProfileId}/tickets/ledger`,
+  COMPATIBLE: (studentProfileId: string) => `/students/${studentProfileId}/tickets/compatible`,
+  COMPATIBLE_TICKETS: (studentProfileId: string) => `/students/${studentProfileId}/compatible-tickets`,
 } as const;
 
 // Phase 1.5 — Learning Ticket Type Endpoints
@@ -863,6 +871,7 @@ export const REGISTRATION_ENDPOINTS = {
   ASSIGN_CLASS: (id: string) => `/api/registrations/${id}/assign-class`,
   WAITING_LIST: '/api/registrations/waiting-list',
   TRANSFER_CLASS: (id: string) => `/api/registrations/${id}/transfer-class`,
+  TRANSFER_BRANCH: (id: string) => `/api/registrations/${id}/transfer-branch`,
   UPGRADE: (id: string) => `/api/registrations/${id}/upgrade`,
 } as const;
 
@@ -898,6 +907,7 @@ export const BACKEND_REGISTRATION_ENDPOINTS = {
   ASSIGN_CLASS: (id: string) => `/registrations/${id}/assign-class`,
   WAITING_LIST: '/registrations/waiting-list',
   TRANSFER_CLASS: (id: string) => `/registrations/${id}/transfer-class`,
+  TRANSFER_BRANCH: (id: string) => `/registrations/${id}/transfer-branch`,
   UPGRADE: (id: string) => `/registrations/${id}/upgrade`,
 } as const;
 
