@@ -549,6 +549,10 @@ interface SuggestAssignStepProps {
     label: string;
     remainingSlots: number | null;
     disabled: boolean;
+    programId?: string;
+    programName?: string;
+    levelId?: string;
+    levelName?: string;
   }>;
   manualPrimaryClassId: string;
   setManualPrimaryClassId: (value: string) => void;
@@ -556,8 +560,12 @@ interface SuggestAssignStepProps {
   setManualSecondaryClassId: (value: string) => void;
   manualPrimaryProgramId?: string;
   manualPrimaryProgramName?: string;
+  manualPrimaryLevelId?: string;
+  manualPrimaryLevelName?: string;
   manualSecondaryProgramId?: string;
   manualSecondaryProgramName?: string;
+  manualSecondaryLevelId?: string;
+  manualSecondaryLevelName?: string;
   preferredSchedule?: string | null;
   manualPrimarySessionPattern: string;
   setManualPrimarySessionPattern: (value: string) => void;
@@ -608,8 +616,12 @@ export default function SuggestAssignStep({
   setManualSecondaryClassId,
   manualPrimaryProgramId,
   manualPrimaryProgramName,
+  manualPrimaryLevelId,
+  manualPrimaryLevelName,
   manualSecondaryProgramId,
   manualSecondaryProgramName,
+  manualSecondaryLevelId,
+  manualSecondaryLevelName,
   preferredSchedule,
   manualPrimarySessionPattern,
   setManualPrimarySessionPattern,
@@ -859,7 +871,7 @@ export default function SuggestAssignStep({
       .replace(/\s+/g, " ")
       .toLowerCase();
 
-  const filterOptionsByProgram = (
+  const filterOptionsByProgramAndLevel = (
     options: Array<{
       id: string;
       label: string;
@@ -867,16 +879,24 @@ export default function SuggestAssignStep({
       disabled: boolean;
       programId?: string;
       programName?: string;
+      levelId?: string;
+      levelName?: string;
     }>,
     targetProgramId?: string,
     targetProgramName?: string,
+    targetLevelId?: string,
+    targetLevelName?: string,
   ) => {
     const normalizedTargetProgramId = String(targetProgramId || "").trim();
     const normalizedTargetProgramName = normalizeText(targetProgramName);
+    const normalizedTargetLevelId = String(targetLevelId || "").trim();
+    const normalizedTargetLevelName = normalizeText(targetLevelName);
 
     return options.filter((option) => {
       const optionProgramId = String(option.programId || "").trim();
       const optionProgramName = normalizeText(option.programName);
+      const optionLevelId = String(option.levelId || "").trim();
+      const optionLevelName = normalizeText(option.levelName);
 
       const sameProgramById = normalizedTargetProgramId
         ? optionProgramId === normalizedTargetProgramId
@@ -885,29 +905,52 @@ export default function SuggestAssignStep({
         !normalizedTargetProgramId && normalizedTargetProgramName
           ? optionProgramName === normalizedTargetProgramName
           : true;
+      const sameLevelById = normalizedTargetLevelId
+        ? optionLevelId === normalizedTargetLevelId
+        : true;
+      const sameLevelByName =
+        !normalizedTargetLevelId && normalizedTargetLevelName
+          ? optionLevelName === normalizedTargetLevelName
+          : true;
 
-      return sameProgramById && sameProgramByName;
+      return sameProgramById && sameProgramByName && sameLevelById && sameLevelByName;
     });
   };
 
   const primaryManualClassOptions = useMemo(
     () =>
-      filterOptionsByProgram(
+      filterOptionsByProgramAndLevel(
         manualClassOptions,
         manualPrimaryProgramId,
         manualPrimaryProgramName,
+        manualPrimaryLevelId,
+        manualPrimaryLevelName,
       ),
-    [manualClassOptions, manualPrimaryProgramId, manualPrimaryProgramName],
+    [
+      manualClassOptions,
+      manualPrimaryProgramId,
+      manualPrimaryProgramName,
+      manualPrimaryLevelId,
+      manualPrimaryLevelName,
+    ],
   );
 
   const secondaryManualClassOptions = useMemo(
     () =>
-      filterOptionsByProgram(
+      filterOptionsByProgramAndLevel(
         manualClassOptions,
         manualSecondaryProgramId,
         manualSecondaryProgramName,
+        manualSecondaryLevelId,
+        manualSecondaryLevelName,
       ),
-    [manualClassOptions, manualSecondaryProgramId, manualSecondaryProgramName],
+    [
+      manualClassOptions,
+      manualSecondaryProgramId,
+      manualSecondaryProgramName,
+      manualSecondaryLevelId,
+      manualSecondaryLevelName,
+    ],
   );
 
   const secondaryManualConflictClassIds = useMemo(() => {
@@ -1389,7 +1432,7 @@ export default function SuggestAssignStep({
 
         {!showControls ? (
           <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-500">
-            Đang dùng lịch mặc định của lớp. Nếu cần chọn buổi cụ thể, nhấn "Tùy chỉnh lịch học".
+            Đang dùng lịch mặc định của lớp. Nếu cần chọn buổi cụ thể, nhấn &quot;Tùy chỉnh lịch học&quot;.
           </div>
         ) : null}
 
@@ -1649,7 +1692,7 @@ export default function SuggestAssignStep({
                 )}
               </div>
               <p className="mt-1 text-[11px] text-gray-500">
-                Nếu để trống, hệ thống sẽ sử dụng lịch mặc định khi xếp lớp. Nếu muốn chuyển trạng thái chờ lớp, dùng nút "Đưa vào danh sách chờ".
+                Nếu để trống, hệ thống sẽ sử dụng lịch mặc định khi xếp lớp. Nếu muốn chuyển trạng thái chờ lớp, dùng nút &quot;Đưa vào danh sách chờ&quot;.
               </p>
             </div>
           )}
@@ -1986,6 +2029,12 @@ export default function SuggestAssignStep({
                       </SelectContent>
                     </Select>
 
+                    {primaryManualClassOptions.length === 0 && (
+                      <div className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs text-amber-800">
+                        Không có lớp cùng chương trình và trình độ để xếp thủ công.
+                      </div>
+                    )}
+
                     {renderTrackSessionSelector({
                       title: "Chương trình chính - chọn ngày/giờ học",
                       selectedClassId: manualPrimaryClassId,
@@ -2036,6 +2085,12 @@ export default function SuggestAssignStep({
                           ))}
                         </SelectContent>
                       </Select>
+
+                        {secondaryManualClassOptions.length === 0 && (
+                          <div className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs text-amber-800">
+                            Không có lớp song song cùng chương trình và trình độ để xếp thủ công.
+                          </div>
+                        )}
 
                         {manualPrimaryClassId && secondaryManualClassOptions.length > 0 && compatibleSecondaryManualClassOptions.length === 0 && (
                           <div className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs text-amber-800">

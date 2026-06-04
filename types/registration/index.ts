@@ -89,6 +89,14 @@ export interface AssignClassRequest {
   weeklyPattern?: WeeklyPatternEntry[] | null;
 }
 
+export interface TransferBranchRequest {
+  newBranchId: string;
+  newClassId: string;
+  effectiveDate: string;
+  reason?: string | null;
+  weeklyPattern: WeeklyPatternEntry[];
+}
+
 export interface Registration {
   id: string;
   studentProfileId: string;

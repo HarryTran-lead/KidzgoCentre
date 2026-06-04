@@ -364,6 +364,8 @@ function ImportConfigModal({
         .map((r, i) => ({ ...r, orderIndex: i + 1 })),
     );
 
+  const hasUnitValue = (value: string) => value.trim() !== "";
+
   const validate = (): string | null => {
     const r = Number(regularCount);
     const s = Number(starterCount);
@@ -384,20 +386,22 @@ function ImportConfigModal({
     if (new Set(orderIdxs).size !== orderIdxs.length)
       return "orderIndex phải unique.";
     for (const rule of rules) {
-      if (rule.unitFrom || rule.unitTo) {
+      const hasUnitFrom = hasUnitValue(rule.unitFrom);
+      const hasUnitTo = hasUnitValue(rule.unitTo);
+      if (hasUnitFrom || hasUnitTo) {
         const from = Number(rule.unitFrom);
         const to = Number(rule.unitTo);
-        if (!from || !to)
+        if (!hasUnitFrom || !hasUnitTo || Number.isNaN(from) || Number.isNaN(to))
           return `Rule ${rule.orderIndex}: unitFrom và unitTo phải cùng có.`;
-        if (from <= 0 || to <= 0)
-          return `Rule ${rule.orderIndex}: unitFrom/unitTo phải > 0.`;
+        if (from < 0 || to < 0)
+          return `Rule ${rule.orderIndex}: unitFrom/unitTo phải >= 0.`;
         if (from > to)
           return `Rule ${rule.orderIndex}: unitFrom phải <= unitTo.`;
       }
     }
     // Check unit range overlap
     const ranges = rules
-      .filter((r) => r.unitFrom && r.unitTo)
+      .filter((r) => hasUnitValue(r.unitFrom) && hasUnitValue(r.unitTo))
       .map((r) => ({
         from: Number(r.unitFrom),
         to: Number(r.unitTo),
@@ -443,8 +447,8 @@ function ImportConfigModal({
       rules: rules.map((r) => ({
         moduleId: r.moduleId,
         includeStarterUnit: r.includeStarterUnit,
-        unitFrom: r.unitFrom ? Number(r.unitFrom) : null,
-        unitTo: r.unitTo ? Number(r.unitTo) : null,
+        unitFrom: hasUnitValue(r.unitFrom) ? Number(r.unitFrom) : null,
+        unitTo: hasUnitValue(r.unitTo) ? Number(r.unitTo) : null,
         revisionNumber: r.revisionNumber ? Number(r.revisionNumber) : null,
         orderIndex: r.orderIndex,
       })),
@@ -693,7 +697,7 @@ function ImportConfigModal({
                               <Field label="Unit từ">
                                 <input
                                   type="number"
-                                  min={1}
+                                  min={0}
                                   value={rule.unitFrom}
                                   onChange={(e) =>
                                     updateRule(rule.key, {
@@ -707,7 +711,7 @@ function ImportConfigModal({
                               <Field label="Unit đến">
                                 <input
                                   type="number"
-                                  min={1}
+                                  min={0}
                                   value={rule.unitTo}
                                   onChange={(e) =>
                                     updateRule(rule.key, {

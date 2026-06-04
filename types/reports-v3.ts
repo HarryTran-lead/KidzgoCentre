@@ -10,6 +10,7 @@ export type RecommendationStatus = "Pending" | "Accepted" | "Rejected" | "Done" 
 export type ReportShareStatus = "Sent" | "Failed" | "Viewed" | string;
 export type ReportShareChannel = "app" | "email" | "zalo" | "sms";
 export type RecommendationRole = "teacher" | "academic_manager" | "cs" | "admin";
+export type RecommendationRoleCode = 1 | 2 | 3 | 4 | "1" | "2" | "3" | "4";
 export type StudentReportStatus = "Pending" | "Processing" | "Completed" | "Failed" | "Superseded" | string;
 export type ReportRunStatus = "Pending" | "Processing" | "Completed" | "Failed" | string;
 
@@ -96,12 +97,13 @@ export interface ReportInsightDto {
 
 export interface RiskAlertDto {
   id: string;
-  studentId?: string;
+  studentId?: string | null;
   studentName?: string;
   classId?: string | null;
   className?: string | null;
   branchId?: string | null;
   branchName?: string | null;
+  reportPeriodId?: string | null;
   riskType: string;
   severity: RiskSeverity | string;
   reason: string;
@@ -113,16 +115,19 @@ export interface RiskAlertDto {
 
 export interface RecommendationDto {
   id: string;
-  studentId?: string;
+  studentId?: string | null;
   studentName?: string;
   classId?: string | null;
   className?: string | null;
   recommendationType?: string | null;
   content: string;
   priority?: string | null;
-  assignedRole: RecommendationRole | string;
+  assignedRole: RecommendationRole | RecommendationRoleCode | string | number;
   status: RecommendationStatus;
+  dueAt?: string | null;
+  isOverdue?: boolean | null;
   createdAt?: string;
+  completed?: string | null;
   completedAt?: string | null;
 }
 
@@ -249,17 +254,21 @@ export interface ClassAcademicDashboardResponse {
   periodId?: string | null;
   totalStudents?: number;
   riskStudents?: number;
+  delayedStudents?: number;
   failedAssessments?: number;
   remedialRequired?: number;
   classPacing?: {
     reviewRatio?: number;
+    reviewRatioPercent?: number;
     curriculumDelayRisk?: boolean;
     actualProgress?: number;
+    actualProgressPercent?: number;
     plannedProgress?: number;
+    plannedProgressPercent?: number;
   };
   riskAlerts?: RiskAlertDto[];
   recommendations?: RecommendationDto[];
-  weakStudents?: Array<{
+  weakStudents?: number | Array<{
     studentId?: string;
     studentName?: string;
     reason?: string;

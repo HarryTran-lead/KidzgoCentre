@@ -18,6 +18,8 @@ type ManualClassOption = {
   disabled: boolean;
   programId?: string;
   programName?: string;
+  levelId?: string;
+  levelName?: string;
 };
 
 type RegistrationAssignModalProps = {
@@ -71,8 +73,12 @@ type RegistrationAssignModalProps = {
   setManualSecondaryClassId: (value: string) => void;
   manualPrimaryProgramId?: string;
   manualPrimaryProgramName?: string;
+  manualPrimaryLevelId?: string;
+  manualPrimaryLevelName?: string;
   manualSecondaryProgramId?: string;
   manualSecondaryProgramName?: string;
+  manualSecondaryLevelId?: string;
+  manualSecondaryLevelName?: string;
   manualPrimarySessionPattern: string;
   setManualPrimarySessionPattern: (value: string) => void;
   manualSecondarySessionPattern: string;
@@ -122,8 +128,12 @@ export default function RegistrationAssignModal({
   setManualSecondaryClassId,
   manualPrimaryProgramId,
   manualPrimaryProgramName,
+  manualPrimaryLevelId,
+  manualPrimaryLevelName,
   manualSecondaryProgramId,
   manualSecondaryProgramName,
+  manualSecondaryLevelId,
+  manualSecondaryLevelName,
   manualPrimarySessionPattern,
   setManualPrimarySessionPattern,
   manualSecondarySessionPattern,
@@ -194,8 +204,12 @@ export default function RegistrationAssignModal({
             setManualSecondaryClassId={setManualSecondaryClassId}
             manualPrimaryProgramId={manualPrimaryProgramId}
             manualPrimaryProgramName={manualPrimaryProgramName}
+            manualPrimaryLevelId={manualPrimaryLevelId}
+            manualPrimaryLevelName={manualPrimaryLevelName}
             manualSecondaryProgramId={manualSecondaryProgramId}
             manualSecondaryProgramName={manualSecondaryProgramName}
+            manualSecondaryLevelId={manualSecondaryLevelId}
+            manualSecondaryLevelName={manualSecondaryLevelName}
             preferredSchedule={selectedRegistration?.preferredSchedule}
             manualPrimarySessionPattern={manualPrimarySessionPattern}
             setManualPrimarySessionPattern={setManualPrimarySessionPattern}

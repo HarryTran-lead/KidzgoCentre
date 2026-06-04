@@ -10,6 +10,7 @@ import {
   HeadphonesIcon,
   Route,
   History,
+  TicketCheck,
   Users,
   Home,
 } from "lucide-react";
@@ -69,7 +70,7 @@ export function parentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
   };
 
   const reportsV3Item: MenuItem = {
-    label: "Báo cáo học tập V3",
+    label: "Tổng quan báo cáo",
     icon: FileSpreadsheet,
     href: `${root}/reports-v3`,
   };
@@ -78,6 +79,12 @@ export function parentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     label: t.items.payment,
     icon: Banknote,
     href: `${root}/payment`,
+  };
+
+  const tuitionItem: MenuItem = {
+    label: t.items.tuition,
+    icon: TicketCheck,
+    href: `${root}/tuition`,
   };
 
   const mediaItem: MenuItem = {
@@ -119,6 +126,7 @@ export function parentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     testsReportsItem,
     reportsV3Item,
     paymentItem,
+    tuitionItem,
     mediaItem,
     notificationsItem,
     supportItem,

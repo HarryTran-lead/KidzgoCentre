@@ -13,6 +13,24 @@ type StatusBlockDetails = {
   counts?: Record<string, number>;
 };
 
+type ApiErrorEntry = {
+  code?: string;
+  message?: string;
+  detail?: string;
+};
+
+type ApiErrorPayload = {
+  title?: string;
+  code?: string;
+  errorCode?: string;
+  message?: string;
+  detail?: string;
+  error?: string | ApiErrorEntry;
+  data?: { code?: string };
+  errors?: ApiErrorEntry[];
+  details?: StatusBlockDetails;
+};
+
 const ENTITY_LABELS: Record<string, string> = {
   Program: "chương trình học",
   TuitionPlan: "gói học",
@@ -39,6 +57,12 @@ const COUNT_LABELS: Record<string, string> = {
 };
 
 const CODE_MESSAGES: Record<string, string> = {
+  "Report.AccessDenied": "Bạn không có quyền truy cập báo cáo này.",
+  "Report.ShareDenied": "Bạn không có quyền công bố hoặc chia sẻ báo cáo này.",
+  "Report.NotFound": "Không tìm thấy báo cáo.",
+  "Report.InvalidReportType": "Loại báo cáo không hợp lệ.",
+  "Report.InvalidStatusTransition": "Không thể thực hiện thao tác với trạng thái báo cáo hiện tại.",
+  "Report.ParentPublishOnlyCompleted": "Chỉ có thể công bố báo cáo phụ huynh khi báo cáo đã hoàn thành.",
   "Class.RoomNotFound": "Không tìm thấy phòng học hoặc phòng đang ngưng hoạt động.",
   "Class.RoomBranchMismatch": "Phòng học phải thuộc cùng chi nhánh với lớp học.",
   "Class.TeacherAndAssistantMustDiffer": "Giáo viên chính và giáo viên phụ không được trùng nhau.",
@@ -95,25 +119,76 @@ const CODE_MESSAGES: Record<string, string> = {
   "Homework.CannotDeleteWithStudentWork": "Không thể xóa bài tập vì đã có học viên làm hoặc nộp bài.",
 };
 
-function getApiCode(payload: any): string | undefined {
-  const firstError = Array.isArray(payload?.errors) ? payload.errors[0] : null;
+function tryParseJson(value: string): unknown {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return undefined;
+  }
+}
+
+function normalizeErrorPayload(payload: unknown): unknown {
+  if (typeof payload !== "string") {
+    return payload;
+  }
+
+  const parsed = tryParseJson(payload.trim());
+  return parsed ?? payload;
+}
+
+function asApiErrorPayload(value: unknown): ApiErrorPayload | undefined {
+  if (typeof value !== "object" || value === null) {
+    return undefined;
+  }
+  return value as ApiErrorPayload;
+}
+
+function getApiCode(payload: unknown): string | undefined {
+  const normalizedPayload = normalizeErrorPayload(payload);
+  const source = asApiErrorPayload(normalizedPayload);
+  if (!source) {
+    return undefined;
+  }
+
+  const title = String(source.title ?? "").trim();
+  const firstError = Array.isArray(source.errors) ? source.errors[0] : undefined;
+  const errorRecord = typeof source.error === "object" && source.error !== null
+    ? source.error
+    : undefined;
   return (
     firstError?.code ??
-    payload?.code ??
-    payload?.errorCode ??
-    payload?.error?.code ??
-    payload?.data?.code
+    source.code ??
+    source.errorCode ??
+    errorRecord?.code ??
+    source.data?.code ??
+    (title.includes(".") ? title : undefined)
   );
 }
 
-function getApiMessage(payload: any): string | undefined {
-  const firstError = Array.isArray(payload?.errors) ? payload.errors[0] : null;
+function getApiMessage(payload: unknown): string | undefined {
+  const normalizedPayload = normalizeErrorPayload(payload);
+
+  if (typeof normalizedPayload === "string") {
+    return normalizedPayload.trim() || undefined;
+  }
+
+  const source = asApiErrorPayload(normalizedPayload);
+  if (!source) {
+    return undefined;
+  }
+
+  const firstError = Array.isArray(source.errors) ? source.errors[0] : undefined;
+  const errorMessage = typeof source.error === "string"
+    ? source.error
+    : source.error?.message || source.error?.detail;
+
   return (
     firstError?.message ??
-    payload?.message ??
-    payload?.detail ??
-    payload?.error ??
-    payload?.title
+    firstError?.detail ??
+    source.message ??
+    source.detail ??
+    errorMessage ??
+    source.title
   );
 }
 
@@ -146,16 +221,18 @@ function formatStatusBlocked(details?: StatusBlockDetails): string {
 }
 
 export function mapApiErrorToMessage(
-  payload: any,
+  payload: unknown,
   status?: number,
   fallback = "Đã xảy ra lỗi. Vui lòng thử lại.",
   rawText?: string
 ): string {
-  const code = getApiCode(payload);
-  const backendMessage = getApiMessage(payload);
+  const normalizedPayload = normalizeErrorPayload(payload);
+  const normalizedObject = asApiErrorPayload(normalizedPayload);
+  const code = getApiCode(normalizedPayload);
+  const backendMessage = getApiMessage(normalizedPayload);
 
   if (code === "STATUS_CHANGE_BLOCKED") {
-    return formatStatusBlocked(payload?.details as StatusBlockDetails);
+    return formatStatusBlocked(normalizedObject?.details);
   }
 
   if (code && CODE_MESSAGES[code]) {
@@ -167,6 +244,13 @@ export function mapApiErrorToMessage(
   }
 
   if (typeof rawText === "string" && rawText.trim()) {
+    const parsedRaw = normalizeErrorPayload(rawText);
+    if (typeof parsedRaw === "object" && parsedRaw !== null) {
+      const parsedRawMessage = getApiMessage(parsedRaw);
+      if (parsedRawMessage) {
+        return parsedRawMessage;
+      }
+    }
     return rawText.trim();
   }
 
