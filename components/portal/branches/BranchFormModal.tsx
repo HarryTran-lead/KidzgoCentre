@@ -208,7 +208,7 @@ export default function BranchFormModal({
               id="isActive"
               checked={formData.isActive}
               onChange={(e) => handleChange('isActive', e.target.checked)}
-              className="w-5 h-5 text-sm text-red-600 border-red-300 rounded focus:ring-red-500"
+              className="w-5 h-5 accent-red-600 text-red-600 border-red-300 rounded cursor-pointer focus:ring-red-500"
             />
             <label htmlFor="isActive" className="text-sm font-medium text-gray-700">
               {mode === 'add' ? 'Kích hoạt ngay' : 'Chi nhánh đang hoạt động'}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import {
   Plus,
   Search,
@@ -476,15 +476,37 @@ interface AssignBranchModalProps {
   onSubmit: (branchId: string) => Promise<boolean>;
   programName: string;
   t: ReturnType<typeof usePageI18n>["messages"]["adminPages"]["courses"];
+  assignedBranchIds?: string[];
 }
 
-function AssignBranchModal({ isOpen, onClose, onSubmit, programName, t }: AssignBranchModalProps) {
+function AssignBranchModal({ isOpen, onClose, onSubmit, programName, t, assignedBranchIds = [] }: AssignBranchModalProps) {
   const [selectedBranchId, setSelectedBranchId] = useState("");
-  const [branchOptions, setBranchOptions] = useState<Array<{ id: string; name: string }>>([]);
+  const [branchOptions, setBranchOptions] = useState<Array<{ id: string; name: string; isAssigned: boolean }>>([]);
   const [loadingBranches, setLoadingBranches] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
+
+  const loadBranches = useCallback(async () => {
+    try {
+      setLoadingBranches(true);
+      const res = await getAllBranches({ page: 1, limit: 100 });
+      const items = res?.data?.branches ?? res?.data ?? [];
+      setBranchOptions(
+        items
+          .map((b: any) => ({
+            id: String(b?.id ?? ""),
+            name: String(b?.name ?? b?.code ?? "Chi nhánh"),
+            isAssigned: assignedBranchIds.includes(String(b?.id ?? ""))
+          }))
+          .filter((b: { id: string }) => b.id)
+      );
+    } catch {
+      setBranchOptions([]);
+    } finally {
+      setLoadingBranches(false);
+    }
+  }, [assignedBranchIds]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -504,24 +526,7 @@ function AssignBranchModal({ isOpen, onClose, onSubmit, programName, t }: Assign
       document.removeEventListener("mousedown", handleClickOutside);
       document.body.style.overflow = "unset";
     };
-  }, [isOpen, onClose, submitting]);
-
-  const loadBranches = async () => {
-    try {
-      setLoadingBranches(true);
-      const res = await getAllBranches({ page: 1, limit: 100 });
-      const items = res?.data?.branches ?? res?.data ?? [];
-      setBranchOptions(
-        items
-          .map((b: any) => ({ id: String(b?.id ?? ""), name: String(b?.name ?? b?.code ?? "Chi nhánh") }))
-          .filter((b: { id: string }) => b.id)
-      );
-    } catch {
-      setBranchOptions([]);
-    } finally {
-      setLoadingBranches(false);
-    }
-  };
+  }, [isOpen, onClose, submitting, loadBranches]);
 
   const handleSubmit = async () => {
     if (!selectedBranchId) {
@@ -540,7 +545,7 @@ function AssignBranchModal({ isOpen, onClose, onSubmit, programName, t }: Assign
     <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div
         ref={modalRef}
-        className="relative w-full max-w-md bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden"
+        className="relative w-full max-w-xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden"
       >
         {/* Header */}
         <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
@@ -551,7 +556,7 @@ function AssignBranchModal({ isOpen, onClose, onSubmit, programName, t }: Assign
               </div>
               <div>
                 <h2 className="text-xl font-bold text-white">{t.modal.assignBranchTitle}</h2>
-                <p className="text-xs text-red-100 mt-0.5 truncate max-w-[220px]">{programName}</p>
+                <p className="text-sm text-red-100 mt-0.5 truncate max-w-[220px]">{programName}</p>
               </div>
             </div>
             <button
@@ -567,7 +572,6 @@ function AssignBranchModal({ isOpen, onClose, onSubmit, programName, t }: Assign
         {/* Body */}
         <div className="p-6 space-y-5">
           <div className="flex items-start gap-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3">
-            <Building2 size={15} className="mt-0.5 shrink-0 text-red-600" />
             <p className="text-sm text-red-800">{t.modal.assignBranchSubtitle}</p>
           </div>
 
@@ -590,7 +594,12 @@ function AssignBranchModal({ isOpen, onClose, onSubmit, programName, t }: Assign
               </SelectTrigger>
               <SelectContent>
                 {branchOptions.map((b) => (
-                  <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                  <SelectItem key={b.id} value={b.id} disabled={b.isAssigned}>
+                    <div className="flex items-center gap-2">
+                      <span>{b.name}</span>
+                      {b.isAssigned && <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-red-600 text-white text-xs font-semibold">đã được gán</span>}
+                    </div>
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -821,7 +830,7 @@ export function ProgramsManagementPage({
   const isEnglish = locale === "en";
   const headerSubtitle = isEnglish
     ? "Parent workspace for programs. From here, continue to syllabuses and standard lesson templates."
-    : "Trang cha quản lý chương trình. Từ đây đi tiếp sang Giáo trình và Mẫu giáo án chuẩn.";
+    : "Trang quản lý chương trình. Từ đây đi tiếp sang Giáo trình và Mẫu giáo án chuẩn.";
   const scopeTitle = isEnglish ? "Management Scope" : "Phạm vi quản lý";
   const scopeHint = isEnglish
     ? "Choose whether you are reviewing all programs or only the current branch."
@@ -861,10 +870,17 @@ export function ProgramsManagementPage({
   const [showAssignBranchModal, setShowAssignBranchModal] = useState(false);
   const [assignBranchTargetId, setAssignBranchTargetId] = useState<string | null>(null);
   const [assignBranchTargetName, setAssignBranchTargetName] = useState<string>("");
+  const [assignedBranchIds, setAssignedBranchIds] = useState<string[]>([]);
   const [showAddExistingModal, setShowAddExistingModal] = useState(false);
   const [viewMode, setViewMode] = useState<"system" | "branch">(forcedViewMode ?? "system");
   const activeViewMode = forcedViewMode ?? viewMode;
+  const [showCourseBranchesModal, setShowCourseBranchesModal] = useState(false);
+  const [selectedCourseBranchesId, setSelectedCourseBranchesId] = useState<string | null>(null);
+  const [selectedCourseBranchesName, setSelectedCourseBranchesName] = useState<string>("");
+  const [courseBranchesData, setCourseBranchesData] = useState<Array<{ branchId: string; branchName?: string | null; isActive?: boolean | null }>>([]);
+  const [loadingCourseBranches, setLoadingCourseBranches] = useState(false);
   const detailModalRef = useRef<HTMLDivElement>(null);
+  const courseBranchesModalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (forcedViewMode) {
@@ -896,6 +912,28 @@ export function ProgramsManagementPage({
     setShowDetailModal(false);
     setSelectedCourseDetail(null);
   };
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (loadingCourseBranches) return;
+
+      if (courseBranchesModalRef.current && !courseBranchesModalRef.current.contains(event.target as Node)) {
+        setShowCourseBranchesModal(false);
+        setSelectedCourseBranchesId(null);
+        setCourseBranchesData([]);
+      }
+    };
+
+    if (showCourseBranchesModal) {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.body.style.overflow = "hidden";
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.body.style.overflow = "unset";
+    };
+  }, [showCourseBranchesModal, loadingCourseBranches]);
 
   useEffect(() => {
     setIsPageLoaded(true);
@@ -1312,6 +1350,29 @@ export function ProgramsManagementPage({
     }
   };
 
+  const handleShowCourseBranches = async (courseId: string, courseName: string) => {
+    try {
+      setLoadingCourseBranches(true);
+      setSelectedCourseBranchesId(courseId);
+      setSelectedCourseBranchesName(courseName);
+      setShowCourseBranchesModal(true);
+      setCourseBranchesData([]);
+
+      const detail = await fetchAdminProgramDetail(courseId);
+      setCourseBranchesData(detail.branchAssignments || []);
+    } catch (err: any) {
+      console.error("Failed to load course branches:", err);
+      toast({
+        title: t.messages.error,
+        description: err?.message || "Không thể tải danh sách chi nhánh",
+        type: "destructive",
+      });
+      setShowCourseBranchesModal(false);
+    } finally {
+      setLoadingCourseBranches(false);
+    }
+  };
+
   return (
     <>
       <div className="space-y-6 bg-gray-50 p-4 md:p-2 rounded-3xl">
@@ -1647,11 +1708,15 @@ export function ProgramsManagementPage({
                       </td>
 
                       <td className="py-3 px-6 whitespace-nowrap">
-                        <div className="inline-flex items-center gap-1.5">
+                        <button
+                          onClick={() => handleShowCourseBranches(c.id, c.name)}
+                          className="inline-flex items-center gap-1.5 hover:opacity-80 transition-opacity cursor-pointer"
+                          title="Xem chi nhánh sử dụng"
+                        >
                           <Building2 size={14} className="text-red-600" />
                           <span className="text-sm font-semibold text-gray-900">{c.assignedBranchCount ?? 0}</span>
                           <span className="text-sm text-gray-700 font-medium">chi nhánh</span>
-                        </div>
+                        </button>
                       </td>
 
                       <td className="py-3 px-6 text-center whitespace-nowrap">
@@ -1683,10 +1748,22 @@ export function ProgramsManagementPage({
                           </button>
                           {activeViewMode === "system" && (
                             <button
-                              onClick={() => {
-                                setAssignBranchTargetId(c.id);
-                                setAssignBranchTargetName(c.name);
-                                setShowAssignBranchModal(true);
+                              onClick={async () => {
+                                try {
+                                  const detail = await fetchAdminProgramDetail(c.id);
+                                  const branchIds = (detail.branchAssignments || []).map(ba => ba.branchId);
+                                  setAssignedBranchIds(branchIds);
+                                  setAssignBranchTargetId(c.id);
+                                  setAssignBranchTargetName(c.name);
+                                  setShowAssignBranchModal(true);
+                                } catch (err) {
+                                  console.error("Failed to load program details:", err);
+                                  toast({
+                                    title: t.messages.error,
+                                    description: "Không thể tải thông tin chương trình",
+                                    type: "destructive",
+                                  });
+                                }
                               }}
                               className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors text-gray-400 hover:text-blue-600 cursor-pointer"
                               title={t.buttons.assignBranch}
@@ -1854,9 +1931,11 @@ export function ProgramsManagementPage({
           setShowAssignBranchModal(false);
           setAssignBranchTargetId(null);
           setAssignBranchTargetName("");
+          setAssignedBranchIds([]);
         }}
         onSubmit={handleAssignBranch}
         programName={assignBranchTargetName}
+        assignedBranchIds={assignedBranchIds}
         t={t}
       />
 
@@ -2035,6 +2114,125 @@ export function ProgramsManagementPage({
                   className="px-6 py-2.5 text-sm rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer"
                 >
                   {t.buttons.close}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Course Branches Modal */}
+      {showCourseBranchesModal && (
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div
+            ref={courseBranchesModalRef}
+            className="relative w-full max-w-2xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden"
+          >
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
+                    <Building2 size={24} className="text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-white">Chi nhánh sử dụng</h2>
+                    <p className="text-sm text-red-100 mt-0.5 truncate max-w-[300px]">{selectedCourseBranchesName}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowCourseBranchesModal(false);
+                    setSelectedCourseBranchesId(null);
+                    setCourseBranchesData([]);
+                  }}
+                  className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer"
+                >
+                  <X size={24} className="text-white" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 max-h-[60vh] overflow-y-auto">
+              {loadingCourseBranches ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-gray-500">Đang tải danh sách chi nhánh...</div>
+                </div>
+              ) : courseBranchesData.length > 0 ? (
+                <div className="space-y-3">
+                  {courseBranchesData.map((branch, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between p-4 rounded-xl border cursor-pointer border-red-200 bg-white hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-red-50">
+                          <Building2 size={18} className="text-red-600" />
+                        </div>
+                        <div>
+                          <div className="text-sm font-semibold text-gray-900">
+                            {branch.branchName || "Chi nhánh không xác định"}
+                          </div>
+
+                        </div>
+                      </div>
+                      <div>
+                        {branch.isActive ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200">
+                            <CheckCircle size={14} />
+                            Hoạt động
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 text-gray-600 text-xs font-semibold border border-gray-200">
+                            <XCircle size={14} />
+                            Tạm dừng
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center">
+                  <div className="w-full rounded-2xl border border-dashed border-red-200 bg-gradient-to-br from-red-50 to-red-50/50 p-8 text-center">
+                    <div className="mb-4 inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100">
+                      <Building2 size={32} className="text-red-600" />
+                    </div>
+                    <div className="space-y-2 mb-6">
+                      <div className="text-lg font-bold text-gray-900">Chưa gán chi nhánh</div>
+                      <div className="text-sm text-gray-600">Chương trình này chưa được liên kết với chi nhánh nào. Hãy thêm chi nhánh để sử dụng chương trình này.</div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setShowCourseBranchesModal(false);
+                        setAssignBranchTargetId(selectedCourseBranchesId);
+                        setAssignBranchTargetName(selectedCourseBranchesName);
+                        setAssignedBranchIds([]);
+                        setShowAssignBranchModal(true);
+                      }}
+                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-red-600 bg-red-50 text-red-600 font-semibold text-sm hover:bg-red-100 transition-all cursor-pointer"
+                    >
+                      <GitBranch size={16} />
+                      Gán chi nhánh
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-6">
+              <div className="flex justify-end">
+                <button
+                  onClick={() => {
+                    setShowCourseBranchesModal(false);
+                    setSelectedCourseBranchesId(null);
+                    setCourseBranchesData([]);
+                  }}
+                  className="px-6 py-2.5 text-sm rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer"
+                >
+                  Đóng
                 </button>
               </div>
             </div>
