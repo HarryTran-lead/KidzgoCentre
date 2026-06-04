@@ -38,7 +38,7 @@ async function proxyResponse(response: Response) {
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { learningTicketTypeId: string } },
+  context: { params: Promise<{ learningTicketTypeId: string }> },
 ) {
   if (!API_BASE_URL) {
     return NextResponse.json(
@@ -47,9 +47,10 @@ export async function PUT(
     );
   }
 
+  const { learningTicketTypeId } = await context.params;
   const body = await request.text();
   const response = await fetch(
-    backendUrl(`/api/ticket-type-compatibilities/learning-ticket-types/${params.learningTicketTypeId}/overrides`),
+    backendUrl(`/api/ticket-type-compatibilities/learning-ticket-types/${learningTicketTypeId}/overrides`),
     {
       method: "PUT",
       headers: buildHeaders(request),
