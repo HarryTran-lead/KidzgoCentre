@@ -87,10 +87,20 @@ type BranchLookupItem = {
   code?: string | null;
 };
 
+const SYLLABUS_ARCHIVE_MAX_MB = Number(
+  process.env.NEXT_PUBLIC_SYLLABUS_ARCHIVE_MAX_MB ?? "30",
+);
+const SYLLABUS_ARCHIVE_MAX_BYTES = Math.max(1, SYLLABUS_ARCHIVE_MAX_MB) * 1024 * 1024;
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function cn(...a: Array<string | false | null | undefined>) {
   return a.filter(Boolean).join(" ");
+}
+
+function formatFileSize(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 MB";
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
 function toErrorMessage(err: unknown, fallback: string): string {
@@ -1615,6 +1625,36 @@ function ImportArchiveModal({
   const inputCls =
     "w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200";
 
+  const handleArchiveFileChange = (nextFile: File | null) => {
+    setFile(nextFile);
+
+    if (!nextFile) {
+      return;
+    }
+
+    const lowerName = nextFile.name.toLowerCase();
+    if (lowerName.endsWith(".rar")) {
+      setError(
+        "BE hiện chỉ hỗ trợ ZIP. Vui lòng đổi file .rar sang .zip trước khi import.",
+      );
+      return;
+    }
+
+    if (!lowerName.endsWith(".zip")) {
+      setError("Định dạng không hợp lệ. Chỉ hỗ trợ file .zip.");
+      return;
+    }
+
+    if (nextFile.size > SYLLABUS_ARCHIVE_MAX_BYTES) {
+      setError(
+        `File ZIP hiện tại ${formatFileSize(nextFile.size)} vượt giới hạn ${formatFileSize(SYLLABUS_ARCHIVE_MAX_BYTES)}. Vui lòng giảm kích thước archive hoặc tăng limit trên deployment.`,
+      );
+      return;
+    }
+
+    setError(null);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -1647,6 +1687,12 @@ function ImportArchiveModal({
     }
     if (!lowerName.endsWith(".zip")) {
       setError("Định dạng không hợp lệ. Chỉ hỗ trợ file .zip.");
+      return;
+    }
+    if (file.size > SYLLABUS_ARCHIVE_MAX_BYTES) {
+      setError(
+        `File ZIP hiện tại ${formatFileSize(file.size)} vượt giới hạn ${formatFileSize(SYLLABUS_ARCHIVE_MAX_BYTES)}. Vui lòng giảm kích thước archive hoặc tăng limit trên deployment.`,
+      );
       return;
     }
     onSubmit(
@@ -1827,10 +1873,21 @@ function ImportArchiveModal({
                   type="file"
                   accept=".zip"
                   className="hidden"
-                  onChange={(e) => setFile(e.target.files?.[0] || null)}
+                  onChange={(e) =>
+                    handleArchiveFileChange(e.target.files?.[0] || null)
+                  }
                 />
               </label>
+              <p className="mt-1 text-xs text-gray-500">
+                Giới hạn upload đang áp trên UI: {formatFileSize(SYLLABUS_ARCHIVE_MAX_BYTES)}.
+                {file ? ` File đang chọn: ${formatFileSize(file.size)}.` : ""}
+              </p>
             </Field>
+            {error && (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {error}
+              </div>
+            )}
             <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
               <input
                 type="checkbox"

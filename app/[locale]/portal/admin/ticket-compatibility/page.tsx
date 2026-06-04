@@ -1,683 +1,706 @@
-"use client";
+'use client';
 
-import { useEffect, useState, useMemo } from "react";
-import {
-  CheckCircle,
-  GitMerge,
-  Layers,
-  Loader2,
-  Pencil,
-  Plus,
-  Search,
-  Tag,
-  Trash2,
-  X,
-  XCircle,
-} from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import {
-  getTicketTypeCompatibilities,
-  createTicketTypeCompatibility,
-  updateTicketTypeCompatibility,
-  deleteTicketTypeCompatibility,
-} from "@/lib/api/ticketCompatibilityService";
-import { getLearningTicketTypes } from "@/lib/api/learningTicketTypeService";
-import { getSlotTypes } from "@/lib/api/slotTypeService";
-import ConfirmModal from "@/components/ConfirmModal";
-import type { TicketTypeCompatibility } from "@/types/ticket-type-compatibility";
-import type { LearningTicketType } from "@/types/learning-ticket-type";
-import type { SlotType } from "@/types/slot-type";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/lightswind/select";
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { CheckCircle2, Link2, RotateCcw, Save, Search, XCircle } from 'lucide-react';
 
-function cn(...a: Array<string | false | null | undefined>) {
-  return a.filter(Boolean).join(" ");
-}
+type TicketCompatibilityMode = 'None' | 'AllowAll' | 'RuleBased';
+type SlotDayGroup = 'None' | 'Weekday' | 'Weekend';
+type SlotTimeBand = 'None' | 'Morning' | 'Afternoon' | 'Evening';
+type SlotTeacherType = 'None' | 'Standard' | 'Native';
+type SlotUsageType = 'None' | 'Standard' | 'Makeup' | 'Remedial' | 'Review' | 'Custom';
+type OverrideValue = boolean | null;
+type ActiveFilter = 'all' | 'active' | 'inactive';
 
-function StatCard({
-  title,
-  value,
-  icon,
-  color,
-}: {
-  title: string;
-  value: string;
-  icon: React.ReactNode;
-  color: string;
-}) {
-  return (
-    <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-105">
-      <div className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r ${color}`}></div>
-      <div className="relative flex items-center justify-between gap-3">
-        <div className={`p-2 rounded-xl bg-gradient-to-r ${color} text-white shadow-sm flex-shrink-0`}>
-          {icon}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="text-sm font-medium text-gray-600 truncate">{title}</div>
-          <div className="text-xl font-bold text-gray-900 leading-tight">{value}</div>
-        </div>
-      </div>
-    </div>
-  );
-}
+type MatrixTicketType = {
+  id: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  compatibilityMode?: TicketCompatibilityMode | null;
+  allowedDayGroups?: SlotDayGroup[] | null;
+  allowedTimeBands?: SlotTimeBand[] | null;
+  allowedTeacherTypes?: SlotTeacherType[] | null;
+  allowedUsageTypes?: SlotUsageType[] | null;
+  isActive: boolean;
+};
 
-type FormData = {
+type MatrixSlotType = {
+  id: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  dayGroup?: SlotDayGroup | null;
+  timeBand?: SlotTimeBand | null;
+  teacherType?: SlotTeacherType | null;
+  usageType?: SlotUsageType | null;
+  isActive: boolean;
+};
+
+type MatrixCell = {
   learningTicketTypeId: string;
-  slotTypeIds: string[];
-  isCompatible: boolean;
+  slotTypeId: string;
+  isCompatible?: boolean | null;
+  compatible?: boolean | null;
+  effectiveResult?: boolean | null;
+  effectiveIsCompatible?: boolean | null;
+  source?: string | null;
+  reason?: string | null;
+  overrideValue?: boolean | null;
+  overrideIsCompatible?: boolean | null;
+  manualOverride?: boolean | null;
 };
 
-const emptyForm: FormData = {
-  learningTicketTypeId: "",
-  slotTypeIds: [],
-  isCompatible: true,
+type CompatibilityMatrix = {
+  learningTicketTypes: MatrixTicketType[];
+  slotTypes: MatrixSlotType[];
+  cells: MatrixCell[];
 };
 
-function CompatibleBadge({ value }: { value: boolean }) {
-  return value ? (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-      <CheckCircle size={12} /> Tương thích
-    </span>
-  ) : (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
-      <XCircle size={12} /> Không tương thích
+type ApiEnvelope<T> = {
+  isSuccess?: boolean;
+  data?: T;
+  detail?: string;
+  title?: string;
+  errors?: Array<{ description?: string; code?: string }>;
+};
+
+type Option<T extends string> = {
+  value: T;
+  label: string;
+};
+
+const modeLabels: Record<TicketCompatibilityMode, string> = {
+  None: 'Không áp dụng',
+  AllowAll: 'Cho phép tất cả',
+  RuleBased: 'Theo quy tắc',
+};
+
+const dayGroupOptions: Array<Option<SlotDayGroup>> = [
+  { value: 'None', label: 'Không gắn tag' },
+  { value: 'Weekday', label: 'Ngày thường' },
+  { value: 'Weekend', label: 'Cuối tuần' },
+];
+
+const timeBandOptions: Array<Option<SlotTimeBand>> = [
+  { value: 'None', label: 'Không gắn tag' },
+  { value: 'Morning', label: 'Sáng' },
+  { value: 'Afternoon', label: 'Chiều' },
+  { value: 'Evening', label: 'Tối' },
+];
+
+const teacherTypeOptions: Array<Option<SlotTeacherType>> = [
+  { value: 'None', label: 'Không gắn tag' },
+  { value: 'Standard', label: 'GV thường' },
+  { value: 'Native', label: 'GV nước ngoài' },
+];
+
+const usageTypeOptions: Array<Option<SlotUsageType>> = [
+  { value: 'None', label: 'Không gắn tag' },
+  { value: 'Standard', label: 'Lớp thường' },
+  { value: 'Makeup', label: 'Lớp bù' },
+  { value: 'Remedial', label: 'Phụ đạo' },
+  { value: 'Review', label: 'Ôn tập' },
+  { value: 'Custom', label: 'Khác' },
+];
+
+const labelMaps = {
+  dayGroup: Object.fromEntries(dayGroupOptions.map((option) => [option.value, option.label])),
+  timeBand: Object.fromEntries(timeBandOptions.map((option) => [option.value, option.label])),
+  teacherType: Object.fromEntries(teacherTypeOptions.map((option) => [option.value, option.label])),
+  usageType: Object.fromEntries(usageTypeOptions.map((option) => [option.value, option.label])),
+  allowedDayGroups: Object.fromEntries(dayGroupOptions.map((option) => [option.value, option.label])),
+  allowedTimeBands: Object.fromEntries(timeBandOptions.map((option) => [option.value, option.label])),
+  allowedTeacherTypes: Object.fromEntries(teacherTypeOptions.map((option) => [option.value, option.label])),
+  allowedUsageTypes: Object.fromEntries(usageTypeOptions.map((option) => [option.value, option.label])),
+} as Record<string, Record<string, string>>;
+
+function cn(...classes: Array<string | false | null | undefined>) {
+  return classes.filter(Boolean).join(' ');
+}
+
+function asArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value.filter(Boolean) as T[]) : [];
+}
+
+function normalizeMode(mode: unknown): TicketCompatibilityMode {
+  return mode === 'AllowAll' || mode === 'RuleBased' || mode === 'None' ? mode : 'None';
+}
+
+function normalizeMatrix(payload: unknown): CompatibilityMatrix {
+  const source = (payload ?? {}) as Partial<CompatibilityMatrix>;
+  return {
+    learningTicketTypes: asArray<MatrixTicketType>(source.learningTicketTypes),
+    slotTypes: asArray<MatrixSlotType>(source.slotTypes),
+    cells: asArray<MatrixCell>(source.cells),
+  };
+}
+
+function cleanToken(token: string) {
+  const normalized = token.replace(/^Bearer\s+/i, '').trim();
+  if (!normalized || normalized === 'null' || normalized === 'undefined' || normalized.length < 10) return null;
+  return normalized;
+}
+
+function findToken(value: unknown, depth = 0): string | null {
+  if (depth > 5 || value == null) return null;
+  if (typeof value === 'string') return cleanToken(value);
+  if (typeof value !== 'object') return null;
+
+  const entries = Object.entries(value as Record<string, unknown>);
+  for (const [key, nestedValue] of entries) {
+    if (/access.*token|jwt|id.*token/i.test(key) && typeof nestedValue === 'string') {
+      const token = cleanToken(nestedValue);
+      if (token) return token;
+    }
+  }
+
+  for (const [, nestedValue] of entries) {
+    const token = findToken(nestedValue, depth + 1);
+    if (token) return token;
+  }
+
+  return null;
+}
+
+function readStoredToken(storage: Storage, key: string) {
+  const rawValue = storage.getItem(key);
+  if (!rawValue) return null;
+  const trimmed = rawValue.trim();
+  if (!trimmed) return null;
+
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+    try {
+      return findToken(JSON.parse(trimmed) as unknown);
+    } catch {
+      return null;
+    }
+  }
+
+  return cleanToken(trimmed);
+}
+
+function getClientAccessToken() {
+  if (typeof window === 'undefined') return null;
+  const keys = ['accessToken', 'access_token', 'authToken', 'token', 'jwt', 'idToken'];
+
+  for (const key of keys) {
+    const token = readStoredToken(window.localStorage, key) ?? readStoredToken(window.sessionStorage, key);
+    if (token) return token;
+  }
+
+  for (const storage of [window.localStorage, window.sessionStorage]) {
+    for (let index = 0; index < storage.length; index += 1) {
+      const key = storage.key(index);
+      if (!key || !/auth|token|jwt/i.test(key)) continue;
+      const token = readStoredToken(storage, key);
+      if (token) return token;
+    }
+  }
+
+  return null;
+}
+
+function buildRequestHeaders(initHeaders?: HeadersInit) {
+  const headers = new Headers(initHeaders);
+  if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+  const token = getClientAccessToken();
+  if (token && !headers.has('Authorization')) headers.set('Authorization', `Bearer ${token}`);
+  return headers;
+}
+
+async function apiRequest<T>(url: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(url, {
+    ...init,
+    credentials: 'include',
+    headers: buildRequestHeaders(init?.headers),
+  });
+
+  const payload = (await response.json().catch(() => null)) as ApiEnvelope<T> | null;
+  if (!response.ok) {
+    const validationMessage = payload?.errors?.find((error) => error.description)?.description;
+    throw new Error(validationMessage ?? payload?.detail ?? payload?.title ?? 'Không thể xử lý yêu cầu.');
+  }
+
+  return ((payload?.data ?? payload) as T) ?? ({} as T);
+}
+
+function cellCompatible(cell?: MatrixCell): boolean {
+  if (!cell) return false;
+  if (typeof cell.isCompatible === 'boolean') return cell.isCompatible;
+  if (typeof cell.compatible === 'boolean') return cell.compatible;
+  if (typeof cell.effectiveResult === 'boolean') return cell.effectiveResult;
+  if (typeof cell.effectiveIsCompatible === 'boolean') return cell.effectiveIsCompatible;
+  return false;
+}
+
+function originalOverride(cell?: MatrixCell): OverrideValue {
+  if (!cell) return null;
+  if (typeof cell.overrideValue === 'boolean') return cell.overrideValue;
+  if (typeof cell.overrideIsCompatible === 'boolean') return cell.overrideIsCompatible;
+  if (typeof cell.manualOverride === 'boolean') return cell.manualOverride;
+  if (cell.source === 'OverrideAllow') return true;
+  if (cell.source === 'OverrideDeny') return false;
+  return null;
+}
+
+function sourceLabel(source?: string | null) {
+  switch (source) {
+    case 'OverrideAllow':
+      return 'Override cho phép';
+    case 'OverrideDeny':
+      return 'Override chặn';
+    case 'AllowAll':
+      return 'Mode AllowAll';
+    case 'Rule':
+      return 'Rule mặc định';
+    case 'NoTicketType':
+      return 'Thiếu loại vé';
+    case 'NoSlotType':
+      return 'Thiếu loại slot';
+    case 'None':
+      return 'Không mặc định';
+    default:
+      return source || 'Không rõ nguồn';
+  }
+}
+
+function TagBadge({ label, tone = 'slate' }: { label: string; tone?: 'slate' | 'red' | 'emerald' }) {
+  return (
+    <span
+      className={cn(
+        'inline-flex rounded-full border px-3 py-1 text-xs font-bold',
+        tone === 'slate' && 'border-slate-200 bg-slate-50 text-slate-600',
+        tone === 'red' && 'border-red-100 bg-red-50 text-red-700',
+        tone === 'emerald' && 'border-emerald-200 bg-emerald-50 text-emerald-700',
+      )}
+    >
+      {label}
     </span>
   );
 }
 
-function FormModal({
-  open,
-  onClose,
-  onSubmit,
-  mode,
-  initial,
-  ticketTypes,
-  slotTypes,
-}: {
-  open: boolean;
-  onClose: () => void;
-  onSubmit: (data: FormData) => void;
-  mode: "create" | "edit";
-  initial?: FormData;
-  ticketTypes: LearningTicketType[];
-  slotTypes: SlotType[];
-}) {
-  const [form, setForm] = useState<FormData>(emptyForm);
-  const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
-
-  useEffect(() => {
-    if (open) {
-      setForm(initial ?? emptyForm);
-      setErrors({});
-    }
-  }, [open, initial]);
-
-  if (!open) return null;
-
-  const handleChange = (field: "learningTicketTypeId" | "isCompatible", value: string | boolean) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
-    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
-  };
-
-  const toggleSlotType = (id: string) => {
-    setForm((prev) => {
-      const already = prev.slotTypeIds.includes(id);
-      const next = mode === "edit"
-        ? [id]
-        : already ? prev.slotTypeIds.filter((x) => x !== id) : [...prev.slotTypeIds, id];
-      return { ...prev, slotTypeIds: next };
-    });
-    setErrors((prev) => ({ ...prev, slotTypeIds: undefined }));
-  };
-
-  const validate = () => {
-    const next: Partial<Record<keyof FormData, string>> = {};
-    if (!form.learningTicketTypeId) next.learningTicketTypeId = "Vui lòng chọn loại vé học";
-    if (!form.slotTypeIds.length) next.slotTypeIds = "Vui lòng chọn ít nhất 1 loại slot";
-    setErrors(next);
-    return Object.keys(next).length === 0;
-  };
-
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validate()) return;
-    onSubmit(form);
-  };
+function RulePills({ values, field }: { values?: string[] | null; field: string }) {
+  const activeValues = asArray<string>(values).filter((value) => value !== 'None');
+  if (!activeValues.length) return <span className="text-sm font-semibold text-slate-400">Không giới hạn</span>;
 
   return (
-    <div 
-      className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/55 backdrop-blur-sm"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div className="w-full max-w-lg bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
-        <div className="bg-gradient-to-r from-red-600 to-red-700 p-5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-full bg-white/20">
-              <GitMerge size={20} className="text-white" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-white">
-                {mode === "edit" ? "Cập nhật quy tắc tương thích" : "Thêm quy tắc tương thích"}
-              </h2>
-              <p className="text-xs text-red-100">Loại vé học ↔ Loại slot</p>
-            </div>
-          </div>
-          <button onClick={onClose} className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer">
-            <X size={20} className="text-white" />
-          </button>
-        </div>
-
-        <form onSubmit={submit} className="p-6 space-y-4">
-          <div className="space-y-1">
-            <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-              <span className="inline-flex items-center justify-center w-5 h-5 rounded-lg bg-red-100 text-red-600 flex-shrink-0">
-                <Tag size={14} />
-              </span>
-              Loại vé học <span className="text-red-500">*</span>
-            </label>
-            <Select
-              value={form.learningTicketTypeId}
-              onValueChange={(v) => handleChange("learningTicketTypeId", v)}
-            >
-              <SelectTrigger className={cn(
-                "w-full rounded-xl border bg-white text-sm",
-                errors.learningTicketTypeId ? "border-red-400" : "border-gray-200"
-              )}>
-                <SelectValue placeholder="Chọn loại vé học" />
-              </SelectTrigger>
-              <SelectContent>
-                {ticketTypes.filter((t) => t.isActive).map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
-                    <span className="font-mono font-bold text-purple-700 mr-2">{t.code}</span>
-                    {t.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {errors.learningTicketTypeId && (
-              <p className="text-xs text-red-500">{errors.learningTicketTypeId}</p>
-            )}
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-              <span className="inline-flex items-center justify-center w-5 h-5 rounded-lg bg-red-100 text-red-600 flex-shrink-0">
-                <Layers size={14} />
-              </span>
-              Loại slot <span className="text-red-500">*</span>
-              {mode === "create" && (
-                <span className="text-xs font-normal text-gray-400">(chọn được nhiều)</span>
-              )}
-            </label>
-            <div className={cn(
-              "rounded-xl border bg-gray-50 p-2.5 space-y-1 max-h-52 overflow-y-auto",
-              errors.slotTypeIds ? "border-red-400" : "border-gray-200"
-            )}>
-              {slotTypes.filter((s) => s.isActive).map((s) => {
-                const checked = form.slotTypeIds.includes(s.id);
-                return (
-                  <label
-                    key={s.id}
-                    className={cn(
-                      "flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors select-none",
-                      checked
-                        ? "bg-red-50 border border-red-200"
-                        : "hover:bg-white border border-transparent"
-                    )}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => toggleSlotType(s.id)}
-                      className="w-4 h-4 accent-red-600 cursor-pointer flex-shrink-0"
-                    />
-                    <span className="font-mono font-bold text-red-700 text-xs w-32 flex-shrink-0">{s.code}</span>
-                    <span className="text-sm text-gray-700">{s.name}</span>
-                  </label>
-                );
-              })}
-            </div>
-            {errors.slotTypeIds && <p className="text-xs text-red-500">{errors.slotTypeIds}</p>}
-          </div>
-
-          <div className="p-4 rounded-xl bg-gray-50 border border-gray-200">
-            <label className="text-sm font-semibold text-gray-700 block mb-3 flex items-center gap-2">
-              <span className="inline-flex items-center justify-center w-5 h-5 rounded-lg bg-red-100 text-red-600 flex-shrink-0">
-                <CheckCircle size={14} />
-              </span>
-              Kết quả tương thích
-            </label>
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => handleChange("isCompatible", true)}
-                className={cn(
-                  "flex-1 py-2.5 rounded-xl text-sm font-semibold border-2 transition-all cursor-pointer",
-                  form.isCompatible
-                    ? "bg-emerald-50 border-emerald-400 text-emerald-700"
-                    : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
-                )}
-              >
-                <CheckCircle size={16} className="inline mr-1.5" />
-                Tương thích
-              </button>
-              <button
-                type="button"
-                onClick={() => handleChange("isCompatible", false)}
-                className={cn(
-                  "flex-1 py-2.5 rounded-xl text-sm font-semibold border-2 transition-all cursor-pointer",
-                  !form.isCompatible
-                    ? "bg-red-50 border-red-400 text-red-700"
-                    : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
-                )}
-              >
-                <XCircle size={16} className="inline mr-1.5" />
-                Không tương thích
-              </button>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-5 py-2 rounded-xl border border-gray-300 text-sm text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer"
-            >
-              Hủy
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-sm text-white font-semibold hover:shadow-lg transition-all cursor-pointer"
-            >
-              {mode === "edit" ? "Lưu thay đổi" : "Thêm rule"}
-            </button>
-          </div>
-        </form>
-      </div>
+    <div className="flex flex-wrap gap-2">
+      {activeValues.map((value) => (
+        <TagBadge key={value} label={labelMaps[field]?.[value] ?? value} tone="red" />
+      ))}
     </div>
+  );
+}
+
+function OverrideButton({
+  label,
+  selected,
+  onClick,
+  tone,
+}: {
+  label: string;
+  selected: boolean;
+  onClick: () => void;
+  tone: 'slate' | 'emerald' | 'red';
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'rounded-full border px-4 py-2 text-sm font-bold transition',
+        selected && tone === 'slate' && 'border-slate-300 bg-slate-100 text-slate-800',
+        selected && tone === 'emerald' && 'border-emerald-200 bg-emerald-50 text-emerald-700',
+        selected && tone === 'red' && 'border-red-200 bg-red-50 text-red-700',
+        !selected && 'border-slate-200 bg-white text-slate-500 hover:border-red-200 hover:bg-red-50 hover:text-red-700',
+      )}
+    >
+      {label}
+    </button>
   );
 }
 
 export default function TicketCompatibilityPage() {
-  const { toast } = useToast();
-  const [items, setItems] = useState<TicketTypeCompatibility[]>([]);
-  const [ticketTypes, setTicketTypes] = useState<LearningTicketType[]>([]);
-  const [slotTypes, setSlotTypes] = useState<SlotType[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isPageLoaded, setIsPageLoaded] = useState(false);
-  const [search, setSearch] = useState("");
-  const [filterCompatible, setFilterCompatible] = useState<"all" | "compatible" | "incompatible">("all");
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState<"create" | "edit">("create");
-  const [editTarget, setEditTarget] = useState<TicketTypeCompatibility | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<TicketTypeCompatibility | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const [matrix, setMatrix] = useState<CompatibilityMatrix>({ learningTicketTypes: [], slotTypes: [], cells: [] });
+  const [selectedTicketId, setSelectedTicketId] = useState('');
+  const [ticketSearch, setTicketSearch] = useState('');
+  const [slotSearch, setSlotSearch] = useState('');
+  const [activeFilter, setActiveFilter] = useState<ActiveFilter>('active');
+  const [draftOverrides, setDraftOverrides] = useState<Record<string, OverrideValue>>({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const load = async () => {
-    setLoading(true);
+  const loadMatrix = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
     try {
-      const [compats, tts, sts] = await Promise.all([
-        getTicketTypeCompatibilities(),
-        getLearningTicketTypes(),
-        getSlotTypes(),
-      ]);
-      setItems(compats);
-      setTicketTypes(tts);
-      setSlotTypes(sts);
-    } catch {
-      toast({ title: "Lỗi", description: "Không thể tải dữ liệu.", variant: "destructive" });
+      const payload = await apiRequest<unknown>('/api/ticket-type-compatibilities/matrix?onlyActive=false');
+      setMatrix(normalizeMatrix(payload));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Không tải được matrix tương thích.');
     } finally {
-      setLoading(false);
-      setIsPageLoaded(true);
+      setIsLoading(false);
     }
-  };
+  }, []);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    void loadMatrix();
+  }, [loadMatrix]);
 
-  const filtered = items.filter(
-    (x) =>
-      (x.learningTicketTypeCode?.toLowerCase().includes(search.toLowerCase()) ||
-        x.learningTicketTypeName?.toLowerCase().includes(search.toLowerCase()) ||
-        x.slotTypeCode?.toLowerCase().includes(search.toLowerCase()) ||
-        x.slotTypeName?.toLowerCase().includes(search.toLowerCase())) &&
-      (filterCompatible === "all" ||
-        (filterCompatible === "compatible" && x.isCompatible) ||
-        (filterCompatible === "incompatible" && !x.isCompatible))
+  useEffect(() => {
+    if (!matrix.learningTicketTypes.length) return;
+    const selectedStillExists = matrix.learningTicketTypes.some((ticket) => ticket.id === selectedTicketId);
+    if (!selectedTicketId || !selectedStillExists) {
+      const firstActive = matrix.learningTicketTypes.find((ticket) => ticket.isActive) ?? matrix.learningTicketTypes[0];
+      setSelectedTicketId(firstActive.id);
+    }
+  }, [matrix.learningTicketTypes, selectedTicketId]);
+
+  useEffect(() => {
+    setDraftOverrides({});
+  }, [selectedTicketId]);
+
+  const cellMap = useMemo(() => {
+    const nextMap = new Map<string, MatrixCell>();
+    matrix.cells.forEach((cell) => nextMap.set(`${cell.learningTicketTypeId}:${cell.slotTypeId}`, cell));
+    return nextMap;
+  }, [matrix.cells]);
+
+  const selectedTicket = useMemo(
+    () => matrix.learningTicketTypes.find((ticket) => ticket.id === selectedTicketId) ?? null,
+    [matrix.learningTicketTypes, selectedTicketId],
   );
 
-  const openCreate = () => {
-    setModalMode("create");
-    setEditTarget(null);
-    setModalOpen(true);
-  };
+  const filteredTickets = useMemo(() => {
+    const keyword = ticketSearch.trim().toLowerCase();
+    return matrix.learningTicketTypes.filter((ticket) => {
+      if (!keyword) return true;
+      return ticket.code.toLowerCase().includes(keyword) || ticket.name.toLowerCase().includes(keyword);
+    });
+  }, [matrix.learningTicketTypes, ticketSearch]);
 
-  const openEdit = (item: TicketTypeCompatibility) => {
-    setModalMode("edit");
-    setEditTarget(item);
-    setModalOpen(true);
-  };
+  const filteredSlots = useMemo(() => {
+    const keyword = slotSearch.trim().toLowerCase();
+    return matrix.slotTypes.filter((slot) => {
+      const matchKeyword = !keyword || slot.code.toLowerCase().includes(keyword) || slot.name.toLowerCase().includes(keyword);
+      const matchStatus = activeFilter === 'all' || (activeFilter === 'active' ? slot.isActive : !slot.isActive);
+      return matchKeyword && matchStatus;
+    });
+  }, [activeFilter, matrix.slotTypes, slotSearch]);
 
-  const handleSubmit = async (form: FormData) => {
-    setSaving(true);
+  const selectedCells = useMemo(() => {
+    if (!selectedTicket) return [];
+    return matrix.slotTypes.map((slot) => cellMap.get(`${selectedTicket.id}:${slot.id}`)).filter(Boolean) as MatrixCell[];
+  }, [cellMap, matrix.slotTypes, selectedTicket]);
+
+  const compatibleCount = selectedCells.filter((cell) => cellCompatible(cell)).length;
+  const manualCount = selectedCells.filter((cell) => originalOverride(cell) !== null).length;
+  const draftCount = Object.keys(draftOverrides).length;
+  const selectedMode = normalizeMode(selectedTicket?.compatibilityMode);
+  const activeSlots = matrix.slotTypes.filter((slot) => slot.isActive).length;
+  const inactiveSlots = matrix.slotTypes.length - activeSlots;
+
+  function getCell(slotId: string) {
+    if (!selectedTicket) return undefined;
+    return cellMap.get(`${selectedTicket.id}:${slotId}`);
+  }
+
+  function getCurrentOverride(slotId: string, cell?: MatrixCell): OverrideValue {
+    if (Object.prototype.hasOwnProperty.call(draftOverrides, slotId)) return draftOverrides[slotId];
+    return originalOverride(cell);
+  }
+
+  function setOverride(slotId: string, value: OverrideValue) {
+    const baseValue = originalOverride(getCell(slotId));
+    setDraftOverrides((current) => {
+      const next = { ...current };
+      if (value === baseValue) delete next[slotId];
+      else next[slotId] = value;
+      return next;
+    });
+    setMessage(null);
+    setError(null);
+  }
+
+  async function saveOverrides() {
+    if (!selectedTicket || !draftCount) return;
+
+    setIsSaving(true);
+    setError(null);
+    setMessage(null);
     try {
-      if (modalMode === "create") {
-        let created = 0;
-        let skipped = 0;
-        const errors: string[] = [];
-
-        await Promise.allSettled(
-          form.slotTypeIds.map(async (slotTypeId) => {
-            try {
-              await createTicketTypeCompatibility({
-                learningTicketTypeId: form.learningTicketTypeId,
-                slotTypeId,
-                isCompatible: form.isCompatible,
-              });
-              created++;
-            } catch (err: any) {
-              // 409 = đã tồn tại, bỏ qua
-              const status = err?.status ?? err?.response?.status;
-              const msg: string = err?.message ?? "";
-              if (status === 409 || msg.includes("MappingExists") || msg.includes("already exists")) {
-                skipped++;
-              } else {
-                errors.push(msg || "Lỗi không xác định");
-              }
-            }
-          })
-        );
-
-        if (errors.length > 0) {
-          toast({
-            title: "Một số quy tắc lỗi",
-            description: `Tạo được ${created}, bỏ qua ${skipped} trùng, lỗi ${errors.length}.`,
-            variant: "destructive",
-          });
-        } else if (created === 0 && skipped > 0) {
-          toast({
-            title: "Tất cả đã tồn tại",
-            description: `${skipped} quy tắc đã có trong hệ thống, không cần tạo lại.`,
-          });
-        } else {
-          const msg = skipped > 0
-            ? `Đã thêm ${created} quy tắc. Bỏ qua ${skipped} quy tắc trùng.`
-            : `Đã thêm ${created} quy tắc tương thích.`;
-          toast({ title: "Thành công", description: msg });
-        }
-
-        if (created > 0) {
-          setModalOpen(false);
-          await load();
-        }
-      } else if (editTarget) {
-        await updateTicketTypeCompatibility(editTarget.id, {
-          learningTicketTypeId: form.learningTicketTypeId,
-          slotTypeId: form.slotTypeIds[0] ?? "",
-          isCompatible: form.isCompatible,
-        });
-        toast({ title: "Thành công", description: "Đã cập nhật quy tắc tương thích." });
-        setModalOpen(false);
-        await load();
-      }
-    } catch (err: any) {
-      toast({ title: "Lỗi", description: err?.message ?? "Có lỗi xảy ra.", variant: "destructive" });
+      await apiRequest(`/api/ticket-type-compatibilities/learning-ticket-types/${selectedTicket.id}/overrides`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          overrides: Object.entries(draftOverrides).map(([slotTypeId, isCompatible]) => ({
+            slotTypeId,
+            isCompatible,
+          })),
+        }),
+      });
+      setMessage('Đã lưu override cho loại vé đang chọn.');
+      setDraftOverrides({});
+      await loadMatrix();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Không lưu được override.');
     } finally {
-      setSaving(false);
+      setIsSaving(false);
     }
-  };
-
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
-    setDeleting(true);
-    try {
-      await deleteTicketTypeCompatibility(deleteTarget.id);
-      toast({ title: "Đã xóa", description: "Đã xóa quy tắc tương thích." });
-      setDeleteTarget(null);
-      await load();
-    } catch (err: any) {
-      toast({ title: "Lỗi", description: err?.message ?? "Không thể xóa.", variant: "destructive" });
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  const editInitial = editTarget
-    ? {
-        learningTicketTypeId: editTarget.learningTicketTypeId,
-        slotTypeIds: [editTarget.slotTypeId],
-        isCompatible: editTarget.isCompatible,
-      }
-    : undefined;
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className={`flex items-center justify-between flex-wrap gap-4 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
-        <div className="flex items-center gap-4">
-          <div className="rounded-xl bg-gradient-to-r from-red-600 to-red-700 p-3 text-white shadow-lg">
-            <GitMerge size={25} />
+    <div className="h-full w-full max-w-none space-y-6 p-6 text-slate-900">
+      <section className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-center gap-5">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-red-600 text-white shadow-lg shadow-red-200">
+            <Link2 className="h-8 w-8" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Tương thích vé học ↔ Slot</h1>
-            <p className="text-sm text-gray-500 mt-1">Ma trận tương thích: vé nào học được lớp nào</p>
+            <h1 className="text-3xl font-extrabold tracking-tight text-slate-950">Tương thích vé — slot</h1>
+            <p className="mt-2 flex items-center gap-2 text-lg text-slate-600">
+              <span className="text-red-600">✣</span>
+              Xem matrix tương thích và chỉnh override theo từng loại vé học
+            </p>
           </div>
         </div>
-        <button
-          onClick={openCreate}
-          className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer flex-shrink-0"
-        >
-          <Plus size={16} /> Thêm rule
-        </button>
-      </div>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={() => setDraftOverrides({})}
+            disabled={!draftCount || isSaving}
+            className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl border border-red-100 bg-white px-6 text-base font-bold text-slate-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <RotateCcw className="h-5 w-5" />
+            Hủy đổi
+          </button>
+          <button
+            type="button"
+            onClick={() => void saveOverrides()}
+            disabled={!draftCount || isSaving}
+            className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-red-600 px-7 text-base font-bold text-white shadow-lg shadow-red-100 transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+          >
+            <Save className="h-5 w-5" />
+            {isSaving ? 'Đang lưu...' : `Lưu ${draftCount || ''} override`}
+          </button>
+        </div>
+      </section>
 
-      {/* Stats Overview */}
-      <div className={`grid gap-4 md:grid-cols-3 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-        <StatCard
-          title="Tổng quy tắc"
-          value={items.length.toString()}
-          icon={<GitMerge size={20} />}
-          color="from-red-600 to-red-700"
-        />
-        <StatCard
-          title="Tương thích"
-          value={items.filter((x) => x.isCompatible).length.toString()}
-          icon={<CheckCircle size={20} />}
-          color="from-emerald-500 to-teal-500"
-        />
-        <StatCard
-          title="Không tương thích"
-          value={items.filter((x) => !x.isCompatible).length.toString()}
-          icon={<XCircle size={20} />}
-          color="from-amber-500 to-orange-500"
-        />
-      </div>
+      <section className="grid gap-4 lg:grid-cols-3">
+        <div className="rounded-3xl border border-red-100 bg-white p-6 shadow-sm">
+          <p className="text-lg font-medium text-slate-500">Loại vé</p>
+          <p className="mt-2 text-3xl font-extrabold text-slate-950">{matrix.learningTicketTypes.length}</p>
+        </div>
+        <div className="rounded-3xl border border-red-100 bg-white p-6 shadow-sm">
+          <p className="text-lg font-medium text-slate-500">Loại slot</p>
+          <p className="mt-2 text-3xl font-extrabold text-slate-950">{matrix.slotTypes.length}</p>
+        </div>
+        <div className="rounded-3xl border border-red-100 bg-white p-6 shadow-sm">
+          <p className="text-lg font-medium text-slate-500">Override hiện có</p>
+          <p className="mt-2 text-3xl font-extrabold text-red-600">{manualCount}</p>
+        </div>
+      </section>
 
-      {/* Info banner */}
-      {/* <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-sm text-red-800">
-        <strong>Chính sách mặc định:</strong> Nếu vé hoặc slot không có type, hoặc chưa có quy tắc nào →{" "}
-        <span className="font-bold text-emerald-700">tương thích = true</span>.
-        Chỉ khi có quy tắc với <code className="bg-red-100 px-1 rounded">isCompatible = false</code> thì mới từ chối.
-      </div> */}
+      {(message || error) && (
+        <section className={cn('rounded-2xl border px-5 py-4 text-sm font-bold', error ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700')}>
+          {error ?? message}
+        </section>
+      )}
 
-      {/* Filter Card */}
-      <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-        <div className="space-y-4">
-          {/* Status Filter Tabs */}
-          <div className="flex flex-wrap gap-2 pb-4 border-b border-red-200">
-            {(["all", "compatible", "incompatible"] as const).map((status) => {
-              const counts: Record<typeof status, number> = {
-                all: items.length,
-                compatible: items.filter((s) => s.isCompatible).length,
-                incompatible: items.filter((s) => !s.isCompatible).length,
-              };
-
-              const labels: Record<typeof status, string> = {
-                all: "Tất cả",
-                compatible: "Tương thích",
-                incompatible: "Không tương thích",
-              };
-
-              const isActive = filterCompatible === status;
-              return (
-                <button
-                  key={status}
-                  onClick={() => setFilterCompatible(status)}
-                  className={cn(
-                    "px-4 py-2 rounded-xl border text-sm font-medium transition-all cursor-pointer",
-                    isActive
-                      ? "bg-gradient-to-r from-red-600 to-red-700 text-white border-red-600 shadow-md"
-                      : "bg-white border-red-200 text-gray-700 hover:bg-red-50",
-                  )}
-                >
-                  <span className="inline-flex items-center gap-2">
-                    {labels[status]}
-                    <span
+      <section className="rounded-3xl border border-red-100 bg-white/70 p-6 shadow-sm">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-5 top-1/2 h-6 w-6 -translate-y-1/2 text-slate-400" />
+              <input
+                value={ticketSearch}
+                onChange={(event) => setTicketSearch(event.target.value)}
+                placeholder="Tìm loại vé..."
+                className="h-16 w-full rounded-2xl border border-slate-200 bg-white pl-14 pr-4 text-lg outline-none transition placeholder:text-slate-400 focus:border-red-300 focus:ring-4 focus:ring-red-50"
+              />
+            </div>
+            <div className="mt-4 flex gap-3 overflow-x-auto pb-1">
+              {filteredTickets.length ? (
+                filteredTickets.map((ticket) => {
+                  const selected = ticket.id === selectedTicketId;
+                  return (
+                    <button
+                      key={ticket.id}
+                      type="button"
+                      onClick={() => setSelectedTicketId(ticket.id)}
                       className={cn(
-                        "inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-semibold",
-                        isActive
-                          ? "bg-white/30 text-white"
-                          : "bg-red-50 text-red-600",
+                        'min-w-56 rounded-2xl border px-4 py-3 text-left transition',
+                        selected ? 'border-red-600 bg-red-600 text-white shadow-lg shadow-red-100' : 'border-red-100 bg-white text-slate-700 hover:bg-red-50',
                       )}
                     >
-                      {counts[status]}
-                    </span>
-                  </span>
-                </button>
-              );
-            })}
+                      <p className="font-extrabold">{ticket.name}</p>
+                      <p className={cn('mt-1 text-sm font-semibold', selected ? 'text-white/80' : 'text-slate-500')}>
+                        {ticket.code} · {modeLabels[normalizeMode(ticket.compatibilityMode)]}
+                      </p>
+                    </button>
+                  );
+                })
+              ) : (
+                <p className="py-4 text-sm text-slate-500">Không tìm thấy loại vé.</p>
+              )}
+            </div>
           </div>
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-5 top-1/2 h-6 w-6 -translate-y-1/2 text-slate-400" />
+            <input
+              value={slotSearch}
+              onChange={(event) => setSlotSearch(event.target.value)}
+              placeholder="Tìm slot..."
+              className="h-16 w-full rounded-2xl border border-slate-200 bg-white pl-14 pr-4 text-lg outline-none transition placeholder:text-slate-400 focus:border-red-300 focus:ring-4 focus:ring-red-50"
+            />
+          </div>
+        </div>
+        <div className="my-6 h-px bg-red-100" />
+        <div className="flex flex-wrap gap-3">
+          {[
+            { value: 'active' as const, label: 'Slot đang hoạt động', count: activeSlots },
+            { value: 'all' as const, label: 'Tất cả slot', count: matrix.slotTypes.length },
+            { value: 'inactive' as const, label: 'Slot tạm dừng', count: inactiveSlots },
+          ].map((tab) => {
+            const selected = activeFilter === tab.value;
+            return (
+              <button
+                key={tab.value}
+                type="button"
+                onClick={() => setActiveFilter(tab.value)}
+                className={cn(
+                  'inline-flex h-14 items-center gap-3 rounded-2xl border px-6 text-base font-bold transition',
+                  selected
+                    ? 'border-red-600 bg-red-600 text-white shadow-lg shadow-red-100'
+                    : 'border-red-100 bg-white text-slate-700 hover:border-red-200 hover:bg-red-50',
+                )}
+              >
+                {tab.label}
+                <span className={cn('rounded-full px-2.5 py-1 text-sm', selected ? 'bg-white/20 text-white' : 'bg-red-50 text-red-600')}>
+                  {tab.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
 
-          {/* Search */}
-          <div className="flex gap-3 items-end">
-            <div className="flex-1">
-              <div className="relative">
-                <Search
-                  size={16}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-                />
-                <input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Tìm kiếm code, tên..."
-                  className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-red-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
-                />
+      {selectedTicket && (
+        <section className="rounded-3xl border border-red-100 bg-white p-5 shadow-sm">
+          <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
+            <div>
+              <p className="text-sm font-bold uppercase tracking-wide text-slate-400">Loại vé đang chọn</p>
+              <h2 className="mt-2 text-2xl font-extrabold text-slate-950">{selectedTicket.name}</h2>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <TagBadge label={selectedTicket.code} />
+                <TagBadge label={modeLabels[selectedMode]} tone="red" />
+                <TagBadge label={selectedTicket.isActive ? 'Đang hoạt động' : 'Tạm dừng'} tone={selectedTicket.isActive ? 'emerald' : 'red'} />
               </div>
             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Table Card */}
-      <div className={`rounded-2xl border border-red-200 bg-white shadow-sm overflow-hidden transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-        <div className="border-b border-red-200 bg-gradient-to-r from-red-500/10 to-red-700/10 px-6 py-4">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <h2 className="font-semibold text-gray-900">Danh sách quy tắc tương thích</h2>
+            <div className="grid gap-3 md:grid-cols-4">
+              <div><p className="mb-2 text-sm font-bold text-slate-500">Nhóm ngày</p><RulePills values={selectedTicket.allowedDayGroups} field="allowedDayGroups" /></div>
+              <div><p className="mb-2 text-sm font-bold text-slate-500">Khung giờ</p><RulePills values={selectedTicket.allowedTimeBands} field="allowedTimeBands" /></div>
+              <div><p className="mb-2 text-sm font-bold text-slate-500">Giáo viên</p><RulePills values={selectedTicket.allowedTeacherTypes} field="allowedTeacherTypes" /></div>
+              <div><p className="mb-2 text-sm font-bold text-slate-500">Mục đích</p><RulePills values={selectedTicket.allowedUsageTypes} field="allowedUsageTypes" /></div>
             </div>
           </div>
+        </section>
+      )}
+
+      <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between border-b border-red-100 bg-red-50/70 px-6 py-5">
+          <h2 className="text-xl font-extrabold text-slate-950">Danh sách slot và kết quả tương thích</h2>
+          <p className="text-lg font-medium text-slate-600">{filteredSlots.length} slot</p>
         </div>
-        {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <Loader2 size={32} className="animate-spin text-red-500" />
-          </div>
-        ) : items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-            <GitMerge size={40} className="mb-3 opacity-30" />
-            <p className="font-medium">Chưa có quy tắc nào</p>
-            <p className="text-sm mt-1">Mọi ticket đều tương thích với mọi slot (default-pass)</p>
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-            <Search size={40} className="mb-3 opacity-30" />
-            <p className="font-medium">Không tìm thấy kết quả</p>
-            <p className="text-sm mt-1">Thử thay đổi bộ lọc hoặc tìm kiếm</p>
-          </div>
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-red-200 bg-gradient-to-r from-red-50/80 to-red-100/30">
-                <th className="text-left px-6 py-4 font-semibold text-gray-700">Loại vé học</th>
-                <th className="text-left px-6 py-4 font-semibold text-gray-700">→</th>
-                <th className="text-left px-6 py-4 font-semibold text-gray-700">Loại slot</th>
-                <th className="text-left px-6 py-4 font-semibold text-gray-700">Kết quả</th>
-                <th className="px-6 py-4" />
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-slate-100 text-base">
+            <thead className="bg-red-50/40 text-left text-sm font-extrabold text-slate-600">
+              <tr>
+                <th className="px-6 py-4">Loại slot</th>
+                <th className="px-6 py-4">Metadata</th>
+                <th className="px-6 py-4">Kết quả</th>
+                <th className="px-6 py-4">Nguồn</th>
+                <th className="px-6 py-4">Override</th>
+                <th className="px-6 py-4">Lý do</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-red-100">
-              {filtered.map((item) => (
-                <tr key={item.id} className="hover:bg-red-50/40 transition-colors duration-200 group">
-                  <td className="px-6 py-4">
-                    <span className="inline-flex items-center px-3 py-1.5 rounded-lg bg-red-100 text-red-700 text-xs font-bold font-mono group-hover:bg-red-200 transition-colors">
-                      {item.learningTicketTypeCode ?? item.learningTicketTypeId.slice(0, 8)}
-                    </span>
-                    {item.learningTicketTypeName && (
-                      <span className="ml-2 text-gray-500 text-xs">{item.learningTicketTypeName}</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-gray-400 font-bold">→</td>
-                  <td className="px-6 py-4">
-                    <span className="inline-flex items-center px-3 py-1.5 rounded-lg bg-red-100 text-red-700 text-xs font-bold font-mono group-hover:bg-red-200 transition-colors">
-                      {item.slotTypeCode ?? item.slotTypeId.slice(0, 8)}
-                    </span>
-                    {item.slotTypeName && (
-                      <span className="ml-2 text-gray-500 text-xs">{item.slotTypeName}</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4">
-                    <CompatibleBadge value={item.isCompatible} />
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => openEdit(item)}
-                        className="p-2 rounded-lg hover:bg-red-100 text-gray-400 hover:text-red-600 transition-all hover:scale-110 cursor-pointer"
-                        title="Chỉnh sửa"
-                      >
-                        <Pencil size={16} />
-                      </button>
-                      <button
-                        onClick={() => setDeleteTarget(item)}
-                        className="p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-all hover:scale-110 cursor-pointer"
-                        title="Xóa"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
+            <tbody className="divide-y divide-slate-100 bg-white">
+              {isLoading ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-14 text-center text-slate-500">
+                    Đang tải matrix tương thích...
                   </td>
                 </tr>
-              ))}
+              ) : !selectedTicket ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-14 text-center text-slate-500">
+                    Chưa có loại vé để hiển thị matrix.
+                  </td>
+                </tr>
+              ) : filteredSlots.length ? (
+                filteredSlots.map((slot) => {
+                  const cell = getCell(slot.id);
+                  const hasDraft = Object.prototype.hasOwnProperty.call(draftOverrides, slot.id);
+                  const currentOverride = getCurrentOverride(slot.id, cell);
+                  const effectiveCompatible = currentOverride === null ? cellCompatible(cell) : currentOverride;
+
+                  return (
+                    <tr key={slot.id} className="hover:bg-slate-50">
+                      <td className="px-6 py-5">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-600 text-white">
+                            <Link2 className="h-5 w-5" />
+                          </div>
+                          <div>
+                            <p className="font-extrabold text-slate-950">{slot.name}</p>
+                            <p className="mt-1 text-sm font-semibold text-slate-500">{slot.code}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-5">
+                        <div className="flex max-w-lg flex-wrap gap-2">
+                          <TagBadge label={labelMaps.dayGroup[slot.dayGroup ?? 'None'] ?? 'Không gắn tag'} tone={slot.dayGroup === 'None' ? 'slate' : 'red'} />
+                          <TagBadge label={labelMaps.timeBand[slot.timeBand ?? 'None'] ?? 'Không gắn tag'} tone={slot.timeBand === 'None' ? 'slate' : 'red'} />
+                          <TagBadge label={labelMaps.teacherType[slot.teacherType ?? 'None'] ?? 'Không gắn tag'} tone={slot.teacherType === 'None' ? 'slate' : 'red'} />
+                          <TagBadge label={labelMaps.usageType[slot.usageType ?? 'None'] ?? 'Không gắn tag'} tone={slot.usageType === 'None' ? 'slate' : 'red'} />
+                        </div>
+                      </td>
+                      <td className="px-6 py-5">
+                        <span className={cn('inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold', effectiveCompatible ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-red-200 bg-red-50 text-red-700')}>
+                          {effectiveCompatible ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                          {effectiveCompatible ? 'Có thể học' : 'Không thể học'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-5">
+                        <TagBadge label={hasDraft ? 'Chưa lưu' : sourceLabel(cell?.source)} tone={hasDraft || cell?.source?.startsWith('Override') ? 'red' : 'slate'} />
+                      </td>
+                      <td className="px-6 py-5">
+                        <div className="flex min-w-[24rem] flex-wrap gap-2">
+                          <OverrideButton label="Theo mặc định" tone="slate" selected={currentOverride === null} onClick={() => setOverride(slot.id, null)} />
+                          <OverrideButton label="Luôn cho phép" tone="emerald" selected={currentOverride === true} onClick={() => setOverride(slot.id, true)} />
+                          <OverrideButton label="Luôn chặn" tone="red" selected={currentOverride === false} onClick={() => setOverride(slot.id, false)} />
+                        </div>
+                      </td>
+                      <td className="px-6 py-5">
+                        <p className="max-w-md text-sm leading-6 text-slate-500">
+                          {hasDraft ? 'Thay đổi đang ở bản nháp. Bấm Lưu override để áp dụng.' : cell?.reason || 'Kết quả được tính từ matrix hiện hành.'}
+                        </p>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan={6} className="px-6 py-14 text-center text-slate-500">
+                    Không có slot phù hợp với bộ lọc.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
-        )}
-      </div>
-
-      <FormModal
-        open={modalOpen && !saving}
-        onClose={() => setModalOpen(false)}
-        onSubmit={handleSubmit}
-        mode={modalMode}
-        initial={editInitial}
-        ticketTypes={ticketTypes}
-        slotTypes={slotTypes}
-      />
-
-      <ConfirmModal
-        isOpen={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={handleDelete}
-        title="Xóa quy tắc tương thích"
-        message="Bạn có chắc muốn xóa quy tắc này?"
-        confirmText="Xóa"
-        isLoading={deleting}
-      />
+        </div>
+      </section>
     </div>
   );
 }

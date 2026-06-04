@@ -527,12 +527,18 @@ export const BACKEND_SLOT_TYPE_ENDPOINTS = {
 export const TICKET_TYPE_COMPATIBILITY_ENDPOINTS = {
   BASE: '/api/ticket-type-compatibilities',
   BY_ID: (id: string) => `/api/ticket-type-compatibilities/${id}`,
+  MATRIX: '/api/ticket-type-compatibilities/matrix',
+  BULK_OVERRIDES: (learningTicketTypeId: string) =>
+    `/api/ticket-type-compatibilities/learning-ticket-types/${learningTicketTypeId}/overrides`,
 } as const;
 
 // Phase 1.5 — Backend Ticket Type Compatibility Endpoints
 export const BACKEND_TICKET_TYPE_COMPATIBILITY_ENDPOINTS = {
   BASE: '/ticket-type-compatibilities',
   BY_ID: (id: string) => `/ticket-type-compatibilities/${id}`,
+  MATRIX: '/ticket-type-compatibilities/matrix',
+  BULK_OVERRIDES: (learningTicketTypeId: string) =>
+    `/ticket-type-compatibilities/learning-ticket-types/${learningTicketTypeId}/overrides`,
 } as const;
 
 // Phase 2 — Academic Progression Endpoints (Client → Next.js API Routes)
