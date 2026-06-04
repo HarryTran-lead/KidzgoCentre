@@ -70,7 +70,7 @@ type Option<T extends string> = {
 };
 
 const modeLabels: Record<TicketCompatibilityMode, string> = {
-  None: 'Không áp dụng',
+  None: 'Mặc định',
   AllowAll: 'Cho phép tất cả',
   RuleBased: 'Theo quy tắc',
 };
@@ -104,14 +104,14 @@ const usageTypeOptions: Array<Option<SlotUsageType>> = [
 ];
 
 const labelMaps = {
-  dayGroup: Object.fromEntries(dayGroupOptions.map((option) => [option.value, option.label])),
-  timeBand: Object.fromEntries(timeBandOptions.map((option) => [option.value, option.label])),
-  teacherType: Object.fromEntries(teacherTypeOptions.map((option) => [option.value, option.label])),
-  usageType: Object.fromEntries(usageTypeOptions.map((option) => [option.value, option.label])),
-  allowedDayGroups: Object.fromEntries(dayGroupOptions.map((option) => [option.value, option.label])),
-  allowedTimeBands: Object.fromEntries(timeBandOptions.map((option) => [option.value, option.label])),
-  allowedTeacherTypes: Object.fromEntries(teacherTypeOptions.map((option) => [option.value, option.label])),
-  allowedUsageTypes: Object.fromEntries(usageTypeOptions.map((option) => [option.value, option.label])),
+  dayGroup: { ...Object.fromEntries(dayGroupOptions.map((option) => [option.value, option.label])), '0': 'Không gắn tag', '1': 'Ngày thường', '2': 'Cuối tuần' },
+  timeBand: { ...Object.fromEntries(timeBandOptions.map((option) => [option.value, option.label])), '0': 'Không gắn tag', '1': 'Sáng', '2': 'Chiều', '3': 'Tối' },
+  teacherType: { ...Object.fromEntries(teacherTypeOptions.map((option) => [option.value, option.label])), '0': 'Không gắn tag', '1': 'GV thường', '2': 'GV nước ngoài' },
+  usageType: { ...Object.fromEntries(usageTypeOptions.map((option) => [option.value, option.label])), '0': 'Không gắn tag', '1': 'Lớp thường', '2': 'Lớp bù', '3': 'Phụ đạo', '4': 'Ôn tập', '5': 'Khác' },
+  allowedDayGroups: { ...Object.fromEntries(dayGroupOptions.map((option) => [option.value, option.label])), '0': 'Không gắn tag', '1': 'Ngày thường', '2': 'Cuối tuần' },
+  allowedTimeBands: { ...Object.fromEntries(timeBandOptions.map((option) => [option.value, option.label])), '0': 'Không gắn tag', '1': 'Sáng', '2': 'Chiều', '3': 'Tối' },
+  allowedTeacherTypes: { ...Object.fromEntries(teacherTypeOptions.map((option) => [option.value, option.label])), '0': 'Không gắn tag', '1': 'GV thường', '2': 'GV nước ngoài' },
+  allowedUsageTypes: { ...Object.fromEntries(usageTypeOptions.map((option) => [option.value, option.label])), '0': 'Không gắn tag', '1': 'Lớp thường', '2': 'Lớp bù', '3': 'Phụ đạo', '4': 'Ôn tập', '5': 'Khác' },
 } as Record<string, Record<string, string>>;
 
 function cn(...classes: Array<string | false | null | undefined>) {
@@ -280,7 +280,7 @@ function TagBadge({ label, tone = 'slate' }: { label: string; tone?: 'slate' | '
 }
 
 function RulePills({ values, field }: { values?: string[] | null; field: string }) {
-  const activeValues = asArray<string>(values).filter((value) => value !== 'None');
+  const activeValues = asArray<unknown>(values).map(String).filter((value) => value !== 'None' && value !== '0');
   if (!activeValues.length) return <span className="text-sm font-semibold text-slate-400">Không giới hạn</span>;
 
   return (
@@ -660,10 +660,10 @@ export default function TicketCompatibilityPage() {
                       </td>
                       <td className="px-6 py-5">
                         <div className="flex max-w-lg flex-wrap gap-2">
-                          <TagBadge label={labelMaps.dayGroup[slot.dayGroup ?? 'None'] ?? 'Không gắn tag'} tone={slot.dayGroup === 'None' ? 'slate' : 'red'} />
-                          <TagBadge label={labelMaps.timeBand[slot.timeBand ?? 'None'] ?? 'Không gắn tag'} tone={slot.timeBand === 'None' ? 'slate' : 'red'} />
-                          <TagBadge label={labelMaps.teacherType[slot.teacherType ?? 'None'] ?? 'Không gắn tag'} tone={slot.teacherType === 'None' ? 'slate' : 'red'} />
-                          <TagBadge label={labelMaps.usageType[slot.usageType ?? 'None'] ?? 'Không gắn tag'} tone={slot.usageType === 'None' ? 'slate' : 'red'} />
+                          <TagBadge label={labelMaps.dayGroup[String(slot.dayGroup ?? 'None')] ?? 'Không gắn tag'} tone={String(slot.dayGroup ?? 'None') === 'None' || String(slot.dayGroup ?? 'None') === '0' ? 'slate' : 'red'} />
+                          <TagBadge label={labelMaps.timeBand[String(slot.timeBand ?? 'None')] ?? 'Không gắn tag'} tone={String(slot.timeBand ?? 'None') === 'None' || String(slot.timeBand ?? 'None') === '0' ? 'slate' : 'red'} />
+                          <TagBadge label={labelMaps.teacherType[String(slot.teacherType ?? 'None')] ?? 'Không gắn tag'} tone={String(slot.teacherType ?? 'None') === 'None' || String(slot.teacherType ?? 'None') === '0' ? 'slate' : 'red'} />
+                          <TagBadge label={labelMaps.usageType[String(slot.usageType ?? 'None')] ?? 'Không gắn tag'} tone={String(slot.usageType ?? 'None') === 'None' || String(slot.usageType ?? 'None') === '0' ? 'slate' : 'red'} />
                         </div>
                       </td>
                       <td className="px-6 py-5">

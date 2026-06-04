@@ -48,7 +48,7 @@ NEXT_PUBLIC_VERCEL_BLOB_TOKEN=dev_token_here
 # API Configuration
 NEXT_PUBLIC_API_URL=https://api.kidzgocentre.com/api
 NEXT_PUBLIC_BASE_URL=https://rexenglishcentresr.vercel.app
-NEXT_PUBLIC_SYLLABUS_ARCHIVE_MAX_MB=30
+NEXT_PUBLIC_SYLLABUS_ARCHIVE_MAX_MB=50
 
 # Developer Mode
 NEXT_PUBLIC_DEV_AUTO_LOGIN=0

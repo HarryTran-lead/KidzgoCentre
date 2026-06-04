@@ -55,7 +55,7 @@ const emptyForm: LearningTicketTypeForm = {
   code: '',
   name: '',
   description: '',
-  compatibilityMode: 'None',
+  compatibilityMode: 'AllowAll',
   allowedDayGroups: [],
   allowedTimeBands: [],
   allowedTeacherTypes: [],
@@ -64,7 +64,6 @@ const emptyForm: LearningTicketTypeForm = {
 };
 
 const compatibilityModes: Array<Option<TicketCompatibilityMode>> = [
-  { value: 'None', label: 'Không áp dụng mặc định', description: 'Chỉ dùng override thủ công khi cần ngoại lệ.' },
   { value: 'AllowAll', label: 'Cho phép tất cả', description: 'Mặc định học được mọi slot nếu không có override chặn.' },
   { value: 'RuleBased', label: 'Theo quy tắc', description: 'Tự khớp theo ngày, khung giờ, giáo viên và mục đích.' },
 ];
@@ -94,9 +93,53 @@ const usageTypeOptions: Array<Option<SlotUsageType>> = [
 ];
 
 const modeLabels: Record<TicketCompatibilityMode, string> = {
-  None: 'Không áp dụng',
+  None: 'Mặc định',
   AllowAll: 'Cho phép tất cả',
   RuleBased: 'Theo quy tắc',
+};
+
+const dayGroupValueMap: Record<string, SlotDayGroup> = {
+  '0': 'None',
+  '1': 'Weekday',
+  '2': 'Weekend',
+  None: 'None',
+  Weekday: 'Weekday',
+  Weekend: 'Weekend',
+};
+
+const timeBandValueMap: Record<string, SlotTimeBand> = {
+  '0': 'None',
+  '1': 'Morning',
+  '2': 'Afternoon',
+  '3': 'Evening',
+  None: 'None',
+  Morning: 'Morning',
+  Afternoon: 'Afternoon',
+  Evening: 'Evening',
+};
+
+const teacherTypeValueMap: Record<string, SlotTeacherType> = {
+  '0': 'None',
+  '1': 'Standard',
+  '2': 'Native',
+  None: 'None',
+  Standard: 'Standard',
+  Native: 'Native',
+};
+
+const usageTypeValueMap: Record<string, SlotUsageType> = {
+  '0': 'None',
+  '1': 'Standard',
+  '2': 'Makeup',
+  '3': 'Remedial',
+  '4': 'Review',
+  '5': 'Custom',
+  None: 'None',
+  Standard: 'Standard',
+  Makeup: 'Makeup',
+  Remedial: 'Remedial',
+  Review: 'Review',
+  Custom: 'Custom',
 };
 
 const labelMaps = {
@@ -114,6 +157,11 @@ function asArray<T extends string>(value: unknown): T[] {
   return Array.isArray(value) ? (value.filter(Boolean) as T[]) : [];
 }
 
+function normalizeEnumArray<T extends string>(value: unknown, map: Record<string, T>) {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => map[String(item)]).filter((item): item is T => Boolean(item) && item !== 'None');
+}
+
 function normalizeMode(mode: unknown): TicketCompatibilityMode {
   return mode === 'AllowAll' || mode === 'RuleBased' || mode === 'None' ? mode : 'None';
 }
@@ -122,10 +170,10 @@ function normalizeTicketType(item: LearningTicketType): LearningTicketType {
   return {
     ...item,
     compatibilityMode: normalizeMode(item.compatibilityMode),
-    allowedDayGroups: asArray<SlotDayGroup>(item.allowedDayGroups),
-    allowedTimeBands: asArray<SlotTimeBand>(item.allowedTimeBands),
-    allowedTeacherTypes: asArray<SlotTeacherType>(item.allowedTeacherTypes),
-    allowedUsageTypes: asArray<SlotUsageType>(item.allowedUsageTypes),
+    allowedDayGroups: normalizeEnumArray(item.allowedDayGroups, dayGroupValueMap),
+    allowedTimeBands: normalizeEnumArray(item.allowedTimeBands, timeBandValueMap),
+    allowedTeacherTypes: normalizeEnumArray(item.allowedTeacherTypes, teacherTypeValueMap),
+    allowedUsageTypes: normalizeEnumArray(item.allowedUsageTypes, usageTypeValueMap),
   };
 }
 
@@ -299,6 +347,7 @@ export default function LearningTicketTypesPage() {
   const [ticketTypes, setTicketTypes] = useState<LearningTicketType[]>([]);
   const [form, setForm] = useState<LearningTicketTypeForm>(emptyForm);
   const [editingItem, setEditingItem] = useState<LearningTicketType | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<LearningTicketType | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>('all');
@@ -438,14 +487,14 @@ export default function LearningTicketTypesPage() {
     }
   }
 
-  async function handleDelete(item: LearningTicketType) {
-    if (!window.confirm(`Xóa loại vé "${item.name}"?`)) return;
-
+  async function confirmDelete() {
+    if (!deleteTarget) return;
     setError(null);
     setMessage(null);
     try {
-      await apiRequest(`/api/learning-ticket-types/${item.id}`, { method: 'DELETE' });
+      await apiRequest(`/api/learning-ticket-types/${deleteTarget.id}`, { method: 'DELETE' });
       setMessage('Đã xóa loại vé học.');
+      setDeleteTarget(null);
       await loadTicketTypes();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Không xóa được loại vé học.');
@@ -604,7 +653,7 @@ export default function LearningTicketTypesPage() {
                           <button type="button" onClick={() => startEdit(item)} className="transition hover:text-red-600" title="Sửa">
                             <Pencil className="h-5 w-5" />
                           </button>
-                          <button type="button" onClick={() => void handleDelete(item)} className="transition hover:text-red-600" title="Xóa">
+                          <button type="button" onClick={() => setDeleteTarget(item)} className="transition hover:text-red-600" title="Xóa">
                             <Trash2 className="h-5 w-5" />
                           </button>
                         </div>
@@ -689,6 +738,38 @@ export default function LearningTicketTypesPage() {
                 </button>
               </div>
             </form>
+          </section>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
+          <section className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl">
+            <div className="bg-red-600 px-6 py-5 text-white">
+              <h2 className="text-xl font-extrabold">Xóa loại vé học</h2>
+              <p className="mt-1 text-sm text-white/80">Thao tác này chỉ nên dùng khi dữ liệu chưa được sử dụng.</p>
+            </div>
+            <div className="space-y-4 p-6">
+              <p className="text-base text-slate-600">
+                Bạn có chắc muốn xóa <span className="font-extrabold text-slate-950">{deleteTarget.name}</span>?
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setDeleteTarget(null)}
+                  className="h-12 rounded-2xl border border-slate-200 px-6 font-bold text-slate-700 hover:bg-slate-50"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void confirmDelete()}
+                  className="h-12 rounded-2xl bg-red-600 px-7 font-bold text-white hover:bg-red-700"
+                >
+                  Xóa
+                </button>
+              </div>
+            </div>
           </section>
         </div>
       )}
