@@ -13,6 +13,7 @@ import {
   Eye,
   FileText,
   Loader2,
+  MapPinned,
   Package,
   RefreshCw,
   Rocket,
@@ -26,6 +27,7 @@ import {
 import ConfirmModal from "@/components/ConfirmModal";
 import LeadPagination from "@/components/portal/leads/LeadPagination";
 import RegistrationAssignModal from "@/components/portal/registrations/modals/RegistrationAssignModal";
+import RegistrationBranchTransferModal from "@/components/portal/registrations/modals/RegistrationBranchTransferModal";
 import RegistrationCompletionPdfModal from "@/components/portal/registrations/modals/RegistrationCompletionPdfModal";
 import RegistrationDetailModal from "@/components/portal/registrations/modals/RegistrationDetailModal";
 import RegistrationTransferModal from "@/components/portal/registrations/modals/RegistrationTransferModal";
@@ -38,15 +40,18 @@ import {
   getRegistrationById,
   getRegistrations,
   suggestClassesForRegistration,
+  transferRegistrationBranch,
   transferRegistrationClass,
   upgradeRegistration,
 } from "@/lib/api/registrationService";
+import { getAllBranchesPublic } from "@/lib/api/branchService";
 import { getAllClasses } from "@/lib/api/classService";
 import { getTuitionPlans } from "@/lib/api/tuitionPlanService";
 import {
   extractDomainErrorCode,
   getDomainErrorMessage,
 } from "@/lib/api/domainErrorMessage";
+import type { Branch } from "@/types/branch";
 import type { TuitionPlan } from "@/types/admin/tuition_plan";
 import type {
   EntryType,
@@ -565,6 +570,45 @@ function pickClassItems(payload: any): any[] {
   return [];
 }
 
+function toRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+function pickBranchItems(payload: unknown): Branch[] {
+  const payloadRecord = toRecord(payload);
+  const data = payloadRecord.data ?? payload;
+  const dataRecord = toRecord(data);
+  const items = Array.isArray(dataRecord.branches)
+    ? dataRecord.branches
+    : Array.isArray(dataRecord.items)
+      ? dataRecord.items
+      : Array.isArray(data)
+        ? data
+        : [];
+
+  return items
+    .map((item: unknown): Branch => {
+      const record = toRecord(item);
+      return {
+        id: String(record.id ?? record.branchId ?? ""),
+        code: String(record.code ?? record.branchCode ?? ""),
+        name: String(record.name ?? record.branchName ?? ""),
+        address: String(record.address ?? ""),
+        contactPhone: String(record.contactPhone ?? ""),
+        contactEmail: String(record.contactEmail ?? ""),
+        description: typeof record.description === "string" ? record.description : undefined,
+        isActive: typeof record.isActive === "boolean" ? record.isActive : true,
+        createdAt: String(record.createdAt ?? ""),
+        updatedAt: typeof record.updatedAt === "string" ? record.updatedAt : undefined,
+        deletedAt: typeof record.deletedAt === "string" ? record.deletedAt : undefined,
+        totalStudents: typeof record.totalStudents === "number" ? record.totalStudents : undefined,
+        totalTeachers: typeof record.totalTeachers === "number" ? record.totalTeachers : undefined,
+        totalClasses: typeof record.totalClasses === "number" ? record.totalClasses : undefined,
+      };
+    })
+    .filter((item: Branch) => Boolean(item.id));
+}
+
 function getClassRemainingSlots(cls: any) {
   if (typeof cls?.remainingSlots === "number") return cls.remainingSlots;
   if (typeof cls?.capacity === "number" && typeof cls?.currentEnrollment === "number") {
@@ -661,6 +705,18 @@ export default function StaffRegistrationOverview({
   const [transferClasses, setTransferClasses] = useState<any[]>([]);
   const [isLoadingTransferClasses, setIsLoadingTransferClasses] = useState(false);
   const [isTransferring, setIsTransferring] = useState(false);
+  const [branchTransferOpen, setBranchTransferOpen] = useState(false);
+  const [branchTransferBranchId, setBranchTransferBranchId] = useState("");
+  const [branchTransferClassId, setBranchTransferClassId] = useState("");
+  const [branchTransferEffectiveDate, setBranchTransferEffectiveDate] = useState("");
+  const [branchTransferReason, setBranchTransferReason] = useState("");
+  const [branchTransferSessionPattern, setBranchTransferSessionPattern] = useState("");
+  const [branchTransferWeeklyPattern, setBranchTransferWeeklyPattern] = useState<WeeklyPatternEntry[]>([]);
+  const [branchTransferBranches, setBranchTransferBranches] = useState<Branch[]>([]);
+  const [branchTransferClasses, setBranchTransferClasses] = useState<Record<string, unknown>[]>([]);
+  const [isLoadingBranchTransferBranches, setIsLoadingBranchTransferBranches] = useState(false);
+  const [isLoadingBranchTransferClasses, setIsLoadingBranchTransferClasses] = useState(false);
+  const [isBranchTransferring, setIsBranchTransferring] = useState(false);
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const [cancelTargetRegistration, setCancelTargetRegistration] = useState<Registration | null>(null);
   const [isCancellingRegistration, setIsCancellingRegistration] = useState(false);
@@ -821,6 +877,93 @@ export default function StaffRegistrationOverview({
       selectedActionRegistration?.secondaryProgramName,
       selectedActionRegistration?.secondaryLevelId,
       selectedActionRegistration?.secondaryLevelName,
+    ],
+  );
+
+  const branchTransferBranchOptions = useMemo(() => {
+    const currentBranchId = String(selectedActionRegistration?.branchId || branchId || "");
+    return branchTransferBranches
+      .map((item) => ({
+        id: String(item.id || ""),
+        name: item.name || item.code || "Chi nhánh",
+        code: item.code || null,
+        isActive: item.isActive,
+      }))
+      .filter((item) => item.id && item.id !== currentBranchId && item.isActive !== false);
+  }, [branchTransferBranches, branchId, selectedActionRegistration?.branchId]);
+
+  const branchTransferClassOptions = useMemo(
+    () =>
+      branchTransferClasses
+        .map((cls) => {
+          const program = toRecord(cls.program);
+          const level = toRecord(cls.level);
+          const id = String(cls.id ?? "");
+          const remainingSlots = getClassRemainingSlots(cls);
+          const status = String(cls.status ?? "").trim();
+          const statusValue = status.toLowerCase();
+          const safeRemaining =
+            typeof remainingSlots === "number" ? Math.max(0, remainingSlots) : null;
+
+          const isCancelled = statusValue === "cancelled";
+          const isFull = safeRemaining !== null && safeRemaining <= 0;
+
+          let disabledReason = "";
+          if (isCancelled) disabledReason = "Lớp đã hủy";
+          else if (isFull) disabledReason = "Lớp đã hết chỗ";
+
+          return {
+            id,
+            name: getClassDisplayName(cls),
+            schedule: getClassScheduleLabel(cls),
+            status,
+            remainingSlots: safeRemaining,
+            disabled: Boolean(disabledReason),
+            disabledReason,
+            defaultSessionPattern: buildDefaultSessionPatternFromClass(cls),
+            defaultWeeklyPattern: buildDefaultWeeklyPatternFromClass(cls),
+            programId: String(cls.programId ?? program.id ?? ""),
+            programName: String(cls.programName ?? program.name ?? ""),
+            levelId: String(cls.levelId ?? level.id ?? ""),
+            levelName: String(cls.levelName ?? cls.courseLevel ?? level.name ?? ""),
+          };
+        })
+        .filter((item) => {
+          if (!item.id) return false;
+
+          const targetProgramId = String(selectedActionRegistration?.programId || "");
+          const targetProgramName = String(selectedActionRegistration?.programName || "");
+          const targetLevelId = String(selectedActionRegistration?.levelId || "");
+          const targetLevelName = String(selectedActionRegistration?.levelName || "");
+
+          const sameProgramById = targetProgramId
+            ? item.programId === targetProgramId
+            : true;
+          const sameProgramByName = !targetProgramId && targetProgramName
+            ? normalizeText(item.programName) === normalizeText(targetProgramName)
+            : true;
+
+          if (!sameProgramById || !sameProgramByName) return false;
+
+          const sameLevelById = targetLevelId ? item.levelId === targetLevelId : true;
+          const sameLevelByName = !targetLevelId && targetLevelName
+            ? normalizeText(item.levelName) === normalizeText(targetLevelName)
+            : true;
+
+          if (!sameLevelById || !sameLevelByName) return false;
+
+          const currentClassId = String(selectedActionRegistration?.classId || "");
+          if (currentClassId && item.id === currentClassId) return false;
+
+          return String(item.status || "").toLowerCase() !== "cancelled";
+        }),
+    [
+      branchTransferClasses,
+      selectedActionRegistration?.classId,
+      selectedActionRegistration?.programId,
+      selectedActionRegistration?.programName,
+      selectedActionRegistration?.levelId,
+      selectedActionRegistration?.levelName,
     ],
   );
 
@@ -1425,8 +1568,8 @@ export default function StaffRegistrationOverview({
   const handleAssignManualClasses = async (
     entryType: EntryType = "immediate",
     firstStudyDate?: string,
-    _primaryWeeklyPattern?: WeeklyPatternEntry[] | null,
-    _secondaryWeeklyPattern?: WeeklyPatternEntry[] | null,
+    primaryWeeklyPattern?: WeeklyPatternEntry[] | null,
+    secondaryWeeklyPattern?: WeeklyPatternEntry[] | null,
     primaryFirstStudyDate?: string,
     secondaryFirstStudyDate?: string,
   ) => {
@@ -1450,24 +1593,6 @@ export default function StaffRegistrationOverview({
       return;
     }
 
-    if (!manualPrimarySessionPattern) {
-      toast({
-        title: "Thiếu lịch học",
-        description: "Vui lòng chọn ngày/giờ học cho lớp chương trình chính.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (hasSecondaryTrack && !manualSecondarySessionPattern) {
-      toast({
-        title: "Thiếu lịch học",
-        description: "Vui lòng chọn ngày/giờ học cho lớp chương trình song song.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     try {
       setIsAssigning(true);
       const normalizedFirstStudyDate = firstStudyDate?.trim() || undefined;
@@ -1482,7 +1607,8 @@ export default function StaffRegistrationOverview({
         entryType,
         track: "primary",
         firstStudyDate: normalizedPrimaryFirstStudyDate,
-        sessionSelectionPattern: manualPrimarySessionPattern,
+        sessionSelectionPattern: manualPrimarySessionPattern || undefined,
+        weeklyPattern: primaryWeeklyPattern || undefined,
       });
 
       targetRegistrationId = extractRegistrationIdFromAction(primaryResponse) || targetRegistrationId;
@@ -1493,7 +1619,8 @@ export default function StaffRegistrationOverview({
           entryType,
           track: "secondary",
           firstStudyDate: normalizedSecondaryFirstStudyDate,
-          sessionSelectionPattern: manualSecondarySessionPattern,
+          sessionSelectionPattern: manualSecondarySessionPattern || undefined,
+          weeklyPattern: secondaryWeeklyPattern || undefined,
         });
         targetRegistrationId = extractRegistrationIdFromAction(secondaryResponse) || targetRegistrationId;
       }
@@ -1642,6 +1769,104 @@ export default function StaffRegistrationOverview({
     }
   };
 
+  const openBranchTransferModal = async (row: Registration) => {
+    if (!row?.id || !row.classId) return;
+
+    try {
+      setSelectedActionRegistration(row);
+      setBranchTransferOpen(true);
+      setBranchTransferBranchId("");
+      setBranchTransferClassId("");
+      setBranchTransferEffectiveDate("");
+      setBranchTransferReason("");
+      setBranchTransferSessionPattern("");
+      setBranchTransferWeeklyPattern([]);
+      setBranchTransferClasses([]);
+      setIsLoadingBranchTransferBranches(true);
+
+      const response = await getAllBranchesPublic({
+        page: 1,
+        limit: 500,
+        isActive: true,
+      });
+      setBranchTransferBranches(pickBranchItems(response));
+    } catch (error) {
+      setBranchTransferOpen(false);
+      toast({
+        title: "Lỗi",
+        description: getErrorMessage(error, "Không thể tải danh sách chi nhánh."),
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingBranchTransferBranches(false);
+    }
+  };
+
+  const handleBranchTransfer = async () => {
+    if (!selectedActionRegistration?.id || !branchTransferBranchId || !branchTransferClassId) {
+      toast({
+        title: "Thiếu dữ liệu",
+        description: "Vui lòng chọn chi nhánh và lớp mới để chuyển.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!branchTransferEffectiveDate) {
+      toast({
+        title: "Thiếu dữ liệu",
+        description: "Vui lòng chọn ngày hiệu lực chuyển chi nhánh.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!branchTransferReason.trim()) {
+      toast({
+        title: "Thiếu dữ liệu",
+        description: "Vui lòng nhập lý do chuyển chi nhánh.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!Array.isArray(branchTransferWeeklyPattern) || branchTransferWeeklyPattern.length === 0) {
+      toast({
+        title: "Thiếu dữ liệu",
+        description: "Vui lòng chọn ít nhất một buổi học trong lịch lớp.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsBranchTransferring(true);
+      await transferRegistrationBranch(selectedActionRegistration.id, {
+        newBranchId: branchTransferBranchId,
+        newClassId: branchTransferClassId,
+        effectiveDate: branchTransferEffectiveDate,
+        reason: branchTransferReason.trim(),
+        weeklyPattern: branchTransferWeeklyPattern,
+      });
+
+      toast({
+        title: "Thành công",
+        description: "Đã chuyển chi nhánh cho đăng ký.",
+        variant: "success",
+      });
+      setBranchTransferOpen(false);
+      await refreshRegistrationData();
+    } catch (error) {
+      toast({
+        title: getErrorTitle(error),
+        description: getErrorMessage(error, "Không thể chuyển chi nhánh."),
+        variant: "destructive",
+      });
+    } finally {
+      setIsBranchTransferring(false);
+    }
+  };
+
   const handleCancelRegistration = async (row: Registration) => {
     if (!row?.id) return;
 
@@ -1678,6 +1903,59 @@ export default function StaffRegistrationOverview({
     if (!transferOpen) return;
     setTransferClassId("");
   }, [transferTrack, transferOpen]);
+
+  useEffect(() => {
+    if (!branchTransferOpen) return;
+    setBranchTransferClassId("");
+    setBranchTransferSessionPattern("");
+    setBranchTransferWeeklyPattern([]);
+
+    if (!branchTransferBranchId) {
+      setBranchTransferClasses([]);
+      return;
+    }
+
+    let isActive = true;
+    setIsLoadingBranchTransferClasses(true);
+    getAllClasses({
+      pageNumber: 1,
+      pageSize: 1000,
+      branchId: branchTransferBranchId,
+      programId: selectedActionRegistration?.programId || undefined,
+      levelId: selectedActionRegistration?.levelId || undefined,
+    })
+      .then((response) => {
+        if (!isActive) return;
+        const items = pickClassItems(response)
+          .map((item) => toRecord(item))
+          .filter((item) => item.id);
+        setBranchTransferClasses(items);
+      })
+      .catch((error) => {
+        if (!isActive) return;
+        setBranchTransferClasses([]);
+        toast({
+          title: "Lỗi",
+          description: getErrorMessage(error, "Không thể tải danh sách lớp của chi nhánh."),
+          variant: "destructive",
+        });
+      })
+      .finally(() => {
+        if (isActive) {
+          setIsLoadingBranchTransferClasses(false);
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [
+    branchTransferOpen,
+    branchTransferBranchId,
+    selectedActionRegistration?.programId,
+    selectedActionRegistration?.levelId,
+    toast,
+  ]);
 
   return (
     <div className="space-y-4">
@@ -1895,6 +2173,17 @@ export default function StaffRegistrationOverview({
                           </button>
                         )}
 
+                        {row.classId && row.status === "Studying" && (
+                          <button
+                            type="button"
+                            onClick={() => openBranchTransferModal(row)}
+                            title="Chuyển chi nhánh"
+                            className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
+                          >
+                            <MapPinned size={14} />
+                          </button>
+                        )}
+
                         {row.status !== "Cancelled" && row.status !== "Completed" && (
                           <button
                             type="button"
@@ -2032,6 +2321,30 @@ export default function StaffRegistrationOverview({
         isLoadingTransferClasses={isLoadingTransferClasses}
         isTransferring={isTransferring}
         onConfirmTransfer={handleTransferClass}
+      />
+
+      <RegistrationBranchTransferModal
+        isOpen={branchTransferOpen}
+        onClose={() => setBranchTransferOpen(false)}
+        selectedRegistration={selectedActionRegistration}
+        transferBranchId={branchTransferBranchId}
+        setTransferBranchId={setBranchTransferBranchId}
+        transferClassId={branchTransferClassId}
+        setTransferClassId={setBranchTransferClassId}
+        transferEffectiveDate={branchTransferEffectiveDate}
+        setTransferEffectiveDate={setBranchTransferEffectiveDate}
+        transferReason={branchTransferReason}
+        setTransferReason={setBranchTransferReason}
+        transferSessionPattern={branchTransferSessionPattern}
+        setTransferSessionPattern={setBranchTransferSessionPattern}
+        transferWeeklyPattern={branchTransferWeeklyPattern}
+        setTransferWeeklyPattern={setBranchTransferWeeklyPattern}
+        branchOptions={branchTransferBranchOptions}
+        classOptions={branchTransferClassOptions}
+        isLoadingBranches={isLoadingBranchTransferBranches}
+        isLoadingClasses={isLoadingBranchTransferClasses}
+        isTransferring={isBranchTransferring}
+        onConfirmTransfer={handleBranchTransfer}
       />
 
       <ConfirmModal

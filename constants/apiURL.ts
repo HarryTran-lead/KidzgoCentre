@@ -871,6 +871,7 @@ export const REGISTRATION_ENDPOINTS = {
   ASSIGN_CLASS: (id: string) => `/api/registrations/${id}/assign-class`,
   WAITING_LIST: '/api/registrations/waiting-list',
   TRANSFER_CLASS: (id: string) => `/api/registrations/${id}/transfer-class`,
+  TRANSFER_BRANCH: (id: string) => `/api/registrations/${id}/transfer-branch`,
   UPGRADE: (id: string) => `/api/registrations/${id}/upgrade`,
 } as const;
 
@@ -906,6 +907,7 @@ export const BACKEND_REGISTRATION_ENDPOINTS = {
   ASSIGN_CLASS: (id: string) => `/registrations/${id}/assign-class`,
   WAITING_LIST: '/registrations/waiting-list',
   TRANSFER_CLASS: (id: string) => `/registrations/${id}/transfer-class`,
+  TRANSFER_BRANCH: (id: string) => `/registrations/${id}/transfer-branch`,
   UPGRADE: (id: string) => `/registrations/${id}/upgrade`,
 } as const;
 
