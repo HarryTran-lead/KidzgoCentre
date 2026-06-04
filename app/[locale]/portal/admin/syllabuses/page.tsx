@@ -88,7 +88,7 @@ type BranchLookupItem = {
 };
 
 const SYLLABUS_ARCHIVE_MAX_MB = Number(
-  process.env.NEXT_PUBLIC_SYLLABUS_ARCHIVE_MAX_MB ?? "30",
+  process.env.NEXT_PUBLIC_SYLLABUS_ARCHIVE_MAX_MB ?? "50",
 );
 const SYLLABUS_ARCHIVE_MAX_BYTES = Math.max(1, SYLLABUS_ARCHIVE_MAX_MB) * 1024 * 1024;
 

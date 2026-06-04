@@ -13,8 +13,8 @@ export interface SlotType {
   teacherType: SlotTeacherType;
   usageType: SlotUsageType;
   isActive: boolean;
-  createdAt?: string;
-  updatedAt?: string;
+  createdAt?: string | null;
+  updatedAt?: string | null;
 }
 
 export interface SlotTypeQueryParams {

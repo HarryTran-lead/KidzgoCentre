@@ -13,8 +13,8 @@ export interface LearningTicketType {
   allowedTeacherTypes: SlotTeacherType[];
   allowedUsageTypes: SlotUsageType[];
   isActive: boolean;
-  createdAt?: string;
-  updatedAt?: string;
+  createdAt?: string | null;
+  updatedAt?: string | null;
 }
 
 export interface LearningTicketTypeQueryParams {

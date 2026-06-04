@@ -19,8 +19,8 @@ export interface TicketTypeCompatibility {
   slotTypeCode?: string | null;
   slotTypeName?: string | null;
   isCompatible: boolean;
-  createdAt?: string;
-  updatedAt?: string;
+  createdAt?: string | null;
+  updatedAt?: string | null;
 }
 
 export interface TicketTypeCompatibilityQueryParams {

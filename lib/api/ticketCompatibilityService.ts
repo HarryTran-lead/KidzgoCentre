@@ -38,8 +38,8 @@ function mapItem(item: unknown): TicketTypeCompatibility {
     slotTypeCode: (record.slotTypeCode as string | null | undefined) ?? null,
     slotTypeName: (record.slotTypeName as string | null | undefined) ?? null,
     isCompatible: Boolean(record.isCompatible),
-    createdAt: (record.createdAt as string | null | undefined) ?? null,
-    updatedAt: (record.updatedAt as string | null | undefined) ?? null,
+    createdAt: typeof record.createdAt === "string" ? record.createdAt : undefined,
+    updatedAt: typeof record.updatedAt === "string" ? record.updatedAt : undefined,
   };
 }
 

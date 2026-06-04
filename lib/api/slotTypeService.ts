@@ -36,8 +36,8 @@ function mapItem(item: unknown): SlotType {
     teacherType: (record.teacherType as SlotType["teacherType"] | undefined) ?? "None",
     usageType: (record.usageType as SlotType["usageType"] | undefined) ?? "None",
     isActive: Boolean(record.isActive ?? true),
-    createdAt: (record.createdAt as string | null | undefined) ?? null,
-    updatedAt: (record.updatedAt as string | null | undefined) ?? null,
+    createdAt: typeof record.createdAt === "string" ? record.createdAt : undefined,
+    updatedAt: typeof record.updatedAt === "string" ? record.updatedAt : undefined,
   };
 }
 
