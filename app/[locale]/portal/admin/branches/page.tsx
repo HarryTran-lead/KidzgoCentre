@@ -45,6 +45,7 @@ import type {
 import { toast } from "@/hooks/use-toast";
 import BranchFormModal from "@/components/portal/branches/BranchFormModal";
 import BranchDetailModal from "@/components/admin/branches/BranchDetailModal";
+import BranchStatsModal from "@/components/admin/branches/BranchStatsModal";
 import ConfirmModal from "@/components/ConfirmModal";
 
 function Badge({
@@ -236,6 +237,8 @@ export default function BranchesPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showActivateModal, setShowActivateModal] = useState(false);
+  const [showStatsModal, setShowStatsModal] = useState(false);
+  const [statsModalType, setStatsModalType] = useState<"students" | "classes" | "teachers" | null>(null);
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPageLoaded, setIsPageLoaded] = useState(false);
@@ -625,6 +628,13 @@ export default function BranchesPage() {
     setShowEditModal(true);
   };
 
+  // Handler: Open Stats Modal
+  const handleOpenStatsModal = (branch: Branch, type: "students" | "classes" | "teachers") => {
+    setSelectedBranch(branch);
+    setStatsModalType(type);
+    setShowStatsModal(true);
+  };
+
   const filteredBranches = useMemo(() => {
     let result = branches;
 
@@ -806,8 +816,8 @@ export default function BranchesPage() {
           label="Tổng giáo viên"
           value={stats.totalTeachers}
           icon={<Globe size={18} />}
-          color="from-purple-500 to-violet-500"
-          iconBg="from-violet-600 to-purple-600"
+          color="from-amber-500 to-amber-500"
+          iconBg="from-amber-400 to-amber-600"
         />
       </div>
 
@@ -1022,28 +1032,31 @@ export default function BranchesPage() {
                         </div>
                       </td>
                       <td className="py-4 px-6 text-center">
-                        <div className="flex flex-col items-center">
-                          <span className="text-sm text-gray-500">
+                        <div className="flex flex-col items-center cursor-pointer hover:text-red-600 transition-colors group relative" onClick={() => handleOpenStatsModal(branch, "students")} title="Bấm để xem danh sách">
+                          <span className="text-sm text-gray-500 hover:text-red-600 font-medium">
                             {userStats[branch.id]?.students ??
                               branch.totalStudents ??
                               0}
                           </span>
+
                         </div>
                       </td>
                       <td className="py-4 px-6 text-center">
-                        <div className="flex flex-col items-center">
-                          <span className="text-sm text-gray-500">
+                        <div className="flex flex-col items-center cursor-pointer hover:text-red-600 transition-colors group relative" onClick={() => handleOpenStatsModal(branch, "classes")} title="Bấm để xem danh sách">
+                          <span className="text-sm text-gray-500 hover:text-red-600 font-medium">
                             {classStats[branch.id] ?? branch.totalClasses ?? 0}
                           </span>
+
                         </div>
                       </td>
                       <td className="py-4 px-6 text-center">
-                        <div className="flex flex-col items-center">
-                          <span className="text-sm text-gray-500">
+                        <div className="flex flex-col items-center cursor-pointer hover:text-red-600 transition-colors group relative" onClick={() => handleOpenStatsModal(branch, "teachers")} title="Bấm để xem danh sách">
+                          <span className="text-sm text-gray-500 hover:text-red-600 font-medium">
                             {userStats[branch.id]?.teachers ??
                               branch.totalTeachers ??
                               0}
                           </span>
+
                         </div>
                       </td>
                       <td className="py-4 px-6 text-center">
@@ -1056,7 +1069,7 @@ export default function BranchesPage() {
                             className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                             title="Xem chi tiết"
                           >
-                            <EyeIcon size={12} />
+                            <EyeIcon size={14} />
                           </button>
                           <button
                             onClick={(e) => {
@@ -1066,7 +1079,7 @@ export default function BranchesPage() {
                             className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                             title="Chỉnh sửa"
                           >
-                            <PencilLine size={12} />
+                            <PencilLine size={14} />
                           </button>
                           {branch.isActive ? (
                             <button
@@ -1077,7 +1090,7 @@ export default function BranchesPage() {
                               className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                               title="Vô hiệu hóa"
                             >
-                              <Power size={12} />
+                              <Power size={14} />
                             </button>
                           ) : (
                             <button
@@ -1088,7 +1101,7 @@ export default function BranchesPage() {
                               className="p-2 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
                               title="Kích hoạt"
                             >
-                              <RefreshCw size={12} />
+                              <RefreshCw size={14} />
                             </button>
                           )}
                         </div>
@@ -1217,6 +1230,19 @@ export default function BranchesPage() {
         cancelText="Hủy"
         variant="success"
         isLoading={isSubmitting}
+      />
+
+      {/* Stats Modal */}
+      <BranchStatsModal
+        isOpen={showStatsModal && !!selectedBranch && !!statsModalType}
+        onClose={() => {
+          setShowStatsModal(false);
+          setStatsModalType(null);
+          setSelectedBranch(null);
+        }}
+        branchId={selectedBranch?.id ?? ""}
+        branchName={selectedBranch?.name ?? ""}
+        statsType={statsModalType ?? "students"}
       />
     </div>
   );
