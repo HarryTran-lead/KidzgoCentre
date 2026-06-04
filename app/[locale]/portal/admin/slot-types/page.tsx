@@ -1,691 +1,627 @@
-"use client";
+'use client';
 
-import { useEffect, useState, useMemo } from "react";
-import {
-  ArrowDown,
-  ArrowUp,
-  ArrowUpDown,
-  CheckCircle,
-  ChevronLeft,
-  ChevronRight,
-  FileText,
-  Layers,
-  Loader2,
-  Pencil,
-  Plus,
-  Search,
-  Shield,
-  Trash2,
-  Type,
-  X,
-  XCircle,
-} from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import {
-  getSlotTypes,
-  createSlotType,
-  updateSlotType,
-  deleteSlotType,
-} from "@/lib/api/slotTypeService";
-import ConfirmModal from "@/components/ConfirmModal";
-import type { SlotType } from "@/types/slot-type";
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { FormEvent } from 'react';
+import { CheckCircle2, Layers, Pencil, Plus, Search, Trash2, XCircle } from 'lucide-react';
 
-function cn(...a: Array<string | false | null | undefined>) {
-  return a.filter(Boolean).join(" ");
-}
+type SlotDayGroup = 'None' | 'Weekday' | 'Weekend';
+type SlotTimeBand = 'None' | 'Morning' | 'Afternoon' | 'Evening';
+type SlotTeacherType = 'None' | 'Standard' | 'Native';
+type SlotUsageType = 'None' | 'Standard' | 'Makeup' | 'Remedial' | 'Review' | 'Custom';
+type ActiveFilter = 'all' | 'active' | 'inactive';
 
-type FormData = {
+type SlotType = {
+  id: string;
   code: string;
   name: string;
-  description: string;
+  description?: string | null;
+  dayGroup?: SlotDayGroup | null;
+  timeBand?: SlotTimeBand | null;
+  teacherType?: SlotTeacherType | null;
+  usageType?: SlotUsageType | null;
   isActive: boolean;
 };
 
-const emptyForm: FormData = { code: "", name: "", description: "", isActive: true };
+type SlotTypeForm = {
+  code: string;
+  name: string;
+  description: string;
+  dayGroup: SlotDayGroup;
+  timeBand: SlotTimeBand;
+  teacherType: SlotTeacherType;
+  usageType: SlotUsageType;
+  isActive: boolean;
+};
 
-function StatCard({
-  title,
-  value,
-  icon,
-  color,
-}: {
-  title: string;
-  value: string;
-  icon: React.ReactNode;
-  color: string;
-}) {
-  return (
-    <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-105">
-      <div className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r ${color}`}></div>
-      <div className="relative flex items-center justify-between gap-3">
-        <div className={`p-2 rounded-xl bg-gradient-to-r ${color} text-white shadow-sm flex-shrink-0`}>
-          {icon}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="text-sm font-medium text-gray-600 truncate">{title}</div>
-          <div className="text-xl font-bold text-gray-900 leading-tight">{value}</div>
-        </div>
-      </div>
-    </div>
-  );
+type ApiEnvelope<T> = {
+  isSuccess?: boolean;
+  data?: T;
+  detail?: string;
+  title?: string;
+  errors?: Array<{ description?: string; code?: string }>;
+};
+
+type Option<T extends string> = {
+  value: T;
+  label: string;
+  description?: string;
+};
+
+const emptyForm: SlotTypeForm = {
+  code: '',
+  name: '',
+  description: '',
+  dayGroup: 'None',
+  timeBand: 'None',
+  teacherType: 'None',
+  usageType: 'None',
+  isActive: true,
+};
+
+const dayGroupOptions: Array<Option<SlotDayGroup>> = [
+  { value: 'None', label: 'Không gắn tag', description: 'Chưa xác định ngày thường hay cuối tuần.' },
+  { value: 'Weekday', label: 'Ngày thường', description: 'Slot diễn ra từ thứ Hai đến thứ Sáu.' },
+  { value: 'Weekend', label: 'Cuối tuần', description: 'Slot diễn ra vào thứ Bảy hoặc Chủ nhật.' },
+];
+
+const timeBandOptions: Array<Option<SlotTimeBand>> = [
+  { value: 'None', label: 'Không gắn tag', description: 'Chưa xác định khung giờ.' },
+  { value: 'Morning', label: 'Sáng', description: 'Các slot buổi sáng.' },
+  { value: 'Afternoon', label: 'Chiều', description: 'Các slot buổi chiều.' },
+  { value: 'Evening', label: 'Tối', description: 'Các slot buổi tối.' },
+];
+
+const teacherTypeOptions: Array<Option<SlotTeacherType>> = [
+  { value: 'None', label: 'Không gắn tag', description: 'Chưa xác định loại giáo viên.' },
+  { value: 'Standard', label: 'Giáo viên thường', description: 'Lớp với giáo viên tiêu chuẩn.' },
+  { value: 'Native', label: 'Giáo viên nước ngoài', description: 'Lớp với giáo viên nước ngoài.' },
+];
+
+const usageTypeOptions: Array<Option<SlotUsageType>> = [
+  { value: 'None', label: 'Không gắn tag', description: 'Chưa xác định mục đích slot.' },
+  { value: 'Standard', label: 'Lớp thường', description: 'Slot học theo chương trình chính.' },
+  { value: 'Makeup', label: 'Lớp bù', description: 'Slot dùng để học bù.' },
+  { value: 'Remedial', label: 'Phụ đạo', description: 'Slot hỗ trợ học sinh cần củng cố.' },
+  { value: 'Review', label: 'Ôn tập', description: 'Slot dùng để ôn tập hoặc tổng kết.' },
+  { value: 'Custom', label: 'Khác', description: 'Loại slot đặc biệt do vận hành tự định nghĩa.' },
+];
+
+const labelMaps = {
+  dayGroup: Object.fromEntries(dayGroupOptions.map((option) => [option.value, option.label])),
+  timeBand: Object.fromEntries(timeBandOptions.map((option) => [option.value, option.label])),
+  teacherType: Object.fromEntries(teacherTypeOptions.map((option) => [option.value, option.label])),
+  usageType: Object.fromEntries(usageTypeOptions.map((option) => [option.value, option.label])),
+} as Record<keyof Pick<SlotType, 'dayGroup' | 'timeBand' | 'teacherType' | 'usageType'>, Record<string, string>>;
+
+function cn(...classes: Array<string | false | null | undefined>) {
+  return classes.filter(Boolean).join(' ');
 }
 
-function StatusBadge({ isActive }: { isActive: boolean }) {
-  return isActive ? (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200">
-      <CheckCircle size={12} /> Hoạt động
-    </span>
-  ) : (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-blue-50 to-blue-100 text-blue-700 border border-blue-200">
-      <XCircle size={12} /> Tạm dừng
-    </span>
-  );
+function normalizeEnum<T extends string>(value: unknown, options: Array<Option<T>>, fallback: T): T {
+  return options.some((option) => option.value === value) ? (value as T) : fallback;
 }
 
-function FormModal({
-  open,
-  onClose,
-  onSubmit,
-  mode,
-  initial,
-}: {
-  open: boolean;
-  onClose: () => void;
-  onSubmit: (data: FormData) => void;
-  mode: "create" | "edit";
-  initial?: FormData;
-}) {
-  const [form, setForm] = useState<FormData>(emptyForm);
-  const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
+function normalizeSlotType(item: SlotType): SlotType {
+  return {
+    ...item,
+    dayGroup: normalizeEnum(item.dayGroup, dayGroupOptions, 'None'),
+    timeBand: normalizeEnum(item.timeBand, timeBandOptions, 'None'),
+    teacherType: normalizeEnum(item.teacherType, teacherTypeOptions, 'None'),
+    usageType: normalizeEnum(item.usageType, usageTypeOptions, 'None'),
+  };
+}
 
-  useEffect(() => {
-    if (open) {
-      setForm(initial ?? emptyForm);
-      setErrors({});
+function cleanToken(token: string) {
+  const normalized = token.replace(/^Bearer\s+/i, '').trim();
+  if (!normalized || normalized === 'null' || normalized === 'undefined' || normalized.length < 10) return null;
+  return normalized;
+}
+
+function findToken(value: unknown, depth = 0): string | null {
+  if (depth > 5 || value == null) return null;
+  if (typeof value === 'string') return cleanToken(value);
+  if (typeof value !== 'object') return null;
+
+  const entries = Object.entries(value as Record<string, unknown>);
+  for (const [key, nestedValue] of entries) {
+    if (/access.*token|jwt|id.*token/i.test(key) && typeof nestedValue === 'string') {
+      const token = cleanToken(nestedValue);
+      if (token) return token;
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }
 
-  if (!open) return null;
+  for (const [, nestedValue] of entries) {
+    const token = findToken(nestedValue, depth + 1);
+    if (token) return token;
+  }
 
-  const handleChange = (field: keyof FormData, value: string | boolean) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
-    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
-  };
-
-  const validate = () => {
-    const next: Partial<Record<keyof FormData, string>> = {};
-    if (!form.code.trim()) next.code = "Code là bắt buộc";
-    if (form.code.length > 100) next.code = "Code tối đa 100 ký tự";
-    if (!form.name.trim()) next.name = "Tên là bắt buộc";
-    if (form.name.length > 255) next.name = "Tên tối đa 255 ký tự";
-    if (form.description.length > 500) next.description = "Mô tả tối đa 500 ký tự";
-    setErrors(next);
-    return Object.keys(next).length === 0;
-  };
-
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validate()) return;
-    onSubmit(form);
-  };
-
-  return (
-    <div 
-      className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/55 backdrop-blur-sm"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div className="w-full max-w-lg bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
-        <div className="bg-gradient-to-r from-red-600 to-red-700 p-5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-full bg-white/20">
-              <Layers size={20} className="text-white" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-white">
-                {mode === "edit" ? "Cập nhật loại slot" : "Tạo loại slot mới"}
-              </h2>
-              <p className="text-xs text-red-100">Phân loại runtime buổi học</p>
-            </div>
-          </div>
-          <button onClick={onClose} className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer">
-            <X size={20} className="text-white" />
-          </button>
-        </div>
-
-        <form onSubmit={submit} className="p-6 space-y-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-red-100 text-red-600 flex-shrink-0">
-                <Layers size={14} />
-              </div>
-              <label className="text-sm font-semibold text-gray-700">
-                Code <span className="text-red-500">*</span>
-              </label>
-            </div>
-            <input
-              type="text"
-              value={form.code}
-              onChange={(e) => handleChange("code", e.target.value.toUpperCase())}
-              placeholder="VD: STANDARD, PREMIUM, NATIVE_SUPPORT"
-              className={cn(
-                "w-full px-4 py-2.5 rounded-xl border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-red-300",
-                errors.code ? "border-red-400" : "border-gray-200"
-              )}
-            />
-            {errors.code && <p className="text-xs text-red-500">{errors.code}</p>}
-          </div>
-
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-red-100 text-red-600 flex-shrink-0">
-                <Type size={14} />
-              </div>
-              <label className="text-sm font-semibold text-gray-700">
-                Tên <span className="text-red-500">*</span>
-              </label>
-            </div>
-            <input
-              type="text"
-              value={form.name}
-              onChange={(e) => handleChange("name", e.target.value)}
-              placeholder="VD: Lớp thường, Lớp native support"
-              className={cn(
-                "w-full px-4 py-2.5 rounded-xl border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-red-300",
-                errors.name ? "border-red-400" : "border-gray-200"
-              )}
-            />
-            {errors.name && <p className="text-xs text-red-500">{errors.name}</p>}
-          </div>
-
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-red-100 text-red-600 flex-shrink-0">
-                <FileText size={14} />
-              </div>
-              <label className="text-sm font-semibold text-gray-700">Mô tả</label>
-            </div>
-            <textarea
-              value={form.description}
-              onChange={(e) => handleChange("description", e.target.value)}
-              rows={2}
-              placeholder="Mô tả loại slot (tuỳ chọn)"
-              className={cn(
-                "w-full px-4 py-2.5 rounded-xl border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-red-300 resize-none",
-                errors.description ? "border-red-400" : "border-gray-200"
-              )}
-            />
-            {errors.description && <p className="text-xs text-red-500">{errors.description}</p>}
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-red-100 text-red-600 flex-shrink-0">
-                <Shield size={14} />
-              </div>
-              <label className="text-sm font-semibold text-gray-700">Hoạt động</label>
-            </div>
-            <button
-              type="button"
-              onClick={() => handleChange("isActive", !form.isActive)}
-              className={cn(
-                "relative inline-flex h-7 w-14 items-center rounded-full transition-colors cursor-pointer",
-                form.isActive ? "bg-red-600" : "bg-gray-300"
-              )}
-            >
-              <span
-                className={cn(
-                  "inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform",
-                  form.isActive ? "translate-x-8" : "translate-x-1"
-                )}
-              />
-            </button>
-          </div>
-
-          <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-5 py-2 rounded-xl border border-gray-300 text-sm text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer"
-            >
-              Hủy
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-sm text-white font-semibold hover:shadow-lg transition-all cursor-pointer"
-            >
-              {mode === "edit" ? "Lưu thay đổi" : "Tạo mới"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
+  return null;
 }
 
-export default function SlotTypePage() {
-  const { toast } = useToast();
-  
-  const [items, setItems] = useState<SlotType[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isPageLoaded, setIsPageLoaded] = useState(false);
-  const [search, setSearch] = useState("");
-  const [filterActive, setFilterActive] = useState<"all" | "active" | "inactive">("all");
-  const [sortColumn, setSortColumn] = useState<string | null>(null);
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState<"create" | "edit">("create");
-  const [editTarget, setEditTarget] = useState<SlotType | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<SlotType | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+function readStoredToken(storage: Storage, key: string) {
+  const rawValue = storage.getItem(key);
+  if (!rawValue) return null;
+  const trimmed = rawValue.trim();
+  if (!trimmed) return null;
 
-  const load = async () => {
-    setLoading(true);
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
     try {
-      const data = await getSlotTypes();
-      setItems(data);
+      return findToken(JSON.parse(trimmed) as unknown);
     } catch {
-      toast({ title: "Lỗi", description: "Không thể tải danh sách loại slot.", variant: "destructive" });
-    } finally {
-      setLoading(false);
-      setIsPageLoaded(true);
+      return null;
     }
-  };
+  }
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load(); }, []);
+  return cleanToken(trimmed);
+}
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [search, filterActive]);
+function getClientAccessToken() {
+  if (typeof window === 'undefined') return null;
+  const keys = ['accessToken', 'access_token', 'authToken', 'token', 'jwt', 'idToken'];
 
-  const filtered = items.filter(
-    (x) =>
-      (x.code.toLowerCase().includes(search.toLowerCase()) ||
-        x.name.toLowerCase().includes(search.toLowerCase())) &&
-      (filterActive === "all" ||
-        (filterActive === "active" && x.isActive) ||
-        (filterActive === "inactive" && !x.isActive))
+  for (const key of keys) {
+    const token = readStoredToken(window.localStorage, key) ?? readStoredToken(window.sessionStorage, key);
+    if (token) return token;
+  }
+
+  for (const storage of [window.localStorage, window.sessionStorage]) {
+    for (let index = 0; index < storage.length; index += 1) {
+      const key = storage.key(index);
+      if (!key || !/auth|token|jwt/i.test(key)) continue;
+      const token = readStoredToken(storage, key);
+      if (token) return token;
+    }
+  }
+
+  return null;
+}
+
+function buildRequestHeaders(initHeaders?: HeadersInit) {
+  const headers = new Headers(initHeaders);
+  if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+  const token = getClientAccessToken();
+  if (token && !headers.has('Authorization')) headers.set('Authorization', `Bearer ${token}`);
+  return headers;
+}
+
+async function apiRequest<T>(url: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(url, {
+    ...init,
+    credentials: 'include',
+    headers: buildRequestHeaders(init?.headers),
+  });
+
+  const payload = (await response.json().catch(() => null)) as ApiEnvelope<T> | null;
+  if (!response.ok) {
+    const validationMessage = payload?.errors?.find((error) => error.description)?.description;
+    throw new Error(validationMessage ?? payload?.detail ?? payload?.title ?? 'Không thể xử lý yêu cầu.');
+  }
+
+  return ((payload?.data ?? payload) as T) ?? ({} as T);
+}
+
+function extractItems<T>(payload: unknown): T[] {
+  if (Array.isArray(payload)) return payload as T[];
+  if (payload && typeof payload === 'object' && Array.isArray((payload as { items?: T[] }).items)) {
+    return (payload as { items: T[] }).items;
+  }
+  return [];
+}
+
+function TagBadge({ label, tone = 'slate' }: { label: string; tone?: 'slate' | 'red' | 'emerald' }) {
+  return (
+    <span
+      className={cn(
+        'inline-flex rounded-full border px-3 py-1 text-xs font-bold',
+        tone === 'slate' && 'border-slate-200 bg-slate-50 text-slate-600',
+        tone === 'red' && 'border-red-100 bg-red-50 text-red-700',
+        tone === 'emerald' && 'border-emerald-200 bg-emerald-50 text-emerald-700',
+      )}
+    >
+      {label}
+    </span>
   );
+}
 
-  const handleSort = (column: string) => {
-    if (sortColumn === column) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-    } else {
-      setSortColumn(column);
-      setSortDirection("asc");
-    }
-  };
-
-  const getSortIcon = (column: string) => {
-    if (sortColumn !== column) return <ArrowUpDown size={14} className="text-gray-400" />;
-    return sortDirection === "asc" ? <ArrowUp size={14} /> : <ArrowDown size={14} />;
-  };
-
-  const sortedItems = useMemo(() => {
-    const sorted = [...filtered];
-    if (!sortColumn) return sorted;
-    sorted.sort((a, b) => {
-      let aVal: string | boolean = "";
-      let bVal: string | boolean = "";
-      if (sortColumn === "code") {
-        aVal = a.code;
-        bVal = b.code;
-      } else if (sortColumn === "name") {
-        aVal = a.name;
-        bVal = b.name;
-      } else if (sortColumn === "isActive") {
-        aVal = a.isActive ? "z" : "a";
-        bVal = b.isActive ? "z" : "a";
-      }
-      const cmp = String(aVal).localeCompare(String(bVal));
-      return sortDirection === "asc" ? cmp : -cmp;
-    });
-    return sorted;
-  }, [filtered, sortColumn, sortDirection]);
-
-  const totalPages = Math.ceil(sortedItems.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedItems = sortedItems.slice(startIndex, endIndex);
-
-  const openCreate = () => {
-    setModalMode("create");
-    setEditTarget(null);
-    setModalOpen(true);
-  };
-
-  const openEdit = (item: SlotType) => {
-    setModalMode("edit");
-    setEditTarget(item);
-    setModalOpen(true);
-  };
-
-  const handleSubmit = async (form: FormData) => {
-    setSaving(true);
-    try {
-      if (modalMode === "create") {
-        await createSlotType({
-          code: form.code,
-          name: form.name,
-          description: form.description || undefined,
-          isActive: form.isActive,
-        });
-        toast({ title: "Thành công", description: "Đã tạo loại slot mới." });
-      } else if (editTarget) {
-        await updateSlotType(editTarget.id, {
-          code: form.code,
-          name: form.name,
-          description: form.description || undefined,
-          isActive: form.isActive,
-        });
-        toast({ title: "Thành công", description: "Đã cập nhật loại slot." });
-      }
-      setModalOpen(false);
-      await load();
-    } catch (err) {
-      const error = err instanceof Error ? err.message : "Có lỗi xảy ra.";
-      toast({ title: "Lỗi", description: error, variant: "destructive" });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
-    setDeleting(true);
-    try {
-      await deleteSlotType(deleteTarget.id);
-      toast({ title: "Đã xóa", description: `Đã xóa loại slot "${deleteTarget.name}".` });
-      setDeleteTarget(null);
-      await load();
-    } catch (err) {
-      const error = err instanceof Error ? err.message : "Không thể xóa.";
-      toast({ title: "Lỗi", description: error, variant: "destructive" });
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  const editInitial = editTarget
-    ? {
-        code: editTarget.code,
-        name: editTarget.name,
-        description: editTarget.description ?? "",
-        isActive: editTarget.isActive,
-      }
-    : undefined;
+function SelectField<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: T;
+  options: Array<Option<T>>;
+  onChange: (value: T) => void;
+}) {
+  const selected = options.find((option) => option.value === value) ?? options[0];
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className={`flex items-center justify-between flex-wrap gap-4 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
-        <div className="flex items-center gap-4">
-          <div className="rounded-xl bg-gradient-to-r from-red-600 to-red-700 p-3 text-white shadow-lg">
-            <Layers size={25} />
+    <label className="space-y-2">
+      <span className="text-sm font-bold text-slate-800">{label}</span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value as T)}
+        className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base outline-none transition focus:border-red-300 focus:ring-4 focus:ring-red-50"
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      {selected.description && <span className="block text-sm leading-5 text-slate-500">{selected.description}</span>}
+    </label>
+  );
+}
+
+export default function SlotTypesPage() {
+  const [slotTypes, setSlotTypes] = useState<SlotType[]>([]);
+  const [form, setForm] = useState<SlotTypeForm>(emptyForm);
+  const [editingItem, setEditingItem] = useState<SlotType | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [activeFilter, setActiveFilter] = useState<ActiveFilter>('all');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadSlotTypes = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const payload = await apiRequest<unknown>('/api/slot-types');
+      setSlotTypes(extractItems<SlotType>(payload).map(normalizeSlotType));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Không tải được danh sách loại slot.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadSlotTypes();
+  }, [loadSlotTypes]);
+
+  const counts = useMemo(
+    () => ({
+      total: slotTypes.length,
+      active: slotTypes.filter((item) => item.isActive).length,
+      inactive: slotTypes.filter((item) => !item.isActive).length,
+      missingTags: slotTypes.filter(
+        (item) => item.dayGroup === 'None' || item.timeBand === 'None' || item.teacherType === 'None' || item.usageType === 'None',
+      ).length,
+    }),
+    [slotTypes],
+  );
+
+  const filteredSlotTypes = useMemo(() => {
+    const keyword = searchTerm.trim().toLowerCase();
+    return slotTypes.filter((item) => {
+      const matchKeyword = !keyword || item.code.toLowerCase().includes(keyword) || item.name.toLowerCase().includes(keyword);
+      const matchStatus = activeFilter === 'all' || (activeFilter === 'active' ? item.isActive : !item.isActive);
+      return matchKeyword && matchStatus;
+    });
+  }, [activeFilter, searchTerm, slotTypes]);
+
+  function openCreateForm() {
+    setEditingItem(null);
+    setForm(emptyForm);
+    setIsFormOpen(true);
+    setError(null);
+    setMessage(null);
+  }
+
+  function closeForm() {
+    setIsFormOpen(false);
+    setEditingItem(null);
+    setForm(emptyForm);
+  }
+
+  function startEdit(item: SlotType) {
+    const normalized = normalizeSlotType(item);
+    setEditingItem(normalized);
+    setForm({
+      code: normalized.code,
+      name: normalized.name,
+      description: normalized.description ?? '',
+      dayGroup: normalizeEnum(normalized.dayGroup, dayGroupOptions, 'None'),
+      timeBand: normalizeEnum(normalized.timeBand, timeBandOptions, 'None'),
+      teacherType: normalizeEnum(normalized.teacherType, teacherTypeOptions, 'None'),
+      usageType: normalizeEnum(normalized.usageType, usageTypeOptions, 'None'),
+      isActive: normalized.isActive,
+    });
+    setIsFormOpen(true);
+    setMessage(null);
+    setError(null);
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setMessage(null);
+
+    if (!form.code.trim() || !form.name.trim()) {
+      setError('Vui lòng nhập đầy đủ mã và tên loại slot.');
+      return;
+    }
+
+    const body = {
+      code: form.code.trim().toUpperCase(),
+      name: form.name.trim(),
+      description: form.description.trim() || null,
+      dayGroup: form.dayGroup,
+      timeBand: form.timeBand,
+      teacherType: form.teacherType,
+      usageType: form.usageType,
+      isActive: form.isActive,
+    };
+
+    setIsSaving(true);
+    try {
+      if (editingItem) {
+        await apiRequest(`/api/slot-types/${editingItem.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(body),
+        });
+        setMessage('Đã cập nhật loại slot.');
+      } else {
+        await apiRequest('/api/slot-types', {
+          method: 'POST',
+          body: JSON.stringify(body),
+        });
+        setMessage('Đã tạo loại slot mới.');
+      }
+
+      closeForm();
+      await loadSlotTypes();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Không lưu được loại slot.');
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleDelete(item: SlotType) {
+    if (!window.confirm(`Xóa loại slot "${item.name}"?`)) return;
+
+    setError(null);
+    setMessage(null);
+    try {
+      await apiRequest(`/api/slot-types/${item.id}`, { method: 'DELETE' });
+      setMessage('Đã xóa loại slot.');
+      await loadSlotTypes();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Không xóa được loại slot.');
+    }
+  }
+
+  return (
+    <div className="h-full w-full max-w-none space-y-6 p-6 text-slate-900">
+      <section className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-center gap-5">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-red-600 text-white shadow-lg shadow-red-200">
+            <Layers className="h-8 w-8" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Loại slot buổi học</h1>
-            <p className="text-sm text-gray-500 mt-1">Phân loại runtime buổi học — STANDARD, NATIVE_SUPPORT, WORKSHOP...</p>
+            <h1 className="text-3xl font-extrabold tracking-tight text-slate-950">Loại slot buổi học</h1>
+            <p className="mt-2 flex items-center gap-2 text-lg text-slate-600">
+              <span className="text-red-600">✣</span>
+              Danh sách slot type và metadata dùng để tự động khớp với vé học
+            </p>
           </div>
         </div>
         <button
-          onClick={openCreate}
-          className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer flex-shrink-0"
+          type="button"
+          onClick={openCreateForm}
+          className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-red-600 px-7 text-base font-bold text-white shadow-lg shadow-red-100 transition hover:bg-red-700"
         >
-          <Plus size={16} /> Tạo mới
+          <Plus className="h-5 w-5" />
+          Tạo loại slot mới
         </button>
-      </div>
+      </section>
 
-      {/* Stats Overview */}
-      <div className={`grid gap-4 md:grid-cols-3 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-        <StatCard
-          title="Tổng loại slot"
-          value={items.length.toString()}
-          icon={<Layers size={20} />}
-          color="from-red-600 to-red-700"
-        />
-        <StatCard
-          title="Đang hoạt động"
-          value={items.filter((x) => x.isActive).length.toString()}
-          icon={<CheckCircle size={20} />}
-          color="from-emerald-500 to-teal-500"
-        />
-        <StatCard
-          title="Tạm dừng"
-          value={items.filter((x) => !x.isActive).length.toString()}
-          icon={<XCircle size={20} />}
-          color="from-amber-500 to-orange-500"
-        />
-      </div>
-
-      {/* Filter Card */}
-      <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-        <div className="space-y-4">
-          {/* Status Filter Tabs */}
-          <div className="flex flex-wrap gap-2 pb-4 border-b border-red-200">
-            {(["all", "active", "inactive"] as const).map((status) => {
-              const counts: Record<typeof status, number> = {
-                all: items.length,
-                active: items.filter((s) => s.isActive).length,
-                inactive: items.filter((s) => !s.isActive).length,
-              };
-
-              const labels: Record<typeof status, string> = {
-                all: "Tất cả",
-                active: "Đang hoạt động",
-                inactive: "Tạm dừng",
-              };
-
-              const isActive = filterActive === status;
-              return (
-                <button
-                  key={status}
-                  onClick={() => setFilterActive(status)}
-                  className={cn(
-                    "px-4 py-2 rounded-xl border text-sm font-medium transition-all cursor-pointer",
-                    isActive
-                      ? "bg-gradient-to-r from-red-600 to-red-700 text-white border-red-600 shadow-md"
-                      : "bg-white border-red-200 text-gray-700 hover:bg-red-50",
-                  )}
-                >
-                  <span className="inline-flex items-center gap-2">
-                    {labels[status]}
-                    <span
-                      className={cn(
-                        "inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-semibold",
-                        isActive
-                          ? "bg-white/30 text-white"
-                          : "bg-red-50 text-red-600",
-                      )}
-                    >
-                      {counts[status]}
-                    </span>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Search */}
-          <div className="flex gap-3 items-end">
-            <div className="flex-1">
-              <div className="relative">
-                <Search
-                  size={16}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-                />
-                <input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Tìm kiếm code, tên..."
-                  className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-red-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
-                />
-              </div>
+      <section className="grid gap-4 lg:grid-cols-2">
+        <div className="rounded-3xl border border-red-100 bg-white p-6 shadow-sm">
+          <div className="flex items-center gap-4">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-600 text-white">
+              <Layers className="h-7 w-7" />
             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Table Card */}
-      <div className={`rounded-2xl border border-red-200 bg-white shadow-sm overflow-hidden transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-        <div className="border-b border-red-200 bg-gradient-to-r from-red-500/10 to-red-700/10 px-6 py-4">
-          <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <h2 className="font-semibold text-gray-900">Danh sách loại slot</h2>
+              <p className="text-lg font-medium text-slate-500">Tổng loại slot</p>
+              <p className="text-3xl font-extrabold text-slate-950">{counts.total}</p>
             </div>
           </div>
         </div>
-        {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <Loader2 size={32} className="animate-spin text-red-500" />
+        <div className="rounded-3xl border border-red-100 bg-white p-6 shadow-sm">
+          <div className="flex items-center gap-4">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 text-white">
+              <CheckCircle2 className="h-7 w-7" />
+            </div>
+            <div>
+              <p className="text-lg font-medium text-slate-500">Đang hoạt động</p>
+              <p className="text-3xl font-extrabold text-slate-950">{counts.active}</p>
+            </div>
           </div>
-        ) : items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-            <Layers size={40} className="mb-3 opacity-30" />
-            <p className="font-medium">Chưa có loại slot nào</p>
-            <p className="text-sm mt-1">Nhấn &quot;Tạo mới&quot; để thêm</p>
-          </div>
-        ) : sortedItems.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-            <Search size={40} className="mb-3 opacity-30" />
-            <p className="font-medium">Không tìm thấy kết quả</p>
-            <p className="text-sm mt-1">Thử thay đổi bộ lọc hoặc tìm kiếm</p>
-          </div>
-        ) : (
-          <>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-red-200 bg-gradient-to-r from-red-50/80 to-red-100/30">
-                  <th
-                    className="text-left px-6 py-4 font-semibold text-gray-700 cursor-pointer hover:bg-red-50 transition-colors select-none"
-                    onClick={() => handleSort("code")}
-                  >
-                    <span className="inline-flex items-center gap-2">Code {getSortIcon("code")}</span>
-                  </th>
-                  <th
-                    className="text-left px-6 py-4 font-semibold text-gray-700 cursor-pointer hover:bg-red-50 transition-colors select-none"
-                    onClick={() => handleSort("name")}
-                  >
-                    <span className="inline-flex items-center gap-2">Tên {getSortIcon("name")}</span>
-                  </th>
-                  <th
-                    className="text-left px-6 py-4 font-semibold text-gray-700 cursor-pointer hover:bg-red-50 transition-colors select-none"
-                    onClick={() => handleSort("description")}
-                  >
-                    <span className="inline-flex items-center gap-2">Mô tả {getSortIcon("description")}</span>
-                  </th>
-                  <th
-                    className="text-left px-6 py-4 font-semibold text-gray-700 cursor-pointer hover:bg-red-50 transition-colors select-none"
-                    onClick={() => handleSort("isActive")}
-                  >
-                    <span className="inline-flex items-center gap-2">Trạng thái {getSortIcon("isActive")}</span>
-                  </th>
-                  <th className="px-6 py-4" />
+        </div>
+      </section>
+
+      {(message || error) && (
+        <section className={cn('rounded-2xl border px-5 py-4 text-sm font-bold', error ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700')}>
+          {error ?? message}
+        </section>
+      )}
+
+      <section className="rounded-3xl border border-red-100 bg-white/70 p-6 shadow-sm">
+        <div className="flex flex-wrap gap-3">
+          {[
+            { value: 'all' as const, label: 'Tất cả trạng thái', count: counts.total },
+            { value: 'active' as const, label: 'Đang hoạt động', count: counts.active },
+            { value: 'inactive' as const, label: 'Tạm dừng', count: counts.inactive },
+          ].map((tab) => {
+            const selected = activeFilter === tab.value;
+            return (
+              <button
+                key={tab.value}
+                type="button"
+                onClick={() => setActiveFilter(tab.value)}
+                className={cn(
+                  'inline-flex h-14 items-center gap-3 rounded-2xl border px-6 text-base font-bold transition',
+                  selected
+                    ? 'border-red-600 bg-red-600 text-white shadow-lg shadow-red-100'
+                    : 'border-red-100 bg-white text-slate-700 hover:border-red-200 hover:bg-red-50',
+                )}
+              >
+                {tab.label}
+                <span className={cn('rounded-full px-2.5 py-1 text-sm', selected ? 'bg-white/20 text-white' : 'bg-red-50 text-red-600')}>
+                  {tab.count}
+                </span>
+              </button>
+            );
+          })}
+          <span className="inline-flex h-14 items-center gap-3 rounded-2xl border border-red-100 bg-white px-6 text-base font-bold text-red-600">
+            Thiếu tag
+            <span className="rounded-full bg-red-50 px-2.5 py-1 text-sm">{counts.missingTags}</span>
+          </span>
+        </div>
+        <div className="my-6 h-px bg-red-100" />
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-5 top-1/2 h-6 w-6 -translate-y-1/2 text-slate-400" />
+          <input
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            placeholder="Tìm kiếm loại slot..."
+            className="h-16 w-full rounded-2xl border border-slate-200 bg-white pl-14 pr-4 text-lg outline-none transition placeholder:text-slate-400 focus:border-red-300 focus:ring-4 focus:ring-red-50"
+          />
+        </div>
+      </section>
+
+      <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between border-b border-red-100 bg-red-50/70 px-6 py-5">
+          <h2 className="text-xl font-extrabold text-slate-950">Danh sách loại slot</h2>
+          <p className="text-lg font-medium text-slate-600">{filteredSlotTypes.length} loại slot</p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-slate-100 text-base">
+            <thead className="bg-red-50/40 text-left text-sm font-extrabold text-slate-600">
+              <tr>
+                <th className="px-6 py-4">Loại slot</th>
+                <th className="px-6 py-4">Nhóm ngày</th>
+                <th className="px-6 py-4">Khung giờ</th>
+                <th className="px-6 py-4">Giáo viên</th>
+                <th className="px-6 py-4">Mục đích</th>
+                <th className="px-6 py-4">Trạng thái</th>
+                <th className="px-6 py-4 text-right">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 bg-white">
+              {isLoading ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-14 text-center text-slate-500">
+                    Đang tải danh sách loại slot...
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-red-100">
-                {paginatedItems.map((item) => (
-                  <tr key={item.id} className="hover:bg-red-50/40 transition-colors duration-200 group">
-                    <td className="px-6 py-4">
-                      <span className="inline-flex items-center px-3 py-1.5 rounded-lg bg-red-100 text-red-700 text-xs font-bold font-mono group-hover:bg-red-200 transition-colors">
-                        {item.code}
+              ) : filteredSlotTypes.length ? (
+                filteredSlotTypes.map((item) => (
+                  <tr key={item.id} className="hover:bg-slate-50">
+                    <td className="px-6 py-5">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-600 text-white">
+                          <Layers className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="font-extrabold text-slate-950">{item.name}</p>
+                          <p className="mt-1 text-sm font-semibold text-slate-500">{item.code}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-5"><TagBadge label={labelMaps.dayGroup[item.dayGroup ?? 'None'] ?? 'Không gắn tag'} tone={item.dayGroup === 'None' ? 'slate' : 'red'} /></td>
+                    <td className="px-6 py-5"><TagBadge label={labelMaps.timeBand[item.timeBand ?? 'None'] ?? 'Không gắn tag'} tone={item.timeBand === 'None' ? 'slate' : 'red'} /></td>
+                    <td className="px-6 py-5"><TagBadge label={labelMaps.teacherType[item.teacherType ?? 'None'] ?? 'Không gắn tag'} tone={item.teacherType === 'None' ? 'slate' : 'red'} /></td>
+                    <td className="px-6 py-5"><TagBadge label={labelMaps.usageType[item.usageType ?? 'None'] ?? 'Không gắn tag'} tone={item.usageType === 'None' ? 'slate' : 'red'} /></td>
+                    <td className="px-6 py-5">
+                      <span className={cn('inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold', item.isActive ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-red-200 bg-red-50 text-red-700')}>
+                        {item.isActive ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                        {item.isActive ? 'Đang hoạt động' : 'Tạm dừng'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 font-medium text-gray-900">{item.name}</td>
-                    <td className="px-6 py-4 text-gray-500 max-w-xs truncate">{item.description ?? "—"}</td>
-                    <td className="px-6 py-4"><StatusBadge isActive={item.isActive} /></td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => openEdit(item)}
-                          className="p-2 rounded-lg hover:bg-red-100 text-gray-400 hover:text-red-600 transition-all hover:scale-110 cursor-pointer"
-                          title="Chỉnh sửa"
-                        >
-                          <Pencil size={16} />
+                    <td className="px-6 py-5">
+                      <div className="flex justify-end gap-4 text-slate-400">
+                        <button type="button" onClick={() => startEdit(item)} className="transition hover:text-red-600" title="Sửa">
+                          <Pencil className="h-5 w-5" />
                         </button>
-                        <button
-                          onClick={() => setDeleteTarget(item)}
-                          className="p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-all hover:scale-110 cursor-pointer"
-                          title="Xóa"
-                        >
-                          <Trash2 size={16} />
+                        <button type="button" onClick={() => void handleDelete(item)} className="transition hover:text-red-600" title="Xóa">
+                          <Trash2 className="h-5 w-5" />
                         </button>
                       </div>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={7} className="px-6 py-14 text-center text-slate-500">
+                    Chưa có loại slot phù hợp với bộ lọc.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="border-t border-red-100 px-6 py-4 flex items-center justify-between bg-red-50/50">
-                <div className="text-sm text-gray-600">
-                  Hiển thị {startIndex + 1} đến {Math.min(endIndex, sortedItems.length)} trong {sortedItems.length}
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                    disabled={currentPage === 1}
-                    className="p-2 rounded-lg hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <ChevronLeft size={16} />
-                  </button>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1)
-                    .filter((p) => Math.abs(p - currentPage) <= 1 || p === 1 || p === totalPages)
-                    .map((p, idx, arr) => (
-                      <div key={p}>
-                        {idx > 0 && arr[idx - 1] !== p - 1 && <span className="px-2 py-2">...</span>}
-                        <button
-                          onClick={() => setCurrentPage(p)}
-                          className={cn(
-                            "px-3 py-2 rounded-lg font-medium text-sm transition-colors",
-                            currentPage === p
-                              ? "bg-red-600 text-white"
-                              : "hover:bg-white text-gray-700"
-                          )}
-                        >
-                          {p}
-                        </button>
-                      </div>
-                    ))}
-                  <button
-                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                    disabled={currentPage === totalPages}
-                    className="p-2 rounded-lg hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <ChevronRight size={16} />
-                  </button>
-                </div>
+      {isFormOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
+          <section className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-3xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+              <div>
+                <h2 className="text-2xl font-extrabold text-slate-950">{editingItem ? 'Sửa loại slot' : 'Tạo loại slot mới'}</h2>
+                <p className="mt-1 text-sm text-slate-500">Gắn metadata để hệ thống tự động tính compatibility.</p>
               </div>
-            )}
-          </>
-        )}
-      </div>
-
-      <FormModal
-        open={modalOpen && !saving}
-        onClose={() => setModalOpen(false)}
-        onSubmit={handleSubmit}
-        mode={modalMode}
-        initial={editInitial}
-      />
-
-      <ConfirmModal
-        isOpen={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={handleDelete}
-        title="Xóa loại slot"
-        message={`Bạn có chắc muốn xóa loại slot "${deleteTarget?.name}"? Hành động này không thể hoàn tác.`}
-        confirmText="Xóa"
-        isLoading={deleting}
-      />
+              <button type="button" onClick={closeForm} className="rounded-full border border-slate-200 p-2 text-slate-500 hover:bg-slate-50">
+                <XCircle className="h-5 w-5" />
+              </button>
+            </div>
+            <form onSubmit={handleSubmit} className="space-y-5 p-6">
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="space-y-2">
+                  <span className="text-sm font-bold text-slate-800">Mã loại slot</span>
+                  <input value={form.code} onChange={(event) => setForm((current) => ({ ...current, code: event.target.value }))} placeholder="VD: STANDARD-WEEKEND" className="h-12 w-full rounded-2xl border border-slate-200 px-4 text-base outline-none focus:border-red-300 focus:ring-4 focus:ring-red-50" />
+                </label>
+                <label className="space-y-2">
+                  <span className="text-sm font-bold text-slate-800">Tên hiển thị</span>
+                  <input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} placeholder="Lớp thường cuối tuần" className="h-12 w-full rounded-2xl border border-slate-200 px-4 text-base outline-none focus:border-red-300 focus:ring-4 focus:ring-red-50" />
+                </label>
+              </div>
+              <label className="space-y-2">
+                <span className="text-sm font-bold text-slate-800">Mô tả</span>
+                <textarea value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} rows={3} placeholder="Ghi chú ngắn về loại slot này." className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-base outline-none focus:border-red-300 focus:ring-4 focus:ring-red-50" />
+              </label>
+              <div className="grid gap-5 md:grid-cols-2">
+                <SelectField label="Nhóm ngày" value={form.dayGroup} options={dayGroupOptions} onChange={(value) => setForm((current) => ({ ...current, dayGroup: value }))} />
+                <SelectField label="Khung giờ" value={form.timeBand} options={timeBandOptions} onChange={(value) => setForm((current) => ({ ...current, timeBand: value }))} />
+                <SelectField label="Loại giáo viên" value={form.teacherType} options={teacherTypeOptions} onChange={(value) => setForm((current) => ({ ...current, teacherType: value }))} />
+                <SelectField label="Mục đích sử dụng" value={form.usageType} options={usageTypeOptions} onChange={(value) => setForm((current) => ({ ...current, usageType: value }))} />
+              </div>
+              <label className="flex items-center justify-between rounded-2xl border border-slate-200 px-5 py-4">
+                <span>
+                  <span className="block text-base font-extrabold text-slate-900">Trạng thái</span>
+                  <span className="text-sm text-slate-500">Bật nếu loại slot đang dùng trong vận hành.</span>
+                </span>
+                <input type="checkbox" checked={form.isActive} onChange={(event) => setForm((current) => ({ ...current, isActive: event.target.checked }))} className="h-5 w-5 rounded border-slate-300 text-red-600 focus:ring-red-500" />
+              </label>
+              <div className="flex justify-end gap-3 border-t border-slate-100 pt-5">
+                <button type="button" onClick={closeForm} className="h-12 rounded-2xl border border-slate-200 px-6 font-bold text-slate-700 hover:bg-slate-50">
+                  Hủy
+                </button>
+                <button type="submit" disabled={isSaving} className="h-12 rounded-2xl bg-red-600 px-7 font-bold text-white hover:bg-red-700 disabled:bg-slate-300">
+                  {isSaving ? 'Đang lưu...' : editingItem ? 'Lưu thay đổi' : 'Tạo loại slot'}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

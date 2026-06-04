@@ -1,32 +1,51 @@
-/** Phase 1.5 — LearningTicketType types */
+import type { SlotDayGroup, SlotTeacherType, SlotTimeBand, SlotUsageType } from './slot-type';
+
+export type TicketCompatibilityMode = 'None' | 'AllowAll' | 'RuleBased';
 
 export interface LearningTicketType {
   id: string;
   code: string;
   name: string;
-  description: string | null;
+  description?: string | null;
+  compatibilityMode: TicketCompatibilityMode;
+  allowedDayGroups: SlotDayGroup[];
+  allowedTimeBands: SlotTimeBand[];
+  allowedTeacherTypes: SlotTeacherType[];
+  allowedUsageTypes: SlotUsageType[];
   isActive: boolean;
-  createdAt?: string | null;
-  updatedAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface LearningTicketTypeQueryParams {
+  searchTerm?: string;
+  isActive?: boolean;
 }
 
 export interface CreateLearningTicketTypeRequest {
   code: string;
   name: string;
-  description?: string;
-  isActive?: boolean;
+  description?: string | null;
+  compatibilityMode: TicketCompatibilityMode;
+  allowedDayGroups?: SlotDayGroup[];
+  allowedTimeBands?: SlotTimeBand[];
+  allowedTeacherTypes?: SlotTeacherType[];
+  allowedUsageTypes?: SlotUsageType[];
+  isActive: boolean;
 }
 
-export interface UpdateLearningTicketTypeRequest {
-  code: string;
-  name: string;
-  description?: string;
-  isActive?: boolean;
-}
+export type UpdateLearningTicketTypeRequest = CreateLearningTicketTypeRequest;
+export type LearningTicketTypePayload = CreateLearningTicketTypeRequest;
+export type CreateLearningTicketTypePayload = CreateLearningTicketTypeRequest;
+export type UpdateLearningTicketTypePayload = UpdateLearningTicketTypeRequest;
+export type LearningTicketTypeCreateRequest = CreateLearningTicketTypeRequest;
+export type LearningTicketTypeUpdateRequest = UpdateLearningTicketTypeRequest;
+export type LearningTicketTypeCreatePayload = CreateLearningTicketTypeRequest;
+export type LearningTicketTypeUpdatePayload = UpdateLearningTicketTypeRequest;
 
-export interface LearningTicketTypeListResponse {
+export interface LearningTicketTypesResponse {
   items: LearningTicketType[];
-  totalCount?: number;
-  pageNumber?: number;
-  pageSize?: number;
 }
+
+export type LearningTicketTypeListResponse = LearningTicketTypesResponse;
+export type LearningTicketTypesListResponse = LearningTicketTypesResponse;

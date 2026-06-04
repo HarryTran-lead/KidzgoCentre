@@ -1,32 +1,50 @@
-/** Phase 1.5 — SlotType types */
+export type SlotDayGroup = 'None' | 'Weekday' | 'Weekend';
+export type SlotTimeBand = 'None' | 'Morning' | 'Afternoon' | 'Evening';
+export type SlotTeacherType = 'None' | 'Standard' | 'Native';
+export type SlotUsageType = 'None' | 'Standard' | 'Makeup' | 'Remedial' | 'Review' | 'Custom';
 
 export interface SlotType {
   id: string;
   code: string;
   name: string;
-  description: string | null;
+  description?: string | null;
+  dayGroup: SlotDayGroup;
+  timeBand: SlotTimeBand;
+  teacherType: SlotTeacherType;
+  usageType: SlotUsageType;
   isActive: boolean;
-  createdAt?: string | null;
-  updatedAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface SlotTypeQueryParams {
+  searchTerm?: string;
+  isActive?: boolean;
 }
 
 export interface CreateSlotTypeRequest {
   code: string;
   name: string;
-  description?: string;
-  isActive?: boolean;
+  description?: string | null;
+  dayGroup: SlotDayGroup;
+  timeBand: SlotTimeBand;
+  teacherType: SlotTeacherType;
+  usageType: SlotUsageType;
+  isActive: boolean;
 }
 
-export interface UpdateSlotTypeRequest {
-  code: string;
-  name: string;
-  description?: string;
-  isActive?: boolean;
-}
+export type UpdateSlotTypeRequest = CreateSlotTypeRequest;
+export type SlotTypePayload = CreateSlotTypeRequest;
+export type CreateSlotTypePayload = CreateSlotTypeRequest;
+export type UpdateSlotTypePayload = UpdateSlotTypeRequest;
+export type SlotTypeCreateRequest = CreateSlotTypeRequest;
+export type SlotTypeUpdateRequest = UpdateSlotTypeRequest;
+export type SlotTypeCreatePayload = CreateSlotTypeRequest;
+export type SlotTypeUpdatePayload = UpdateSlotTypeRequest;
 
-export interface SlotTypeListResponse {
+export interface SlotTypesResponse {
   items: SlotType[];
-  totalCount?: number;
-  pageNumber?: number;
-  pageSize?: number;
 }
+
+export type SlotTypeListResponse = SlotTypesResponse;
+export type SlotTypesListResponse = SlotTypesResponse;

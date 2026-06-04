@@ -6,22 +6,38 @@ import type {
   UpdateSlotTypeRequest,
 } from "@/types/slot-type";
 
-function pickItems(payload: any): any[] {
-  if (Array.isArray(payload?.data?.items)) return payload.data.items;
-  if (Array.isArray(payload?.data)) return payload.data;
+function toRecord(value: unknown): Record<string, unknown> {
+  if (typeof value === "object" && value !== null) {
+    return value as Record<string, unknown>;
+  }
+  return {};
+}
+
+function pickItems(payload: unknown): unknown[] {
+  const root = toRecord(payload);
+  const data = root.data;
+  const dataRecord = toRecord(data);
+
+  if (Array.isArray(dataRecord.items)) return dataRecord.items;
+  if (Array.isArray(data)) return data;
   if (Array.isArray(payload)) return payload;
   return [];
 }
 
-function mapItem(item: any): SlotType {
+function mapItem(item: unknown): SlotType {
+  const record = toRecord(item);
   return {
-    id: String(item?.id ?? ""),
-    code: String(item?.code ?? ""),
-    name: String(item?.name ?? ""),
-    description: item?.description ?? null,
-    isActive: Boolean(item?.isActive ?? true),
-    createdAt: item?.createdAt ?? null,
-    updatedAt: item?.updatedAt ?? null,
+    id: String(record.id ?? ""),
+    code: String(record.code ?? ""),
+    name: String(record.name ?? ""),
+    description: (record.description as string | null | undefined) ?? null,
+    dayGroup: (record.dayGroup as SlotType["dayGroup"] | undefined) ?? "None",
+    timeBand: (record.timeBand as SlotType["timeBand"] | undefined) ?? "None",
+    teacherType: (record.teacherType as SlotType["teacherType"] | undefined) ?? "None",
+    usageType: (record.usageType as SlotType["usageType"] | undefined) ?? "None",
+    isActive: Boolean(record.isActive ?? true),
+    createdAt: (record.createdAt as string | null | undefined) ?? null,
+    updatedAt: (record.updatedAt as string | null | undefined) ?? null,
   };
 }
 
@@ -35,19 +51,21 @@ export async function getSlotTypes(options?: {
   const url = params.toString()
     ? `${SLOT_TYPE_ENDPOINTS.BASE}?${params.toString()}`
     : SLOT_TYPE_ENDPOINTS.BASE;
-  const response = await get<any>(url);
+  const response = await get<unknown>(url);
   return pickItems(response).map(mapItem).filter((x) => x.id);
 }
 
 export async function getSlotTypeById(id: string): Promise<SlotType> {
-  const response = await get<any>(SLOT_TYPE_ENDPOINTS.BY_ID(id));
-  const data = response?.data ?? response;
+  const response = await get<unknown>(SLOT_TYPE_ENDPOINTS.BY_ID(id));
+  const responseRecord = toRecord(response);
+  const data = responseRecord.data ?? response;
   return mapItem(data);
 }
 
 export async function createSlotType(payload: CreateSlotTypeRequest): Promise<SlotType> {
-  const response = await post<any>(SLOT_TYPE_ENDPOINTS.BASE, payload);
-  const data = response?.data ?? response;
+  const response = await post<unknown>(SLOT_TYPE_ENDPOINTS.BASE, payload);
+  const responseRecord = toRecord(response);
+  const data = responseRecord.data ?? response;
   return mapItem(data);
 }
 
@@ -55,8 +73,9 @@ export async function updateSlotType(
   id: string,
   payload: UpdateSlotTypeRequest
 ): Promise<SlotType> {
-  const response = await put<any>(SLOT_TYPE_ENDPOINTS.BY_ID(id), payload);
-  const data = response?.data ?? response;
+  const response = await put<unknown>(SLOT_TYPE_ENDPOINTS.BY_ID(id), payload);
+  const responseRecord = toRecord(response);
+  const data = responseRecord.data ?? response;
   return mapItem(data);
 }
 
