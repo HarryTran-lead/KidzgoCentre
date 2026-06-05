@@ -8,7 +8,6 @@ import {
   createSyllabusVersion,
   deleteSyllabusVersion,
   getSyllabusVersions,
-  promoteSyllabusVersion,
 } from "@/lib/api/syllabusService";
 
 function cn(...a: Array<string | false | null | undefined>) {
@@ -34,7 +33,6 @@ export default function SyllabusVersionsModal({
   const [versions, setVersions] = useState<SyllabusVersion[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [promotingId, setPromotingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // New version form
@@ -65,19 +63,6 @@ export default function SyllabusVersionsModal({
       setError(err?.message || "Không thể tải danh sách phiên bản.");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handlePromote = async (versionId: string) => {
-    setPromotingId(versionId);
-    setError(null);
-    try {
-      await promoteSyllabusVersion(syllabusId, versionId);
-      await loadVersions();
-    } catch (err: any) {
-      setError(err?.message || "Không thể kích hoạt phiên bản.");
-    } finally {
-      setPromotingId(null);
     }
   };
 
@@ -253,22 +238,9 @@ export default function SyllabusVersionsModal({
                     {v.notes && <p className="text-xs text-gray-500 mt-1">{v.notes}</p>}
                     <div className="flex items-center gap-4 mt-1 text-xs text-gray-400">
                       <span>Tạo: {formatDate(v.createdAt)}</span>
-                      {v.promotedAt && <span>Kích hoạt: {formatDate(v.promotedAt)}</span>}
-                      {v.promotedBy && <span>bởi {v.promotedBy}</span>}
                     </div>
                   </div>
                   <div className="ml-3 flex items-center gap-1 shrink-0">
-                    {!v.isActive && (
-                      <button
-                        onClick={() => handlePromote(v.id)}
-                        disabled={!!promotingId}
-                        title="Kích hoạt phiên bản này"
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-indigo-600 border border-indigo-200 hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                      >
-                        {promotingId === v.id ? <Loader2 size={12} className="animate-spin" /> : <Star size={12} />}
-                        Kích hoạt
-                      </button>
-                    )}
                     <button
                       onClick={() => handleDelete(v.id)}
                       disabled={!!deletingId || v.isActive}

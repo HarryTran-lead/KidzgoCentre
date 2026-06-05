@@ -25,6 +25,23 @@ function Field({ icon, label, children }: { icon: React.ReactNode; label: string
   );
 }
 
+function moduleLabel(detail: TuitionPlan): React.ReactNode {
+  if (!detail.modules.length) {
+    return <span className="text-gray-400 italic">Không gắn module</span>;
+  }
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {detail.modules.map((module) => (
+        <span key={module.moduleId} className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
+          {module.moduleCode || module.moduleName || module.moduleId}
+          {module.plannedSessionCount != null && <span className="text-gray-500">{module.plannedSessionCount} buổi</span>}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 export default function TuitionPlanDetailModal({
   open,
   loading,
@@ -75,9 +92,18 @@ export default function TuitionPlanDetailModal({
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Field icon={<Layers size={16} className="text-red-600" />} label="Level">{detail.levelName || "Chưa có"}</Field>
-                <Field icon={<BookOpen size={16} className="text-blue-600" />} label="Module">
-                  {detail.moduleName ? detail.moduleName : <span className="text-gray-400 italic">Không giới hạn module</span>}
+                <Field icon={<BookOpen size={16} className="text-blue-600" />} label="Syllabus">
+                  {detail.syllabusTitle || detail.syllabusCode ? (
+                    <span>
+                      {[detail.syllabusCode, detail.syllabusVersion, detail.syllabusTitle].filter(Boolean).join(" - ")}
+                    </span>
+                  ) : (
+                    <span className="text-gray-400 italic">Gói thường</span>
+                  )}
                 </Field>
+              </div>
+              <div className="grid grid-cols-1 gap-4">
+                <Field icon={<BookOpen size={16} className="text-blue-600" />} label="Module">{moduleLabel(detail)}</Field>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Field icon={<Clock size={16} className="text-red-600" />} label="Số buổi học">{detail.totalSessions} buổi</Field>

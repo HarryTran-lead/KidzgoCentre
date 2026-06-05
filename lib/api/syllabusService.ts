@@ -38,6 +38,17 @@ export interface SyllabusDetail extends SyllabusListItem {
   lessons?: unknown[];
   resources?: unknown[];
   sessionTemplates?: unknown[];
+  lessonPlanTemplateSummaries?: SyllabusLessonPlanTemplateSummary[];
+}
+
+export interface SyllabusLessonPlanTemplateSummary {
+  moduleId?: string | null;
+  moduleCode?: string | null;
+  moduleName?: string | null;
+  moduleOrder?: number | null;
+  plannedSessionCount?: number | null;
+  syllabusSessionTemplateCount?: number | null;
+  importedLessonPlanTemplateCount?: number | null;
 }
 
 export interface CreateSyllabusRequest {
@@ -489,6 +500,7 @@ function str(v: unknown): string {
 function strAny(...values: unknown[]): string {
   for (const value of values) {
     if (typeof value === "string" && value.trim()) return value;
+    if (typeof value === "number" && Number.isFinite(value)) return String(value);
   }
   return "";
 }
@@ -517,7 +529,7 @@ function normalizeSyllabusListItem(item: unknown): SyllabusListItem {
     levelId: strAny(source.levelId, source.LevelId),
     levelName: strAny(source.levelName, source.LevelName) || null,
     code: strAny(source.code, source.Code),
-    version: strAny(source.version, source.Version),
+    version: strAny(source.version, source.Version, source.edition, source.Edition),
     title: strAny(source.title, source.Title),
     isActive: typeof source.isActive === "boolean" ? source.isActive : Boolean(source.IsActive),
     unitCount: num(source.unitCount ?? source.UnitCount),
@@ -528,6 +540,7 @@ function normalizeSyllabusListItem(item: unknown): SyllabusListItem {
 
 function normalizeSyllabusDetail(item: unknown): SyllabusDetail {
   const source = (item ?? {}) as Record<string, unknown>;
+  const summariesSource = source.lessonPlanTemplateSummaries ?? source.LessonPlanTemplateSummaries;
   return {
     ...normalizeSyllabusListItem(source),
     edition: strAny(source.edition, source.Edition) || null,
@@ -553,6 +566,20 @@ function normalizeSyllabusDetail(item: unknown): SyllabusDetail {
       : Array.isArray(source.SessionTemplates)
         ? source.SessionTemplates
         : [],
+    lessonPlanTemplateSummaries: Array.isArray(summariesSource)
+      ? summariesSource.map((summary) => {
+          const s = (summary ?? {}) as Record<string, unknown>;
+          return {
+            moduleId: strAny(s.moduleId, s.ModuleId) || null,
+            moduleCode: strAny(s.moduleCode, s.ModuleCode) || null,
+            moduleName: strAny(s.moduleName, s.ModuleName) || null,
+            moduleOrder: num(s.moduleOrder ?? s.ModuleOrder),
+            plannedSessionCount: num(s.plannedSessionCount ?? s.PlannedSessionCount),
+            syllabusSessionTemplateCount: num(s.syllabusSessionTemplateCount ?? s.SyllabusSessionTemplateCount),
+            importedLessonPlanTemplateCount: num(s.importedLessonPlanTemplateCount ?? s.ImportedLessonPlanTemplateCount),
+          };
+        })
+      : [],
   };
 }
 

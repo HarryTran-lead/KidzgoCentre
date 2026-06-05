@@ -93,6 +93,50 @@ const labelMaps = {
   usageType: Object.fromEntries(usageTypeOptions.map((option) => [option.value, option.label])),
 } as Record<keyof Pick<SlotType, 'dayGroup' | 'timeBand' | 'teacherType' | 'usageType'>, Record<string, string>>;
 
+const dayGroupValueMap: Record<string, SlotDayGroup> = {
+  '0': 'None',
+  '1': 'Weekday',
+  '2': 'Weekend',
+  None: 'None',
+  Weekday: 'Weekday',
+  Weekend: 'Weekend',
+};
+
+const timeBandValueMap: Record<string, SlotTimeBand> = {
+  '0': 'None',
+  '1': 'Morning',
+  '2': 'Afternoon',
+  '3': 'Evening',
+  None: 'None',
+  Morning: 'Morning',
+  Afternoon: 'Afternoon',
+  Evening: 'Evening',
+};
+
+const teacherTypeValueMap: Record<string, SlotTeacherType> = {
+  '0': 'None',
+  '1': 'Standard',
+  '2': 'Native',
+  None: 'None',
+  Standard: 'Standard',
+  Native: 'Native',
+};
+
+const usageTypeValueMap: Record<string, SlotUsageType> = {
+  '0': 'None',
+  '1': 'Standard',
+  '2': 'Makeup',
+  '3': 'Remedial',
+  '4': 'Review',
+  '5': 'Custom',
+  None: 'None',
+  Standard: 'Standard',
+  Makeup: 'Makeup',
+  Remedial: 'Remedial',
+  Review: 'Review',
+  Custom: 'Custom',
+};
+
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(' ');
 }
@@ -101,13 +145,17 @@ function normalizeEnum<T extends string>(value: unknown, options: Array<Option<T
   return options.some((option) => option.value === value) ? (value as T) : fallback;
 }
 
+function normalizeSlotEnum<T extends string>(value: unknown, map: Record<string, T>, fallback: T) {
+  return map[String(value)] ?? fallback;
+}
+
 function normalizeSlotType(item: SlotType): SlotType {
   return {
     ...item,
-    dayGroup: normalizeEnum(item.dayGroup, dayGroupOptions, 'None'),
-    timeBand: normalizeEnum(item.timeBand, timeBandOptions, 'None'),
-    teacherType: normalizeEnum(item.teacherType, teacherTypeOptions, 'None'),
-    usageType: normalizeEnum(item.usageType, usageTypeOptions, 'None'),
+    dayGroup: normalizeSlotEnum(item.dayGroup, dayGroupValueMap, 'None'),
+    timeBand: normalizeSlotEnum(item.timeBand, timeBandValueMap, 'None'),
+    teacherType: normalizeSlotEnum(item.teacherType, teacherTypeValueMap, 'None'),
+    usageType: normalizeSlotEnum(item.usageType, usageTypeValueMap, 'None'),
   };
 }
 
@@ -223,6 +271,18 @@ function TagBadge({ label, tone = 'slate' }: { label: string; tone?: 'slate' | '
   );
 }
 
+function getUsageBadge(slotType: SlotType): { label: string; tone: 'slate' | 'red' } {
+  const usageType = slotType.usageType ?? 'None';
+  if (usageType === 'None' && slotType.teacherType === 'Native') {
+    return { label: 'Khác', tone: 'red' };
+  }
+
+  return {
+    label: labelMaps.usageType[usageType] ?? 'Không gắn tag',
+    tone: usageType === 'None' ? 'slate' : 'red',
+  };
+}
+
 function SelectField<T extends string>({
   label,
   value,
@@ -259,6 +319,7 @@ export default function SlotTypesPage() {
   const [slotTypes, setSlotTypes] = useState<SlotType[]>([]);
   const [form, setForm] = useState<SlotTypeForm>(emptyForm);
   const [editingItem, setEditingItem] = useState<SlotType | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<SlotType | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>('all');
@@ -383,14 +444,14 @@ export default function SlotTypesPage() {
     }
   }
 
-  async function handleDelete(item: SlotType) {
-    if (!window.confirm(`Xóa loại slot "${item.name}"?`)) return;
-
+  async function confirmDelete() {
+    if (!deleteTarget) return;
     setError(null);
     setMessage(null);
     try {
-      await apiRequest(`/api/slot-types/${item.id}`, { method: 'DELETE' });
+      await apiRequest(`/api/slot-types/${deleteTarget.id}`, { method: 'DELETE' });
       setMessage('Đã xóa loại slot.');
+      setDeleteTarget(null);
       await loadSlotTypes();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Không xóa được loại slot.');
@@ -539,7 +600,7 @@ export default function SlotTypesPage() {
                     <td className="px-6 py-5"><TagBadge label={labelMaps.dayGroup[item.dayGroup ?? 'None'] ?? 'Không gắn tag'} tone={item.dayGroup === 'None' ? 'slate' : 'red'} /></td>
                     <td className="px-6 py-5"><TagBadge label={labelMaps.timeBand[item.timeBand ?? 'None'] ?? 'Không gắn tag'} tone={item.timeBand === 'None' ? 'slate' : 'red'} /></td>
                     <td className="px-6 py-5"><TagBadge label={labelMaps.teacherType[item.teacherType ?? 'None'] ?? 'Không gắn tag'} tone={item.teacherType === 'None' ? 'slate' : 'red'} /></td>
-                    <td className="px-6 py-5"><TagBadge label={labelMaps.usageType[item.usageType ?? 'None'] ?? 'Không gắn tag'} tone={item.usageType === 'None' ? 'slate' : 'red'} /></td>
+                    <td className="px-6 py-5"><TagBadge {...getUsageBadge(item)} /></td>
                     <td className="px-6 py-5">
                       <span className={cn('inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold', item.isActive ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-red-200 bg-red-50 text-red-700')}>
                         {item.isActive ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
@@ -551,7 +612,7 @@ export default function SlotTypesPage() {
                         <button type="button" onClick={() => startEdit(item)} className="transition hover:text-red-600" title="Sửa">
                           <Pencil className="h-5 w-5" />
                         </button>
-                        <button type="button" onClick={() => void handleDelete(item)} className="transition hover:text-red-600" title="Xóa">
+                        <button type="button" onClick={() => setDeleteTarget(item)} className="transition hover:text-red-600" title="Xóa">
                           <Trash2 className="h-5 w-5" />
                         </button>
                       </div>
@@ -619,6 +680,38 @@ export default function SlotTypesPage() {
                 </button>
               </div>
             </form>
+          </section>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
+          <section className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl">
+            <div className="bg-red-600 px-6 py-5 text-white">
+              <h2 className="text-xl font-extrabold">Xóa loại slot</h2>
+              <p className="mt-1 text-sm text-white/80">Thao tác này chỉ nên dùng khi dữ liệu chưa được sử dụng.</p>
+            </div>
+            <div className="space-y-4 p-6">
+              <p className="text-base text-slate-600">
+                Bạn có chắc muốn xóa <span className="font-extrabold text-slate-950">{deleteTarget.name}</span>?
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setDeleteTarget(null)}
+                  className="h-12 rounded-2xl border border-slate-200 px-6 font-bold text-slate-700 hover:bg-slate-50"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void confirmDelete()}
+                  className="h-12 rounded-2xl bg-red-600 px-7 font-bold text-white hover:bg-red-700"
+                >
+                  Xóa
+                </button>
+              </div>
+            </div>
           </section>
         </div>
       )}

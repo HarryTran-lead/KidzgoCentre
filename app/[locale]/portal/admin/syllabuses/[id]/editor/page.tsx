@@ -481,7 +481,6 @@ export default function SyllabusDocumentEditorPage() {
 
   const [metaCode, setMetaCode] = useState("");
   const [metaTitle, setMetaTitle] = useState("");
-  const [metaEdition, setMetaEdition] = useState("");
   const [metaMinutesPerPeriod, setMetaMinutesPerPeriod] = useState("");
 
   const [newSectionType, setNewSectionType] = useState<SyllabusDocumentSectionType>("narrative");
@@ -506,7 +505,6 @@ export default function SyllabusDocumentEditorPage() {
     if (!next) return;
     setMetaCode(next.code ?? "");
     setMetaTitle(next.title ?? "");
-    setMetaEdition(next.edition ?? "");
     setMetaMinutesPerPeriod(String(next.summary?.minutesPerPeriod ?? ""));
 
     const nextSectionDraft: Record<string, { title: string; content: string }> = {};
@@ -569,7 +567,7 @@ export default function SyllabusDocumentEditorPage() {
         expectedVersion,
         code: metaCode.trim(),
         title: metaTitle.trim(),
-        edition: metaEdition.trim() || null,
+        edition: document.edition ?? null,
         minutesPerPeriod: metaMinutesPerPeriod ? Number(metaMinutesPerPeriod) : null,
       });
       if (!res.isSuccess) {
@@ -901,11 +899,11 @@ export default function SyllabusDocumentEditorPage() {
               <div>
                   <label className="mb-1.5 block text-sm font-semibold text-gray-600 tracking-wide">Phiên bản</label>
                 <input 
-                  className="w-full rounded-lg border border-rose-200 bg-white/80 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-rose-200 focus:border-rose-300 disabled:bg-gray-50 transition-all" 
-                  value={metaEdition} 
-                  onChange={(e) => setMetaEdition(e.target.value)} 
-                  disabled={isReadOnly}
-                  placeholder="v1.0.0"
+                  className="w-full cursor-not-allowed rounded-lg border border-rose-200 bg-gray-50 px-3 py-2 text-sm text-gray-600 focus:outline-none transition-all"
+                  value={document?.version == null ? "" : String(document.version)}
+                  readOnly
+                  placeholder="1"
+                  title="Phiên bản được hệ thống quản lý tự động"
                 />
               </div>
               <div>

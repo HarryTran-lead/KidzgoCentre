@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { BarChart3, BookOpen, GraduationCap, Layers, Users } from "lucide-react";
+import { BarChart3, GraduationCap, Layers, Users } from "lucide-react";
 import { getAllStudents } from "@/lib/api/profileService";
 import LevelModuleWorkspace from "./LevelModuleWorkspace";
 import AcademicDashboard from "./AcademicDashboard";
@@ -68,6 +68,11 @@ export default function AcademicProgressionWorkspace({ roleMode, studentId, stud
   const [studentOptionsError, setStudentOptionsError] = useState<string | null>(null);
   const [selectedStudentId, setSelectedStudentId] = useState(studentId ?? "");
   const [selectedStudentName, setSelectedStudentName] = useState(studentName ?? "");
+  const [isPageLoaded, setIsPageLoaded] = useState(false);
+
+  useEffect(() => {
+    setIsPageLoaded(true);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -77,26 +82,49 @@ export default function AcademicProgressionWorkspace({ roleMode, studentId, stud
       setStudentOptionsError(null);
 
       try {
-        const response = await getAllStudents({
-          profileType: "Student",
-          isActive: true,
-          pageNumber: 1,
-          pageSize: 300,
-        });
+        const pageSize = 500;
+        const maxPages = 100;
+        const allItems: Array<{ id?: string | null; displayName?: string | null }> = [];
+        let pageNumber = 1;
 
-        const isSuccess = Boolean(response?.isSuccess ?? response?.success);
-        const items = Array.isArray(response?.data?.items) ? response.data.items : [];
+        while (pageNumber <= maxPages) {
+          const response = await getAllStudents({
+            profileType: "Student",
+            isActive: true,
+            pageNumber,
+            pageSize,
+          });
 
-        if (!isSuccess) {
-          throw new Error(response?.message || "Không thể tải danh sách học viên");
+          const isSuccess = Boolean(response?.isSuccess ?? response?.success);
+          const data = response?.data;
+          const items = Array.isArray(data?.items) ? data.items : [];
+
+          if (!isSuccess) {
+            throw new Error(response?.message || "Không thể tải danh sách học viên");
+          }
+
+          allItems.push(...items);
+
+          const totalPages = Number(data?.totalPages);
+          const hasNextPage =
+            Boolean(data?.hasNextPage) ||
+            (Number.isFinite(totalPages) && totalPages > 0 && pageNumber < totalPages);
+
+          if (!hasNextPage) break;
+          pageNumber += 1;
         }
 
-        const options = items
-          .map((item) => ({
-            id: String(item.id || "").trim(),
-            name: String(item.displayName || "").trim(),
+        const seenStudentIds = new Set<string>();
+        const options = allItems
+          .map((student) => ({
+            id: String(student.id || "").trim(),
+            name: String(student.displayName || "").trim(),
           }))
-          .filter((item) => item.id && item.name);
+          .filter((student) => {
+            if (!student.id || !student.name || seenStudentIds.has(student.id)) return false;
+            seenStudentIds.add(student.id);
+            return true;
+          });
 
         if (cancelled) return;
 
@@ -135,10 +163,10 @@ export default function AcademicProgressionWorkspace({ roleMode, studentId, stud
   }, [selectedStudentId, selectedStudentName, studentOptions]);
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-red-50/30 to-white p-2">
+    <div className="min-h-screen bg-gray-50 p-2">
       <div className="space-y-6">
         {/* Page header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className={`flex flex-col md:flex-row md:items-center md:justify-between gap-4 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
           <div className="flex items-start gap-4">
             <div className="rounded-xl bg-linear-to-r from-red-600 to-red-700 p-3 text-white shadow-lg">
               <GraduationCap className="h-6 w-6" />
@@ -148,15 +176,11 @@ export default function AcademicProgressionWorkspace({ roleMode, studentId, stud
               <p className="text-sm text-gray-600">{ROLE_SUBTITLE[roleMode]}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50/50 px-3 py-1.5 shrink-0">
-            <BookOpen className="h-4 w-4 text-red-500" />
-            <span className="text-xs font-semibold text-red-600">Phase 2</span>
-          </div>
         </div>
 
         {/* Tabs */}
         {tabs.length > 1 && (
-          <div className="flex gap-1 rounded-xl border border-gray-200 bg-white p-1">
+          <div className={`flex gap-1 rounded-xl border border-gray-200 bg-white p-1 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
             {tabs.map((tab) => (
               <button
                 key={tab.key}
@@ -182,7 +206,7 @@ export default function AcademicProgressionWorkspace({ roleMode, studentId, stud
         )}
 
         {activeTab === "student-progress" ? (
-          <div className="space-y-4">
+          <div className={`space-y-4 transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
             <div className="rounded-2xl border border-gray-200 bg-white p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>

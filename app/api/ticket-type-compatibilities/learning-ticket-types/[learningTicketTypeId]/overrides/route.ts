@@ -1,46 +1,48 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import {
   BACKEND_TICKET_TYPE_COMPATIBILITY_ENDPOINTS,
   buildApiUrl,
 } from "@/constants/apiURL";
 
-async function parseBody(res: Response) {
-  const text = await res.text();
-  if (!text) return null;
-  try {
-    return JSON.parse(text);
-  } catch {
-    return { message: text };
+export const dynamic = "force-dynamic";
+
+function buildHeaders(request: NextRequest) {
+  const headers = new Headers();
+  headers.set("Content-Type", request.headers.get("content-type") ?? "application/json");
+
+  const authorization = request.headers.get("authorization");
+  if (authorization) {
+    headers.set("Authorization", authorization);
   }
+
+  return headers;
+}
+
+async function proxyResponse(response: Response) {
+  const body = await response.text();
+  return new NextResponse(body, {
+    status: response.status,
+    headers: {
+      "Content-Type": response.headers.get("content-type") ?? "application/json",
+    },
+  });
 }
 
 export async function PUT(
-  req: Request,
-  { params }: { params: Promise<{ learningTicketTypeId: string }> }
+  request: NextRequest,
+  context: { params: Promise<{ learningTicketTypeId: string }> },
 ) {
-  const { learningTicketTypeId } = await params;
-  const authHeader = req.headers.get("authorization");
-  if (!authHeader) {
-    return NextResponse.json(
-      { success: false, data: null, message: "Chưa đăng nhập" },
-      { status: 401 }
-    );
-  }
-
-  const body = await req.json();
-  const upstream = await fetch(
-    buildApiUrl(
-      BACKEND_TICKET_TYPE_COMPATIBILITY_ENDPOINTS.BULK_OVERRIDES(
-        learningTicketTypeId
-      )
-    ),
+  const { learningTicketTypeId } = await context.params;
+  const body = await request.text();
+  const response = await fetch(
+    buildApiUrl(BACKEND_TICKET_TYPE_COMPATIBILITY_ENDPOINTS.BULK_OVERRIDES(learningTicketTypeId)),
     {
       method: "PUT",
-      headers: { Authorization: authHeader, "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    }
+      headers: buildHeaders(request),
+      body,
+      cache: "no-store",
+    },
   );
 
-  const data = await parseBody(upstream);
-  return NextResponse.json(data, { status: upstream.status });
+  return proxyResponse(response);
 }

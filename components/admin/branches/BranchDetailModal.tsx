@@ -498,7 +498,7 @@ export default function BranchDetailModal({ isOpen, onClose, branch, userStats =
                             </span>
                           </div>
                           <div className="flex flex-wrap gap-2">
-                            <span className="inline-flex items-center gap-1.5 text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full"><CalendarDays size={12} /> Gán: {formatDate(p.assignedAt)}</span>
+                            {/* <span className="inline-flex items-center gap-1.5 text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full"><CalendarDays size={12} /> Gán: {formatDate(p.assignedAt)}</span> */}
                             <span className="inline-flex items-center gap-1.5 text-xs bg-red-50 text-red-700 px-2.5 py-1 rounded-full border border-red-200"><BookOpen size={12} /> Syllabus liên quan: {syllabusCountsByProgram[p.programId] ?? 0}</span>
                           </div>
                         </div>
