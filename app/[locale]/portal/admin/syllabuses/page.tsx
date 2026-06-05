@@ -2959,6 +2959,13 @@ export default function SyllabusesPage() {
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
+  // Page Loading Animation
+  const [isPageLoaded, setIsPageLoaded] = useState(false);
+
+  useEffect(() => {
+    setIsPageLoaded(true);
+  }, []);
+
   // Load programs once
   useEffect(() => {
     getAllProgramsForDropdown()
@@ -3497,7 +3504,7 @@ export default function SyllabusesPage() {
   return (
     <div className="min-h-screen space-y-6 bg-gray-50 p-4 md:p-2">
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-sm">
+      <nav className={`flex items-center gap-2 text-sm transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
         <a
           href={`/${locale}/portal/admin/courses`}
           className="font-medium text-gray-500 hover:text-red-600 transition-colors"
@@ -3509,7 +3516,7 @@ export default function SyllabusesPage() {
       </nav>
 
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className={`flex flex-col md:flex-row md:items-center md:justify-between gap-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         <div className="flex items-start gap-4">
           <div className="rounded-xl bg-linear-to-r from-red-600 to-red-700 p-3 text-white shadow-lg">
             <BookOpen size={25} />
@@ -3536,7 +3543,7 @@ export default function SyllabusesPage() {
               align="end"
               className="w-72 rounded-xl border border-gray-200 bg-white p-1 shadow-xl"
             >
-              <DropdownMenuLabel className="px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">
+              <DropdownMenuLabel className="px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-red-600">
                 Luồng import
               </DropdownMenuLabel>
               <DropdownMenuItem
@@ -3589,7 +3596,7 @@ export default function SyllabusesPage() {
               align="end"
               className="w-72 rounded-xl border border-gray-200 bg-white p-1 shadow-xl"
             >
-              <DropdownMenuLabel className="px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">
+              <DropdownMenuLabel className="px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-red-600">
                 Tác vụ phụ
               </DropdownMenuLabel>
               <DropdownMenuItem
@@ -3639,7 +3646,7 @@ export default function SyllabusesPage() {
       </div>
 
       {/* Filter Card */}
-      <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50 p-4">
+      <div className={`rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50 p-4 transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         <div className="space-y-4">
           {/* Status Filter Tabs */}
           <div className="flex flex-wrap gap-2 pb-4 border-b border-red-200">
@@ -3758,7 +3765,7 @@ export default function SyllabusesPage() {
       </div>
 
       {/* Table */}
-      <div className="overflow-hidden rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50/30 shadow-sm">
+      <div className={`overflow-hidden rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50/30 shadow-sm transition-all duration-700 delay-300 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         <div className="border-b border-red-200 bg-linear-to-r from-red-500/10 to-red-700/10 px-6 py-4">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
@@ -3799,14 +3806,6 @@ export default function SyllabusesPage() {
                   </th>
                   <th className="px-6 py-4">Chương trình / Level</th>
                   <th
-                    className="px-6 py-4 cursor-pointer hover:bg-red-50 transition-colors select-none"
-                    onClick={() => handleSort("code")}
-                  >
-                    <span className="inline-flex items-center gap-2">
-                      Mã / Phiên bản {getSortIcon("code")}
-                    </span>
-                  </th>
-                  <th
                     className="px-6 py-4 text-center cursor-pointer hover:bg-red-50 transition-colors select-none"
                     onClick={() => handleSort("unitCount")}
                   >
@@ -3822,12 +3821,9 @@ export default function SyllabusesPage() {
                       Session {getSortIcon("sessionTemplateCount")}
                     </span>
                   </th>
-                  <th
-                    className="px-6 py-4 text-center cursor-pointer hover:bg-red-50 transition-colors select-none"
-                    onClick={() => handleSort("isActive")}
-                  >
+                  <th className="px-6 py-4 text-center">
                     <span className="inline-flex items-center justify-center gap-2">
-                      Trạng thái {getSortIcon("isActive")}
+                      Trạng thái
                     </span>
                   </th>
                   <th className="px-6 py-4 text-right">Thao tác</th>
@@ -3840,6 +3836,14 @@ export default function SyllabusesPage() {
                     className="hover:bg-red-50/30 transition-colors"
                   >
                     <td className="px-6 py-4 max-w-xs">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="inline-block rounded-md bg-gray-100 px-2 py-0.5 font-mono text-xs font-bold text-gray-700 shrink-0">
+                          {item.code}
+                        </span>
+                        <span className="inline-block text-xs font-medium text-gray-500 shrink-0">
+                          {item.version}
+                        </span>
+                      </div>
                       <p
                         className="font-semibold text-gray-900 truncate cursor-help"
                         title={item.title}
@@ -3859,19 +3863,6 @@ export default function SyllabusesPage() {
                       <p className="text-xs text-gray-400">
                         {item.levelName ?? "—"}
                       </p>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="space-y-1">
-                        <span className="inline-block rounded-md bg-gray-100 px-2 py-0.5 font-mono text-xs font-bold text-gray-700">
-                          {item.code}
-                        </span>
-                        <p className="text-xs font-medium text-gray-500">
-                          Phiên bản:{" "}
-                          <span className="font-semibold text-gray-700">
-                            {item.version || "Chưa có"}
-                          </span>
-                        </p>
-                      </div>
                     </td>
                     <td className="px-6 py-4 text-center">
                       <span className="inline-flex h-7 w-10 items-center justify-center rounded-lg bg-blue-50 text-xs font-semibold text-blue-700">

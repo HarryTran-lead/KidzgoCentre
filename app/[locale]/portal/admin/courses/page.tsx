@@ -264,7 +264,7 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
     <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div
         ref={modalRef}
-        className="relative w-full max-w-4xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden"
+        className="relative w-full max-w-3xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden"
       >
         {/* Modal Header */}
         <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
@@ -297,7 +297,6 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
         <div className="p-6 max-h-[70vh] overflow-y-auto">
           {mode === "create" && (
             <div className="mb-5 flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
-              <Building2 size={16} className="mt-0.5 shrink-0 text-blue-600" />
               <p className="text-sm text-blue-800">
                 Chương trình là tài nguyên <strong>dùng chung toàn hệ thống</strong>. Sau khi tạo, dùng nút <strong>Gán chi nhánh</strong> để liên kết với các chi nhánh cần thiết.
               </p>
@@ -358,13 +357,13 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
                 </div>
 
                 <div className={cn("grid gap-3", mode === "edit" ? "md:grid-cols-2" : "md:grid-cols-1")}>
-                  <label className="rounded-xl border border-violet-200 bg-white px-4 py-3 text-sm text-gray-800">
+                  <label className="rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-800 cursor-pointer">
                     <div className="flex items-start gap-3">
                       <input
                         type="checkbox"
                         checked={formData.isSupplementary}
                         onChange={(e) => handleChange("isSupplementary", e.target.checked)}
-                        className="h-4 w-4 rounded border-violet-300 text-violet-600 focus:ring-violet-300"
+                        className="h-4 w-4 rounded border-red-300 accent-red-600 text-red-600 focus:ring-red-300 cursor-pointer"
                       />
                       <div className="space-y-1">
                         <div className="text-sm font-semibold">
@@ -1396,7 +1395,6 @@ export function ProgramsManagementPage({
             {templatesLabel}
           </Link>
         </nav>
-
         {/* Title */}
         <div className={`flex flex-col md:flex-row md:items-center md:justify-between gap-4 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
           <div className="flex items-center gap-3">
@@ -1647,6 +1645,24 @@ export function ProgramsManagementPage({
                 className="w-full pl-10 pr-3 py-2.5 text-sm rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-300"
               />
             </div>
+
+            {/* Navigation Links */}
+            <nav className="flex flex-wrap items-center gap-2 pt-2">
+              <Link
+                href={`/${locale}/portal/admin/syllabuses`}
+                className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100"
+              >
+                <BookOpenCheck size={12} />
+                {syllabusesLabel}
+              </Link>
+              <Link
+                href={`/${locale}/portal/admin/documents/templates`}
+                className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100"
+              >
+                <FileText size={12} />
+                {templatesLabel}
+              </Link>
+            </nav>
           </div>
         </div>
 
@@ -2159,7 +2175,7 @@ export function ProgramsManagementPage({
                   {courseBranchesData.map((branch, idx) => (
                     <div
                       key={idx}
-                      className="flex items-center justify-between p-4 rounded-xl border cursor-pointer border-red-200 bg-white hover:bg-gray-50 transition-colors"
+                      className="flex items-center justify-between cursor-pointer p-4 rounded-lg border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-4 hover:border-red-300 hover:bg-red-100/50 transition-all"
                     >
                       <div className="flex items-center gap-3">
                         <div className="p-2 rounded-lg bg-red-50">

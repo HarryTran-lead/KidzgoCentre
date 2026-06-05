@@ -106,35 +106,37 @@ export function proxy(req: NextRequest) {
 
   // ==== AUTHZ CHO CÁC ROUTE CON CỦA /portal ==== 
   
-  // Try to get JWT token first
-  const token = extractToken(req);
+  // 1) FIRST: Try role cookie (set by /api/session after student/parent selection)
   let role: Role | undefined;
   let userId: string | undefined;
-  
-  if (token) {
-    // Verify JWT token
-    const payload = decodeJWT(token);
-    
-    if (payload && !isTokenExpired(payload)) {
-      const userInfo = extractUserInfo(payload);
-      
-      if (userInfo) {
-        const normalized = normalizeRole(userInfo.role);
-        role = (ACCESS_MAP as Record<string, string[]>)[normalized]
-          ? (normalized as Role)
-          : undefined;
-        userId = userInfo.userId;
-      }
-    }
-  }
-  
-  // Fallback to cookie-based auth (for dev/backward compatibility)
-  if (!role) {
-    const rawRole = req.cookies.get("role")?.value;
-    const normalized = rawRole ? normalizeRole(rawRole) : undefined;
+
+  const rawRoleCookie = req.cookies.get("role")?.value;
+  if (rawRoleCookie) {
+    const normalized = normalizeRole(rawRoleCookie);
     role = normalized && (ACCESS_MAP as Record<string, string[]>)[normalized]
       ? (normalized as Role)
       : undefined;
+  }
+
+  // 2) FALLBACK: Try JWT token if no role cookie
+  if (!role) {
+    const token = extractToken(req);
+    if (token) {
+      // Verify JWT token
+      const payload = decodeJWT(token);
+
+      if (payload && !isTokenExpired(payload)) {
+        const userInfo = extractUserInfo(payload);
+
+        if (userInfo) {
+          const normalized = normalizeRole(userInfo.role);
+          role = (ACCESS_MAP as Record<string, string[]>)[normalized]
+            ? (normalized as Role)
+            : undefined;
+          userId = userInfo.userId;
+        }
+      }
+    }
   }
 
   // Không có role → ép về login
@@ -155,8 +157,8 @@ export function proxy(req: NextRequest) {
   const allowed = allowPrefixes.some((p) => pathNoLocale.startsWith(p));
 
   if (!allowed) {
-    // 403 không prefix locale -> app/403/page.tsx
-    const url403 = new URL("/403", req.url);
+    // 403 với locale prefix
+    const url403 = new URL(`${baseFromEffective}/403`, req.url);
     return setLocaleCookie(NextResponse.redirect(url403), effectiveLocale);
   }
 

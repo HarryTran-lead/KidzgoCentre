@@ -68,6 +68,11 @@ export default function AcademicProgressionWorkspace({ roleMode, studentId, stud
   const [studentOptionsError, setStudentOptionsError] = useState<string | null>(null);
   const [selectedStudentId, setSelectedStudentId] = useState(studentId ?? "");
   const [selectedStudentName, setSelectedStudentName] = useState(studentName ?? "");
+  const [isPageLoaded, setIsPageLoaded] = useState(false);
+
+  useEffect(() => {
+    setIsPageLoaded(true);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -158,10 +163,10 @@ export default function AcademicProgressionWorkspace({ roleMode, studentId, stud
   }, [selectedStudentId, selectedStudentName, studentOptions]);
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-red-50/30 to-white p-2">
+    <div className="min-h-screen bg-gray-50 p-2">
       <div className="space-y-6">
         {/* Page header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className={`flex flex-col md:flex-row md:items-center md:justify-between gap-4 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
           <div className="flex items-start gap-4">
             <div className="rounded-xl bg-linear-to-r from-red-600 to-red-700 p-3 text-white shadow-lg">
               <GraduationCap className="h-6 w-6" />
@@ -175,7 +180,7 @@ export default function AcademicProgressionWorkspace({ roleMode, studentId, stud
 
         {/* Tabs */}
         {tabs.length > 1 && (
-          <div className="flex gap-1 rounded-xl border border-gray-200 bg-white p-1">
+          <div className={`flex gap-1 rounded-xl border border-gray-200 bg-white p-1 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
             {tabs.map((tab) => (
               <button
                 key={tab.key}
@@ -201,7 +206,7 @@ export default function AcademicProgressionWorkspace({ roleMode, studentId, stud
         )}
 
         {activeTab === "student-progress" ? (
-          <div className="space-y-4">
+          <div className={`space-y-4 transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
             <div className="rounded-2xl border border-gray-200 bg-white p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
