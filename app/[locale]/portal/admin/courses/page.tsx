@@ -838,7 +838,6 @@ export function ProgramsManagementPage({
   const curriculumRootLabel = isEnglish
     ? "Programs & Curriculum"
     : "Khung chương trình";
-  const childAreasLabel = isEnglish ? "Child areas" : "Màn con";
   const syllabusesLabel = isEnglish ? "Syllabuses" : "Giáo trình";
   const templatesLabel = isEnglish
     ? "Standard Lesson Templates"
@@ -1382,10 +1381,6 @@ export function ProgramsManagementPage({
           </span>
           <ChevronRight size={14} className="text-gray-300" />
           <span className="font-semibold text-gray-700">{t.header.title}</span>
-          <span className="text-gray-300">•</span>
-          <span className="text-xs uppercase tracking-[0.14em] text-gray-400">
-            {childAreasLabel}
-          </span>
           <Link
             href={`/${locale}/portal/admin/syllabuses`}
             className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100"

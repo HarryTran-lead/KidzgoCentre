@@ -52,7 +52,8 @@ type TuitionPlanRow = {
   name: string;
   programName: string;
   levelName: string;
-  moduleName: string | null;
+  syllabusLabel: string;
+  moduleLabel: string;
   sessionCount: string;
   tuitionAmount: string;
   status: "Đang hoạt động" | "Tạm dừng";
@@ -110,12 +111,23 @@ function SortableHeader({
 const PAGE_SIZE = 10;
 
 function toRow(plan: TuitionPlan): TuitionPlanRow {
+  const moduleLabel = plan.modules.length
+    ? plan.modules
+        .map((module) => module.moduleCode || module.moduleName || module.moduleId)
+        .filter(Boolean)
+        .join(", ")
+    : "Gói thường";
+  const syllabusLabel = plan.syllabusTitle || plan.syllabusCode
+    ? [plan.syllabusCode, plan.syllabusVersion, plan.syllabusTitle].filter(Boolean).join(" - ")
+    : "";
+
   return {
     id: plan.id,
     name: plan.name,
     programName: plan.programName,
     levelName: plan.levelName,
-    moduleName: plan.moduleName ?? null,
+    syllabusLabel,
+    moduleLabel,
     sessionCount: `${plan.totalSessions} buổi`,
     tuitionAmount: `${plan.tuitionAmount.toLocaleString("vi-VN")} ${plan.currency || "VND"}`,
     status: plan.isActive ? "Đang hoạt động" : "Tạm dừng",
@@ -195,7 +207,10 @@ export default function TuitionPlansPage() {
     const kw = q.trim().toLowerCase();
     let filtered = !kw
       ? plans
-      : plans.filter((r) => [r.name, r.programName, r.tuitionAmount].some((x) => x.toLowerCase().includes(kw)));
+      : plans.filter((r) =>
+          [r.name, r.programName, r.levelName, r.syllabusLabel, r.moduleLabel, r.tuitionAmount]
+            .some((x) => x.toLowerCase().includes(kw)),
+        );
 
     if (statusFilter !== "ALL") {
       filtered = filtered.filter((r) => r.status === statusFilter);
@@ -243,8 +258,9 @@ export default function TuitionPlansPage() {
     try {
       await createTuitionPlan({
         programId: data.programId,
-        levelId: data.levelId || null,
-        moduleId: data.moduleId || null,
+        levelId: data.levelId,
+        syllabusId: data.planType === "syllabus" ? data.syllabusId : null,
+        moduleIds: data.planType === "syllabus" ? data.moduleIds : [],
         name: data.name,
         totalSessions: Number(data.sessionCount),
         tuitionAmount: Number(data.tuitionAmount.replace(/[^\d]/g, "")),
@@ -273,9 +289,11 @@ export default function TuitionPlansPage() {
       setEditingPlanId(row.id);
       setEditingInitialData({
         branchId: plan.branchId,
+        planType: plan.syllabusId && plan.moduleIds.length > 0 ? "syllabus" : "regular",
         programId: plan.programId,
         levelId: plan.levelId,
-        moduleId: plan.moduleId ?? "",
+        syllabusId: plan.syllabusId ?? "",
+        moduleIds: plan.moduleIds,
         name: plan.name,
         sessionCount: String(plan.totalSessions),
         tuitionAmount: String(plan.tuitionAmount),
@@ -301,8 +319,9 @@ export default function TuitionPlansPage() {
     try {
       await updateTuitionPlan(editingPlanId, {
         programId: data.programId,
-        levelId: data.levelId || null,
-        moduleId: data.moduleId || null,
+        levelId: data.levelId,
+        syllabusId: data.planType === "syllabus" ? data.syllabusId : null,
+        moduleIds: data.planType === "syllabus" ? data.moduleIds : [],
         name: data.name,
         totalSessions: Number(data.sessionCount),
         tuitionAmount: Number(data.tuitionAmount.replace(/[^\d]/g, "")),
@@ -518,7 +537,7 @@ export default function TuitionPlansPage() {
                 <tr>
                   <SortableHeader field="name" currentField={sortField} direction={sortDirection} onSort={handleSort}>Tên gói học</SortableHeader>
                   <SortableHeader field="programName" currentField={sortField} direction={sortDirection} onSort={handleSort}>Chương trình học</SortableHeader>
-                  <th className="py-3 px-6 text-left text-sm font-semibold tracking-wide text-gray-700 whitespace-nowrap">Level / Module</th>
+                  <th className="py-3 px-6 text-left text-sm font-semibold tracking-wide text-gray-700 whitespace-nowrap">Level / Syllabus / Module</th>
                   <SortableHeader field="sessionCount" currentField={sortField} direction={sortDirection} onSort={handleSort}>Số buổi</SortableHeader>
                   <SortableHeader field="tuitionAmount" currentField={sortField} direction={sortDirection} onSort={handleSort}>Học phí</SortableHeader>
                   <SortableHeader field="status" currentField={sortField} direction={sortDirection} onSort={handleSort} align="center">Trạng thái</SortableHeader>
@@ -547,7 +566,8 @@ export default function TuitionPlansPage() {
                         <td className="py-3 px-6">
                           <div className="text-xs text-gray-500">
                             <div className="font-medium text-gray-700">{r.levelName || "—"}</div>
-                            {r.moduleName && <div className="text-xs text-blue-600">{r.moduleName}</div>}
+                            {r.syllabusLabel && <div className="max-w-64 truncate text-xs text-red-600">{r.syllabusLabel}</div>}
+                            <div className="max-w-64 truncate text-xs text-blue-600">{r.moduleLabel}</div>
                           </div>
                         </td>
                         <td className="py-3 px-6 whitespace-nowrap">

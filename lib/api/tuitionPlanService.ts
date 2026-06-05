@@ -4,6 +4,7 @@ import type {
   CreateTuitionPlan,
   CreateTuitionPlanResponse,
   TuitionPlan,
+  TuitionPlanModule,
   TuitionPlanSyllabusMapping,
   UpdateTuitionPlanRequest,
   UpdateTuitionPlanResponse,
@@ -52,38 +53,103 @@ function pickNestedName(candidate: any): string {
 }
 
 function resolveBranchName(item: any): string {
-  const direct = String(item?.branchName ?? item?.branchDisplayName ?? item?.branch_title ?? "").trim();
+  const direct = String(item?.branchName ?? item?.BranchName ?? item?.branchDisplayName ?? item?.branch_title ?? "").trim();
   if (direct) return direct;
 
-  const nested = pickNestedName(item?.branch) || pickNestedName(item?.branchInfo);
+  const nested = pickNestedName(item?.branch) || pickNestedName(item?.Branch) || pickNestedName(item?.branchInfo);
   if (nested) return nested;
 
   return "";
 }
 
-function mapToTuitionPlan(item: any): TuitionPlan {
+function str(value: unknown): string {
+  return typeof value === "string" ? value : value == null ? "" : String(value);
+}
+
+function num(value: unknown): number | null {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizeModule(item: any): TuitionPlanModule {
   return {
-    id: String(item?.id ?? ""),
-    branchId: String(item?.branchId ?? ""),
+    moduleId: str(item?.moduleId ?? item?.id ?? item?.ModuleId ?? item?.Id),
+    moduleCode: str(item?.moduleCode ?? item?.code ?? item?.ModuleCode ?? item?.Code) || null,
+    moduleName: str(item?.moduleName ?? item?.name ?? item?.ModuleName ?? item?.Name) || null,
+    moduleOrder: num(item?.moduleOrder ?? item?.order ?? item?.orderIndex ?? item?.ModuleOrder ?? item?.Order),
+    plannedSessionCount: num(item?.plannedSessionCount ?? item?.totalSessions ?? item?.sessionCount ?? item?.PlannedSessionCount),
+  };
+}
+
+function normalizeModules(item: any): TuitionPlanModule[] {
+  const rawModules = Array.isArray(item?.modules)
+    ? item.modules
+    : Array.isArray(item?.Modules)
+      ? item.Modules
+      : [];
+
+  const modules = rawModules.map(normalizeModule).filter((module) => module.moduleId);
+  if (modules.length > 0) return modules;
+
+  const legacyModuleId = str(item?.moduleId ?? item?.ModuleId);
+  if (!legacyModuleId) return [];
+
+  return [{
+    moduleId: legacyModuleId,
+    moduleCode: str(item?.moduleCode ?? item?.ModuleCode) || null,
+    moduleName: str(item?.moduleName ?? item?.module?.name ?? item?.ModuleName) || null,
+    moduleOrder: num(item?.moduleOrder ?? item?.order ?? item?.ModuleOrder),
+    plannedSessionCount: num(item?.plannedSessionCount ?? item?.totalSessions ?? item?.PlannedSessionCount),
+  }];
+}
+
+function normalizeModuleIds(item: any, modules: TuitionPlanModule[]): string[] {
+  const rawIds = Array.isArray(item?.moduleIds)
+    ? item.moduleIds
+    : Array.isArray(item?.ModuleIds)
+      ? item.ModuleIds
+      : [];
+
+  const ids = rawIds.map((id: unknown) => str(id).trim()).filter(Boolean);
+  if (ids.length > 0) return ids;
+
+  return modules.map((module) => module.moduleId).filter(Boolean);
+}
+
+function mapToTuitionPlan(item: any): TuitionPlan {
+  const modules = normalizeModules(item);
+  const moduleIds = normalizeModuleIds(item, modules);
+  const isActive = item?.isActive === undefined ? item?.IsActive !== false : Boolean(item?.isActive);
+  const statusValue = str(item?.status ?? item?.Status).toLowerCase();
+
+  return {
+    id: String(item?.id ?? item?.Id ?? ""),
+    branchId: String(item?.branchId ?? item?.BranchId ?? ""),
     branchName: resolveBranchName(item),
-    programId: String(item?.programId ?? ""),
-    programName: String(item?.programName ?? item?.program?.name ?? ""),
-    levelId: String(item?.levelId ?? ""),
-    levelName: String(item?.levelName ?? item?.level?.name ?? ""),
-    moduleId: item?.moduleId ?? null,
-    moduleName: item?.moduleName ?? item?.module?.name ?? null,
-    name: String(item?.name ?? ""),
-    totalSessions: Number(item?.totalSessions ?? item?.sessionCount ?? 0),
-    tuitionAmount: Number(item?.tuitionAmount ?? 0),
-    unitPriceSession: Number(item?.unitPriceSession ?? 0),
-    currency: String(item?.currency ?? "VND"),
-    status: (item?.status === 'inactive' ? 'inactive' : 'active') as 'active' | 'inactive',
-    isActive: Boolean(item?.isActive),
-    createdAt: String(item?.createdAt ?? ""),
-    updatedAt: String(item?.updatedAt ?? ""),
-    learningTicketTypeId: item?.learningTicketTypeId ?? null,
-    learningTicketTypeCode: item?.learningTicketTypeCode ?? null,
-    learningTicketTypeName: item?.learningTicketTypeName ?? null,
+    programId: String(item?.programId ?? item?.ProgramId ?? ""),
+    programName: String(item?.programName ?? item?.ProgramName ?? item?.program?.name ?? item?.Program?.Name ?? ""),
+    levelId: String(item?.levelId ?? item?.LevelId ?? ""),
+    levelName: String(item?.levelName ?? item?.LevelName ?? item?.level?.name ?? item?.Level?.Name ?? ""),
+    syllabusId: str(item?.syllabusId ?? item?.SyllabusId) || null,
+    syllabusCode: str(item?.syllabusCode ?? item?.syllabus?.code ?? item?.SyllabusCode) || null,
+    syllabusVersion: item?.syllabusVersion ?? item?.syllabus?.version ?? item?.SyllabusVersion ?? null,
+    syllabusTitle: str(item?.syllabusTitle ?? item?.syllabus?.title ?? item?.SyllabusTitle) || null,
+    moduleIds,
+    modules,
+    moduleId: moduleIds[0] ?? null,
+    moduleName: modules[0]?.moduleName ?? null,
+    name: String(item?.name ?? item?.Name ?? ""),
+    totalSessions: Number(item?.totalSessions ?? item?.sessionCount ?? item?.TotalSessions ?? 0),
+    tuitionAmount: Number(item?.tuitionAmount ?? item?.TuitionAmount ?? 0),
+    unitPriceSession: Number(item?.unitPriceSession ?? item?.UnitPriceSession ?? 0),
+    currency: String(item?.currency ?? item?.Currency ?? "VND"),
+    status: (statusValue === 'inactive' || isActive === false ? 'inactive' : 'active') as 'active' | 'inactive',
+    isActive,
+    createdAt: String(item?.createdAt ?? item?.CreatedAt ?? ""),
+    updatedAt: String(item?.updatedAt ?? item?.UpdatedAt ?? ""),
+    learningTicketTypeId: item?.learningTicketTypeId ?? item?.LearningTicketTypeId ?? null,
+    learningTicketTypeCode: item?.learningTicketTypeCode ?? item?.LearningTicketTypeCode ?? null,
+    learningTicketTypeName: item?.learningTicketTypeName ?? item?.LearningTicketTypeName ?? null,
   };
 }
 
@@ -91,8 +157,10 @@ export async function getTuitionPlans(options?: {
   pageNumber?: number;
   pageSize?: number;
   branchId?: string;
+  programId?: string;
   levelId?: string;
   moduleId?: string;
+  isActive?: boolean;
   status?: 'active' | 'inactive';
 }): Promise<TuitionPlan[]> {
   const params = new URLSearchParams({
@@ -101,9 +169,13 @@ export async function getTuitionPlans(options?: {
   });
 
   if (options?.branchId) params.append("branchId", options.branchId);
+  if (options?.programId) params.append("programId", options.programId);
   if (options?.levelId) params.append("levelId", options.levelId);
   if (options?.moduleId) params.append("moduleId", options.moduleId);
-  if (options?.status) params.append("status", options.status);
+  if (options?.isActive !== undefined) params.append("isActive", String(options.isActive));
+  if (options?.status && options?.isActive === undefined) {
+    params.append("isActive", String(options.status === "active"));
+  }
 
   const response = await get<any>(`${ADMIN_ENDPOINTS.TUITION_PLANS}?${params.toString()}`);
   return pickItems(response).map(mapToTuitionPlan).filter((x) => x.id);
@@ -112,7 +184,7 @@ export async function getTuitionPlans(options?: {
 export async function getTuitionPlanById(id: string): Promise<TuitionPlan | null> {
   const response = await get<any>(ADMIN_ENDPOINTS.TUITION_PLANS_BY_ID(id));
   const item = pickDetail(response);
-  if (!item?.id) return null;
+  if (!item?.id && !item?.Id) return null;
   return mapToTuitionPlan(item);
 }
 
@@ -156,8 +228,8 @@ export async function toggleTuitionPlanStatus(
   const response = await patch<any>(ADMIN_ENDPOINTS.TUITION_PLANS_TOGGLE_STATUS(id));
   const data = response?.data ?? response;
   return {
-    id: String(data?.id ?? id),
-    isActive: Boolean(data?.isActive),
+    id: String(data?.id ?? data?.Id ?? id),
+    isActive: Boolean(data?.isActive ?? data?.IsActive),
   };
 }
 
@@ -175,11 +247,11 @@ export async function getProgramsForBranch(branchId?: string): Promise<ProgramOp
 
   return pickPrograms(response)
     .map((item: any) => ({
-      id: String(item?.id ?? ""),
-      name: String(item?.name ?? ""),
-      branchId: item?.branchId ? String(item.branchId) : undefined,
-      isActive: item?.isActive === undefined ? undefined : Boolean(item.isActive),
-      isMakeup: item?.isMakeup === undefined ? undefined : Boolean(item.isMakeup),
+      id: String(item?.id ?? item?.Id ?? ""),
+      name: String(item?.name ?? item?.Name ?? ""),
+      branchId: item?.branchId || item?.BranchId ? String(item?.branchId ?? item?.BranchId) : undefined,
+      isActive: item?.isActive === undefined && item?.IsActive === undefined ? undefined : Boolean(item?.isActive ?? item?.IsActive),
+      isMakeup: item?.isMakeup === undefined && item?.IsMakeup === undefined ? undefined : Boolean(item?.isMakeup ?? item?.IsMakeup),
     }))
     .filter((x: ProgramOption) => x.id);
 }

@@ -787,19 +787,28 @@ export default function LevelModuleWorkspace({ roleMode, programId }: Props) {
             <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
               Chương trình
             </label>
-            <select
+            <Select
               value={selectedProgramFilter}
-              onChange={(e) => setSelectedProgramFilter(e.target.value)}
+              onValueChange={setSelectedProgramFilter}
               disabled={Boolean(programId)}
-              className="w-full bg-transparent text-sm text-gray-700 focus:outline-none"
+              searchPlaceholder="Tìm chương trình..."
+              emptyText="Không có chương trình"
             >
-              <option value="all">Tất cả chương trình</option>
-              {programFilterOptions.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.name}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger
+                disabled={Boolean(programId)}
+                className="h-9 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 shadow-sm transition-all hover:border-red-200 focus:border-red-400 focus:ring-2 focus:ring-red-100 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400"
+              >
+                <SelectValue placeholder="Tất cả chương trình" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả chương trình</SelectItem>
+                {programFilterOptions.map((option) => (
+                  <SelectItem key={option.id} value={option.id}>
+                    {option.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="relative">

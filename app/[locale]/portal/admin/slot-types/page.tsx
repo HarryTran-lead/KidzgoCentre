@@ -271,6 +271,18 @@ function TagBadge({ label, tone = 'slate' }: { label: string; tone?: 'slate' | '
   );
 }
 
+function getUsageBadge(slotType: SlotType): { label: string; tone: 'slate' | 'red' } {
+  const usageType = slotType.usageType ?? 'None';
+  if (usageType === 'None' && slotType.teacherType === 'Native') {
+    return { label: 'Khác', tone: 'red' };
+  }
+
+  return {
+    label: labelMaps.usageType[usageType] ?? 'Không gắn tag',
+    tone: usageType === 'None' ? 'slate' : 'red',
+  };
+}
+
 function SelectField<T extends string>({
   label,
   value,
@@ -588,7 +600,7 @@ export default function SlotTypesPage() {
                     <td className="px-6 py-5"><TagBadge label={labelMaps.dayGroup[item.dayGroup ?? 'None'] ?? 'Không gắn tag'} tone={item.dayGroup === 'None' ? 'slate' : 'red'} /></td>
                     <td className="px-6 py-5"><TagBadge label={labelMaps.timeBand[item.timeBand ?? 'None'] ?? 'Không gắn tag'} tone={item.timeBand === 'None' ? 'slate' : 'red'} /></td>
                     <td className="px-6 py-5"><TagBadge label={labelMaps.teacherType[item.teacherType ?? 'None'] ?? 'Không gắn tag'} tone={item.teacherType === 'None' ? 'slate' : 'red'} /></td>
-                    <td className="px-6 py-5"><TagBadge label={labelMaps.usageType[item.usageType ?? 'None'] ?? 'Không gắn tag'} tone={item.usageType === 'None' ? 'slate' : 'red'} /></td>
+                    <td className="px-6 py-5"><TagBadge {...getUsageBadge(item)} /></td>
                     <td className="px-6 py-5">
                       <span className={cn('inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold', item.isActive ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-red-200 bg-red-50 text-red-700')}>
                         {item.isActive ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
