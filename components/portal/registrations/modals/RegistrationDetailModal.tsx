@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
-import { Download, ExternalLink, Loader2, X, User, Calendar, BookOpen, Clock, Tag, Users, GraduationCap, CalendarClock, FileText, CheckCircle, AlertCircle, Wallet, History } from "lucide-react";
+import { Download, ExternalLink, Loader2, X, User, Calendar, BookOpen, Clock, Tag, Users, GraduationCap, CalendarClock, FileText, CheckCircle, AlertCircle, Wallet, History, Layers } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { exportRegistrationEnrollmentConfirmationPdf } from "@/lib/api/registrationService";
 import { getTicketBalance, getTicketLedger } from "@/lib/api/learningTicketService";
@@ -65,6 +65,24 @@ function ticketTransactionLabel(type?: string | null) {
     Adjustment: "Điều chỉnh",
   };
   return labels[normalized] || normalized || "Khác";
+}
+
+function ticketLedgerReasonLabel(reason?: string | null) {
+  const raw = String(reason || "").trim();
+  if (!raw) return "-";
+
+  const purchaseMatch = raw.match(/^Purchase\s+(.+)$/i);
+  if (purchaseMatch?.[1]) {
+    return `Cấp vé từ gói học: ${purchaseMatch[1].trim()}`;
+  }
+
+  const normalized = raw.toLowerCase();
+  const labels: Record<string, string> = {
+    "void remaining tickets because registration was cancelled":
+      "Hủy vé còn lại vì đăng ký đã bị hủy",
+  };
+
+  return labels[normalized] || raw;
 }
 
 function ticketTransactionBadgeClass(type?: string | null) {
@@ -527,11 +545,18 @@ export default function RegistrationDetailModal({
                     icon={<BookOpen size={14} />}
                     label="Chương trình"
                     value={
-                      item.secondaryLevelName
-                        ? `${item.programName || "-"} • ${item.secondaryLevelName}`
-                        : item.secondaryProgramName
+                      item.secondaryProgramName
                         ? `${item.programName || "-"} • ${item.secondaryProgramName}`
                         : item.programName || "-"
+                    }
+                  />
+                  <InfoCard
+                    icon={<Layers size={14} />}
+                    label="Trình độ"
+                    value={
+                      item.secondaryLevelName
+                        ? `${item.levelName || "Chưa có"} • ${item.secondaryLevelName}`
+                        : item.levelName || "Chưa có"
                     }
                   />
                   <InfoCard
@@ -779,7 +804,7 @@ export default function RegistrationDetailModal({
                                   {entry.quantity}
                                 </td>
                                 <td className="px-3 py-2 text-gray-700">
-                                  {entry.reason || "-"}
+                                  {ticketLedgerReasonLabel(entry.reason)}
                                 </td>
                                 <td className="px-3 py-2 text-gray-500">
                                   {toDateTimeOrRaw(entry.createdAt)}

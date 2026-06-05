@@ -691,6 +691,23 @@ function mapToRegistration(item: any): Registration {
         : null,
     tuitionPlanId: String(item?.tuitionPlanId ?? ""),
     tuitionPlanName: String(item?.tuitionPlanName ?? ""),
+    learningTicketTypeId: item?.learningTicketTypeId
+      ? String(item.learningTicketTypeId)
+      : item?.tuitionPlan?.learningTicketTypeId
+        ? String(item.tuitionPlan.learningTicketTypeId)
+        : null,
+    learningTicketTypeCode:
+      typeof item?.learningTicketTypeCode === "string"
+        ? item.learningTicketTypeCode
+        : typeof item?.tuitionPlan?.learningTicketTypeCode === "string"
+          ? item.tuitionPlan.learningTicketTypeCode
+          : null,
+    learningTicketTypeName:
+      typeof item?.learningTicketTypeName === "string"
+        ? item.learningTicketTypeName
+        : typeof item?.tuitionPlan?.learningTicketTypeName === "string"
+          ? item.tuitionPlan.learningTicketTypeName
+          : null,
     registrationDate: String(item?.registrationDate ?? ""),
     expectedStartDate: String(item?.expectedStartDate ?? ""),
     actualStartDate: String(item?.actualStartDate ?? ""),
@@ -740,6 +757,24 @@ function mapSuggestedClass(item: any): SuggestedClass {
     classSchedulePattern: item?.classSchedulePattern ?? null,
     effectiveSchedulePattern: item?.effectiveSchedulePattern ?? null,
     scheduleText: item?.scheduleText ?? item?.description ?? null,
+    slotTypeId:
+      item?.slotTypeId != null
+        ? String(item.slotTypeId)
+        : item?.slotType?.id != null
+          ? String(item.slotType.id)
+          : null,
+    slotTypeCode:
+      typeof item?.slotTypeCode === "string"
+        ? item.slotTypeCode
+        : typeof item?.slotType?.code === "string"
+          ? item.slotType.code
+          : null,
+    slotTypeName:
+      typeof item?.slotTypeName === "string"
+        ? item.slotTypeName
+        : typeof item?.slotType?.name === "string"
+          ? item.slotType.name
+          : null,
     weeklyScheduleSlots: Array.isArray(item?.weeklyScheduleSlots)
       ? item.weeklyScheduleSlots.map((slot: any) => ({
           dayOfWeek:
