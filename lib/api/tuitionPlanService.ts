@@ -82,7 +82,7 @@ function normalizeModule(item: any): TuitionPlanModule {
 }
 
 function normalizeModules(item: any): TuitionPlanModule[] {
-  const rawModules = Array.isArray(item?.modules)
+  const rawModules: unknown[] = Array.isArray(item?.modules)
     ? item.modules
     : Array.isArray(item?.Modules)
       ? item.Modules
