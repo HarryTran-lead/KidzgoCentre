@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
 
-export default function CenterOverviewPage({
+export default async function CenterOverviewPage({
   params,
 }: {
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 }) {
-  redirect(`/${params.locale}/portal/admin`);
+  const { locale } = await params;
+  redirect(`/${locale}/portal/admin`);
 }
