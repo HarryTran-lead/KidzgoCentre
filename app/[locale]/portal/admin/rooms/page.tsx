@@ -8,6 +8,7 @@ import {
   AlertCircle, Save, RotateCcw, Power, PowerOff, Sparkles
 } from "lucide-react";
 import { useState, useMemo, useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
 import { fetchAdminRooms, createAdminRoom, updateAdminRoom, fetchAdminRoomDetail, toggleRoomStatus } from "@/app/api/admin/rooms";
 import { fetchClassFormSelectData } from "@/app/api/admin/classFormData";
 import { fetchAdminSessions } from "@/app/api/admin/sessions";
@@ -18,6 +19,7 @@ import type { Session } from "@/types/admin/sessions";
 import { useToast } from "@/hooks/use-toast";
 import ConfirmModal from "@/components/ConfirmModal";
 import { useBranchFilter } from "@/hooks/useBranchFilter";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
 import AdminBranchSelectField from "@/components/admin/common/AdminBranchSelectField";
 
@@ -179,6 +181,8 @@ interface CreateRoomModalProps {
   onSubmit: (data: RoomFormData) => void;
   mode?: "create" | "edit";
   initialData?: RoomFormData | null;
+  forcedBranchId?: string;
+  forcedBranchName?: string;
 }
 
 interface RoomFormData {
@@ -197,7 +201,15 @@ const initialFormData: RoomFormData = {
   status: "active",
 };
 
-function CreateRoomModal({ isOpen, onClose, onSubmit, mode = "create", initialData }: CreateRoomModalProps) {
+function CreateRoomModal({
+  isOpen,
+  onClose,
+  onSubmit,
+  mode = "create",
+  initialData,
+  forcedBranchId,
+  forcedBranchName,
+}: CreateRoomModalProps) {
   const [formData, setFormData] = useState<RoomFormData>(initialFormData);
   const [errors, setErrors] = useState<Partial<Record<keyof RoomFormData, string>>>({});
   const [branchOptions, setBranchOptions] = useState<SelectOption[]>([]);
@@ -226,6 +238,10 @@ function CreateRoomModal({ isOpen, onClose, onSubmit, mode = "create", initialDa
   const fetchSelectData = async () => {
     try {
       setLoadingOptions(true);
+      if (forcedBranchId) {
+        setBranchOptions([{ id: forcedBranchId, name: forcedBranchName || "Chi nhánh hiện tại" }]);
+        return;
+      }
       const data = await fetchClassFormSelectData();
       setBranchOptions(data.branches);
     } catch (err) {
@@ -238,9 +254,9 @@ function CreateRoomModal({ isOpen, onClose, onSubmit, mode = "create", initialDa
   useEffect(() => {
     if (isOpen) {
       if (mode === "edit" && initialData) {
-        setFormData(initialData);
+        setFormData(forcedBranchId ? { ...initialData, branchId: forcedBranchId } : initialData);
       } else {
-      setFormData(initialFormData);
+      setFormData(forcedBranchId ? { ...initialFormData, branchId: forcedBranchId } : initialFormData);
       }
       setErrors({});
       fetchSelectData();
@@ -250,7 +266,7 @@ function CreateRoomModal({ isOpen, onClose, onSubmit, mode = "create", initialDa
         adjustTextareaHeight();
       }, 0);
     }
-  }, [isOpen, mode, initialData]);
+  }, [forcedBranchId, isOpen, mode, initialData]);
 
   const adjustTextareaHeight = () => {
     if (textareaRef.current) {
@@ -278,7 +294,7 @@ function CreateRoomModal({ isOpen, onClose, onSubmit, mode = "create", initialDa
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (validateForm()) {
-      onSubmit(formData);
+      onSubmit(forcedBranchId ? { ...formData, branchId: forcedBranchId } : formData);
       onClose();
     }
   };
@@ -337,7 +353,7 @@ function CreateRoomModal({ isOpen, onClose, onSubmit, mode = "create", initialDa
                 options={branchOptions.map((branch) => ({ id: branch.id, label: branch.name }))}
                 onValueChange={(value) => handleChange("branchId", value)}
                 error={errors.branchId}
-                disabled={loadingOptions}
+                disabled={loadingOptions || Boolean(forcedBranchId)}
                 placeholder={loadingOptions ? "Đang tải chi nhánh..." : "Vui lòng chọn chi nhánh"}
                 dataField="branchId"
               />
@@ -453,9 +469,9 @@ function CreateRoomModal({ isOpen, onClose, onSubmit, mode = "create", initialDa
                 type="button"
                 onClick={() => {
                   if (mode === "edit" && initialData) {
-                    setFormData(initialData);
+                    setFormData(forcedBranchId ? { ...initialData, branchId: forcedBranchId } : initialData);
                   } else {
-                  setFormData(initialFormData);
+                  setFormData(forcedBranchId ? { ...initialFormData, branchId: forcedBranchId } : initialFormData);
                   }
                   setErrors({});
                 }}
@@ -489,7 +505,14 @@ function cn(...inputs: (string | false | null | undefined)[]) {
 
 export default function Page() {
   const { toast } = useToast();
+  const pathname = usePathname();
+  const { user: currentUser, isLoading: isCurrentUserLoading } = useCurrentUser();
   const { selectedBranchId, isLoaded, getBranchQueryParam } = useBranchFilter();
+  const isStaffManagementRoomsPage = pathname.includes("/portal/staff-management/rooms");
+  const staffBranchId = isStaffManagementRoomsPage ? String(currentUser?.branchId || "") : "";
+  const staffBranchName = isStaffManagementRoomsPage ? currentUser?.branchName || "Chi nhánh hiện tại" : "";
+  const branchScopeLoaded = isStaffManagementRoomsPage ? !isCurrentUserLoading : isLoaded;
+  const effectiveSelectedBranchId = isStaffManagementRoomsPage ? staffBranchId : selectedBranchId;
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<Status | "all">("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -518,14 +541,21 @@ export default function Page() {
 
   // Fetch rooms with branch filter
   useEffect(() => {
-    if (!isLoaded) return;
+    if (!branchScopeLoaded) return;
+
+    if (isStaffManagementRoomsPage && !staffBranchId) {
+      setLoading(false);
+      setRooms([]);
+      setError("Không xác định được chi nhánh của tài khoản staff.");
+      return;
+    }
 
     async function fetchClassrooms() {
       try {
         setLoading(true);
         setError(null);
 
-        const branchId = getBranchQueryParam();
+        const branchId = isStaffManagementRoomsPage ? staffBranchId : getBranchQueryParam();
         console.log("🏫 Fetching rooms for branch:", branchId || "All branches");
 
         const mapped = await fetchAdminRooms({ branchId });
@@ -542,10 +572,16 @@ export default function Page() {
 
     fetchClassrooms();
     setCurrentPage(1);
-  }, [selectedBranchId, isLoaded]);
+  }, [branchScopeLoaded, getBranchQueryParam, isStaffManagementRoomsPage, selectedBranchId, staffBranchId]);
 
   // Fetch today's sessions
   useEffect(() => {
+    if (!branchScopeLoaded) return;
+    if (isStaffManagementRoomsPage && !staffBranchId) {
+      setTodaySessions([]);
+      return;
+    }
+
     async function fetchTodaySessions() {
       try {
         const today = new Date();
@@ -554,6 +590,7 @@ export default function Page() {
         tomorrow.setDate(tomorrow.getDate() + 1);
 
         const sessions = await fetchAdminSessions({
+          branchId: isStaffManagementRoomsPage ? staffBranchId : undefined,
           from: today.toISOString(),
           to: tomorrow.toISOString(),
           pageNumber: 1,
@@ -583,7 +620,7 @@ export default function Page() {
     }
 
     fetchTodaySessions();
-  }, []);
+  }, [branchScopeLoaded, isStaffManagementRoomsPage, staffBranchId]);
 
   const toggleSort = (key: keyof Room) => {
     setSort(prev => {
@@ -653,6 +690,11 @@ export default function Page() {
   const endIndex = startIndex + itemsPerPage;
   const currentRows = filteredRooms.slice(startIndex, endIndex);
 
+  const reloadRoomsByCurrentBranch = async () => {
+    const branchId = isStaffManagementRoomsPage ? staffBranchId : getBranchQueryParam();
+    return fetchAdminRooms({ branchId });
+  };
+
   const handleCreateRoom = async (data: RoomFormData) => {
     try {
       const payload: CreateRoomRequest = {
@@ -662,10 +704,9 @@ export default function Page() {
         note: data.note || undefined,
       };
 
-      const created = await createAdminRoom(payload);
+      await createAdminRoom(payload);
 
-      const branchId = getBranchQueryParam();
-      const updatedRooms = await fetchAdminRooms({ branchId });
+      const updatedRooms = await reloadRoomsByCurrentBranch();
       setRooms(updatedRooms);
 
       toast({
@@ -723,7 +764,7 @@ export default function Page() {
         }
       }
 
-      const updatedRooms = await fetchAdminRooms();
+      const updatedRooms = await reloadRoomsByCurrentBranch();
       setRooms(updatedRooms);
 
       toast({
@@ -791,15 +832,27 @@ export default function Page() {
       setSelectedRoomDetail(null);
 
       const detail = await fetchAdminRoomDetail(room.id);
+      if (
+        isStaffManagementRoomsPage &&
+        staffBranchId &&
+        detail?.branchId &&
+        String(detail.branchId) !== staffBranchId
+      ) {
+        throw new Error("Bạn không có quyền xem phòng học ngoài chi nhánh của mình.");
+      }
       setSelectedRoomDetail(detail);
     } catch (err: any) {
       console.error("Failed to load room detail:", err);
-      toast({
-        title: "Lỗi",
-        description: err?.message || "Không thể tải thông tin chi tiết phòng học.",
-        type: "destructive",
+      setSelectedRoomDetail({
+        id: room.id,
+        name: room.name,
+        branchId: room.branchId,
+        branchName: room.branch,
+        capacity: room.capacity,
+        isActive: room.status === "active",
+        note: room.equipment.join(", "),
+        equipment: room.equipment,
       });
-      setShowDetailModal(false);
     } finally {
       setLoadingDetail(false);
     }
@@ -823,7 +876,7 @@ export default function Page() {
       await toggleRoomStatus(selectedRoom.id);
       
       // Cập nhật danh sách
-      const updatedRooms = await fetchAdminRooms();
+      const updatedRooms = await reloadRoomsByCurrentBranch();
       setRooms(updatedRooms);
       
       toast({
@@ -908,11 +961,13 @@ export default function Page() {
         </div>
 
         {/* Branch Filter Indicator */}
-        {selectedBranchId && (
+        {effectiveSelectedBranchId && (
           <div className={`flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-red-50 to-red-100 border border-red-200 rounded-xl transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
             <Building2 size={16} className="text-red-600" />
             <span className="text-sm text-red-700 font-medium">
-              Đang lọc theo chi nhánh đã chọn
+              {isStaffManagementRoomsPage
+                ? `Đang quản lý phòng học thuộc ${staffBranchName}`
+                : "Đang lọc theo chi nhánh đã chọn"}
             </span>
           </div>
         )}
@@ -1302,6 +1357,8 @@ export default function Page() {
         onSubmit={handleCreateRoom}
         mode="create"
         initialData={null}
+        forcedBranchId={staffBranchId || undefined}
+        forcedBranchName={staffBranchName || undefined}
       />
 
       {/* Edit Room Modal */}
@@ -1316,6 +1373,8 @@ export default function Page() {
         onSubmit={handleUpdateRoom}
         mode="edit"
         initialData={editingInitialData}
+        forcedBranchId={staffBranchId || undefined}
+        forcedBranchName={staffBranchName || undefined}
       />
 
       {/* Detail Modal */}

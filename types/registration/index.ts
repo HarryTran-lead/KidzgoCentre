@@ -115,6 +115,9 @@ export interface Registration {
   secondaryLevelSkillFocus?: string | null;
   tuitionPlanId: string;
   tuitionPlanName: string;
+  learningTicketTypeId?: string | null;
+  learningTicketTypeCode?: string | null;
+  learningTicketTypeName?: string | null;
   registrationDate: string;
   expectedStartDate: string;
   actualStartDate: string;
@@ -150,6 +153,9 @@ export interface SuggestedClass {
   classSchedulePattern?: string | null;
   effectiveSchedulePattern?: string | null;
   scheduleText?: string | null;
+  slotTypeId?: string | null;
+  slotTypeCode?: string | null;
+  slotTypeName?: string | null;
   weeklyScheduleSlots?: Array<{
     dayOfWeek?: string;
     dayCode?: string;

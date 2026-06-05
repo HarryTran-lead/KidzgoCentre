@@ -17,6 +17,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import {
   Select,
   SelectContent,
@@ -503,11 +504,18 @@ function defaultTemplateDraft(): TemplateDraft {
 }
 
 export default function ReportsV3FunctionalWorkspace({ role }: { role: InternalRole }) {
+  const { user: currentUser, isLoading: isCurrentUserLoading } = useCurrentUser();
   const canManageCatalog = role !== "teacher";
   const canEditTemplates = role === "admin";
   const canEditRiskRules = role === "admin";
   const canPublishToParent = role !== "teacher";
   const canSeeBranchDashboard = role !== "teacher";
+  const canSelectBranch = role === "admin";
+  const isManagementScope = role === "management";
+  const managementBranchId = isManagementScope ? String(currentUser?.branchId || "") : "";
+  const managementBranchLabel = isManagementScope
+    ? currentUser?.branchName || "Chi nhánh hiện tại"
+    : "";
 
   const tabs = useMemo(() => {
     const base: Array<{ id: WorkspaceTab; label: string; icon: React.ReactNode }> = [
@@ -624,15 +632,40 @@ export default function ReportsV3FunctionalWorkspace({ role }: { role: InternalR
   }, [canEditRiskRules]);
 
   const loadBranches = useCallback(async () => {
-    if (!canSeeBranchDashboard) {
+    if (isManagementScope) {
+      if (isCurrentUserLoading) return;
+      setBranchOptions(
+        managementBranchId
+          ? [{ id: managementBranchId, label: managementBranchLabel }]
+          : [],
+      );
+      setSelectedBranchId(managementBranchId);
+      return;
+    }
+
+    if (!canSelectBranch) {
       setBranchOptions([]);
+      setSelectedBranchId("");
       return;
     }
     const response = await getAllBranchesPublic({ limit: 200, isActive: true });
     setBranchOptions(extractBranchOptions(response));
-  }, [canSeeBranchDashboard]);
+  }, [
+    canSelectBranch,
+    isCurrentUserLoading,
+    isManagementScope,
+    managementBranchId,
+    managementBranchLabel,
+  ]);
 
   const loadClasses = useCallback(async () => {
+    if (isManagementScope && isCurrentUserLoading) return;
+    if (isManagementScope && !managementBranchId) {
+      setClassOptions([]);
+      setSelectedClassId("");
+      return;
+    }
+
     setLoadingClasses(true);
     try {
       if (role === "teacher") {
@@ -652,7 +685,9 @@ export default function ReportsV3FunctionalWorkspace({ role }: { role: InternalR
       const response = await getAllClasses({
         pageNumber: 1,
         pageSize: 200,
-        ...(selectedBranchId ? { branchId: selectedBranchId } : {}),
+        ...((isManagementScope ? managementBranchId : selectedBranchId)
+          ? { branchId: isManagementScope ? managementBranchId : selectedBranchId }
+          : {}),
       });
       const options = extractClassOptions(response);
       setClassOptions(options);
@@ -660,7 +695,13 @@ export default function ReportsV3FunctionalWorkspace({ role }: { role: InternalR
     } finally {
       setLoadingClasses(false);
     }
-  }, [role, selectedBranchId]);
+  }, [
+    isCurrentUserLoading,
+    isManagementScope,
+    managementBranchId,
+    role,
+    selectedBranchId,
+  ]);
 
   const loadStudents = useCallback(async () => {
     if (!selectedClassId) {
@@ -702,14 +743,15 @@ export default function ReportsV3FunctionalWorkspace({ role }: { role: InternalR
   }, [selectedClassId, selectedPeriodId]);
 
   const loadBranchData = useCallback(async () => {
-    if (!canSeeBranchDashboard || !selectedBranchId) {
+    const effectiveBranchId = isManagementScope ? managementBranchId : selectedBranchId;
+    if (!canSeeBranchDashboard || !effectiveBranchId) {
       setBranchDashboard(null);
       return;
     }
 
-    const result = await getBranchDashboard(selectedBranchId);
+    const result = await getBranchDashboard(effectiveBranchId);
     setBranchDashboard(result);
-  }, [canSeeBranchDashboard, selectedBranchId]);
+  }, [canSeeBranchDashboard, isManagementScope, managementBranchId, selectedBranchId]);
 
   const loadStudentData = useCallback(async () => {
     if (!selectedStudentId) {
@@ -870,7 +912,7 @@ export default function ReportsV3FunctionalWorkspace({ role }: { role: InternalR
         studentId: selectedStudentId,
         periodId: selectedPeriodId,
         classId: selectedClassId || undefined,
-        branchId: selectedBranchId || undefined,
+        branchId: (isManagementScope ? managementBranchId : selectedBranchId) || undefined,
       });
 
       toast.success({
@@ -1151,8 +1193,8 @@ export default function ReportsV3FunctionalWorkspace({ role }: { role: InternalR
         </div>
 
         {showScopeFilters ? (
-          <div className={cn("mt-4 grid gap-3 md:grid-cols-2", canSeeBranchDashboard ? "xl:grid-cols-4" : "xl:grid-cols-3")}>
-            {canSeeBranchDashboard ? (
+          <div className={cn("mt-4 grid gap-3 md:grid-cols-2", canSelectBranch ? "xl:grid-cols-4" : "xl:grid-cols-3")}>
+            {canSelectBranch ? (
               <div>
                 <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Chi nhánh</label>
                 <Select value={selectedBranchId} onValueChange={setSelectedBranchId}>
@@ -1216,8 +1258,8 @@ export default function ReportsV3FunctionalWorkspace({ role }: { role: InternalR
           </div>
         ) : (
           <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-            <div className={cn("grid gap-2 text-sm text-slate-700", canSeeBranchDashboard ? "md:grid-cols-2 xl:grid-cols-4" : "md:grid-cols-3")}>
-              {canSeeBranchDashboard ? (
+            <div className={cn("grid gap-2 text-sm text-slate-700", canSelectBranch ? "md:grid-cols-2 xl:grid-cols-4" : "md:grid-cols-3")}>
+              {canSelectBranch ? (
                 <div><span className="text-slate-500">Chi nhánh:</span> <span className="font-medium">{scopeLabel.branch}</span></div>
               ) : null}
               <div><span className="text-slate-500">Lớp:</span> <span className="font-medium">{scopeLabel.className}</span></div>
@@ -1272,7 +1314,7 @@ export default function ReportsV3FunctionalWorkspace({ role }: { role: InternalR
           setDashboardFocus={setDashboardFocus}
           selectedClassId={selectedClassId}
           classDashboard={classDashboard}
-          selectedBranchId={selectedBranchId}
+          selectedBranchId={isManagementScope ? managementBranchId : selectedBranchId}
           branchDashboard={branchDashboard}
         />
       ) : null}
@@ -1345,10 +1387,11 @@ export default function ReportsV3FunctionalWorkspace({ role }: { role: InternalR
         setReportType={setReportType}
         reportTypeLabels={REPORT_TYPE_LABELS}
         branchOptions={branchOptions}
+        showBranchContext={canSelectBranch}
         classOptions={classOptions}
         studentOptions={studentOptions}
         periods={periods}
-        selectedBranchId={selectedBranchId}
+        selectedBranchId={isManagementScope ? managementBranchId : selectedBranchId}
         selectedClassId={selectedClassId}
         selectedStudentId={selectedStudentId}
         selectedPeriodId={selectedPeriodId}

@@ -267,6 +267,7 @@ export interface ClassDetail {
   students: number;
   schedule: string;
   room: string;
+  branchId?: string | null;
   branch: string;
   program: string;
   programId: string;

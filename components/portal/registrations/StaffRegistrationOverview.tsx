@@ -51,6 +51,13 @@ import {
   extractDomainErrorCode,
   getDomainErrorMessage,
 } from "@/lib/api/domainErrorMessage";
+import {
+  filterClassesByLearningTicketType,
+  filterSuggestedClassBucketByLearningTicketType,
+  getClassSlotTypeLabel,
+  getLearningTicketTypeLabel,
+  supportsParallelLevels,
+} from "@/lib/tuitionPlanTicketType";
 import type { Branch } from "@/types/branch";
 import type { TuitionPlan } from "@/types/admin/tuition_plan";
 import type {
@@ -646,6 +653,24 @@ function getStudentInitials(name: string | null | undefined): string {
   return parts.map((p) => p.charAt(0).toUpperCase()).join("").slice(0, 2);
 }
 
+function stripSecondarySuggestions(bucket: SuggestedClassBucket): SuggestedClassBucket {
+  const suggestedClasses = bucket.suggestedClasses || [];
+  const alternativeClasses = bucket.alternativeClasses || [];
+
+  return {
+    ...bucket,
+    length: suggestedClasses.length + alternativeClasses.length,
+    secondaryProgramId: null,
+    secondaryProgramName: null,
+    secondaryProgramSkillFocus: null,
+    secondaryLevelId: null,
+    secondaryLevelName: null,
+    secondaryLevelSkillFocus: null,
+    secondarySuggestedClasses: [],
+    secondaryAlternativeClasses: [],
+  };
+}
+
 export default function StaffRegistrationOverview({
   branchId,
   onTotalChange,
@@ -732,15 +757,35 @@ export default function StaffRegistrationOverview({
     });
   }, [upgradeTuitionPlans, selectedActionRegistration?.programId, selectedActionRegistration?.levelId]);
 
+  const selectedActionRegistrationLearningTicketType = useMemo(
+    () => ({
+      learningTicketTypeCode: selectedActionRegistration?.learningTicketTypeCode || "",
+      learningTicketTypeName: selectedActionRegistration?.learningTicketTypeName || "",
+    }),
+    [
+      selectedActionRegistration?.learningTicketTypeCode,
+      selectedActionRegistration?.learningTicketTypeName,
+    ],
+  );
+
+  const selectedActionRegistrationSupportsParallel = useMemo(
+    () => supportsParallelLevels(selectedActionRegistrationLearningTicketType),
+    [
+      selectedActionRegistrationLearningTicketType,
+    ],
+  );
+
   const hasSecondaryTrack = useMemo(
     () =>
       Boolean(
-        selectedActionRegistration?.secondaryProgramId ||
-          selectedActionRegistration?.secondaryLevelId ||
-          suggestedClasses?.secondaryProgramId ||
-          suggestedClasses?.secondaryLevelId,
+        selectedActionRegistrationSupportsParallel &&
+          (selectedActionRegistration?.secondaryProgramId ||
+            selectedActionRegistration?.secondaryLevelId ||
+            suggestedClasses?.secondaryProgramId ||
+            suggestedClasses?.secondaryLevelId),
       ),
     [
+      selectedActionRegistrationSupportsParallel,
       selectedActionRegistration?.secondaryProgramId,
       selectedActionRegistration?.secondaryLevelId,
       suggestedClasses?.secondaryProgramId,
@@ -749,14 +794,44 @@ export default function StaffRegistrationOverview({
   );
 
   const activeSuggestedClasses =
-    selectedTrack === "secondary"
+    selectedTrack === "secondary" && hasSecondaryTrack
       ? (suggestedClasses?.secondarySuggestedClasses ?? [])
       : (suggestedClasses?.suggestedClasses ?? []);
 
   const activeAlternativeClasses =
-    selectedTrack === "secondary"
+    selectedTrack === "secondary" && hasSecondaryTrack
       ? (suggestedClasses?.secondaryAlternativeClasses ?? [])
       : (suggestedClasses?.alternativeClasses ?? []);
+
+  useEffect(() => {
+    if (hasSecondaryTrack || selectedTrack !== "secondary") return;
+    setSelectedTrack("primary");
+    setSelectedClassId("");
+  }, [hasSecondaryTrack, selectedTrack]);
+
+  useEffect(() => {
+    setSuggestedClasses((prev) =>
+      prev
+        ? filterSuggestedClassBucketByLearningTicketType(
+            prev,
+            selectedActionRegistrationLearningTicketType,
+          )
+        : prev,
+    );
+    setManualClasses((prev) =>
+      prev.length
+        ? filterClassesByLearningTicketType(
+            prev,
+            selectedActionRegistrationLearningTicketType,
+          )
+        : prev,
+    );
+    setSelectedClassId("");
+    setManualPrimaryClassId("");
+    setManualSecondaryClassId("");
+  }, [
+    selectedActionRegistrationLearningTicketType,
+  ]);
 
   const manualClassOptions = useMemo(
     () =>
@@ -770,6 +845,7 @@ export default function StaffRegistrationOverview({
           cls?.programName || cls?.program?.name || "",
         );
         const levelName = String(cls?.levelName || cls?.courseLevel || cls?.level?.name || "");
+        const slotTypeLabel = getClassSlotTypeLabel(cls);
         const safeRemaining =
           typeof remainingSlots === "number" ? Math.max(0, remainingSlots) : null;
         return {
@@ -780,7 +856,15 @@ export default function StaffRegistrationOverview({
           levelName,
           remainingSlots: safeRemaining,
           disabled: safeRemaining !== null && safeRemaining <= 0,
-          label: `${className} • ${levelName || "Chưa rõ trình độ"} • Còn chỗ: ${safeRemaining ?? "-"} • Lịch: ${scheduleLabel}`,
+          label: [
+            className,
+            levelName || "Chưa rõ trình độ",
+            slotTypeLabel ? `Loại: ${slotTypeLabel}` : "",
+            `Còn chỗ: ${safeRemaining ?? "-"}`,
+            `Lịch: ${scheduleLabel}`,
+          ]
+            .filter(Boolean)
+            .join(" • "),
         };
       }),
     [manualClasses],
@@ -1343,23 +1427,54 @@ export default function StaffRegistrationOverview({
     setManualSecondarySessionPattern("");
   };
 
+  const ensureSelectedActionRegistrationForAssignment = async () => {
+    const current = selectedActionRegistration;
+    if (!current?.id) return current;
+    if (current.learningTicketTypeCode || current.learningTicketTypeName) {
+      return current;
+    }
+
+    try {
+      const detail = await getRegistrationById(current.id);
+      const merged = { ...current, ...detail };
+      setSelectedActionRegistration((prev) =>
+        prev?.id === current.id ? { ...prev, ...detail } : prev,
+      );
+      return merged;
+    } catch {
+      return current;
+    }
+  };
+
   const handleSuggestClasses = async () => {
-    if (!selectedActionRegistration?.id) return;
+    const actionRegistration = await ensureSelectedActionRegistrationForAssignment();
+    if (!actionRegistration?.id) return;
+    const learningTicketTypeForAssignment = {
+      learningTicketTypeCode: actionRegistration.learningTicketTypeCode || "",
+      learningTicketTypeName: actionRegistration.learningTicketTypeName || "",
+    };
 
     try {
       setIsSuggesting(true);
       setAssignViewMode("suggested");
-      const suggestions = await suggestClassesForRegistration(selectedActionRegistration.id);
-      setSuggestedClasses(suggestions);
+      const suggestions = await suggestClassesForRegistration(actionRegistration.id);
+      const ticketFilteredSuggestions = filterSuggestedClassBucketByLearningTicketType(
+        suggestions,
+        learningTicketTypeForAssignment,
+      );
+      const visibleSuggestions = supportsParallelLevels(learningTicketTypeForAssignment)
+        ? ticketFilteredSuggestions
+        : stripSecondarySuggestions(ticketFilteredSuggestions);
+      setSuggestedClasses(visibleSuggestions);
 
-      const primaryCount = suggestions?.suggestedClasses?.length ?? 0;
-      const secondaryCount = suggestions?.secondarySuggestedClasses?.length ?? 0;
+      const primaryCount = visibleSuggestions?.suggestedClasses?.length ?? 0;
+      const secondaryCount = visibleSuggestions?.secondarySuggestedClasses?.length ?? 0;
       const defaultTrack: RegistrationTrackType =
         primaryCount > 0 ? "primary" : secondaryCount > 0 ? "secondary" : "primary";
       const defaultClass =
         defaultTrack === "secondary"
-          ? suggestions?.secondarySuggestedClasses?.[0]
-          : suggestions?.suggestedClasses?.[0];
+          ? visibleSuggestions?.secondarySuggestedClasses?.[0]
+          : visibleSuggestions?.suggestedClasses?.[0];
 
       setSelectedTrack(defaultTrack);
       setSelectedClassId(defaultClass?.id ? String(defaultClass.id) : "");
@@ -1368,7 +1483,7 @@ export default function StaffRegistrationOverview({
         title: "Thành công",
         description:
           defaultClass?.id
-            ? `Đã gợi ý ${suggestions.length || 0} lớp phù hợp cho đăng ký.`
+            ? `Đã gợi ý ${visibleSuggestions.length || 0} lớp phù hợp cho đăng ký.`
             : "Hiện chưa có lớp gợi ý phù hợp.",
         variant: defaultClass?.id ? "success" : "default",
       });
@@ -1384,7 +1499,15 @@ export default function StaffRegistrationOverview({
   };
 
   const handleLoadManualClasses = async () => {
-    const targetBranchId = String(selectedActionRegistration?.branchId || branchId || "");
+    const actionRegistration = await ensureSelectedActionRegistrationForAssignment();
+    const learningTicketTypeForAssignment = {
+      learningTicketTypeCode: actionRegistration?.learningTicketTypeCode || "",
+      learningTicketTypeName: actionRegistration?.learningTicketTypeName || "",
+    };
+    const canUseSecondaryForAssignment = supportsParallelLevels(
+      learningTicketTypeForAssignment,
+    );
+    const targetBranchId = String(actionRegistration?.branchId || branchId || "");
     if (!targetBranchId) {
       toast({
         title: "Thiếu dữ liệu",
@@ -1404,12 +1527,16 @@ export default function StaffRegistrationOverview({
         branchId: targetBranchId,
       });
 
-      const items = pickClassItems(response)
+      const allItems = pickClassItems(response)
         .filter((item) => item?.id)
         .filter((item) => {
           const statusValue = String(item?.status || "").toLowerCase();
           return statusValue !== "cancelled" && statusValue !== "completed";
         });
+      const items = filterClassesByLearningTicketType(
+        allItems,
+        learningTicketTypeForAssignment,
+      );
 
       setManualClasses(items);
 
@@ -1422,10 +1549,19 @@ export default function StaffRegistrationOverview({
         const firstClass = selectable[0] || fallback;
         const secondClass = selectable[1] || selectable[0] || fallback;
         setManualPrimaryClassId(String(firstClass?.id || ""));
-        setManualSecondaryClassId(String(secondClass?.id || firstClass?.id || ""));
+        setManualSecondaryClassId(
+          hasSecondaryTrack && canUseSecondaryForAssignment
+            ? String(secondClass?.id || firstClass?.id || "")
+            : "",
+        );
       } else {
         setManualPrimaryClassId("");
         setManualSecondaryClassId("");
+        toast({
+          title: "Thông báo",
+          description: `Không có lớp ${getLearningTicketTypeLabel(learningTicketTypeForAssignment)} phù hợp trong chi nhánh hiện tại.`,
+          variant: "default",
+        });
       }
 
       setManualPrimarySessionPattern("");
@@ -1448,6 +1584,15 @@ export default function StaffRegistrationOverview({
     _weeklyPattern?: WeeklyPatternEntry[] | null,
   ) => {
     if (!selectedActionRegistration?.id || !selectedClassId) return;
+    if (selectedTrack === "secondary" && !hasSecondaryTrack) {
+      toast({
+        title: "Không hợp lệ",
+        description: "Gói học hiện tại không hỗ trợ xếp lớp song song.",
+        variant: "destructive",
+      });
+      setSelectedTrack("primary");
+      return;
+    }
 
     try {
       setIsAssigning(true);
@@ -1524,7 +1669,7 @@ export default function StaffRegistrationOverview({
 
       targetRegistrationId = extractRegistrationIdFromAction(primaryResponse) || targetRegistrationId;
 
-      if (payload.secondaryClassId) {
+      if (hasSecondaryTrack && payload.secondaryClassId) {
         const secondaryResponse = await assignClassToRegistration(targetRegistrationId, {
           classId: payload.secondaryClassId,
           entryType: selectedEntryType,
@@ -1547,8 +1692,8 @@ export default function StaffRegistrationOverview({
         title: "Thành công",
         description: isRetakeNewRegistration
           ? `Đã xếp lớp và tạo đăng ký mới (${targetRegistrationId}).`
-          : payload.secondaryClassId
-            ? "Đã xếp lớp gợi ý cho cả Primary và Secondary."
+          : hasSecondaryTrack && payload.secondaryClassId
+            ? "Đã xếp lớp gợi ý cho cả chương trình chính và chương trình song song."
             : "Đã xếp lớp gợi ý cho đăng ký.",
         variant: "success",
       });
