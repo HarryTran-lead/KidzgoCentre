@@ -163,9 +163,9 @@ function LevelCard({
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
             {/* Code Badge */}
-            <span className="shrink-0 rounded-md bg-gradient-to-r from-red-500 to-rose-500 px-2 py-0.5 text-xs font-bold text-white shadow-sm">
+            {/* <span className="shrink-0 rounded-md bg-gradient-to-r from-red-500 to-rose-500 px-2 py-0.5 text-xs font-bold text-white shadow-sm">
               {level.code}
-            </span>
+            </span> */}
 
             {/* Level Name */}
             <span className="font-semibold text-gray-800 truncate max-w-[200px] md:max-w-none">
@@ -197,7 +197,6 @@ function LevelCard({
                 </div>
                 <span>{moduleCount} modules</span>
               </div>
-
             </div>
           </div>
 
@@ -434,6 +433,11 @@ export default function LevelModuleWorkspace({ roleMode, programId }: Props) {
     useState<Omit<CreateModuleRequest, "levelId">>(EMPTY_MODULE_FORM);
   const [moduleFormSaving, setModuleFormSaving] = useState(false);
   const [moduleFormError, setModuleFormError] = useState<string | null>(null);
+  const [isPageLoaded, setIsPageLoaded] = useState(false);
+
+  useEffect(() => {
+    setIsPageLoaded(true);
+  }, []);
 
   const programNameById = useMemo(
     () =>
@@ -519,7 +523,28 @@ export default function LevelModuleWorkspace({ roleMode, programId }: Props) {
       searchTerm: searchTerm || undefined,
     });
     if (res.isSuccess) {
-      setLevels(res.data.items);
+      const fetchedLevels = res.data.items;
+      setLevels(fetchedLevels);
+      
+      // Load modules for all levels
+      setLoadingModules((prev) => {
+        const newLoadingState = { ...prev };
+        fetchedLevels.forEach((level) => {
+          newLoadingState[level.id] = true;
+        });
+        return newLoadingState;
+      });
+
+      // Fetch modules for all levels in parallel
+      Promise.all(
+        fetchedLevels.map(async (level) => {
+          const moduleRes = await getModules({ levelId: level.id });
+          if (moduleRes.isSuccess) {
+            setModules((prev) => ({ ...prev, [level.id]: moduleRes.data.items }));
+          }
+          setLoadingModules((prev) => ({ ...prev, [level.id]: false }));
+        })
+      ).catch(() => {});
     } else {
       setError(res.message ?? "Không thể tải danh sách Level");
     }
@@ -673,7 +698,7 @@ export default function LevelModuleWorkspace({ roleMode, programId }: Props) {
     <div className="min-h-screen bg-gray-50 ">
       <div className="space-y-6 ">
         {/* Header */}
-        <div className="rounded-2xl border border-red-200 bg-white p-5 shadow-sm">
+        <div className={`rounded-2xl border border-red-200 bg-white p-5 shadow-sm transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-100">
@@ -701,115 +726,95 @@ export default function LevelModuleWorkspace({ roleMode, programId }: Props) {
         </div>
 
         {/* Stats Cards - Updated with better styling */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className={`grid gap-4 sm:grid-cols-2 lg:grid-cols-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           {/* Card 1 - Tổng số Level */}
           <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
             <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r from-red-600 to-red-700"></div>
-            <div className="flex items-center justify-between">
-              <div className="rounded-lg bg-red-600 p-2.5 transition-all duration-300 group-hover:bg-blue-100">
+            <div className="relative flex items-center justify-between gap-3">
+              <div className="p-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm flex-shrink-0">
                 <Layers size={18} className="text-white" />
               </div>
-              <span className="text-2xl font-bold text-gray-800">
-                {filteredLevels.length}
-              </span>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium text-gray-600 truncate">Tổng số Level</div>
+                <div className="text-xl font-bold text-gray-900 leading-tight">{filteredLevels.length}</div>
+              </div>
             </div>
-            <p className="mt-2 text-sm font-semibold text-gray-700">
-              Tổng số Level
-            </p>
-            <p className="mt-0.5 text-xs text-gray-400">
-              {activeLevels} đang hoạt động
-            </p>
           </div>
 
           {/* Card 2 - Tổng số Module */}
           <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
-            <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r from-red-600 to-red-700"></div>
-            <div className="flex items-center justify-between">
-              <div className="rounded-lg bg-purple-600 p-2.5 transition-all duration-300 group-hover:bg-purple-100">
+            <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r from-purple-600 to-purple-700"></div>
+            <div className="relative flex items-center justify-between gap-3">
+              <div className="p-2 rounded-xl bg-gradient-to-r from-purple-600 to-purple-700 text-white shadow-sm flex-shrink-0">
                 <BookOpen size={18} className="text-white" />
               </div>
-              <span className="text-2xl font-bold text-gray-800">
-                {totalModules}
-              </span>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium text-gray-600 truncate">Tổng số Module</div>
+                <div className="text-xl font-bold text-gray-900 leading-tight">{totalModules}</div>
+              </div>
             </div>
-            <p className="mt-2 text-sm font-semibold text-gray-700">
-              Tổng số Module
-            </p>
-            <p className="mt-0.5 text-xs text-gray-400">
-              Phân bố theo các Level
-            </p>
           </div>
 
           {/* Card 3 - Level đang hoạt động */}
           <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
-            <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r from-red-600 to-red-700"></div>
-            <div className="flex items-center justify-between">
-              <div className="rounded-lg bg-emerald-600 p-2.5 transition-all duration-300 group-hover:bg-emerald-100">
+            <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r from-emerald-600 to-emerald-700"></div>
+            <div className="relative flex items-center justify-between gap-3">
+              <div className="p-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 text-white shadow-sm flex-shrink-0">
                 <CheckCircle2 size={18} className="text-white" />
               </div>
-              <span className="text-2xl font-bold text-gray-800">
-                {activeLevels}
-              </span>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium text-gray-600 truncate">Level đang hoạt động</div>
+                <div className="text-xl font-bold text-gray-900 leading-tight">{activeLevels}</div>
+              </div>
             </div>
-            <p className="mt-2 text-sm font-semibold text-gray-700">
-              Level đang hoạt động
-            </p>
-            <p className="mt-0.5 text-xs text-gray-400">Sẵn sàng sử dụng</p>
           </div>
 
           {/* Card 4 - Core Modules */}
           <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-102">
-            <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r from-red-600 to-red-700"></div>
-            <div className="flex items-center justify-between">
-              <div className="rounded-lg bg-amber-500 p-2.5 transition-all duration-300 group-hover:bg-orange-100">
+            <div className="absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r from-amber-500 to-orange-600"></div>
+            <div className="relative flex items-center justify-between gap-3">
+              <div className="p-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-sm flex-shrink-0">
                 <Zap size={18} className="text-white" />
               </div>
-              <span className="text-2xl font-bold text-gray-800">
-                {
-                  Object.values(modules)
-                    .flat()
-                    .filter((m) => m.type === "core").length
-                }
-              </span>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium text-gray-600 truncate">Core Modules</div>
+                <div className="text-xl font-bold text-gray-900 leading-tight">{Object.values(modules).flat().filter((m) => m.type === "core").length}</div>
+              </div>
             </div>
-            <p className="mt-2 text-sm font-semibold text-gray-700">
-              Core Modules
-            </p>
-            <p className="mt-0.5 text-xs text-gray-400">
-              Module chính trong chương trình
-            </p>
           </div>
         </div>
 
         {/* Search and quick filters */}
-        <div className="grid gap-3 md:grid-cols-[240px_minmax(0,1fr)]">
-          <div className="rounded-xl border border-gray-200 bg-white px-3 py-2.5">
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
-              Chương trình
-            </label>
-            <select
-              value={selectedProgramFilter}
-              onChange={(e) => setSelectedProgramFilter(e.target.value)}
-              disabled={Boolean(programId)}
-              className="w-full bg-transparent text-sm text-gray-700 focus:outline-none"
-            >
-              <option value="all">Tất cả chương trình</option>
-              {programFilterOptions.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <input
-              className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-4 text-sm focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-100 transition-all"
-              placeholder="Tìm kiếm Level theo tên hoặc mã..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+        <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <input
+                className="w-full rounded-xl border border-red-200 bg-white py-2.5 pl-9 pr-4 text-sm text-gray-700 placeholder-gray-400 focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-200 transition-all"
+                placeholder="Tìm kiếm Level theo tên hoặc mã..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <div className="w-full sm:w-[240px]">
+              <Select
+                value={selectedProgramFilter}
+                onValueChange={setSelectedProgramFilter}
+                disabled={Boolean(programId)}
+              >
+                <SelectTrigger className="w-full h-10 px-3 py-2 rounded-xl border border-red-200 bg-white text-xs text-gray-700 transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 data-[state=open]:border-red-400 data-[state=open]:ring-2 data-[state=open]:ring-red-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
+                  <SelectValue placeholder="Chọn chương trình" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả chương trình</SelectItem>
+                  {programFilterOptions.map((option) => (
+                    <SelectItem key={option.id} value={option.id}>
+                      {option.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
 
@@ -860,7 +865,10 @@ export default function LevelModuleWorkspace({ roleMode, programId }: Props) {
         ) : (
           <div className="space-y-6">
             {groupedLevels.map((group) => (
-              <section key={group.programId || group.programName} className="space-y-3">
+              <section
+                key={group.programId || group.programName}
+                className="space-y-3"
+              >
                 <div className="flex items-center justify-between rounded-xl border border-red-200 bg-gradient-to-r from-red-50 to-white px-4 py-2.5">
                   <div className="flex items-center gap-2 text-sm font-semibold text-red-700">
                     <Layers size={14} className="text-red-500" />
