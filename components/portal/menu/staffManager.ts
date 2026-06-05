@@ -1,6 +1,7 @@
 import {
   AlertTriangle,
   BookOpenCheck,
+  Building2,
   CalendarRange,
   Clock3,
   FileText,
@@ -30,6 +31,8 @@ export function staffManagerMenu(root: string, locale: Locale = "vi"): MenuItem[
     [t.dashboard, LayoutDashboard, ""],
     [t.accounts, UserCog, "/accounts"],
     [t.crm, Users, "/leads"],
+    ["Quản lý lớp học", BookOpenCheck, "/classes"],
+    ["Quản lý phòng học", Building2, "/rooms"],
     [t.allocation, CalendarRange, "/schedule"],
     ["Tiến trình chuyển chương trình", Route, "/program-progressions"],
     [t.makeup, RefreshCw, "/makeup"],

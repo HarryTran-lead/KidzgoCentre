@@ -43,6 +43,7 @@ import {
   BookOpen,
 } from "lucide-react";
 import { useBranchFilter } from "@/hooks/useBranchFilter";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useToast } from "@/hooks/use-toast";
 import ConfirmModal from "@/components/ConfirmModal";
 import SessionBulkChangeModal from "@/components/portal/schedule/SessionBulkChangeModal";
@@ -251,6 +252,7 @@ function startOfWeek(date: Date) {
 }
 
 type Period = "MORNING" | "AFTERNOON" | "EVENING";
+type ClassOptionSource = { id: string; name?: string | null; code?: string | null };
 const PERIODS: { key: Period; label: string }[] = [
   { key: "MORNING", label: "Sáng" },
   { key: "AFTERNOON", label: "Chiều" },
@@ -509,6 +511,8 @@ function CreateScheduleModal({
   onSave,
   prefillDate,
   prefillTime,
+  forcedBranchId,
+  forcedBranchName,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -518,6 +522,8 @@ function CreateScheduleModal({
   ) => Promise<void>;
   prefillDate?: string;
   prefillTime?: string;
+  forcedBranchId?: string;
+  forcedBranchName?: string;
 }) {
   const [formData, setFormData] = useState<ScheduleFormData>(initialFormData);
   const [errors, setErrors] = useState<Partial<Record<keyof ScheduleFormData, string>>>({});
@@ -615,6 +621,10 @@ function CreateScheduleModal({
 
   useEffect(() => {
     if (!isOpen) return;
+    if (forcedBranchId) {
+      setBranchOptions([{ id: forcedBranchId, label: forcedBranchName || "Chi nhánh hiện tại" }]);
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
@@ -627,7 +637,7 @@ function CreateScheduleModal({
       } catch {}
     })();
     return () => { cancelled = true; };
-  }, [isOpen]);
+  }, [forcedBranchId, forcedBranchName, isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -635,12 +645,12 @@ function CreateScheduleModal({
     const formatted = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
     setFormData((prev) => ({
       ...initialFormData,
-      branchId: prev.branchId || "",
+      branchId: forcedBranchId || prev.branchId || "",
       date: prefillDate ?? formatted,
       time: prefillTime ?? prev.time,
     }));
     setErrors({});
-  }, [isOpen, prefillDate, prefillTime]);
+  }, [forcedBranchId, isOpen, prefillDate, prefillTime]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -738,6 +748,7 @@ function CreateScheduleModal({
                 options={branchOptions.map((branch) => ({ id: branch.id, label: branch.label }))}
                 onValueChange={(value) => handleChange("branchId", value)}
                 error={errors.branchId}
+                disabled={Boolean(forcedBranchId)}
                 placeholder="Vui lòng chọn chi nhánh"
                 dataField="branchId"
               />
@@ -1060,7 +1071,11 @@ function CreateScheduleModal({
               <button
                 type="button"
                 onClick={() => {
-                  setFormData(initialFormData);
+                  setFormData(
+                    forcedBranchId
+                      ? { ...initialFormData, branchId: forcedBranchId }
+                      : initialFormData,
+                  );
                   const today = new Date();
                   const formattedDate = today.toISOString().split('T')[0];
                   setFormData(prev => ({ ...prev, date: formattedDate }));
@@ -1797,7 +1812,10 @@ export default function Page() {
   const classIdFromUrl = searchParams.get("classId") ?? undefined;
   const dateFromUrl = searchParams.get("date") ?? undefined;
 
-  const { selectedBranchId, isLoaded, getBranchQueryParam } = useBranchFilter();
+  const { isLoaded } = useBranchFilter();
+  const { user: currentUser, isLoading: isCurrentUserLoading } = useCurrentUser();
+  const staffBranchId = String(currentUser?.branchId || "");
+  const staffBranchName = currentUser?.branchName || "Chi nhánh hiện tại";
   const [filter, setFilter] = useState<SlotType | "ALL">("ALL");
   const [classFilter, setClassFilter] = useState<string>("ALL");
   const [classOptions, setClassOptions] = useState<{ id: string; name: string }[]>([]);
@@ -1838,23 +1856,57 @@ export default function Page() {
   const [weekCursor, setWeekCursor] = useState<Date>(getInitialWeekCursor);
 
   useEffect(() => {
-    setIsPageLoaded(true);
+    const frameId = window.requestAnimationFrame(() => {
+      setIsPageLoaded(true);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
   }, []);
 
   // Load class list for filter
   useEffect(() => {
-    if (!isLoaded) return;
+    if (isCurrentUserLoading || !isLoaded) return;
+    let cancelled = false;
+
     (async () => {
+      if (!staffBranchId) {
+        if (!cancelled) setClassOptions([]);
+        return;
+      }
+
       try {
-        const classes = await fetchAdminClasses({ branchId: selectedBranchId ?? undefined });
-        setClassOptions(classes.map((c: any) => ({ id: c.id, name: c.name || c.code || "Lớp học" })));
-      } catch {}
+        const classes = await fetchAdminClasses({ branchId: staffBranchId });
+        if (!cancelled) {
+          setClassOptions(
+            (classes as ClassOptionSource[]).map((c) => ({
+              id: c.id,
+              name: c.name || c.code || "Lớp học",
+            })),
+          );
+        }
+      } catch {
+        if (!cancelled) setClassOptions([]);
+      }
     })();
-  }, [selectedBranchId, isLoaded]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isCurrentUserLoading, isLoaded, staffBranchId]);
 
   // Set class filter from URL
   useEffect(() => {
-    if (classIdFromUrl) setClassFilter(classIdFromUrl || "ALL");
+    if (!classIdFromUrl) return;
+
+    const timeoutId = window.setTimeout(() => {
+      setClassFilter(classIdFromUrl || "ALL");
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
   }, [classIdFromUrl]);
 
   const sortedList = useMemo(() => {
@@ -1937,11 +1989,16 @@ export default function Page() {
 
   // Load sessions from API
   useEffect(() => {
-    if (!isLoaded) return;
+    if (isCurrentUserLoading || !isLoaded) return;
+    let cancelled = false;
 
     const loadInitialSchedule = async () => {
+      if (!staffBranchId) {
+        if (!cancelled) setSlots([]);
+        return;
+      }
+
       try {
-        const branchId = getBranchQueryParam();
         const weekStart = new Date(weekCursor);
         const weekEnd = new Date(weekCursor);
         weekEnd.setDate(weekEnd.getDate() + 6);
@@ -1955,7 +2012,7 @@ export default function Page() {
         const toDate = toLocalDateStr(weekEnd);
 
         const sessions = await fetchAdminSessions({
-          branchId,
+          branchId: staffBranchId,
           classId: classFilter !== "ALL" ? classFilter : undefined,
           from: fromDate,
           to: toDate,
@@ -2013,14 +2070,18 @@ export default function Page() {
           })
           .filter((slot) => slot.id);
 
-        setSlots(mappedSlots);
+        if (!cancelled) setSlots(mappedSlots);
       } catch (err) {
         console.error("Không thể tải lịch từ API:", err);
       }
     };
 
     loadInitialSchedule();
-  }, [selectedBranchId, isLoaded, weekCursor, classFilter, refreshTick]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isCurrentUserLoading, isLoaded, staffBranchId, weekCursor, classFilter, refreshTick]);
 
   const stats = useMemo(() => {
     const total = slots.length;
@@ -2296,6 +2357,8 @@ export default function Page() {
         onSave={handleCreateSchedule}
         prefillDate={prefillDate}
         prefillTime={prefillTime}
+        forcedBranchId={staffBranchId || undefined}
+        forcedBranchName={staffBranchName}
       />
 
       {/* Swap Modals */}

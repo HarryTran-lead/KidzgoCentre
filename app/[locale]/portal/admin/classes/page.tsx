@@ -2,7 +2,7 @@
 
 import { useDeferredValue, useMemo, useState, useEffect, useRef } from "react";
 import { todayDateOnly } from "@/lib/datetime";
-import { useRouter, useParams } from "next/navigation";
+import { usePathname, useRouter, useParams } from "next/navigation";
 import {
   Plus,
   Search,
@@ -68,6 +68,7 @@ import type {
 import type { SelectOption } from "@/types/admin/classFormData";
 import { useBranchFilter } from "@/hooks/useBranchFilter";
 import { useToast } from "@/hooks/use-toast";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { getAccessToken } from "@/lib/store/authToken";
 import {
   Select,
@@ -1059,6 +1060,8 @@ interface CreateClassModalProps {
   currentClassId?: string | null;
   existingClassRows?: ClassRow[];
   currentEnrollmentCount?: number;
+  forcedBranchId?: string;
+  forcedBranchName?: string;
 }
 
 // Add Student Modal Component
@@ -2285,6 +2288,8 @@ function  CreateClassModal({
   currentClassId = null,
   existingClassRows = [],
   currentEnrollmentCount = 0,
+  forcedBranchId,
+  forcedBranchName,
 }: CreateClassModalProps) {
   const { toast } = useToast();
   const [formData, setFormData] = useState<ClassFormData>(initialFormData);
@@ -2315,6 +2320,18 @@ function  CreateClassModal({
   const [loadingModules, setLoadingModules] = useState(false);
   const [allSyllabusOptions, setAllSyllabusOptions] = useState<BranchSyllabusOption[]>([]);
   const [loadingSyllabuses, setLoadingSyllabuses] = useState(false);
+  const effectiveBranchOptions = useMemo(
+    () =>
+      forcedBranchId
+        ? [
+            {
+              id: forcedBranchId,
+              name: forcedBranchName || "Chi nhánh hiện tại",
+            },
+          ]
+        : branchOptions,
+    [branchOptions, forcedBranchId, forcedBranchName],
+  );
 
   // States cho UI chọn lịch học theo từng ngày
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
@@ -2415,7 +2432,11 @@ function  CreateClassModal({
       const data = await fetchClassFormSelectData();
       // Chỉ update branch options, không reset program/teacher options
       // (sẽ được load lại khi user chọn branch)
-      setBranchOptions(data.branches);
+      setBranchOptions(
+        forcedBranchId
+          ? data.branches.filter((branch) => branch.id === forcedBranchId)
+          : data.branches,
+      );
       // Giữ nguyên programOptions và teacherOptions nếu đã có
     } catch (err) {
       console.error("Failed to fetch select data:", err);
@@ -2520,6 +2541,19 @@ function  CreateClassModal({
       setAllSyllabusOptions([]);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !forcedBranchId) return;
+    setFormData((prev) =>
+      prev.branchId === forcedBranchId
+        ? prev
+        : {
+            ...prev,
+            branchId: forcedBranchId,
+          },
+    );
+    setErrors((prev) => ({ ...prev, branchId: undefined }));
+  }, [forcedBranchId, isOpen]);
 
   // Cập nhật schedule preview + weeklyScheduleSlots khi các lựa chọn thay đổi
   useEffect(() => {
@@ -2787,7 +2821,9 @@ function  CreateClassModal({
   useEffect(() => {
     if (isOpen) {
       if (mode === "edit" && initialData) {
-        setFormData(initialData);
+        setFormData(
+          forcedBranchId ? { ...initialData, branchId: forcedBranchId } : initialData,
+        );
         if (
           Array.isArray(initialData.weeklyScheduleSlots) &&
           initialData.weeklyScheduleSlots.length > 0
@@ -2892,7 +2928,11 @@ function  CreateClassModal({
           }
         }
       } else {
-        setFormData(initialFormData);
+        setFormData(
+          forcedBranchId
+            ? { ...initialFormData, branchId: forcedBranchId }
+            : initialFormData,
+        );
         setSelectedDays([]);
         setDaySchedules({});
         setDayScheduleMode({});
@@ -2902,7 +2942,7 @@ function  CreateClassModal({
       }
       setErrors({});
     }
-  }, [isOpen, mode, initialData]);
+  }, [forcedBranchId, isOpen, mode, initialData]);
 
   // Hàm kiểm tra trùng lịch phòng học
   const checkRoomScheduleConflict = (
@@ -3256,6 +3296,7 @@ function  CreateClassModal({
 
       await onSubmit({
         ...formData,
+        branchId: forcedBranchId || formData.branchId,
         weeklyScheduleSlots: submitSlots,
       });
       onClose();
@@ -3442,13 +3483,13 @@ function  CreateClassModal({
                 isOpen={isOpen}
                 mode={mode}
                 value={formData.branchId}
-                options={branchOptions.map((branch) => ({
+                options={effectiveBranchOptions.map((branch) => ({
                   id: branch.id,
                   label: branch.name,
                 }))}
                 onValueChange={(value) => handleChange("branchId", value)}
                 error={errors.branchId}
-                disabled={loadingOptions}
+                disabled={loadingOptions || Boolean(forcedBranchId)}
                 placeholder={
                   loadingOptions
                     ? "Đang tải chi nhánh..."
@@ -4359,9 +4400,17 @@ function  CreateClassModal({
                 type="button"
                 onClick={() => {
                   if (mode === "edit" && initialData) {
-                    setFormData(initialData);
+                    setFormData(
+                      forcedBranchId
+                        ? { ...initialData, branchId: forcedBranchId }
+                        : initialData,
+                    );
                   } else {
-                    setFormData(initialFormData);
+                    setFormData(
+                      forcedBranchId
+                        ? { ...initialFormData, branchId: forcedBranchId }
+                        : initialFormData,
+                    );
                     setSelectedDays([]);
                     setDaySchedules({});
                     setDayScheduleMode({});
@@ -4409,11 +4458,18 @@ function getTeacherInitials(name: string): string {
 export default function Page() {
   const router = useRouter();
   const params = useParams();
+  const pathname = usePathname();
   const locale = params.locale as string;
   const { toast } = useToast();
+  const { user: currentUser, isLoading: isCurrentUserLoading } = useCurrentUser();
 
   // Branch filter hook
   const { selectedBranchId, isLoaded, getBranchQueryParam } = useBranchFilter();
+  const isStaffManagementClassesPage = pathname.includes("/portal/staff-management/classes");
+  const staffBranchId = isStaffManagementClassesPage ? String(currentUser?.branchId || "") : "";
+  const staffBranchName = isStaffManagementClassesPage ? currentUser?.branchName || "Chi nhánh hiện tại" : "";
+  const branchScopeLoaded = isStaffManagementClassesPage ? !isCurrentUserLoading : isLoaded;
+  const effectiveSelectedBranchId = isStaffManagementClassesPage ? staffBranchId : selectedBranchId;
 
   const [isPageLoaded, setIsPageLoaded] = useState(false);
   const [q, setQ] = useState("");
@@ -4468,14 +4524,21 @@ export default function Page() {
 
   // Fetch classes with branch filter
   useEffect(() => {
-    if (!isLoaded) return;
+    if (!branchScopeLoaded) return;
+
+    if (isStaffManagementClassesPage && !staffBranchId) {
+      setLoading(false);
+      setClasses([]);
+      setError("Không xác định được chi nhánh của tài khoản staff.");
+      return;
+    }
 
     async function fetchClasses() {
       try {
         setLoading(true);
         setError(null);
 
-        const branchId = getBranchQueryParam();
+        const branchId = isStaffManagementClassesPage ? staffBranchId : getBranchQueryParam();
         console.log(
           "🎓 Fetching classes for branch:",
           branchId || "All branches",
@@ -4500,7 +4563,14 @@ export default function Page() {
 
     fetchClasses();
     setPage(1);
-  }, [selectedBranchId, isLoaded, deferredSchedulePatternFilter]);
+  }, [
+    branchScopeLoaded,
+    deferredSchedulePatternFilter,
+    getBranchQueryParam,
+    isStaffManagementClassesPage,
+    selectedBranchId,
+    staffBranchId,
+  ]);
 
   const stats = useMemo(() => {
     const total = classes.length;
@@ -4601,7 +4671,7 @@ export default function Page() {
   };
 
   const reloadClassesByCurrentBranch = async () => {
-    const branchId = getBranchQueryParam();
+    const branchId = isStaffManagementClassesPage ? staffBranchId : getBranchQueryParam();
     return fetchAdminClasses({
       branchId,
       schedulePattern: deferredSchedulePatternFilter || undefined,
@@ -5099,13 +5169,15 @@ export default function Page() {
         </div>
 
         {/* Branch Filter Indicator */}
-        {selectedBranchId && (
+        {effectiveSelectedBranchId && (
           <div
             className={`flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-red-50 to-red-100 border border-red-200 rounded-xl transition-all duration-700 delay-150 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}
           >
             <Building2 size={16} className="text-red-600" />
             <span className="text-sm text-red-700 font-medium">
-              Đang lọc theo chi nhánh đã chọn
+              {isStaffManagementClassesPage
+                ? `Đang quản lý lớp thuộc ${staffBranchName}`
+                : "Đang lọc theo chi nhánh đã chọn"}
             </span>
           </div>
         )}
@@ -5398,7 +5470,7 @@ export default function Page() {
                           <button
                             onClick={() =>
                               router.push(
-                                `/${locale}/portal/admin/classes/${c.id}`,
+                                `/${locale}/portal/${isStaffManagementClassesPage ? "staff-management" : "admin"}/classes/${c.id}`,
                               )
                             }
                             className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600 cursor-pointer"
@@ -5736,6 +5808,8 @@ export default function Page() {
         onClose={() => setIsCreateModalOpen(false)}
         onSubmit={handleCreateClass}
         existingClassRows={classes}
+        forcedBranchId={staffBranchId || undefined}
+        forcedBranchName={staffBranchName || undefined}
       />
       {/* Edit Class Modal */}
       <CreateClassModal
@@ -5753,6 +5827,8 @@ export default function Page() {
         currentClassId={editingClassId}
         existingClassRows={classes}
         currentEnrollmentCount={editingCurrentEnrollmentCount}
+        forcedBranchId={staffBranchId || undefined}
+        forcedBranchName={staffBranchName || undefined}
       />
       {/* Add Student Modal */}
       {isAddStudentModalOpen && selectedClassId && (

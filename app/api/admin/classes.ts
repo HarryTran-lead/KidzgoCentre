@@ -1032,6 +1032,7 @@ export async function fetchAndMapAdminClassDetail(classId: string): Promise<Clas
     students: apiData?.currentEnrollmentCount ?? 0,
     schedule,
     room: apiData?.roomName ?? apiData?.room?.name ?? "Chưa có phòng",
+    branchId: apiData?.branchId ?? apiData?.branch?.id ?? null,
     branch: apiData?.branchName ?? apiData?.branch?.name ?? "Chưa có chi nhánh",
     program: apiData?.programName ?? "Chưa có chương trình",
     programId: apiData?.programId ?? "",
