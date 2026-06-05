@@ -6029,7 +6029,7 @@ function SessionDetailCard({
     !hasTemplateLinkage;
   const displaySessionIndex = getModuleSessionDisplayIndex(session);
   const [contentModal, setContentModal] =
-    useState<SessionContentModalKind>(null);
+    useState<SessionContentModalKind | null>(null);
   const linkageCoverageMessage =
     lastLinkedSessionIndex && lastLinkedSessionIndex > 0
       ? `Dữ liệu lớp hiện mới có curriculum/lesson-plan linkage tới buổi ${lastLinkedSessionIndex}, nên buổi ${displaySessionIndex} chưa resolve được nội dung.`
