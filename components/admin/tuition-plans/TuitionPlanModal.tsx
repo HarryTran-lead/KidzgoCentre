@@ -40,7 +40,8 @@ export type TuitionPlanFormData = {
   learningTicketTypeId: string;
 };
 
-type TuitionPlanStringField = Exclude<keyof TuitionPlanFormData, "moduleIds">;
+type TuitionPlanTextField = Exclude<keyof TuitionPlanFormData, "moduleIds" | "planType" | "status">;
+type TuitionPlanStringField = TuitionPlanTextField | "planType" | "status";
 
 const initialFormData: TuitionPlanFormData = {
   branchId: "",
@@ -371,6 +372,8 @@ export default function TuitionPlanModal({
       const next: TuitionPlanFormData = { ...prev };
       if (field === "planType") {
         next.planType = value as TuitionPlanKind;
+      } else if (field === "status") {
+        next.status = value as TuitionPlanFormData["status"];
       } else {
         next[field] = value;
       }
