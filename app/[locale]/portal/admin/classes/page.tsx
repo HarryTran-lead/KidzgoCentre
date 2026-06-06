@@ -114,6 +114,8 @@ type SortField =
   | "id"
   | "name"
   | "program"
+  | "level"
+  | "module"
   | "teacher"
   | "branch"
   | "capacity"
@@ -4603,6 +4605,10 @@ export default function Page() {
             c.syllabusCode,
             c.syllabusVersion,
             c.syllabusTitle,
+            c.levelName,
+            c.startModuleName,
+            c.currentModuleName,
+            c.currentLessonTitle,
             c.teacher,
             c.branch,
             c.schedule,
@@ -4627,6 +4633,10 @@ export default function Page() {
               return c.name;
             case "program":
               return c.sub;
+            case "level":
+              return c.levelName || "";
+            case "module":
+              return c.currentModuleName || c.startModuleName || "";
             case "teacher":
               return c.teacher;
             case "branch":
@@ -5323,6 +5333,22 @@ export default function Page() {
                     Chương trình
                   </SortableHeader>
                   <SortableHeader
+                    field="level"
+                    currentField={sortField}
+                    direction={sortDirection}
+                    onSort={handleSort}
+                  >
+                    Trình độ
+                  </SortableHeader>
+                  <SortableHeader
+                    field="module"
+                    currentField={sortField}
+                    direction={sortDirection}
+                    onSort={handleSort}
+                  >
+                    Module
+                  </SortableHeader>
+                  <SortableHeader
                     field="teacher"
                     currentField={sortField}
                     direction={sortDirection}
@@ -5400,6 +5426,30 @@ export default function Page() {
                             )}
                           </div>
                         )}
+                      </td>
+
+                      <td className="py-4 px-6 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900 truncate">
+                          {c.levelName || "-"}
+                        </div>
+                      </td>
+
+                      <td className="py-4 px-6 min-w-[150px]">
+                        <div className="text-sm font-medium text-gray-900 truncate">
+                          {c.currentModuleName || c.startModuleName || "-"}
+                        </div>
+                        {(c.currentSessionIndex || c.startSessionIndex) && (
+                          <div className="mt-1 text-xs text-gray-500">
+                            Buổi {c.currentSessionIndex || c.startSessionIndex}
+                          </div>
+                        )}
+                        {c.startModuleName &&
+                          c.currentModuleName &&
+                          c.startModuleName !== c.currentModuleName && (
+                            <div className="mt-1 text-xs text-gray-500 truncate">
+                              Bắt đầu: {c.startModuleName}
+                            </div>
+                          )}
                       </td>
 
                       <td className="py-4 px-6 whitespace-nowrap">
@@ -5551,7 +5601,7 @@ export default function Page() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={8} className="py-12 text-center">
+                    <td colSpan={10} className="py-12 text-center">
                       <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center">
                         <Search size={24} className="text-gray-400" />
                       </div>

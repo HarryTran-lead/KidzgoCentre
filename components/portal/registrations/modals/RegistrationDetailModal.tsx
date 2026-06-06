@@ -391,10 +391,6 @@ function toStudyDayCodesLabel(codes?: string[]) {
     .join(", ");
 }
 
-function toStudyDayCodeLabel(code?: string | null) {
-  if (!code) return "";
-  return toStudyDayCodesLabel([String(code)]);
-}
 
 function normalizeVietnameseScheduleText(value?: string | null) {
   const raw = String(value || "").trim();

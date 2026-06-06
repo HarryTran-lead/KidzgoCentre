@@ -46,11 +46,18 @@ import {
 } from "@/lib/api/registrationService";
 import { getAllBranchesPublic } from "@/lib/api/branchService";
 import { getAllClasses } from "@/lib/api/classService";
-import { getTuitionPlans } from "@/lib/api/tuitionPlanService";
+import {
+  getTuitionPlanById,
+  getTuitionPlans,
+} from "@/lib/api/tuitionPlanService";
 import {
   extractDomainErrorCode,
   getDomainErrorMessage,
 } from "@/lib/api/domainErrorMessage";
+import {
+  filterClassesByTuitionPlanEligibility,
+  filterSuggestedClassBucketByTuitionPlanEligibility,
+} from "@/lib/tuitionPlanClassEligibility";
 import {
   filterClassesByLearningTicketType,
   filterSuggestedClassBucketByLearningTicketType,
@@ -845,6 +852,8 @@ export default function StaffRegistrationOverview({
           cls?.programName || cls?.program?.name || "",
         );
         const levelName = String(cls?.levelName || cls?.courseLevel || cls?.level?.name || "");
+        const moduleName = String(cls?.currentModuleName || cls?.startModuleName || "").trim();
+        const moduleLabel = moduleName ? `Module: ${moduleName}` : "";
         const slotTypeLabel = getClassSlotTypeLabel(cls);
         const safeRemaining =
           typeof remainingSlots === "number" ? Math.max(0, remainingSlots) : null;
@@ -859,6 +868,7 @@ export default function StaffRegistrationOverview({
           label: [
             className,
             levelName || "Chưa rõ trình độ",
+            moduleLabel,
             slotTypeLabel ? `Loại: ${slotTypeLabel}` : "",
             `Còn chỗ: ${safeRemaining ?? "-"}`,
             `Lịch: ${scheduleLabel}`,
@@ -1430,7 +1440,10 @@ export default function StaffRegistrationOverview({
   const ensureSelectedActionRegistrationForAssignment = async () => {
     const current = selectedActionRegistration;
     if (!current?.id) return current;
-    if (current.learningTicketTypeCode || current.learningTicketTypeName) {
+    if (
+      current.tuitionPlanId &&
+      (current.learningTicketTypeCode || current.learningTicketTypeName)
+    ) {
       return current;
     }
 
@@ -1446,6 +1459,36 @@ export default function StaffRegistrationOverview({
     }
   };
 
+  const resolveTuitionPlanForAssignment = async (registration?: Registration | null) => {
+    const tuitionPlanId = String(registration?.tuitionPlanId || "").trim();
+    if (!tuitionPlanId) return null;
+
+    const targetBranchId = String(registration?.branchId || branchId || "").trim();
+    const programId = String(registration?.programId || "").trim();
+    const levelId = String(registration?.levelId || "").trim();
+
+    try {
+      const plan = await getTuitionPlanById(tuitionPlanId);
+      if (plan) return plan;
+    } catch (error) {
+      console.warn("Unable to resolve tuition plan detail for class assignment", error);
+    }
+
+    try {
+      const plans = await getTuitionPlans({
+        pageNumber: 1,
+        pageSize: 500,
+        branchId: targetBranchId || undefined,
+        programId: programId || undefined,
+        levelId: levelId || undefined,
+      });
+      return plans.find((plan) => plan.id === tuitionPlanId) || null;
+    } catch (error) {
+      console.warn("Unable to resolve tuition plan for class assignment", error);
+      return null;
+    }
+  };
+
   const handleSuggestClasses = async () => {
     const actionRegistration = await ensureSelectedActionRegistrationForAssignment();
     if (!actionRegistration?.id) return;
@@ -1457,14 +1500,21 @@ export default function StaffRegistrationOverview({
     try {
       setIsSuggesting(true);
       setAssignViewMode("suggested");
-      const suggestions = await suggestClassesForRegistration(actionRegistration.id);
+      const [suggestions, tuitionPlanForAssignment] = await Promise.all([
+        suggestClassesForRegistration(actionRegistration.id),
+        resolveTuitionPlanForAssignment(actionRegistration),
+      ]);
       const ticketFilteredSuggestions = filterSuggestedClassBucketByLearningTicketType(
         suggestions,
         learningTicketTypeForAssignment,
       );
+      const planFilteredSuggestions = filterSuggestedClassBucketByTuitionPlanEligibility(
+        ticketFilteredSuggestions,
+        tuitionPlanForAssignment,
+      );
       const visibleSuggestions = supportsParallelLevels(learningTicketTypeForAssignment)
-        ? ticketFilteredSuggestions
-        : stripSecondarySuggestions(ticketFilteredSuggestions);
+        ? planFilteredSuggestions
+        : stripSecondarySuggestions(planFilteredSuggestions);
       setSuggestedClasses(visibleSuggestions);
 
       const primaryCount = visibleSuggestions?.suggestedClasses?.length ?? 0;
@@ -1521,11 +1571,14 @@ export default function StaffRegistrationOverview({
       setIsLoadingManualClasses(true);
       setAssignViewMode("manual");
 
-      const response = await getAllClasses({
-        pageNumber: 1,
-        pageSize: 1000,
-        branchId: targetBranchId,
-      });
+      const [response, tuitionPlanForAssignment] = await Promise.all([
+        getAllClasses({
+          pageNumber: 1,
+          pageSize: 1000,
+          branchId: targetBranchId,
+        }),
+        resolveTuitionPlanForAssignment(actionRegistration),
+      ]);
 
       const allItems = pickClassItems(response)
         .filter((item) => item?.id)
@@ -1533,10 +1586,70 @@ export default function StaffRegistrationOverview({
           const statusValue = String(item?.status || "").toLowerCase();
           return statusValue !== "cancelled" && statusValue !== "completed";
         });
-      const items = filterClassesByLearningTicketType(
+      const ticketFilteredItems = filterClassesByLearningTicketType(
         allItems,
         learningTicketTypeForAssignment,
       );
+      const items = filterClassesByTuitionPlanEligibility(
+        ticketFilteredItems,
+        tuitionPlanForAssignment,
+      );
+
+      const countClassesByProgramAndLevel = (
+        targetProgramId?: string,
+        targetProgramName?: string,
+        targetLevelId?: string,
+        targetLevelName?: string,
+      ) => {
+        const normalizedTargetProgramId = String(targetProgramId || "").trim();
+        const normalizedTargetProgramName = normalizeText(targetProgramName);
+        const normalizedTargetLevelId = String(targetLevelId || "").trim();
+        const normalizedTargetLevelName = normalizeText(targetLevelName);
+
+        return items.filter((item) => {
+          const itemProgramId = String(item?.programId || item?.program?.id || "").trim();
+          const itemProgramName = normalizeText(
+            String(item?.programName || item?.program?.name || ""),
+          );
+          const itemLevelId = String(item?.levelId || item?.level?.id || "").trim();
+          const itemLevelName = normalizeText(
+            String(item?.levelName || item?.courseLevel || item?.level?.name || ""),
+          );
+
+          const sameProgramById = normalizedTargetProgramId
+            ? itemProgramId === normalizedTargetProgramId
+            : true;
+          const sameProgramByName =
+            !normalizedTargetProgramId && normalizedTargetProgramName
+              ? itemProgramName === normalizedTargetProgramName
+              : true;
+          const sameLevelById = normalizedTargetLevelId
+            ? itemLevelId === normalizedTargetLevelId
+            : true;
+          const sameLevelByName =
+            !normalizedTargetLevelId && normalizedTargetLevelName
+              ? itemLevelName === normalizedTargetLevelName
+              : true;
+
+          return sameProgramById && sameProgramByName && sameLevelById && sameLevelByName;
+        }).length;
+      };
+
+      const primaryFilteredCount = countClassesByProgramAndLevel(
+        actionRegistration?.programId,
+        actionRegistration?.programName,
+        actionRegistration?.levelId,
+        actionRegistration?.levelName,
+      );
+      const secondaryFilteredCount =
+        hasSecondaryTrack && canUseSecondaryForAssignment
+          ? countClassesByProgramAndLevel(
+              actionRegistration?.secondaryProgramId || actionRegistration?.programId,
+              actionRegistration?.secondaryProgramName || actionRegistration?.programName,
+              actionRegistration?.secondaryLevelId,
+              actionRegistration?.secondaryLevelName,
+            )
+          : 0;
 
       setManualClasses(items);
 
@@ -1554,6 +1667,14 @@ export default function StaffRegistrationOverview({
             ? String(secondClass?.id || firstClass?.id || "")
             : "",
         );
+        toast({
+          title: "Thành công",
+          description:
+            hasSecondaryTrack && canUseSecondaryForAssignment
+              ? `Đã tải ${primaryFilteredCount} lớp cho chương trình chính và ${secondaryFilteredCount} lớp cho chương trình song song để xếp lớp thủ công.`
+              : `Đã tải ${primaryFilteredCount} lớp để xếp lớp thủ công.`,
+          variant: "success",
+        });
       } else {
         setManualPrimaryClassId("");
         setManualSecondaryClassId("");

@@ -735,6 +735,18 @@ function mapToRegistration(item: any): Registration {
   };
 }
 
+function toNullableString(value: unknown) {
+  if (value == null) return null;
+  const text = String(value).trim();
+  return text || null;
+}
+
+function toNullableNumber(value: unknown) {
+  if (value == null || value === "") return null;
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : null;
+}
+
 function mapSuggestedClass(item: any): SuggestedClass {
   const capacity = Number(item?.capacity ?? item?.maxStudents ?? 0);
   const currentEnrollment = Number(
@@ -754,6 +766,12 @@ function mapSuggestedClass(item: any): SuggestedClass {
     remainingSlots,
     startDate: item?.startDate ?? "",
     endDate: item?.endDate ?? "",
+    startModuleId: toNullableString(item?.startModuleId),
+    startModuleName: toNullableString(item?.startModuleName),
+    startSessionIndex: toNullableNumber(item?.startSessionIndex),
+    currentModuleId: toNullableString(item?.currentModuleId),
+    currentModuleName: toNullableString(item?.currentModuleName),
+    currentSessionIndex: toNullableNumber(item?.currentSessionIndex),
     schedulePattern: item?.schedulePattern ?? item?.classSchedulePattern ?? null,
     classSchedulePattern: item?.classSchedulePattern ?? null,
     effectiveSchedulePattern: item?.effectiveSchedulePattern ?? null,

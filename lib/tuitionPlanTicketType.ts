@@ -117,7 +117,9 @@ export function isClassCompatibleWithLearningTicketType(
 ) {
   const ticketKind = getLearningTicketTypeKind(learningTicketType);
   if (!ticketKind) return true;
-  return getSlotTypeKind(cls) === ticketKind;
+  const slotKind = getSlotTypeKind(cls);
+  if (!slotKind) return true;
+  return slotKind === ticketKind;
 }
 
 export function filterClassesByLearningTicketType<T extends SlotTypeLike>(
