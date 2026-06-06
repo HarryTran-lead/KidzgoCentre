@@ -134,7 +134,11 @@ export default function PlacementTestDetailModal({
     test.resultScore !== undefined ||
     test.listeningScore !== undefined ||
     test.programRecommendationId !== undefined ||
-    test.programRecommendationName !== undefined
+    test.programRecommendationName !== undefined ||
+    test.primaryLevelRecommendationId !== undefined ||
+    test.primaryLevelRecommendationName !== undefined ||
+    test.secondaryLevelRecommendationId !== undefined ||
+    test.secondaryLevelRecommendationName !== undefined
   );
 
   return (
@@ -305,11 +309,23 @@ export default function PlacementTestDetailModal({
                     </div>
                   )}
 
+                  {(test.primaryLevelRecommendationName || test.primaryLevelRecommendationId) && (
+                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-3">
+                      <p className="text-sm text-gray-500 mb-1 flex items-center gap-2">
+                        <BookOpen size={14} className="text-red-500" />
+                        Đề xuất trình độ chính
+                      </p>
+                      <p className="text-lg font-semibold text-red-700">
+                        {test.primaryLevelRecommendationName || test.primaryLevelRecommendationId || 'N/A'}
+                      </p>
+                    </div>
+                  )}
+
                   {(test.secondaryLevelRecommendationName || test.secondaryLevelRecommendationId) && (
                     <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-3">
                       <p className="text-sm text-gray-500 mb-1 flex items-center gap-2">
                         <BookOpen size={14} className="text-red-500" />
-                        Chương trình đề xuất thứ cấp
+                        Đề xuất trình độ song song
                       </p>
                       <p className="text-lg font-semibold text-red-700">
                         {test.secondaryLevelRecommendationName || test.secondaryLevelRecommendationId || 'N/A'}

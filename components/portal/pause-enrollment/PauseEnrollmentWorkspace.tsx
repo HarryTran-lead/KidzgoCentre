@@ -47,6 +47,7 @@ import { getAllStudents } from "@/lib/api/studentService";
 import { getDomainErrorMessage } from "@/lib/api/domainErrorMessage";
 import { useToast } from "@/hooks/use-toast";
 import { useBranchFilter } from "@/hooks/useBranchFilter";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { todayDateOnly } from "@/lib/datetime";
 import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
 import PauseEnrollmentCreateModal from "@/components/portal/pause-enrollment/PauseEnrollmentCreateModal";
@@ -1530,6 +1531,11 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
   const { selectedProfile } = useSelectedStudentProfile();
   const isStudentLocked = isStudentPage && !!selectedProfile?.id;
   const { selectedBranchId, isLoaded: isBranchLoaded } = useBranchFilter();
+  const { user: currentUser, isLoading: isCurrentUserLoading } = useCurrentUser();
+  const isStaffContext = context === "staff";
+  const effectiveBranchId = isStaffContext
+    ? String(currentUser?.branchId || "")
+    : selectedBranchId ?? "";
 
   const [studentOptions, setStudentOptions] = useState<
     PauseEnrollmentStudentOption[]
@@ -1894,6 +1900,11 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
       setFilterClasses([]);
       return;
     }
+    if (isStaffContext && isCurrentUserLoading) return;
+    if (isStaffContext && !effectiveBranchId) {
+      setFilterClasses([]);
+      return;
+    }
 
     setFilterClassesLoading(true);
 
@@ -1901,7 +1912,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
       const response = await getAllClasses({
         pageNumber: 1,
         pageSize: 500,
-        branchId: selectedBranchId ?? undefined,
+        branchId: effectiveBranchId || undefined,
       });
 
       setFilterClasses(extractClassOptions(response));
@@ -1910,7 +1921,12 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
     } finally {
       setFilterClassesLoading(false);
     }
-  }, [isManagement, selectedBranchId]);
+  }, [
+    effectiveBranchId,
+    isCurrentUserLoading,
+    isManagement,
+    isStaffContext,
+  ]);
 
   const loadSettings = useCallback(async () => {
     if (!isManagement) {
@@ -1945,6 +1961,14 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
 
   const loadRequests = useCallback(
     async (focusId?: string) => {
+      if (isStaffContext && isCurrentUserLoading) return;
+      if (isStaffContext && !effectiveBranchId) {
+        setRequests([]);
+        setSelectedRequestId(null);
+        setRequestError("Không xác định được chi nhánh của tài khoản staff.");
+        return;
+      }
+
       setRequestsLoading(true);
       setRequestError(null);
 
@@ -1953,7 +1977,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
           studentProfileId: selectedStudentId || undefined,
           classId: selectedClassId === ALL_CLASS ? undefined : selectedClassId,
           status: selectedStatus === ALL_STATUS ? undefined : selectedStatus,
-          branchId: isManagement ? (selectedBranchId ?? undefined) : undefined,
+          branchId: isManagement ? effectiveBranchId || undefined : undefined,
           pageNumber: 1,
           pageSize: 200,
         });
@@ -1979,8 +2003,10 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
       }
     },
     [
+      effectiveBranchId,
+      isCurrentUserLoading,
       isManagement,
-      selectedBranchId,
+      isStaffContext,
       selectedClassId,
       selectedStatus,
       selectedStudentId,
@@ -2101,6 +2127,13 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
 
     setReassignOptionsLoading(true);
     setReassignOptionsError(null);
+    if (isStaffContext && isCurrentUserLoading) return;
+    if (isStaffContext && !effectiveBranchId) {
+      setReassignRegistrations([]);
+      setReassignClasses([]);
+      setReassignOptionsError("Không xác định được chi nhánh của tài khoản staff.");
+      return;
+    }
 
     try {
       const [registrationResponse, classesResponse] = await Promise.all([
@@ -2112,7 +2145,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
         getAllClasses({
           pageNumber: 1,
           pageSize: 500,
-          branchId: isManagement ? (selectedBranchId ?? undefined) : undefined,
+          branchId: isManagement ? effectiveBranchId || undefined : undefined,
         }),
       ]);
 
@@ -2127,7 +2160,13 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
     } finally {
       setReassignOptionsLoading(false);
     }
-  }, [isManagement, selectedBranchId, selectedRequest?.studentProfileId]);
+  }, [
+    effectiveBranchId,
+    isCurrentUserLoading,
+    isManagement,
+    isStaffContext,
+    selectedRequest?.studentProfileId,
+  ]);
 
   useEffect(() => {
     if (!selectedRequest) {
@@ -2160,8 +2199,10 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
     void loadRequests(requestIdFromUrl ?? undefined);
   }, [
     isBranchLoaded,
+    isCurrentUserLoading,
     isManagement,
     isStudentPage,
+    isStaffContext,
     loadRequests,
     requestIdFromUrl,
     selectedStudentId,

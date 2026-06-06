@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import {
   ArrowLeft,
   BookOpen,
@@ -35,6 +35,7 @@ import { fetchAdminSessions } from "@/app/api/admin/sessions";
 import type { ClassDetail, Track } from "@/types/admin/classes";
 import type { Session } from "@/types/admin/sessions";
 import { SECTION_TYPE_LABELS } from "@/types/admin/sessions";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import clsx from "clsx";
 
 type ParsedScheduleSegment = {
@@ -465,9 +466,14 @@ function Pagination({
 
 export default function ClassDetailPage() {
   const params = useParams();
+  const pathname = usePathname();
   const router = useRouter();
   const classId = params.id as string;
   const locale = params.locale as string;
+  const isStaffManagementClassDetailPage = pathname.includes("/portal/staff-management/classes/");
+  const classListPath = `/${locale}/portal/${isStaffManagementClassDetailPage ? "staff-management" : "admin"}/classes`;
+  const { user: currentUser, isLoading: isCurrentUserLoading } = useCurrentUser();
+  const staffBranchId = isStaffManagementClassDetailPage ? String(currentUser?.branchId || "") : "";
   const [classData, setClassData] = useState<ClassDetail | null>(null);
   const [allStudents, setAllStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
@@ -493,7 +499,14 @@ export default function ClassDetailPage() {
 
         // Fetch and map class detail
         const classDetail = await fetchAndMapAdminClassDetail(classId);
-        console.log({ classDetail });
+        if (
+          isStaffManagementClassDetailPage &&
+          staffBranchId &&
+          classDetail.branchId &&
+          classDetail.branchId !== staffBranchId
+        ) {
+          throw new Error("Bạn không có quyền xem lớp học ngoài chi nhánh của mình.");
+        }
 
         // Fetch students from enrollments API
         let students: Student[] = [];
@@ -531,10 +544,19 @@ export default function ClassDetailPage() {
       }
     }
 
+    if (isStaffManagementClassDetailPage && isCurrentUserLoading) return;
+    if (isStaffManagementClassDetailPage && !staffBranchId) {
+      setLoading(false);
+      setError("Không xác định được chi nhánh của tài khoản staff.");
+      setClassData(null);
+      setAllStudents([]);
+      return;
+    }
+
     if (classId) {
       loadClassDetail();
     }
-  }, [classId]);
+  }, [classId, isCurrentUserLoading, isStaffManagementClassDetailPage, staffBranchId]);
 
   const filteredStudents = allStudents.filter((student) => {
     const matchesSearch =
@@ -568,7 +590,7 @@ export default function ClassDetailPage() {
           )}
           {error && (
             <button
-              onClick={() => router.push(`/${locale}/portal/admin/classes`)}
+              onClick={() => router.push(classListPath)}
               className="px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl hover:shadow-lg transition-all cursor-pointer"
             >
               Quay lại danh sách lớp
@@ -601,7 +623,7 @@ export default function ClassDetailPage() {
         className={`mb-8 transition-all duration-700 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"}`}
       >
         <button
-          onClick={() => router.push(`/${locale}/portal/admin/classes`)}
+          onClick={() => router.push(classListPath)}
           className="inline-flex items-center gap-2 text-gray-600 hover:text-red-600 mb-6 transition-all hover:gap-3 cursor-pointer group"
         >
           <ArrowLeft

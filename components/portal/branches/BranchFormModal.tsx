@@ -94,7 +94,7 @@ export default function BranchFormModal({
             <button
               type="button"
               onClick={onClose}
-              className="p-2 text-white transition hover:bg-white/20 cursor-pointer shrink-0"
+              className="p-2 text-white transition hover:bg-white/20 rounded-lg cursor-pointer shrink-0"
               disabled={isSubmitting}
             >
               <X size={18} />

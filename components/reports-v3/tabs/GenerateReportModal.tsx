@@ -10,6 +10,7 @@ type GenerateReportModalProps = {
   setReportType: (value: ReportsV3GenerateType) => void;
   reportTypeLabels: Record<ReportsV3GenerateType, string>;
   branchOptions: Option[];
+  showBranchContext?: boolean;
   classOptions: Option[];
   studentOptions: Option[];
   periods: ReportPeriodDto[];
@@ -28,6 +29,7 @@ export default function GenerateReportModal({
   setReportType,
   reportTypeLabels,
   branchOptions,
+  showBranchContext = true,
   classOptions,
   studentOptions,
   periods,
@@ -65,7 +67,9 @@ export default function GenerateReportModal({
             <div className="rounded-2xl border border-dashed border-red-200 bg-white px-4 py-4 text-sm text-gray-700">
               <div className="font-semibold text-gray-900">Ngữ cảnh hiện tại</div>
               <div className="mt-2 grid gap-2 md:grid-cols-2">
-                <div>Chi nhánh: <span className="font-medium">{branchOptions.find((item) => item.id === selectedBranchId)?.label || "—"}</span></div>
+                {showBranchContext ? (
+                  <div>Chi nhánh: <span className="font-medium">{branchOptions.find((item) => item.id === selectedBranchId)?.label || "—"}</span></div>
+                ) : null}
                 <div>Lớp học: <span className="font-medium">{classOptions.find((item) => item.id === selectedClassId)?.label || "—"}</span></div>
                 <div>Học viên: <span className="font-medium">{studentOptions.find((item) => item.id === selectedStudentId)?.label || "—"}</span></div>
                 <div>Kỳ báo cáo: <span className="font-medium">{periods.find((item) => item.id === selectedPeriodId)?.name || "—"}</span></div>

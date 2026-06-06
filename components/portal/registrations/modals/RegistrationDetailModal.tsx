@@ -3,11 +3,18 @@
 import { useCallback, useMemo, useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
-import { Download, ExternalLink, Loader2, X, User, Calendar, BookOpen, Clock, Tag, Users, GraduationCap, CalendarClock, FileText, CheckCircle, AlertCircle, Wallet, History } from "lucide-react";
+import { Download, ExternalLink, Loader2, X, User, Calendar, BookOpen, Clock, Tag, Users, GraduationCap, CalendarClock, FileText, CheckCircle, AlertCircle, Wallet, History, Layers } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { exportRegistrationEnrollmentConfirmationPdf } from "@/lib/api/registrationService";
+import {
+  exportRegistrationEnrollmentConfirmationPdf,
+  getRegistrationHistory,
+} from "@/lib/api/registrationService";
 import { getTicketBalance, getTicketLedger } from "@/lib/api/learningTicketService";
-import type { Registration, RegistrationStatus } from "@/types/registration";
+import type {
+  Registration,
+  RegistrationHistoryItem,
+  RegistrationStatus,
+} from "@/types/registration";
 import type { LearningTicketBalance, LearningTicketLedgerItem } from "@/types/learning-ticket";
 
 type RegistrationDetailModalProps = {
@@ -28,6 +35,253 @@ function statusLabel(status: RegistrationStatus) {
     Cancelled: "Đã hủy",
   };
   return labels[status];
+}
+
+function historyStatusLabel(status?: string | null) {
+  if (!status) return "";
+  const normalized = String(status) as RegistrationStatus;
+  const knownStatuses: RegistrationStatus[] = [
+    "New",
+    "WaitingForClass",
+    "ClassAssigned",
+    "Studying",
+    "Paused",
+    "Completed",
+    "Cancelled",
+  ];
+  return knownStatuses.includes(normalized) ? statusLabel(normalized) : String(status);
+}
+
+function historyActionLabel(action?: string | null) {
+  const normalized = String(action || "").trim();
+  const labels: Record<string, string> = {
+    Created: "Tạo đăng ký",
+    Create: "Tạo đăng ký",
+    CreateRegistration: "Tạo đăng ký",
+    RegistrationCreated: "Tạo đăng ký",
+    Updated: "Cập nhật đăng ký",
+    Update: "Cập nhật đăng ký",
+    UpdateRegistration: "Cập nhật đăng ký",
+    RegistrationUpdated: "Cập nhật đăng ký",
+    AssignedClass: "Xếp lớp",
+    AssignClass: "Xếp lớp",
+    AssignRegistrationClass: "Xếp lớp",
+    ClassAssigned: "Xếp lớp",
+    TransferClass: "Chuyển lớp",
+    TransferRegistrationClass: "Chuyển lớp",
+    TransferBranch: "Chuyển chi nhánh",
+    TransferRegistrationBranch: "Chuyển chi nhánh",
+    BranchTransferred: "Chuyển chi nhánh",
+    Upgrade: "Nâng cấp gói học",
+    UpgradeRegistration: "Nâng cấp gói học",
+    RegistrationUpgraded: "Nâng cấp gói học",
+    Pause: "Tạm dừng đăng ký",
+    Paused: "Tạm dừng đăng ký",
+    PauseRegistration: "Tạm dừng đăng ký",
+    Reactivate: "Kích hoạt lại đăng ký",
+    Reactivated: "Kích hoạt lại đăng ký",
+    ReactivateRegistration: "Kích hoạt lại đăng ký",
+    Complete: "Hoàn thành đăng ký",
+    Completed: "Hoàn thành đăng ký",
+    Cancelled: "Hủy đăng ký",
+    Canceled: "Hủy đăng ký",
+    Cancel: "Hủy đăng ký",
+    CancelRegistration: "Hủy đăng ký",
+  };
+  if (labels[normalized]) return labels[normalized];
+
+  const spaced = normalized
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/[_-]+/g, " ")
+    .trim();
+  return spaced || "Cập nhật đăng ký";
+}
+
+const HISTORY_FIELD_LABELS: Record<string, string> = {
+  actorUserName: "Người thao tác",
+  actorProfileName: "Tên hồ sơ thao tác",
+  action: "Hành động",
+  createdAt: "Thời gian tạo",
+  timestamp: "Thời gian ghi nhận",
+  updatedAt: "Thời gian cập nhật",
+  role: "Vai trò",
+  type: "Loại lịch sử",
+  reference: "Tham chiếu",
+  details: "Chi tiết",
+  reason: "Lý do",
+  Reason: "Lý do",
+  effectiveDate: "Ngày hiệu lực",
+  EffectiveDate: "Ngày hiệu lực",
+  warningMessage: "Cảnh báo",
+  WarningMessage: "Cảnh báo",
+  operationType: "Loại chuyển đổi",
+  OperationType: "Loại chuyển đổi",
+  entryType: "Kiểu vào lớp",
+  EntryType: "Kiểu vào lớp",
+  note: "Ghi chú",
+  Note: "Ghi chú",
+  description: "Mô tả",
+  Description: "Mô tả",
+  status: "Trạng thái",
+  Status: "Trạng thái",
+  oldStatus: "Trạng thái cũ",
+  OldStatus: "Trạng thái cũ",
+  newStatus: "Trạng thái mới",
+  NewStatus: "Trạng thái mới",
+  classId: "Mã lớp",
+  ClassId: "Mã lớp",
+  oldClassName: "Lớp cũ",
+  OldClassName: "Lớp cũ",
+  className: "Lớp mới",
+  ClassName: "Lớp mới",
+  newClassName: "Lớp mới",
+  NewClassName: "Lớp mới",
+  oldBranchName: "Chi nhánh cũ",
+  OldBranchName: "Chi nhánh cũ",
+  PreviousBranchName: "Chi nhánh cũ",
+  branchName: "Chi nhánh",
+  BranchName: "Chi nhánh",
+  newBranchName: "Chi nhánh mới",
+  NewBranchName: "Chi nhánh mới",
+  programName: "Chương trình",
+  ProgramName: "Chương trình",
+  tuitionPlanName: "Gói học",
+  TuitionPlanName: "Gói học",
+};
+
+const HISTORY_HIDDEN_KEYS = new Set([
+  "dataBefore",
+  "dataAfter",
+  "details",
+  "registration",
+  "Registration",
+  "entityType",
+  "type",
+  "reference",
+]);
+
+const HISTORY_VALUE_FORMATTERS: Record<string, (value: string | null) => string> = {
+  action: historyActionLabel,
+  OperationType: historyActionLabel,
+  operationType: historyActionLabel,
+  status: historyStatusLabel,
+  Status: historyStatusLabel,
+  oldStatus: historyStatusLabel,
+  OldStatus: historyStatusLabel,
+  newStatus: historyStatusLabel,
+  NewStatus: historyStatusLabel,
+  createdAt: toDateTimeOrRaw,
+  timestamp: toDateTimeOrRaw,
+  updatedAt: toDateTimeOrRaw,
+  EffectiveDate: toDateTimeOrRaw,
+  effectiveDate: toDateTimeOrRaw,
+};
+
+function historyFieldLabel(key: string) {
+  return (
+    HISTORY_FIELD_LABELS[key] ||
+    key
+      .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+      .replace(/[_-]+/g, " ")
+      .trim()
+  );
+}
+
+function formatHistoryRawValue(key: string, value?: string | null) {
+  if (value === null || value === undefined || value === "") return "Không có";
+  if (value === "ManagementStaff") return "Nhân viên quản lý";
+  if (value === "Registration") return "Đăng ký";
+  if (value === "Immediate") return "Vào học ngay";
+  if (
+    value ===
+    "Class da bat dau. Hoc vien se tham gia theo tien do hien tai cua lop moi."
+  ) {
+    return "Lớp đã bắt đầu. Học viên sẽ tham gia theo tiến độ hiện tại của lớp mới.";
+  }
+  const formatter = HISTORY_VALUE_FORMATTERS[key];
+  return formatter ? formatter(value) : value;
+}
+
+function shouldShowHistoryField(key: string, value?: string | null) {
+  if (!value || value === "Không có") return false;
+  if (HISTORY_HIDDEN_KEYS.has(key)) return false;
+  return !key.toLowerCase().endsWith("id");
+}
+
+function parseHistoryJson(value?: string | null): Record<string, string> {
+  if (!value) return {};
+  try {
+    const first = JSON.parse(value);
+    const parsed = typeof first === "string" ? JSON.parse(first) : first;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return Object.fromEntries(
+      Object.entries(parsed)
+        .map(([key, entryValue]) => [
+          key,
+          entryValue === null || entryValue === undefined
+            ? "Không có"
+            : typeof entryValue === "object"
+              ? JSON.stringify(entryValue)
+              : String(entryValue),
+        ])
+        .filter(([key, entryValue]) =>
+          shouldShowHistoryField(String(key), String(entryValue)),
+        ),
+    );
+  } catch {
+    return {};
+  }
+}
+
+function buildHistoryRows(source: Record<string, string>) {
+  return Object.entries(source)
+    .filter(([key, value]) => shouldShowHistoryField(key, value))
+    .map(([key, value]) => ({
+      key,
+      label: historyFieldLabel(key),
+      value: formatHistoryRawValue(key, value),
+    }));
+}
+
+function pickHistoryValue(
+  source: Record<string, string>,
+  keys: string[],
+  ...fallbacks: Array<string | null | undefined>
+) {
+  for (const value of fallbacks) {
+    if (value && value !== "Không có") return value;
+  }
+  for (const key of keys) {
+    const value = source[key];
+    if (value && value !== "Không có") return value;
+  }
+  return "";
+}
+
+function HistoryFieldGrid({
+  rows,
+}: {
+  rows: Array<{ key: string; label: string; value: string }>;
+}) {
+  if (rows.length === 0) return null;
+
+  return (
+    <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+      {rows.map((row) => (
+        <div
+          key={row.key}
+          className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2.5"
+        >
+          <div className="text-xs font-semibold text-gray-500">
+            {row.label}
+          </div>
+          <div className="mt-1 break-words text-sm font-medium text-gray-900">
+            {row.value}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function statusBadgeClass(status: RegistrationStatus) {
@@ -65,6 +319,24 @@ function ticketTransactionLabel(type?: string | null) {
     Adjustment: "Điều chỉnh",
   };
   return labels[normalized] || normalized || "Khác";
+}
+
+function ticketLedgerReasonLabel(reason?: string | null) {
+  const raw = String(reason || "").trim();
+  if (!raw) return "-";
+
+  const purchaseMatch = raw.match(/^Purchase\s+(.+)$/i);
+  if (purchaseMatch?.[1]) {
+    return `Cấp vé từ gói học: ${purchaseMatch[1].trim()}`;
+  }
+
+  const normalized = raw.toLowerCase();
+  const labels: Record<string, string> = {
+    "void remaining tickets because registration was cancelled":
+      "Hủy vé còn lại vì đăng ký đã bị hủy",
+  };
+
+  return labels[normalized] || raw;
 }
 
 function ticketTransactionBadgeClass(type?: string | null) {
@@ -317,6 +589,9 @@ export default function RegistrationDetailModal({
   const [ticketLedger, setTicketLedger] = useState<LearningTicketLedgerItem[]>([]);
   const [ticketLoading, setTicketLoading] = useState(false);
   const [ticketError, setTicketError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"details" | "history">("details");
+  const [history, setHistory] = useState<RegistrationHistoryItem[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
   const placementTestId = extractPlacementTestId(item?.note);
 
@@ -415,6 +690,52 @@ export default function RegistrationDetailModal({
     };
   }, [isOpen, item?.studentProfileId]);
 
+  useEffect(() => {
+    let isActive = true;
+
+    if (!isOpen || !item?.id || activeTab !== "history") {
+      return () => {
+        isActive = false;
+      };
+    }
+
+    const loadHistory = async () => {
+      try {
+        setIsLoadingHistory(true);
+        const nextHistory = await getRegistrationHistory(item.id, {
+          pageNumber: 1,
+          pageSize: 10,
+        });
+        if (isActive) {
+          setHistory(nextHistory);
+        }
+      } catch (error) {
+        console.error("Error fetching registration history:", error);
+        if (isActive) {
+          setHistory([]);
+        }
+      } finally {
+        if (isActive) {
+          setIsLoadingHistory(false);
+        }
+      }
+    };
+
+    loadHistory();
+
+    return () => {
+      isActive = false;
+    };
+  }, [activeTab, isOpen, item?.id]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setActiveTab("details");
+      setHistory([]);
+      setIsLoadingHistory(false);
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
   if (!item && !isLoading) return null;
   if (typeof window === "undefined") return null;
@@ -464,6 +785,42 @@ export default function RegistrationDetailModal({
           </div>
         </div>
 
+        {/* Tabs */}
+        <div className="border-b border-gray-200 bg-linear-to-r from-red-500/5 to-red-700/5 px-6 flex-shrink-0">
+          <div className="flex gap-1">
+            <button
+              type="button"
+              onClick={() => setActiveTab("details")}
+              className={cn(
+                "px-5 py-3 text-sm font-medium transition-all cursor-pointer",
+                activeTab === "details"
+                  ? "border-b-2 border-red-600 text-red-600 bg-white -mb-px rounded-t-lg"
+                  : "text-gray-500 hover:text-gray-700",
+              )}
+            >
+              <div className="flex items-center gap-2">
+                <FileText size={14} />
+                Thông tin
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("history")}
+              className={cn(
+                "px-5 py-3 text-sm font-medium transition-all cursor-pointer",
+                activeTab === "history"
+                  ? "border-b-2 border-red-600 text-red-600 bg-white -mb-px rounded-t-lg"
+                  : "text-gray-500 hover:text-gray-700",
+              )}
+            >
+              <div className="flex items-center gap-2">
+                <History size={14} />
+                Lịch sử
+              </div>
+            </button>
+          </div>
+        </div>
+
         {/* Modal Body - Scrollable */}
         <div className="flex-1 overflow-y-auto p-6 text-sm">
           {isLoading ? (
@@ -471,7 +828,7 @@ export default function RegistrationDetailModal({
               <Loader2 size={20} className="animate-spin text-red-500" />
               <span>Đang tải chi tiết...</span>
             </div>
-          ) : item ? (
+          ) : item ? activeTab === "details" ? (
             <div className="space-y-5">
               {/* Student Info Card */}
               <div className="rounded-xl border border-red-200 bg-linear-to-r from-red-50/50 to-white p-5">
@@ -527,11 +884,18 @@ export default function RegistrationDetailModal({
                     icon={<BookOpen size={14} />}
                     label="Chương trình"
                     value={
-                      item.secondaryLevelName
-                        ? `${item.programName || "-"} • ${item.secondaryLevelName}`
-                        : item.secondaryProgramName
+                      item.secondaryProgramName
                         ? `${item.programName || "-"} • ${item.secondaryProgramName}`
                         : item.programName || "-"
+                    }
+                  />
+                  <InfoCard
+                    icon={<Layers size={14} />}
+                    label="Trình độ"
+                    value={
+                      item.secondaryLevelName
+                        ? `${item.levelName || "Chưa có"} • ${item.secondaryLevelName}`
+                        : item.levelName || "Chưa có"
                     }
                   />
                   <InfoCard
@@ -779,7 +1143,7 @@ export default function RegistrationDetailModal({
                                   {entry.quantity}
                                 </td>
                                 <td className="px-3 py-2 text-gray-700">
-                                  {entry.reason || "-"}
+                                  {ticketLedgerReasonLabel(entry.reason)}
                                 </td>
                                 <td className="px-3 py-2 text-gray-500">
                                   {toDateTimeOrRaw(entry.createdAt)}
@@ -838,6 +1202,231 @@ export default function RegistrationDetailModal({
                   )}
                 </div>
               </Section>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {isLoadingHistory ? (
+                <div className="flex items-center justify-center gap-2 py-12">
+                  <Loader2 size={20} className="animate-spin text-red-500" />
+                  <span className="text-sm text-gray-500">Đang tải lịch sử...</span>
+                </div>
+              ) : history.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-linear-to-r from-gray-100 to-gray-200">
+                    <History size={24} className="text-gray-400" />
+                  </div>
+                  <div className="font-medium text-gray-600">Chưa có lịch sử đăng ký</div>
+                  <div className="mt-1 text-sm text-gray-500">
+                    Đăng ký này chưa có lịch sử thay đổi.
+                  </div>
+                </div>
+              ) : (
+                history.map((historyItem, index) => {
+                  const actionText = historyActionLabel(
+                    historyItem.title ||
+                      historyItem.action ||
+                      historyItem.eventType,
+                  );
+                  const parsedAfter = parseHistoryJson(historyItem.dataAfter);
+                  const parsedDetails = parseHistoryJson(historyItem.details);
+                  const changeData = {
+                    ...parsedAfter,
+                    ...parsedDetails,
+                  };
+                  const changedBy =
+                    historyItem.actorUserName ||
+                    historyItem.changedByName ||
+                    historyItem.actorName ||
+                    historyItem.user ||
+                    "";
+                  const changedAt =
+                    historyItem.changedAt ||
+                    historyItem.timestamp ||
+                    historyItem.updatedAt ||
+                    historyItem.createdAt;
+                  const oldClassText = pickHistoryValue(
+                    changeData,
+                    [
+                      "oldClassName",
+                      "OldClassName",
+                      "fromClassName",
+                      "FromClassName",
+                      "previousClassName",
+                      "PreviousClassName",
+                    ],
+                    historyItem.oldClassName,
+                  );
+                  const newClassText = pickHistoryValue(
+                    changeData,
+                    [
+                      "newClassName",
+                      "NewClassName",
+                      "className",
+                      "ClassName",
+                      "toClassName",
+                      "ToClassName",
+                    ],
+                    historyItem.className,
+                  );
+                  const oldBranchText = pickHistoryValue(
+                    changeData,
+                    [
+                      "oldBranchName",
+                      "OldBranchName",
+                      "fromBranchName",
+                      "FromBranchName",
+                      "previousBranchName",
+                      "PreviousBranchName",
+                    ],
+                    historyItem.oldBranchName,
+                  );
+                  const newBranchText = pickHistoryValue(
+                    changeData,
+                    [
+                      "newBranchName",
+                      "NewBranchName",
+                      "branchName",
+                      "BranchName",
+                      "toBranchName",
+                      "ToBranchName",
+                    ],
+                    historyItem.newBranchName,
+                    historyItem.branchName,
+                  );
+                  const contentText =
+                    changeData.Reason ||
+                    changeData.reason ||
+                    historyItem.reason ||
+                    historyItem.description ||
+                    "";
+                  const hiddenSummaryKeys = new Set([
+                    "Reason",
+                    "reason",
+                    "OldClassName",
+                    "oldClassName",
+                    "FromClassName",
+                    "fromClassName",
+                    "PreviousClassName",
+                    "previousClassName",
+                    "NewClassName",
+                    "newClassName",
+                    "ClassName",
+                    "className",
+                    "ToClassName",
+                    "toClassName",
+                    "OldBranchName",
+                    "oldBranchName",
+                    "FromBranchName",
+                    "fromBranchName",
+                    "PreviousBranchName",
+                    "previousBranchName",
+                    "NewBranchName",
+                    "newBranchName",
+                    "BranchName",
+                    "branchName",
+                    "ToBranchName",
+                    "toBranchName",
+                    "OperationType",
+                    "operationType",
+                  ]);
+                  const detailRows = buildHistoryRows(changeData).filter(
+                    (row) => !hiddenSummaryKeys.has(row.key),
+                  );
+
+                  return (
+                    <div
+                      key={historyItem.id || index}
+                      className="group rounded-xl border border-gray-200 bg-white p-4 transition-all duration-200 hover:border-red-200 hover:shadow-md"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="mt-0.5 shrink-0 rounded-xl bg-red-50 p-2.5">
+                          <History size={16} className="text-red-500" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <h4 className="text-base font-bold text-gray-900">
+                              {actionText}
+                            </h4>
+                          </div>
+                          <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-gray-500">
+                            <div className="flex items-center gap-1.5">
+                              <Calendar size={12} className="text-gray-400" />
+                              <span>{toDateTimeOrRaw(changedAt)}</span>
+                            </div>
+                            {changedBy ? (
+                              <div className="flex items-center gap-1.5">
+                                <User size={12} className="text-gray-400" />
+                                <span>Người cập nhật: {changedBy}</span>
+                              </div>
+                            ) : null}
+                          </div>
+                          {contentText ? (
+                            <div className="mt-3 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-600">
+                              {contentText}
+                            </div>
+                          ) : null}
+                          {oldBranchText || newBranchText || oldClassText || newClassText ? (
+                            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+                              {oldBranchText || newBranchText ? (
+                                <div className="rounded-xl border border-red-100 bg-red-50/40 p-3">
+                                  <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-red-700">
+                                    <GraduationCap size={13} />
+                                    Chuyển chi nhánh
+                                  </div>
+                                  <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-sm">
+                                    <div>
+                                      <div className="text-xs text-gray-500">Từ</div>
+                                      <div className="font-semibold text-gray-900">
+                                        {oldBranchText || "Không có"}
+                                      </div>
+                                    </div>
+                                    <div className="text-red-500">→</div>
+                                    <div>
+                                      <div className="text-xs text-gray-500">Sang</div>
+                                      <div className="font-semibold text-gray-900">
+                                        {newBranchText || "Không có"}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : null}
+                              {oldClassText || newClassText ? (
+                                <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-3">
+                                  <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-blue-700">
+                                    <Users size={13} />
+                                    Chuyển lớp
+                                  </div>
+                                  <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-sm">
+                                    <div>
+                                      <div className="text-xs text-gray-500">Từ</div>
+                                      <div className="font-semibold text-gray-900">
+                                        {oldClassText || "Không có"}
+                                      </div>
+                                    </div>
+                                    <div className="text-blue-500">→</div>
+                                    <div>
+                                      <div className="text-xs text-gray-500">Sang</div>
+                                      <div className="font-semibold text-gray-900">
+                                        {newClassText || "Không có"}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : null}
+                          {detailRows.length > 0 ? (
+                            <div className="mt-4">
+                              <HistoryFieldGrid rows={detailRows} />
+                            </div>
+                          ) : null}
+                          
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           ) : null}
         </div>

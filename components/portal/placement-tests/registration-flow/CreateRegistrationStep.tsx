@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
-import { Clock3, Loader2, School, Calendar, Tag, FileText, Sparkles } from "lucide-react";
+import { Clock3, Loader2, School, Calendar, FileText, Sparkles } from "lucide-react";
 import type { TuitionPlan } from "@/types/admin/tuition_plan";
 import type { LevelDto } from "@/types/academic-progression";
 import { SelectContent, Select, SelectTrigger, SelectValue, SelectItem } from "@/components/lightswind/select";
+import { getLearningTicketTypeLabel } from "@/lib/tuitionPlanTicketType";
 
 type ProgramOption = {
   id: string;
@@ -63,7 +64,8 @@ interface CreateRegistrationStepProps {
   registrationId: string;
   programs: ProgramOption[];
   filteredTuitionPlans: TuitionPlan[];
-  secondaryPrograms: ProgramOption[];
+  requiresStandardTuitionPlan?: boolean;
+  secondaryBlockedReason?: string;
   levels: LevelDto[];
   weekDays: WeekDayOption[];
   timeSlots: TimeSlotOption[];
@@ -109,7 +111,8 @@ export default function CreateRegistrationStep({
   isCreating,
   programs,
   filteredTuitionPlans,
-  secondaryPrograms,
+  requiresStandardTuitionPlan = false,
+  secondaryBlockedReason,
   levels,
   weekDays,
   timeSlots,
@@ -208,13 +211,23 @@ export default function CreateRegistrationStep({
                               <span className="text-gray-400 text-xs ml-1">
                                 ({p.totalSessions} buổi{p.levelName ? ` • ${p.levelName}` : ""})
                               </span>
+                              <span className="ml-2 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-600">
+                                {getLearningTicketTypeLabel(p)}
+                              </span>
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
+                      {secondaryBlockedReason && (
+                        <p className="mt-1.5 text-xs text-gray-500">
+                          {secondaryBlockedReason}
+                        </p>
+                      )}
                       {programId && levelId && filteredTuitionPlans.length === 0 && (
                         <p className="mt-1.5 text-xs text-amber-700">
-                          Trình độ này chưa có gói học đang hoạt động.
+                          {requiresStandardTuitionPlan
+                            ? "Trình độ này chưa có gói STANDARD đang hoạt động để đăng ký song song."
+                            : "Trình độ này chưa có gói học đang hoạt động."}
                         </p>
                       )}
                     </div>
