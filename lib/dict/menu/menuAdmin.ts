@@ -20,6 +20,7 @@ export const menuAdmin = {
       },
       curriculum: {
         title: "Chương trình",
+        curriculumOverview: { list: "Khung chương trình" },
         coursesSystem: { list: "Chương trình" },
         coursesBranch: { list: "Chương trình theo chi nhánh" },
         syllabuses: { list: "Giáo trình" },
