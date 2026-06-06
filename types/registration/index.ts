@@ -203,6 +203,51 @@ export interface RegistrationPaginatedResponse {
   totalPages: number;
 }
 
+export interface RegistrationHistoryItem {
+  id: string;
+  registrationId?: string;
+  actorUserId?: string | null;
+  actorUserName?: string | null;
+  actorProfileId?: string | null;
+  actorProfileName?: string | null;
+  action?: string | null;
+  eventType?: string | null;
+  title?: string | null;
+  description?: string | null;
+  entityType?: string | null;
+  entityId?: string | null;
+  status?: RegistrationStatus | string | null;
+  oldStatus?: RegistrationStatus | string | null;
+  newStatus?: RegistrationStatus | string | null;
+  oldClassName?: string | null;
+  oldClassCode?: string | null;
+  classId?: string | null;
+  className?: string | null;
+  classCode?: string | null;
+  oldBranchName?: string | null;
+  branchName?: string | null;
+  newBranchName?: string | null;
+  programName?: string | null;
+  tuitionPlanName?: string | null;
+  note?: string | null;
+  reason?: string | null;
+  dataBefore?: string | null;
+  dataAfter?: string | null;
+  details?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  timestamp?: string | null;
+  changedAt?: string | null;
+  changedByName?: string | null;
+  actorName?: string | null;
+  user?: string | null;
+  role?: string | null;
+  type?: string | null;
+  reference?: string | null;
+  ipAddress?: string | null;
+  raw?: Record<string, string | null>;
+}
+
 export interface RegistrationActionResponse {
   isSuccess?: boolean;
   success?: boolean;

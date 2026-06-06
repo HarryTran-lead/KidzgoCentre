@@ -12,6 +12,7 @@ import type {
   Registration,
   RegistrationActionResponse,
   RegistrationFilterParams,
+  RegistrationHistoryItem,
   RegistrationPaginatedResponse,
   RegistrationRequest,
   RegistrationTrackType,
@@ -842,6 +843,133 @@ export async function getRegistrations(
 export async function getRegistrationById(id: string): Promise<Registration> {
   const response = await get<any>(REGISTRATION_ENDPOINTS.GET_BY_ID(id));
   return mapToRegistration(pickDetail(response));
+}
+
+export async function getRegistrationHistory(
+  id: string,
+  params?: { pageNumber?: number; pageSize?: number },
+): Promise<RegistrationHistoryItem[]> {
+  const toNullableString = (value: unknown) =>
+    value === null || value === undefined ? null : String(value);
+  const queryParams = new URLSearchParams();
+  if (params?.pageNumber) queryParams.append("pageNumber", String(params.pageNumber));
+  if (params?.pageSize) queryParams.append("pageSize", String(params.pageSize));
+
+  const response = await get<unknown>(
+    `${REGISTRATION_ENDPOINTS.HISTORY(id)}${queryParams.toString() ? `?${queryParams.toString()}` : ""}`,
+  );
+  const responseRecord =
+    response && typeof response === "object" ? (response as Record<string, unknown>) : {};
+  const data = responseRecord.data ?? responseRecord;
+  const dataRecord =
+    data && typeof data === "object" ? (data as Record<string, unknown>) : {};
+  const historyValue = dataRecord.history;
+  const historyContainer =
+    historyValue && typeof historyValue === "object"
+      ? (historyValue as Record<string, unknown>)
+      : dataRecord;
+  const items: Record<string, unknown>[] = Array.isArray(historyContainer.items)
+    ? (historyContainer.items as Record<string, unknown>[])
+    : Array.isArray(dataRecord.items)
+      ? (dataRecord.items as Record<string, unknown>[])
+      : Array.isArray(data)
+        ? (data as Record<string, unknown>[])
+        : [];
+
+  return items.map((item, index) => {
+    const raw = Object.fromEntries(
+      Object.entries(item).map(([key, value]) => [key, toNullableString(value)]),
+    );
+
+    return {
+      id: String(item?.id || item?.historyId || item?.registrationHistoryId || index),
+      registrationId: String(item?.registrationId || item?.entityId || id),
+      actorUserId: toNullableString(item?.actorUserId),
+      actorUserName: toNullableString(item?.actorUserName),
+      actorProfileId: toNullableString(item?.actorProfileId),
+      actorProfileName: toNullableString(item?.actorProfileName),
+      action: toNullableString(item?.action ?? item?.eventType ?? item?.type),
+      eventType: toNullableString(item?.eventType ?? item?.type),
+      title: toNullableString(item?.title ?? item?.name),
+      description: toNullableString(item?.description),
+      entityType: toNullableString(item?.entityType),
+      entityId: toNullableString(item?.entityId),
+      status: toNullableString(item?.status),
+      oldStatus: toNullableString(item?.oldStatus ?? item?.fromStatus ?? item?.previousStatus),
+      newStatus: toNullableString(item?.newStatus ?? item?.toStatus ?? item?.currentStatus),
+      classId: toNullableString(item?.classId ?? item?.newClassId),
+      oldClassName: toNullableString(
+        item?.oldClassName ??
+          item?.OldClassName ??
+          item?.fromClassName ??
+          item?.FromClassName ??
+          item?.previousClassName ??
+          item?.PreviousClassName,
+      ),
+      oldClassCode: toNullableString(
+        item?.oldClassCode ??
+          item?.OldClassCode ??
+          item?.fromClassCode ??
+          item?.previousClassCode,
+      ),
+      className: toNullableString(
+        item?.className ??
+          item?.ClassName ??
+          item?.newClassName ??
+          item?.NewClassName ??
+          item?.toClassName ??
+          item?.ToClassName ??
+          item?.classTitle,
+      ),
+      classCode: toNullableString(
+        item?.classCode ??
+          item?.ClassCode ??
+          item?.newClassCode ??
+          item?.NewClassCode,
+      ),
+      oldBranchName: toNullableString(
+        item?.oldBranchName ??
+          item?.OldBranchName ??
+          item?.fromBranchName ??
+          item?.FromBranchName ??
+          item?.previousBranchName ??
+          item?.PreviousBranchName,
+      ),
+      branchName: toNullableString(
+        item?.branchName ??
+          item?.BranchName ??
+          item?.newBranchName ??
+          item?.NewBranchName ??
+          item?.toBranchName ??
+          item?.ToBranchName,
+      ),
+      newBranchName: toNullableString(
+        item?.newBranchName ??
+          item?.NewBranchName ??
+          item?.toBranchName ??
+          item?.ToBranchName,
+      ),
+      programName: toNullableString(item?.programName),
+      tuitionPlanName: toNullableString(item?.tuitionPlanName),
+      note: toNullableString(item?.note ?? item?.description),
+      reason: toNullableString(item?.reason),
+      dataBefore: toNullableString(item?.dataBefore),
+      dataAfter: toNullableString(item?.dataAfter),
+      details: toNullableString(item?.details),
+      createdAt: toNullableString(item?.createdAt ?? item?.timestamp),
+      updatedAt: toNullableString(item?.updatedAt),
+      timestamp: toNullableString(item?.timestamp),
+      changedAt: toNullableString(item?.changedAt ?? item?.createdAt ?? item?.timestamp),
+      changedByName: toNullableString(item?.changedByName ?? item?.createdByName),
+      actorName: toNullableString(item?.actorName ?? item?.userName ?? item?.changedByName),
+      user: toNullableString(item?.user),
+      role: toNullableString(item?.role),
+      type: toNullableString(item?.type),
+      reference: toNullableString(item?.reference),
+      ipAddress: toNullableString(item?.ipAddress),
+      raw,
+    };
+  });
 }
 
 export async function exportRegistrationEnrollmentConfirmationPdf(

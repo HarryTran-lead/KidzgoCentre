@@ -865,6 +865,7 @@ export const REGISTRATION_ENDPOINTS = {
     `/api/registrations/${id}/enrollment-confirmation-pdf`,
   ENROLLMENT_CONFIRMATION_PDF_HISTORY: (id: string) =>
     `/api/registrations/${id}/enrollment-confirmation-pdf/history`,
+  HISTORY: (id: string) => `/api/registrations/${id}/history`,
   IMPORT_ACTIVE: "/api/registrations/import-active",
   CANCEL: (id: string) => `/api/registrations/${id}/cancel`,
   SUGGEST_CLASSES: (id: string) => `/api/registrations/${id}/suggest-classes`,
@@ -901,6 +902,7 @@ export const BACKEND_REGISTRATION_ENDPOINTS = {
     `/registrations/${id}/enrollment-confirmation-pdf`,
   ENROLLMENT_CONFIRMATION_PDF_HISTORY: (id: string) =>
     `/registrations/${id}/enrollment-confirmation-pdf/history`,
+  HISTORY: (id: string) => `/registrations/${id}/history`,
   IMPORT_ACTIVE: "/registrations/import-active",
   CANCEL: (id: string) => `/registrations/${id}/cancel`,
   SUGGEST_CLASSES: (id: string) => `/registrations/${id}/suggest-classes`,
