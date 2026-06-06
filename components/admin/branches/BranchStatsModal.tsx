@@ -107,7 +107,96 @@ export default function BranchStatsModal({
                 }
               }
             });
-            setData(students);
+
+            // Fetch classes to map with students
+            try {
+              const token = getAccessToken();
+              if (!token) {
+                console.warn("No token available for enrollment fetch");
+                setData(students);
+                return;
+              }
+
+              // Fetch all enrollments for this branch to map student -> classes
+              const enrollmentsRes = await fetch(
+                `/api/enrollments?pageNumber=1&pageSize=1000&branchId=${branchId}`,
+                { headers: { Authorization: `Bearer ${token}` } },
+              );
+
+              if (!enrollmentsRes.ok) {
+                console.error("Enrollment fetch error:", enrollmentsRes.status);
+                setData(students);
+                return;
+              }
+
+              const enrollmentsJson = await enrollmentsRes.json();
+              console.log("Enrollments response:", enrollmentsJson);
+
+              let enrollmentItems: any[] = [];
+
+              // Handle various response structures
+              if (Array.isArray(enrollmentsJson?.data?.enrollments?.items)) {
+                enrollmentItems = enrollmentsJson.data.enrollments.items;
+              } else if (Array.isArray(enrollmentsJson?.data?.items)) {
+                enrollmentItems = enrollmentsJson.data.items;
+              } else if (Array.isArray(enrollmentsJson?.data)) {
+                enrollmentItems = enrollmentsJson.data;
+              }
+
+              console.log("Enrollment items:", enrollmentItems);
+
+              // Map enrollments to get classes by student
+              const classesByStudentCode: Record<string, string[]> = {};
+              const classesByStudentId: Record<string, string[]> = {};
+
+              enrollmentItems.forEach((enrollment: any) => {
+                const studentCode = enrollment.studentCode || "";
+                const studentProfileId = enrollment.studentProfileId || "";
+                const classCode = enrollment.classCode || "";
+
+                // Map by both student code and student ID
+                if (studentCode && classCode) {
+                  if (!classesByStudentCode[studentCode]) {
+                    classesByStudentCode[studentCode] = [];
+                  }
+                  if (!classesByStudentCode[studentCode].includes(classCode)) {
+                    classesByStudentCode[studentCode].push(classCode);
+                  }
+                }
+
+                if (studentProfileId && classCode) {
+                  if (!classesByStudentId[studentProfileId]) {
+                    classesByStudentId[studentProfileId] = [];
+                  }
+                  if (
+                    !classesByStudentId[studentProfileId].includes(classCode)
+                  ) {
+                    classesByStudentId[studentProfileId].push(classCode);
+                  }
+                }
+              });
+
+              console.log("Classes by student code:", classesByStudentCode);
+              console.log("Classes by student ID:", classesByStudentId);
+              console.log(
+                "Students data:",
+                students.map((s) => ({ id: s.id, code: s.code })),
+              );
+
+              // Merge class info into students
+              const enrichedStudents = students.map((student: any) => ({
+                ...student,
+                classes:
+                  classesByStudentCode[student.code] ||
+                  classesByStudentId[student.id] ||
+                  [],
+              }));
+
+              setData(enrichedStudents);
+            } catch (err) {
+              // If enrollment fetch fails, just show students without classes
+              setData(students);
+            }
           } else {
             setData([]);
           }
@@ -115,27 +204,47 @@ export default function BranchStatsModal({
           const token = getAccessToken();
           if (!token) throw new Error("Chưa đăng nhập");
 
-          const res = await fetch(
-            `${ADMIN_ENDPOINTS.CLASSROOMS}?branchId=${branchId}&role=Teacher&pageNumber=1&pageSize=200`,
-            { headers: { Authorization: `Bearer ${token}` } },
-          );
-
-          if (!res.ok) throw new Error("Không thể tải danh sách giáo viên");
-
-          const json = await res.json();
-          // Try to fetch teachers directly from users endpoint
+          // Fetch teachers
           const teachersRes = await fetch(
             `/api/admin/users?pageNumber=1&pageSize=200&role=Teacher&branchId=${branchId}`,
             { headers: { Authorization: `Bearer ${token}` } },
           );
 
-          if (teachersRes.ok) {
-            const teachersJson = await teachersRes.json();
-            const teachers =
-              teachersJson?.data?.items ?? teachersJson?.data?.users ?? [];
+          if (!teachersRes.ok)
+            throw new Error("Không thể tải danh sách giáo viên");
+
+          const teachersJson = await teachersRes.json();
+          const teachers =
+            teachersJson?.data?.items ?? teachersJson?.data?.users ?? [];
+
+          // Fetch classes to map with teachers
+          try {
+            const classes = await fetchAdminClasses({ branchId });
+
+            // Create map of classes by teacher name
+            const classesByTeacher: Record<string, string[]> = {};
+            classes.forEach((cls: any) => {
+              const teacherName = cls.teacher || "";
+              if (teacherName && teacherName !== "Chưa phân công") {
+                if (!classesByTeacher[teacherName]) {
+                  classesByTeacher[teacherName] = [];
+                }
+                classesByTeacher[teacherName].push(cls.code || cls.name);
+              }
+            });
+
+            // Merge class info into teachers
+            const enrichedTeachers = (
+              Array.isArray(teachers) ? teachers : []
+            ).map((teacher: any) => ({
+              ...teacher,
+              classes: classesByTeacher[teacher.name || teacher.fullName] || [],
+            }));
+
+            setData(enrichedTeachers);
+          } catch (err) {
+            // If class fetch fails, just show teachers without classes
             setData(Array.isArray(teachers) ? teachers : []);
-          } else {
-            setData([]);
           }
         }
       } catch (err: any) {
@@ -209,11 +318,23 @@ export default function BranchStatsModal({
     const name = getItemName(item).toLowerCase();
     const code = getItemCode(item).toLowerCase();
     const details = getItemDetails(item).toLowerCase();
-    return (
+
+    let matches =
       name.includes(searchLower) ||
       code.includes(searchLower) ||
-      details.includes(searchLower)
-    );
+      details.includes(searchLower);
+
+    // Also search in classes for teachers and students
+    if (
+      (statsType === "teachers" || statsType === "students") &&
+      item?.classes &&
+      item.classes.length > 0
+    ) {
+      const classesText = item.classes.join(" ").toLowerCase();
+      matches = matches || classesText.includes(searchLower);
+    }
+
+    return matches;
   });
 
   const sortedData = [...filteredData].sort((a, b) => {
@@ -276,33 +397,44 @@ export default function BranchStatsModal({
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 custom-scrollbar cursor-pointer">
           {!isLoading && !error && data.length > 0 && (
-            <div className="flex items-center gap-3 mb-6">
-              <div className="flex-1 relative">
-                <Search
-                  size={16}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                />
-                <input
-                  type="text"
-                  placeholder="Tìm kiếm..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-white border border-gray-300 text-gray-900 placeholder-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
-                />
+            <>
+              <div className="flex items-center gap-3 mb-6">
+                <div className="flex-1 relative">
+                  <Search
+                    size={16}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Tìm kiếm..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-white border border-gray-300 text-gray-900 placeholder-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
+                  />
+                </div>
+                <Select
+                  value={sortOrder}
+                  onValueChange={(val) => setSortOrder(val as "asc" | "desc")}
+                >
+                  <SelectTrigger className="w-auto px-3 py-2.5 border-gray-300 focus:ring-red-300 cursor-pointer">
+                    <SelectValue placeholder="Sắp xếp" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="asc">A-Z</SelectItem>
+                    <SelectItem value="desc">Z-A</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <Select
-                value={sortOrder}
-                onValueChange={(val) => setSortOrder(val as "asc" | "desc")}
-              >
-                <SelectTrigger className="w-auto px-3 py-2.5 border-gray-300 focus:ring-red-300 cursor-pointer">
-                  <SelectValue placeholder="Sắp xếp" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="asc">A-Z</SelectItem>
-                  <SelectItem value="desc">Z-A</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+              {searchTerm && (
+                <div className="mb-4 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-sm">
+                  <span className="text-gray-700">Tìm thấy </span>
+                  <span className="font-bold text-red-600">
+                    {sortedData.length}
+                  </span>
+                  <span className="text-gray-700"> kết quả</span>
+                </div>
+              )}
+            </>
           )}
 
           {isLoading ? (
@@ -338,16 +470,46 @@ export default function BranchStatsModal({
                         {getItemCode(item)}
                       </div>
                       <div className="flex items-center gap-2 mt-2 flex-wrap">
+                        {statsType === "classes" && item?.sub && (
+                          <span className="inline-block px-2.5 py-1 bg-blue-100 text-blue-900 text-xs font-semibold rounded-lg border border-blue-300">
+                            <span className="font-medium">Chương trình: </span>
+                            {item.sub}
+                          </span>
+                        )}
                         {statsType === "students" && item?.parentName && (
                           <span className="inline-block px-2.5 py-1 bg-gray-100 text-gray-900 text-xs font-semibold rounded-lg border border-gray-300">
                             <span className="font-medium">Phụ huynh: </span>
                             {item.parentName}
                           </span>
                         )}
+
+                        {statsType === "teachers" &&
+                          item?.classes &&
+                          item.classes.length > 0 && (
+                            <span className="inline-block px-2.5 py-1 bg-blue-100 text-blue-900 text-xs font-semibold rounded-lg border border-blue-300">
+                              <span className="font-medium">Lớp: </span>
+                              {item.classes.join(", ")}
+                            </span>
+                          )}
                         {getItemDetails(item) &&
                           getItemDetails(item) !== getItemCode(item) && (
                             <span className="inline-block px-2.5 py-1 bg-gray-100 text-gray-900 text-xs font-semibold rounded-lg border border-gray-300">
                               {getItemDetails(item)}
+                            </span>
+                          )}
+                        {statsType === "students" &&
+                          item?.classes &&
+                          item.classes.length > 0 && (
+                            <span className="inline-block px-2.5 py-1 bg-blue-100 text-blue-900 text-xs font-semibold rounded-lg border border-blue-300">
+                              <span className="font-medium">Lớp: </span>
+                              {item.classes.join(", ")}
+                            </span>
+                          )}
+                        {statsType === "students" &&
+                          (!item?.classes || item.classes.length === 0) && (
+                            <span className="inline-block px-2.5 py-1 bg-yellow-100 text-yellow-900 text-xs font-semibold rounded-lg border border-yellow-300">
+                              <span className="font-medium">Lớp: </span>
+                              Chưa có
                             </span>
                           )}
                       </div>
@@ -360,20 +522,7 @@ export default function BranchStatsModal({
         </div>
 
         {/* Footer */}
-        <div className="shrink-0 border-t border-gray-200 bg-gradient-to-r from-red-50/30 to-red-100/30 p-4 rounded-b-2xl flex justify-between items-center">
-          <div className="text-sm text-gray-600">
-            <span className="font-semibold">{sortedData.length}</span>{" "}
-            {statsType === "students"
-              ? "học viên"
-              : statsType === "classes"
-                ? "lớp học"
-                : "giáo viên"}
-            {searchTerm && (
-              <span className="text-xs text-gray-500 ml-2">
-                ({data.length} tổng cộng)
-              </span>
-            )}
-          </div>
+        <div className="shrink-0 border-t border-gray-200 bg-gradient-to-r from-red-50/30 to-red-100/30 p-4 rounded-b-2xl flex justify-end items-center">
           <button
             onClick={onClose}
             className="px-4 py-2.5 rounded-xl border border-red-300 bg-white text-gray-700 font-semibold hover:bg-red-50 hover:border-red-400 transition-all duration-200 cursor-pointer shadow-sm"
