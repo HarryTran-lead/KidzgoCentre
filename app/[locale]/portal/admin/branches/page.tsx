@@ -168,10 +168,7 @@ function StatCard({
 type BranchSortField =
   | "code"
   | "name"
-  | "address"
-  | "totalStudents"
-  | "totalClasses"
-  | "totalTeachers";
+  | "address";
 type BranchSortDirection = "asc" | "desc" | null;
 
 function SortableHeader({
@@ -660,12 +657,6 @@ export default function BranchesPage() {
               return branch.name ?? "";
             case "address":
               return branch.address ?? "";
-            case "totalStudents":
-              return branch.totalStudents ?? 0;
-            case "totalClasses":
-              return branch.totalClasses ?? 0;
-            case "totalTeachers":
-              return branch.totalTeachers ?? 0;
           }
         };
 
@@ -930,33 +921,15 @@ export default function BranchesPage() {
                   <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
                     Liên hệ
                   </th>
-                  <SortableHeader
-                    field="totalStudents"
-                    currentField={sortField}
-                    direction={sortDirection}
-                    onSort={handleSort}
-                    align="center"
-                  >
+                  <th className="py-3 px-6 text-center text-sm font-semibold text-gray-700">
                     Học viên
-                  </SortableHeader>
-                  <SortableHeader
-                    field="totalClasses"
-                    currentField={sortField}
-                    direction={sortDirection}
-                    onSort={handleSort}
-                    align="center"
-                  >
+                  </th>
+                  <th className="py-3 px-6 text-center text-sm font-semibold text-gray-700">
                     Lớp học
-                  </SortableHeader>
-                  <SortableHeader
-                    field="totalTeachers"
-                    currentField={sortField}
-                    direction={sortDirection}
-                    onSort={handleSort}
-                    align="center"
-                  >
+                  </th>
+                  <th className="py-3 px-6 text-center text-sm font-semibold text-gray-700">
                     Giáo viên
-                  </SortableHeader>
+                  </th>
                   <th className="py-3 px-6 text-center text-sm font-semibold text-gray-700">
                     Trạng thái
                   </th>

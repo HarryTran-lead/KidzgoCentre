@@ -878,6 +878,8 @@ export function ProgramsManagementPage({
   const [selectedCourseBranchesName, setSelectedCourseBranchesName] = useState<string>("");
   const [courseBranchesData, setCourseBranchesData] = useState<Array<{ branchId: string; branchName?: string | null; isActive?: boolean | null }>>([]);
   const [loadingCourseBranches, setLoadingCourseBranches] = useState(false);
+  const [courseBranchesSearchTerm, setCourseBranchesSearchTerm] = useState("");
+  const [courseBranchesSortOrder, setCourseBranchesSortOrder] = useState<"asc" | "desc">("asc");
   const detailModalRef = useRef<HTMLDivElement>(null);
   const courseBranchesModalRef = useRef<HTMLDivElement>(null);
 
@@ -920,6 +922,8 @@ export function ProgramsManagementPage({
         setShowCourseBranchesModal(false);
         setSelectedCourseBranchesId(null);
         setCourseBranchesData([]);
+        setCourseBranchesSearchTerm("");
+        setCourseBranchesSortOrder("asc");
       }
     };
 
@@ -2117,10 +2121,10 @@ export function ProgramsManagementPage({
         <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div
             ref={courseBranchesModalRef}
-            className="relative w-full max-w-2xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden"
+            className="relative w-full max-w-2xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden max-h-[80vh] flex flex-col"
           >
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
+            <div className="bg-gradient-to-r from-red-600 to-red-700 p-6 shrink-0">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
@@ -2136,6 +2140,8 @@ export function ProgramsManagementPage({
                     setShowCourseBranchesModal(false);
                     setSelectedCourseBranchesId(null);
                     setCourseBranchesData([]);
+                    setCourseBranchesSearchTerm("");
+                    setCourseBranchesSortOrder("asc");
                   }}
                   className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer"
                 >
@@ -2145,81 +2151,142 @@ export function ProgramsManagementPage({
             </div>
 
             {/* Modal Body */}
-            <div className="p-6 max-h-[60vh] overflow-y-auto">
-              {loadingCourseBranches ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="text-gray-500">Đang tải danh sách chi nhánh...</div>
-                </div>
-              ) : courseBranchesData.length > 0 ? (
-                <div className="space-y-3">
-                  {courseBranchesData.map((branch, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center justify-between cursor-pointer p-4 rounded-lg border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-4 hover:border-red-300 hover:bg-red-100/50 transition-all"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-red-50">
-                          <Building2 size={18} className="text-red-600" />
-                        </div>
-                        <div>
-                          <div className="text-sm font-semibold text-gray-900">
-                            {branch.branchName || "Chi nhánh không xác định"}
-                          </div>
-
-                        </div>
-                      </div>
-                      <div>
-                        {branch.isActive ? (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200">
-                            <CheckCircle size={14} />
-                            Hoạt động
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 text-gray-600 text-xs font-semibold border border-gray-200">
-                            <XCircle size={14} />
-                            Tạm dừng
-                          </span>
-                        )}
-                      </div>
+            <div className="flex-1 flex flex-col overflow-hidden">
+              {courseBranchesData.length > 0 && (
+                <div className="px-6 pt-4 shrink-0 space-y-2">
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 relative">
+                      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Tìm kiếm chi nhánh..."
+                        value={courseBranchesSearchTerm}
+                        onChange={(e) => setCourseBranchesSearchTerm(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-300 text-gray-900 placeholder-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
+                      />
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center">
-                  <div className="w-full rounded-2xl border border-dashed border-red-200 bg-gradient-to-br from-red-50 to-red-50/50 p-8 text-center">
-                    <div className="mb-4 inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100">
-                      <Building2 size={32} className="text-red-600" />
-                    </div>
-                    <div className="space-y-2 mb-6">
-                      <div className="text-lg font-bold text-gray-900">Chưa gán chi nhánh</div>
-                      <div className="text-sm text-gray-600">Chương trình này chưa được liên kết với chi nhánh nào. Hãy thêm chi nhánh để sử dụng chương trình này.</div>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setShowCourseBranchesModal(false);
-                        setAssignBranchTargetId(selectedCourseBranchesId);
-                        setAssignBranchTargetName(selectedCourseBranchesName);
-                        setAssignedBranchIds([]);
-                        setShowAssignBranchModal(true);
-                      }}
-                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-red-600 bg-red-50 text-red-600 font-semibold text-sm hover:bg-red-100 transition-all cursor-pointer"
-                    >
-                      <GitBranch size={16} />
-                      Gán chi nhánh
-                    </button>
+                    <Select value={courseBranchesSortOrder} onValueChange={(val) => setCourseBranchesSortOrder(val as "asc" | "desc")}>
+                      <SelectTrigger className="w-auto px-3 py-2.5 border-gray-300 focus:ring-red-300 cursor-pointer">
+                        <SelectValue placeholder="Sắp xếp" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="asc">A-Z</SelectItem>
+                        <SelectItem value="desc">Z-A</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               )}
+              
+              <div className="flex-1 overflow-y-auto px-6 py-3">
+                {loadingCourseBranches ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="text-gray-500">Đang tải danh sách chi nhánh...</div>
+                  </div>
+                ) : (() => {
+                  // Filter and sort branches
+                  const filtered = courseBranchesData.filter(b => 
+                    (b.branchName || "").toLowerCase().includes(courseBranchesSearchTerm.toLowerCase())
+                  );
+                  const sorted = [...filtered].sort((a, b) => {
+                    const nameA = (a.branchName || "").toLowerCase();
+                    const nameB = (b.branchName || "").toLowerCase();
+                    const comparison = nameA.localeCompare(nameB, "vi");
+                    return courseBranchesSortOrder === "asc" ? comparison : -comparison;
+                  });
+                  
+                  if (sorted.length > 0) {
+                    return (
+                      <div className="space-y-3">
+                        {sorted.map((branch, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center justify-between cursor-pointer p-4 rounded-lg border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-4 hover:border-red-300 hover:bg-red-100/50 transition-all"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 rounded-lg bg-red-50">
+                                <Building2 size={18} className="text-red-600" />
+                              </div>
+                              <div>
+                                <div className="text-sm font-semibold text-gray-900">
+                                  {branch.branchName || "Chi nhánh không xác định"}
+                                </div>
+
+                              </div>
+                            </div>
+                            <div>
+                              {branch.isActive ? (
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200">
+                                  <CheckCircle size={14} />
+                                  Hoạt động
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 text-gray-600 text-xs font-semibold border border-gray-200">
+                                  <XCircle size={14} />
+                                  Tạm dừng
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  }
+                  
+                  // No branches assigned at all
+                  if (courseBranchesData.length === 0) {
+                    return (
+                      <div className="flex flex-col items-center justify-center">
+                        <div className="w-full rounded-2xl border border-dashed border-red-200 bg-gradient-to-br from-red-50 to-red-50/50 p-8 text-center">
+                          <div className="mb-4 inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100">
+                            <Building2 size={32} className="text-red-600" />
+                          </div>
+                          <div className="space-y-2 mb-6">
+                            <div className="text-lg font-bold text-gray-900">Chưa gán chi nhánh</div>
+                            <div className="text-sm text-gray-600">Chương trình này chưa được liên kết với chi nhánh nào. Hãy thêm chi nhánh để sử dụng chương trình này.</div>
+                          </div>
+                          <button
+                            onClick={() => {
+                              setShowCourseBranchesModal(false);
+                              setAssignBranchTargetId(selectedCourseBranchesId);
+                              setAssignBranchTargetName(selectedCourseBranchesName);
+                              setAssignedBranchIds([]);
+                              setShowAssignBranchModal(true);
+                            }}
+                            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-red-600 bg-red-50 text-red-600 font-semibold text-sm hover:bg-red-100 transition-all cursor-pointer"
+                          >
+                            <GitBranch size={16} />
+                            Gán chi nhánh
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }
+                  
+                  // Search returned no results
+                  return (
+                    <div className="flex flex-col items-center justify-center py-12">
+                      <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center text-gray-400">
+                        <Search size={24} />
+                      </div>
+                      <div className="text-gray-600 font-medium">Không có kết quả tìm kiếm</div>
+                      <div className="text-sm text-gray-500 mt-1">Hãy thử với từ khóa khác</div>
+                    </div>
+                  );
+                })()}
+              </div>
             </div>
 
             {/* Modal Footer */}
-            <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-6">
+            <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-6 shrink-0">
               <div className="flex justify-end">
                 <button
                   onClick={() => {
                     setShowCourseBranchesModal(false);
                     setSelectedCourseBranchesId(null);
                     setCourseBranchesData([]);
+                    setCourseBranchesSearchTerm("");
+                    setCourseBranchesSortOrder("asc");
                   }}
                   className="px-6 py-2.5 text-sm rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer"
                 >
