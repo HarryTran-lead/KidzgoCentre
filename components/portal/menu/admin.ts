@@ -2,6 +2,7 @@ import {
   BarChart3,
   Bell,
   BookOpen,
+  ListTree,
   BookOpenCheck,
   Building2,
   CalendarClock,
@@ -44,6 +45,7 @@ export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
   ];
   const curriculum: RawItem[] = [
     [t.groups.curriculum.coursesSystem.list, GraduationCap, "/courses"],
+    ["Khung chương trình", ListTree, "/courses/curriculum-overview"],
     [t.groups.curriculum.academicProgression.list, Layers, "/academic-progression"],
     [t.groups.curriculum.syllabuses.list, BookOpen, "/syllabuses"],
     [t.groups.curriculum.lessonPlans.list, BookOpenCheck, "/documents/templates"],
