@@ -89,6 +89,7 @@ export const menuAdmin = {
       },
       curriculum: {
         title: "Programs & Curriculum",
+        curriculumOverview: { list: "Curriculum Overview" },
         coursesSystem: { list: "Programs" },
         coursesBranch: { list: "Branch Programs" },
         syllabuses: { list: "Syllabuses" },
