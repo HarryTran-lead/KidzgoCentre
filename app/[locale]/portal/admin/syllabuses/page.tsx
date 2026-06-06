@@ -76,6 +76,7 @@ import {
   type SyllabusListItem,
   type UpdateSyllabusRequest,
 } from "@/lib/api/syllabusService";
+import { hardDeleteSyllabus } from "@/lib/api/hardDeleteService";
 import { getAllBranches } from "@/lib/api/branchService";
 import type { LevelDto, ModuleDto } from "@/types/academic-progression";
 import SyllabusDetailModalBody from "@/components/lesson-plans/SyllabusDetailModalBody";
@@ -114,6 +115,14 @@ function toErrorMessage(err: unknown, fallback: string): string {
   if (typeof e.message === "string" && e.message.trim()) return e.message;
   if (typeof e.error === "string" && e.error.trim()) return e.error;
   return fallback;
+}
+
+function normalizeVersionInput(value: unknown): string {
+  return String(value ?? "").replace(/\D/g, "");
+}
+
+function isPositiveIntegerVersion(value: string): boolean {
+  return /^[1-9]\d*$/.test(value.trim());
 }
 
 function mapDocumentToSyllabusDetail(doc: SyllabusDocument): SyllabusDetail {
@@ -824,7 +833,9 @@ function SyllabusFormModal({
   const [programId, setProgramId] = useState(initial?.programId ?? "");
   const [levelId, setLevelId] = useState(initial?.levelId ?? "");
   const [code, setCode] = useState(initial?.code ?? "");
-  const [version, setVersion] = useState(initial?.version ?? "");
+  const [version, setVersion] = useState(
+    normalizeVersionInput(initial?.version ?? ""),
+  );
   const [title, setTitle] = useState(initial?.title ?? "");
   const [edition, setEdition] = useState(
     (initial as SyllabusDetail)?.edition ?? "",
@@ -871,7 +882,11 @@ function SyllabusFormModal({
       return;
     }
     if (!version.trim()) {
-      setError("Version là bắt buộc.");
+      setError("Phiên bản là bắt buộc.");
+      return;
+    }
+    if (!isPositiveIntegerVersion(version)) {
+      setError("Phiên bản phải là số nguyên dương.");
       return;
     }
     if (!isEdit && !programId) {
@@ -1025,12 +1040,17 @@ function SyllabusFormModal({
                   placeholder="GET_READY_STARTER"
                 />
               </Field>
-              <Field label="Version *">
+              <Field label="Phiên bản *">
                 <input
+                  type="number"
+                  min={1}
+                  step={1}
                   value={version}
-                  onChange={(e) => setVersion(e.target.value)}
+                  onChange={(e) => setVersion(normalizeVersionInput(e.target.value))}
                   className={inputCls}
-                  placeholder="v1"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="1"
                 />
               </Field>
             </div>
@@ -1139,7 +1159,7 @@ function SyllabusFormModal({
                 onClick={() => {
                   if (isEdit && initial) {
                     setCode((initial as any).code ?? "");
-                    setVersion((initial as any).version ?? "");
+                    setVersion(normalizeVersionInput((initial as any).version ?? ""));
                     setTitle((initial as any).title ?? "");
                     setEdition(
                       (initial as any as SyllabusDetail)?.edition ?? "",
@@ -1223,7 +1243,7 @@ function ImportWordModal({
   const [programId, setProgramId] = useState("");
   const [levelId, setLevelId] = useState("");
   const [code, setCode] = useState("");
-  const [version, setVersion] = useState("v1");
+  const [version, setVersion] = useState("1");
   const [overwrite, setOverwrite] = useState(true);
   const [file, setFile] = useState<File | null>(null);
   const [levels, setLevels] = useState<LevelDto[]>([]);
@@ -1273,6 +1293,10 @@ function ImportWordModal({
     }
     if (!version.trim()) {
       setError("Nhập phiên bản.");
+      return false;
+    }
+    if (!isPositiveIntegerVersion(version)) {
+      setError("Phiên bản phải là số nguyên dương.");
       return false;
     }
     if (!file) {
@@ -1425,10 +1449,15 @@ function ImportWordModal({
               </Field>
               <Field label="Phiên bản *">
                 <input
+                  type="number"
+                  min={1}
+                  step={1}
                   value={version}
-                  onChange={(e) => setVersion(e.target.value)}
+                  onChange={(e) => setVersion(normalizeVersionInput(e.target.value))}
                   className={inputCls}
-                  placeholder="v1"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="1"
                 />
               </Field>
             </div>
@@ -1601,7 +1630,7 @@ function ImportArchiveModal({
   const [programId, setProgramId] = useState("");
   const [levelId, setLevelId] = useState("");
   const [code, setCode] = useState("");
-  const [version, setVersion] = useState("v1");
+  const [version, setVersion] = useState("1");
   const [overwrite, setOverwrite] = useState(true);
   const [file, setFile] = useState<File | null>(null);
   const [levels, setLevels] = useState<LevelDto[]>([]);
@@ -1676,6 +1705,10 @@ function ImportArchiveModal({
     }
     if (!version.trim()) {
       setError("Nhập phiên bản.");
+      return;
+    }
+    if (!isPositiveIntegerVersion(version)) {
+      setError("Phiên bản phải là số nguyên dương.");
       return;
     }
     if (!file) {
@@ -1860,10 +1893,15 @@ function ImportArchiveModal({
               </Field>
               <Field label="Phiên bản *">
                 <input
+                  type="number"
+                  min={1}
+                  step={1}
                   value={version}
-                  onChange={(e) => setVersion(e.target.value)}
+                  onChange={(e) => setVersion(normalizeVersionInput(e.target.value))}
                   className={inputCls}
-                  placeholder="v1"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="1"
                 />
               </Field>
             </div>
@@ -2504,9 +2542,36 @@ function ArchiveImportResultModal({
     ? payload.result.skippedEntries
     : [];
 
+  const contentTypeLabel = (type?: string | null): string => {
+    const normalized = String(type || "").trim();
+    const labels: Record<string, string> = {
+      UnitLesson: "Bài học theo đơn vị",
+      RevisionLesson: "Bài ôn tập",
+      SyllabusDocument: "Tài liệu giáo trình",
+      AssessmentLesson: "Bài đánh giá",
+      Unknown: "Chưa phân loại",
+    };
+    return labels[normalized] || normalized || "Chưa phân loại";
+  };
+
+  const importStatusLabel = (created?: boolean): string => {
+    return created === false ? "Đã cập nhật" : "Đã tạo";
+  };
+
+  const skippedReasonLabel = (reason?: string | null): string => {
+    const value = String(reason || "").trim();
+    if (!value) return "Không có chi tiết";
+    if (/higher priority/i.test(value)) {
+      return "Bỏ qua vì hệ thống đã chọn một file giáo trình phù hợp hơn.";
+    }
+    return value
+      .replace(/Skipped because/i, "Bỏ qua vì")
+      .replace(/another syllabus source was selected with higher priority/i, "hệ thống đã chọn một file giáo trình phù hợp hơn");
+  };
+
   const sourceTypeCount = importedEntries.reduce<Record<string, number>>(
     (acc, entry) => {
-      const key = (entry.sourceType ?? "Unknown").trim() || "Unknown";
+      const key = contentTypeLabel(entry.sourceType);
       acc[key] = (acc[key] ?? 0) + 1;
       return acc;
     },
@@ -2530,10 +2595,6 @@ function ArchiveImportResultModal({
     (a, b) => b[1] - a[1],
   );
 
-  const firstLessonCode = importedEntries.find(
-    (entry) => !!entry.lessonCode,
-  )?.lessonCode;
-
   const entryLabel = (entry: ImportedEntry): string => {
     return entry.title || entry.fileName || entry.entryName || "(không có tên)";
   };
@@ -2542,7 +2603,7 @@ function ArchiveImportResultModal({
     const subject = item.fileName || item.entryName || "(không rõ file)";
     const reason =
       item.reason || item.message || item.sourceType || "Không có chi tiết";
-    return `${subject}: ${reason}`;
+    return `${subject}: ${skippedReasonLabel(reason)}`;
   };
 
   return (
@@ -2561,11 +2622,11 @@ function ArchiveImportResultModal({
             </div>
             <div>
               <h2 className="text-lg font-bold text-white">
-                Kết quả import ZIP
+                Kết quả nhập file ZIP
               </h2>
               <p className="text-xs text-red-200">
                 {payload.programName || "Chương trình"} ·{" "}
-                {payload.levelName || "Level"}
+                {payload.levelName || "Cấp độ"}
               </p>
             </div>
           </div>
@@ -2586,7 +2647,7 @@ function ArchiveImportResultModal({
                 {payload.result.importedLessonPlans}
               </div>
               <div className="mt-0.5 text-xs font-medium text-red-500">
-                Lesson plans tạo/cập nhật
+                Bài học tạo/cập nhật
               </div>
             </div>
             <div className="rounded-xl border border-blue-100 bg-blue-50 px-5 py-3 text-center">
@@ -2594,7 +2655,7 @@ function ArchiveImportResultModal({
                 {importedEntries.length}
               </div>
               <div className="mt-0.5 text-xs font-medium text-blue-500">
-                Imported entries
+                Nội dung đã đọc
               </div>
             </div>
             <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-5 py-3 text-center">
@@ -2602,7 +2663,7 @@ function ArchiveImportResultModal({
                 {payload.result.syllabusId ? 1 : 0}
               </div>
               <div className="mt-0.5 text-xs font-medium text-emerald-500">
-                Syllabus ID nhận được
+                Giáo trình nhận diện
               </div>
             </div>
             <div className="rounded-xl border border-amber-100 bg-amber-50 px-5 py-3 text-center">
@@ -2610,71 +2671,51 @@ function ArchiveImportResultModal({
                 {skippedEntries.length}
               </div>
               <div className="mt-0.5 text-xs font-medium text-amber-600">
-                Skipped entries
+                Nội dung bỏ qua
               </div>
             </div>
           </div>
 
           <div className="space-y-4 p-6">
             <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-800">
-              FE đang render trực tiếp dữ liệu JSON từ API import archive. Nếu
-              cần kiểm tra đầy đủ syllabus sau import, bấm{" "}
-              <strong>Mở chi tiết syllabus</strong>.
+              Hệ thống đã đọc file ZIP và tạo/cập nhật nội dung bên dưới. Nếu
+              cần xem đầy đủ giáo trình sau khi nhập, bấm{" "}
+              <strong>Mở chi tiết giáo trình</strong>.
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               <div className="rounded-xl border border-gray-200 bg-white p-4">
                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Archive
+                  File ZIP đã nhập
                 </p>
                 <div className="mt-2 space-y-1 text-sm text-gray-700">
                   <p>
-                    <span className="font-medium">File:</span>{" "}
+                    <span className="font-medium">Tên file:</span>{" "}
                     {payload.result.archiveFileName || "—"}
                   </p>
-                  <p>
-                    <span className="font-medium">Parser:</span>{" "}
-                    {payload.result.archiveParserVersion || "—"}
-                  </p>
                 </div>
               </div>
 
               <div className="rounded-xl border border-gray-200 bg-white p-4">
                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Syllabus được chọn
+                  Giáo trình được chọn
                 </p>
                 <div className="mt-2 space-y-1 text-sm text-gray-700">
                   <p>
-                    <span className="font-medium">File:</span>{" "}
+                    <span className="font-medium">Tên file:</span>{" "}
                     {payload.result.selectedSyllabusFileName || "—"}
                   </p>
-                  <p>
-                    <span className="font-medium">Parser:</span>{" "}
-                    {payload.result.selectedSyllabusParserVersion || "—"}
-                  </p>
-                  <p>
-                    <span className="font-medium">Source:</span>{" "}
-                    {payload.result.selectedSyllabusSourceType || "—"}
-                  </p>
                 </div>
               </div>
 
               <div className="rounded-xl border border-gray-200 bg-white p-4">
                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Binding
+                  Phạm vi áp dụng
                 </p>
                 <div className="mt-2 space-y-1 text-sm text-gray-700">
                   <p>
-                    <span className="font-medium">Entry:</span>{" "}
-                    {payload.result.selectedSyllabusEntryName || "—"}
-                  </p>
-                  <p>
-                    <span className="font-medium">Normalized:</span>{" "}
-                    {payload.result.selectedSyllabusNormalizedEntryName || "—"}
-                  </p>
-                  <p>
                     <span className="font-medium">Chi nhánh:</span>{" "}
-                    {payload.branchName || "Chưa auto-assign"}
+                    {payload.branchName || "Chưa gán chi nhánh"}
                   </p>
                 </div>
               </div>
@@ -2683,12 +2724,12 @@ function ArchiveImportResultModal({
             <div className="grid gap-4 md:grid-cols-2">
               <div className="rounded-xl border border-gray-200 bg-white p-4">
                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Theo sourceType
+                  Theo loại nội dung
                 </p>
                 <div className="mt-2 space-y-2">
                   {sortedTypeStats.length === 0 ? (
                     <p className="text-sm text-gray-500">
-                      Chưa có imported entries.
+                      Chưa có nội dung nào được nhập.
                     </p>
                   ) : (
                     sortedTypeStats.map(([type, count]) => (
@@ -2710,12 +2751,12 @@ function ArchiveImportResultModal({
 
               <div className="rounded-xl border border-gray-200 bg-white p-4">
                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Theo sourceFolder (top 8)
+                  Theo thư mục bài học
                 </p>
                 <div className="mt-2 space-y-2">
                   {sortedFolderStats.length === 0 ? (
                     <p className="text-sm text-gray-500">
-                      Chưa có imported entries.
+                      Chưa có nội dung nào được nhập.
                     </p>
                   ) : (
                     sortedFolderStats.slice(0, 8).map(([folder, count]) => (
@@ -2739,7 +2780,7 @@ function ArchiveImportResultModal({
             <div className="rounded-xl border border-gray-200 bg-white">
               <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
                 <p className="text-sm font-semibold text-gray-700">
-                  Imported entries (top 20)
+                  Nội dung đã nhập (20 mục đầu)
                 </p>
                 <span className="text-xs text-gray-500">
                   Tổng {importedEntries.length}
@@ -2748,26 +2789,26 @@ function ArchiveImportResultModal({
               <div className="max-h-72 overflow-auto">
                 {importedEntries.length === 0 ? (
                   <p className="px-4 py-4 text-sm text-gray-500">
-                    Không có imported entries trong response.
+                    Không có nội dung nào được nhập.
                   </p>
                 ) : (
                   <table className="w-full min-w-[860px] text-sm">
                     <thead className="bg-gray-50 text-left">
                       <tr>
                         <th className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                          Entry
+                          Tên nội dung
                         </th>
                         <th className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                          Folder
+                          Thư mục
                         </th>
                         <th className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                          Type
+                          Loại nội dung
                         </th>
                         <th className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                          Lesson code
+                          Mã bài học
                         </th>
                         <th className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                          Created
+                          Kết quả
                         </th>
                       </tr>
                     </thead>
@@ -2783,13 +2824,13 @@ function ArchiveImportResultModal({
                             {entry.sourceFolder || "—"}
                           </td>
                           <td className="px-4 py-2 text-gray-600">
-                            {entry.sourceType || "—"}
+                            {contentTypeLabel(entry.sourceType)}
                           </td>
                           <td className="px-4 py-2 text-gray-600">
                             {entry.lessonCode || "—"}
                           </td>
                           <td className="px-4 py-2 text-gray-600">
-                            {entry.created === false ? "Updated" : "Created"}
+                            {importStatusLabel(entry.created)}
                           </td>
                         </tr>
                       ))}
@@ -2802,7 +2843,7 @@ function ArchiveImportResultModal({
             {(skippedItems.length > 0 || skippedEntries.length > 0) && (
               <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
                 <p className="text-sm font-semibold text-amber-800">
-                  Skipped entries (top 10)
+                  Nội dung bỏ qua (10 mục đầu)
                 </p>
                 <div className="mt-2 space-y-1">
                   {skippedItems.slice(0, 10).map((item, idx) => (
@@ -2819,24 +2860,12 @@ function ArchiveImportResultModal({
                         key={`${entry}_${idx}`}
                         className="text-xs text-amber-900"
                       >
-                        • {entry}
+                        • {skippedReasonLabel(entry)}
                       </p>
                     ))}
                 </div>
               </div>
             )}
-
-            <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-700">
-              <p>API check nhanh sau import:</p>
-              <p className="mt-1 font-mono">
-                GET /api/syllabuses/{payload.result.syllabusId}
-              </p>
-              {firstLessonCode ? (
-                <p className="mt-1 font-mono">
-                  GET /api/lessons/{firstLessonCode}
-                </p>
-              ) : null}
-            </div>
           </div>
         </div>
 
@@ -2848,7 +2877,7 @@ function ArchiveImportResultModal({
               onClick={() => onOpenSyllabus(payload.result.syllabusId)}
               className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-100 cursor-pointer"
             >
-              <Eye size={16} /> Mở chi tiết syllabus
+              <Eye size={16} /> Mở chi tiết giáo trình
             </button>
             <button
               type="button"
@@ -2874,6 +2903,7 @@ type ModalState =
 type ImportMode = "word" | "archive" | "lesson-plan-words" | null;
 type ConfigTarget = { programId: string; levelId: string } | null;
 type BranchAssignTarget = SyllabusListItem | null;
+type HardDeleteSyllabusTarget = SyllabusListItem | null;
 
 export default function SyllabusesPage() {
   const { toast } = useToast();
@@ -2918,6 +2948,10 @@ export default function SyllabusesPage() {
   const [branchAssignTarget, setBranchAssignTarget] =
     useState<BranchAssignTarget>(null);
   const [versionTarget, setVersionTarget] = useState<SyllabusListItem | null>(null);
+  const [hardDeleteTarget, setHardDeleteTarget] =
+    useState<HardDeleteSyllabusTarget>(null);
+  const [hardDeleteConfirmCode, setHardDeleteConfirmCode] = useState("");
+  const [hardDeleting, setHardDeleting] = useState(false);
   const [archiveImportResult, setArchiveImportResult] =
     useState<ArchiveImportResultView | null>(null);
 
@@ -3130,6 +3164,49 @@ export default function SyllabusesPage() {
       });
     } finally {
       setDetailLoading(false);
+    }
+  };
+
+  const handleHardDeleteSyllabus = async () => {
+    if (!hardDeleteTarget) return;
+    const expectedCode = String(hardDeleteTarget.code ?? "").trim();
+    const actualCode = hardDeleteConfirmCode.trim();
+    if (expectedCode && actualCode !== expectedCode) {
+      toast({
+        title: "Chưa xác nhận đúng mã syllabus",
+        description: `Nhập đúng mã "${expectedCode}" để xóa vĩnh viễn.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setHardDeleting(true);
+    try {
+      const result = await hardDeleteSyllabus(hardDeleteTarget.id);
+      toast({
+        title: "Đã xóa vĩnh viễn syllabus",
+        description: `Đã xóa ${result.deletedLessonPlanTemplateCount ?? 0} template và ${result.deletedLessonPlanCount ?? 0} lesson plan liên quan.`,
+        variant: "success",
+      });
+      setHardDeleteTarget(null);
+      setHardDeleteConfirmCode("");
+      setDetail((current) =>
+        current?.id === hardDeleteTarget.id ? null : current,
+      );
+      await loadData(pageNumber, true);
+    } catch (err) {
+      toast({
+        title: "Không thể xóa vĩnh viễn syllabus",
+        description:
+          toErrorMessage(
+            err,
+            "Nếu syllabus đang gán cho lớp, hãy gỡ syllabus khỏi lớp trước.",
+          ) ||
+          "Nếu syllabus đang gán cho lớp, hãy gỡ syllabus khỏi lớp trước.",
+        variant: "destructive",
+      });
+    } finally {
+      setHardDeleting(false);
     }
   };
 
@@ -3864,6 +3941,17 @@ export default function SyllabusesPage() {
                             <Settings2 size={14} />
                           </button>
                         )}
+                        <button
+                          type="button"
+                          title="Xóa vĩnh viễn"
+                          onClick={() => {
+                            setHardDeleteTarget(item);
+                            setHardDeleteConfirmCode("");
+                          }}
+                          className="inline-flex items-center justify-center rounded-lg p-1.5 text-gray-400 hover:text-red-700 cursor-pointer transition-colors"
+                        >
+                          <Trash2 size={14} />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -3998,6 +4086,86 @@ export default function SyllabusesPage() {
             setArchiveImportResult(null);
           }}
         />
+      )}
+      {hardDeleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-xl overflow-hidden rounded-3xl bg-white shadow-2xl">
+            <div className="bg-red-600 px-6 py-5 text-white">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 rounded-2xl bg-white/15 p-2">
+                  <AlertTriangle size={24} />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold">
+                    Xóa vĩnh viễn syllabus
+                  </h2>
+                  <p className="mt-1 text-sm text-white/85">
+                    Thao tác này không thể hoàn tác.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-5 p-6">
+              <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                <p className="font-semibold">
+                  Xóa syllabus này sẽ xóa luôn tất cả lesson plan template và
+                  lesson plan thực tế đang reference các template bên trong.
+                </p>
+                <p className="mt-2">
+                  Nếu syllabus đang được gán cho lớp, backend sẽ chặn xóa. Hãy
+                  gỡ syllabus khỏi lớp trước.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                <p className="text-sm font-semibold text-gray-900">
+                  {hardDeleteTarget.title}
+                </p>
+                <p className="mt-1 text-xs text-gray-500">
+                  {hardDeleteTarget.code} · {hardDeleteTarget.version}
+                </p>
+              </div>
+
+              <Field label={`Nhập mã "${hardDeleteTarget.code}" để xác nhận *`}>
+                <input
+                  value={hardDeleteConfirmCode}
+                  onChange={(event) =>
+                    setHardDeleteConfirmCode(event.target.value)
+                  }
+                  placeholder={hardDeleteTarget.code}
+                  className="h-11 w-full rounded-xl border border-red-200 bg-white px-3 text-sm outline-none focus:border-red-400 focus:ring-4 focus:ring-red-100"
+                />
+              </Field>
+
+              <div className="flex justify-end gap-3 border-t border-gray-100 pt-5">
+                <button
+                  type="button"
+                  disabled={hardDeleting}
+                  onClick={() => {
+                    setHardDeleteTarget(null);
+                    setHardDeleteConfirmCode("");
+                  }}
+                  className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  disabled={
+                    hardDeleting ||
+                    hardDeleteConfirmCode.trim() !==
+                      String(hardDeleteTarget.code ?? "").trim()
+                  }
+                  onClick={() => void handleHardDeleteSyllabus()}
+                  className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+                >
+                  {hardDeleting && <Loader2 size={16} className="animate-spin" />}
+                  Xóa vĩnh viễn
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

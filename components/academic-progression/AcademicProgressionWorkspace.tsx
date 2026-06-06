@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { BarChart3, BookOpen, GraduationCap, Layers, Users } from "lucide-react";
+import { BarChart3, GraduationCap, Layers, Users } from "lucide-react";
 import { getAllStudents } from "@/lib/api/profileService";
 import LevelModuleWorkspace from "./LevelModuleWorkspace";
 import AcademicDashboard from "./AcademicDashboard";
@@ -82,26 +82,49 @@ export default function AcademicProgressionWorkspace({ roleMode, studentId, stud
       setStudentOptionsError(null);
 
       try {
-        const response = await getAllStudents({
-          profileType: "Student",
-          isActive: true,
-          pageNumber: 1,
-          pageSize: 300,
-        });
+        const pageSize = 500;
+        const maxPages = 100;
+        const allItems: Array<{ id?: string | null; displayName?: string | null }> = [];
+        let pageNumber = 1;
 
-        const isSuccess = Boolean(response?.isSuccess ?? response?.success);
-        const items = Array.isArray(response?.data?.items) ? response.data.items : [];
+        while (pageNumber <= maxPages) {
+          const response = await getAllStudents({
+            profileType: "Student",
+            isActive: true,
+            pageNumber,
+            pageSize,
+          });
 
-        if (!isSuccess) {
-          throw new Error(response?.message || "Không thể tải danh sách học viên");
+          const isSuccess = Boolean(response?.isSuccess ?? response?.success);
+          const data = response?.data;
+          const items = Array.isArray(data?.items) ? data.items : [];
+
+          if (!isSuccess) {
+            throw new Error(response?.message || "Không thể tải danh sách học viên");
+          }
+
+          allItems.push(...items);
+
+          const totalPages = Number(data?.totalPages);
+          const hasNextPage =
+            Boolean(data?.hasNextPage) ||
+            (Number.isFinite(totalPages) && totalPages > 0 && pageNumber < totalPages);
+
+          if (!hasNextPage) break;
+          pageNumber += 1;
         }
 
-        const options = items
-          .map((item) => ({
-            id: String(item.id || "").trim(),
-            name: String(item.displayName || "").trim(),
+        const seenStudentIds = new Set<string>();
+        const options = allItems
+          .map((student) => ({
+            id: String(student.id || "").trim(),
+            name: String(student.displayName || "").trim(),
           }))
-          .filter((item) => item.id && item.name);
+          .filter((student) => {
+            if (!student.id || !student.name || seenStudentIds.has(student.id)) return false;
+            seenStudentIds.add(student.id);
+            return true;
+          });
 
         if (cancelled) return;
 
@@ -153,7 +176,6 @@ export default function AcademicProgressionWorkspace({ roleMode, studentId, stud
               <p className="text-sm text-gray-600">{ROLE_SUBTITLE[roleMode]}</p>
             </div>
           </div>
-
         </div>
 
         {/* Tabs */}

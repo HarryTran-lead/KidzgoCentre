@@ -525,7 +525,7 @@ export default function LevelModuleWorkspace({ roleMode, programId }: Props) {
     if (res.isSuccess) {
       const fetchedLevels = res.data.items;
       setLevels(fetchedLevels);
-      
+
       // Load modules for all levels
       setLoadingModules((prev) => {
         const newLoadingState = { ...prev };
@@ -786,24 +786,23 @@ export default function LevelModuleWorkspace({ roleMode, programId }: Props) {
 
         {/* Search and quick filters */}
         <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <input
-                className="w-full rounded-xl border border-red-200 bg-white py-2.5 pl-9 pr-4 text-sm text-gray-700 placeholder-gray-400 focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-200 transition-all"
-                placeholder="Tìm kiếm Level theo tên hoặc mã..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-            <div className="w-full sm:w-[240px]">
+          <div className="grid gap-3 md:grid-cols-[240px_minmax(0,1fr)]">
+            <div className="rounded-xl border border-red-100 bg-white px-3 py-2.5">
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Chương trình
+              </label>
               <Select
                 value={selectedProgramFilter}
                 onValueChange={setSelectedProgramFilter}
                 disabled={Boolean(programId)}
+                searchPlaceholder="Tìm chương trình..."
+                emptyText="Không có chương trình"
               >
-                <SelectTrigger className="w-full h-10 px-3 py-2 rounded-xl border border-red-200 bg-white text-xs text-gray-700 transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 data-[state=open]:border-red-400 data-[state=open]:ring-2 data-[state=open]:ring-red-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
-                  <SelectValue placeholder="Chọn chương trình" />
+                <SelectTrigger
+                  disabled={Boolean(programId)}
+                  className="h-9 w-full rounded-lg border border-red-200 bg-white px-3 text-sm font-medium text-gray-700 shadow-sm transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400 data-[state=open]:border-red-400 data-[state=open]:ring-2 data-[state=open]:ring-red-200 [&>span]:line-clamp-1"
+                >
+                  <SelectValue placeholder="Tất cả chương trình" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Tất cả chương trình</SelectItem>
@@ -814,6 +813,16 @@ export default function LevelModuleWorkspace({ roleMode, programId }: Props) {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="relative self-end">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <input
+                className="w-full rounded-xl border border-red-200 bg-white py-2.5 pl-9 pr-4 text-sm text-gray-700 placeholder-gray-400 transition-all focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-200"
+                placeholder="Tìm kiếm Level theo tên hoặc mã..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
           </div>
         </div>

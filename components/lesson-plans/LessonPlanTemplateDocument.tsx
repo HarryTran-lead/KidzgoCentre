@@ -17,6 +17,132 @@ type LessonPlanTemplateDocumentProps = {
   className?: string;
 };
 
+type LessonPlanTemplateContentFields = Pick<
+  LessonPlanTemplate,
+  | "objectives"
+  | "languageContent"
+  | "vocabulary"
+  | "grammar"
+  | "teachingMethodology"
+  | "teacherMaterials"
+  | "studentMaterials"
+  | "procedure"
+  | "evaluation"
+  | "homework"
+  | "teacherNote"
+>;
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function normalizePlainText(value?: string | null): string {
+  return String(value ?? "").replace(/\s+/g, " ").trim();
+}
+
+function normalizeDisplayText(value?: string | null): string | null {
+  const normalized = normalizePlainText(value);
+  return normalized.length > 0 ? normalized : null;
+}
+
+function readRawSection(
+  text: string,
+  starts: string[],
+  ends: string[],
+): string | null {
+  const startPattern = new RegExp(
+    `(?:^|\\s)(?:${starts.map(escapeRegExp).join("|")})\\s*:?\\s*`,
+    "i",
+  );
+  const startMatch = startPattern.exec(text);
+  if (!startMatch) return null;
+
+  const afterStart = text.slice(startMatch.index + startMatch[0].length);
+  let endIndex = afterStart.length;
+
+  for (const marker of ends) {
+    const endPattern = new RegExp(
+      `(?:^|\\s)${escapeRegExp(marker)}\\s*:?\\s*`,
+      "i",
+    );
+    const endMatch = endPattern.exec(afterStart);
+    if (endMatch && endMatch.index < endIndex) {
+      endIndex = endMatch.index;
+    }
+  }
+
+  return normalizeDisplayText(afterStart.slice(0, endIndex));
+}
+
+function inferContentFieldsFromRaw(
+  rawContent?: string | null,
+): LessonPlanTemplateContentFields {
+  const text = normalizePlainText(rawContent);
+  if (!text) return {};
+
+  return {
+    objectives: readRawSection(text, ["Objectives"], [
+      "Language content",
+      "Vocabulary",
+      "Grammar",
+      "Teaching methodology",
+      "Materials for teacher",
+      "Materials for students",
+      "Procedure",
+      "Evaluation",
+    ]),
+    languageContent: readRawSection(text, ["Language content"], [
+      "Vocabulary",
+      "Grammar",
+      "Teaching methodology",
+      "Materials for teacher",
+      "Materials for students",
+      "Procedure",
+      "Evaluation",
+    ]),
+    vocabulary: readRawSection(text, ["Vocabulary"], [
+      "Grammar",
+      "Teaching methodology",
+      "Materials for teacher",
+      "Materials for students",
+      "Procedure",
+      "Evaluation",
+    ]),
+    grammar: readRawSection(text, ["Grammar"], [
+      "Teaching methodology",
+      "Materials for teacher",
+      "Materials for students",
+      "Procedure",
+      "Evaluation",
+    ]),
+    teachingMethodology: readRawSection(text, ["Teaching methodology"], [
+      "Materials for teacher",
+      "Materials for students",
+      "Procedure",
+      "Evaluation",
+    ]),
+    teacherMaterials: readRawSection(text, ["Materials for teacher"], [
+      "Materials for students",
+      "Procedure",
+      "Evaluation",
+    ]),
+    studentMaterials: readRawSection(text, ["Materials for students"], [
+      "Procedure",
+      "Evaluation",
+    ]),
+    procedure: readRawSection(text, ["Procedure"], [
+      "Evaluation",
+      "Teacher Note",
+      "Teacher Notes",
+    ]),
+    evaluation: readRawSection(text, ["Evaluation"], [
+      "Teacher Note",
+      "Teacher Notes",
+    ]),
+    teacherNote: readRawSection(text, ["Teacher Note", "Teacher Notes"], []),
+  };
+}
+
 function parseProcedureRows(text: string): ProcedureRowLike[] {
   if (!text?.trim()) return [];
 
@@ -52,10 +178,26 @@ export default function LessonPlanTemplateDocument({
   mediaLinks,
   className,
 }: LessonPlanTemplateDocumentProps) {
+  const inferredFields = inferContentFieldsFromRaw(template.syllabusContent);
+  const objectives = template.objectives || inferredFields.objectives;
+  const languageContent =
+    template.languageContent || inferredFields.languageContent;
+  const vocabulary = template.vocabulary || inferredFields.vocabulary;
+  const grammar = template.grammar || inferredFields.grammar;
+  const teachingMethodology =
+    template.teachingMethodology || inferredFields.teachingMethodology;
+  const teacherMaterials =
+    template.teacherMaterials || inferredFields.teacherMaterials;
+  const studentMaterials =
+    template.studentMaterials || inferredFields.studentMaterials;
+  const procedure = template.procedure || inferredFields.procedure;
+  const evaluation = template.evaluation || inferredFields.evaluation;
+  const homework = template.homework || inferredFields.homework;
+  const teacherNote = template.teacherNote || inferredFields.teacherNote;
   const normalizedRows =
     Array.isArray(procedureRows) && procedureRows.length > 0
       ? procedureRows
-      : parseProcedureRows(template.procedure || "");
+      : parseProcedureRows(procedure || "");
 
   const normalizedMediaLinks = Array.isArray(mediaLinks)
     ? Array.from(new Set(mediaLinks.filter(Boolean)))
@@ -123,69 +265,69 @@ export default function LessonPlanTemplateDocument({
       </div>
 
       <div className="divide-y divide-gray-100">
-        {template.objectives && (
+        {objectives && (
           <div className="flex">
             <div className="w-10 flex-shrink-0 flex items-start justify-center pt-4 bg-emerald-50/70 border-r border-emerald-100">
               <span className="text-xs font-extrabold text-emerald-700">A</span>
             </div>
             <div className="flex-1 px-4 py-3">
               <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-emerald-700 mb-1.5">Objectives / Mục tiêu</div>
-              <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{template.objectives}</div>
+              <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{objectives}</div>
             </div>
           </div>
         )}
 
-        {(template.languageContent || template.vocabulary || template.grammar) && (
+        {(languageContent || vocabulary || grammar) && (
           <div className="flex">
             <div className="w-10 flex-shrink-0 flex items-start justify-center pt-4 bg-blue-50/70 border-r border-blue-100">
               <span className="text-xs font-extrabold text-blue-700">B</span>
             </div>
             <div className="flex-1 px-4 py-3">
               <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-blue-700 mb-1.5">Language Content / Nội dung ngôn ngữ</div>
-              {template.languageContent && <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6 mb-1">{template.languageContent}</div>}
-              {template.vocabulary && <div className="text-sm text-gray-700 mb-0.5"><span className="font-semibold text-blue-600">Vocabulary: </span>{template.vocabulary}</div>}
-              {template.grammar && <div className="text-sm text-gray-700"><span className="font-semibold text-blue-600">Grammar: </span>{template.grammar}</div>}
+              {languageContent && <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6 mb-1">{languageContent}</div>}
+              {vocabulary && <div className="text-sm text-gray-700 mb-0.5"><span className="font-semibold text-blue-600">Vocabulary: </span>{vocabulary}</div>}
+              {grammar && <div className="text-sm text-gray-700"><span className="font-semibold text-blue-600">Grammar: </span>{grammar}</div>}
             </div>
           </div>
         )}
 
-        {template.teachingMethodology && (
+        {teachingMethodology && (
           <div className="flex">
             <div className="w-10 flex-shrink-0 flex items-start justify-center pt-4 bg-orange-50/70 border-r border-orange-100">
               <span className="text-xs font-extrabold text-orange-700">C</span>
             </div>
             <div className="flex-1 px-4 py-3">
               <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-orange-700 mb-1.5">Teaching Methodology / Phương pháp</div>
-              <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{template.teachingMethodology}</div>
+              <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{teachingMethodology}</div>
             </div>
           </div>
         )}
 
-        {template.teacherMaterials && (
+        {teacherMaterials && (
           <div className="flex">
             <div className="w-10 flex-shrink-0 flex items-start justify-center pt-4 bg-amber-50/70 border-r border-amber-100">
               <span className="text-xs font-extrabold text-amber-700">D</span>
             </div>
             <div className="flex-1 px-4 py-3">
               <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-amber-700 mb-1.5">Materials for Teacher / Học liệu giáo viên</div>
-              <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{template.teacherMaterials}</div>
+              <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{teacherMaterials}</div>
             </div>
           </div>
         )}
 
-        {template.studentMaterials && (
+        {studentMaterials && (
           <div className="flex">
             <div className="w-10 flex-shrink-0 flex items-start justify-center pt-4 bg-yellow-50/70 border-r border-yellow-100">
               <span className="text-xs font-extrabold text-yellow-600">E</span>
             </div>
             <div className="flex-1 px-4 py-3">
               <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-yellow-700 mb-1.5">Materials for Students / Học liệu học viên</div>
-              <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{template.studentMaterials}</div>
+              <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{studentMaterials}</div>
             </div>
           </div>
         )}
 
-        {(template.procedure || normalizedRows.length > 0) && (
+        {(procedure || normalizedRows.length > 0) && (
           <div className="flex">
             <div className="w-10 flex-shrink-0 flex items-start justify-center pt-4 bg-teal-50/70 border-r border-teal-100">
               <span className="text-xs font-extrabold text-teal-700">F</span>
@@ -230,46 +372,46 @@ export default function LessonPlanTemplateDocument({
                   </div>
                 </div>
               ) : (
-                <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{template.procedure}</div>
+                <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{procedure}</div>
               )}
             </div>
           </div>
         )}
 
-        {template.evaluation && (
+        {evaluation && (
           <div className="flex">
             <div className="w-10 flex-shrink-0 flex items-start justify-center pt-4 bg-red-50/70 border-r border-red-100">
               <span className="text-xs font-extrabold text-red-700">G</span>
             </div>
             <div className="flex-1 px-4 py-3">
               <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-red-700 mb-1.5">Evaluation / Đánh giá</div>
-              <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{template.evaluation}</div>
+              <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{evaluation}</div>
             </div>
           </div>
         )}
 
-        {template.homework && (
+        {homework && (
           <div className="flex">
             <div className="w-10 flex-shrink-0 flex items-start justify-center pt-4 bg-pink-50/70 border-r border-pink-100">
               <span className="text-xs font-extrabold text-pink-700">H</span>
             </div>
             <div className="flex-1 px-4 py-3">
               <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-pink-700 mb-1.5">Homework / Bài tập về nhà</div>
-              <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{template.homework}</div>
+              <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{homework}</div>
             </div>
           </div>
         )}
 
-        {template.teacherNote && (
+        {teacherNote && (
           <div className="px-5 py-3 bg-yellow-50/50">
             <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-yellow-700 mb-1">Teacher Note / Ghi chú giáo án</div>
-            <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{template.teacherNote}</div>
+            <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{teacherNote}</div>
           </div>
         )}
 
-        {!template.objectives && !template.languageContent && !template.vocabulary && !template.grammar
-          && !template.teachingMethodology && !template.teacherMaterials && !template.studentMaterials
-          && !template.procedure && !template.evaluation && !template.homework && (
+        {!objectives && !languageContent && !vocabulary && !grammar
+          && !teachingMethodology && !teacherMaterials && !studentMaterials
+          && !procedure && !evaluation && !homework && !teacherNote && (
           <div className="px-5 py-4">
             {template.syllabusContent ? (
               <div className="whitespace-pre-wrap text-sm text-gray-700">{template.syllabusContent}</div>

@@ -161,12 +161,14 @@ interface UserOption { id: string; fullName: string; role: string; }
    Create Incident Modal
    ═══════════════════════════════════════════════════════ */
 function CreateIncidentModal({
-  isOpen, onClose, onCreated, defaultBranchId,
+  isOpen, onClose, onCreated, defaultBranchId, lockedBranchId, lockedBranchName,
 }: {
   isOpen: boolean;
   onClose: () => void;
   onCreated: () => void;
   defaultBranchId?: string | null;
+  lockedBranchId?: string | null;
+  lockedBranchName?: string | null;
 }) {
   const { toast } = useToast();
   const modalRef = useRef<HTMLDivElement>(null);
@@ -181,6 +183,10 @@ function CreateIncidentModal({
 
   useEffect(() => {
     const fetchBranches = async () => {
+      if (lockedBranchId) {
+        setBranches([{ id: lockedBranchId, name: lockedBranchName || "Chi nhánh hiện tại" }]);
+        return;
+      }
       try {
         const res = await getAllBranchesPublic({ isActive: true });
         const list = res?.data?.branches || res?.data || [];
@@ -188,11 +194,11 @@ function CreateIncidentModal({
       } catch { /* ignore */ }
     };
     fetchBranches();
-  }, []);
+  }, [lockedBranchId, lockedBranchName]);
 
   useEffect(() => {
-    if (defaultBranchId) setBranchId(defaultBranchId);
-  }, [defaultBranchId]);
+    if (lockedBranchId || defaultBranchId) setBranchId(lockedBranchId || defaultBranchId || "");
+  }, [defaultBranchId, lockedBranchId]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -209,9 +215,9 @@ function CreateIncidentModal({
   useEffect(() => {
     if (isOpen) {
       setSubject(""); setMessage(""); setEvidenceUrl(""); setCategory("System");
-      if (defaultBranchId) setBranchId(defaultBranchId);
+      if (lockedBranchId || defaultBranchId) setBranchId(lockedBranchId || defaultBranchId || "");
     }
-  }, [isOpen, defaultBranchId]);
+  }, [isOpen, defaultBranchId, lockedBranchId]);
 
   const handleSubmit = async () => {
     if (!branchId || !subject.trim() || !message.trim()) {
@@ -263,7 +269,7 @@ function CreateIncidentModal({
               <Building2 size={16} className="text-red-600" />
               <label className="text-sm font-semibold text-gray-700">Chi nhánh <span className="text-red-500">*</span></label>
             </div>
-            <Select value={branchId} onValueChange={setBranchId}>
+            <Select value={branchId} onValueChange={setBranchId} disabled={Boolean(lockedBranchId)}>
               <SelectTrigger className="w-full rounded-xl border border-red-200 bg-white text-sm transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 data-[state=open]:border-red-400 data-[state=open]:ring-2 data-[state=open]:ring-red-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
                 <SelectValue placeholder="Chọn chi nhánh" />
               </SelectTrigger>
@@ -731,9 +737,18 @@ function StatisticsCards({ branchId, isPageLoaded }: { branchId?: string | null;
 /* ═══════════════════════════════════════════════════════
    Main Workspace
    ═══════════════════════════════════════════════════════ */
-export default function IncidentReportWorkspace({ isAdmin = false }: { isAdmin?: boolean }) {
+export default function IncidentReportWorkspace({
+  isAdmin = false,
+  scopeToCurrentUserBranch = false,
+}: {
+  isAdmin?: boolean;
+  scopeToCurrentUserBranch?: boolean;
+}) {
   const { toast } = useToast();
   const { selectedBranchId } = useBranchFilter();
+  const { user: currentUser, isLoading: isCurrentUserLoading } = useCurrentUser();
+  const scopedBranchId = scopeToCurrentUserBranch ? String(currentUser?.branchId || "") : selectedBranchId || "";
+  const scopedBranchName = scopeToCurrentUserBranch ? currentUser?.branchName || "Chi nhánh hiện tại" : "";
 
   const [isPageLoaded, setIsPageLoaded] = useState(false);
   const [items, setItems] = useState<IncidentReportDto[]>([]);
@@ -755,6 +770,15 @@ export default function IncidentReportWorkspace({ isAdmin = false }: { isAdmin?:
   useEffect(() => { setIsPageLoaded(true); }, []);
 
   const fetchList = useCallback(async () => {
+    if (scopeToCurrentUserBranch && isCurrentUserLoading) return;
+    if (scopeToCurrentUserBranch && !scopedBranchId) {
+      setItems([]);
+      setTotalPages(1);
+      setTotalCount(0);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       const query: IncidentReportListQuery = {
@@ -763,7 +787,7 @@ export default function IncidentReportWorkspace({ isAdmin = false }: { isAdmin?:
         ...(keyword ? { keyword } : {}),
         ...(statusFilter !== "ALL" ? { status: statusFilter } : {}),
         ...(categoryFilter !== "ALL" ? { category: categoryFilter } : {}),
-        ...(selectedBranchId ? { branchId: selectedBranchId } : {}),
+        ...(scopedBranchId ? { branchId: scopedBranchId } : {}),
       };
       const res = await getIncidentReports(query);
       const paginated = res?.data?.incidentReports ?? (res as unknown as Record<string, unknown>)?.data;
@@ -776,7 +800,16 @@ export default function IncidentReportWorkspace({ isAdmin = false }: { isAdmin?:
     } catch (err) {
       toast({ title: "Lỗi", description: getErrMsg(err, "Không thể tải danh sách."), variant: "destructive" });
     } finally { setLoading(false); }
-  }, [page, keyword, statusFilter, categoryFilter, selectedBranchId, toast]);
+  }, [
+    categoryFilter,
+    isCurrentUserLoading,
+    keyword,
+    page,
+    scopedBranchId,
+    scopeToCurrentUserBranch,
+    statusFilter,
+    toast,
+  ]);
 
   useEffect(() => { fetchList(); }, [fetchList]);
 
@@ -820,7 +853,7 @@ export default function IncidentReportWorkspace({ isAdmin = false }: { isAdmin?:
         </div>
 
         {/* Statistics (Admin only) */}
-        {isAdmin && <StatisticsCards branchId={selectedBranchId} isPageLoaded={isPageLoaded} />}
+        {isAdmin && <StatisticsCards branchId={scopedBranchId} isPageLoaded={isPageLoaded} />}
 
         {/* Filters */}
         <div className={cn("rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100 space-y-4", isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4")}>
@@ -995,7 +1028,9 @@ export default function IncidentReportWorkspace({ isAdmin = false }: { isAdmin?:
         isOpen={showCreate}
         onClose={() => setShowCreate(false)}
         onCreated={fetchList}
-        defaultBranchId={selectedBranchId}
+        defaultBranchId={scopedBranchId}
+        lockedBranchId={scopeToCurrentUserBranch ? scopedBranchId : null}
+        lockedBranchName={scopeToCurrentUserBranch ? scopedBranchName : null}
       />
       <DetailPanel
         isOpen={showDetail}

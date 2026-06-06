@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useSearchParams } from "next/navigation";
 import {
   DndContext,
@@ -20,6 +21,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
+  AlertTriangle,
   ArrowDown,
   ArrowUp,
   BookOpenCheck,
@@ -67,7 +69,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/lightswind/select";
-import { getAllClasses } from "@/lib/api/classService";
+import { getAllClasses, getClassById } from "@/lib/api/classService";
 import {
   ClassLessonPlanSyllabus,
   ClassLessonPlanSyllabusSession,
@@ -89,12 +91,12 @@ import {
   deleteLessonPlanUnit,
   reorderLessonPlanUnits,
   reorderLessonsInUnit,
-  deleteLessonPlanTemplate,
   importLessonPlanTemplateWord,
   reorderLessonPlanTemplateSessionOrders,
   getSessionLessonPlanDocument,
   SessionLessonPlanDocument,
 } from "@/lib/api/lessonPlanService";
+import { hardDeleteLessonPlanTemplate } from "@/lib/api/hardDeleteService";
 import {
   getBranchSyllabusAssignments,
   getSyllabusById,
@@ -106,8 +108,9 @@ import {
 import { getAllProgramsForDropdown } from "@/lib/api/programService";
 import LessonPlanTemplateDocument from "@/components/lesson-plans/LessonPlanTemplateDocument";
 import { getTeacherClasses } from "@/lib/api/teacherService";
-import { getSessionById, getTeachingLog } from "@/lib/api/sessionService";
+import { getTeachingLog } from "@/lib/api/sessionService";
 import { useBranchFilter } from "@/hooks/useBranchFilter";
+import type { ClassApiDetail } from "@/types/admin/classes";
 
 type WorkspaceScope = "teacher" | "staff-management" | "admin";
 type WorkspacePresentation = "workspace" | "session-page";
@@ -122,6 +125,7 @@ type PlanStatusFilter =
   | "withTemplate"
   | "reported"
   | "notReported";
+type SessionContentModalKind = "syllabus" | "planned" | "actual";
 
 type Option = {
   id: string;
@@ -461,6 +465,43 @@ function hasStructuredTemplateContent(
   );
 }
 
+function mergeTemplateWithContentFallback(
+  template: LessonPlanTemplate,
+  fallback?: LessonPlanTemplate,
+): LessonPlanTemplate {
+  if (!fallback) return template;
+
+  return {
+    ...fallback,
+    ...template,
+    syllabusMetadata:
+      template.syllabusMetadata ?? fallback.syllabusMetadata ?? null,
+    syllabusContent: template.syllabusContent ?? fallback.syllabusContent ?? null,
+    objectives: template.objectives ?? fallback.objectives ?? null,
+    languageContent:
+      template.languageContent ?? fallback.languageContent ?? null,
+    vocabulary: template.vocabulary ?? fallback.vocabulary ?? null,
+    grammar: template.grammar ?? fallback.grammar ?? null,
+    teachingMethodology:
+      template.teachingMethodology ?? fallback.teachingMethodology ?? null,
+    teacherMaterials:
+      template.teacherMaterials ?? fallback.teacherMaterials ?? null,
+    studentMaterials:
+      template.studentMaterials ?? fallback.studentMaterials ?? null,
+    procedure: template.procedure ?? fallback.procedure ?? null,
+    evaluation: template.evaluation ?? fallback.evaluation ?? null,
+    homework: template.homework ?? fallback.homework ?? null,
+    teacherNote: template.teacherNote ?? fallback.teacherNote ?? null,
+    sourceFileName: template.sourceFileName ?? fallback.sourceFileName ?? null,
+    attachment: template.attachment ?? fallback.attachment ?? null,
+    createdBy: template.createdBy ?? fallback.createdBy,
+    createdByName: template.createdByName ?? fallback.createdByName,
+    createdAt: template.createdAt ?? fallback.createdAt,
+    updatedAt: template.updatedAt ?? fallback.updatedAt,
+    usedCount: template.usedCount ?? fallback.usedCount,
+  };
+}
+
 function hasSessionTemplateLinkage(
   session: Pick<
     ClassLessonPlanSyllabusSession,
@@ -482,45 +523,23 @@ function hasSessionTemplateLinkage(
   );
 }
 
-function needsRuntimeSessionHydration(
-  session: Pick<
-    ClassLessonPlanSyllabusSession,
-    | "lessonPlanId"
-    | "moduleId"
-    | "sessionIndexInModule"
-    | "templateId"
-    | "templateTitle"
-    | "templateSyllabusContent"
-    | "plannedContent"
-  >,
-): boolean {
-  if (!session.moduleId || session.sessionIndexInModule == null) {
-    return true;
-  }
-
-  return !Boolean(
-    session.lessonPlanId ||
-      session.templateId ||
-      session.templateTitle ||
-      session.templateSyllabusContent ||
-      session.plannedContent,
-  );
-}
-
 function pickSessionFallbackTemplate(
   templates: LessonPlanTemplate[],
   session: Pick<
     ClassLessonPlanSyllabusSession,
-    "moduleId" | "sessionIndexInModule"
+    "moduleId" | "sessionIndexInModule" | "syllabusId"
   >,
   sharedTemplate?: LessonPlanTemplate,
 ): LessonPlanTemplate | undefined {
   const moduleId = session.moduleId?.trim();
+  const syllabusId = session.syllabusId?.trim();
 
   if (moduleId) {
-    const moduleTemplates = templates.filter(
-      (item) => item.moduleId?.trim() === moduleId,
-    );
+    const moduleTemplates = templates.filter((item) => {
+      if (item.moduleId?.trim() !== moduleId) return false;
+      if (!syllabusId) return true;
+      return item.syllabusId?.trim() === syllabusId;
+    });
 
     if (moduleTemplates.length) {
       const sessionOrder = session.sessionIndexInModule;
@@ -1072,6 +1091,15 @@ function getSessionDisplay(
   return `Buổi ${session.sessionIndex}${normalizeDateValue(session.sessionDate) ? ` • ${formatDate(session.sessionDate, true)}` : ""}`;
 }
 
+function getModuleSessionDisplayIndex(
+  session: Pick<
+    ClassLessonPlanSyllabusSession,
+    "sessionIndex" | "sessionIndexInModule"
+  >,
+) {
+  return session.sessionIndexInModule ?? session.sessionIndex;
+}
+
 function getClassDisplay(syllabus: ClassLessonPlanSyllabus | null) {
   if (!syllabus) return "Chưa chọn lớp";
   return syllabus.classTitle || syllabus.classCode || "Lớp học";
@@ -1327,8 +1355,11 @@ function getTemplateStats(templates: LessonPlanTemplate[]) {
   ];
 }
 
-function getPlanStats(syllabus: ClassLessonPlanSyllabus | null) {
-  const sessions = syllabus?.sessions || [];
+function getPlanStats(
+  syllabus: ClassLessonPlanSyllabus | null,
+  sessionSource?: ClassLessonPlanSyllabusSession[],
+) {
+  const sessions = sessionSource ?? syllabus?.sessions ?? [];
 
   return [
     {
@@ -1362,8 +1393,11 @@ function getPlanStats(syllabus: ClassLessonPlanSyllabus | null) {
   ];
 }
 
-function getSyllabusSummaryItems(syllabus: ClassLessonPlanSyllabus | null) {
-  const sessions = syllabus?.sessions || [];
+function getSyllabusSummaryItems(
+  syllabus: ClassLessonPlanSyllabus | null,
+  sessionSource?: ClassLessonPlanSyllabusSession[],
+) {
+  const sessions = sessionSource ?? syllabus?.sessions ?? [];
 
   return [
     {
@@ -1382,6 +1416,31 @@ function getSyllabusSummaryItems(syllabus: ClassLessonPlanSyllabus | null) {
       value: sessions.filter((item) => item.actualContent).length,
     },
   ];
+}
+
+function getTemplateModuleSessionOrder(
+  template: Pick<
+    LessonPlanTemplate,
+    | "sessionOrder"
+    | "sessionIndex"
+    | "lessonOrderIndexInUnit"
+    | "orderIndexInUnit"
+  >,
+): number | null {
+  const candidates = [
+    template.sessionOrder,
+    template.sessionIndex,
+    template.lessonOrderIndexInUnit,
+    template.orderIndexInUnit != null ? template.orderIndexInUnit + 1 : null,
+  ];
+
+  for (const value of candidates) {
+    if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+      return value;
+    }
+  }
+
+  return null;
 }
 
 export function LessonPlanWorkspace({
@@ -1411,6 +1470,7 @@ export function LessonPlanWorkspace({
   const [templates, setTemplates] = useState<LessonPlanTemplate[]>([]);
   const [classSyllabus, setClassSyllabus] =
     useState<ClassLessonPlanSyllabus | null>(null);
+  const [classDetail, setClassDetail] = useState<ClassApiDetail | null>(null);
   const [programOptions, setProgramOptions] = useState<Option[]>([]);
   const [classOptions, setClassOptions] = useState<Option[]>([]);
   const [syllabusOptions, setSyllabusOptions] = useState<SyllabusListItem[]>(
@@ -1879,14 +1939,30 @@ export function LessonPlanWorkspace({
       }
     }
 
+    const legacyById = new Map(
+      legacyItems
+        .filter((item) => item.id)
+        .map((item) => [item.id, item] as const),
+    );
     const merged = new Map<string, LessonPlanTemplate>();
     for (const item of flattened) {
       if (item.id) {
-        merged.set(item.id, item);
+        merged.set(
+          item.id,
+          mergeTemplateWithContentFallback(item, legacyById.get(item.id)),
+        );
       }
     }
 
     for (const item of legacyItems) {
+      if (item.id && merged.has(item.id)) {
+        merged.set(
+          item.id,
+          mergeTemplateWithContentFallback(merged.get(item.id)!, item),
+        );
+        continue;
+      }
+
       const legacySyllabusMeta = item.syllabusId
         ? syllabusMetaMap.get(item.syllabusId)
         : undefined;
@@ -1915,22 +1991,30 @@ export function LessonPlanWorkspace({
   const loadClassSyllabus = async (classId: string) => {
     if (!classId) {
       setClassSyllabus(null);
+      setClassDetail(null);
       return;
     }
 
-    const response = await getClassLessonPlanSyllabus(classId);
+    const [response, classDetailResult] = await Promise.all([
+      getClassLessonPlanSyllabus(classId),
+      getClassById(classId)
+        .then((result) =>
+          result?.isSuccess !== false && result?.success !== false
+            ? result.data ?? null
+            : null,
+        )
+        .catch(() => null),
+    ]);
+
     if (!response.isSuccess) {
       throw new Error(
         extractMessage(response, "Không thể tải syllabus của lớp."),
       );
     }
 
+    setClassDetail(classDetailResult);
     setClassSyllabus(response.data);
 
-    if (response.data?.sessions?.length) {
-      void enrichClassSyllabusWithRuntimeSessionData(response.data);
-      void enrichClassSyllabusWithTeachingLogs(response.data);
-    }
   };
 
   const refreshWorkspace = async (silent = false) => {
@@ -2143,9 +2227,218 @@ export function LessonPlanWorkspace({
     templates,
   ]);
 
+  const planTargetSyllabusId = useMemo(() => {
+    if (selectedSyllabusId !== "all") return selectedSyllabusId;
+    return requestedSyllabusId || classDetail?.syllabusId || classSyllabus?.syllabusId || "";
+  }, [
+    classDetail?.syllabusId,
+    classSyllabus?.syllabusId,
+    requestedSyllabusId,
+    selectedSyllabusId,
+  ]);
+
+  const planTargetModuleId = useMemo(() => {
+    if (effectiveSelectedModuleId !== "all") return effectiveSelectedModuleId;
+    if (requestedModuleId) return requestedModuleId;
+
+    const activeModule = classDetail?.moduleProgresses?.find(
+      (item) => item.status?.toLowerCase() === "active",
+    );
+    if (classDetail?.currentModuleId) return classDetail.currentModuleId;
+    if (activeModule?.moduleId) return activeModule.moduleId;
+    if (classDetail?.startModuleId) return classDetail.startModuleId;
+
+    const moduleIds = new Set(
+      (classSyllabus?.sessions ?? [])
+        .map((session) => session.moduleId?.trim())
+        .filter((value): value is string => Boolean(value)),
+    );
+
+    return moduleIds.size === 1 ? Array.from(moduleIds)[0] : "";
+  }, [
+    classDetail?.currentModuleId,
+    classDetail?.moduleProgresses,
+    classDetail?.startModuleId,
+    classSyllabus?.sessions,
+    effectiveSelectedModuleId,
+    requestedModuleId,
+  ]);
+
+  const planTargetModuleProgress = useMemo(() => {
+    if (!planTargetModuleId) return null;
+    return (
+      classDetail?.moduleProgresses?.find(
+        (item) => item.moduleId === planTargetModuleId,
+      ) ?? null
+    );
+  }, [classDetail?.moduleProgresses, planTargetModuleId]);
+
+  const planModuleTemplates = useMemo(() => {
+    if (!planTargetModuleId) return [] as LessonPlanTemplate[];
+
+    return templates
+      .filter((template) => {
+        if (template.moduleId !== planTargetModuleId) return false;
+        if (planTargetSyllabusId && template.syllabusId !== planTargetSyllabusId) {
+          return false;
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        const aOrder = getTemplateModuleSessionOrder(a) ?? a.sessionIndex ?? 0;
+        const bOrder = getTemplateModuleSessionOrder(b) ?? b.sessionIndex ?? 0;
+        return aOrder - bOrder;
+      });
+  }, [planTargetModuleId, planTargetSyllabusId, templates]);
+
+  const planModuleSessionOrders = useMemo(() => {
+    const orders = planModuleTemplates
+      .map(getTemplateModuleSessionOrder)
+      .filter((value): value is number => value != null);
+
+    return new Set(orders);
+  }, [planModuleTemplates]);
+
+  const planBaseSessions = useMemo(() => {
+    const sessions = classSyllabus?.sessions ?? [];
+    if (!sessions.length) return [];
+
+    const sortBySchedule = (
+      items: ClassLessonPlanSyllabusSession[],
+    ): ClassLessonPlanSyllabusSession[] =>
+      [...items].sort((a, b) => {
+        const aTime = normalizeDateValue(a.sessionDate)
+          ? new Date(a.sessionDate!).getTime()
+          : Number.MAX_SAFE_INTEGER;
+        const bTime = normalizeDateValue(b.sessionDate)
+          ? new Date(b.sessionDate!).getTime()
+          : Number.MAX_SAFE_INTEGER;
+        if (aTime !== bTime) return aTime - bTime;
+        return a.sessionIndex - b.sessionIndex;
+      });
+
+    const sortByModuleOrder = (
+      items: ClassLessonPlanSyllabusSession[],
+    ): ClassLessonPlanSyllabusSession[] =>
+      [...items].sort((a, b) => {
+        const aOrder = getModuleSessionDisplayIndex(a);
+        const bOrder = getModuleSessionDisplayIndex(b);
+        if (aOrder !== bOrder) return aOrder - bOrder;
+        return a.sessionIndex - b.sessionIndex;
+      });
+
+    const templateBySessionOrder = new Map<number, LessonPlanTemplate>();
+    for (const template of planModuleTemplates) {
+      const sessionOrder = getTemplateModuleSessionOrder(template);
+      if (sessionOrder == null || templateBySessionOrder.has(sessionOrder)) {
+        continue;
+      }
+      templateBySessionOrder.set(sessionOrder, template);
+    }
+
+    const enrichSessionWithModuleTemplate = (
+      session: ClassLessonPlanSyllabusSession,
+      inferredSessionOrder?: number,
+    ): ClassLessonPlanSyllabusSession => {
+      const sessionOrder =
+        inferredSessionOrder ?? session.sessionIndexInModule ?? session.sessionIndex;
+      const template = templateBySessionOrder.get(sessionOrder);
+      const moduleProgress = planTargetModuleProgress;
+      if (!template && !planTargetModuleId) return session;
+
+      return {
+        ...session,
+        syllabusId: session.syllabusId ?? template?.syllabusId ?? planTargetSyllabusId ?? classDetail?.syllabusId ?? null,
+        syllabusCode: session.syllabusCode ?? template?.syllabusCode ?? classDetail?.syllabusCode ?? null,
+        syllabusVersion: session.syllabusVersion ?? template?.syllabusVersion ?? classDetail?.syllabusVersion ?? null,
+        syllabusTitle: session.syllabusTitle ?? template?.syllabusTitle ?? classDetail?.syllabusTitle ?? null,
+        moduleId: session.moduleId ?? template?.moduleId ?? planTargetModuleId ?? null,
+        moduleCode: session.moduleCode ?? template?.moduleCode ?? null,
+        moduleName:
+          session.moduleName ??
+          template?.moduleName ??
+          moduleProgress?.moduleName ??
+          classDetail?.currentModuleName ??
+          classDetail?.startModuleName ??
+          null,
+        sessionIndexInModule: sessionOrder,
+        templateId: session.templateId ?? template?.id ?? null,
+        templateTitle: session.templateTitle ?? template?.title ?? null,
+        templateSyllabusContent:
+          session.templateSyllabusContent ?? template?.syllabusContent ?? null,
+        plannedContent: session.plannedContent ?? template?.syllabusContent ?? null,
+      };
+    };
+
+    if (planTargetModuleId) {
+      const moduleSessionLimit =
+        planModuleSessionOrders.size ||
+        planTargetModuleProgress?.requiredSessions ||
+        classDetail?.totalSessions ||
+        0;
+
+      const explicitModuleSessions = sessions
+        .filter((session) => {
+          const sessionOrder =
+            session.moduleId === planTargetModuleId
+              ? session.sessionIndexInModule ?? session.sessionIndex
+              : session.sessionIndex;
+          if (session.moduleId === planTargetModuleId) {
+            return planModuleSessionOrders.size
+              ? planModuleSessionOrders.has(sessionOrder)
+              : true;
+          }
+
+          if (!planModuleSessionOrders.has(sessionOrder)) return false;
+          if (
+            planTargetSyllabusId &&
+            session.syllabusId &&
+            session.syllabusId !== planTargetSyllabusId
+          ) {
+            return false;
+          }
+
+          return !session.moduleId;
+        });
+
+      const sourceSessions = explicitModuleSessions.length
+        ? explicitModuleSessions
+        : moduleSessionLimit > 0
+          ? sortBySchedule(sessions).slice(0, moduleSessionLimit)
+          : [];
+
+      const moduleSessions = sortBySchedule(sourceSessions)
+        .slice(0, moduleSessionLimit || undefined)
+        .map((session, index) =>
+          enrichSessionWithModuleTemplate(session, index + 1),
+        );
+
+      if (moduleSessions.length) {
+        return sortByModuleOrder(moduleSessions);
+      }
+    }
+
+    const linkedSessions = sessions.filter(hasSessionTemplateLinkage);
+    return linkedSessions.length ? sortByModuleOrder(linkedSessions) : sessions;
+  }, [
+    classDetail?.currentModuleName,
+    classDetail?.startModuleName,
+    classDetail?.syllabusCode,
+    classDetail?.syllabusId,
+    classDetail?.syllabusTitle,
+    classDetail?.syllabusVersion,
+    classDetail?.totalSessions,
+    classSyllabus?.sessions,
+    planModuleTemplates,
+    planModuleSessionOrders,
+    planTargetModuleId,
+    planTargetModuleProgress,
+    planTargetSyllabusId,
+  ]);
+
   const filteredSessions = useMemo(() => {
     const keyword = searchQuery.trim().toLowerCase();
-    const sessions = classSyllabus?.sessions || [];
+    const sessions = planBaseSessions;
 
     return sessions.filter((item) => {
       if (planStatusFilter === "editable" && !item.canEdit) {
@@ -2194,13 +2487,27 @@ export function LessonPlanWorkspace({
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(keyword));
     });
-  }, [classSyllabus, planStatusFilter, searchQuery, sharedProgramTemplate?.id]);
+  }, [planBaseSessions, planStatusFilter, searchQuery, sharedProgramTemplate?.id]);
+
+  useEffect(() => {
+    if (!sessionDetailId) return;
+    if (filteredSessions.some((session) => session.sessionId === sessionDetailId)) {
+      return;
+    }
+    setSessionDetailId(null);
+  }, [filteredSessions, sessionDetailId]);
 
   const stats = useMemo(() => {
     return activeTab === "templates" && templatesAvailable
       ? getTemplateStats(templateStatsSource)
-      : getPlanStats(classSyllabus);
-  }, [activeTab, classSyllabus, templateStatsSource, templatesAvailable]);
+      : getPlanStats(classSyllabus, planBaseSessions);
+  }, [
+    activeTab,
+    classSyllabus,
+    planBaseSessions,
+    templateStatsSource,
+    templatesAvailable,
+  ]);
 
   const openAttachment = (url?: string | null) => {
     const resolvedUrl = resolveAttachmentUrl(url);
@@ -2263,199 +2570,6 @@ export function LessonPlanWorkspace({
     return mergeTeachingLogIntoPlan(plan, teachingLog);
   };
 
-  const enrichClassSyllabusWithTeachingLogs = async (syllabus: ClassLessonPlanSyllabus) => {
-    const candidates = syllabus.sessions.filter(
-      (session) => session.sessionId && !session.actualContent,
-    );
-
-    if (!candidates.length) return;
-
-    const results = await Promise.allSettled(
-      candidates.map(async (session) => {
-        const teachingLog = await getTeachingLogOrNull(session.sessionId);
-        if (!teachingLog?.actualContent && !teachingLog?.actualHomework && !teachingLog?.teacherNote) {
-          return null;
-        }
-
-        return {
-          sessionId: session.sessionId,
-          actualContent: teachingLog.actualContent ?? null,
-          actualHomework: teachingLog.actualHomework ?? null,
-          teacherNotes: teachingLog.teacherNote ?? null,
-        };
-      }),
-    );
-
-    const teachingLogBySessionId = new Map(
-      results
-        .filter(
-          (result): result is PromiseFulfilledResult<{ sessionId: string; actualContent: string | null; actualHomework: string | null; teacherNotes: string | null } | null> =>
-            result.status === "fulfilled" && Boolean(result.value?.sessionId),
-        )
-        .map((result) => [result.value!.sessionId, result.value!]),
-    );
-
-    if (!teachingLogBySessionId.size) return;
-
-    setClassSyllabus((prev) => {
-      if (!prev || prev.classId !== syllabus.classId) return prev;
-
-      return {
-        ...prev,
-        sessions: prev.sessions.map((session) => {
-          const teachingLog = teachingLogBySessionId.get(session.sessionId);
-          if (!teachingLog) return session;
-
-          return {
-            ...session,
-            actualContent: session.actualContent ?? teachingLog.actualContent ?? null,
-            actualHomework: session.actualHomework ?? teachingLog.actualHomework ?? null,
-            teacherNotes: session.teacherNotes ?? teachingLog.teacherNotes ?? null,
-          };
-        }),
-      };
-    });
-  };
-
-  const enrichClassSyllabusWithRuntimeSessionData = async (
-    syllabus: ClassLessonPlanSyllabus,
-  ) => {
-    const candidates = syllabus.sessions.filter(
-      (session) => session.sessionId && needsRuntimeSessionHydration(session),
-    );
-
-    if (!candidates.length) return;
-
-    const results = await Promise.allSettled(
-      candidates.map(async (session) => {
-        const [sessionResponse, documentResponse] = await Promise.allSettled([
-          getSessionById(session.sessionId),
-          getSessionLessonPlanDocument(session.sessionId),
-        ]);
-
-        const runtimeSession =
-          sessionResponse.status === "fulfilled" &&
-          sessionResponse.value.isSuccess
-            ? sessionResponse.value.data?.session ?? null
-            : null;
-
-        const runtimeDocument =
-          documentResponse.status === "fulfilled" &&
-          documentResponse.value.isSuccess
-            ? documentResponse.value.data ?? null
-            : null;
-
-        const runtimeTemplateId =
-          session.templateId ??
-          runtimeDocument?.document?.id ??
-          runtimeDocument?.lessonPlanTemplateId ??
-          runtimeDocument?.plannedLessonPlanTemplateId ??
-          runtimeDocument?.actualLessonPlanTemplateId ??
-          runtimeSession?.lessonPlanTemplateId ??
-          (runtimeSession as any)?.plannedLessonPlanTemplateId ??
-          runtimeSession?.actualLessonPlanTemplateId ??
-          null;
-
-        const runtimeTemplateTitle =
-          session.templateTitle ??
-          runtimeDocument?.document?.title ??
-          runtimeDocument?.plannedLessonTitle ??
-          runtimeDocument?.actualLessonTitle ??
-          runtimeSession?.plannedLessonTitle ??
-          runtimeSession?.actualLessonTitle ??
-          null;
-
-        const runtimeSyllabusContent =
-          session.templateSyllabusContent ??
-          runtimeDocument?.document?.syllabusContent ??
-          null;
-
-        const runtimeLessonPlanId =
-          session.lessonPlanId ??
-          (runtimeSession as any)?.lessonPlanId ??
-          null;
-
-        if (
-          !runtimeLessonPlanId &&
-          !runtimeSession?.moduleId &&
-          runtimeSession?.sessionIndexInModule == null &&
-          !runtimeTemplateId &&
-          !runtimeTemplateTitle &&
-          !runtimeSyllabusContent
-        ) {
-          return null;
-        }
-
-        return {
-          sessionId: session.sessionId,
-          lessonPlanId: runtimeLessonPlanId,
-          moduleId: session.moduleId ?? runtimeSession?.moduleId ?? runtimeDocument?.moduleId ?? null,
-          moduleName:
-            session.moduleName ??
-            (runtimeSession as any)?.moduleName ??
-            runtimeDocument?.moduleName ??
-            null,
-          sessionIndexInModule:
-            session.sessionIndexInModule ??
-            runtimeSession?.sessionIndexInModule ??
-            runtimeDocument?.sessionIndexInModule ??
-            null,
-          templateId: runtimeTemplateId,
-          templateTitle: runtimeTemplateTitle,
-          templateSyllabusContent: runtimeSyllabusContent,
-        };
-      }),
-    );
-
-    const runtimeBySessionId = new Map(
-      results
-        .filter(
-          (
-            result,
-          ): result is PromiseFulfilledResult<{
-            sessionId: string;
-            lessonPlanId: string | null;
-            moduleId: string | null;
-            moduleName: string | null;
-            sessionIndexInModule: number | null;
-            templateId: string | null;
-            templateTitle: string | null;
-            templateSyllabusContent: string | null;
-          } | null> => result.status === "fulfilled" && Boolean(result.value?.sessionId),
-        )
-        .map((result) => [result.value!.sessionId, result.value!]),
-    );
-
-    if (!runtimeBySessionId.size) return;
-
-    setClassSyllabus((prev) => {
-      if (!prev || prev.classId !== syllabus.classId) return prev;
-
-      return {
-        ...prev,
-        sessions: prev.sessions.map((session) => {
-          const runtime = runtimeBySessionId.get(session.sessionId);
-          if (!runtime) return session;
-
-          return {
-            ...session,
-            lessonPlanId: session.lessonPlanId ?? runtime.lessonPlanId ?? null,
-            moduleId: session.moduleId ?? runtime.moduleId ?? null,
-            moduleName: session.moduleName ?? runtime.moduleName ?? null,
-            sessionIndexInModule:
-              session.sessionIndexInModule ?? runtime.sessionIndexInModule ?? null,
-            templateId: session.templateId ?? runtime.templateId ?? null,
-            templateTitle: session.templateTitle ?? runtime.templateTitle ?? null,
-            templateSyllabusContent:
-              session.templateSyllabusContent ??
-              runtime.templateSyllabusContent ??
-              null,
-          };
-        }),
-      };
-    });
-  };
-
   const openPlanDetail = async (lessonPlanId: string) => {
     setDetailState({ type: "plan", loading: true, item: null });
 
@@ -2485,8 +2599,64 @@ export function LessonPlanWorkspace({
           session.plannedContent || session.templateSyllabusContent || null,
       });
 
+      const localTemplate =
+        (session.templateId ? templateMap.get(session.templateId) : null) ??
+        pickSessionFallbackTemplate(Array.from(templateMap.values()), session) ??
+        null;
+
+      if (localTemplate) {
+        const sessionOrder =
+          session.sessionIndexInModule ??
+          getTemplateModuleSessionOrder(localTemplate) ??
+          session.sessionIndex;
+
+        setDetailState({
+          type: "session-document",
+          loading: false,
+          item: {
+            sessionId: session.sessionId,
+            classId: classSyllabus?.classId ?? null,
+            syllabusId: session.syllabusId ?? localTemplate.syllabusId ?? null,
+            moduleId: session.moduleId ?? localTemplate.moduleId ?? null,
+            moduleName: session.moduleName ?? localTemplate.moduleName ?? null,
+            sessionIndexInModule: sessionOrder,
+            lessonPlanTemplateId: localTemplate.id,
+            plannedLessonPlanTemplateId: localTemplate.id,
+            actualLessonPlanTemplateId: null,
+            plannedLessonTitle: session.templateTitle ?? localTemplate.title,
+            actualLessonTitle: null,
+            teachingLogId: null,
+            teachingLogStatus: null,
+            teachingProgressStatus: null,
+            actualTeachingType: null,
+            document: localTemplate,
+          },
+          fallbackTemplate: localTemplate,
+          fallbackContent:
+            session.plannedContent ||
+            session.templateSyllabusContent ||
+            localTemplate.syllabusContent ||
+            null,
+        });
+        return;
+      }
+
       let fallbackTemplate: LessonPlanTemplate | null = null;
       let dedicatedDocument: SessionLessonPlanDocument | null = null;
+
+      const canLoadDedicatedDocument = Boolean(session.templateId);
+
+      if (!canLoadDedicatedDocument) {
+        setDetailState({
+          type: "session-document",
+          loading: false,
+          item: null,
+          fallbackTemplate: null,
+          fallbackContent:
+            session.plannedContent || session.templateSyllabusContent || null,
+        });
+        return;
+      }
 
       const documentResponse = await getSessionLessonPlanDocument(
         session.sessionId,
@@ -2537,7 +2707,7 @@ export function LessonPlanWorkspace({
           session.plannedContent || session.templateSyllabusContent || null,
       });
     },
-    [templateMap],
+    [classSyllabus?.classId, templateMap],
   );
 
   useEffect(() => {
@@ -3106,6 +3276,7 @@ export function LessonPlanWorkspace({
         classOptions={classOptions}
         templates={templates}
         classSyllabus={classSyllabus}
+        planSessions={planBaseSessions}
       />
 
       {activeTab === "plans" && classSyllabus ? (
@@ -3149,7 +3320,10 @@ export function LessonPlanWorkspace({
           {/* Syllabus metadata tags */}
           <div className="mt-4 flex flex-wrap gap-2">
             {(() => {
-              const items = getSyllabusSummaryItems(classSyllabus);
+              const items = getSyllabusSummaryItems(
+                classSyllabus,
+                planBaseSessions,
+              );
               
               const getBadgeStyle = (label: string) => {
                 const labelLower = label.toLowerCase();
@@ -3212,6 +3386,7 @@ export function LessonPlanWorkspace({
                   const hasPlan = Boolean(session.lessonPlanId);
                   const hasReport = Boolean(session.actualContent);
                   const isActive = sessionDetailId === session.sessionId;
+                  const displaySessionIndex = getModuleSessionDisplayIndex(session);
 
                   let buttonClasses =
                     "relative flex h-10 items-center justify-center rounded-lg font-bold text-sm transition-all duration-200 cursor-pointer shadow-md ";
@@ -3236,9 +3411,9 @@ export function LessonPlanWorkspace({
                       type="button"
                       onClick={() => setSessionDetailId(session.sessionId)}
                       className={buttonClasses}
-                      title={`Buổi ${session.sessionIndex}${hasPlan ? " - Có giáo án" : ""}${hasReport ? " - Đã báo cáo" : ""}`}
+                      title={`Buổi ${displaySessionIndex}${hasPlan ? " - Có giáo án" : ""}${hasReport ? " - Đã báo cáo" : ""}`}
                     >
-                      <span>{session.sessionIndex}</span>
+                      <span>{displaySessionIndex}</span>
                       {hasReport && !isActive && (
                         <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-yellow-300 ring-1 ring-white shadow-sm" />
                       )}
@@ -3377,6 +3552,7 @@ function FilterBar({
   activeTab,
   templates,
   classSyllabus,
+  planSessions,
 }: {
   templatesAvailable: boolean;
   searchQuery: string;
@@ -3400,6 +3576,7 @@ function FilterBar({
   activeTab: ActiveTab;
   templates: LessonPlanTemplate[];
   classSyllabus: ClassLessonPlanSyllabus | null;
+  planSessions?: ClassLessonPlanSyllabusSession[];
 }) {
   return (
     <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4">
@@ -3497,7 +3674,7 @@ function FilterBar({
               };
 
               const getPlanCount = (filterStatus: typeof status) => {
-                const sessions = classSyllabus?.sessions || [];
+                const sessions = planSessions ?? classSyllabus?.sessions ?? [];
                 return sessions.filter((item) => {
                   if (filterStatus === "editable" && !item.canEdit) {
                     return false;
@@ -4466,6 +4643,10 @@ function TemplateTable({
 
   // Delete / Import-Word state
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<LessonPlanTemplate | null>(
+    null,
+  );
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [importTarget, setImportTarget] = useState<{
     unitKey: string;
     moduleKey: string;
@@ -4477,19 +4658,43 @@ function TemplateTable({
     null,
   );
 
-  async function handleDeleteLesson(item: LessonPlanTemplate) {
-    setDeletingId(item.id);
-    const res = await deleteLessonPlanTemplate(item.id);
-    setDeletingId(null);
-    if (res.isSuccess) {
-      toast({ title: "Đã xóa", description: item.title });
-      onRefresh();
-    } else {
+  function handleDeleteLesson(item: LessonPlanTemplate) {
+    setDeleteTarget(item);
+    setDeleteConfirmText("");
+  }
+
+  async function confirmHardDeleteLesson() {
+    if (!deleteTarget) return;
+    if (deleteConfirmText.trim().toUpperCase() !== "XOA") {
       toast({
         variant: "destructive",
-        title: "Xóa thất bại",
-        description: res.message ?? "Không thể xóa lesson.",
+        title: "Chưa xác nhận xóa",
+        description: 'Vui lòng nhập "XOA" để xác nhận xóa vĩnh viễn.',
       });
+      return;
+    }
+
+    setDeletingId(deleteTarget.id);
+    try {
+      const result = await hardDeleteLessonPlanTemplate(deleteTarget.id);
+      toast({
+        title: "Đã xóa vĩnh viễn",
+        description: `Đã xóa ${result.deletedLessonPlanCount ?? 0} lesson plan liên quan.`,
+      });
+      setDeleteTarget(null);
+      setDeleteConfirmText("");
+      onRefresh();
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Xóa vĩnh viễn thất bại",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Không thể xóa lesson plan template.",
+      });
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -4712,6 +4917,42 @@ function TemplateTable({
     totalItems: number;
   };
 
+  const getUnitFirstSessionIndex = useCallback((unit: UnitGroup) => {
+    const sessionIndexes = unit.items
+      .map((item) => item.sessionIndex)
+      .filter((value): value is number => typeof value === "number");
+
+    return sessionIndexes.length
+      ? Math.min(...sessionIndexes)
+      : Number.MAX_SAFE_INTEGER;
+  }, []);
+
+  const getUnitNumberFromText = useCallback((...values: Array<unknown>) => {
+    for (const value of values) {
+      const text = String(value ?? "").trim();
+      if (!text) continue;
+      if (/^\d+$/.test(text)) return Number(text);
+      const match = text.match(/\bunit\s*0*(\d+)\b/i);
+      if (match) return Number(match[1]);
+    }
+    return Number.MAX_SAFE_INTEGER;
+  }, []);
+
+  const getUnitNaturalNumber = useCallback(
+    (unit: UnitGroup) =>
+      getUnitNumberFromText(
+        unit.displayName,
+        ...unit.items.flatMap((item) => [
+          item.unitNumber,
+          item.unitTitle,
+          item.lessonPlanUnitName,
+          item.title,
+          item.sourceFileName,
+        ]),
+      ),
+    [getUnitNumberFromText],
+  );
+
   const levelGroups = useMemo<LevelGroup[]>(() => {
     const sorted = [...items].sort((a, b) => {
       const aModOrd = a.moduleOrderIndex ?? Number.MAX_SAFE_INTEGER;
@@ -4792,10 +5033,22 @@ function TemplateTable({
         return aKey.localeCompare(bKey);
       });
     }
-    // Sort unit groups within each module by real BE orderIndex
+    // Sort unit groups by lesson flow first; fallback to persisted BE order.
     for (const level of levelMap.values()) {
       for (const mod of level.modules) {
         mod.units.sort((a, b) => {
+          const aFirstSession = getUnitFirstSessionIndex(a);
+          const bFirstSession = getUnitFirstSessionIndex(b);
+          if (aFirstSession !== bFirstSession) {
+            return aFirstSession - bFirstSession;
+          }
+
+          const aNaturalUnitNumber = getUnitNaturalNumber(a);
+          const bNaturalUnitNumber = getUnitNaturalNumber(b);
+          if (aNaturalUnitNumber !== bNaturalUnitNumber) {
+            return aNaturalUnitNumber - bNaturalUnitNumber;
+          }
+
           const aOrder =
             a.items.find((item) => typeof item.unitOrderIndex === "number")
               ?.unitOrderIndex ?? Number.MAX_SAFE_INTEGER;
@@ -4825,7 +5078,7 @@ function TemplateTable({
       }
     }
     return Array.from(levelMap.values());
-  }, [items, moduleUnitsMap]);
+  }, [getUnitFirstSessionIndex, getUnitNaturalNumber, items, moduleUnitsMap]);
 
   if (!items.length) {
     return (
@@ -5500,6 +5753,104 @@ function TemplateTable({
           })}
         </div>
       </div>
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-xl overflow-hidden rounded-3xl bg-white shadow-2xl">
+            <div className="bg-red-600 px-6 py-5 text-white">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15">
+                    <AlertTriangle size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold">
+                      Xóa vĩnh viễn lesson plan template
+                    </h3>
+                    <p className="text-sm text-red-50">
+                      Thao tác này không thể hoàn tác.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (deletingId) return;
+                    setDeleteTarget(null);
+                    setDeleteConfirmText("");
+                  }}
+                  className="rounded-full p-2 text-white/80 transition hover:bg-white/10 hover:text-white"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-5 p-6">
+              <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                Backend sẽ xóa template này và xóa luôn các lesson plan thực tế
+                đang reference template đó.
+              </div>
+
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                <p className="font-semibold text-gray-900">
+                  {getTemplateDisplayTitle(deleteTarget)}
+                </p>
+                <p className="mt-1 text-sm text-gray-500">
+                  {getTemplateDisplaySubtitle(deleteTarget)}
+                </p>
+              </div>
+
+              <label className="block space-y-2">
+                <span className="text-sm font-semibold text-gray-700">
+                  Nhập <span className="font-bold text-red-600">XOA</span> để
+                  xác nhận
+                </span>
+                <input
+                  value={deleteConfirmText}
+                  onChange={(event) =>
+                    setDeleteConfirmText(event.target.value)
+                  }
+                  placeholder="XOA"
+                  className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold uppercase outline-none transition focus:border-red-400 focus:ring-4 focus:ring-red-100"
+                  autoFocus
+                />
+              </label>
+
+              <div className="flex flex-col-reverse gap-3 border-t border-gray-100 pt-5 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (deletingId) return;
+                    setDeleteTarget(null);
+                    setDeleteConfirmText("");
+                  }}
+                  className="rounded-2xl border border-gray-200 px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                  disabled={Boolean(deletingId)}
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmHardDeleteLesson}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-red-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-red-100 transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={
+                    Boolean(deletingId) ||
+                    deleteConfirmText.trim().toUpperCase() !== "XOA"
+                  }
+                >
+                  {deletingId === deleteTarget.id ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Trash2 size={16} />
+                  )}
+                  Xóa vĩnh viễn
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -5551,9 +5902,9 @@ function SyllabusView({
   const selectedSession = selectedSessionId
     ? items.find((s) => s.sessionId === selectedSessionId)
     : null;
-  const linkedSessionIndices = syllabus.sessions
+  const linkedSessionIndices = items
     .filter((session) => hasSessionTemplateLinkage(session))
-    .map((session) => session.sessionIndex)
+    .map(getModuleSessionDisplayIndex)
     .filter((index): index is number => Number.isFinite(index));
   const lastLinkedSessionIndex = linkedSessionIndices.length
     ? Math.max(...linkedSessionIndices)
@@ -5676,9 +6027,12 @@ function SessionDetailCard({
     !hasTemplate &&
     !canDisplayPlannedContent &&
     !hasTemplateLinkage;
+  const displaySessionIndex = getModuleSessionDisplayIndex(session);
+  const [contentModal, setContentModal] =
+    useState<SessionContentModalKind | null>(null);
   const linkageCoverageMessage =
     lastLinkedSessionIndex && lastLinkedSessionIndex > 0
-      ? `Dữ liệu lớp hiện mới có curriculum/lesson-plan linkage tới buổi ${lastLinkedSessionIndex}, nên buổi ${session.sessionIndex} chưa resolve được nội dung.`
+      ? `Dữ liệu lớp hiện mới có curriculum/lesson-plan linkage tới buổi ${lastLinkedSessionIndex}, nên buổi ${displaySessionIndex} chưa resolve được nội dung.`
       : "Backend chưa trả curriculum/lesson-plan linkage cho buổi này.";
 
   return (
@@ -5700,14 +6054,14 @@ function SessionDetailCard({
             {/* Session Number Badge */}
             <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-red-500 to-red-600 shadow-lg ring-2 ring-red-500/20">
               <span className="text-xl font-bold text-white">
-                {session.sessionIndex}
+                {displaySessionIndex}
               </span>
             </div>
 
             {/* Session Title & Date */}
             <div className="pt-1">
               <h4 className="text-2xl font-bold text-gray-900">
-                Buổi {session.sessionIndex}
+                Buổi {displaySessionIndex}
               </h4>
               {normalizeDateValue(session.sessionDate) && (
                 <p className="mt-1 text-sm font-medium text-gray-500 flex items-center gap-1.5">
@@ -5853,8 +6207,59 @@ function SessionDetailCard({
         </div>
       </div>
 
-      {/* Content Grid */}
       <div className="p-7">
+        <div className="grid gap-4 md:grid-cols-3">
+          <button
+            type="button"
+            onClick={() => setContentModal("syllabus")}
+            className="group rounded-2xl border border-purple-200 bg-gradient-to-br from-purple-50 to-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-purple-300 hover:shadow-md"
+          >
+            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-purple-100 text-purple-700 transition group-hover:scale-105">
+              <BookOpenCheck size={20} />
+            </div>
+            <div className="text-base font-bold text-gray-900">
+              Syllabus chuẩn
+            </div>
+            <div className="mt-1 text-sm text-gray-500">
+              Xem khung syllabus của buổi học.
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setContentModal("planned")}
+            className="group rounded-2xl border border-red-200 bg-gradient-to-br from-red-50 to-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-red-300 hover:shadow-md"
+          >
+            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-red-100 text-red-700 transition group-hover:scale-105">
+              <FileText size={20} />
+            </div>
+            <div className="text-base font-bold text-gray-900">
+              Giáo án dự kiến
+            </div>
+            <div className="mt-1 text-sm text-gray-500">
+              Xem nội dung giáo án sẽ dùng cho buổi này.
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setContentModal("actual")}
+            className="group rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md"
+          >
+            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 transition group-hover:scale-105">
+              <ClipboardPen size={20} />
+            </div>
+            <div className="text-base font-bold text-gray-900">
+              Nội dung thực tế
+            </div>
+            <div className="mt-1 text-sm text-gray-500">
+              Xem báo cáo nội dung đã dạy thực tế.
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <div className="hidden">
         <div className="grid gap-5 lg:grid-cols-2">
           {(session.templateTitle ||
             resolvedTemplate?.title ||
@@ -6697,7 +7102,166 @@ function SessionDetailCard({
           )}
         </div>
       </div>
+      {contentModal ? (
+        <SessionContentModal
+          kind={contentModal}
+          session={session}
+          resolvedTemplate={resolvedTemplate}
+          templateSubtitle={templateSubtitle}
+          plannedContentDisplay={plannedContentDisplay}
+          plannedContentSubtitle={plannedContentSubtitle}
+          hasReport={hasReport}
+          onClose={() => setContentModal(null)}
+        />
+      ) : null}
     </div>
+  );
+}
+
+function SessionContentModal({
+  kind,
+  session,
+  resolvedTemplate,
+  templateSubtitle,
+  plannedContentDisplay,
+  plannedContentSubtitle,
+  hasReport,
+  onClose,
+}: {
+  kind: SessionContentModalKind;
+  session: ClassLessonPlanSyllabusSession;
+  resolvedTemplate?: LessonPlanTemplate;
+  templateSubtitle?: string;
+  plannedContentDisplay?: string | null;
+  plannedContentSubtitle?: string;
+  hasReport: boolean;
+  onClose: () => void;
+}) {
+  const displaySessionIndex = getModuleSessionDisplayIndex(session);
+  const modalConfig: Record<
+    SessionContentModalKind,
+    { title: string; subtitle: string; icon: LucideIcon }
+  > = {
+    syllabus: {
+      title: "Syllabus chuẩn",
+      subtitle: `Buổi ${displaySessionIndex} • ${templateSubtitle || "Khung syllabus chuẩn"}`,
+      icon: BookOpenCheck,
+    },
+    planned: {
+      title: "Giáo án dự kiến",
+      subtitle: `Buổi ${displaySessionIndex} • ${plannedContentSubtitle || "Nội dung dự kiến"}`,
+      icon: FileText,
+    },
+    actual: {
+      title: "Nội dung thực tế",
+      subtitle: hasReport
+        ? `Buổi ${displaySessionIndex} • Đã báo cáo`
+        : `Buổi ${displaySessionIndex} • Chưa có báo cáo`,
+      icon: ClipboardPen,
+    },
+  };
+  const config = modalConfig[kind];
+  const syllabusTemplateForDisplay = resolvedTemplate
+    ? {
+        ...resolvedTemplate,
+        syllabusContent:
+          resolvedTemplate.syllabusContent ??
+          session.templateSyllabusContent ??
+          null,
+      }
+    : null;
+  const plannedTemplateForDisplay = plannedContentDisplay?.trim()
+    ? {
+        ...(resolvedTemplate ?? {}),
+        id: resolvedTemplate?.id ?? session.templateId ?? session.sessionId,
+        title:
+          session.templateTitle ??
+          resolvedTemplate?.title ??
+          `Buổi ${displaySessionIndex}`,
+        sessionIndex:
+          resolvedTemplate?.sessionIndex ??
+          session.sessionIndexInModule ??
+          session.sessionIndex ??
+          displaySessionIndex,
+        syllabusId: resolvedTemplate?.syllabusId ?? session.syllabusId ?? null,
+        syllabusCode: resolvedTemplate?.syllabusCode ?? session.syllabusCode ?? null,
+        syllabusVersion:
+          resolvedTemplate?.syllabusVersion ?? session.syllabusVersion ?? null,
+        syllabusTitle:
+          resolvedTemplate?.syllabusTitle ?? session.syllabusTitle ?? null,
+        moduleId: resolvedTemplate?.moduleId ?? session.moduleId ?? null,
+        moduleCode: resolvedTemplate?.moduleCode ?? session.moduleCode ?? null,
+        moduleName: resolvedTemplate?.moduleName ?? session.moduleName ?? null,
+        syllabusContent: plannedContentDisplay,
+      }
+    : resolvedTemplate && hasStructuredTemplateContent(resolvedTemplate)
+      ? resolvedTemplate
+      : null;
+
+  return (
+    <ModalFrame
+      title={config.title}
+      subtitle={config.subtitle}
+      icon={config.icon}
+      onClose={onClose}
+      widthClass="max-w-6xl"
+    >
+      <div className="max-h-[78vh] overflow-y-auto bg-gray-50 p-5">
+        {kind === "syllabus" ? (
+          syllabusTemplateForDisplay ? (
+            <LessonPlanTemplateDocument template={syllabusTemplateForDisplay} />
+          ) : (
+            <ContentPanel
+              title="Syllabus chuẩn"
+              value={session.templateSyllabusContent}
+              accent="text-purple-700"
+            />
+          )
+        ) : null}
+
+        {kind === "planned" ? (
+          plannedTemplateForDisplay ? (
+            <LessonPlanTemplateDocument template={plannedTemplateForDisplay} />
+          ) : (
+          <ContentPanel
+            title="Giáo án dự kiến"
+            subtitle={plannedContentSubtitle}
+            value={plannedContentDisplay}
+            accent="text-red-700"
+          />
+          )
+        ) : null}
+
+        {kind === "actual" ? (
+          <div className="space-y-4">
+            <ContentPanel
+              title={hasReport ? "Báo cáo buổi dạy" : "Nội dung thực tế"}
+              subtitle={
+                hasReport && session.actualTeacherName
+                  ? `Giáo viên: ${session.actualTeacherName}`
+                  : "Nội dung đã dạy thực tế"
+              }
+              value={session.actualContent}
+              accent={hasReport ? "text-emerald-700" : "text-gray-700"}
+            />
+            {session.actualHomework ? (
+              <ContentPanel
+                title="Bài tập về nhà"
+                value={session.actualHomework}
+                accent="text-amber-700"
+              />
+            ) : null}
+            {session.teacherNotes ? (
+              <ContentPanel
+                title="Ghi chú giáo viên"
+                value={session.teacherNotes}
+                accent="text-amber-700"
+              />
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    </ModalFrame>
   );
 }
 
@@ -8069,6 +8633,12 @@ function PlanFormModal({
   const resolvedTemplateId =
     initialValue?.templateId || session.templateId || sharedTemplate?.id || "";
   const initialPlannedContent = (() => {
+    if (!isTeacher) {
+      const savedContent = initialValue?.plannedContent || session.plannedContent || "";
+      return parseStarterActivities(savedContent)
+        ? prettifyJsonText(savedContent)
+        : "";
+    }
     if (initialValue?.plannedContent)
       return prettifyJsonText(initialValue.plannedContent);
     if (session.plannedContent) return prettifyJsonText(session.plannedContent);
@@ -8083,7 +8653,7 @@ function PlanFormModal({
   const [templateId, setTemplateId] = useState(resolvedTemplateId);
   const [plannedContent, setPlannedContent] = useState(initialPlannedContent);
   const [showPlannedJsonEditor, setShowPlannedJsonEditor] = useState(
-    () => !isTrivialPlannedContent(initialPlannedContent),
+    () => !isTeacher && Boolean(parseStarterActivities(initialPlannedContent)),
   );
   const [actualContent, setActualContent] = useState(
     initialValue?.actualContent || session.actualContent || "",
@@ -8340,7 +8910,7 @@ function PlanFormModal({
 
   const buildStructuredPlannedContent = (): string | null => {
     if (!plannerStarter) {
-      return plannedContent.trim() || null;
+      return null;
     }
 
     const cleanedActivities = plannerActivities
@@ -8424,8 +8994,8 @@ function PlanFormModal({
             ? "Cập nhật giáo án"
             : "Điền giáo án buổi dạy"
           : isEdit
-            ? "Cập nhật giáo án"
-            : "Tạo giáo án"
+            ? "Cập nhật giáo án buổi học"
+            : "Soạn giáo án cho buổi học"
       }
       subtitle={subtitle}
       icon={isTeacher ? ClipboardPen : FilePlus2}
@@ -8437,24 +9007,41 @@ function PlanFormModal({
       <div className="flex flex-col max-h-[80vh]">
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto space-y-5 p-6">
           <div className="grid gap-4 md:grid-cols-2">
-          <InfoCard
-            icon={Users}
-            label="Lớp học"
-            value={
-              classSyllabus?.classTitle ||
-              classSyllabus?.classCode ||
-              classSyllabus?.classId ||
-              "-"
-            }
-          />
-          <InfoCard
-            icon={CalendarDays}
-            label="Buổi học"
-            value={getSessionDisplay(session)}
-          />
-        </div>
+            <InfoCard
+              icon={Users}
+              label="Lớp học"
+              value={
+                classSyllabus?.classTitle ||
+                classSyllabus?.classCode ||
+                classSyllabus?.classId ||
+                "-"
+              }
+            />
+            <InfoCard
+              icon={CalendarDays}
+              label="Buổi học"
+              value={getSessionDisplay(session)}
+            />
+          </div>
 
-        {isTeacher ? (
+          {!isTeacher ? (
+            <div className="rounded-xl border border-red-100 bg-red-50/60 px-4 py-3">
+              <div className="flex items-start gap-3">
+                <BookOpenCheck size={18} className="mt-0.5 flex-shrink-0 text-red-600" />
+                <div>
+                  <div className="text-sm font-semibold text-gray-900">
+                    Chuẩn bị nội dung giảng dạy cho riêng buổi này
+                  </div>
+                  <p className="mt-1 text-sm leading-6 text-gray-600">
+                    Chọn mẫu giáo án, bổ sung nội dung dạy, bài tập và ghi chú nội bộ.
+                    Sau khi lưu, giáo án này sẽ gắn với buổi học để giáo viên sử dụng.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {isTeacher ? (
           <>
             {hasStructuredStarter ? (
               /* ── Structured activity editor: show full content, only classwork/requiredMaterials/homeworkRequiredMaterials editable ── */
@@ -8838,17 +9425,17 @@ function PlanFormModal({
           </>
         ) : (
           <>
-            <Field label="Template áp dụng cho buổi này (khuyến nghị chọn)">
+            <Field label="Mẫu giáo án">
               <Select value={templateId} onValueChange={setTemplateId}>
                 <SelectTrigger className="w-full rounded-xl">
-                  <SelectValue placeholder="Không chọn: hệ thống tự tìm theo Program + Buổi học" />
+                  <SelectValue placeholder="Để trống nếu muốn hệ thống tự chọn mẫu phù hợp" />
                 </SelectTrigger>
                 <SelectContent>
                   {templateOptions.map((item) => (
                     <SelectItem key={item.id} value={item.id}>
                       {item.title} • Level {item.level} •{" "}
                       {item.sessionIndex === 1
-                        ? "Template chung"
+                        ? "Mẫu chung"
                         : `Buổi ${item.sessionIndex}`}
                     </SelectItem>
                   ))}
@@ -8860,7 +9447,7 @@ function PlanFormModal({
               <div className="space-y-4 rounded-2xl border border-blue-200 bg-blue-50/40 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="text-sm font-semibold text-blue-700">
-                    Sửa trực tiếp trên bảng syllabus
+                    Nội dung giáo án lấy từ mẫu
                   </div>
                   <button
                     type="button"
@@ -9078,30 +9665,60 @@ function PlanFormModal({
                   </Field>
                 </div>
               </div>
-            ) : (
-              <div className="space-y-2 rounded-2xl border border-gray-200 bg-gray-50/70 p-4">
-                <div className="text-sm font-semibold text-gray-800">
-                  Tùy chọn nâng cao (JSON)
-                </div>
-                <p className="text-xs text-gray-500">
-                  Phần này chỉ dùng khi bạn muốn ghi đè cấu trúc kế hoạch riêng
-                  cho buổi này. Nếu không chắc, hãy để hệ thống tự lấy từ
-                  template.
-                </p>
+            ) : null}
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label="Nội dung dạy cho buổi này">
+                <textarea
+                  value={actualContent}
+                  onChange={(event) => setActualContent(event.target.value)}
+                  rows={5}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+                  placeholder="Ví dụ: Dạy Unit 4, luyện speaking theo cặp, chữa bài workbook... Có thể để trống nếu dùng nguyên mẫu."
+                />
+              </Field>
+              <Field label="Bài tập giao về nhà">
+                <textarea
+                  value={actualHomework}
+                  onChange={(event) => setActualHomework(event.target.value)}
+                  rows={5}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+                  placeholder="Ví dụ: Workbook trang 12-13, học từ vựng Unit 4..."
+                />
+              </Field>
+            </div>
+
+            <Field label="Ghi chú cho nội bộ trung tâm">
+              <textarea
+                value={teacherNotes}
+                onChange={(event) => setTeacherNotes(event.target.value)}
+                rows={4}
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+                placeholder="Ví dụ: Lớp thiếu 2 bạn, cần gửi bổ sung tài liệu qua nhóm..."
+              />
+            </Field>
+
+            {!hasStructuredPlanner ? (
+              <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-3">
                 <button
                   type="button"
                   onClick={() =>
                     setShowPlannedJsonEditor((current) => !current)
                   }
-                  className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-100"
+                  className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-100"
                 >
+                  <Settings2 size={13} />
                   {showPlannedJsonEditor
-                    ? "Ẩn chỉnh sửa JSON"
-                    : "Hiện chỉnh sửa JSON"}
+                    ? "Ẩn cấu trúc giáo án nâng cao"
+                    : "Cấu trúc giáo án nâng cao"}
                 </button>
 
                 {showPlannedJsonEditor ? (
-                  <>
+                  <div className="mt-3 space-y-3">
+                    <p className="text-xs leading-5 text-gray-500">
+                      Chỉ dùng khi cần ghi đè cấu trúc giáo án bằng JSON. Nếu không
+                      chắc, hãy để trống để hệ thống dùng mẫu đã chọn.
+                    </p>
                     <textarea
                       value={plannedContent}
                       onChange={(event) =>
@@ -9122,41 +9739,10 @@ function PlanFormModal({
                         </button>
                       </div>
                     ) : null}
-                  </>
+                  </div>
                 ) : null}
               </div>
-            )}
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Nội dung dạy thực tế (không bắt buộc)">
-                <textarea
-                  value={actualContent}
-                  onChange={(event) => setActualContent(event.target.value)}
-                  rows={5}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-                  placeholder="Ví dụ: Dạy Unit 4, luyện speaking theo cặp, chữa bài workbook..."
-                />
-              </Field>
-              <Field label="Bài tập về nhà (không bắt buộc)">
-                <textarea
-                  value={actualHomework}
-                  onChange={(event) => setActualHomework(event.target.value)}
-                  rows={5}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-                  placeholder="Bài tập về nhà"
-                />
-              </Field>
-            </div>
-
-            <Field label="Ghi chú nội bộ">
-              <textarea
-                value={teacherNotes}
-                onChange={(event) => setTeacherNotes(event.target.value)}
-                rows={4}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-                placeholder="Ví dụ: Lớp thiếu 2 bạn, cần gửi bổ sung tài liệu qua nhóm..."
-              />
-            </Field>
+            ) : null}
           </>
         )}
 
@@ -9171,8 +9757,8 @@ function PlanFormModal({
               isTeacher
                 ? "Lưu nội dung buổi dạy"
                 : isEdit
-                  ? "Lưu giáo án"
-                  : "Tạo giáo án"
+                  ? "Lưu thay đổi"
+                  : "Lưu giáo án"
             }
             showReset={false}
           />
@@ -10538,14 +11124,18 @@ function ModalFrame({
   children: React.ReactNode;
   widthClass?: string;
 }) {
-  return (
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-100 flex items-start justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[1000] flex items-center justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
         className={cn(
-          "my-4 w-full rounded-2xl border border-gray-200 bg-white shadow-2xl",
+          "my-4 max-h-[calc(100vh-2rem)] w-full overflow-y-auto rounded-2xl border border-gray-200 bg-white shadow-2xl",
           widthClass,
         )}
         onClick={(e) => e.stopPropagation()}
@@ -10574,7 +11164,8 @@ function ModalFrame({
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

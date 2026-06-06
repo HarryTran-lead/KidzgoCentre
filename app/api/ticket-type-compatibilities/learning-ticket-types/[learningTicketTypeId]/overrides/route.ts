@@ -1,18 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  BACKEND_TICKET_TYPE_COMPATIBILITY_ENDPOINTS,
+  buildApiUrl,
+} from "@/constants/apiURL";
 
 export const dynamic = "force-dynamic";
-
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ??
-  process.env.NEXT_PUBLIC_API_URL ??
-  process.env.API_BASE_URL ??
-  process.env.BACKEND_API_URL ??
-  "";
-
-function backendUrl(path: string) {
-  const baseUrl = API_BASE_URL.replace(/\/$/, "");
-  return `${baseUrl}${path}`;
-}
 
 function buildHeaders(request: NextRequest) {
   const headers = new Headers();
@@ -40,17 +32,10 @@ export async function PUT(
   request: NextRequest,
   context: { params: Promise<{ learningTicketTypeId: string }> },
 ) {
-  if (!API_BASE_URL) {
-    return NextResponse.json(
-      { isSuccess: false, detail: "Missing API base URL configuration." },
-      { status: 500 },
-    );
-  }
-
   const { learningTicketTypeId } = await context.params;
   const body = await request.text();
   const response = await fetch(
-    backendUrl(`/api/ticket-type-compatibilities/learning-ticket-types/${learningTicketTypeId}/overrides`),
+    buildApiUrl(BACKEND_TICKET_TYPE_COMPATIBILITY_ENDPOINTS.BULK_OVERRIDES(learningTicketTypeId)),
     {
       method: "PUT",
       headers: buildHeaders(request),

@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
 
-export default function AdminTeachersRedirectPage({
+export default async function AdminTeachersRedirectPage({
   params,
 }: {
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 }) {
-  redirect(`/${params.locale}/portal/admin/accounts`);
+  const { locale } = await params;
+  redirect(`/${locale}/portal/admin/accounts`);
 }

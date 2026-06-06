@@ -109,7 +109,7 @@ export function proxy(req: NextRequest) {
   // 1) FIRST: Try role cookie (set by /api/session after student/parent selection)
   let role: Role | undefined;
   let userId: string | undefined;
-  
+
   const rawRoleCookie = req.cookies.get("role")?.value;
   if (rawRoleCookie) {
     const normalized = normalizeRole(rawRoleCookie);
@@ -117,17 +117,17 @@ export function proxy(req: NextRequest) {
       ? (normalized as Role)
       : undefined;
   }
-  
+
   // 2) FALLBACK: Try JWT token if no role cookie
   if (!role) {
     const token = extractToken(req);
     if (token) {
       // Verify JWT token
       const payload = decodeJWT(token);
-      
+
       if (payload && !isTokenExpired(payload)) {
         const userInfo = extractUserInfo(payload);
-        
+
         if (userInfo) {
           const normalized = normalizeRole(userInfo.role);
           role = (ACCESS_MAP as Record<string, string[]>)[normalized]
