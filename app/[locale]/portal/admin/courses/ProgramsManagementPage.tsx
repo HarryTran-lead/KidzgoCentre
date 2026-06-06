@@ -77,6 +77,13 @@ function buildProgramCode(name: string, fallback = "PROGRAM"): string {
   return baseCode.slice(0, 10);
 }
 
+function removeAccents(str: string): string {
+  return str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
 function getProgramTypeLabel(value: { isMakeup?: boolean | null; isSupplementary?: boolean | null }) {
   if (value.isMakeup) return "Bù (legacy)";
   if (value.isSupplementary) return "Phụ trợ";
@@ -877,6 +884,8 @@ export function ProgramsManagementPage({
   const [selectedCourseBranchesName, setSelectedCourseBranchesName] = useState<string>("");
   const [courseBranchesData, setCourseBranchesData] = useState<Array<{ branchId: string; branchName?: string | null; isActive?: boolean | null }>>([]);
   const [loadingCourseBranches, setLoadingCourseBranches] = useState(false);
+  const [courseBranchesSearchTerm, setCourseBranchesSearchTerm] = useState<string>("");
+  const [courseBranchesSortOrder, setCourseBranchesSortOrder] = useState<"asc" | "desc">("asc");
   const detailModalRef = useRef<HTMLDivElement>(null);
   const courseBranchesModalRef = useRef<HTMLDivElement>(null);
 
@@ -1355,6 +1364,8 @@ export function ProgramsManagementPage({
       setSelectedCourseBranchesName(courseName);
       setShowCourseBranchesModal(true);
       setCourseBranchesData([]);
+      setCourseBranchesSearchTerm("");
+      setCourseBranchesSortOrder("asc");
 
       const detail = await fetchAdminProgramDetail(courseId);
       setCourseBranchesData(detail.branchAssignments || []);
@@ -1374,27 +1385,6 @@ export function ProgramsManagementPage({
   return (
     <>
       <div className="space-y-6 bg-gray-50 p-4 md:p-2 rounded-3xl">
-        <nav className="flex flex-wrap items-center gap-2 text-sm text-gray-500">
-          <span className="inline-flex items-center gap-2 rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-red-600">
-            {curriculumRootLabel}
-          </span>
-          <ChevronRight size={14} className="text-gray-300" />
-          <span className="font-semibold text-gray-700">{t.header.title}</span>
-          <Link
-            href={`/${locale}/portal/admin/syllabuses`}
-            className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100"
-          >
-            <BookOpenCheck size={12} />
-            {syllabusesLabel}
-          </Link>
-          <Link
-            href={`/${locale}/portal/admin/documents/templates`}
-            className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100"
-          >
-            <FileText size={12} />
-            {templatesLabel}
-          </Link>
-        </nav>
         {/* Title */}
         <div className={`flex flex-col md:flex-row md:items-center md:justify-between gap-4 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
           <div className="flex items-center gap-3">
@@ -2156,6 +2146,8 @@ export function ProgramsManagementPage({
                     setShowCourseBranchesModal(false);
                     setSelectedCourseBranchesId(null);
                     setCourseBranchesData([]);
+                    setCourseBranchesSearchTerm("");
+                    setCourseBranchesSortOrder("asc");
                   }}
                   className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer"
                 >
@@ -2165,45 +2157,103 @@ export function ProgramsManagementPage({
             </div>
 
             {/* Modal Body */}
-            <div className="p-6 max-h-[60vh] overflow-y-auto">
+            <div className="p-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
               {loadingCourseBranches ? (
                 <div className="flex items-center justify-center py-12">
                   <div className="text-gray-500">Đang tải danh sách chi nhánh...</div>
                 </div>
               ) : courseBranchesData.length > 0 ? (
-                <div className="space-y-3">
-                  {courseBranchesData.map((branch, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center justify-between cursor-pointer p-4 rounded-lg border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-4 hover:border-red-300 hover:bg-red-100/50 transition-all"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-red-50">
-                          <Building2 size={18} className="text-red-600" />
-                        </div>
-                        <div>
-                          <div className="text-sm font-semibold text-gray-900">
-                            {branch.branchName || "Chi nhánh không xác định"}
-                          </div>
-
-                        </div>
-                      </div>
-                      <div>
-                        {branch.isActive ? (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200">
-                            <CheckCircle size={14} />
-                            Hoạt động
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 text-gray-600 text-xs font-semibold border border-gray-200">
-                            <XCircle size={14} />
-                            Tạm dừng
-                          </span>
-                        )}
-                      </div>
+                <>
+                  {/* Search & Sort */}
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="flex-1 relative">
+                      <Search
+                        size={16}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Tìm kiếm..."
+                        value={courseBranchesSearchTerm}
+                        onChange={(e) => setCourseBranchesSearchTerm(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-white border border-gray-300 text-gray-900 placeholder-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
+                      />
                     </div>
-                  ))}
-                </div>
+                    <Select
+                      value={courseBranchesSortOrder}
+                      onValueChange={(val) => setCourseBranchesSortOrder(val as "asc" | "desc")}
+                    >
+                      <SelectTrigger className="w-auto px-3 py-2.5 border-gray-300 focus:ring-red-300 cursor-pointer">
+                        <SelectValue placeholder="Sắp xếp" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="asc">A-Z</SelectItem>
+                        <SelectItem value="desc">Z-A</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Result Counter */}
+                  {courseBranchesSearchTerm && (
+                    <div className="mb-4 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-sm">
+                      <span className="text-gray-700">Tìm thấy </span>
+                      <span className="font-bold text-red-600">
+                        {courseBranchesData
+                          .filter((branch) => {
+                            const searchNorm = removeAccents(courseBranchesSearchTerm);
+                            const branchNameNorm = removeAccents(branch.branchName || "");
+                            return branchNameNorm.includes(searchNorm);
+                          })
+                          .length}
+                      </span>
+                      <span className="text-gray-700"> kết quả</span>
+                    </div>
+                  )}
+
+                  {/* Branches List */}
+                  <div className="space-y-3">
+                    {courseBranchesData
+                      .filter((branch) => {
+                        const searchNorm = removeAccents(courseBranchesSearchTerm);
+                        const branchNameNorm = removeAccents(branch.branchName || "");
+                        return branchNameNorm.includes(searchNorm);
+                      })
+                      .sort((a, b) => {
+                        const nameA = (a.branchName || "").localeCompare(b.branchName || "", "vi");
+                        return courseBranchesSortOrder === "asc" ? nameA : -nameA;
+                      })
+                      .map((branch, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between cursor-pointer p-4 rounded-lg border border-red-200 bg-gradient-to-br from-white to-red-50/30 hover:border-red-300 hover:bg-red-100/50 transition-all"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-lg bg-red-50">
+                              <Building2 size={18} className="text-red-600" />
+                            </div>
+                            <div>
+                              <div className="text-sm font-semibold text-gray-900">
+                                {branch.branchName || "Chi nhánh không xác định"}
+                              </div>
+                            </div>
+                          </div>
+                          <div>
+                            {branch.isActive ? (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200">
+                                <CheckCircle size={14} />
+                                Hoạt động
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 text-gray-600 text-xs font-semibold border border-gray-200">
+                                <XCircle size={14} />
+                                Tạm dừng
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </>
               ) : (
                 <div className="flex flex-col items-center justify-center">
                   <div className="w-full rounded-2xl border border-dashed border-red-200 bg-gradient-to-br from-red-50 to-red-50/50 p-8 text-center">
@@ -2240,6 +2290,8 @@ export function ProgramsManagementPage({
                     setShowCourseBranchesModal(false);
                     setSelectedCourseBranchesId(null);
                     setCourseBranchesData([]);
+                    setCourseBranchesSearchTerm("");
+                    setCourseBranchesSortOrder("asc");
                   }}
                   className="px-6 py-2.5 text-sm rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer"
                 >

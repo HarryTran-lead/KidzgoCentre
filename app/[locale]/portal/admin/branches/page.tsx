@@ -37,6 +37,7 @@ import {
 } from "@/lib/api/branchService";
 import { getAllUsers } from "@/lib/api/userService";
 import { getAllClasses } from "@/lib/api/classService";
+import { fetchAdminRooms } from "@/app/api/admin/rooms";
 import type {
   Branch,
   CreateBranchRequest,
@@ -235,7 +236,7 @@ export default function BranchesPage() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showActivateModal, setShowActivateModal] = useState(false);
   const [showStatsModal, setShowStatsModal] = useState(false);
-  const [statsModalType, setStatsModalType] = useState<"students" | "classes" | "teachers" | null>(null);
+  const [statsModalType, setStatsModalType] = useState<"students" | "classes" | "teachers" | "rooms" | null>(null);
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPageLoaded, setIsPageLoaded] = useState(false);
@@ -243,6 +244,7 @@ export default function BranchesPage() {
     Record<string, { students: number; teachers: number }>
   >({});
   const [classStats, setClassStats] = useState<Record<string, number>>({});
+  const [roomStats, setRoomStats] = useState<Record<string, number>>({});
 
   useEffect(() => {
     setIsPageLoaded(true);
@@ -326,6 +328,34 @@ export default function BranchesPage() {
     };
 
     fetchClassesData();
+  }, []);
+
+  // Fetch rooms to calculate room counts by branch
+  useEffect(() => {
+    const fetchRoomsData = async () => {
+      try {
+        const response = await fetchAdminRooms({});
+        
+        if (response?.length > 0) {
+          // Calculate room counts by branch
+          const stats: Record<string, number> = {};
+
+          response.forEach((room: any) => {
+            const branchId = room.branchId;
+            if (branchId) {
+              stats[branchId] = (stats[branchId] || 0) + 1;
+            }
+          });
+
+          setRoomStats(stats);
+        }
+      } catch (error) {
+        console.error("Error fetching rooms data:", error);
+        // Silently fail - stats will show default values
+      }
+    };
+
+    fetchRoomsData();
   }, []);
 
   // Fetch branches from API
@@ -626,7 +656,7 @@ export default function BranchesPage() {
   };
 
   // Handler: Open Stats Modal
-  const handleOpenStatsModal = (branch: Branch, type: "students" | "classes" | "teachers") => {
+  const handleOpenStatsModal = (branch: Branch, type: "students" | "classes" | "teachers" | "rooms") => {
     setSelectedBranch(branch);
     setStatsModalType(type);
     setShowStatsModal(true);
@@ -931,6 +961,9 @@ export default function BranchesPage() {
                     Giáo viên
                   </th>
                   <th className="py-3 px-6 text-center text-sm font-semibold text-gray-700">
+                    Phòng học
+                  </th>
+                  <th className="py-3 px-6 text-center text-sm font-semibold text-gray-700">
                     Trạng thái
                   </th>
                   <th className="py-3 px-6 text-right text-sm font-semibold text-gray-700">
@@ -1030,6 +1063,13 @@ export default function BranchesPage() {
                               0}
                           </span>
 
+                        </div>
+                      </td>
+                      <td className="py-4 px-6 text-center">
+                        <div className="flex flex-col items-center cursor-pointer hover:text-red-600 transition-colors group relative" onClick={() => handleOpenStatsModal(branch, "rooms")} title="Bấm để xem danh sách">
+                          <span className="text-sm text-gray-500 hover:text-red-600 font-medium">
+                            {roomStats[branch.id] ?? 0}
+                          </span>
                         </div>
                       </td>
                       <td className="py-4 px-6 text-center">
