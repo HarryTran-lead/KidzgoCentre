@@ -9,8 +9,10 @@ import {
   BookOpen,
   X,
   Search,
+  DoorOpen,
 } from "lucide-react";
 import { fetchAdminClasses } from "@/app/api/admin/classes";
+import { fetchAdminRooms } from "@/app/api/admin/rooms";
 import { getAllUsers } from "@/lib/api/userService";
 import { getAccessToken } from "@/lib/store/authToken";
 import { ADMIN_ENDPOINTS } from "@/constants/apiURL";
@@ -22,7 +24,14 @@ import {
   SelectValue,
 } from "@/components/lightswind/select";
 
-type StatsType = "students" | "classes" | "teachers";
+function removeAccents(str: string): string {
+  return str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+type StatsType = "students" | "classes" | "teachers" | "rooms";
 
 interface BranchStatsModalProps {
   isOpen: boolean;
@@ -246,6 +255,12 @@ export default function BranchStatsModal({
             // If class fetch fails, just show teachers without classes
             setData(Array.isArray(teachers) ? teachers : []);
           }
+        } else if (statsType === "rooms") {
+          const rooms = await fetchAdminRooms({});
+          
+          // Filter rooms by branch
+          const branchRooms = rooms.filter((room: any) => room.branchId === branchId);
+          setData(branchRooms);
         }
       } catch (err: any) {
         setError(err?.message || "Không thể tải dữ liệu");
@@ -268,6 +283,8 @@ export default function BranchStatsModal({
         return "Danh sách lớp học";
       case "teachers":
         return "Danh sách giáo viên";
+      case "rooms":
+        return "Danh sách phòng học";
     }
   };
 
@@ -279,6 +296,8 @@ export default function BranchStatsModal({
         return <BookOpen size={20} />;
       case "teachers":
         return <Users size={20} />;
+      case "rooms":
+        return <DoorOpen size={20} />;
     }
   };
 
@@ -287,6 +306,8 @@ export default function BranchStatsModal({
       return item?.classTitle || item?.title || item?.name || "Lớp học";
     } else if (statsType === "students") {
       return item?.fullName || item?.name || item?.email || "Học viên";
+    } else if (statsType === "rooms") {
+      return item?.name || "Phòng học";
     } else {
       return item?.name || item?.fullName || item?.email || "Giáo viên";
     }
@@ -297,6 +318,8 @@ export default function BranchStatsModal({
       return item?.classCode || item?.code || "";
     } else if (statsType === "students") {
       return item?.studentCode || item?.code || "";
+    } else if (statsType === "rooms") {
+      return item?.code || "";
     } else {
       return item?.email || "";
     }
@@ -307,6 +330,8 @@ export default function BranchStatsModal({
       return item?.programName || "";
     } else if (statsType === "students") {
       return item?.email || "";
+    } else if (statsType === "rooms") {
+      return item?.capacity ? `Sức chứa: ${item.capacity}` : "";
     } else {
       return item?.email || "";
     }
@@ -314,15 +339,15 @@ export default function BranchStatsModal({
 
   // Filter and sort data
   const filteredData = data.filter((item) => {
-    const searchLower = searchTerm.toLowerCase();
-    const name = getItemName(item).toLowerCase();
-    const code = getItemCode(item).toLowerCase();
-    const details = getItemDetails(item).toLowerCase();
+    const searchNorm = removeAccents(searchTerm);
+    const name = removeAccents(getItemName(item));
+    const code = removeAccents(getItemCode(item));
+    const details = removeAccents(getItemDetails(item));
 
     let matches =
-      name.includes(searchLower) ||
-      code.includes(searchLower) ||
-      details.includes(searchLower);
+      name.includes(searchNorm) ||
+      code.includes(searchNorm) ||
+      details.includes(searchNorm);
 
     // Also search in classes for teachers and students
     if (
@@ -330,8 +355,8 @@ export default function BranchStatsModal({
       item?.classes &&
       item.classes.length > 0
     ) {
-      const classesText = item.classes.join(" ").toLowerCase();
-      matches = matches || classesText.includes(searchLower);
+      const classesText = removeAccents(item.classes.join(" "));
+      matches = matches || classesText.includes(searchNorm);
     }
 
     return matches;
@@ -379,6 +404,11 @@ export default function BranchStatsModal({
                   {statsType === "teachers" && (
                     <span className="inline-block px-2.5 py-0.5 bg-purple-500/60 text-white text-xs font-semibold rounded-full border border-purple-300/80 backdrop-blur-sm">
                       {data.length} Giáo viên
+                    </span>
+                  )}
+                  {statsType === "rooms" && (
+                    <span className="inline-block px-2.5 py-0.5 bg-orange-500/60 text-white text-xs font-semibold rounded-full border border-orange-300/80 backdrop-blur-sm">
+                      {data.length} Phòng học
                     </span>
                   )}
                 </div>
@@ -491,7 +521,7 @@ export default function BranchStatsModal({
                               {item.classes.join(", ")}
                             </span>
                           )}
-                        {getItemDetails(item) &&
+                        {statsType !== "rooms" && getItemDetails(item) &&
                           getItemDetails(item) !== getItemCode(item) && (
                             <span className="inline-block px-2.5 py-1 bg-gray-100 text-gray-900 text-xs font-semibold rounded-lg border border-gray-300">
                               {getItemDetails(item)}
@@ -512,6 +542,27 @@ export default function BranchStatsModal({
                               Chưa có
                             </span>
                           )}
+                        {statsType === "rooms" && item?.capacity && (
+                          <span className="inline-block px-2.5 py-1 bg-blue-100 text-blue-900 text-xs font-semibold rounded-lg border border-blue-300">
+                            <span className="font-medium">Sức chứa: </span>
+                            {item.capacity} người
+                          </span>
+                        )}
+                        {statsType === "rooms" && item?.equipment && item.equipment.length > 0 && (
+                          <span className="inline-block px-2.5 py-1 bg-orange-100 text-orange-900 text-xs font-semibold rounded-lg border border-orange-300">
+                            <span className="font-medium">Thiết bị: </span>
+                            {item.equipment.join(", ")}
+                          </span>
+                        )}
+                        {statsType === "rooms" && item?.status && (
+                          <span className={`inline-block px-2.5 py-1 text-xs font-semibold rounded-lg border ${
+                            item.status === "active" 
+                              ? "bg-green-100 text-green-900 border-green-300"
+                              : "bg-red-100 text-red-900 border-red-300"
+                          }`}>
+                            {item.status === "active" ? "Hoạt động" : "Không hoạt động"}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
