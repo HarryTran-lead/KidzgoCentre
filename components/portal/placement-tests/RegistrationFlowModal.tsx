@@ -44,6 +44,10 @@ import {
   isKnownNonStandardLearningTicketType,
   supportsParallelLevels,
 } from "@/lib/tuitionPlanTicketType";
+import {
+  filterClassesByTuitionPlanEligibility,
+  filterSuggestedClassBucketByTuitionPlanEligibility,
+} from "@/lib/tuitionPlanClassEligibility";
 
 interface RegistrationFlowModalProps {
   isOpen: boolean;
@@ -460,6 +464,8 @@ export default function RegistrationFlowModal({
               formatScheduleFromWeeklySlots(cls?.weeklyScheduleSlots);
         const className = getClassDisplayName(cls);
         const slotTypeLabel = getClassSlotTypeLabel(cls);
+        const moduleName = String(cls?.currentModuleName || cls?.startModuleName || "").trim();
+        const moduleLabel = moduleName ? `Module: ${moduleName}` : "";
         const safeRemaining =
           typeof remainingSlots === "number" ? Math.max(0, remainingSlots) : null;
         return {
@@ -473,6 +479,7 @@ export default function RegistrationFlowModal({
           label: [
             className,
             String(cls?.levelName || cls?.courseLevel || cls?.level?.name || "Chưa rõ trình độ"),
+            moduleLabel,
             slotTypeLabel ? `Loại: ${slotTypeLabel}` : "",
             `Còn chỗ: ${safeRemaining ?? "-"}`,
             `Lịch: ${scheduleLabel}`,
@@ -650,33 +657,42 @@ export default function RegistrationFlowModal({
       selectedTuitionPlan?.learningTicketTypeName,
     ],
   );
+  const selectedRegistrationTuitionPlanForClassEligibility =
+    selectedRegistrationTuitionPlan || selectedTuitionPlan;
   const selectedLearningTicketBlocksSecondary =
     isKnownNonStandardLearningTicketType(selectedRegistrationLearningTicketType);
   const selectedRegistrationPreferredSchedule =
     selectedRegistration?.preferredSchedule || "";
 
   useEffect(() => {
-    setSuggestedClasses((prev) =>
-      prev
-        ? filterSuggestedClassBucketByLearningTicketType(
-            prev,
-            selectedRegistrationLearningTicketType,
-          )
-        : prev,
-    );
-    setManualClasses((prev) =>
-      prev.length
-        ? filterClassesByLearningTicketType(
-            prev,
-            selectedRegistrationLearningTicketType,
-          )
-        : prev,
-    );
+    setSuggestedClasses((prev) => {
+      if (!prev) return prev;
+      const ticketFiltered = filterSuggestedClassBucketByLearningTicketType(
+        prev,
+        selectedRegistrationLearningTicketType,
+      );
+      return filterSuggestedClassBucketByTuitionPlanEligibility(
+        ticketFiltered,
+        selectedRegistrationTuitionPlanForClassEligibility,
+      );
+    });
+    setManualClasses((prev) => {
+      if (!prev.length) return prev;
+      const ticketFiltered = filterClassesByLearningTicketType(
+        prev,
+        selectedRegistrationLearningTicketType,
+      );
+      return filterClassesByTuitionPlanEligibility(
+        ticketFiltered,
+        selectedRegistrationTuitionPlanForClassEligibility,
+      );
+    });
     setSelectedClassId("");
     setManualPrimaryClassId("");
     setManualSecondaryClassId("");
   }, [
     selectedRegistrationLearningTicketType,
+    selectedRegistrationTuitionPlanForClassEligibility,
   ]);
 
   const selectedRegistrationProgramId = selectedRegistration?.programId || "";
@@ -1284,7 +1300,8 @@ export default function RegistrationFlowModal({
       );
       const registrationPlan =
         registrationForSuggestion?.tuitionPlanId
-          ? tuitionPlans.find((plan) => plan.id === registrationForSuggestion.tuitionPlanId)
+          ? tuitionPlans.find((plan) => plan.id === registrationForSuggestion.tuitionPlanId) ||
+            selectedTuitionPlan
           : selectedTuitionPlan;
       const learningTicketTypeForSuggestion = {
         learningTicketTypeCode:
@@ -1303,9 +1320,14 @@ export default function RegistrationFlowModal({
         suggestions,
         learningTicketTypeForSuggestion,
       );
+      const planFilteredSuggestions =
+        filterSuggestedClassBucketByTuitionPlanEligibility(
+          ticketFilteredSuggestions,
+          registrationPlan,
+        );
       const visibleSuggestions = canUseSecondaryForSuggestion
-        ? ticketFilteredSuggestions
-        : stripSecondarySuggestions(ticketFilteredSuggestions);
+        ? planFilteredSuggestions
+        : stripSecondarySuggestions(planFilteredSuggestions);
 
       setSuggestedClasses(visibleSuggestions);
       const primaryCount = visibleSuggestions?.suggestedClasses?.length ?? 0;
@@ -1523,9 +1545,13 @@ export default function RegistrationFlowModal({
           const status = String(item?.status || "").toLowerCase();
           return status !== "cancelled" && status !== "completed";
         });
-      const items = filterClassesByLearningTicketType(
+      const ticketFilteredItems = filterClassesByLearningTicketType(
         allItems,
         selectedRegistrationLearningTicketType,
+      );
+      const items = filterClassesByTuitionPlanEligibility(
+        ticketFilteredItems,
+        selectedRegistrationTuitionPlanForClassEligibility,
       );
 
       const countClassesByProgramAndLevel = (

@@ -667,6 +667,34 @@ export default function ClassDetailPage() {
                       <span className="font-medium">Chương trình:</span>
                       <span className="font-semibold">{classData.program}</span>
                     </span>
+                    {classData.levelName && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-violet-50 rounded-lg text-gray-700">
+                        <GraduationCap size={14} className="text-violet-500" />
+                        <span className="font-medium">Trình độ:</span>
+                        <span className="font-semibold">{classData.levelName}</span>
+                      </span>
+                    )}
+                    {(classData.currentModuleName || classData.startModuleName) && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 rounded-lg text-gray-700 max-w-full">
+                        <Layers size={14} className="text-indigo-500" />
+                        <span className="font-medium">Module:</span>
+                        <span className="font-semibold truncate">
+                          {classData.currentModuleName || classData.startModuleName}
+                        </span>
+                        {(classData.currentSessionIndex || classData.startSessionIndex) && (
+                          <span className="text-gray-500">
+                            • Buổi {classData.currentSessionIndex || classData.startSessionIndex}
+                          </span>
+                        )}
+                        {classData.startModuleName &&
+                          classData.currentModuleName &&
+                          classData.startModuleName !== classData.currentModuleName && (
+                            <span className="text-gray-500">
+                              • Bắt đầu: {classData.startModuleName}
+                            </span>
+                          )}
+                      </span>
+                    )}
                     {(classData.syllabusCode ||
                       classData.syllabusVersion ||
                       classData.syllabusTitle) && (

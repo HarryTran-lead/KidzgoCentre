@@ -1,4 +1,9 @@
-﻿import { BRANCH_ENDPOINTS, SYLLABUS_ENDPOINTS } from "@/constants/apiURL";
+﻿import {
+  BACKEND_SYLLABUS_ENDPOINTS,
+  BRANCH_ENDPOINTS,
+  buildApiUrl,
+  SYLLABUS_ENDPOINTS,
+} from "@/constants/apiURL";
 import { getAccessToken } from "@/lib/store/authToken";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -495,6 +500,11 @@ export interface ArchiveSyllabusDocumentRequest {
 
 function str(v: unknown): string {
   return typeof v === "string" ? v : "";
+}
+
+function buildDirectBackendUrl(endpoint: string): string | null {
+  const url = buildApiUrl(endpoint);
+  return /^https?:\/\//i.test(url) ? url : null;
 }
 
 function strAny(...values: unknown[]): string {
@@ -1333,16 +1343,27 @@ export async function importSyllabusArchive(
     const formData = new FormData();
     formData.append("file", file);
 
-    const res = await fetch(`${SYLLABUS_ENDPOINTS.IMPORT_ARCHIVE}?${query}`, {
+    const directBackendUrl = buildDirectBackendUrl(
+      `${BACKEND_SYLLABUS_ENDPOINTS.IMPORT_ARCHIVE}?${query}`,
+    );
+    const importUrl =
+      directBackendUrl ?? `${SYLLABUS_ENDPOINTS.IMPORT_ARCHIVE}?${query}`;
+
+    const res = await fetch(importUrl, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: formData,
     });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) {
+      const tooLargeMessage =
+        res.status === 413
+          ? `File ZIP (${Math.ceil(file.size / 1024 / 1024)} MB) vượt quá giới hạn upload của server.`
+          : "";
+
       return {
         isSuccess: false, data: null,
-        message: str(json?.detail) || str(json?.message) || str(json?.title) || "Import archive thất bại.",
+        message: str(json?.detail) || str(json?.message) || str(json?.title) || tooLargeMessage || "Import archive thất bại.",
         status: typeof json?.status === "number" ? json.status : res.status,
         title: str(json?.title) || undefined,
         detail: str(json?.detail) || undefined,
