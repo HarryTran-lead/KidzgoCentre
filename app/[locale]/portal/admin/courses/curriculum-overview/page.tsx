@@ -412,24 +412,31 @@ function normalizePrograms(payload: unknown): ProgramOption[] {
     list = Array.isArray(listValue) ? listValue : [];
   }
 
-  return list
-    .map((item) => {
-      const program = item as Record<string, unknown>;
-      const id = String(program.id ?? program.programId ?? "");
-      const name = String(program.name ?? program.programName ?? program.title ?? "");
+  const programs: ProgramOption[] = [];
 
-      if (!id || !name) {
-        return null;
-      }
+  list.forEach((item) => {
+    const program = item as Record<string, unknown>;
+    const id = String(program.id ?? program.programId ?? "");
+    const name = String(program.name ?? program.programName ?? program.title ?? "");
 
-      return {
-        id,
-        name,
-        code: program.code ? String(program.code) : undefined,
-        isActive: typeof program.isActive === "boolean" ? program.isActive : undefined,
-      };
-    })
-    .filter((item): item is ProgramOption => Boolean(item));
+    if (!id || !name) {
+      return;
+    }
+
+    const option: ProgramOption = { id, name };
+
+    if (program.code) {
+      option.code = String(program.code);
+    }
+
+    if (typeof program.isActive === "boolean") {
+      option.isActive = program.isActive;
+    }
+
+    programs.push(option);
+  });
+
+  return programs;
 }
 
 function getFallbackTree(programId: string, programs: ProgramOption[]) {
@@ -442,6 +449,19 @@ function getFallbackTree(programId: string, programs: ProgramOption[]) {
   const selectedProgram = programs.find((program) => program.id === programId);
   const selectedCode = selectedProgram?.code?.toLowerCase();
   const selectedName = selectedProgram?.name.toLowerCase();
+  const selectedText = `${selectedCode ?? ""} ${selectedName ?? ""}`;
+
+  if (selectedText.includes("kid")) {
+    return fallbackCurriculumTrees["demo-kids-english"];
+  }
+
+  if (selectedText.includes("ielts")) {
+    return fallbackCurriculumTrees["demo-ielts"];
+  }
+
+  if (selectedText.includes("communication") || selectedText.includes("giao tiếp")) {
+    return fallbackCurriculumTrees["demo-communication"];
+  }
 
   return Object.values(fallbackCurriculumTrees).find((tree) => {
     return (
@@ -622,11 +642,15 @@ function TreeItem({
 }
 
 export default function CurriculumOverviewPage() {
-  const [programs, setPrograms] = useState<ProgramOption[]>([]);
-  const [selectedProgramId, setSelectedProgramId] = useState("");
-  const [curriculum, setCurriculum] = useState<CurriculumTreeDto | null>(null);
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-  const [programsLoading, setProgramsLoading] = useState(true);
+  const initialFallbackProgramId = fallbackPrograms[0]!.id;
+  const initialFallbackTree = fallbackCurriculumTrees[initialFallbackProgramId]!;
+  const [programs, setPrograms] = useState<ProgramOption[]>(fallbackPrograms);
+  const [selectedProgramId, setSelectedProgramId] = useState(initialFallbackProgramId);
+  const [curriculum, setCurriculum] = useState<CurriculumTreeDto | null>(initialFallbackTree);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(
+    () => new Set(collectExpandedIds(buildTree(initialFallbackTree))),
+  );
+  const [programsLoading, setProgramsLoading] = useState(false);
   const [treeLoading, setTreeLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -865,7 +889,8 @@ export default function CurriculumOverviewPage() {
                 </label>
                 <select
                   className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-900 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-100 disabled:cursor-not-allowed disabled:bg-slate-100"
-                  disabled={programsLoading || programs.length === 0}
+                  aria-busy={programsLoading}
+                  disabled={programs.length === 0}
                   id="program"
                   value={selectedProgramId}
                   onChange={(event) => setSelectedProgramId(event.target.value)}
@@ -904,7 +929,7 @@ export default function CurriculumOverviewPage() {
               </div>
             </div>
 
-            {programsLoading || treeLoading ? (
+            {treeLoading && !curriculum ? (
               <div className="flex min-h-[320px] items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50">
                 <div className="flex items-center gap-2 text-sm font-semibold text-slate-600">
                   <Loader2 className="h-4 w-4 animate-spin" />
