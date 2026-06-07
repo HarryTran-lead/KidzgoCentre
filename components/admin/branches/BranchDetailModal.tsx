@@ -7,10 +7,67 @@ import type { Branch } from "@/types/branch";
 import { getBranchPrograms, removeProgramFromBranch, type BranchProgramItem } from "@/lib/api/branchService";
 import { getBranchSyllabusAssignments, removeSyllabusFromBranch, type BranchSyllabusAssignment } from "@/lib/api/syllabusService";
 import { useBranchFilter } from "@/hooks/useBranchFilter";
+import { useToast } from "@/hooks/use-toast";
 import ConfirmModal from "@/components/ConfirmModal";
 
 function cn(...a: Array<string | false | null | undefined>) {
   return a.filter(Boolean).join(" ");
+}
+
+function translateErrorMessage(error: string): { title: string; description?: string } {
+  // Lỗi: Conflict (409)
+  if (error.includes("409") || error.includes("Conflict")) {
+    return {
+      title: "Không thể gỡ chương trình này",
+      description: "Chương trình đang được sử dụng hoặc có xung đột với dữ liệu hiện tại. Vui lòng kiểm tra lại hoặc liên hệ hỗ trợ.",
+    };
+  }
+
+  // Lỗi: cannot be removed because operational classes still exist
+  if (error.includes("cannot be removed") && error.includes("operational classes")) {
+    return {
+      title: "Không thể gỡ chương trình học",
+      description: "Chương trình này vẫn có lớp học đang hoạt động. Vui lòng xóa hoặc chuyển lớp học trước khi gỡ chương trình.",
+    };
+  }
+
+  // Lỗi: cannot be removed because operational enrollments
+  if (error.includes("cannot be removed") && error.includes("operational enrollments")) {
+    return {
+      title: "Không thể gỡ chương trình học",
+      description: "Chương trình này vẫn có học viên đang ghi danh. Vui lòng xóa ghi danh trước khi gỡ chương trình.",
+    };
+  }
+
+  // Lỗi: Unauthorized
+  if (error.includes("401") || error.includes("Unauthorized")) {
+    return {
+      title: "Lỗi xác thực",
+      description: "Bạn không có quyền thực hiện hành động này. Vui lòng kiểm tra quyền truy cập.",
+    };
+  }
+
+  // Lỗi: Forbidden
+  if (error.includes("403") || error.includes("Forbidden")) {
+    return {
+      title: "Truy cập bị từ chối",
+      description: "Bạn không có quyền gỡ chương trình này. Liên hệ quản trị viên để được hỗ trợ.",
+    };
+  }
+
+  // Lỗi: Not Found
+  if (error.includes("404") || error.includes("Not Found")) {
+    return {
+      title: "Không tìm thấy",
+      description: "Chương trình hoặc chi nhánh không tồn tại. Vui lòng tải lại trang.",
+    };
+  }
+
+  // Default error
+  return {
+    title: "Lỗi",
+    description: error || "Có lỗi xảy ra. Vui lòng thử lại sau.",
+  };
 }
 
 function Badge({
@@ -129,6 +186,7 @@ export default function BranchDetailModal({ isOpen, onClose, branch, userStats =
   const params = useParams<{ locale: string }>();
   const locale = params?.locale ?? "vi";
   const { updateBranchId } = useBranchFilter();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [programs, setPrograms] = useState<BranchProgramItem[]>([]);
   const [syllabuses, setSyllabuses] = useState<BranchSyllabusAssignment[]>([]);
@@ -203,8 +261,11 @@ export default function BranchDetailModal({ isOpen, onClose, branch, userStats =
       await removeProgramFromBranch(branch.id, programId);
       setPrograms((prev) => prev.filter((p) => p.programId !== programId));
       setConfirmRemoveProgram(null);
+      toast.success({ title: "Gỡ chương trình học thành công" });
     } catch (err: any) {
-      setTabError(err?.message || "Không thể gỡ chương trình học.");
+      const errorMsg = err?.message || "Không thể gỡ chương trình học";
+      const translated = translateErrorMessage(errorMsg);
+      toast.destructive({ title: translated.title, description: translated.description });
     } finally {
       setRemovingProgram(null);
     }
@@ -222,8 +283,11 @@ export default function BranchDetailModal({ isOpen, onClose, branch, userStats =
       await removeSyllabusFromBranch(branch.id, assignmentId);
       setSyllabuses((prev) => prev.filter((s) => (s.curriculumAssignmentId ?? s.syllabusId) !== assignmentId));
       setConfirmRemoveSyllabus(null);
+      toast.success({ title: "Gỡ khung chương trình thành công" });
     } catch (err: any) {
-      setTabError(err?.message || "Không thể gỡ khung chương trình.");
+      const errorMsg = err?.message || "Không thể gỡ khung chương trình";
+      const translated = translateErrorMessage(errorMsg);
+      toast.destructive({ title: translated.title, description: translated.description });
     } finally {
       setRemovingSyllabus(null);
     }
@@ -574,7 +638,7 @@ export default function BranchDetailModal({ isOpen, onClose, branch, userStats =
                               <button onClick={() => openProgramSyllabuses(s.programId)} className="inline-flex items-center cursor-pointer gap-1.5 px-3.5 py-2 rounded-xl border border-red-300 bg-white text-sm font-medium text-gray-700 hover:border-red-400 hover:bg-red-50 transition-all">
                                 <BookOpen size={14} /> Cùng chương trình
                               </button>
-                              <button onClick={() => handleRemoveSyllabus(assignmentId)} disabled={removingSyllabus === assignmentId} className="inline-flex cursor-pointer items-center gap-1.5 px-3.5 py-2 rounded-xl bg-red-50 border border-red-200 text-sm font-medium text-red-700 hover:bg-red-100  transition-all disabled:opacity-50">
+                              <button onClick={() => handleRemoveSyllabus(assignmentId)} disabled={removingSyllabus === assignmentId} className="inline-flex cursor-pointer items-center gap-1.5 px-3.5 py-2 rounded-xl bg-red-50 border border-red-200 text-sm font-medium text-red-700 hover:bg-red-100 hover:scale-105 hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 disabled:opacity-50">
                                 {removingSyllabus === assignmentId ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                                 Gỡ
                               </button>
