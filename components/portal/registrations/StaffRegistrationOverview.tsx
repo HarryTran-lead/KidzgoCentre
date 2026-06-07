@@ -1596,10 +1596,10 @@ export default function StaffRegistrationOverview({
       );
 
       const countClassesByProgramAndLevel = (
-        targetProgramId?: string,
-        targetProgramName?: string,
-        targetLevelId?: string,
-        targetLevelName?: string,
+        targetProgramId?: string | null,
+        targetProgramName?: string | null,
+        targetLevelId?: string | null,
+        targetLevelName?: string | null,
       ) => {
         const normalizedTargetProgramId = String(targetProgramId || "").trim();
         const normalizedTargetProgramName = normalizeText(targetProgramName);
