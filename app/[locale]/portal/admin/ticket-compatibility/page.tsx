@@ -622,7 +622,6 @@ export default function TicketCompatibilityPage() {
                 <th className="px-6 py-4">Kết quả</th>
                 <th className="px-6 py-4">Nguồn</th>
                 <th className="px-6 py-4">Override</th>
-                <th className="px-6 py-4">Lý do</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
@@ -682,11 +681,7 @@ export default function TicketCompatibilityPage() {
                           <OverrideButton label="Luôn chặn" tone="red" selected={currentOverride === false} onClick={() => setOverride(slot.id, false)} />
                         </div>
                       </td>
-                      <td className="px-6 py-5">
-                        <p className="max-w-md text-sm leading-6 text-slate-500">
-                          {hasDraft ? 'Thay đổi đang ở bản nháp. Bấm Lưu override để áp dụng.' : cell?.reason || 'Kết quả được tính từ matrix hiện hành.'}
-                        </p>
-                      </td>
+                      
                     </tr>
                   );
                 })

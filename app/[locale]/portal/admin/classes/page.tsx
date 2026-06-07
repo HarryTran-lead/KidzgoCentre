@@ -3696,7 +3696,7 @@ function  CreateClassModal({
                 </p>
               )}
               <p className="text-xs text-gray-400">
-                Danh sách lấy theo chi nhánh; submit dùng đúng syllabusId.
+                Danh sách lấy theo chi nhánh
               </p>
             </div>
 
@@ -4365,9 +4365,6 @@ function  CreateClassModal({
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-gray-400">
-                Xác định loại slot để kiểm tra tương thích vé học. Để trống = pass tất cả vé.
-              </p>
             </div>
 
             {/* Row 8: Mô tả */}

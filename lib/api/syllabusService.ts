@@ -1370,66 +1370,94 @@ export async function importSyllabusArchive(
     if (params.overwriteExisting !== undefined) {
       query.append("overwriteExisting", String(params.overwriteExisting));
     }
-    const formData = new FormData();
-    formData.append("file", file);
-
     const directBackendUrl = buildDirectBackendUrl(
       `${BACKEND_SYLLABUS_ENDPOINTS.IMPORT_ARCHIVE}?${query}`,
       { useArchiveUploadFallback: true },
     );
-    const importUrl =
-      directBackendUrl ?? `${SYLLABUS_ENDPOINTS.IMPORT_ARCHIVE}?${query}`;
+    const proxyImportUrl = `${SYLLABUS_ENDPOINTS.IMPORT_ARCHIVE}?${query}`;
+    const importUrls = Array.from(
+      new Set([proxyImportUrl, directBackendUrl].filter((url): url is string => Boolean(url))),
+    );
+    let lastNetworkError: unknown = null;
 
-    const res = await fetch(importUrl, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: formData,
-    });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      const tooLargeMessage =
-        res.status === 413
-          ? `File ZIP (${Math.ceil(file.size / 1024 / 1024)} MB) vượt quá giới hạn upload của server.`
-          : "";
+    for (const importUrl of importUrls) {
+      const formData = new FormData();
+      formData.append("file", file);
 
+      try {
+        const res = await fetch(importUrl, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          const tooLargeMessage =
+            res.status === 413
+              ? `File ZIP (${Math.ceil(file.size / 1024 / 1024)} MB) vượt quá giới hạn upload của server/proxy.`
+              : "";
+
+          return {
+            isSuccess: false, data: null,
+            message: str(json?.detail) || str(json?.message) || str(json?.title) || tooLargeMessage || "Import archive thất bại.",
+            status: typeof json?.status === "number" ? json.status : res.status,
+            title: str(json?.title) || undefined,
+            detail: str(json?.detail) || tooLargeMessage || undefined,
+            errors: Array.isArray(json?.errors) ? json.errors : undefined,
+            raw: json,
+          };
+        }
+        const d = json?.data ?? json;
+        return {
+          isSuccess: true,
+          data: {
+            syllabusId: str(d?.syllabusId),
+            importedLessonPlans: Number(d?.importedLessonPlans ?? 0),
+            skippedFiles: Number(d?.skippedFiles ?? 0),
+            archiveFileName: str(d?.archiveFileName) || null,
+            archiveParserVersion: str(d?.archiveParserVersion) || null,
+            selectedSyllabusEntryName: str(d?.selectedSyllabusEntryName) || null,
+            selectedSyllabusNormalizedEntryName: str(d?.selectedSyllabusNormalizedEntryName) || null,
+            selectedSyllabusFileName: str(d?.selectedSyllabusFileName) || null,
+            selectedSyllabusSourceType: str(d?.selectedSyllabusSourceType) || null,
+            selectedSyllabusParserVersion: str(d?.selectedSyllabusParserVersion) || null,
+            importedEntries: Array.isArray(d?.importedEntries) ? d.importedEntries : [],
+            skippedItems: Array.isArray(d?.skippedItems) ? d.skippedItems : [],
+            skippedEntries: Array.isArray(d?.skippedEntries) ? d.skippedEntries : [],
+          },
+        };
+      } catch (error) {
+        lastNetworkError = error;
+        const canRetryWithProxy =
+          error instanceof TypeError &&
+          /fetch/i.test(error.message) &&
+          importUrl !== proxyImportUrl;
+        if (canRetryWithProxy) {
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    if (lastNetworkError instanceof TypeError && /fetch/i.test(lastNetworkError.message)) {
       return {
         isSuccess: false, data: null,
-        message: str(json?.detail) || str(json?.message) || str(json?.title) || tooLargeMessage || "Import archive thất bại.",
-        status: typeof json?.status === "number" ? json.status : res.status,
-        title: str(json?.title) || undefined,
-        detail: str(json?.detail) || undefined,
-        errors: Array.isArray(json?.errors) ? json.errors : undefined,
-        raw: json,
+        message: "Không gửi được file ZIP sau khi thử direct backend và proxy cùng origin.",
+        detail:
+          "Direct backend có thể bị CORS/preflight; proxy cùng origin có thể bị giới hạn upload của hosting. Cần mở CORS cho https://rexenglish.com ở backend hoặc tăng body limit nếu proxy production vẫn chặn file lớn.",
       };
     }
-    const d = json?.data ?? json;
-    return {
-      isSuccess: true,
-      data: {
-        syllabusId: str(d?.syllabusId),
-        importedLessonPlans: Number(d?.importedLessonPlans ?? 0),
-        skippedFiles: Number(d?.skippedFiles ?? 0),
-        archiveFileName: str(d?.archiveFileName) || null,
-        archiveParserVersion: str(d?.archiveParserVersion) || null,
-        selectedSyllabusEntryName: str(d?.selectedSyllabusEntryName) || null,
-        selectedSyllabusNormalizedEntryName: str(d?.selectedSyllabusNormalizedEntryName) || null,
-        selectedSyllabusFileName: str(d?.selectedSyllabusFileName) || null,
-        selectedSyllabusSourceType: str(d?.selectedSyllabusSourceType) || null,
-        selectedSyllabusParserVersion: str(d?.selectedSyllabusParserVersion) || null,
-        importedEntries: Array.isArray(d?.importedEntries) ? d.importedEntries : [],
-        skippedItems: Array.isArray(d?.skippedItems) ? d.skippedItems : [],
-        skippedEntries: Array.isArray(d?.skippedEntries) ? d.skippedEntries : [],
-      },
-    };
+
+    return { isSuccess: false, data: null, message: "Import archive thất bại." };
   } catch (error) {
     if (error instanceof TypeError && /fetch/i.test(error.message)) {
       return {
         isSuccess: false,
         data: null,
         message:
-          "Không gửi được file ZIP tới backend. Nếu đang ở production HTTPS, hãy kiểm tra URL upload HTTPS/CORS của backend.",
+          "Không gửi được file ZIP tới backend.",
         detail:
-          "Trình duyệt đã chặn hoặc không kết nối được request upload. FE hiện ưu tiên NEXT_PUBLIC_SYLLABUS_ARCHIVE_UPLOAD_API_URL, sau đó dùng https://rexengswagger.duckdns.org/api để tránh mixed-content.",
+          "FE đã thử proxy cùng origin trước, sau đó mới dùng direct backend dự phòng. Kiểm tra CORS backend hoặc giới hạn upload của hosting/proxy production.",
       };
     }
     return errorResponse(null, error);
