@@ -7,7 +7,7 @@ import { getAllUsers } from "@/lib/api/userService";
 import { getAllClasses } from "@/lib/api/classService";
 import { useBranchFilter } from "@/hooks/useBranchFilter";
 import { usePageI18n } from "@/hooks/usePageI18n";
-import type { DashboardOverallResponse } from "@/types/dashboard";
+import type { DashboardData, DashboardOverallResponse } from "@/types/dashboard";
 import { DashboardPage } from "@/components/admin/dashboard";
 import { BarChart3, Sparkles, Calendar, Download } from "lucide-react";
 
@@ -147,10 +147,14 @@ export default function Page() {
         selectedBranchId ? { branchId: selectedBranchId } : undefined
       );
 
-      const summaryData = (response?.data as unknown as Record<string, unknown>)?.summary || response?.data;
+      const rawData = response?.data as DashboardData | DashboardOverallResponse | undefined;
+      const summaryData = (rawData as DashboardData | undefined)?.summary;
 
       if (summaryData) {
-        setData(summaryData as DashboardOverallResponse);
+        const { summary, ...dashboardMeta } = rawData as DashboardData;
+        setData({ ...summary, ...dashboardMeta });
+      } else if (rawData) {
+        setData(rawData as DashboardOverallResponse);
       } else {
         setError("Dashboard API returned empty data.");
       }

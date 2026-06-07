@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { BACKEND_SYLLABUS_ENDPOINTS } from "@/constants/apiURL";
 
 export const runtime = "nodejs";
+export const maxDuration = 300;
 
 const PRIVATE_BLOB_HOST_SUFFIX = ".private.blob.vercel-storage.com";
 const BLOB_HOST_SUFFIX = ".blob.vercel-storage.com";
@@ -227,6 +228,51 @@ function importErrorResponse(error: ImportArchiveRequestError): NextResponse {
   );
 }
 
+async function readUpstreamBody(upstream: Response, archiveSize?: number) {
+  const text = await upstream.text().catch(() => "");
+  if (!text) {
+    if (upstream.status === 413 && archiveSize) {
+      return {
+        isSuccess: false,
+        data: null,
+        title: "File quá lớn",
+        detail: `File ZIP (${Math.ceil(archiveSize / 1024 / 1024)} MB) vượt quá giới hạn upload của backend.`,
+        message: "File ZIP vượt quá giới hạn upload của backend.",
+        status: 413,
+      };
+    }
+
+    return {
+      isSuccess: false,
+      data: null,
+      message: `Backend trả về lỗi ${upstream.status} nhưng không có response body.`,
+      status: upstream.status,
+    };
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    if (upstream.status === 413 && archiveSize) {
+      return {
+        isSuccess: false,
+        data: null,
+        title: "File quá lớn",
+        detail: text || `File ZIP (${Math.ceil(archiveSize / 1024 / 1024)} MB) vượt quá giới hạn upload của backend.`,
+        message: "File ZIP vượt quá giới hạn upload của backend.",
+        status: 413,
+      };
+    }
+
+    return {
+      isSuccess: upstream.ok,
+      data: upstream.ok ? text : null,
+      message: upstream.ok ? undefined : text || `Backend trả về lỗi ${upstream.status}.`,
+      status: upstream.status,
+    };
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const authHeader = req.headers.get("authorization");
@@ -270,7 +316,7 @@ export async function POST(req: Request) {
       req.url,
     );
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 120_000);
+    const timer = setTimeout(() => controller.abort(), 300_000);
     let upstream: Response;
 
     try {
@@ -284,26 +330,7 @@ export async function POST(req: Request) {
       clearTimeout(timer);
     }
 
-    const data = await upstream.json().catch(() => {
-      if (upstream.status === 413) {
-        return {
-          isSuccess: false,
-          data: null,
-          title: "File quá lớn",
-          detail: `File ZIP (${Math.ceil(archive.size / 1024 / 1024)} MB) vượt quá giới hạn upload của backend.`,
-          message: "File ZIP vượt quá giới hạn upload của backend.",
-          status: 413,
-        };
-      }
-
-      return {
-        isSuccess: false,
-        data: null,
-        message: `Backend trả về lỗi ${upstream.status} nhưng không có JSON response.`,
-        status: upstream.status,
-      };
-    });
-
+    const data = await readUpstreamBody(upstream, archive.size);
     return NextResponse.json(data, { status: upstream.status });
   } catch (error) {
     if (error instanceof ImportArchiveRequestError) {
@@ -329,7 +356,14 @@ export async function POST(req: Request) {
         { status: 503 },
       );
     }
-
+    if (error instanceof TypeError && /fetch/i.test(error.message)) {
+      return NextResponse.json({
+        isSuccess: false,
+        data: null,
+        message: "Proxy không kết nối được tới backend import archive.",
+        detail: "Kiểm tra backend HTTPS/CORS hoặc giới hạn upload của server/proxy production.",
+      }, { status: 502 });
+    }
     console.error("Syllabus import-archive error:", error);
     return NextResponse.json(
       { isSuccess: false, data: null, message: "Đã xảy ra lỗi khi import file archive." },

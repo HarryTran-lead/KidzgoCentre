@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { CheckCircle2, Pencil, Plus, Search, Trash2, WalletCards, XCircle } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 
 type TicketCompatibilityMode = 'None' | 'AllowAll' | 'RuleBased';
 type SlotDayGroup = 'None' | 'Weekday' | 'Weekend';
@@ -111,7 +112,7 @@ const timeBandValueMap: Record<string, SlotTimeBand> = {
   '0': 'None',
   '1': 'Morning',
   '2': 'Afternoon',
-  '3': 'Evening',
+  '4': 'Evening',
   None: 'None',
   Morning: 'Morning',
   Afternoon: 'Afternoon',
@@ -131,9 +132,9 @@ const usageTypeValueMap: Record<string, SlotUsageType> = {
   '0': 'None',
   '1': 'Standard',
   '2': 'Makeup',
-  '3': 'Remedial',
-  '4': 'Review',
-  '5': 'Custom',
+  '4': 'Remedial',
+  '8': 'Review',
+  '16': 'Custom',
   None: 'None',
   Standard: 'Standard',
   Makeup: 'Makeup',
@@ -255,6 +256,7 @@ function buildRequestHeaders(initHeaders?: HeadersInit) {
 async function apiRequest<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     ...init,
+    cache: init?.cache ?? 'no-store',
     credentials: 'include',
     headers: buildRequestHeaders(init?.headers),
   });
@@ -363,7 +365,9 @@ export default function LearningTicketTypesPage() {
       const payload = await apiRequest<unknown>('/api/learning-ticket-types');
       setTicketTypes(extractItems<LearningTicketType>(payload).map(normalizeTicketType));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Không tải được danh sách loại vé.');
+      const errorMessage = err instanceof Error ? err.message : 'Không tải được danh sách loại vé.';
+      setError(errorMessage);
+      toast.destructive({ title: 'Tải loại vé thất bại', description: errorMessage });
     } finally {
       setIsLoading(false);
     }
@@ -446,7 +450,9 @@ export default function LearningTicketTypesPage() {
     setMessage(null);
 
     if (!form.code.trim() || !form.name.trim()) {
-      setError('Vui lòng nhập đầy đủ mã và tên loại vé.');
+      const warningMessage = 'Vui lòng nhập đầy đủ mã và tên loại vé.';
+      setError(warningMessage);
+      toast.warning({ title: 'Thiếu thông tin', description: warningMessage });
       return;
     }
 
@@ -469,19 +475,25 @@ export default function LearningTicketTypesPage() {
           method: 'PUT',
           body: JSON.stringify(body),
         });
-        setMessage('Đã cập nhật loại vé học.');
+        const successMessage = 'Đã cập nhật loại vé học.';
+        setMessage(successMessage);
+        toast.success({ title: 'Cập nhật thành công', description: successMessage });
       } else {
         await apiRequest('/api/learning-ticket-types', {
           method: 'POST',
           body: JSON.stringify(body),
         });
-        setMessage('Đã tạo loại vé học mới.');
+        const successMessage = 'Đã tạo loại vé học mới.';
+        setMessage(successMessage);
+        toast.success({ title: 'Tạo thành công', description: successMessage });
       }
 
       closeForm();
       await loadTicketTypes();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Không lưu được loại vé học.');
+      const errorMessage = err instanceof Error ? err.message : 'Không lưu được loại vé học.';
+      setError(errorMessage);
+      toast.destructive({ title: 'Lưu loại vé thất bại', description: errorMessage });
     } finally {
       setIsSaving(false);
     }
@@ -493,11 +505,15 @@ export default function LearningTicketTypesPage() {
     setMessage(null);
     try {
       await apiRequest(`/api/learning-ticket-types/${deleteTarget.id}`, { method: 'DELETE' });
-      setMessage('Đã xóa loại vé học.');
+      const successMessage = 'Đã xóa loại vé học.';
+      setMessage(successMessage);
+      toast.success({ title: 'Xóa thành công', description: successMessage });
       setDeleteTarget(null);
       await loadTicketTypes();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Không xóa được loại vé học.');
+      const errorMessage = err instanceof Error ? err.message : 'Không xóa được loại vé học.';
+      setError(errorMessage);
+      toast.destructive({ title: 'Xóa loại vé thất bại', description: errorMessage });
     }
   }
 
@@ -674,7 +690,7 @@ export default function LearningTicketTypesPage() {
       </section>
 
       {isFormOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
+        <div className="fixed inset-0 z-9999 flex items-center justify-center bg-slate-950/40 p-4">
           <section className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-3xl bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
               <div>
@@ -743,7 +759,7 @@ export default function LearningTicketTypesPage() {
       )}
 
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
+        <div className="fixed inset-0 z-9999 flex items-center justify-center bg-slate-950/40 p-4">
           <section className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl">
             <div className="bg-red-600 px-6 py-5 text-white">
               <h2 className="text-xl font-extrabold">Xóa loại vé học</h2>

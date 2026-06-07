@@ -5,6 +5,7 @@ import {
 } from "@/constants/apiURL";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 function buildHeaders(request: NextRequest) {
   const headers = new Headers();
@@ -24,6 +25,7 @@ async function proxyResponse(response: Response) {
     status: response.status,
     headers: {
       "Content-Type": response.headers.get("content-type") ?? "application/json",
+      "Cache-Control": "no-store, max-age=0",
     },
   });
 }

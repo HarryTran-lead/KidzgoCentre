@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { buildApiUrl, BACKEND_TICKET_TYPE_COMPATIBILITY_ENDPOINTS } from "@/constants/apiURL";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 async function parseBody(res: Response) {
   const text = await res.text();
   if (!text) return null;
@@ -16,9 +19,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const upstream = await fetch(buildApiUrl(BACKEND_TICKET_TYPE_COMPATIBILITY_ENDPOINTS.BY_ID(id)), {
     method: "GET",
     headers: { Authorization: authHeader, "Content-Type": "application/json" },
+    cache: "no-store",
   });
   const data = await parseBody(upstream);
-  return NextResponse.json(data, { status: upstream.status });
+  return NextResponse.json(data, {
+    status: upstream.status,
+    headers: { "Cache-Control": "no-store, max-age=0" },
+  });
 }
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {

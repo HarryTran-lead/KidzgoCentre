@@ -1,9 +1,18 @@
 ﻿import {
+  BACKEND_SYLLABUS_ENDPOINTS,
   BRANCH_ENDPOINTS,
+  buildApiUrl,
   SYLLABUS_ENDPOINTS,
 } from "@/constants/apiURL";
 import { isUploadSuccess, uploadFile } from "@/lib/api/fileService";
 import { getAccessToken } from "@/lib/store/authToken";
+
+const DEFAULT_SYLLABUS_ARCHIVE_UPLOAD_API_URL = "https://rexengswagger.duckdns.org/api";
+const SYLLABUS_ARCHIVE_UPLOAD_API_URL = (
+  process.env.NEXT_PUBLIC_SYLLABUS_ARCHIVE_UPLOAD_API_URL ??
+  process.env.NEXT_PUBLIC_BACKEND_UPLOAD_API_URL ??
+  ""
+).replace(/\/$/, "");
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -464,6 +473,34 @@ export interface ArchiveSyllabusDocumentRequest {
 
 function str(v: unknown): string {
   return typeof v === "string" ? v : "";
+}
+
+function buildArchiveUploadFallbackUrl(url: string): string {
+  const isHttpsPage =
+    typeof window !== "undefined" &&
+    window.location.protocol === "https:";
+  const uploadBase =
+    isHttpsPage && /^http:\/\//i.test(SYLLABUS_ARCHIVE_UPLOAD_API_URL)
+      ? DEFAULT_SYLLABUS_ARCHIVE_UPLOAD_API_URL
+      : SYLLABUS_ARCHIVE_UPLOAD_API_URL || DEFAULT_SYLLABUS_ARCHIVE_UPLOAD_API_URL;
+  const parsed = new URL(url);
+  const pathnameWithoutApi = parsed.pathname.replace(/^\/api(?=\/|$)/i, "");
+  return `${uploadBase}${pathnameWithoutApi}${parsed.search}`;
+}
+
+function buildDirectBackendUrl(endpoint: string, options?: { useArchiveUploadFallback?: boolean }): string | null {
+  const url = buildApiUrl(endpoint);
+  if (!/^https?:\/\//i.test(url)) return null;
+
+  const isHttpsPage =
+    typeof window !== "undefined" &&
+    window.location.protocol === "https:";
+
+  if (isHttpsPage && /^http:\/\//i.test(url)) {
+    return options?.useArchiveUploadFallback ? buildArchiveUploadFallbackUrl(url) : null;
+  }
+
+  return url;
 }
 
 function strAny(...values: unknown[]): string {
@@ -1250,11 +1287,85 @@ export async function importSyllabusArchive(
     if (params.overwriteExisting !== undefined) {
       query.append("overwriteExisting", String(params.overwriteExisting));
     }
+
+    const proxyImportUrl = `${SYLLABUS_ENDPOINTS.IMPORT_ARCHIVE}?${query}`;
+    const directBackendUrl = buildDirectBackendUrl(
+      `${BACKEND_SYLLABUS_ENDPOINTS.IMPORT_ARCHIVE}?${query}`,
+      { useArchiveUploadFallback: true },
+    );
+
+    const parseArchiveResponse = async (
+      res: Response,
+      limitSource: string,
+    ): Promise<ServiceResponse<ImportSyllabusArchiveResult | null>> => {
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const tooLargeMessage =
+          res.status === 413
+            ? `File ZIP (${Math.ceil(file.size / 1024 / 1024)} MB) vượt quá giới hạn upload của ${limitSource}.`
+            : "";
+
+        return {
+          isSuccess: false,
+          data: null,
+          message: str(json?.detail) || str(json?.message) || str(json?.title) || tooLargeMessage || "Import archive thất bại.",
+          status: typeof json?.status === "number" ? json.status : res.status,
+          title: str(json?.title) || undefined,
+          detail: str(json?.detail) || tooLargeMessage || undefined,
+          errors: Array.isArray(json?.errors) ? json.errors : undefined,
+          raw: json,
+        };
+      }
+
+      const d = json?.data ?? json;
+      return {
+        isSuccess: true,
+        data: {
+          syllabusId: str(d?.syllabusId),
+          importedLessonPlans: Number(d?.importedLessonPlans ?? 0),
+          skippedFiles: Number(d?.skippedFiles ?? 0),
+          archiveFileName: str(d?.archiveFileName) || null,
+          archiveParserVersion: str(d?.archiveParserVersion) || null,
+          selectedSyllabusEntryName: str(d?.selectedSyllabusEntryName) || null,
+          selectedSyllabusNormalizedEntryName: str(d?.selectedSyllabusNormalizedEntryName) || null,
+          selectedSyllabusFileName: str(d?.selectedSyllabusFileName) || null,
+          selectedSyllabusSourceType: str(d?.selectedSyllabusSourceType) || null,
+          selectedSyllabusParserVersion: str(d?.selectedSyllabusParserVersion) || null,
+          importedEntries: Array.isArray(d?.importedEntries) ? d.importedEntries : [],
+          skippedItems: Array.isArray(d?.skippedItems) ? d.skippedItems : [],
+          skippedEntries: Array.isArray(d?.skippedEntries) ? d.skippedEntries : [],
+        },
+      };
+    };
+
+    const postDirectArchive = async (): Promise<ServiceResponse<ImportSyllabusArchiveResult | null>> => {
+      if (!directBackendUrl) {
+        return {
+          isSuccess: false,
+          data: null,
+          message: "Không có direct backend URL khả dụng để import archive.",
+        };
+      }
+
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch(directBackendUrl, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      return parseArchiveResponse(res, "server/backend");
+    };
+
     const uploadRes = await uploadFile(file, "syllabus-imports", "archive", {
       fallbackToBackend: false,
       forceBlob: true,
     });
     if (!isUploadSuccess(uploadRes)) {
+      if (directBackendUrl) {
+        return await postDirectArchive();
+      }
+
       return {
         isSuccess: false,
         data: null,
@@ -1270,59 +1381,54 @@ export async function importSyllabusArchive(
       };
     }
 
-    const importUrl = `${SYLLABUS_ENDPOINTS.IMPORT_ARCHIVE}?${query}`;
+    try {
+      const res = await fetch(proxyImportUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          fileUrl: uploadRes.url,
+          archiveUrl: uploadRes.url,
+          fileName: uploadRes.fileName || file.name,
+          size: uploadRes.size || file.size,
+          contentType: file.type || "application/zip",
+        }),
+      });
+      const result = await parseArchiveResponse(res, "server/proxy");
+      const canFallbackToDirect =
+        !result.isSuccess &&
+        Boolean(directBackendUrl) &&
+        [400, 413, 502, 503, 504].includes(result.status ?? 0);
 
-    const res = await fetch(importUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        fileUrl: uploadRes.url,
-        archiveUrl: uploadRes.url,
-        fileName: uploadRes.fileName || file.name,
-        size: uploadRes.size || file.size,
-        contentType: file.type || "application/zip",
-      }),
-    });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      const tooLargeMessage =
-        res.status === 413
-          ? `File ZIP (${Math.ceil(file.size / 1024 / 1024)} MB) vượt quá giới hạn upload của server.`
-          : "";
+      if (!canFallbackToDirect) {
+        return result;
+      }
+    } catch (error) {
+      const canRetryDirect =
+        Boolean(directBackendUrl) &&
+        error instanceof TypeError &&
+        /fetch/i.test(error.message);
+      if (!canRetryDirect) throw error;
+    }
 
+    if (directBackendUrl) {
+      return await postDirectArchive();
+    }
+
+    return { isSuccess: false, data: null, message: "Import archive thất bại." };
+  } catch (error) {
+    if (error instanceof TypeError && /fetch/i.test(error.message)) {
       return {
-        isSuccess: false, data: null,
-        message: str(json?.detail) || str(json?.message) || str(json?.title) || tooLargeMessage || "Import archive thất bại.",
-        status: typeof json?.status === "number" ? json.status : res.status,
-        title: str(json?.title) || undefined,
-        detail: str(json?.detail) || undefined,
-        errors: Array.isArray(json?.errors) ? json.errors : undefined,
-        raw: json,
+        isSuccess: false,
+        data: null,
+        message:
+          "Không gửi được file ZIP tới backend.",
+        detail:
+          "FE đã thử Blob/proxy và direct backend khi có URL khả dụng. Kiểm tra CORS backend hoặc giới hạn upload của hosting/proxy production.",
       };
     }
-    const d = json?.data ?? json;
-    return {
-      isSuccess: true,
-      data: {
-        syllabusId: str(d?.syllabusId),
-        importedLessonPlans: Number(d?.importedLessonPlans ?? 0),
-        skippedFiles: Number(d?.skippedFiles ?? 0),
-        archiveFileName: str(d?.archiveFileName) || null,
-        archiveParserVersion: str(d?.archiveParserVersion) || null,
-        selectedSyllabusEntryName: str(d?.selectedSyllabusEntryName) || null,
-        selectedSyllabusNormalizedEntryName: str(d?.selectedSyllabusNormalizedEntryName) || null,
-        selectedSyllabusFileName: str(d?.selectedSyllabusFileName) || null,
-        selectedSyllabusSourceType: str(d?.selectedSyllabusSourceType) || null,
-        selectedSyllabusParserVersion: str(d?.selectedSyllabusParserVersion) || null,
-        importedEntries: Array.isArray(d?.importedEntries) ? d.importedEntries : [],
-        skippedItems: Array.isArray(d?.skippedItems) ? d.skippedItems : [],
-        skippedEntries: Array.isArray(d?.skippedEntries) ? d.skippedEntries : [],
-      },
-    };
-  } catch (error) {
     return errorResponse(null, error);
   }
 }

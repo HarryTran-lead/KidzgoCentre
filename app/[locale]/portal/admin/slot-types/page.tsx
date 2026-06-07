@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { CheckCircle2, Layers, Pencil, Plus, Search, Trash2, XCircle } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 
 type SlotDayGroup = 'None' | 'Weekday' | 'Weekend';
 type SlotTimeBand = 'None' | 'Morning' | 'Afternoon' | 'Evening';
@@ -126,9 +127,9 @@ const usageTypeValueMap: Record<string, SlotUsageType> = {
   '0': 'None',
   '1': 'Standard',
   '2': 'Makeup',
-  '3': 'Remedial',
-  '4': 'Review',
-  '5': 'Custom',
+  '4': 'Remedial',
+  '8': 'Review',
+  '16': 'Custom',
   None: 'None',
   Standard: 'Standard',
   Makeup: 'Makeup',
@@ -235,6 +236,7 @@ function buildRequestHeaders(initHeaders?: HeadersInit) {
 async function apiRequest<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     ...init,
+    cache: init?.cache ?? 'no-store',
     credentials: 'include',
     headers: buildRequestHeaders(init?.headers),
   });
@@ -273,7 +275,7 @@ function TagBadge({ label, tone = 'slate' }: { label: string; tone?: 'slate' | '
 
 function getUsageBadge(slotType: SlotType): { label: string; tone: 'slate' | 'red' } {
   const usageType = slotType.usageType ?? 'None';
-  if (usageType === 'None' && slotType.teacherType === 'Native') {
+  if (usageType === 'Custom' && slotType.teacherType === 'Native') {
     return { label: 'Khác', tone: 'red' };
   }
 
@@ -335,7 +337,9 @@ export default function SlotTypesPage() {
       const payload = await apiRequest<unknown>('/api/slot-types');
       setSlotTypes(extractItems<SlotType>(payload).map(normalizeSlotType));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Không tải được danh sách loại slot.');
+      const errorMessage = err instanceof Error ? err.message : 'Không tải được danh sách loại slot.';
+      setError(errorMessage);
+      toast.destructive({ title: 'Tải loại slot thất bại', description: errorMessage });
     } finally {
       setIsLoading(false);
     }
@@ -404,7 +408,9 @@ export default function SlotTypesPage() {
     setMessage(null);
 
     if (!form.code.trim() || !form.name.trim()) {
-      setError('Vui lòng nhập đầy đủ mã và tên loại slot.');
+      const warningMessage = 'Vui lòng nhập đầy đủ mã và tên loại slot.';
+      setError(warningMessage);
+      toast.warning({ title: 'Thiếu thông tin', description: warningMessage });
       return;
     }
 
@@ -426,19 +432,25 @@ export default function SlotTypesPage() {
           method: 'PUT',
           body: JSON.stringify(body),
         });
-        setMessage('Đã cập nhật loại slot.');
+        const successMessage = 'Đã cập nhật loại slot.';
+        setMessage(successMessage);
+        toast.success({ title: 'Cập nhật thành công', description: successMessage });
       } else {
         await apiRequest('/api/slot-types', {
           method: 'POST',
           body: JSON.stringify(body),
         });
-        setMessage('Đã tạo loại slot mới.');
+        const successMessage = 'Đã tạo loại slot mới.';
+        setMessage(successMessage);
+        toast.success({ title: 'Tạo thành công', description: successMessage });
       }
 
       closeForm();
       await loadSlotTypes();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Không lưu được loại slot.');
+      const errorMessage = err instanceof Error ? err.message : 'Không lưu được loại slot.';
+      setError(errorMessage);
+      toast.destructive({ title: 'Lưu loại slot thất bại', description: errorMessage });
     } finally {
       setIsSaving(false);
     }
@@ -450,11 +462,15 @@ export default function SlotTypesPage() {
     setMessage(null);
     try {
       await apiRequest(`/api/slot-types/${deleteTarget.id}`, { method: 'DELETE' });
-      setMessage('Đã xóa loại slot.');
+      const successMessage = 'Đã xóa loại slot.';
+      setMessage(successMessage);
+      toast.success({ title: 'Xóa thành công', description: successMessage });
       setDeleteTarget(null);
       await loadSlotTypes();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Không xóa được loại slot.');
+      const errorMessage = err instanceof Error ? err.message : 'Không xóa được loại slot.';
+      setError(errorMessage);
+      toast.destructive({ title: 'Xóa loại slot thất bại', description: errorMessage });
     }
   }
 
@@ -632,7 +648,7 @@ export default function SlotTypesPage() {
       </section>
 
       {isFormOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
+        <div className="fixed inset-0 z-9999 flex items-center justify-center bg-slate-950/40 p-4">
           <section className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-3xl bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
               <div>
@@ -685,7 +701,7 @@ export default function SlotTypesPage() {
       )}
 
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
+        <div className="fixed inset-0 z-9999 flex items-center justify-center bg-slate-950/40 p-4">
           <section className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl">
             <div className="bg-red-600 px-6 py-5 text-white">
               <h2 className="text-xl font-extrabold">Xóa loại slot</h2>
