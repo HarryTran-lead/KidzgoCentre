@@ -1636,18 +1636,18 @@ export default function StaffRegistrationOverview({
       };
 
       const primaryFilteredCount = countClassesByProgramAndLevel(
-        actionRegistration?.programId,
-        actionRegistration?.programName,
-        actionRegistration?.levelId,
-        actionRegistration?.levelName,
+        actionRegistration?.programId ?? undefined,
+        actionRegistration?.programName ?? undefined,
+        actionRegistration?.levelId ?? undefined,
+        actionRegistration?.levelName ?? undefined,
       );
       const secondaryFilteredCount =
         hasSecondaryTrack && canUseSecondaryForAssignment
           ? countClassesByProgramAndLevel(
-              actionRegistration?.secondaryProgramId || actionRegistration?.programId,
-              actionRegistration?.secondaryProgramName || actionRegistration?.programName,
-              actionRegistration?.secondaryLevelId,
-              actionRegistration?.secondaryLevelName,
+              (actionRegistration?.secondaryProgramId || actionRegistration?.programId) ?? undefined,
+              (actionRegistration?.secondaryProgramName || actionRegistration?.programName) ?? undefined,
+              actionRegistration?.secondaryLevelId ?? undefined,
+              actionRegistration?.secondaryLevelName ?? undefined,
             )
           : 0;
 
