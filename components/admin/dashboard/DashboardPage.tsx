@@ -15,12 +15,11 @@ import {
   UserCog,
   CircleCheckBig,
   Sparkles,
-  Wallet,
   Building2,
   MapPin,
   CheckCircle,
 } from "lucide-react";
-import type { DashboardOverallResponse, StatusBreakdownItem } from "@/types/dashboard";
+import type { DashboardOverallResponse, DashboardTrendPoint, StatusBreakdownItem } from "@/types/dashboard";
 import KpiCard from "./KpiCard";
 import ChartCard from "./ChartCard";
 import DashboardBarChart, { type BarChartDatum } from "./BarChart";
@@ -41,8 +40,9 @@ interface DashboardPageProps {
         address?: string;
         isActive: boolean;
         studentCount: number;
-        teacherCount: number;
-        classCount: number;
+          teacherCount: number;
+          classCount: number;
+          attendanceRate?: number;
       }>;
     };
   }) | null;
@@ -52,6 +52,17 @@ interface DashboardPageProps {
 }
 
 type DashboardTab = "overview" | "leads" | "academic" | "hr" | "branches";
+
+type BranchDashboardCard = {
+  id: string;
+  name: string;
+  address?: string;
+  isActive: boolean;
+  studentCount: number;
+  teacherCount: number;
+  classCount: number;
+  attendanceRate?: number;
+};
 
 // Updated color palette: Red and Gray theme
 const CHART_COLORS = ["#dc2626", "#404040", "#171717", "#991b1b", "#4b5563", "#6b7280", "#9ca3af"];
@@ -129,21 +140,49 @@ function mapBreakdownToBar(items?: StatusBreakdownItem[]): BarChartDatum[] {
   }));
 }
 
+function pickText(source: Record<string, unknown>, keys: string[], fallback: string): string {
+  for (const key of keys) {
+    const value = source[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+    if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  }
+  return fallback;
+}
+
+function pickNumber(source: Record<string, unknown>, keys: string[]): number {
+  for (const key of keys) {
+    const value = source[key];
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    if (typeof value === "string") {
+      const parsed = Number(value.replace(/[^\d.-]/g, ""));
+      if (Number.isFinite(parsed)) return parsed;
+    }
+  }
+  return 0;
+}
+
+function mapTrendToLine(
+  items: DashboardTrendPoint[] | undefined,
+  labelKeys: string[],
+  valueKeys: string[],
+  color = "#dc2626",
+): LineChartDatum[] {
+  return (items ?? []).map((item, index) => {
+    const source = item as Record<string, unknown>;
+    return {
+      label: pickText(source, labelKeys, `Mốc ${index + 1}`),
+      value: pickNumber(source, valueKeys),
+      color,
+    };
+  });
+}
+
 function formatNumber(value: number | undefined): string {
   return num(value).toLocaleString("vi-VN");
 }
 
 function formatPercent(value: number | undefined): string {
   return `${percent(value).toFixed(1)}%`;
-}
-
-function formatMoney(value: number | undefined): string {
-  const amount = num(value);
-  return amount.toLocaleString("vi-VN", {
-    style: "currency",
-    currency: "VND",
-    maximumFractionDigits: 0,
-  });
 }
 
 function EmptyBlock({ text }: { text?: string }) {
@@ -242,7 +281,6 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
   const studentsTotal = num(students?.total, students?.totalStudents);
   const activeEnrollments = num(enrollments?.active, enrollments?.activeEnrollments);
   const totalLeads = num(leads?.total, leads?.totalLeads);
-  const conversionRate = percent(leads?.conversionRate);
   const attendanceRate = percent(attendance?.attendanceRate);
 
   const leadsBreakdown = useMemo(() => mapBreakdownToBar(leads?.statusBreakdown), [leads?.statusBreakdown]);
@@ -252,9 +290,24 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
   const enrollmentLine = useMemo(() => mapBreakdownToLine(enrollments?.statusBreakdown), [enrollments?.statusBreakdown]);
   const makeupLine = useMemo(() => mapBreakdownToLine(makeupCredits?.statusBreakdown), [makeupCredits?.statusBreakdown]);
   const leaveLine = useMemo(() => mapBreakdownToLine(leave?.statusBreakdown), [leave?.statusBreakdown]);
-  const payrollLine = useMemo(
-    () => mapBreakdownToLine(humanResources?.payrollRunStatusBreakdown),
-    [humanResources?.payrollRunStatusBreakdown]
+  const attendanceTrendLine = useMemo(
+    () =>
+      mapTrendToLine(
+        data?.attendanceTrend,
+        ["label", "month", "period", "date", "name"],
+        ["attendanceRate", "presentRate", "rate", "value", "percentage"],
+        "#16a34a",
+      ),
+    [data?.attendanceTrend]
+  );
+  const studentDistributionBars = useMemo<BarChartDatum[]>(
+    () =>
+      (data?.studentDistribution ?? []).map((item, index) => ({
+        label: item.branchName,
+        value: num(item.studentCount),
+        color: CHART_COLORS[index % CHART_COLORS.length],
+      })),
+    [data?.studentDistribution]
   );
 
   const homeworkBars = useMemo<BarChartDatum[]>(
@@ -281,11 +334,45 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
     () => [
       { label: "Giờ làm", value: num(humanResources?.totalWorkHours), color: "#2563eb" },
       { label: "Giờ TB", value: num(humanResources?.averageWorkHoursPerStaff), color: "#0ea5e9" },
-      { label: "Xử lý lương", value: num(humanResources?.payrollProcessed), color: "#10b981" },
-      { label: "Chờ xử lý", value: num(humanResources?.payrollPending), color: "#f59e0b" },
     ],
     [humanResources]
   );
+
+  const branchCards = useMemo<BranchDashboardCard[]>(() => {
+    if (data?.branches?.branchesData?.length) {
+      return data.branches.branchesData;
+    }
+
+    const distributionByBranchId = new Map(
+      (data?.studentDistribution ?? []).map((item) => [item.branchId, item])
+    );
+
+    return (data?.branchSummaries ?? []).map((branch) => {
+      const distribution = distributionByBranchId.get(branch.branchId);
+      return {
+        id: branch.branchId,
+        name: branch.branchName,
+        isActive: true,
+        studentCount: num(branch.totalStudents, distribution?.studentCount),
+        teacherCount: 0,
+        classCount: num(branch.activeClasses),
+        attendanceRate: percent(branch.attendanceRate),
+      };
+    });
+  }, [data]);
+
+  const branchTotals = useMemo(() => {
+    const fallbackStudents = branchCards.reduce((sum, branch) => sum + branch.studentCount, 0);
+    const fallbackTeachers = branchCards.reduce((sum, branch) => sum + branch.teacherCount, 0);
+    const fallbackClasses = branchCards.reduce((sum, branch) => sum + branch.classCount, 0);
+    return {
+      totalBranches: data?.branches?.totalBranches ?? branchCards.length,
+      activeBranches: data?.branches?.activeBranches ?? branchCards.filter((branch) => branch.isActive).length,
+      totalStudents: data?.branches?.totalStudents ?? fallbackStudents,
+      totalTeachers: data?.branches?.totalTeachers ?? fallbackTeachers,
+      totalClasses: data?.branches?.totalClasses ?? fallbackClasses,
+    };
+  }, [branchCards, data]);
 
   if (loading && !data) {
     return <LoadingGrid />;
@@ -401,6 +488,16 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
               <Legend data={leadsLine} />
             </ChartCard>
           </section>
+
+          <section className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <ChartCard title="Xu hướng điểm danh" rightContent={formatPercent(attendance?.attendanceRate)}>
+              <DashboardLineChart data={attendanceTrendLine} height={220} strokeColor="#16a34a" />
+            </ChartCard>
+
+            <ChartCard title="Học viên theo chi nhánh">
+              <DashboardBarChart data={studentDistributionBars} height={220} />
+            </ChartCard>
+          </section>
         </div>
       ) : null}
 
@@ -481,23 +578,17 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
         <div className="space-y-6">
           <section>
             <SectionTitle title={t.sections.hr} subtitle={t.sections.hrSubtitle} />
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <KpiCard title={t.kpis.totalStaff} value={formatNumber(humanResources?.totalStaff)} icon={<Briefcase size={18} />} colorScheme="red" />
               <KpiCard title={t.kpis.teachers} value={formatNumber(humanResources?.teacherCount)} icon={<Users size={18} />} colorScheme="emerald" />
               <KpiCard title={t.kpis.management} value={formatNumber(humanResources?.managementStaffCount)} icon={<UserCog size={18} />} colorScheme="blue" />
               <KpiCard title={t.kpis.admin} value={formatNumber(humanResources?.adminCount)} icon={<UserCog size={18} />} colorScheme="violet" />
-              <KpiCard title={t.kpis.totalPayroll} value={formatMoney(humanResources?.totalPayroll)} icon={<Wallet size={18} />} colorScheme="amber" />
             </div>
           </section>
 
-          <section className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+          <section className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <ChartCard title={t.charts.staffStructure}>
               <DashboardBarChart data={hrRoleBars} layout="vertical" height={240} />
-            </ChartCard>
-
-            <ChartCard title={t.charts.payrollStatus}>
-              <DashboardLineChart data={payrollLine} height={220} strokeColor="#06b6d4" />
-              <Legend data={payrollLine} />
             </ChartCard>
 
             <ChartCard title={t.charts.hrTrend}>
@@ -513,19 +604,19 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
           <section>
             <SectionTitle title="Tổng quan chi nhánh" subtitle="Thông tin tổng hợp về toàn bộ chi nhánh trong hệ thống" />
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <KpiCard title="Tổng chi nhánh" value={formatNumber(data?.branches?.totalBranches || 0)} icon={<Building2 size={18} />} colorScheme="red" />
-              <KpiCard title="Chi nhánh hoạt động" value={formatNumber(data?.branches?.activeBranches || 0)} icon={<CheckCircle size={18} />} colorScheme="emerald" />
-              <KpiCard title="Tổng học viên" value={formatNumber(data?.branches?.totalStudents || 0)} icon={<GraduationCap size={18} />} colorScheme="blue" />
-              <KpiCard title="Tổng giáo viên" value={formatNumber(data?.branches?.totalTeachers || 0)} icon={<Users size={18} />} colorScheme="amber" />
+              <KpiCard title="Tổng chi nhánh" value={formatNumber(branchTotals.totalBranches)} icon={<Building2 size={18} />} colorScheme="red" />
+              <KpiCard title="Chi nhánh hoạt động" value={formatNumber(branchTotals.activeBranches)} icon={<CheckCircle size={18} />} colorScheme="emerald" />
+              <KpiCard title="Tổng học viên" value={formatNumber(branchTotals.totalStudents)} icon={<GraduationCap size={18} />} colorScheme="blue" />
+              <KpiCard title="Tổng giáo viên" value={formatNumber(branchTotals.totalTeachers)} icon={<Users size={18} />} colorScheme="amber" />
             </div>
           </section>
 
           <section className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-            {data?.branches?.branchesData && Array.isArray(data.branches.branchesData) && data.branches.branchesData.length > 0 ? (
+            {branchCards.length > 0 ? (
               <>
-                <ChartCard title="Học viên theo chi nhánh" rightContent={`Tổng: ${formatNumber(data?.branches?.totalStudents || 0)}`}>
+                <ChartCard title="Học viên theo chi nhánh" rightContent={`Tổng: ${formatNumber(branchTotals.totalStudents)}`}>
                   <DashboardBarChart 
-                    data={data.branches.branchesData.map((branch, idx) => ({
+                    data={branchCards.map((branch, idx) => ({
                       label: branch.name,
                       value: branch.studentCount || 0,
                       color: CHART_COLORS[idx % CHART_COLORS.length],
@@ -534,9 +625,9 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
                   />
                 </ChartCard>
 
-                <ChartCard title="Giáo viên theo chi nhánh" rightContent={`Tổng: ${formatNumber(data?.branches?.totalTeachers || 0)}`}>
+                <ChartCard title="Giáo viên theo chi nhánh" rightContent={`Tổng: ${formatNumber(branchTotals.totalTeachers)}`}>
                   <DashboardBarChart 
-                    data={data.branches.branchesData.map((branch, idx) => ({
+                    data={branchCards.map((branch, idx) => ({
                       label: branch.name,
                       value: branch.teacherCount || 0,
                       color: CHART_COLORS[idx % CHART_COLORS.length],
@@ -545,9 +636,9 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
                   />
                 </ChartCard>
 
-                <ChartCard title="Lớp học theo chi nhánh" rightContent={`Tổng: ${formatNumber(data?.branches?.totalClasses || 0)}`}>
+                <ChartCard title="Lớp học theo chi nhánh" rightContent={`Tổng: ${formatNumber(branchTotals.totalClasses)}`}>
                   <DashboardBarChart 
-                    data={data.branches.branchesData.map((branch, idx) => ({
+                    data={branchCards.map((branch, idx) => ({
                       label: branch.name,
                       value: branch.classCount || 0,
                       color: CHART_COLORS[idx % CHART_COLORS.length],
@@ -573,17 +664,9 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
                 <p className="mt-1 text-sm text-gray-500">Thông tin chi tiết của từng chi nhánh</p>
               </div>
 
-              {data?.branches?.branchesData && Array.isArray(data.branches.branchesData) && data.branches.branchesData.length > 0 ? (
+              {branchCards.length > 0 ? (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {data.branches.branchesData.map((branch: {
-                    id: string;
-                    name: string;
-                    address?: string;
-                    isActive: boolean;
-                    studentCount: number;
-                    teacherCount: number;
-                    classCount: number;
-                  }) => (
+                  {branchCards.map((branch) => (
                     <div
                       key={branch.id}
                       className="rounded-xl border border-gray-200 bg-linear-to-br from-white to-gray-50 p-4 hover:border-red-300 hover:shadow-md transition-all"
@@ -619,6 +702,12 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
                           <p className="text-xs text-amber-600 mt-1">Lớp học</p>
                         </div>
                       </div>
+                      {branch.attendanceRate !== undefined ? (
+                        <div className="mt-3 rounded-lg bg-emerald-50 p-2 text-center">
+                          <p className="text-sm font-bold text-emerald-600">{formatPercent(branch.attendanceRate)}</p>
+                          <p className="text-xs text-emerald-600 mt-1">Điểm danh</p>
+                        </div>
+                      ) : null}
                     </div>
                   ))}
                 </div>

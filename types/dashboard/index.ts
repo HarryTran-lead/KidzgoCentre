@@ -185,6 +185,24 @@ export interface StudentDistribution {
   studentCount: number;
 }
 
+export interface DashboardTrendPoint {
+  label?: string;
+  date?: string;
+  period?: string;
+  month?: string;
+  name?: string;
+  value?: number;
+  count?: number;
+  total?: number;
+  amount?: number;
+  revenue?: number;
+  totalRevenue?: number;
+  attendanceRate?: number;
+  presentRate?: number;
+  rate?: number;
+  [key: string]: unknown;
+}
+
 export interface DashboardSummaryData {
   attendance: AttendanceSummary;
   homework: HomeworkSummary;
@@ -200,9 +218,9 @@ export interface DashboardSummaryData {
 
 export interface DashboardData {
   branchSummaries: BranchSummary[];
-  revenueTrend: any[]; // Bạn có thể update type cụ thể nếu mảng này trả về dữ liệu thật
+  revenueTrend: DashboardTrendPoint[];
   studentDistribution: StudentDistribution[];
-  attendanceTrend: any[]; // Tương tự như revenueTrend
+  attendanceTrend: DashboardTrendPoint[];
   summary: DashboardSummaryData;
 }
 
@@ -239,7 +257,8 @@ export interface DashboardApiResponse<T> {
   data: T;
 }
 
-export type DashboardOverallResponse = DashboardSummaryData;
+export type DashboardOverallResponse = DashboardSummaryData &
+  Partial<Omit<DashboardData, "summary">>;
 export type DashboardStudentResponse = StudentsSummary;
 export interface DashboardAcademicResponse {
   attendance: AttendanceSummary;
@@ -262,4 +281,4 @@ export type DashboardAcademicApiResponse = DashboardApiResponse<DashboardAcademi
 export type DashboardFinanceApiResponse = DashboardApiResponse<DashboardFinanceResponse>;
 export type DashboardHRApiResponse = DashboardApiResponse<DashboardHRResponse>;
 export type DashboardLeadsApiResponse = DashboardApiResponse<DashboardLeadsResponse>;
-export type AdminOverviewApiResponse = DashboardApiResponse<any>;
+export type AdminOverviewApiResponse = DashboardApiResponse<unknown>;
