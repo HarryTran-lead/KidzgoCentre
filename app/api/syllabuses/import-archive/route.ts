@@ -1,6 +1,34 @@
 import { NextResponse } from "next/server";
 import { buildApiUrl, BACKEND_SYLLABUS_ENDPOINTS } from "@/constants/apiURL";
 
+export const runtime = "nodejs";
+export const maxDuration = 300;
+
+type RequestInitWithDuplex = RequestInit & { duplex?: "half" };
+
+async function readUpstreamBody(upstream: Response) {
+  const text = await upstream.text().catch(() => "");
+  if (!text) {
+    return {
+      isSuccess: false,
+      data: null,
+      message: `Backend trả về lỗi ${upstream.status} nhưng không có response body.`,
+      status: upstream.status,
+    };
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return {
+      isSuccess: upstream.ok,
+      data: upstream.ok ? text : null,
+      message: upstream.ok ? undefined : text || `Backend trả về lỗi ${upstream.status}.`,
+      status: upstream.status,
+    };
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const authHeader = req.headers.get("authorization");
@@ -23,14 +51,14 @@ export async function POST(req: Request) {
       );
     }
 
-    const formData = await req.formData();
-    const file = formData.get("file");
-    if (!file || !(file instanceof Blob)) {
-      return NextResponse.json({ isSuccess: false, data: null, message: "Không tìm thấy file" }, { status: 400 });
+    const contentType = req.headers.get("content-type") ?? "";
+    if (!contentType.toLowerCase().includes("multipart/form-data")) {
+      return NextResponse.json({ isSuccess: false, data: null, message: "Request upload không đúng multipart/form-data" }, { status: 400 });
     }
 
-    const backendFormData = new FormData();
-    backendFormData.append("file", file);
+    if (!req.body) {
+      return NextResponse.json({ isSuccess: false, data: null, message: "Không tìm thấy file upload" }, { status: 400 });
+    }
 
     const query = new URLSearchParams({ programId, levelId, code, version, overwriteExisting });
     if (branchId) {
@@ -39,38 +67,25 @@ export async function POST(req: Request) {
     const backendUrl = buildApiUrl(`${BACKEND_SYLLABUS_ENDPOINTS.IMPORT_ARCHIVE}?${query}`);
 
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 120_000);
+    const timer = setTimeout(() => controller.abort(), 300_000);
     let upstream: Response;
     try {
-      upstream = await fetch(backendUrl, {
+      const requestInit: RequestInitWithDuplex = {
         method: "POST",
-        headers: { Authorization: authHeader },
-        body: backendFormData,
+        headers: {
+          Authorization: authHeader,
+          "Content-Type": contentType,
+        },
+        body: req.body,
         signal: controller.signal,
-      });
+        duplex: "half",
+      };
+      upstream = await fetch(backendUrl, requestInit);
     } finally {
       clearTimeout(timer);
     }
 
-    const data = await upstream.json().catch(() => {
-      if (upstream.status === 413) {
-        return {
-          isSuccess: false,
-          data: null,
-          title: "File quá lớn",
-          detail: `File ZIP (${Math.ceil(file.size / 1024 / 1024)} MB) vượt quá giới hạn upload của server. Cần tăng request body limit ở proxy/backend hoặc giảm kích thước archive.`,
-          message: "File ZIP vượt quá giới hạn upload của server.",
-          status: 413,
-        };
-      }
-
-      return {
-        isSuccess: false,
-        data: null,
-        message: `Backend trả về lỗi ${upstream.status} nhưng không có JSON response.`,
-        status: upstream.status,
-      };
-    });
+    const data = await readUpstreamBody(upstream);
     return NextResponse.json(data, { status: upstream.status });
   } catch (error) {
     const isAbort = error instanceof Error && error.name === "AbortError";
@@ -83,6 +98,14 @@ export async function POST(req: Request) {
     }
     if (isReset) {
       return NextResponse.json({ isSuccess: false, data: null, message: "Mất kết nối tới server. Vui lòng thử lại." }, { status: 503 });
+    }
+    if (error instanceof TypeError && /fetch/i.test(error.message)) {
+      return NextResponse.json({
+        isSuccess: false,
+        data: null,
+        message: "Proxy không kết nối được tới backend import archive.",
+        detail: "Kiểm tra backend HTTPS/CORS hoặc giới hạn upload của server/proxy production.",
+      }, { status: 502 });
     }
     console.error("Syllabus import-archive error:", error);
     return NextResponse.json({ isSuccess: false, data: null, message: "Đã xảy ra lỗi khi import file archive" }, { status: 500 });

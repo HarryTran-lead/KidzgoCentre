@@ -674,7 +674,7 @@ export default function LearningTicketTypesPage() {
       </section>
 
       {isFormOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
+        <div className="fixed inset-0 z-9999 flex items-center justify-center bg-slate-950/40 p-4">
           <section className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-3xl bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
               <div>
@@ -743,7 +743,7 @@ export default function LearningTicketTypesPage() {
       )}
 
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
+        <div className="fixed inset-0 z-9999 flex items-center justify-center bg-slate-950/40 p-4">
           <section className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl">
             <div className="bg-red-600 px-6 py-5 text-white">
               <h2 className="text-xl font-extrabold">Xóa loại vé học</h2>
