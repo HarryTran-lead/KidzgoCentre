@@ -139,6 +139,11 @@ export interface UploadFileError {
 
 export type UploadFileResponse = UploadFileSuccess | UploadFileError;
 
+export interface UploadFileOptions {
+  fallbackToBackend?: boolean;
+  forceBlob?: boolean;
+}
+
 export function isUploadSuccess(r: UploadFileResponse): r is UploadFileSuccess {
   return typeof (r as UploadFileSuccess).url === "string";
 }
@@ -156,9 +161,11 @@ export interface DeleteFileResponse {
 export async function uploadFile(
   file: File,
   folder = "uploads",
-  resourceType = "auto"
+  resourceType = "auto",
+  options: UploadFileOptions = {},
 ): Promise<UploadFileResponse> {
-  const shouldUseBlob = isBlobUploadEnabled() && file.size >= DIRECT_UPLOAD_MIN_BYTES;
+  const shouldUseBlob =
+    isBlobUploadEnabled() && (options.forceBlob || file.size >= DIRECT_UPLOAD_MIN_BYTES);
 
   if (shouldUseBlob) {
     try {
@@ -166,8 +173,12 @@ export async function uploadFile(
     } catch (error) {
       console.error("Blob direct upload failed:", error);
 
-      const forceFallback = isClientTokenFailure(error);
-      if (!forceFallback && !shouldFallbackToBackendWhenBlobFails()) {
+      const fallbackEnabled =
+        options.fallbackToBackend ?? shouldFallbackToBackendWhenBlobFails();
+      const forceFallback =
+        isClientTokenFailure(error) && options.fallbackToBackend !== false;
+
+      if (!forceFallback && !fallbackEnabled) {
         return {
           error: toBlobUploadErrorMessage(error),
           status: 400,
@@ -176,6 +187,14 @@ export async function uploadFile(
 
       console.warn("Fallback to backend upload is enabled.");
     }
+  }
+
+  if (options.fallbackToBackend === false) {
+    return {
+      error:
+        "Upload qua Blob chưa được bật hoặc không khả dụng. Vui lòng kiểm tra NEXT_PUBLIC_ENABLE_VERCEL_BLOB và BLOB_READ_WRITE_TOKEN.",
+      status: 400,
+    };
   }
 
   return uploadFileViaBackend(file, folder, resourceType);

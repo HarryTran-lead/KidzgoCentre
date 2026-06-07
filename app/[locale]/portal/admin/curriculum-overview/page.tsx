@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useParams } from "next/navigation";
 import {
   AlertCircle,
   BookOpen,
@@ -11,6 +13,7 @@ import {
   FileText,
   GraduationCap,
   Layers3,
+  Link2,
   ListTree,
   Loader2,
   School,
@@ -63,7 +66,7 @@ type SyllabusDto = {
 };
 
 type UnitDto = {
-  unitId: string;
+  unitId: string | null;
   unitKey?: string;
   unitName: string;
   unitNumber?: number;
@@ -105,6 +108,7 @@ type TreeNode = {
   label: string;
   eyebrow: string;
   description?: string;
+  sourceHref?: string;
   icon: LucideIcon;
   children?: TreeNode[];
 };
@@ -127,6 +131,38 @@ const defaultCurriculumProgram: ProgramOption = {
 
 const ALL_PROGRAMS_VALUE = "__all_programs__";
 const ALL_FILTER_VALUE = "all";
+const DEEP_LINK_NODE_PARAM = "node";
+const DEEP_LINK_PROGRAM_PARAM = "programId";
+const DEEP_LINK_SYLLABUS_PARAM = "syllabusId";
+const DEEP_LINK_MODULE_PARAM = "moduleId";
+const DEEP_LINK_VIEW_PARAM = "view";
+const RETURN_TO_PARAM = "returnTo";
+
+function buildAdminSourceHref(
+  locale: string,
+  path: string,
+  params: Record<string, string | number | boolean | null | undefined> = {},
+) {
+  const query = new URLSearchParams();
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === null || value === undefined || value === "") {
+      return;
+    }
+
+    query.set(key, String(value));
+  });
+
+  const queryString = query.toString();
+  const suffix = queryString ? `?${queryString}` : "";
+  return `/${locale}/portal/admin/${path}${suffix}`;
+}
+
+function appendReturnToParam(href: string, returnTo: string) {
+  const url = new URL(href, "http://rex.local");
+  url.searchParams.set(RETURN_TO_PARAM, returnTo);
+  return `${url.pathname}${url.search}${url.hash}`;
+}
 
 const fallbackPrograms: ProgramOption[] = [defaultCurriculumProgram];
 
@@ -515,35 +551,233 @@ function sortLessonTemplates(lessons?: LessonTemplateDto[]) {
   });
 }
 
-function makeTreeNodeId(...parts: Array<string | number | undefined>) {
-  return parts.filter((part) => part !== undefined && part !== "").join("::");
+const MAX_SORT_ORDER = Number.MAX_SAFE_INTEGER;
+
+function isOfficialUnit(unit: UnitDto) {
+  return unit.isSynthetic !== true && Boolean(unit.unitId);
 }
 
-function formatFieldValue(value: string | number | boolean | null) {
-  if (value === null) {
-    return "null";
-  }
-
-  if (value === "") {
-    return '""';
-  }
-
-  return String(value);
+function getOfficialUnits(units?: UnitDto[]) {
+  return (units ?? []).filter(isOfficialUnit);
 }
 
-function metaField(
-  label: string,
-  value: string | number | boolean | null | undefined,
-) {
-  if (value === undefined) {
+function getFirstNumberAfterKeyword(keyword: string, values: unknown[]) {
+  const pattern = new RegExp(`\\b${keyword}\\W*0*(\\d+)\\b`, "i");
+
+  for (const value of values) {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+
+    const text = String(value ?? "").trim();
+    if (!text) {
+      continue;
+    }
+
+    if (/^\d+$/.test(text)) {
+      return Number(text);
+    }
+
+    const match = text.match(pattern);
+    if (match?.[1]) {
+      return Number(match[1]);
+    }
+  }
+
+  return null;
+}
+
+function normalizeUnitSortText(value: unknown) {
+  return String(value ?? "")
+    .replace(/[_|:.-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toUpperCase();
+}
+
+function includesAnyKeyword(values: unknown[], keywords: string[]) {
+  return values.some((value) => {
+    const text = normalizeUnitSortText(value);
+    return keywords.some((keyword) => text.includes(keyword));
+  });
+}
+
+function getLessonModuleOrder(lesson: LessonTemplateDto) {
+  const orderCandidates = [
+    lesson.sessionIndexInModule,
+    lesson.sessionOrder,
+    lesson.sessionIndex,
+  ];
+
+  for (const order of orderCandidates) {
+    if (typeof order === "number" && Number.isFinite(order)) {
+      return order;
+    }
+  }
+
+  return MAX_SORT_ORDER;
+}
+
+function getUnitFirstLessonOrder(unit: UnitDto) {
+  const syllabuses = unit.syllabuses ?? [];
+  const activeSyllabuses = syllabuses.filter(
+    (syllabus) => syllabus.isActive === true,
+  );
+  const sourceSyllabuses = activeSyllabuses.length
+    ? activeSyllabuses
+    : syllabuses;
+  const lessonOrders = sourceSyllabuses
+    .flatMap((syllabus) => syllabus.lessonTemplates ?? [])
+    .map(getLessonModuleOrder)
+    .filter((order) => order !== MAX_SORT_ORDER);
+
+  return lessonOrders.length ? Math.min(...lessonOrders) : MAX_SORT_ORDER;
+}
+
+function getUnitSortKey(unit: UnitDto) {
+  const textValues = [unit.unitName, unit.unitTitle, unit.unitKey];
+  const isRevision = includesAnyKeyword(textValues, ["REVISION"]);
+  const explicitUnitNumber =
+    !isRevision && typeof unit.unitNumber === "number"
+      ? unit.unitNumber
+      : null;
+  const unitNumber =
+    explicitUnitNumber ?? getFirstNumberAfterKeyword("unit", textValues);
+  const revisionNumber = getFirstNumberAfterKeyword(
+    "revision",
+    textValues,
+  );
+  const isIntroUnit = includesAnyKeyword(textValues, [
+    "UNIT STARTER",
+    "UNIT HELLO",
+    "UNIT WELCOME",
+    "UNIT INTRO",
+    "STARTER",
+    "HELLO",
+    "WELCOME",
+  ]);
+  const unitOrder =
+    typeof unit.unitOrderIndex === "number"
+      ? unit.unitOrderIndex
+      : MAX_SORT_ORDER;
+
+  if (unitNumber !== null) {
+    return {
+      group: unitNumber <= 0 ? 0 : 1,
+      naturalOrder: unitNumber,
+      unitOrder,
+    };
+  }
+
+  if (isIntroUnit) {
+    return {
+      group: 0,
+      naturalOrder: 0,
+      unitOrder,
+    };
+  }
+
+  if (isRevision || revisionNumber !== null) {
+    return {
+      group: 2,
+      naturalOrder: revisionNumber ?? unitOrder,
+      unitOrder,
+    };
+  }
+
+  return {
+    group: 3,
+    naturalOrder: unitOrder,
+    unitOrder,
+  };
+}
+
+function sortUnitsByLessonPlanOrder(units?: UnitDto[]) {
+  return [...(units ?? [])]
+    .map((unit, index) => ({
+      unit,
+      index,
+      firstLessonOrder: getUnitFirstLessonOrder(unit),
+      sortKey: getUnitSortKey(unit),
+    }))
+    .sort((left, right) => {
+      if (left.firstLessonOrder !== right.firstLessonOrder) {
+        return left.firstLessonOrder - right.firstLessonOrder;
+      }
+
+      if (left.sortKey.group !== right.sortKey.group) {
+        return left.sortKey.group - right.sortKey.group;
+      }
+
+      if (left.sortKey.naturalOrder !== right.sortKey.naturalOrder) {
+        return left.sortKey.naturalOrder - right.sortKey.naturalOrder;
+      }
+
+      if (left.sortKey.unitOrder !== right.sortKey.unitOrder) {
+        return left.sortKey.unitOrder - right.sortKey.unitOrder;
+      }
+
+      const labelCompare = left.unit.unitName.localeCompare(
+        right.unit.unitName,
+        "vi",
+      );
+      return labelCompare || left.index - right.index;
+    })
+    .map(({ unit }) => unit);
+}
+
+function makeTreeNodeId(...parts: Array<string | number | null | undefined>) {
+  return parts
+    .filter((part) => part !== null && part !== undefined && part !== "")
+    .join("::");
+}
+
+function joinMeta(fields: Array<string | null | undefined>) {
+  return fields.filter((field): field is string => Boolean(field)).join(" · ");
+}
+
+function formatStatus(isActive?: boolean) {
+  if (isActive === true) {
+    return "Đang hoạt động";
+  }
+
+  if (isActive === false) {
+    return "Tạm ngưng";
+  }
+
+  return null;
+}
+
+function formatCount(count: number | null | undefined, label: string) {
+  if (typeof count !== "number") {
     return null;
   }
 
-  return `${label}: ${formatFieldValue(value)}`;
+  return `${count} ${label}`;
 }
 
-function joinMeta(fields: Array<string | null>) {
-  return fields.filter((field): field is string => Boolean(field)).join(" - ");
+function formatCode(code?: string | null) {
+  const trimmed = code?.trim();
+  return trimmed ? `Mã ${trimmed}` : null;
+}
+
+function formatVersion(version?: number | null) {
+  return typeof version === "number" ? `Phiên bản ${version}` : null;
+}
+
+function formatAppliedVersion(version?: number | null) {
+  return typeof version === "number" ? `Đang áp dụng phiên bản ${version}` : null;
+}
+
+function getLessonModuleDisplayOrder(lesson: LessonTemplateDto) {
+  const order =
+    lesson.sessionIndexInModule ?? lesson.sessionOrder ?? lesson.sessionIndex;
+
+  return typeof order === "number" ? `Buổi ${order} trong module` : null;
+}
+
+function getLessonDisplayType(lessonType?: string) {
+  return lessonType?.trim() || "Bài học";
 }
 
 function createEmptyCurriculum(program: ProgramOption): CurriculumTreeDto {
@@ -655,7 +889,7 @@ function collectSyllabusOptions(curriculums: CurriculumTreeDto[]) {
   for (const curriculum of curriculums) {
     for (const level of curriculum.levels ?? []) {
       for (const curriculumModule of level.modules ?? []) {
-        for (const unit of curriculumModule.units ?? []) {
+        for (const unit of getOfficialUnits(curriculumModule.units)) {
           for (const syllabus of unit.syllabuses ?? []) {
             if (optionMap.has(syllabus.syllabusId)) {
               continue;
@@ -691,7 +925,9 @@ function collectModuleOptions(
   for (const curriculum of curriculums) {
     for (const level of curriculum.levels ?? []) {
       for (const curriculumModule of level.modules ?? []) {
-        const hasSelectedSyllabus = (curriculumModule.units ?? []).some((unit) =>
+        const hasSelectedSyllabus = getOfficialUnits(
+          curriculumModule.units,
+        ).some((unit) =>
           (unit.syllabuses ?? []).some(
             (syllabus) => syllabus.syllabusId === selectedSyllabusId,
           ),
@@ -755,7 +991,7 @@ function filterCurriculums(
 
         const units: UnitDto[] = [];
 
-        for (const unit of curriculumModule.units ?? []) {
+        for (const unit of getOfficialUnits(curriculumModule.units)) {
           const syllabuses =
             selectedSyllabusId === ALL_FILTER_VALUE
               ? (unit.syllabuses ?? [])
@@ -801,6 +1037,7 @@ function buildLessonNodes(
   { curriculum, level, module, unit }: TreeContext,
   syllabus: SyllabusDto,
   scope: string,
+  locale: string,
 ): TreeNode[] {
   return sortLessonTemplates(syllabus.lessonTemplates).map((lesson) => ({
     id: makeTreeNodeId(
@@ -816,17 +1053,19 @@ function buildLessonNodes(
       lesson.lessonTemplateId,
     ),
     label: lesson.title,
-    eyebrow: "Lesson Template",
+    eyebrow: "Bài học mẫu",
     description: joinMeta([
-      metaField("lessonTemplateId", lesson.lessonTemplateId),
-      metaField("sessionTemplateId", lesson.sessionTemplateId),
-      metaField("lessonType", lesson.lessonType),
-      metaField("sessionIndex", lesson.sessionIndex),
-      metaField("sessionOrder", lesson.sessionOrder),
-      metaField("sessionIndexInModule", lesson.sessionIndexInModule),
-      metaField("orderIndex", lesson.orderIndex),
-      metaField("isActive", lesson.isActive),
+      getLessonDisplayType(lesson.lessonType),
+      getLessonModuleDisplayOrder(lesson),
+      formatStatus(lesson.isActive),
     ]),
+    sourceHref: buildAdminSourceHref(locale, "documents/templates", {
+      programId: curriculum.programId,
+      syllabusId: syllabus.syllabusId,
+      moduleId: module.moduleId,
+      unitId: unit.unitId,
+      templateId: lesson.lessonTemplateId,
+    }),
     icon: FileText,
   }));
 }
@@ -836,12 +1075,10 @@ function buildVersionNode(
   syllabus: SyllabusDto,
   syllabusKey: string,
   scope: string,
+  locale: string,
 ): TreeNode {
   const { curriculum, level, module, unit } = context;
-  const versionLabel =
-    typeof syllabus.version === "number"
-      ? `Version ${syllabus.version}`
-      : "Chưa có version";
+  const versionLabel = formatVersion(syllabus.version) ?? "Chưa có phiên bản";
 
   return {
     id: makeTreeNodeId(
@@ -857,15 +1094,18 @@ function buildVersionNode(
       syllabus.syllabusId,
     ),
     label: versionLabel,
-    eyebrow: "Syllabus version",
+    eyebrow: "Phiên bản syllabus",
     description: joinMeta([
-      metaField("syllabusId", syllabus.syllabusId),
-      metaField("version", syllabus.version),
-      metaField("isActive", syllabus.isActive),
-      metaField("lessonTemplates", syllabus.lessonTemplates?.length ?? 0),
+      formatStatus(syllabus.isActive),
+      formatCount(syllabus.lessonTemplates?.length ?? 0, "bài học mẫu"),
     ]),
+    sourceHref: buildAdminSourceHref(
+      locale,
+      `syllabuses/${encodeURIComponent(syllabus.syllabusId)}/editor`,
+      { version: syllabus.version },
+    ),
     icon: ClipboardList,
-    children: buildLessonNodes(context, syllabus, scope),
+    children: buildLessonNodes(context, syllabus, scope, locale),
   };
 }
 
@@ -873,6 +1113,7 @@ function buildSyllabusGroupNode(
   context: TreeContext,
   group: SyllabusGroup,
   syllabusViewMode: SyllabusViewMode,
+  locale: string,
 ): TreeNode {
   const { curriculum, level, module, unit } = context;
   const versions =
@@ -893,21 +1134,22 @@ function buildSyllabusGroupNode(
     label: group.title,
     eyebrow: "Syllabus",
     description: joinMeta([
-      metaField("syllabusCode", group.code),
-      metaField("versions", group.versions.length),
-      metaField(
-        "activeVersions",
-        group.versions.filter((syllabus) => syllabus.isActive === true).length,
-      ),
-      metaField("selectedVersion", appliedSyllabus?.version),
-      metaField(
-        "lessonTemplates",
-        appliedSyllabus?.lessonTemplates?.length ?? 0,
-      ),
+      formatCode(group.code),
+      formatCount(group.versions.length, "phiên bản"),
+      formatAppliedVersion(appliedSyllabus?.version),
+      formatCount(appliedSyllabus?.lessonTemplates?.length ?? 0, "bài học mẫu"),
     ]),
+    sourceHref: appliedSyllabus
+      ? buildAdminSourceHref(
+          locale,
+          `syllabuses/${encodeURIComponent(appliedSyllabus.syllabusId)}/editor`,
+        )
+      : buildAdminSourceHref(locale, "syllabuses", {
+          programId: curriculum.programId,
+        }),
     icon: BookOpen,
     children: versions.map((syllabus) =>
-      buildVersionNode(context, syllabus, group.key, syllabusViewMode),
+      buildVersionNode(context, syllabus, group.key, syllabusViewMode, locale),
     ),
   };
 }
@@ -915,64 +1157,81 @@ function buildSyllabusGroupNode(
 function buildUnitSyllabusNodes(
   context: TreeContext,
   syllabusViewMode: SyllabusViewMode,
+  locale: string,
 ) {
   return groupSyllabuses(context.unit.syllabuses).map((group) =>
-    buildSyllabusGroupNode(context, group, syllabusViewMode),
+    buildSyllabusGroupNode(context, group, syllabusViewMode, locale),
   );
 }
 
 function buildTree(
   curriculum: CurriculumTreeDto,
   syllabusViewMode: SyllabusViewMode,
+  locale: string,
 ): TreeNode[] {
   return [
     {
       id: curriculum.programId,
       label: curriculum.programName,
-      eyebrow: curriculum.programCode
-        ? `Program - ${curriculum.programCode}`
-        : "Program",
+      eyebrow: "Chương trình",
       description: joinMeta([
-        metaField("programId", curriculum.programId),
-        metaField("programCode", curriculum.programCode),
-        metaField("isActive", curriculum.isActive),
-        metaField("levels", curriculum.levels?.length ?? 0),
+        formatCode(curriculum.programCode),
+        formatStatus(curriculum.isActive),
+        formatCount(curriculum.levels?.length ?? 0, "cấp độ"),
       ]),
+      sourceHref: buildAdminSourceHref(locale, "courses", {
+        programId: curriculum.programId,
+      }),
       icon: School,
       children: sortByOrder(curriculum.levels, "levelOrderIndex").map(
         (level) => ({
           id: makeTreeNodeId(curriculum.programId, "level", level.levelId),
           label: level.levelName,
-          eyebrow: "Level",
+          eyebrow: "Cấp độ",
           description: joinMeta([
-            metaField("levelId", level.levelId),
-            metaField("levelCode", level.levelCode),
-            metaField("levelOrderIndex", level.levelOrderIndex),
-            metaField("isActive", level.isActive),
-            metaField("modules", level.modules?.length ?? 0),
+            formatCode(level.levelCode),
+            formatStatus(level.isActive),
+            formatCount(level.modules?.length ?? 0, "module"),
           ]),
+          sourceHref: buildAdminSourceHref(locale, "academic-progression", {
+            tab: "levels",
+            programId: curriculum.programId,
+            levelId: level.levelId,
+          }),
           icon: GraduationCap,
           children: sortByOrder(level.modules, "moduleOrderIndex").map(
-            (module) => ({
-              id: makeTreeNodeId(
-                curriculum.programId,
-                level.levelId,
-                "module",
-                module.moduleId,
-              ),
-              label: module.moduleName,
-              eyebrow: "Module",
-              description: joinMeta([
-                metaField("moduleId", module.moduleId),
-                metaField("moduleCode", module.moduleCode),
-                metaField("moduleOrderIndex", module.moduleOrderIndex),
-                metaField("moduleType", module.moduleType),
-                metaField("isActive", module.isActive),
-                metaField("units", module.units?.length ?? 0),
-              ]),
-              icon: Layers3,
-              children: sortByOrder(module.units, "unitOrderIndex").map(
-                (unit) => ({
+            (module) => {
+              const displayUnits = sortUnitsByLessonPlanOrder(
+                getOfficialUnits(module.units),
+              );
+
+              return {
+                id: makeTreeNodeId(
+                  curriculum.programId,
+                  level.levelId,
+                  "module",
+                  module.moduleId,
+                ),
+                label: module.moduleName,
+                eyebrow: "Module",
+                description: joinMeta([
+                  formatCode(module.moduleCode),
+                  module.moduleType,
+                  formatStatus(module.isActive),
+                  formatCount(displayUnits.length, "unit"),
+                ]),
+                sourceHref: buildAdminSourceHref(
+                  locale,
+                  "academic-progression",
+                  {
+                    tab: "levels",
+                    programId: curriculum.programId,
+                    levelId: level.levelId,
+                    moduleId: module.moduleId,
+                  },
+                ),
+                icon: Layers3,
+                children: displayUnits.map((unit) => ({
                   id: makeTreeNodeId(
                     curriculum.programId,
                     level.levelId,
@@ -983,22 +1242,24 @@ function buildTree(
                   label: unit.unitName,
                   eyebrow: "Unit",
                   description: joinMeta([
-                    metaField("unitId", unit.unitId),
-                    metaField("unitKey", unit.unitKey),
-                    metaField("unitNumber", unit.unitNumber),
-                    metaField("unitTitle", unit.unitTitle),
-                    metaField("unitOrderIndex", unit.unitOrderIndex),
-                    metaField("isSynthetic", unit.isSynthetic),
-                    metaField("syllabuses", unit.syllabuses?.length ?? 0),
+                    unit.unitTitle?.trim() || null,
+                    formatCount(unit.syllabuses?.length ?? 0, "syllabus"),
                   ]),
+                  sourceHref: buildAdminSourceHref(locale, "documents/templates", {
+                    programId: curriculum.programId,
+                    syllabusId: getAppliedSyllabusesForUnit(unit)[0]?.syllabusId,
+                    moduleId: module.moduleId,
+                    unitId: unit.unitId,
+                  }),
                   icon: Boxes,
                   children: buildUnitSyllabusNodes(
                     { curriculum, level, module, unit },
                     syllabusViewMode,
+                    locale,
                   ),
-                }),
-              ),
-            }),
+                })),
+              };
+            },
           ),
         }),
       ),
@@ -1009,7 +1270,7 @@ function buildTree(
 function countTrees(curriculums: CurriculumTreeDto[]) {
   const levels = curriculums.flatMap((curriculum) => curriculum.levels ?? []);
   const modules = levels.flatMap((level) => level.modules ?? []);
-  const units = modules.flatMap((module) => module.units ?? []);
+  const units = modules.flatMap((module) => getOfficialUnits(module.units));
   const appliedSyllabuses = units.flatMap(getAppliedSyllabusesForUnit);
   const appliedSyllabusKeys = new Set(
     appliedSyllabuses.map(getSyllabusIdentity),
@@ -1051,23 +1312,67 @@ function collectExpandableNodeIds(nodes: TreeNode[]) {
   return ids;
 }
 
+function findTreeNodePath(nodes: TreeNode[], targetId: string): string[] | null {
+  for (const node of nodes) {
+    if (node.id === targetId) {
+      return [node.id];
+    }
+
+    const childPath = node.children
+      ? findTreeNodePath(node.children, targetId)
+      : null;
+
+    if (childPath) {
+      return [node.id, ...childPath];
+    }
+  }
+
+  return null;
+}
+
+function getTreeNodeDomId(nodeId: string) {
+  return `curriculum-node-${encodeURIComponent(nodeId).replace(/[^A-Za-z0-9_-]/g, "_")}`;
+}
+
+function readDeepLinkParams() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const params = new URLSearchParams(window.location.search);
+
+  return {
+    nodeId: params.get(DEEP_LINK_NODE_PARAM),
+    programId: params.get(DEEP_LINK_PROGRAM_PARAM),
+    syllabusId: params.get(DEEP_LINK_SYLLABUS_PARAM),
+    moduleId: params.get(DEEP_LINK_MODULE_PARAM),
+    viewMode: params.get(DEEP_LINK_VIEW_PARAM),
+  };
+}
+
 function TreeItem({
   node,
   depth,
   expandedIds,
   onToggle,
+  getSourceHref,
+  highlightedNodeId,
 }: {
   node: TreeNode;
   depth: number;
   expandedIds: Set<string>;
   onToggle: (id: string) => void;
+  getSourceHref: (node: TreeNode) => string | undefined;
+  highlightedNodeId: string | null;
 }) {
   const hasChildren = Boolean(node.children?.length);
   const isExpanded = expandedIds.has(node.id);
+  const isHighlighted = highlightedNodeId === node.id;
+  const sourceHref = getSourceHref(node);
   const Icon = node.icon;
 
   return (
-    <div className="relative">
+    <div id={getTreeNodeDomId(node.id)} className="relative scroll-mt-24">
       {/* Tree connector line */}
       {depth > 0 && (
         <>
@@ -1079,7 +1384,11 @@ function TreeItem({
       )}
       
       <div
-        className="group relative flex min-h-14 items-center cursor-pointer gap-3 rounded-xl border border-red-100 bg-gradient-to-r from-red-50/40 to-slate-50 px-4 py-3 shadow-sm transition-all duration-500 hover:border-red-300 hover:bg-gradient-to-r hover:from-red-50/60 hover:to-white hover:shadow-lg hover:scale-102 hover:-translate-y-1"
+        className={`group relative flex min-h-14 items-center cursor-pointer gap-3 rounded-xl border bg-gradient-to-r from-red-50/40 to-slate-50 px-4 py-3 shadow-sm transition-all duration-500 hover:border-red-300 hover:bg-gradient-to-r hover:from-red-50/60 hover:to-white hover:shadow-lg hover:scale-102 hover:-translate-y-1 ${
+          isHighlighted
+            ? "border-red-400 ring-2 ring-red-200"
+            : "border-red-100"
+        }`}
         style={{ marginLeft: depth * 24 }}
         onClick={() => onToggle(node.id)}
       >
@@ -1128,10 +1437,25 @@ function TreeItem({
           ) : null}
         </div>
 
-        {/* Right accent on hover */}
-        <div className="flex items-center gap-1 opacity-0 transition-opacity duration-500 group-hover:opacity-100">
-          <div className="h-1 w-1 rounded-full bg-red-400 transition-all duration-500 group-hover:scale-125" />
-          <div className="h-1 w-1 rounded-full bg-red-500 transition-all duration-500 group-hover:scale-125" />
+        <div className="flex items-center gap-1">
+          {sourceHref ? (
+            <Link
+              aria-label={`Mở trang gốc của ${node.label}`}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-transparent text-slate-400 opacity-60 transition-all duration-200 hover:border-red-200 hover:bg-white hover:text-red-600 group-hover:opacity-100"
+              href={sourceHref}
+              title="Mở trang gốc"
+              onClick={(event) => {
+                event.stopPropagation();
+              }}
+            >
+              <Link2 className="h-4 w-4" />
+            </Link>
+          ) : null}
+
+          <div className="flex items-center gap-1 opacity-0 transition-opacity duration-500 group-hover:opacity-100">
+            <div className="h-1 w-1 rounded-full bg-red-400 transition-all duration-500 group-hover:scale-125" />
+            <div className="h-1 w-1 rounded-full bg-red-500 transition-all duration-500 group-hover:scale-125" />
+          </div>
         </div>
       </div>
 
@@ -1144,6 +1468,8 @@ function TreeItem({
               depth={depth + 1}
               expandedIds={expandedIds}
               onToggle={onToggle}
+              getSourceHref={getSourceHref}
+              highlightedNodeId={highlightedNodeId}
             />
           ))}
         </div>
@@ -1196,6 +1522,8 @@ function StatCard({
 
 export default function CurriculumOverviewPage() {
   const { selectedBranchId, isLoaded: branchFilterLoaded } = useBranchFilter();
+  const routeParams = useParams<{ locale?: string }>();
+  const locale = routeParams?.locale || "vi";
   const [programs, setPrograms] = useState<ProgramOption[]>(fallbackPrograms);
   const [selectedProgramId, setSelectedProgramId] = useState(
     ALL_PROGRAMS_VALUE,
@@ -1213,6 +1541,41 @@ export default function CurriculumOverviewPage() {
   const [selectedSyllabusId, setSelectedSyllabusId] =
     useState(ALL_FILTER_VALUE);
   const [selectedModuleId, setSelectedModuleId] = useState(ALL_FILTER_VALUE);
+  const [deepLinkTargetId, setDeepLinkTargetId] = useState<string | null>(null);
+  const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(
+    null,
+  );
+
+  useEffect(() => {
+    const params = readDeepLinkParams();
+    if (!params) {
+      return;
+    }
+
+    if (params.programId) {
+      setSelectedProgramId(params.programId);
+    }
+
+    if (
+      params.viewMode === "all" ||
+      params.viewMode === "applied"
+    ) {
+      setSyllabusViewMode(params.viewMode);
+    }
+
+    if (params.syllabusId) {
+      setSelectedSyllabusId(params.syllabusId);
+    }
+
+    if (params.moduleId) {
+      setSelectedModuleId(params.moduleId);
+    }
+
+    if (params.nodeId) {
+      setDeepLinkTargetId(params.nodeId);
+      setHighlightedNodeId(params.nodeId);
+    }
+  }, []);
 
   useEffect(() => {
     if (selectedProgramId.startsWith("demo-")) {
@@ -1488,15 +1851,23 @@ export default function CurriculumOverviewPage() {
       return;
     }
 
+    if (treeLoading || curriculums.length === 0) {
+      return;
+    }
+
     if (!syllabusOptions.some((option) => option.id === selectedSyllabusId)) {
       setSelectedSyllabusId(ALL_FILTER_VALUE);
       setSelectedModuleId(ALL_FILTER_VALUE);
     }
-  }, [selectedSyllabusId, syllabusOptions]);
+  }, [curriculums.length, selectedSyllabusId, syllabusOptions, treeLoading]);
 
   useEffect(() => {
     if (selectedSyllabusId === ALL_FILTER_VALUE) {
       setSelectedModuleId(ALL_FILTER_VALUE);
+      return;
+    }
+
+    if (treeLoading || curriculums.length === 0) {
       return;
     }
 
@@ -1506,19 +1877,51 @@ export default function CurriculumOverviewPage() {
     ) {
       setSelectedModuleId(ALL_FILTER_VALUE);
     }
-  }, [moduleOptions, selectedModuleId, selectedSyllabusId]);
+  }, [
+    curriculums.length,
+    moduleOptions,
+    selectedModuleId,
+    selectedSyllabusId,
+    treeLoading,
+  ]);
 
   const tree = useMemo(
     () =>
       filteredCurriculums.flatMap((curriculum) =>
-        buildTree(curriculum, syllabusViewMode),
+        buildTree(curriculum, syllabusViewMode, locale),
       ),
-    [filteredCurriculums, syllabusViewMode],
+    [filteredCurriculums, locale, syllabusViewMode],
   );
   const stats = useMemo(
     () => countTrees(filteredCurriculums),
     [filteredCurriculums],
   );
+
+  useEffect(() => {
+    if (!deepLinkTargetId || tree.length === 0) {
+      return;
+    }
+
+    const nodePath = findTreeNodePath(tree, deepLinkTargetId);
+    if (!nodePath) {
+      return;
+    }
+
+    setExpandedIds((current) => {
+      const next = new Set(current);
+      nodePath.forEach((id) => next.add(id));
+      return next;
+    });
+    setHighlightedNodeId(deepLinkTargetId);
+
+    const scrollTimer = window.setTimeout(() => {
+      document
+        .getElementById(getTreeNodeDomId(deepLinkTargetId))
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 120);
+
+    return () => window.clearTimeout(scrollTimer);
+  }, [deepLinkTargetId, tree]);
 
   useEffect(() => {
     if (selectedSyllabusId === ALL_FILTER_VALUE) {
@@ -1582,6 +1985,38 @@ export default function CurriculumOverviewPage() {
   function handleSyllabusChange(syllabusId: string) {
     setSelectedSyllabusId(syllabusId);
     setSelectedModuleId(ALL_FILTER_VALUE);
+  }
+
+  function createNodeReturnHref(nodeId: string) {
+    const params = new URLSearchParams();
+
+    params.set(DEEP_LINK_NODE_PARAM, nodeId);
+
+    if (selectedProgramId !== ALL_PROGRAMS_VALUE) {
+      params.set(DEEP_LINK_PROGRAM_PARAM, selectedProgramId);
+    }
+
+    if (syllabusViewMode !== "applied") {
+      params.set(DEEP_LINK_VIEW_PARAM, syllabusViewMode);
+    }
+
+    if (selectedSyllabusId !== ALL_FILTER_VALUE) {
+      params.set(DEEP_LINK_SYLLABUS_PARAM, selectedSyllabusId);
+
+      if (effectiveSelectedModuleId !== ALL_FILTER_VALUE) {
+        params.set(DEEP_LINK_MODULE_PARAM, effectiveSelectedModuleId);
+      }
+    }
+
+    return `/${locale}/portal/admin/curriculum-overview?${params.toString()}`;
+  }
+
+  function getNodeSourceHref(node: TreeNode) {
+    if (!node.sourceHref) {
+      return undefined;
+    }
+
+    return appendReturnToParam(node.sourceHref, createNodeReturnHref(node.id));
   }
 
   return (
@@ -1807,6 +2242,8 @@ export default function CurriculumOverviewPage() {
                   depth={0}
                   expandedIds={expandedIds}
                   onToggle={toggleNode}
+                  getSourceHref={getNodeSourceHref}
+                  highlightedNodeId={highlightedNodeId}
                 />
               ))}
             </div>

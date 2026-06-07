@@ -1,9 +1,8 @@
 ﻿import {
-  BACKEND_SYLLABUS_ENDPOINTS,
   BRANCH_ENDPOINTS,
-  buildApiUrl,
   SYLLABUS_ENDPOINTS,
 } from "@/constants/apiURL";
+import { isUploadSuccess, uploadFile } from "@/lib/api/fileService";
 import { getAccessToken } from "@/lib/store/authToken";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -54,30 +53,6 @@ export interface SyllabusLessonPlanTemplateSummary {
   plannedSessionCount?: number | null;
   syllabusSessionTemplateCount?: number | null;
   importedLessonPlanTemplateCount?: number | null;
-}
-
-export interface CreateSyllabusRequest {
-  programId: string;
-  levelId: string;
-  code: string;
-  version: string;
-  title: string;
-  edition?: string | null;
-  effectiveFrom?: string | null;
-  effectiveTo?: string | null;
-  pacingSchemeJson?: string | null;
-  overview?: string | null;
-  overallObjectives?: string | null;
-  specificObjectives?: string | null;
-  ethicsAndAttitudes?: string | null;
-  bookOverview?: string | null;
-  totalPeriods?: number | null;
-  minutesPerPeriod?: number | null;
-  totalLessons?: number | null;
-  sourceFileName?: string | null;
-  attachmentUrl?: string | null;
-  rawContentJson?: string | null;
-  isActive?: boolean;
 }
 
 export interface UpdateSyllabusRequest {
@@ -364,17 +339,6 @@ export interface SyllabusDocument {
   warnings: SyllabusDocumentWarning[];
 }
 
-export interface CreateManualSyllabusDocumentRequest {
-  programId: string;
-  levelId: string;
-  code: string;
-  title: string;
-  edition?: string | null;
-  status?: SyllabusDocumentStatus;
-  sourceType?: SyllabusDocumentSourceType;
-  minutesPerPeriod?: number | null;
-}
-
 export interface ImportSyllabusPreviewParams {
   programId: string;
   levelId: string;
@@ -500,11 +464,6 @@ export interface ArchiveSyllabusDocumentRequest {
 
 function str(v: unknown): string {
   return typeof v === "string" ? v : "";
-}
-
-function buildDirectBackendUrl(endpoint: string): string | null {
-  const url = buildApiUrl(endpoint);
-  return /^https?:\/\//i.test(url) ? url : null;
 }
 
 function strAny(...values: unknown[]): string {
@@ -864,55 +823,6 @@ export async function getSyllabusById(
       ? normalizeSyllabusDetail(item)
       : null;
     return { isSuccess: true, data: normalized, message: normalized ? undefined : "Không tìm thấy dữ liệu." };
-  } catch (error) {
-    return errorResponse(null, error);
-  }
-}
-
-export async function createSyllabus(
-  data: CreateSyllabusRequest,
-): Promise<ServiceResponse<SyllabusListItem | null>> {
-  const token = getAccessToken();
-  if (!token) return { isSuccess: false, data: null, message: "Chưa đăng nhập." };
-
-  try {
-    const res = await fetch(SYLLABUS_ENDPOINTS.BASE, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify(data),
-    });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) return errorResponse(null, { response: res, data: json });
-
-    const item = json?.data ?? json;
-    return { isSuccess: true, data: item?.id ? normalizeSyllabusListItem(item) : null, message: json?.message };
-  } catch (error) {
-    return errorResponse(null, error);
-  }
-}
-
-export async function createManualSyllabusDocument(
-  data: CreateManualSyllabusDocumentRequest,
-): Promise<ServiceResponse<SyllabusDocument | null>> {
-  const token = getAccessToken();
-  if (!token) return { isSuccess: false, data: null, message: "Chưa đăng nhập." };
-
-  try {
-    const res = await fetch(SYLLABUS_ENDPOINTS.BASE, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({
-        ...data,
-        status: data.status ?? "Draft",
-        sourceType: data.sourceType ?? "Manual",
-      }),
-    });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) return errorResponse(null, { response: res, data: json });
-
-    const payload = json?.data ?? json;
-    const doc = normalizeSyllabusDocument(payload);
-    return { isSuccess: true, data: doc };
   } catch (error) {
     return errorResponse(null, error);
   }
@@ -1340,19 +1250,41 @@ export async function importSyllabusArchive(
     if (params.overwriteExisting !== undefined) {
       query.append("overwriteExisting", String(params.overwriteExisting));
     }
-    const formData = new FormData();
-    formData.append("file", file);
+    const uploadRes = await uploadFile(file, "syllabus-imports", "archive", {
+      fallbackToBackend: false,
+      forceBlob: true,
+    });
+    if (!isUploadSuccess(uploadRes)) {
+      return {
+        isSuccess: false,
+        data: null,
+        message:
+          str(uploadRes.detail) ||
+          str(uploadRes.error) ||
+          str(uploadRes.title) ||
+          "Upload ZIP lên Blob thất bại.",
+        status: uploadRes.status,
+        title: str(uploadRes.title) || undefined,
+        detail: str(uploadRes.detail) || undefined,
+        raw: uploadRes,
+      };
+    }
 
-    const directBackendUrl = buildDirectBackendUrl(
-      `${BACKEND_SYLLABUS_ENDPOINTS.IMPORT_ARCHIVE}?${query}`,
-    );
-    const importUrl =
-      directBackendUrl ?? `${SYLLABUS_ENDPOINTS.IMPORT_ARCHIVE}?${query}`;
+    const importUrl = `${SYLLABUS_ENDPOINTS.IMPORT_ARCHIVE}?${query}`;
 
     const res = await fetch(importUrl, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: formData,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        fileUrl: uploadRes.url,
+        archiveUrl: uploadRes.url,
+        fileName: uploadRes.fileName || file.name,
+        size: uploadRes.size || file.size,
+        contentType: file.type || "application/zip",
+      }),
     });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) {

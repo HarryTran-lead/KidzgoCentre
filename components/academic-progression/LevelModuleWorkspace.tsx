@@ -52,6 +52,8 @@ export type LevelModuleRoleMode = "admin" | "staff";
 interface Props {
   roleMode: LevelModuleRoleMode;
   programId?: string;
+  levelId?: string;
+  moduleId?: string;
 }
 
 const EMPTY_LEVEL_FORM: CreateLevelRequest = {
@@ -80,6 +82,14 @@ interface ProgramOption {
 
 function classNames(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
+}
+
+function getLevelDomId(levelId: string) {
+  return `academic-level-${encodeURIComponent(levelId).replace(/[^A-Za-z0-9_-]/g, "_")}`;
+}
+
+function getModuleDomId(moduleId: string) {
+  return `academic-module-${encodeURIComponent(moduleId).replace(/[^A-Za-z0-9_-]/g, "_")}`;
 }
 
 // Module Type Badge Component
@@ -141,7 +151,10 @@ function LevelCard({
   const activeModules = modules?.filter((m) => m.isActive).length || 0;
 
   return (
-    <div className="group rounded-xl border border-red-200 bg-white shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">
+    <div
+      id={getLevelDomId(level.id)}
+      className="group scroll-mt-24 rounded-xl border border-red-200 bg-white shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden"
+    >
       {/* Level Header */}
       <div
         className="flex cursor-pointer items-center gap-3 px-5 py-4 hover:bg-gradient-to-r hover:from-gray-50 hover:to-transparent transition-all"
@@ -278,6 +291,7 @@ function LevelCard({
               {modules.map((mod, idx) => (
                 <div
                   key={mod.id}
+                  id={getModuleDomId(mod.id)}
                   className="group/module flex items-center gap-3 rounded-lg border border-red-100 cursor-pointer bg-white px-4 py-3 transition-all hover:shadow-md hover:border-red-100"
                   style={{ animationDelay: `${idx * 50}ms` }}
                 >
@@ -388,7 +402,12 @@ function LoaderIcon({ className }: { className?: string }) {
   );
 }
 
-export default function LevelModuleWorkspace({ roleMode, programId }: Props) {
+export default function LevelModuleWorkspace({
+  roleMode,
+  programId,
+  levelId,
+  moduleId,
+}: Props) {
   const [levels, setLevels] = useState<LevelDto[]>([]);
   const [modules, setModules] = useState<Record<string, ModuleDto[]>>({});
   const [expandedLevels, setExpandedLevels] = useState<Set<string>>(new Set());
@@ -559,6 +578,59 @@ export default function LevelModuleWorkspace({ roleMode, programId }: Props) {
     }
     setLoadingModules((prev) => ({ ...prev, [levelId]: false }));
   }, []);
+
+  useEffect(() => {
+    if (!levelId && !moduleId) {
+      return;
+    }
+
+    const targetLevelId =
+      levelId ||
+      Object.entries(modules).find(([, levelModules]) =>
+        levelModules.some((mod) => mod.id === moduleId),
+      )?.[0];
+
+    if (!targetLevelId) {
+      return;
+    }
+
+    const loadTimer = !modules[targetLevelId]
+      ? window.setTimeout(() => {
+          void loadModulesForLevel(targetLevelId);
+        }, 0)
+      : null;
+
+    const expandTimer = window.setTimeout(() => {
+      setExpandedLevels((prev) => {
+        if (prev.has(targetLevelId)) {
+          return prev;
+        }
+
+        const next = new Set(prev);
+        next.add(targetLevelId);
+        return next;
+      });
+    }, 0);
+
+    const targetDomId =
+      moduleId && modules[targetLevelId]?.some((mod) => mod.id === moduleId)
+        ? getModuleDomId(moduleId)
+        : getLevelDomId(targetLevelId);
+
+    const timer = window.setTimeout(() => {
+      document
+        .getElementById(targetDomId)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, modules[targetLevelId] ? 180 : 500);
+
+    return () => {
+      if (loadTimer !== null) {
+        window.clearTimeout(loadTimer);
+      }
+      window.clearTimeout(expandTimer);
+      window.clearTimeout(timer);
+    };
+  }, [levelId, loadModulesForLevel, moduleId, modules]);
 
   useEffect(() => {
     loadLevels();

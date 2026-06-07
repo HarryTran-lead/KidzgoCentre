@@ -82,21 +82,6 @@ export interface GetDocumentByIdApiResponse {
   message?: string;
 }
 
-// UI-friendly request types (for form)
-export interface CreateDocumentRequest {
-  programId: string;
-  level: string;
-  sessionIndex: number;
-  attachment?: string;
-}
-
-export interface CreateDocumentApiResponse {
-  success?: boolean;
-  isSuccess?: boolean;
-  data: LessonPlanTemplate;
-  message?: string;
-}
-
 export interface UpdateDocumentRequest {
   level?: string;
   sessionIndex?: number;

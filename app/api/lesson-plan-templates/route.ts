@@ -23,17 +23,3 @@ export async function GET(req: Request) {
   return NextResponse.json(data, { status: upstream.status });
 }
 
-export async function POST(req: Request) {
-  const authHeader = req.headers.get("authorization");
-  if (!authHeader) {
-    return NextResponse.json({ isSuccess: false, data: null, message: "Chưa đăng nhập" }, { status: 401 });
-  }
-  const body = await req.json();
-  const upstream = await fetch(buildApiUrl(BACKEND_ADMIN_ENDPOINTS.LESSON_PLAN_TEMPLATES), {
-    method: "POST",
-    headers: { Authorization: authHeader, "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data = await parseBody(upstream);
-  return NextResponse.json(data, { status: upstream.status });
-}

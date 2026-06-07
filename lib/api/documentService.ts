@@ -7,13 +7,11 @@
  */
 
 import { ADMIN_ENDPOINTS } from '@/constants/apiURL';
-import { get, post, put, del } from '@/lib/axios';
+import { get, put, del } from '@/lib/axios';
 import type {
   GetAllDocumentsParams,
   GetAllDocumentsApiResponse,
   GetDocumentByIdApiResponse,
-  CreateDocumentRequest,
-  CreateDocumentApiResponse,
   UpdateDocumentRequest,
   UpdateDocumentApiResponse,
   DeleteDocumentApiResponse,
@@ -54,13 +52,6 @@ export async function getAllDocuments(params?: GetAllDocumentsParams): Promise<G
  */
 export async function getDocumentById(id: string): Promise<GetDocumentByIdApiResponse> {
   return get(ADMIN_ENDPOINTS.LESSON_PLAN_TEMPLATES_BY_ID(id));
-}
-
-/**
- * Create a new document (lesson plan template)
- */
-export async function createDocument(data: CreateDocumentRequest): Promise<CreateDocumentApiResponse> {
-  return post(ADMIN_ENDPOINTS.LESSON_PLAN_TEMPLATES, data);
 }
 
 /**

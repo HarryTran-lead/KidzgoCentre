@@ -97,31 +97,6 @@ export interface GetLessonPlanTemplatesParams {
   pageSize?: number;
 }
 
-export interface CreateLessonPlanTemplateRequest {
-  programId?: string | null;
-  level?: string | null;
-  moduleId?: string | null;
-  title: string;
-  sessionIndex: number;
-  sessionOrder?: number | null;
-  syllabusMetadata?: string | null;
-  syllabusContent?: string | null;
-  // Full content fields
-  objectives?: string | null;
-  languageContent?: string | null;
-  vocabulary?: string | null;
-  grammar?: string | null;
-  teachingMethodology?: string | null;
-  teacherMaterials?: string | null;
-  studentMaterials?: string | null;
-  procedure?: string | null;
-  evaluation?: string | null;
-  homework?: string | null;
-  teacherNote?: string | null;
-  sourceFileName?: string | null;
-  attachment?: string | null;
-}
-
 export interface UpdateLessonPlanTemplateRequest {
   moduleId?: string | null;
   level?: string | null;
@@ -1084,20 +1059,6 @@ export async function getLessonPlanTemplateById(id: string): Promise<ServiceResp
     const response = await get<ApiLikeResponse>(ADMIN_ENDPOINTS.LESSON_PLAN_TEMPLATES_BY_ID(id));
     const data = unwrapData<any>(response);
     const item = data?.lessonPlanTemplate ?? data?.template ?? data;
-
-    return successResponse(item ? normalizeTemplate(item) : null, response);
-  } catch (error) {
-    return errorResponse(null, error);
-  }
-}
-
-export async function createLessonPlanTemplate(
-  data: CreateLessonPlanTemplateRequest
-): Promise<ServiceResponse<LessonPlanTemplate | null>> {
-  try {
-    const response = await post<ApiLikeResponse>(ADMIN_ENDPOINTS.LESSON_PLAN_TEMPLATES, data);
-    const responseData = unwrapData<any>(response);
-    const item = responseData?.lessonPlanTemplate ?? responseData?.template ?? responseData;
 
     return successResponse(item ? normalizeTemplate(item) : null, response);
   } catch (error) {

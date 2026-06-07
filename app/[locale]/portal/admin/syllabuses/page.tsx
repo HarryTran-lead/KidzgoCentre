@@ -51,8 +51,6 @@ import { useToast } from "@/hooks/use-toast";
 import { getLevels, getModules } from "@/lib/api/academicProgressionService";
 import { getAllProgramsForDropdown } from "@/lib/api/programService";
 import {
-  createSyllabus,
-  createManualSyllabusDocument,
   getSyllabusDocument,
   getSyllabusById,
   getSyllabuses,
@@ -68,7 +66,6 @@ import {
   type ImportedEntry,
   type ImportSkippedItem,
   type ImportSyllabusArchiveResult,
-  type CreateSyllabusRequest,
   type UpsertImportConfigRequest,
   type SyllabusDetail,
   type SyllabusDocument,
@@ -813,25 +810,17 @@ function ImportConfigModal({
   );
 }
 
-// ─── Modal: Create / Edit Syllabus ────────────────────────────────────────────
+// ─── Modal: Edit Syllabus ─────────────────────────────────────────────────────
 
 function SyllabusFormModal({
-  isEdit,
   initial,
-  programOptions,
   onClose,
   onSubmit,
 }: {
-  isEdit: boolean;
-  initial?: SyllabusListItem | SyllabusDetail | null;
-  programOptions: Array<{ id: string; name: string }>;
+  initial: SyllabusListItem | SyllabusDetail;
   onClose: () => void;
-  onSubmit: (
-    data: CreateSyllabusRequest | UpdateSyllabusRequest,
-  ) => Promise<void>;
+  onSubmit: (data: UpdateSyllabusRequest) => Promise<void>;
 }) {
-  const [programId, setProgramId] = useState(initial?.programId ?? "");
-  const [levelId, setLevelId] = useState(initial?.levelId ?? "");
   const [code, setCode] = useState(initial?.code ?? "");
   const [version, setVersion] = useState(
     normalizeVersionInput(initial?.version ?? ""),
@@ -853,22 +842,8 @@ function SyllabusFormModal({
     String((initial as SyllabusDetail)?.totalLessons ?? ""),
   );
   const [isActive, setIsActive] = useState(initial?.isActive ?? true);
-  const [levels, setLevels] = useState<LevelDto[]>([]);
-  const [levelsLoading, setLevelsLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!programId) {
-      setLevels([]);
-      return;
-    }
-    setLevelsLoading(true);
-    getLevels({ programId })
-      .then((res) => setLevels(res.data?.items ?? []))
-      .catch(() => setLevels([]))
-      .finally(() => setLevelsLoading(false));
-  }, [programId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -889,44 +864,20 @@ function SyllabusFormModal({
       setError("Phiên bản phải là số nguyên dương.");
       return;
     }
-    if (!isEdit && !programId) {
-      setError("Chương trình là bắt buộc.");
-      return;
-    }
-    if (!isEdit && !levelId) {
-      setError("Level là bắt buộc.");
-      return;
-    }
 
     setSubmitting(true);
     try {
-      if (isEdit) {
-        await onSubmit({
-          code: code.trim(),
-          version: version.trim(),
-          title: title.trim(),
-          edition: edition.trim() || null,
-          overview: overview.trim() || null,
-          totalPeriods: totalPeriods ? Number(totalPeriods) : null,
-          minutesPerPeriod: minutesPerPeriod ? Number(minutesPerPeriod) : null,
-          totalLessons: totalLessons ? Number(totalLessons) : null,
-          isActive,
-        } as UpdateSyllabusRequest);
-      } else {
-        await onSubmit({
-          programId,
-          levelId,
-          code: code.trim(),
-          version: version.trim(),
-          title: title.trim(),
-          edition: edition.trim() || null,
-          overview: overview.trim() || null,
-          totalPeriods: totalPeriods ? Number(totalPeriods) : null,
-          minutesPerPeriod: minutesPerPeriod ? Number(minutesPerPeriod) : null,
-          totalLessons: totalLessons ? Number(totalLessons) : null,
-          isActive,
-        } as CreateSyllabusRequest);
-      }
+      await onSubmit({
+        code: code.trim(),
+        version: version.trim(),
+        title: title.trim(),
+        edition: edition.trim() || null,
+        overview: overview.trim() || null,
+        totalPeriods: totalPeriods ? Number(totalPeriods) : null,
+        minutesPerPeriod: minutesPerPeriod ? Number(minutesPerPeriod) : null,
+        totalLessons: totalLessons ? Number(totalLessons) : null,
+        isActive,
+      });
     } catch (err) {
       setError(toErrorMessage(err, "Không thể lưu syllabus."));
     } finally {
@@ -954,10 +905,10 @@ function SyllabusFormModal({
             </div>
             <div>
               <h2 className="text-lg font-bold text-white">
-                {isEdit ? "Sửa Syllabus" : "Tạo Syllabus"}
+                Sửa Syllabus
               </h2>
               <p className="text-sm text-white/80">
-                {isEdit ? "Cập nhật thông tin syllabus" : "Tạo syllabus mới"}
+                Cập nhật thông tin syllabus
               </p>
             </div>
           </div>
@@ -973,64 +924,6 @@ function SyllabusFormModal({
         {/* Form Body */}
         <div className="max-h-[70vh] overflow-y-auto">
           <form onSubmit={handleSubmit} className="space-y-4 p-6">
-            {!isEdit && (
-              <div className="rounded-xl border border-red-100 bg-red-50/40 p-4 space-y-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-red-600">
-                  Chương trình &amp; Level
-                </p>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Field label="Chương trình *">
-                    <Select
-                      value={programId}
-                      onValueChange={(v) => {
-                        setProgramId(v);
-                        setLevelId("");
-                      }}
-                    >
-                      <SelectTrigger className={inputCls}>
-                        <SelectValue placeholder="Chọn chương trình" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {programOptions.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                  <Field label="Level *">
-                    <Select
-                      value={levelId}
-                      onValueChange={setLevelId}
-                      disabled={!programId || levelsLoading}
-                    >
-                      <SelectTrigger
-                        className={cn(
-                          inputCls,
-                          (!programId || levelsLoading) &&
-                            "opacity-50 cursor-not-allowed",
-                        )}
-                      >
-                        <SelectValue
-                          placeholder={
-                            levelsLoading ? "Đang tải..." : "Chọn level"
-                          }
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {levels.map((l) => (
-                          <SelectItem key={l.id} value={l.id}>
-                            {l.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                </div>
-              </div>
-            )}
-
             <div className="grid gap-4 md:grid-cols-2">
               <Field label="Mã Syllabus (code) *">
                 <input
@@ -1116,27 +1009,25 @@ function SyllabusFormModal({
               </Field>
             </div>
 
-            {isEdit && (
-              <Field label="Trạng thái">
-                <div className="grid grid-cols-2 gap-3">
-                  {[true, false].map((val) => (
-                    <button
-                      key={String(val)}
-                      type="button"
-                      onClick={() => setIsActive(val)}
-                      className={cn(
-                        "rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors cursor-pointer",
-                        isActive === val
-                          ? "border-red-300 bg-red-50 text-red-700"
-                          : "border-gray-200 bg-white text-gray-600",
-                      )}
-                    >
-                      {val ? "Đang hoạt động" : "Tạm ẩn"}
-                    </button>
-                  ))}
-                </div>
-              </Field>
-            )}
+            <Field label="Trạng thái">
+              <div className="grid grid-cols-2 gap-3">
+                {[true, false].map((val) => (
+                  <button
+                    key={String(val)}
+                    type="button"
+                    onClick={() => setIsActive(val)}
+                    className={cn(
+                      "rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors cursor-pointer",
+                      isActive === val
+                        ? "border-red-300 bg-red-50 text-red-700"
+                        : "border-gray-200 bg-white text-gray-600",
+                    )}
+                  >
+                    {val ? "Đang hoạt động" : "Tạm ẩn"}
+                  </button>
+                ))}
+              </div>
+            </Field>
 
             {error && <ErrorBox message={error} />}
           </form>
@@ -1157,49 +1048,32 @@ function SyllabusFormModal({
               <button
                 type="button"
                 onClick={() => {
-                  if (isEdit && initial) {
-                    setCode((initial as any).code ?? "");
-                    setVersion(normalizeVersionInput((initial as any).version ?? ""));
-                    setTitle((initial as any).title ?? "");
-                    setEdition(
-                      (initial as any as SyllabusDetail)?.edition ?? "",
-                    );
-                    setOverview(
-                      (initial as any as SyllabusDetail)?.overview ?? "",
-                    );
-                    setTotalPeriods(
-                      String(
-                        (initial as any as SyllabusDetail)?.totalPeriods ?? "",
-                      ),
-                    );
-                    setMinutesPerPeriod(
-                      String(
-                        (initial as any as SyllabusDetail)?.minutesPerPeriod ??
-                          "",
-                      ),
-                    );
-                    setTotalLessons(
-                      String(
-                        (initial as any as SyllabusDetail)?.totalLessons ?? "",
-                      ),
-                    );
-                    setIsActive((initial as any).isActive ?? true);
-                  } else {
-                    setCode("");
-                    setVersion("");
-                    setTitle("");
-                    setEdition("");
-                    setOverview("");
-                    setTotalPeriods("");
-                    setMinutesPerPeriod("");
-                    setTotalLessons("");
-                    setIsActive(true);
-                  }
+                  setCode((initial as any).code ?? "");
+                  setVersion(normalizeVersionInput((initial as any).version ?? ""));
+                  setTitle((initial as any).title ?? "");
+                  setEdition((initial as any as SyllabusDetail)?.edition ?? "");
+                  setOverview((initial as any as SyllabusDetail)?.overview ?? "");
+                  setTotalPeriods(
+                    String(
+                      (initial as any as SyllabusDetail)?.totalPeriods ?? "",
+                    ),
+                  );
+                  setMinutesPerPeriod(
+                    String(
+                      (initial as any as SyllabusDetail)?.minutesPerPeriod ?? "",
+                    ),
+                  );
+                  setTotalLessons(
+                    String(
+                      (initial as any as SyllabusDetail)?.totalLessons ?? "",
+                    ),
+                  );
+                  setIsActive((initial as any).isActive ?? true);
                 }}
                 disabled={submitting}
                 className="px-6 py-2.5 text-sm rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isEdit ? "Khôi phục" : "Đặt lại"}
+                Khôi phục
               </button>
               <button
                 type="submit"
@@ -1207,7 +1081,7 @@ function SyllabusFormModal({
                 disabled={submitting}
                 className="px-6 py-2.5 rounded-xl text-sm bg-linear-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {submitting ? "Đang lưu..." : isEdit ? "Cập nhật" : "Tạo mới"}
+                {submitting ? "Đang lưu..." : "Cập nhật"}
               </button>
             </div>
           </div>
@@ -2895,10 +2769,7 @@ function ArchiveImportResultModal({
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-type ModalState =
-  | { mode: "create" }
-  | { mode: "edit"; item: SyllabusListItem }
-  | null;
+type ModalState = { mode: "edit"; item: SyllabusListItem } | null;
 
 type ImportMode = "word" | "archive" | "lesson-plan-words" | null;
 type ConfigTarget = { programId: string; levelId: string } | null;
@@ -3060,38 +2931,11 @@ export default function SyllabusesPage() {
   }, [loadData]);
 
   // Handlers
-  const handleCreate = async (
-    data: CreateSyllabusRequest | UpdateSyllabusRequest,
-  ) => {
-    const payload = data as CreateSyllabusRequest;
-    const manualRes = await createManualSyllabusDocument({
-      programId: payload.programId,
-      levelId: payload.levelId,
-      code: payload.code,
-      title: payload.title,
-      edition: payload.edition,
-      minutesPerPeriod: payload.minutesPerPeriod,
-      status: "Draft",
-      sourceType: "Manual",
-    });
-    if (!manualRes.isSuccess) {
-      const legacyRes = await createSyllabus(payload);
-      if (!legacyRes.isSuccess)
-        throw new Error(
-          legacyRes.message ?? manualRes.message ?? "Không thể tạo syllabus.",
-        );
-    }
-    toast({ title: "Đã tạo Syllabus", variant: "success" });
-    setModal(null);
-    await loadData(1, true);
-    setPageNumber(1);
-  };
-
   const handleUpdate = async (
     id: string,
-    data: CreateSyllabusRequest | UpdateSyllabusRequest,
+    data: UpdateSyllabusRequest,
   ) => {
-    const res = await updateSyllabus(id, data as UpdateSyllabusRequest);
+    const res = await updateSyllabus(id, data);
     if (!res.isSuccess)
       throw new Error(res.message ?? "Không thể cập nhật syllabus.");
     toast({ title: "Đã cập nhật Syllabus", variant: "success" });
@@ -3635,13 +3479,6 @@ export default function SyllabusesPage() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <button
-            type="button"
-            onClick={() => setModal({ mode: "create" })}
-            className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer"
-          >
-            <Plus size={16} /> Tạo Syllabus
-          </button>
         </div>
       </div>
 
@@ -3997,19 +3834,9 @@ export default function SyllabusesPage() {
       </div>
 
       {/* Modals */}
-      {modal?.mode === "create" && (
-        <SyllabusFormModal
-          isEdit={false}
-          programOptions={programOptions}
-          onClose={() => setModal(null)}
-          onSubmit={handleCreate}
-        />
-      )}
       {modal?.mode === "edit" && (
         <SyllabusFormModal
-          isEdit
           initial={detail ?? modal.item}
-          programOptions={programOptions}
           onClose={() => setModal(null)}
           onSubmit={(data) => handleUpdate(modal.item.id, data)}
         />

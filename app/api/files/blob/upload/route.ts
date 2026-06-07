@@ -22,6 +22,8 @@ const ALLOWED_CONTENT_TYPES = [
   "application/vnd.ms-excel",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   "application/zip",
+  "application/x-zip-compressed",
+  "application/octet-stream",
   "text/plain",
 ] as const;
 

@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { BarChart3, GraduationCap, Layers, Users } from "lucide-react";
 import { getAllStudents } from "@/lib/api/profileService";
 import LevelModuleWorkspace from "./LevelModuleWorkspace";
@@ -39,6 +41,10 @@ const TEACHER_TABS: Tab[] = [
   { key: "student-progress", label: "Tiến trình HV", icon: <Users className="h-4 w-4" /> },
 ];
 
+function isTabKey(value: string | null | undefined): value is TabKey {
+  return value === "dashboard" || value === "levels" || value === "student-progress";
+}
+
 const ROLE_TITLE: Record<AcademicProgressionRoleMode, string> = {
   admin: "Academic Progression — Quản trị",
   staff: "Academic Progression — Vận hành",
@@ -52,14 +58,31 @@ const ROLE_SUBTITLE: Record<AcademicProgressionRoleMode, string> = {
 };
 
 export default function AcademicProgressionWorkspace({ roleMode, studentId, studentName }: Props) {
+  const searchParams = useSearchParams();
+  const requestedTab = searchParams?.get("tab");
+  const requestedProgramId = searchParams?.get("programId")?.trim() || undefined;
+  const requestedLevelId = searchParams?.get("levelId")?.trim() || undefined;
+  const requestedModuleId = searchParams?.get("moduleId")?.trim() || undefined;
+  const requestedReturnTo = searchParams?.get("returnTo")?.trim() || "";
+  const returnToCurriculumHref =
+    requestedReturnTo.startsWith("/") &&
+    !requestedReturnTo.startsWith("//") &&
+    requestedReturnTo.includes("/portal/admin/curriculum-overview")
+      ? requestedReturnTo
+      : "";
   const tabs = useMemo<Tab[]>(
     () => (roleMode === "teacher" ? TEACHER_TABS : ADMIN_STAFF_TABS),
     [roleMode]
   );
 
   const defaultTab = useMemo(
-    () => (roleMode === "teacher" ? "student-progress" : "dashboard"),
-    [roleMode]
+    () =>
+      isTabKey(requestedTab)
+        ? requestedTab
+        : roleMode === "teacher"
+          ? "student-progress"
+          : "dashboard",
+    [requestedTab, roleMode]
   );
 
   const [activeTab, setActiveTab] = useState<TabKey>(defaultTab);
@@ -73,6 +96,12 @@ export default function AcademicProgressionWorkspace({ roleMode, studentId, stud
   useEffect(() => {
     setIsPageLoaded(true);
   }, []);
+
+  useEffect(() => {
+    if (tabs.some((tab) => tab.key === defaultTab)) {
+      setActiveTab(defaultTab);
+    }
+  }, [defaultTab, tabs]);
 
   useEffect(() => {
     let cancelled = false;
@@ -176,6 +205,14 @@ export default function AcademicProgressionWorkspace({ roleMode, studentId, stud
               <p className="text-sm text-gray-600">{ROLE_SUBTITLE[roleMode]}</p>
             </div>
           </div>
+          {returnToCurriculumHref ? (
+            <Link
+              href={returnToCurriculumHref}
+              className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-600 shadow-sm transition-colors hover:bg-red-50"
+            >
+              ← Quay về chỗ cũ
+            </Link>
+          ) : null}
         </div>
 
         {/* Tabs */}
@@ -202,7 +239,12 @@ export default function AcademicProgressionWorkspace({ roleMode, studentId, stud
         {activeTab === "dashboard" && <AcademicDashboard />}
 
         {activeTab === "levels" && (
-          <LevelModuleWorkspace roleMode={roleMode === "admin" ? "admin" : "staff"} />
+          <LevelModuleWorkspace
+            roleMode={roleMode === "admin" ? "admin" : "staff"}
+            programId={requestedProgramId}
+            levelId={requestedLevelId}
+            moduleId={requestedModuleId}
+          />
         )}
 
         {activeTab === "student-progress" ? (

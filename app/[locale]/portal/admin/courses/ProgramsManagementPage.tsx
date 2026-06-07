@@ -47,7 +47,7 @@ import { usePageI18n } from "@/hooks/usePageI18n";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
 import AdminBranchSelectField from "@/components/admin/common/AdminBranchSelectField";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 /* -------------------------- helpers -------------------------- */
 function cn(...a: Array<string | false | null | undefined>) {
@@ -832,7 +832,15 @@ export function ProgramsManagementPage({
   const { messages } = usePageI18n();
   const t = messages.adminPages.courses;
   const pathname = usePathname() ?? "";
+  const searchParams = useSearchParams();
+  const requestedProgramId = searchParams?.get("programId")?.trim() || "";
+  const requestedReturnTo = searchParams?.get("returnTo")?.trim() || "";
   const locale = pathname.split("/").filter(Boolean)[0] ?? "vi";
+  const returnToCurriculumHref = requestedReturnTo.startsWith(
+    `/${locale}/portal/admin/curriculum-overview`,
+  )
+    ? requestedReturnTo
+    : "";
   const isEnglish = locale === "en";
   const headerSubtitle = isEnglish
     ? "Parent workspace for programs. From here, continue to syllabuses and standard lesson templates."
@@ -888,6 +896,7 @@ export function ProgramsManagementPage({
   const [courseBranchesSortOrder, setCourseBranchesSortOrder] = useState<"asc" | "desc">("asc");
   const detailModalRef = useRef<HTMLDivElement>(null);
   const courseBranchesModalRef = useRef<HTMLDivElement>(null);
+  const openedRequestedProgramRef = useRef("");
 
   useEffect(() => {
     if (forcedViewMode) {
@@ -1299,7 +1308,7 @@ export function ProgramsManagementPage({
       });
     }
   };
-  const handleViewDetail = async (row: CourseRow) => {
+  const handleViewDetail = useCallback(async (row: CourseRow) => {
     try {
       setLoadingDetail(true);
       setShowDetailModal(true);
@@ -1314,11 +1323,33 @@ export function ProgramsManagementPage({
         description: err?.message || t.messages.notFoundDetail,
         type: "destructive",
       });
-      closeDetailModal();
+      setShowDetailModal(false);
+      setSelectedCourseDetail(null);
     } finally {
       setLoadingDetail(false);
     }
-  };
+  }, [t.messages.error, t.messages.notFoundDetail, toast]);
+
+  useEffect(() => {
+    if (!requestedProgramId || loading) {
+      return;
+    }
+
+    if (openedRequestedProgramRef.current === requestedProgramId) {
+      return;
+    }
+
+    const requestedCourse = courses.find(
+      (course) => course.id === requestedProgramId,
+    );
+
+    if (!requestedCourse) {
+      return;
+    }
+
+    openedRequestedProgramRef.current = requestedProgramId;
+    void handleViewDetail(requestedCourse);
+  }, [courses, handleViewDetail, loading, requestedProgramId]);
 
   const confirmToggleStatus = async () => {
     if (!selectedCourse) return;
@@ -1402,6 +1433,14 @@ export function ProgramsManagementPage({
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {returnToCurriculumHref ? (
+              <Link
+                href={returnToCurriculumHref}
+                className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50"
+              >
+                ← Quay về chỗ cũ
+              </Link>
+            ) : null}
             {activeViewMode === "branch" ? (
               <button
                 onClick={() => setShowAddExistingModal(true)}

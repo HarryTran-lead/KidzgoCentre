@@ -12,13 +12,3 @@ export async function GET(req: Request) {
   });
 }
 
-export async function POST(req: Request) {
-  const body = await req.json();
-  const url = buildApiUrl(BACKEND_SYLLABUS_ENDPOINTS.BASE);
-
-  return forwardToBackend(req, url, {
-    method: "POST",
-    body,
-    context: { method: "POST", endpoint: "syllabuses" },
-  });
-}

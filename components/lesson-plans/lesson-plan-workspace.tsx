@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams } from "next/navigation";
@@ -74,7 +75,6 @@ import {
   ClassLessonPlanSyllabus,
   ClassLessonPlanSyllabusSession,
   createLessonPlan,
-  createLessonPlanTemplate,
   getAllLessonPlanTemplates,
   getClassLessonPlanSyllabus,
   getLessonPlanById,
@@ -144,10 +144,7 @@ type ClassOptionSource = {
   level?: string | null;
 };
 
-type TemplateModalState =
-  | { mode: "create" }
-  | { mode: "edit"; item: LessonPlanTemplate }
-  | null;
+type TemplateModalState = { item: LessonPlanTemplate } | null;
 
 type PlanModalState =
   | { mode: "create"; session: ClassLessonPlanSyllabusSession }
@@ -374,7 +371,7 @@ function getTemplateDisplaySubtitle(item: LessonPlanTemplate) {
   const sourceFileName = item.sourceFileName?.trim();
   const title = item.title?.trim();
 
-  if (!sourceFileName) return "Tạo thủ công";
+  if (!sourceFileName) return "Chưa có file nguồn";
   if (title && title !== sourceFileName) return `Tiêu đề hệ thống: ${title}`;
   return "Nguồn từ file";
 }
@@ -1463,6 +1460,15 @@ export function LessonPlanWorkspace({
   const requestedProgramId = searchParams?.get("programId")?.trim() || "";
   const requestedSyllabusId = searchParams?.get("syllabusId")?.trim() || "";
   const requestedModuleId = searchParams?.get("moduleId")?.trim() || "";
+  const requestedUnitId = searchParams?.get("unitId")?.trim() || "";
+  const requestedTemplateId = searchParams?.get("templateId")?.trim() || "";
+  const requestedReturnTo = searchParams?.get("returnTo")?.trim() || "";
+  const returnToCurriculumHref =
+    requestedReturnTo.startsWith("/") &&
+    !requestedReturnTo.startsWith("//") &&
+    requestedReturnTo.includes("/portal/admin/curriculum-overview")
+      ? requestedReturnTo
+      : "";
   const requestedClassId = searchParams?.get("classId")?.trim() || "";
   const requestedSessionId = searchParams?.get("sessionId")?.trim() || "";
   const defaultTab: ActiveTab =
@@ -2054,6 +2060,7 @@ export function LessonPlanWorkspace({
   };
 
   const refreshWorkspaceRef = useRef(refreshWorkspace);
+  const autoOpenedTemplateDetailRef = useRef("");
   const autoOpenedSessionDetailRef = useRef("");
   const warnedMissingSessionRef = useRef("");
 
@@ -2148,6 +2155,13 @@ export function LessonPlanWorkspace({
         }
 
         if (
+          requestedUnitId &&
+          item.lessonPlanUnitId?.trim() !== requestedUnitId
+        ) {
+          return false;
+        }
+
+        if (
           templateStatusFilter === "active" &&
           getTemplateStatus(item) !== "active"
         ) {
@@ -2185,6 +2199,7 @@ export function LessonPlanWorkspace({
       });
   }, [
     effectiveSelectedModuleId,
+    requestedUnitId,
     searchQuery,
     selectedProgramId,
     selectedSyllabusId,
@@ -2210,6 +2225,12 @@ export function LessonPlanWorkspace({
         return false;
       }
       if (
+        requestedUnitId &&
+        item.lessonPlanUnitId?.trim() !== requestedUnitId
+      ) {
+        return false;
+      }
+      if (
         templateStatusFilter === "active" &&
         getTemplateStatus(item) !== "active"
       ) {
@@ -2228,6 +2249,7 @@ export function LessonPlanWorkspace({
     });
   }, [
     effectiveSelectedModuleId,
+    requestedUnitId,
     selectedProgramId,
     selectedSyllabusId,
     templateStatusFilter,
@@ -2522,7 +2544,7 @@ export function LessonPlanWorkspace({
     window.open(resolvedUrl, "_blank", "noopener,noreferrer");
   };
 
-  const openTemplateDetail = async (templateId: string) => {
+  const openTemplateDetail = useCallback(async (templateId: string) => {
     setDetailState({ type: "template", loading: true, item: null });
 
     const response = await getLessonPlanTemplateById(templateId);
@@ -2537,7 +2559,31 @@ export function LessonPlanWorkspace({
     }
 
     setDetailState({ type: "template", loading: false, item: response.data });
-  };
+  }, []);
+
+  useEffect(() => {
+    if (
+      activeTab !== "templates" ||
+      !templatesAvailable ||
+      !requestedTemplateId ||
+      loading
+    ) {
+      return;
+    }
+
+    if (autoOpenedTemplateDetailRef.current === requestedTemplateId) {
+      return;
+    }
+
+    autoOpenedTemplateDetailRef.current = requestedTemplateId;
+    void openTemplateDetail(requestedTemplateId);
+  }, [
+    activeTab,
+    loading,
+    openTemplateDetail,
+    requestedTemplateId,
+    templatesAvailable,
+  ]);
 
   const getTeachingLogOrNull = async (sessionId: string) => {
     try {
@@ -2753,7 +2799,7 @@ export function LessonPlanWorkspace({
       return;
     }
 
-    setTemplateModal({ mode: "edit", item: response.data });
+    setTemplateModal({ item: response.data });
   };
 
   const openPlanEditor = async (session: ClassLessonPlanSyllabusSession) => {
@@ -2797,52 +2843,41 @@ export function LessonPlanWorkspace({
       attachment = uploaded.url;
     }
 
-    const response =
-      templateModal?.mode === "edit"
-        ? await updateLessonPlanTemplate(templateModal.item.id, {
-            level: payload.level,
-            title: payload.title,
-            sessionIndex: payload.sessionIndex,
-            syllabusMetadata: payload.syllabusMetadata ?? null,
-            syllabusContent: payload.syllabusContent ?? null,
-            // Preserve new content fields — the edit form doesn't have
-            // inputs for these yet, so we pass through the original values
-            // to prevent them from being wiped on a full PUT.
-            objectives: templateModal.item.objectives ?? null,
-            languageContent: templateModal.item.languageContent ?? null,
-            vocabulary: templateModal.item.vocabulary ?? null,
-            grammar: templateModal.item.grammar ?? null,
-            teachingMethodology: templateModal.item.teachingMethodology ?? null,
-            teacherMaterials: templateModal.item.teacherMaterials ?? null,
-            studentMaterials: templateModal.item.studentMaterials ?? null,
-            procedure: templateModal.item.procedure ?? null,
-            evaluation: templateModal.item.evaluation ?? null,
-            homework: templateModal.item.homework ?? null,
-            teacherNote: templateModal.item.teacherNote ?? null,
-            sourceFileName: payload.sourceFileName ?? null,
-            attachment,
-            isActive: payload.isActive ?? true,
-          })
-        : await createLessonPlanTemplate({
-            programId: payload.programId,
-            level: payload.level,
-            title: payload.title,
-            sessionIndex: payload.sessionIndex,
-            syllabusMetadata: payload.syllabusMetadata ?? null,
-            syllabusContent: payload.syllabusContent ?? null,
-            sourceFileName: payload.sourceFileName ?? null,
-            attachment,
-          });
+    if (!templateModal) {
+      throw new Error("Không có template để cập nhật.");
+    }
+
+    const response = await updateLessonPlanTemplate(templateModal.item.id, {
+      level: payload.level,
+      title: payload.title,
+      sessionIndex: payload.sessionIndex,
+      syllabusMetadata: payload.syllabusMetadata ?? null,
+      syllabusContent: payload.syllabusContent ?? null,
+      // Preserve new content fields — the edit form doesn't have
+      // inputs for these yet, so we pass through the original values
+      // to prevent them from being wiped on a full PUT.
+      objectives: templateModal.item.objectives ?? null,
+      languageContent: templateModal.item.languageContent ?? null,
+      vocabulary: templateModal.item.vocabulary ?? null,
+      grammar: templateModal.item.grammar ?? null,
+      teachingMethodology: templateModal.item.teachingMethodology ?? null,
+      teacherMaterials: templateModal.item.teacherMaterials ?? null,
+      studentMaterials: templateModal.item.studentMaterials ?? null,
+      procedure: templateModal.item.procedure ?? null,
+      evaluation: templateModal.item.evaluation ?? null,
+      homework: templateModal.item.homework ?? null,
+      teacherNote: templateModal.item.teacherNote ?? null,
+      sourceFileName: payload.sourceFileName ?? null,
+      attachment,
+      isActive: payload.isActive ?? true,
+    });
 
     if (!response.isSuccess) {
       throw new Error(extractMessage(response, "Không thể lưu mẫu giáo án."));
     }
 
     toast({
-      title:
-        templateModal?.mode === "edit"
-          ? "Đã cập nhật template"
-          : "Đã tạo template",
+      title: "Đã cập nhật template",
       description: "Dữ liệu template đã được đồng bộ thành công.",
       variant: "success",
     });
@@ -3198,22 +3233,20 @@ export function LessonPlanWorkspace({
                   className="mt-2 inline-flex items-center gap-2 text-sm font-medium text-red-600 transition-colors hover:text-red-700 cursor-pointer"
                 >
                   <BookOpenCheck size={14} />
-                  Mở trang syllabus để thêm hoặc chỉnh dữ liệu nguồn
+                  Mở trang syllabus để import hoặc chỉnh dữ liệu nguồn
                 </button>
               ) : null}
             </div>
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {templatesAvailable && activeTab === "templates" ? (
-              <button
-                type="button"
-                onClick={() => setTemplateModal({ mode: "create" })}
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:shadow-lg cursor-pointer"
+            {returnToCurriculumHref ? (
+              <Link
+                href={returnToCurriculumHref}
+                className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50"
               >
-                <Plus size={16} />
-                Tạo mẫu giáo án
-              </button>
+                ← Quay về chỗ cũ
+              </Link>
             ) : null}
             <button
               type="button"
@@ -3493,16 +3526,9 @@ export function LessonPlanWorkspace({
 
       {templateModal ? (
         <TemplateFormModal
-          initialValue={
-            templateModal.mode === "edit" ? templateModal.item : null
-          }
+          initialValue={templateModal.item}
           programOptions={programOptions}
           existingTemplates={templates}
-          defaultProgramId={
-            templateModal.mode === "create" && selectedProgramId !== "all"
-              ? selectedProgramId
-              : undefined
-          }
           onClose={() => setTemplateModal(null)}
           onSubmit={handleTemplateSubmit}
         />
@@ -7352,14 +7378,12 @@ function TemplateFormModal({
   initialValue,
   programOptions,
   existingTemplates,
-  defaultProgramId,
   onClose,
   onSubmit,
 }: {
-  initialValue: LessonPlanTemplate | null;
+  initialValue: LessonPlanTemplate;
   programOptions: Option[];
   existingTemplates: LessonPlanTemplate[];
-  defaultProgramId?: string;
   onClose: () => void;
   onSubmit: (
     payload: {
@@ -7398,8 +7422,7 @@ function TemplateFormModal({
     !contentSeed && initialValue?.syllabusContent?.trim() && !parsedRawMetadata
       ? initialValue.syllabusContent.trim()
       : null;
-  const initialProgramId = initialValue?.programId || defaultProgramId || "";
-  const isEdit = Boolean(initialValue);
+  const initialProgramId = initialValue?.programId || "";
 
   const [programId, setProgramId] = useState(initialProgramId);
   const [level, setLevel] = useState(initialValue?.level || "");
@@ -7701,7 +7724,7 @@ function TemplateFormModal({
       setError("Vui lòng nhập tiêu đề.");
       return;
     }
-    const effectiveSessionIndex = isEdit ? sessionIndex : 1;
+    const effectiveSessionIndex = sessionIndex;
     if (effectiveSessionIndex <= 0) {
       setError("Session index phải lớn hơn 0.");
       return;
@@ -7767,12 +7790,8 @@ function TemplateFormModal({
 
   return (
     <ModalFrame
-      title={isEdit ? "Cập nhật template" : "Tạo template"}
-      subtitle={
-        isEdit
-          ? "Chỉnh sửa mẫu giáo án hiện có"
-          : "Tạo mậu giáo án mới cho chương trình"
-      }
+      title="Cập nhật template"
+      subtitle="Chỉnh sửa mẫu giáo án hiện có"
       icon={FolderOpen}
       onClose={onClose}
       widthClass="max-w-5xl"
@@ -7784,7 +7803,7 @@ function TemplateFormModal({
               <Select
                 value={programId}
                 onValueChange={setProgramId}
-                disabled={isEdit}
+                disabled
               >
                 <SelectTrigger className="w-full rounded-xl">
                   <SelectValue placeholder="Chọn chương trình" />
@@ -8326,22 +8345,20 @@ function TemplateFormModal({
             </label>
           </Field>
 
-          {isEdit ? (
-            <Field label="Trạng thái">
-              <div className="grid grid-cols-2 gap-3">
-                <ToggleButton
-                  active={isActive}
-                  onClick={() => setIsActive(true)}
-                  label="Đang hoạt động"
-                />
-                <ToggleButton
-                  active={!isActive}
-                  onClick={() => setIsActive(false)}
-                  label="Tạm ẩn"
-                />
-              </div>
-            </Field>
-          ) : null}
+          <Field label="Trạng thái">
+            <div className="grid grid-cols-2 gap-3">
+              <ToggleButton
+                active={isActive}
+                onClick={() => setIsActive(true)}
+                label="Đang hoạt động"
+              />
+              <ToggleButton
+                active={!isActive}
+                onClick={() => setIsActive(false)}
+                label="Tạm ẩn"
+              />
+            </div>
+          </Field>
 
           {error ? <ErrorBox message={error} /> : null}
         </div>
@@ -8375,7 +8392,7 @@ function TemplateFormModal({
                 ) : (
                   <FolderOpen size={14} />
                 )}
-                {isEdit ? "Lưu template" : "Tạo template"}
+                Lưu template
               </button>
             </div>
           </div>

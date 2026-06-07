@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState, useRef } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { ArrowUp, ArrowDown, Save, Trash2, Plus, CheckCircle, Archive, Loader2, GripVertical, FileText, Heading, List, Settings, ChevronDown, ChevronRight, Edit3, Check, X, BookOpen } from "lucide-react";
 import {
   Select,
@@ -471,8 +471,15 @@ function DraggableSection({
 export default function SyllabusDocumentEditorPage() {
   const { toast } = useToast();
   const params = useParams<{ locale: string; id: string }>();
+  const searchParams = useSearchParams();
   const locale = params?.locale ?? "vi";
   const syllabusId = params?.id ?? "";
+  const requestedReturnTo = searchParams?.get("returnTo")?.trim() || "";
+  const returnToCurriculumHref = requestedReturnTo.startsWith(
+    `/${locale}/portal/admin/curriculum-overview`,
+  )
+    ? requestedReturnTo
+    : "";
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -821,9 +828,9 @@ export default function SyllabusDocumentEditorPage() {
         {/* Header Bar */}
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <Link href={`/${locale}/portal/admin/syllabuses`} className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-red-600 transition-colors cursor-pointer group">
+            <Link href={returnToCurriculumHref || `/${locale}/portal/admin/syllabuses`} className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-red-600 transition-colors cursor-pointer group">
               <span className="group-hover:-translate-x-0.5 transition-transform">←</span>
-              Danh sách
+              {returnToCurriculumHref ? "Quay về chỗ cũ" : "Danh sách"}
             </Link>
             <div className="h-4 w-px bg-gray-300" />
             <div className="flex items-center gap-2">
