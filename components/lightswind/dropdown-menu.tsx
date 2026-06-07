@@ -1,5 +1,6 @@
 "use client";
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { cn } from "../../lib/utils";
 import { cva } from "class-variance-authority";
 import { motion, AnimatePresence } from "framer-motion"; // Import motion and AnimatePresence
@@ -266,10 +267,16 @@ const DropdownMenuContent = React.forwardRef<
     const { open, setOpen, hoverMode, triggerRef } = context;
     const menuRef = React.useRef<HTMLDivElement | null>(null);
     const [position, setPosition] = React.useState({ top: 0, left: 0 });
+    const [portalContainer, setPortalContainer] =
+      React.useState<HTMLElement | null>(null);
 
     const contentMouseLeaveTimeoutRef = React.useRef<NodeJS.Timeout | null>(
       null
     );
+
+    React.useEffect(() => {
+      setPortalContainer(document.body);
+    }, []);
 
     React.useEffect(() => {
       if (!open) return;
@@ -432,7 +439,7 @@ const DropdownMenuContent = React.forwardRef<
 
     const { onMouseLeave, onMouseEnter, ...otherProps } = props;
 
-    return (
+    const content = (
       <AnimatePresence>
         {open && (
           <motion.div
@@ -461,10 +468,10 @@ const DropdownMenuContent = React.forwardRef<
             }}
             onMouseLeave={handleMouseLeave}
             onMouseEnter={handleMouseEnterContent}
-            initial={{ y: 70, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 100, opacity: 0 }}
-            transition={{ duration: 0.3, ease: "easeInOut" }}
+            initial={{ y: -4, scale: 0.98, opacity: 0 }}
+            animate={{ y: 0, scale: 1, opacity: 1 }}
+            exit={{ y: -4, scale: 0.98, opacity: 0 }}
+            transition={{ duration: 0.16, ease: "easeOut" }}
             {...otherProps}
           >
             {children}
@@ -472,6 +479,10 @@ const DropdownMenuContent = React.forwardRef<
         )}
       </AnimatePresence>
     );
+
+    if (!portalContainer) return null;
+
+    return createPortal(content, portalContainer);
   }
 );
 DropdownMenuContent.displayName = "DropdownMenuContent";

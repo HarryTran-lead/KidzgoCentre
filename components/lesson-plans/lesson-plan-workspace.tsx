@@ -1396,8 +1396,15 @@ function getPlanStats(
 function getSyllabusSummaryItems(
   syllabus: ClassLessonPlanSyllabus | null,
   sessionSource?: ClassLessonPlanSyllabusSession[],
+  classDetail?: ClassApiDetail | null,
 ) {
   const sessions = sessionSource ?? syllabus?.sessions ?? [];
+  const syllabusLabel =
+    classDetail?.syllabusTitle?.trim() ||
+    syllabus?.syllabusTitle?.trim() ||
+    classDetail?.syllabusCode?.trim() ||
+    syllabus?.syllabusCode?.trim() ||
+    "-";
 
   return [
     {
@@ -1405,7 +1412,7 @@ function getSyllabusSummaryItems(
       value: syllabus?.classTitle || syllabus?.classCode || "Chưa chọn",
     },
     { label: "Chương trình", value: syllabus?.programName || "-" },
-    { label: "Thông tin syllabus", value: syllabus?.syllabusMetadata || "-" },
+    { label: "Thông tin syllabus", value: syllabusLabel },
     { label: "Tổng buổi", value: sessions.length },
     {
       label: "Đã có giáo án",
@@ -3323,6 +3330,7 @@ export function LessonPlanWorkspace({
               const items = getSyllabusSummaryItems(
                 classSyllabus,
                 planBaseSessions,
+                classDetail,
               );
               
               const getBadgeStyle = (label: string) => {
