@@ -6,6 +6,13 @@
 } from "@/constants/apiURL";
 import { getAccessToken } from "@/lib/store/authToken";
 
+const DEFAULT_SYLLABUS_ARCHIVE_UPLOAD_API_URL = "https://rexengswagger.duckdns.org/api";
+const SYLLABUS_ARCHIVE_UPLOAD_API_URL = (
+  process.env.NEXT_PUBLIC_SYLLABUS_ARCHIVE_UPLOAD_API_URL ??
+  process.env.NEXT_PUBLIC_BACKEND_UPLOAD_API_URL ??
+  ""
+).replace(/\/$/, "");
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface SyllabusListItem {
@@ -502,9 +509,32 @@ function str(v: unknown): string {
   return typeof v === "string" ? v : "";
 }
 
-function buildDirectBackendUrl(endpoint: string): string | null {
+function buildArchiveUploadFallbackUrl(url: string): string {
+  const isHttpsPage =
+    typeof window !== "undefined" &&
+    window.location.protocol === "https:";
+  const uploadBase =
+    isHttpsPage && /^http:\/\//i.test(SYLLABUS_ARCHIVE_UPLOAD_API_URL)
+      ? DEFAULT_SYLLABUS_ARCHIVE_UPLOAD_API_URL
+      : SYLLABUS_ARCHIVE_UPLOAD_API_URL || DEFAULT_SYLLABUS_ARCHIVE_UPLOAD_API_URL;
+  const parsed = new URL(url);
+  const pathnameWithoutApi = parsed.pathname.replace(/^\/api(?=\/|$)/i, "");
+  return `${uploadBase}${pathnameWithoutApi}${parsed.search}`;
+}
+
+function buildDirectBackendUrl(endpoint: string, options?: { useArchiveUploadFallback?: boolean }): string | null {
   const url = buildApiUrl(endpoint);
-  return /^https?:\/\//i.test(url) ? url : null;
+  if (!/^https?:\/\//i.test(url)) return null;
+
+  const isHttpsPage =
+    typeof window !== "undefined" &&
+    window.location.protocol === "https:";
+
+  if (isHttpsPage && /^http:\/\//i.test(url)) {
+    return options?.useArchiveUploadFallback ? buildArchiveUploadFallbackUrl(url) : null;
+  }
+
+  return url;
 }
 
 function strAny(...values: unknown[]): string {
@@ -1345,6 +1375,7 @@ export async function importSyllabusArchive(
 
     const directBackendUrl = buildDirectBackendUrl(
       `${BACKEND_SYLLABUS_ENDPOINTS.IMPORT_ARCHIVE}?${query}`,
+      { useArchiveUploadFallback: true },
     );
     const importUrl =
       directBackendUrl ?? `${SYLLABUS_ENDPOINTS.IMPORT_ARCHIVE}?${query}`;
@@ -1391,6 +1422,16 @@ export async function importSyllabusArchive(
       },
     };
   } catch (error) {
+    if (error instanceof TypeError && /fetch/i.test(error.message)) {
+      return {
+        isSuccess: false,
+        data: null,
+        message:
+          "Không gửi được file ZIP tới backend. Nếu đang ở production HTTPS, hãy kiểm tra URL upload HTTPS/CORS của backend.",
+        detail:
+          "Trình duyệt đã chặn hoặc không kết nối được request upload. FE hiện ưu tiên NEXT_PUBLIC_SYLLABUS_ARCHIVE_UPLOAD_API_URL, sau đó dùng https://rexengswagger.duckdns.org/api để tránh mixed-content.",
+      };
+    }
     return errorResponse(null, error);
   }
 }
