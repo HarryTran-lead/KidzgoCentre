@@ -7,7 +7,6 @@ import {
   Boxes,
   ChevronDown,
   ChevronRight,
-  ChevronUp,
   ClipboardList,
   FileText,
   GraduationCap,
@@ -26,6 +25,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/lightswind/select";
+import { useBranchFilter } from "@/hooks/useBranchFilter";
+import { getAccessToken } from "@/lib/store/authToken";
 
 type ApiEnvelope<T> = {
   isSuccess?: boolean;
@@ -42,8 +43,12 @@ type ProgramOption = {
 
 type LessonTemplateDto = {
   lessonTemplateId: string;
+  sessionTemplateId?: string | null;
   title: string;
   lessonType?: string;
+  sessionIndex?: number | null;
+  sessionOrder?: number | null;
+  sessionIndexInModule?: number | null;
   orderIndex?: number;
   isActive?: boolean;
 };
@@ -59,22 +64,31 @@ type SyllabusDto = {
 
 type UnitDto = {
   unitId: string;
+  unitKey?: string;
   unitName: string;
+  unitNumber?: number;
+  unitTitle?: string;
   unitOrderIndex?: number;
+  isSynthetic?: boolean;
   syllabuses?: SyllabusDto[];
 };
 
 type ModuleDto = {
   moduleId: string;
+  moduleCode?: string;
   moduleName: string;
   moduleOrderIndex?: number;
+  moduleType?: string;
+  isActive?: boolean;
   units?: UnitDto[];
 };
 
 type LevelDto = {
   levelId: string;
+  levelCode?: string;
   levelName: string;
   levelOrderIndex?: number;
+  isActive?: boolean;
   modules?: ModuleDto[];
 };
 
@@ -82,6 +96,7 @@ type CurriculumTreeDto = {
   programId: string;
   programName: string;
   programCode?: string;
+  isActive?: boolean;
   levels?: LevelDto[];
 };
 
@@ -94,26 +109,26 @@ type TreeNode = {
   children?: TreeNode[];
 };
 
-const fallbackPrograms: ProgramOption[] = [
-  {
-    id: "demo-kids-english",
-    name: "Kids English",
-    code: "KIDS_ENGLISH",
-    isActive: true,
-  },
-  {
-    id: "demo-ielts",
-    name: "IELTS",
-    code: "IELTS",
-    isActive: true,
-  },
-  {
-    id: "demo-communication",
-    name: "Communication",
-    code: "COMMUNICATION",
-    isActive: true,
-  },
-];
+type SyllabusViewMode = "applied" | "all";
+
+type CurriculumFilterOption = {
+  id: string;
+  label: string;
+  hint?: string;
+  programId?: string;
+};
+
+const defaultCurriculumProgram: ProgramOption = {
+  id: "48eba459-7a08-4461-b1f9-acec097c6185",
+  name: "Kids English",
+  code: "KIDSENGLIS",
+  isActive: true,
+};
+
+const ALL_PROGRAMS_VALUE = "__all_programs__";
+const ALL_FILTER_VALUE = "all";
+
+const fallbackPrograms: ProgramOption[] = [defaultCurriculumProgram];
 
 const fallbackCurriculumTrees: Record<string, CurriculumTreeDto> = {
   "demo-kids-english": {
@@ -355,7 +370,13 @@ function getStoredAuthToken() {
     return null;
   }
 
+  const accessToken = normalizePlainToken(getAccessToken());
+  if (accessToken) {
+    return accessToken;
+  }
+
   const tokenKeys = [
+    "kidzgo.accessToken",
     "accessToken",
     "access_token",
     "token",
@@ -444,6 +465,8 @@ function normalizePrograms(payload: unknown): ProgramOption[] {
 
     if (program.code) {
       option.code = String(program.code);
+    } else if (program.programCode) {
+      option.code = String(program.programCode);
     }
 
     if (typeof program.isActive === "boolean") {
@@ -456,41 +479,6 @@ function normalizePrograms(payload: unknown): ProgramOption[] {
   return programs;
 }
 
-function getFallbackTree(programId: string, programs: ProgramOption[]) {
-  const directTree = fallbackCurriculumTrees[programId];
-
-  if (directTree) {
-    return directTree;
-  }
-
-  const selectedProgram = programs.find((program) => program.id === programId);
-  const selectedCode = selectedProgram?.code?.toLowerCase();
-  const selectedName = selectedProgram?.name.toLowerCase();
-  const selectedText = `${selectedCode ?? ""} ${selectedName ?? ""}`;
-
-  if (selectedText.includes("kid")) {
-    return fallbackCurriculumTrees["demo-kids-english"];
-  }
-
-  if (selectedText.includes("ielts")) {
-    return fallbackCurriculumTrees["demo-ielts"];
-  }
-
-  if (
-    selectedText.includes("communication") ||
-    selectedText.includes("giao tiếp")
-  ) {
-    return fallbackCurriculumTrees["demo-communication"];
-  }
-
-  return Object.values(fallbackCurriculumTrees).find((tree) => {
-    return (
-      tree.programCode?.toLowerCase() === selectedCode ||
-      tree.programName.toLowerCase() === selectedName
-    );
-  });
-}
-
 function sortByOrder<T>(items: T[] | undefined, orderKey: keyof T) {
   return [...(items ?? [])].sort((a, b) => {
     const leftValue = a[orderKey];
@@ -501,7 +489,442 @@ function sortByOrder<T>(items: T[] | undefined, orderKey: keyof T) {
   });
 }
 
-function buildTree(curriculum: CurriculumTreeDto): TreeNode[] {
+function sortLessonTemplates(lessons?: LessonTemplateDto[]) {
+  return [...(lessons ?? [])].sort((left, right) => {
+    const orderPairs = [
+      [left.orderIndex, right.orderIndex],
+      [left.sessionOrder, right.sessionOrder],
+      [left.sessionIndexInModule, right.sessionIndexInModule],
+      [left.sessionIndex, right.sessionIndex],
+    ];
+
+    for (const [leftOrder, rightOrder] of orderPairs) {
+      const hasLeftOrder = typeof leftOrder === "number";
+      const hasRightOrder = typeof rightOrder === "number";
+
+      if (hasLeftOrder && hasRightOrder && leftOrder !== rightOrder) {
+        return leftOrder - rightOrder;
+      }
+
+      if (hasLeftOrder !== hasRightOrder) {
+        return hasLeftOrder ? -1 : 1;
+      }
+    }
+
+    return left.title.localeCompare(right.title);
+  });
+}
+
+function makeTreeNodeId(...parts: Array<string | number | undefined>) {
+  return parts.filter((part) => part !== undefined && part !== "").join("::");
+}
+
+function formatFieldValue(value: string | number | boolean | null) {
+  if (value === null) {
+    return "null";
+  }
+
+  if (value === "") {
+    return '""';
+  }
+
+  return String(value);
+}
+
+function metaField(
+  label: string,
+  value: string | number | boolean | null | undefined,
+) {
+  if (value === undefined) {
+    return null;
+  }
+
+  return `${label}: ${formatFieldValue(value)}`;
+}
+
+function joinMeta(fields: Array<string | null>) {
+  return fields.filter((field): field is string => Boolean(field)).join(" - ");
+}
+
+function createEmptyCurriculum(program: ProgramOption): CurriculumTreeDto {
+  return {
+    programId: program.id,
+    programName: program.name,
+    programCode: program.code,
+    isActive: program.isActive,
+    levels: [],
+  };
+}
+
+type TreeContext = {
+  curriculum: CurriculumTreeDto;
+  level: LevelDto;
+  module: ModuleDto;
+  unit: UnitDto;
+};
+
+function getSyllabusVersion(syllabus: SyllabusDto) {
+  return typeof syllabus.version === "number"
+    ? syllabus.version
+    : Number.NEGATIVE_INFINITY;
+}
+
+function compareSyllabusByAppliedPriority(
+  left: SyllabusDto,
+  right: SyllabusDto,
+) {
+  const activePriority =
+    Number(right.isActive === true) - Number(left.isActive === true);
+
+  if (activePriority !== 0) {
+    return activePriority;
+  }
+
+  const versionPriority = getSyllabusVersion(right) - getSyllabusVersion(left);
+
+  if (versionPriority !== 0) {
+    return versionPriority;
+  }
+
+  return left.syllabusTitle.localeCompare(right.syllabusTitle);
+}
+
+function sortSyllabusesByAppliedPriority(syllabuses?: SyllabusDto[]) {
+  return [...(syllabuses ?? [])].sort(compareSyllabusByAppliedPriority);
+}
+
+function getSyllabusIdentity(syllabus: SyllabusDto) {
+  return (
+    syllabus.syllabusCode?.trim() ||
+    syllabus.syllabusTitle?.trim() ||
+    syllabus.syllabusId
+  ).toLowerCase();
+}
+
+type SyllabusGroup = {
+  key: string;
+  title: string;
+  code?: string;
+  versions: SyllabusDto[];
+};
+
+function groupSyllabuses(syllabuses?: SyllabusDto[]) {
+  const groups = new Map<string, SyllabusGroup>();
+
+  sortSyllabusesByAppliedPriority(syllabuses).forEach((syllabus) => {
+    const key = getSyllabusIdentity(syllabus);
+    const currentGroup = groups.get(key);
+
+    if (currentGroup) {
+      currentGroup.versions.push(syllabus);
+      return;
+    }
+
+    groups.set(key, {
+      key,
+      title: syllabus.syllabusTitle,
+      code: syllabus.syllabusCode,
+      versions: [syllabus],
+    });
+  });
+
+  return Array.from(groups.values());
+}
+
+function pickAppliedSyllabusVersion(group: SyllabusGroup) {
+  return group.versions[0];
+}
+
+function getAppliedSyllabusesForUnit(unit: UnitDto) {
+  return groupSyllabuses(unit.syllabuses)
+    .map(pickAppliedSyllabusVersion)
+    .filter((syllabus): syllabus is SyllabusDto => Boolean(syllabus));
+}
+
+function formatSyllabusFilterLabel(syllabus: SyllabusDto) {
+  const code = syllabus.syllabusCode?.trim() || "Syllabus";
+  const version =
+    typeof syllabus.version === "number" ? ` ${syllabus.version}` : "";
+
+  return `${code}${version} · ${syllabus.syllabusTitle}`;
+}
+
+function collectSyllabusOptions(curriculums: CurriculumTreeDto[]) {
+  const optionMap = new Map<string, CurriculumFilterOption>();
+
+  for (const curriculum of curriculums) {
+    for (const level of curriculum.levels ?? []) {
+      for (const curriculumModule of level.modules ?? []) {
+        for (const unit of curriculumModule.units ?? []) {
+          for (const syllabus of unit.syllabuses ?? []) {
+            if (optionMap.has(syllabus.syllabusId)) {
+              continue;
+            }
+
+            optionMap.set(syllabus.syllabusId, {
+              id: syllabus.syllabusId,
+              label: formatSyllabusFilterLabel(syllabus),
+              hint: curriculum.programName,
+              programId: curriculum.programId,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  return Array.from(optionMap.values()).sort((left, right) =>
+    left.label.localeCompare(right.label),
+  );
+}
+
+function collectModuleOptions(
+  curriculums: CurriculumTreeDto[],
+  selectedSyllabusId: string,
+) {
+  if (selectedSyllabusId === ALL_FILTER_VALUE) {
+    return [];
+  }
+
+  const optionMap = new Map<string, CurriculumFilterOption>();
+
+  for (const curriculum of curriculums) {
+    for (const level of curriculum.levels ?? []) {
+      for (const curriculumModule of level.modules ?? []) {
+        const hasSelectedSyllabus = (curriculumModule.units ?? []).some((unit) =>
+          (unit.syllabuses ?? []).some(
+            (syllabus) => syllabus.syllabusId === selectedSyllabusId,
+          ),
+        );
+
+        if (
+          !hasSelectedSyllabus ||
+          optionMap.has(curriculumModule.moduleId)
+        ) {
+          continue;
+        }
+
+        optionMap.set(curriculumModule.moduleId, {
+          id: curriculumModule.moduleId,
+          label: curriculumModule.moduleName,
+          hint: [
+            curriculumModule.moduleCode,
+            level.levelName,
+            curriculum.programName,
+          ]
+            .filter((value): value is string => Boolean(value))
+            .join(" · "),
+          programId: curriculum.programId,
+        });
+      }
+    }
+  }
+
+  return Array.from(optionMap.values()).sort((left, right) =>
+    left.label.localeCompare(right.label),
+  );
+}
+
+function filterCurriculums(
+  curriculums: CurriculumTreeDto[],
+  selectedSyllabusId: string,
+  selectedModuleId: string,
+): CurriculumTreeDto[] {
+  if (
+    selectedSyllabusId === ALL_FILTER_VALUE &&
+    selectedModuleId === ALL_FILTER_VALUE
+  ) {
+    return curriculums;
+  }
+
+  const filteredCurriculums: CurriculumTreeDto[] = [];
+
+  for (const curriculum of curriculums) {
+    const levels: LevelDto[] = [];
+
+    for (const level of curriculum.levels ?? []) {
+      const modules: ModuleDto[] = [];
+
+      for (const curriculumModule of level.modules ?? []) {
+        if (
+          selectedModuleId !== ALL_FILTER_VALUE &&
+          curriculumModule.moduleId !== selectedModuleId
+        ) {
+          continue;
+        }
+
+        const units: UnitDto[] = [];
+
+        for (const unit of curriculumModule.units ?? []) {
+          const syllabuses =
+            selectedSyllabusId === ALL_FILTER_VALUE
+              ? (unit.syllabuses ?? [])
+              : (unit.syllabuses ?? []).filter(
+                  (syllabus) => syllabus.syllabusId === selectedSyllabusId,
+                );
+
+          if (
+            selectedSyllabusId !== ALL_FILTER_VALUE &&
+            syllabuses.length === 0
+          ) {
+            continue;
+          }
+
+          units.push({ ...unit, syllabuses });
+        }
+
+        if (selectedSyllabusId !== ALL_FILTER_VALUE && units.length === 0) {
+          continue;
+        }
+
+        modules.push({ ...curriculumModule, units });
+      }
+
+      if (modules.length === 0) {
+        continue;
+      }
+
+      levels.push({ ...level, modules });
+    }
+
+    if (levels.length === 0) {
+      continue;
+    }
+
+    filteredCurriculums.push({ ...curriculum, levels });
+  }
+
+  return filteredCurriculums;
+}
+
+function buildLessonNodes(
+  { curriculum, level, module, unit }: TreeContext,
+  syllabus: SyllabusDto,
+  scope: string,
+): TreeNode[] {
+  return sortLessonTemplates(syllabus.lessonTemplates).map((lesson) => ({
+    id: makeTreeNodeId(
+      curriculum.programId,
+      level.levelId,
+      module.moduleId,
+      unit.unitId,
+      scope,
+      syllabus.syllabusId,
+      "version",
+      syllabus.version ?? "none",
+      "lesson",
+      lesson.lessonTemplateId,
+    ),
+    label: lesson.title,
+    eyebrow: "Lesson Template",
+    description: joinMeta([
+      metaField("lessonTemplateId", lesson.lessonTemplateId),
+      metaField("sessionTemplateId", lesson.sessionTemplateId),
+      metaField("lessonType", lesson.lessonType),
+      metaField("sessionIndex", lesson.sessionIndex),
+      metaField("sessionOrder", lesson.sessionOrder),
+      metaField("sessionIndexInModule", lesson.sessionIndexInModule),
+      metaField("orderIndex", lesson.orderIndex),
+      metaField("isActive", lesson.isActive),
+    ]),
+    icon: FileText,
+  }));
+}
+
+function buildVersionNode(
+  context: TreeContext,
+  syllabus: SyllabusDto,
+  syllabusKey: string,
+  scope: string,
+): TreeNode {
+  const { curriculum, level, module, unit } = context;
+  const versionLabel =
+    typeof syllabus.version === "number"
+      ? `Version ${syllabus.version}`
+      : "Chưa có version";
+
+  return {
+    id: makeTreeNodeId(
+      curriculum.programId,
+      level.levelId,
+      module.moduleId,
+      unit.unitId,
+      scope,
+      "syllabus",
+      syllabusKey,
+      "version",
+      syllabus.version ?? "none",
+      syllabus.syllabusId,
+    ),
+    label: versionLabel,
+    eyebrow: "Syllabus version",
+    description: joinMeta([
+      metaField("syllabusId", syllabus.syllabusId),
+      metaField("version", syllabus.version),
+      metaField("isActive", syllabus.isActive),
+      metaField("lessonTemplates", syllabus.lessonTemplates?.length ?? 0),
+    ]),
+    icon: ClipboardList,
+    children: buildLessonNodes(context, syllabus, scope),
+  };
+}
+
+function buildSyllabusGroupNode(
+  context: TreeContext,
+  group: SyllabusGroup,
+  syllabusViewMode: SyllabusViewMode,
+): TreeNode {
+  const { curriculum, level, module, unit } = context;
+  const versions =
+    syllabusViewMode === "all"
+      ? group.versions
+      : group.versions.slice(0, 1);
+  const appliedSyllabus = pickAppliedSyllabusVersion(group);
+
+  return {
+    id: makeTreeNodeId(
+      curriculum.programId,
+      level.levelId,
+      module.moduleId,
+      unit.unitId,
+      "syllabus",
+      group.key,
+    ),
+    label: group.title,
+    eyebrow: "Syllabus",
+    description: joinMeta([
+      metaField("syllabusCode", group.code),
+      metaField("versions", group.versions.length),
+      metaField(
+        "activeVersions",
+        group.versions.filter((syllabus) => syllabus.isActive === true).length,
+      ),
+      metaField("selectedVersion", appliedSyllabus?.version),
+      metaField(
+        "lessonTemplates",
+        appliedSyllabus?.lessonTemplates?.length ?? 0,
+      ),
+    ]),
+    icon: BookOpen,
+    children: versions.map((syllabus) =>
+      buildVersionNode(context, syllabus, group.key, syllabusViewMode),
+    ),
+  };
+}
+
+function buildUnitSyllabusNodes(
+  context: TreeContext,
+  syllabusViewMode: SyllabusViewMode,
+) {
+  return groupSyllabuses(context.unit.syllabuses).map((group) =>
+    buildSyllabusGroupNode(context, group, syllabusViewMode),
+  );
+}
+
+function buildTree(
+  curriculum: CurriculumTreeDto,
+  syllabusViewMode: SyllabusViewMode,
+): TreeNode[] {
   return [
     {
       id: curriculum.programId,
@@ -509,66 +932,69 @@ function buildTree(curriculum: CurriculumTreeDto): TreeNode[] {
       eyebrow: curriculum.programCode
         ? `Program - ${curriculum.programCode}`
         : "Program",
+      description: joinMeta([
+        metaField("programId", curriculum.programId),
+        metaField("programCode", curriculum.programCode),
+        metaField("isActive", curriculum.isActive),
+        metaField("levels", curriculum.levels?.length ?? 0),
+      ]),
       icon: School,
       children: sortByOrder(curriculum.levels, "levelOrderIndex").map(
         (level) => ({
-          id: level.levelId,
+          id: makeTreeNodeId(curriculum.programId, "level", level.levelId),
           label: level.levelName,
           eyebrow: "Level",
-          description: level.levelOrderIndex
-            ? `Thứ tự ${level.levelOrderIndex}`
-            : undefined,
+          description: joinMeta([
+            metaField("levelId", level.levelId),
+            metaField("levelCode", level.levelCode),
+            metaField("levelOrderIndex", level.levelOrderIndex),
+            metaField("isActive", level.isActive),
+            metaField("modules", level.modules?.length ?? 0),
+          ]),
           icon: GraduationCap,
           children: sortByOrder(level.modules, "moduleOrderIndex").map(
             (module) => ({
-              id: module.moduleId,
+              id: makeTreeNodeId(
+                curriculum.programId,
+                level.levelId,
+                "module",
+                module.moduleId,
+              ),
               label: module.moduleName,
               eyebrow: "Module",
-              description: module.moduleOrderIndex
-                ? `Thứ tự ${module.moduleOrderIndex}`
-                : undefined,
+              description: joinMeta([
+                metaField("moduleId", module.moduleId),
+                metaField("moduleCode", module.moduleCode),
+                metaField("moduleOrderIndex", module.moduleOrderIndex),
+                metaField("moduleType", module.moduleType),
+                metaField("isActive", module.isActive),
+                metaField("units", module.units?.length ?? 0),
+              ]),
               icon: Layers3,
               children: sortByOrder(module.units, "unitOrderIndex").map(
                 (unit) => ({
-                  id: unit.unitId,
+                  id: makeTreeNodeId(
+                    curriculum.programId,
+                    level.levelId,
+                    module.moduleId,
+                    "unit",
+                    unit.unitId,
+                  ),
                   label: unit.unitName,
                   eyebrow: "Unit",
-                  description: unit.unitOrderIndex
-                    ? `Thứ tự ${unit.unitOrderIndex}`
-                    : undefined,
+                  description: joinMeta([
+                    metaField("unitId", unit.unitId),
+                    metaField("unitKey", unit.unitKey),
+                    metaField("unitNumber", unit.unitNumber),
+                    metaField("unitTitle", unit.unitTitle),
+                    metaField("unitOrderIndex", unit.unitOrderIndex),
+                    metaField("isSynthetic", unit.isSynthetic),
+                    metaField("syllabuses", unit.syllabuses?.length ?? 0),
+                  ]),
                   icon: Boxes,
-                  children: sortByOrder(unit.syllabuses, "version").map(
-                    (syllabus) => ({
-                      id: syllabus.syllabusId,
-                      label: syllabus.syllabusTitle,
-                      eyebrow: "Syllabus",
-                      description: [
-                        syllabus.syllabusCode,
-                        syllabus.version ? `Version ${syllabus.version}` : null,
-                        syllabus.isActive === false ? "Inactive" : null,
-                      ]
-                        .filter(Boolean)
-                        .join(" - "),
-                      icon: BookOpen,
-                      children: sortByOrder(
-                        syllabus.lessonTemplates,
-                        "orderIndex",
-                      ).map((lesson) => ({
-                        id: lesson.lessonTemplateId,
-                        label: lesson.title,
-                        eyebrow: "Lesson Template",
-                        description: [
-                          lesson.lessonType,
-                          lesson.orderIndex
-                            ? `Thứ tự ${lesson.orderIndex}`
-                            : null,
-                          lesson.isActive === false ? "Inactive" : null,
-                        ]
-                          .filter(Boolean)
-                          .join(" - "),
-                        icon: FileText,
-                      })),
-                    }),
+                  children: buildUnitSyllabusNodes(
+                    { curriculum, level, module, unit },
+                    syllabusViewMode,
                   ),
                 }),
               ),
@@ -580,37 +1006,49 @@ function buildTree(curriculum: CurriculumTreeDto): TreeNode[] {
   ];
 }
 
-function collectExpandedIds(nodes: TreeNode[]) {
-  const ids: string[] = [];
-
-  function visit(node: TreeNode, depth: number) {
-    if (depth < 4) {
-      ids.push(node.id);
-    }
-
-    node.children?.forEach((child) => visit(child, depth + 1));
-  }
-
-  nodes.forEach((node) => visit(node, 0));
-  return ids;
-}
-
-function countTree(curriculum: CurriculumTreeDto | null) {
-  const levels = curriculum?.levels ?? [];
+function countTrees(curriculums: CurriculumTreeDto[]) {
+  const levels = curriculums.flatMap((curriculum) => curriculum.levels ?? []);
   const modules = levels.flatMap((level) => level.modules ?? []);
   const units = modules.flatMap((module) => module.units ?? []);
-  const syllabuses = units.flatMap((unit) => unit.syllabuses ?? []);
-  const lessonTemplates = syllabuses.flatMap(
+  const appliedSyllabuses = units.flatMap(getAppliedSyllabusesForUnit);
+  const appliedSyllabusKeys = new Set(
+    appliedSyllabuses.map(getSyllabusIdentity),
+  );
+  const appliedLessonTemplateKeys = new Set(
+    appliedSyllabuses.flatMap(
+      (syllabus) =>
+        syllabus.lessonTemplates?.map((lesson) => lesson.lessonTemplateId) ?? [],
+    ),
+  );
+  const lessonTemplates = appliedSyllabuses.flatMap(
     (syllabus) => syllabus.lessonTemplates ?? [],
   );
 
   return {
+    programs: curriculums.length,
     levels: levels.length,
     modules: modules.length,
     units: units.length,
-    syllabuses: syllabuses.length,
-    lessonTemplates: lessonTemplates.length,
+    syllabuses: appliedSyllabusKeys.size,
+    lessonTemplates:
+      appliedLessonTemplateKeys.size > 0
+        ? appliedLessonTemplateKeys.size
+        : lessonTemplates.length,
   };
+}
+
+function collectExpandableNodeIds(nodes: TreeNode[]) {
+  const ids: string[] = [];
+
+  function visit(node: TreeNode) {
+    if (node.children?.length) {
+      ids.push(node.id);
+      node.children.forEach(visit);
+    }
+  }
+
+  nodes.forEach(visit);
+  return ids;
 }
 
 function TreeItem({
@@ -680,11 +1118,11 @@ function TreeItem({
           <div className="text-xs font-bold uppercase tracking-widest text-red-600 group-hover:text-red-700 transition-colors duration-300">
             {node.eyebrow}
           </div>
-          <div className="truncate text-sm font-semibold text-slate-900 group-hover:text-red-700 transition-colors duration-300">
+          <div className="break-words text-sm font-semibold text-slate-900 group-hover:text-red-700 transition-colors duration-300">
             {node.label}
           </div>
           {node.description ? (
-            <div className="line-clamp-1 text-xs text-slate-500 group-hover:text-slate-600 transition-colors duration-300">
+            <div className="break-words text-xs leading-relaxed text-slate-500 group-hover:text-slate-600 transition-colors duration-300">
               {node.description}
             </div>
           ) : null}
@@ -725,14 +1163,8 @@ function StatCard({
   icon: React.ReactNode;
   color: string;
 }) {
-  const [isHovered, setIsHovered] = useState(false);
-
   return (
-    <div
-      className="group relative overflow-hidden rounded-2xl border border-red-100 bg-linear-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-500 hover:shadow-xl hover:-translate-y-1 cursor-pointer"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
+    <div className="group relative overflow-hidden rounded-2xl border border-red-100 bg-linear-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-500 hover:shadow-xl hover:-translate-y-1 cursor-pointer">
       {/* Animated gradient background */}
       <div
         className={`absolute inset-0 bg-gradient-to-r ${color} opacity-0 transition-opacity duration-500 group-hover:opacity-5`}
@@ -763,32 +1195,44 @@ function StatCard({
 }
 
 export default function CurriculumOverviewPage() {
-  const initialFallbackProgramId = fallbackPrograms[0]!.id;
-  const initialFallbackTree =
-    fallbackCurriculumTrees[initialFallbackProgramId]!;
+  const { selectedBranchId, isLoaded: branchFilterLoaded } = useBranchFilter();
   const [programs, setPrograms] = useState<ProgramOption[]>(fallbackPrograms);
   const [selectedProgramId, setSelectedProgramId] = useState(
-    initialFallbackProgramId,
+    ALL_PROGRAMS_VALUE,
   );
-  const [curriculum, setCurriculum] = useState<CurriculumTreeDto | null>(
-    initialFallbackTree,
-  );
+  const [curriculums, setCurriculums] = useState<CurriculumTreeDto[]>([]);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(
-    () => new Set(collectExpandedIds(buildTree(initialFallbackTree))),
+    () => new Set(),
   );
-  const [programsLoading, setProgramsLoading] = useState(false);
   const [treeLoading, setTreeLoading] = useState(false);
   const [error, setError] = useState("");
   const [isPageLoaded, setIsPageLoaded] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [syllabusViewMode, setSyllabusViewMode] =
+    useState<SyllabusViewMode>("applied");
+  const [selectedSyllabusId, setSelectedSyllabusId] =
+    useState(ALL_FILTER_VALUE);
+  const [selectedModuleId, setSelectedModuleId] = useState(ALL_FILTER_VALUE);
+
+  useEffect(() => {
+    if (selectedProgramId.startsWith("demo-")) {
+      setSelectedProgramId(ALL_PROGRAMS_VALUE);
+    }
+  }, [selectedProgramId]);
 
   useEffect(() => {
     let mounted = true;
 
     async function loadPrograms() {
+      if (!branchFilterLoaded) {
+        return;
+      }
+
       try {
-        setProgramsLoading(true);
-        const response = await fetch("/api/programs", {
+        const programsEndpoint = selectedBranchId
+          ? `/api/branches/${selectedBranchId}/programs`
+          : "/api/programs";
+        const response = await fetch(programsEndpoint, {
           cache: "no-store",
           credentials: "include",
           headers: createApiHeaders(),
@@ -822,7 +1266,13 @@ export default function CurriculumOverviewPage() {
 
         const nextPrograms = normalizePrograms(payload);
         const usablePrograms =
-          nextPrograms.length > 0 ? nextPrograms : fallbackPrograms;
+          nextPrograms.length > 0
+            ? nextPrograms.some(
+                (program) => program.id === defaultCurriculumProgram.id,
+              )
+              ? nextPrograms
+              : [defaultCurriculumProgram, ...nextPrograms]
+            : fallbackPrograms;
 
         if (!mounted) {
           return;
@@ -830,7 +1280,11 @@ export default function CurriculumOverviewPage() {
 
         setPrograms(usablePrograms);
         setSelectedProgramId(
-          (current) => current || usablePrograms[0]?.id || "",
+          (current) =>
+            current === ALL_PROGRAMS_VALUE ||
+            usablePrograms.some((program) => program.id === current)
+              ? current
+              : usablePrograms[0]?.id || "",
         );
       } catch {
         if (!mounted) {
@@ -839,13 +1293,13 @@ export default function CurriculumOverviewPage() {
 
         setPrograms(fallbackPrograms);
         setSelectedProgramId(
-          (current) => current || fallbackPrograms[0]?.id || "",
+          (current) =>
+            current === ALL_PROGRAMS_VALUE ||
+            fallbackPrograms.some((program) => program.id === current)
+              ? current
+              : fallbackPrograms[0]?.id || "",
         );
         setError("");
-      } finally {
-        if (mounted) {
-          setProgramsLoading(false);
-        }
       }
     }
 
@@ -854,88 +1308,129 @@ export default function CurriculumOverviewPage() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [branchFilterLoaded, selectedBranchId]);
 
   useEffect(() => {
     if (!selectedProgramId) {
-      setCurriculum(null);
+      setCurriculums([]);
       setExpandedIds(new Set());
       return;
     }
 
     let mounted = true;
 
+    async function fetchCurriculumTree(
+      programId: string,
+    ): Promise<CurriculumTreeDto> {
+      const response = await fetch(
+        `/api/programs/${programId}/curriculum-tree`,
+        {
+          cache: "no-store",
+          credentials: "include",
+          headers: createApiHeaders(),
+        },
+      );
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error(
+            "Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn.",
+          );
+        }
+
+        throw new Error("Không tải được cây khung chương trình.");
+      }
+
+      const payload = (await response.json()) as
+        | ApiEnvelope<CurriculumTreeDto>
+        | CurriculumTreeDto;
+
+      if ("isSuccess" in payload && payload.isSuccess === false) {
+        throw new Error(
+          payload.message ?? "Không tải được cây khung chương trình.",
+        );
+      }
+
+      const data = unwrapData<CurriculumTreeDto>(payload);
+      return { ...data, levels: data.levels ?? [] };
+    }
+
     async function loadTree() {
       try {
         setTreeLoading(true);
         setError("");
 
-        const fallbackTree = getFallbackTree(selectedProgramId, programs);
+        if (selectedProgramId === ALL_PROGRAMS_VALUE) {
+          const targetPrograms = programs.filter(
+            (program) => program.id && !program.id.startsWith("demo-"),
+          );
 
-        if (fallbackTree) {
-          setCurriculum(fallbackTree);
-          setExpandedIds(new Set(collectExpandedIds(buildTree(fallbackTree))));
+          if (targetPrograms.length === 0) {
+            setCurriculums([]);
+            setExpandedIds(new Set());
+            return;
+          }
+
+          const results = await Promise.allSettled(
+            targetPrograms.map((program) => fetchCurriculumTree(program.id)),
+          );
+          const loadedCurriculums = results.map((result, index) =>
+            result.status === "fulfilled"
+              ? result.value
+              : createEmptyCurriculum(targetPrograms[index]!),
+          );
+
+          if (!mounted) {
+            return;
+          }
+
+          const failedCount = results.filter(
+            (result) => result.status === "rejected",
+          ).length;
+
+          if (failedCount === results.length) {
+            const firstError = results.find(
+              (result): result is PromiseRejectedResult =>
+                result.status === "rejected",
+            )?.reason;
+
+            throw firstError instanceof Error
+              ? firstError
+              : new Error("Không tải được dữ liệu.");
+          }
+
+          setCurriculums(loadedCurriculums);
+          setExpandedIds(new Set());
+
+          if (failedCount > 0) {
+            setError(`Không tải được ${failedCount} chương trình.`);
+          }
+
           return;
         }
 
-        const response = await fetch(
-          `/api/programs/${selectedProgramId}/curriculum-tree`,
-          {
-            cache: "no-store",
-            credentials: "include",
-            headers: createApiHeaders(),
-          },
-        );
+        const demoTree = fallbackCurriculumTrees[selectedProgramId];
 
-        if (!response.ok) {
-          if (response.status === 401) {
-            throw new Error(
-              "Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn.",
-            );
-          }
-
-          throw new Error("Không tải được cây khung chương trình.");
+        if (demoTree) {
+          setCurriculums([demoTree]);
+          setExpandedIds(new Set());
+          return;
         }
 
-        const payload = (await response.json()) as
-          | ApiEnvelope<CurriculumTreeDto>
-          | CurriculumTreeDto;
-
-        if ("isSuccess" in payload && payload.isSuccess === false) {
-          throw new Error(
-            payload.message ?? "Không tải được cây khung chương trình.",
-          );
-        }
-
-        const data = unwrapData<CurriculumTreeDto>(payload);
+        const data = await fetchCurriculumTree(selectedProgramId);
 
         if (!mounted) {
           return;
         }
 
-        setCurriculum({ ...data, levels: data.levels ?? [] });
-        setExpandedIds(
-          new Set(
-            collectExpandedIds(
-              buildTree({ ...data, levels: data.levels ?? [] }),
-            ),
-          ),
-        );
+        setCurriculums([data]);
+        setExpandedIds(new Set());
       } catch (loadError) {
         if (!mounted) {
           return;
         }
 
-        const fallbackTree = getFallbackTree(selectedProgramId, programs);
-
-        if (fallbackTree) {
-          setCurriculum(fallbackTree);
-          setExpandedIds(new Set(collectExpandedIds(buildTree(fallbackTree))));
-          setError("");
-          return;
-        }
-
-        setCurriculum(null);
+        setCurriculums([]);
         setExpandedIds(new Set());
         setError(
           loadError instanceof Error
@@ -961,11 +1456,77 @@ export default function CurriculumOverviewPage() {
     setIsPageLoaded(true);
   }, []);
 
-  const tree = useMemo(
-    () => (curriculum ? buildTree(curriculum) : []),
-    [curriculum],
+  const syllabusOptions = useMemo(
+    () => collectSyllabusOptions(curriculums),
+    [curriculums],
   );
-  const stats = useMemo(() => countTree(curriculum), [curriculum]);
+  const moduleOptions = useMemo(
+    () => collectModuleOptions(curriculums, selectedSyllabusId),
+    [curriculums, selectedSyllabusId],
+  );
+  const effectiveSelectedModuleId = useMemo(() => {
+    if (selectedSyllabusId === ALL_FILTER_VALUE) {
+      return ALL_FILTER_VALUE;
+    }
+
+    return moduleOptions.some((option) => option.id === selectedModuleId)
+      ? selectedModuleId
+      : ALL_FILTER_VALUE;
+  }, [moduleOptions, selectedModuleId, selectedSyllabusId]);
+  const filteredCurriculums = useMemo(
+    () =>
+      filterCurriculums(
+        curriculums,
+        selectedSyllabusId,
+        effectiveSelectedModuleId,
+      ),
+    [curriculums, effectiveSelectedModuleId, selectedSyllabusId],
+  );
+
+  useEffect(() => {
+    if (selectedSyllabusId === ALL_FILTER_VALUE) {
+      return;
+    }
+
+    if (!syllabusOptions.some((option) => option.id === selectedSyllabusId)) {
+      setSelectedSyllabusId(ALL_FILTER_VALUE);
+      setSelectedModuleId(ALL_FILTER_VALUE);
+    }
+  }, [selectedSyllabusId, syllabusOptions]);
+
+  useEffect(() => {
+    if (selectedSyllabusId === ALL_FILTER_VALUE) {
+      setSelectedModuleId(ALL_FILTER_VALUE);
+      return;
+    }
+
+    if (
+      selectedModuleId !== ALL_FILTER_VALUE &&
+      !moduleOptions.some((option) => option.id === selectedModuleId)
+    ) {
+      setSelectedModuleId(ALL_FILTER_VALUE);
+    }
+  }, [moduleOptions, selectedModuleId, selectedSyllabusId]);
+
+  const tree = useMemo(
+    () =>
+      filteredCurriculums.flatMap((curriculum) =>
+        buildTree(curriculum, syllabusViewMode),
+      ),
+    [filteredCurriculums, syllabusViewMode],
+  );
+  const stats = useMemo(
+    () => countTrees(filteredCurriculums),
+    [filteredCurriculums],
+  );
+
+  useEffect(() => {
+    if (selectedSyllabusId === ALL_FILTER_VALUE) {
+      return;
+    }
+
+    setExpandedIds(new Set(collectExpandableNodeIds(tree)));
+  }, [selectedSyllabusId, tree]);
 
   // Filter tree nodes based on search term
   const filteredTree = useMemo(() => {
@@ -1012,20 +1573,15 @@ export default function CurriculumOverviewPage() {
     });
   }
 
-  function expandAll() {
-    const ids: string[] = [];
-
-    function visit(node: TreeNode) {
-      ids.push(node.id);
-      node.children?.forEach(visit);
-    }
-
-    tree.forEach(visit);
-    setExpandedIds(new Set(ids));
+  function handleProgramChange(programId: string) {
+    setSelectedProgramId(programId);
+    setSelectedSyllabusId(ALL_FILTER_VALUE);
+    setSelectedModuleId(ALL_FILTER_VALUE);
   }
 
-  function collapseAll() {
-    setExpandedIds(curriculum ? new Set([curriculum.programId]) : new Set());
+  function handleSyllabusChange(syllabusId: string) {
+    setSelectedSyllabusId(syllabusId);
+    setSelectedModuleId(ALL_FILTER_VALUE);
   }
 
   return (
@@ -1052,19 +1608,25 @@ export default function CurriculumOverviewPage() {
 
       {/* Stats Grid */}
       <div
-        className={`grid gap-4 md:grid-cols-2 lg:grid-cols-5 transition-all duration-700 delay-100 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}
+        className={`grid gap-4 md:grid-cols-2 lg:grid-cols-6 transition-all duration-700 delay-100 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}
       >
+        <StatCard
+          label="Chương trình"
+          value={stats.programs}
+          icon={<School size={20} />}
+          color="from-red-600 to-red-700"
+        />
         <StatCard
           label="Cấp độ"
           value={stats.levels}
           icon={<Layers3 size={20} />}
-          color="from-red-600 to-red-700"
+          color="from-blue-600 to-blue-700"
         />
         <StatCard
           label="Môđun"
           value={stats.modules}
           icon={<Boxes size={20} />}
-          color="from-blue-600 to-blue-700"
+          color="from-cyan-600 to-cyan-700"
         />
         <StatCard
           label="Đơn vị"
@@ -1073,7 +1635,7 @@ export default function CurriculumOverviewPage() {
           color="from-emerald-600 to-emerald-700"
         />
         <StatCard
-          label="Chương trình"
+          label="Syllabus"
           value={stats.syllabuses}
           icon={<ClipboardList size={20} />}
           color="from-amber-600 to-amber-700"
@@ -1131,16 +1693,39 @@ export default function CurriculumOverviewPage() {
               </div>
             </div>
 
+            <div className="w-full lg:w-56">
+              <label className="block text-sm font-semibold text-gray-700 mb-2.5">
+                Phiên bản
+              </label>
+              <Select
+                value={syllabusViewMode}
+                onValueChange={(value) =>
+                  setSyllabusViewMode(value as SyllabusViewMode)
+                }
+              >
+                <SelectTrigger className="w-full h-11 rounded-xl border border-red-200 bg-white shadow-sm hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200/50">
+                  <SelectValue placeholder="Phiên bản" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="applied">Đang áp dụng</SelectItem>
+                  <SelectItem value="all">Tất cả phiên bản</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Select with Lightswind */}
             <div className="w-full lg:w-72">
               <label className="block text-sm font-semibold text-gray-700 mb-2.5">
                 Chọn chương trình
               </label>
-              <Select value={selectedProgramId} onValueChange={setSelectedProgramId}>
+              <Select value={selectedProgramId} onValueChange={handleProgramChange}>
                 <SelectTrigger className="w-full h-11 rounded-xl border border-red-200 bg-white shadow-sm hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200/50">
                   <SelectValue placeholder="Chọn chương trình" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl">
+                  <SelectItem value={ALL_PROGRAMS_VALUE}>
+                    Tất cả chương trình
+                  </SelectItem>
                   {programs.length === 0 ? (
                     <div className="px-3 py-2 text-sm text-gray-500">Chưa có chương trình</div>
                   ) : (
@@ -1154,12 +1739,59 @@ export default function CurriculumOverviewPage() {
               </Select>
             </div>
 
+            <div className="w-full lg:w-72">
+              <label className="block text-sm font-semibold text-gray-700 mb-2.5">
+                Chọn syllabus
+              </label>
+              <Select value={selectedSyllabusId} onValueChange={handleSyllabusChange}>
+                <SelectTrigger className="w-full h-11 rounded-xl border border-red-200 bg-white shadow-sm hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200/50">
+                  <SelectValue placeholder="Chọn syllabus" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value={ALL_FILTER_VALUE}>Tất cả syllabus</SelectItem>
+                  {syllabusOptions.length === 0 ? (
+                    <div className="px-3 py-2 text-sm text-gray-500">Chưa có syllabus</div>
+                  ) : (
+                    syllabusOptions.map((option) => (
+                      <SelectItem key={option.id} value={option.id}>
+                        {option.label}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {selectedSyllabusId !== ALL_FILTER_VALUE ? (
+              <div className="w-full lg:w-56">
+                <label className="block text-sm font-semibold text-gray-700 mb-2.5">
+                  Chọn module
+                </label>
+                <Select
+                  value={effectiveSelectedModuleId}
+                  onValueChange={setSelectedModuleId}
+                >
+                  <SelectTrigger className="w-full h-11 rounded-xl border border-red-200 bg-white shadow-sm hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200/50">
+                    <SelectValue placeholder="Chọn module" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                    <SelectItem value={ALL_FILTER_VALUE}>Tất cả module</SelectItem>
+                    {moduleOptions.map((option) => (
+                      <SelectItem key={option.id} value={option.id}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
+
           </div>
         </div>
 
         {/* Tree Content */}
         <div className="p-6">
-          {treeLoading && !curriculum ? (
+          {treeLoading && curriculums.length === 0 ? (
             <div className="flex min-h-80 items-center justify-center rounded-lg border border-dashed border-red-200 bg-red-50/30">
               <div className="flex items-center gap-2 text-sm font-semibold text-gray-600">
                 <Loader2 className="h-4 w-4 animate-spin" />
