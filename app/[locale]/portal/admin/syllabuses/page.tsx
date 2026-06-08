@@ -16,13 +16,10 @@ import {
   ChevronRight,
   Eye,
   FileArchive,
-  GitBranch,
   FileText,
   Filter,
-  GripVertical,
   Loader2,
   Pencil,
-  Plus,
   RefreshCw,
   Search,
   Settings2,
@@ -44,7 +41,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/lightswind/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
@@ -77,7 +73,6 @@ import { hardDeleteSyllabus } from "@/lib/api/hardDeleteService";
 import { getAllBranches } from "@/lib/api/branchService";
 import type { LevelDto, ModuleDto } from "@/types/academic-progression";
 import SyllabusDetailModalBody from "@/components/lesson-plans/SyllabusDetailModalBody";
-import SyllabusVersionsModal from "@/components/admin/syllabuses/SyllabusVersionsModal";
 
 type BranchLookupItem = {
   id?: string | null;
@@ -222,32 +217,27 @@ function ActiveBadge({ isActive }: { isActive: boolean }) {
   );
 }
 
-// ─── Modal: Import Configuration ────────────────────────────────────────────
-
-interface RuleForm {
+type ImportConfigRuleForm = {
   key: string;
   moduleId: string;
-  includeStarterUnit: boolean;
   unitFrom: string;
   unitTo: string;
   revisionNumber: string;
   orderIndex: number;
   expectedLessonPlanCount?: number | null;
   moduleName?: string | null;
-}
+};
 
-function ImportConfigModal({
+function ImportConfigReviewModal({
   programOptions,
   initialProgramId,
   initialLevelId,
   onClose,
-  onSaved,
 }: {
   programOptions: Array<{ id: string; name: string }>;
   initialProgramId?: string;
   initialLevelId?: string;
   onClose: () => void;
-  onSaved: () => void;
 }) {
   const { toast } = useToast();
   const [programId, setProgramId] = useState(initialProgramId ?? "");
@@ -255,18 +245,39 @@ function ImportConfigModal({
   const [levels, setLevels] = useState<LevelDto[]>([]);
   const [levelsLoading, setLevelsLoading] = useState(false);
   const [modules, setModules] = useState<ModuleDto[]>([]);
-  const [modulesLoading, setModulesLoading] = useState(false);
+  const [loadingConfig, setLoadingConfig] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [hasExistingConfig, setHasExistingConfig] = useState(false);
   const [regularCount, setRegularCount] = useState("3");
-  const [starterCount, setStarterCount] = useState("2");
   const [revisionCount, setRevisionCount] = useState("1");
   const [isActive, setIsActive] = useState(true);
-  const [rules, setRules] = useState<RuleForm[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [rules, setRules] = useState<ImportConfigRuleForm[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const inputCls =
     "w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200";
+
+  const buildDefaultRules = (moduleItems: ModuleDto[]): ImportConfigRuleForm[] =>
+    moduleItems
+      .sort((left, right) => (left.order ?? 0) - (right.order ?? 0))
+      .map((module, index) => ({
+        key: `new_${index}_${module.id}`,
+        moduleId: module.id,
+        unitFrom: "",
+        unitTo: "",
+        revisionNumber: "",
+        orderIndex: index + 1,
+        moduleName: module.name,
+      }));
+
+  const isMissingImportConfig = (response: {
+    status?: number;
+    message?: string;
+    detail?: string;
+  }) => {
+    const text = `${response.detail ?? ""} ${response.message ?? ""}`.toLowerCase();
+    return response.status === 404 || text.includes("not found");
+  };
 
   useEffect(() => {
     if (!programId) {
@@ -274,79 +285,116 @@ function ImportConfigModal({
       setLevelId("");
       return;
     }
+
+    let cancelled = false;
     setLevelsLoading(true);
     getLevels({ programId })
-      .then((res) => setLevels(res.data?.items ?? []))
-      .catch(() => setLevels([]))
-      .finally(() => setLevelsLoading(false));
+      .then((res) => {
+        if (!cancelled) setLevels(res.data?.items ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setLevels([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLevelsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [programId]);
 
   useEffect(() => {
-    if (!levelId) {
+    if (!programId || !levelId) {
       setModules([]);
       setRules([]);
+      setHasExistingConfig(false);
+      setError(null);
       return;
     }
-    setModulesLoading(true);
-    setLoading(true);
+
+    let cancelled = false;
+    setLoadingConfig(true);
+    setError(null);
     Promise.all([
       getModules({ levelId }),
       getImportConfiguration(programId, levelId),
     ])
-      .then(([modRes, cfgRes]) => {
-        const mods = modRes.data?.items ?? [];
-        setModules(mods);
-        if (cfgRes.isSuccess && cfgRes.data) {
-          const cfg = cfgRes.data;
-          setRegularCount(String(cfg.regularUnitLessonPlanCount));
-          setStarterCount(String(cfg.starterUnitLessonPlanCount));
-          setRevisionCount(String(cfg.revisionLessonPlanCount));
-          setIsActive(cfg.isActive);
+      .then(([moduleRes, configRes]) => {
+        if (cancelled) return;
+        const nextModules = moduleRes.data?.items ?? [];
+        setModules(nextModules);
+
+        if (!configRes.isSuccess) {
+          setHasExistingConfig(false);
+          setRegularCount("3");
+          setRevisionCount("1");
+          setIsActive(true);
+          setRules(buildDefaultRules(nextModules));
+          if (isMissingImportConfig(configRes)) {
+            return;
+          }
+          setError(
+            configRes.detail ??
+              configRes.message ??
+              "Không thể tải cấu hình import.",
+          );
+          setRules([]);
+          return;
+        }
+
+        if (configRes.data) {
+          const config = configRes.data;
+          setHasExistingConfig(true);
+          setRegularCount(String(config.regularUnitLessonPlanCount || 3));
+          setRevisionCount(String(config.revisionLessonPlanCount || 1));
+          setIsActive(config.isActive);
           setRules(
-            cfg.rules
-              .sort((a, b) => a.orderIndex - b.orderIndex)
-              .map((r, i) => ({
-                key: `r_${i}_${r.moduleId}`,
-                moduleId: r.moduleId,
-                includeStarterUnit: r.includeStarterUnit,
-                unitFrom: r.unitFrom != null ? String(r.unitFrom) : "",
-                unitTo: r.unitTo != null ? String(r.unitTo) : "",
+            config.rules
+              .sort((left, right) => left.orderIndex - right.orderIndex)
+              .map((rule, index) => ({
+                key: `saved_${index}_${rule.moduleId}`,
+                moduleId: rule.moduleId,
+                unitFrom: rule.unitFrom != null ? String(rule.unitFrom) : "",
+                unitTo: rule.unitTo != null ? String(rule.unitTo) : "",
                 revisionNumber:
-                  r.revisionNumber != null ? String(r.revisionNumber) : "",
-                orderIndex: r.orderIndex,
-                expectedLessonPlanCount: r.expectedLessonPlanCount,
-                moduleName: r.moduleName,
+                  rule.revisionNumber != null ? String(rule.revisionNumber) : "",
+                orderIndex: rule.orderIndex,
+                expectedLessonPlanCount: rule.expectedLessonPlanCount,
+                moduleName: rule.moduleName,
               })),
           );
-        } else {
-          // Pre-fill rules from available modules
-          setRules(
-            mods
-              .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-              .map((m, i) => ({
-                key: `new_${i}_${m.id}`,
-                moduleId: m.id,
-                includeStarterUnit: false,
-                unitFrom: "",
-                unitTo: "",
-                revisionNumber: "",
-                orderIndex: i + 1,
-                moduleName: m.name,
-              })),
-          );
+          return;
+        }
+
+        setHasExistingConfig(false);
+        setRegularCount("3");
+        setRevisionCount("1");
+        setIsActive(true);
+        setRules(buildDefaultRules(nextModules));
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setError("Không thể tải cấu hình import.");
+          setRules([]);
         }
       })
-      .catch(() => {})
       .finally(() => {
-        setModulesLoading(false);
-        setLoading(false);
+        if (!cancelled) setLoadingConfig(false);
       });
+
+    return () => {
+      cancelled = true;
+    };
   }, [levelId, programId]);
 
-  const updateRule = (key: string, patch: Partial<RuleForm>) =>
+  const hasUnitValue = (value: string) => value.trim() !== "";
+
+  const updateRule = (key: string, patch: Partial<ImportConfigRuleForm>) => {
     setRules((prev) =>
-      prev.map((r) => (r.key === key ? { ...r, ...patch } : r)),
+      prev.map((rule) => (rule.key === key ? { ...rule, ...patch } : rule)),
     );
+  };
 
   const addRule = () => {
     setRules((prev) => [
@@ -354,7 +402,6 @@ function ImportConfigModal({
       {
         key: `new_${Date.now()}`,
         moduleId: "",
-        includeStarterUnit: false,
         unitFrom: "",
         unitTo: "",
         revisionNumber: "",
@@ -363,133 +410,122 @@ function ImportConfigModal({
     ]);
   };
 
-  const removeRule = (key: string) =>
+  const removeRule = (key: string) => {
     setRules((prev) =>
       prev
-        .filter((r) => r.key !== key)
-        .map((r, i) => ({ ...r, orderIndex: i + 1 })),
+        .filter((rule) => rule.key !== key)
+        .map((rule, index) => ({ ...rule, orderIndex: index + 1 })),
     );
+  };
 
-  const hasUnitValue = (value: string) => value.trim() !== "";
+  const validateConfig = (): string | null => {
+    const regular = Number(regularCount);
+    const revision = Number(revisionCount);
 
-  const validate = (): string | null => {
-    const r = Number(regularCount);
-    const s = Number(starterCount);
-    const v = Number(revisionCount);
-    if (!r || r <= 0) return "Regular unit lesson plan count phải > 0.";
-    if (!s || s <= 0) return "Starter unit lesson plan count phải > 0.";
-    if (!v || v <= 0) return "Revision lesson plan count phải > 0.";
-    if (!rules.length) return "Phải có ít nhất 1 rule.";
-    const moduleIds = rules.map((r) => r.moduleId);
-    if (moduleIds.some((id) => !id)) return "Tất cả rule phải chọn Module.";
-    const uniqueModules = new Set(moduleIds);
-    if (uniqueModules.size !== moduleIds.length)
+    if (!programId) return "Chọn chương trình.";
+    if (!levelId) return "Chọn level.";
+    if (!regular || regular <= 0) return "Số lesson plan mỗi Unit thường phải > 0.";
+    if (!revision || revision <= 0) return "Số lesson plan mỗi Revision phải > 0.";
+    if (!rules.length) return "Cần ít nhất 1 rule mapping.";
+    if (rules.some((rule) => !rule.moduleId)) return "Tất cả rule phải chọn Module.";
+
+    const moduleIds = rules.map((rule) => rule.moduleId);
+    if (new Set(moduleIds).size !== moduleIds.length) {
       return "Mỗi Module chỉ được xuất hiện 1 lần.";
-    const starterRules = rules.filter((r) => r.includeStarterUnit);
-    if (starterRules.length > 1)
-      return "Chỉ 1 rule được bật Include Starter Unit.";
-    const orderIdxs = rules.map((r) => r.orderIndex);
-    if (new Set(orderIdxs).size !== orderIdxs.length)
-      return "orderIndex phải unique.";
+    }
+
+    const revisionNumbers = rules
+      .filter((rule) => rule.revisionNumber.trim())
+      .map((rule) => rule.revisionNumber.trim());
+    if (new Set(revisionNumbers).size !== revisionNumbers.length) {
+      return "Revision số phải không trùng nhau.";
+    }
+
     for (const rule of rules) {
-      const hasUnitFrom = hasUnitValue(rule.unitFrom);
-      const hasUnitTo = hasUnitValue(rule.unitTo);
-      if (hasUnitFrom || hasUnitTo) {
+      const hasFrom = hasUnitValue(rule.unitFrom);
+      const hasTo = hasUnitValue(rule.unitTo);
+      if (hasFrom || hasTo) {
         const from = Number(rule.unitFrom);
         const to = Number(rule.unitTo);
-        if (!hasUnitFrom || !hasUnitTo || Number.isNaN(from) || Number.isNaN(to))
-          return `Rule ${rule.orderIndex}: unitFrom và unitTo phải cùng có.`;
-        if (from < 0 || to < 0)
-          return `Rule ${rule.orderIndex}: unitFrom/unitTo phải >= 0.`;
-        if (from > to)
-          return `Rule ${rule.orderIndex}: unitFrom phải <= unitTo.`;
-      }
-    }
-    // Check unit range overlap
-    const ranges = rules
-      .filter((r) => hasUnitValue(r.unitFrom) && hasUnitValue(r.unitTo))
-      .map((r) => ({
-        from: Number(r.unitFrom),
-        to: Number(r.unitTo),
-        idx: r.orderIndex,
-      }));
-    for (let i = 0; i < ranges.length; i++) {
-      for (let j = i + 1; j < ranges.length; j++) {
-        if (ranges[i].from <= ranges[j].to && ranges[j].from <= ranges[i].to) {
-          return `Rule ${ranges[i].idx} và ${ranges[j].idx} có khoảng Unit bị overlap.`;
+        if (!hasFrom || !hasTo || Number.isNaN(from) || Number.isNaN(to)) {
+          return `Rule ${rule.orderIndex}: Unit từ và Unit đến phải cùng có.`;
+        }
+        if (from < 0 || to < 0) {
+          return `Rule ${rule.orderIndex}: Unit từ/đến phải >= 0.`;
+        }
+        if (from > to) {
+          return `Rule ${rule.orderIndex}: Unit từ phải <= Unit đến.`;
         }
       }
     }
-    // revisionNumber unique
-    const revNums = rules
-      .filter((r) => r.revisionNumber)
-      .map((r) => r.revisionNumber);
-    if (new Set(revNums).size !== revNums.length)
-      return "revisionNumber phải unique.";
+
     return null;
   };
 
   const handleSave = async () => {
-  if (!programId) {
-    toast({ title: "Chọn chương trình.", variant: "destructive" });
-    return;
-  }
-  if (!levelId) {
-    toast({ title: "Chọn level.", variant: "destructive" });
-    return;
-  }
-  const err = validate();
-  if (err) {
-    toast({ title: err, variant: "destructive" });
-    return;
-  }
-  setSaving(true);
-  try {
-    const body: UpsertImportConfigRequest = {
-      regularUnitLessonPlanCount: Number(regularCount),
-      starterUnitLessonPlanCount: Number(starterCount),
-      revisionLessonPlanCount: Number(revisionCount),
-      isActive,
-      rules: rules.map((r) => ({
-        moduleId: r.moduleId,
-        includeStarterUnit: r.includeStarterUnit,
-        unitFrom: hasUnitValue(r.unitFrom) ? Number(r.unitFrom) : null,
-        unitTo: hasUnitValue(r.unitTo) ? Number(r.unitTo) : null,
-        revisionNumber: r.revisionNumber ? Number(r.revisionNumber) : null,
-        orderIndex: r.orderIndex,
-      })),
-    };
-    const res = await upsertImportConfiguration(programId, levelId, body);
-    if (!res.isSuccess) {
-      toast({
-        title: res.detail ?? res.message ?? "Lưu cấu hình thất bại.",
-        variant: "destructive",
-      });
+    const validationError = validateConfig();
+    if (validationError) {
+      setError(validationError);
       return;
     }
-    if (res.data) {
-      setRules(
-        res.data.rules
-          .sort((a, b) => a.orderIndex - b.orderIndex)
-          .map((r, i) => ({
-            key: `saved_${i}_${r.moduleId}`,
-            moduleId: r.moduleId,
-            includeStarterUnit: r.includeStarterUnit,
-            unitFrom: r.unitFrom != null ? String(r.unitFrom) : "",
-            unitTo: r.unitTo != null ? String(r.unitTo) : "",
-            revisionNumber: r.revisionNumber != null ? String(r.revisionNumber) : "",
-            orderIndex: r.orderIndex,
-            expectedLessonPlanCount: r.expectedLessonPlanCount,
-            moduleName: r.moduleName,
-          }))
-      );
+
+    setSaving(true);
+    setError(null);
+    try {
+      const body: UpsertImportConfigRequest = {
+        regularUnitLessonPlanCount: Number(regularCount),
+        starterUnitLessonPlanCount: 0,
+        revisionLessonPlanCount: Number(revisionCount),
+        isActive,
+        rules: rules.map((rule, index) => ({
+          moduleId: rule.moduleId,
+          includeStarterUnit: false,
+          unitFrom: hasUnitValue(rule.unitFrom) ? Number(rule.unitFrom) : null,
+          unitTo: hasUnitValue(rule.unitTo) ? Number(rule.unitTo) : null,
+          revisionNumber: rule.revisionNumber.trim()
+            ? Number(rule.revisionNumber)
+            : null,
+          orderIndex: index + 1,
+        })),
+      };
+
+      const res = await upsertImportConfiguration(programId, levelId, body);
+      if (!res.isSuccess) {
+        setError(res.detail ?? res.message ?? "Lưu cấu hình thất bại.");
+        return;
+      }
+
+      if (res.data) {
+        setHasExistingConfig(true);
+        setRegularCount(String(res.data.regularUnitLessonPlanCount));
+        setRevisionCount(String(res.data.revisionLessonPlanCount));
+        setIsActive(res.data.isActive);
+        setRules(
+          res.data.rules
+            .sort((left, right) => left.orderIndex - right.orderIndex)
+            .map((rule, index) => ({
+              key: `saved_${index}_${rule.moduleId}`,
+              moduleId: rule.moduleId,
+              unitFrom: rule.unitFrom != null ? String(rule.unitFrom) : "",
+              unitTo: rule.unitTo != null ? String(rule.unitTo) : "",
+              revisionNumber:
+                rule.revisionNumber != null ? String(rule.revisionNumber) : "",
+              orderIndex: rule.orderIndex,
+              expectedLessonPlanCount: rule.expectedLessonPlanCount,
+              moduleName: rule.moduleName,
+            })),
+        );
+      }
+
+      toast({
+        title: hasExistingConfig ? "Đã cập nhật cấu hình" : "Đã tạo cấu hình",
+        variant: "success",
+      });
+      onClose();
+    } finally {
+      setSaving(false);
     }
-    toast({ title: "Đã lưu cấu hình import", variant: "success" });
-    onSaved();
-  } finally {
-    setSaving(false);
-  }
-};
+  };
 
   return (
     <div
@@ -497,10 +533,9 @@ function ImportConfigModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-3xl rounded-2xl border border-gray-200 bg-white shadow-2xl overflow-hidden"
+        className="w-full max-w-4xl overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="flex items-center justify-between bg-gradient-to-r from-red-600 to-red-700 px-6 py-5">
           <div className="flex items-center gap-3">
             <div className="rounded-xl bg-white/20 p-2.5 text-white">
@@ -508,10 +543,10 @@ function ImportConfigModal({
             </div>
             <div>
               <h2 className="text-lg font-bold text-white">
-                Cấu hình Import Curriculum
+                Cấu hình import
               </h2>
               <p className="text-sm text-white/80">
-                Map Unit / Revision vào Module trước khi import zip
+                Tạo hoặc xem lại rule mapping theo Chương trình và Level.
               </p>
             </div>
           </div>
@@ -524,35 +559,46 @@ function ImportConfigModal({
           </button>
         </div>
 
-        {/* Scrollable Content */}
         <div className="max-h-[calc(100vh-280px)] overflow-y-auto">
           <div className="space-y-5 p-6">
-            {/* Program + Level */}
             <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Chương trình *">
+              <Field label="Chương trình">
                 <Select
-                  value={programId}
-                  onValueChange={(v) => {
-                    setProgramId(v);
+                  value={programId || "__none__"}
+                  onValueChange={(value) => {
+                    const nextProgramId = value === "__none__" ? "" : value;
+                    setProgramId(nextProgramId);
                     setLevelId("");
+                    setRules([]);
+                    setModules([]);
+                    setHasExistingConfig(false);
+                    setError(null);
                   }}
                 >
                   <SelectTrigger className={inputCls}>
                     <SelectValue placeholder="Chọn chương trình" />
                   </SelectTrigger>
                   <SelectContent>
-                    {programOptions.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.name}
+                    <SelectItem value="__none__">Chọn chương trình</SelectItem>
+                    {programOptions.map((program) => (
+                      <SelectItem key={program.id} value={program.id}>
+                        {program.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </Field>
-              <Field label="Level *">
+
+              <Field label="Level">
                 <Select
-                  value={levelId}
-                  onValueChange={setLevelId}
+                  value={levelId || "__none__"}
+                  onValueChange={(value) => {
+                    setLevelId(value === "__none__" ? "" : value);
+                    setRules([]);
+                    setModules([]);
+                    setHasExistingConfig(false);
+                    setError(null);
+                  }}
                   disabled={!programId || levelsLoading}
                 >
                   <SelectTrigger
@@ -567,9 +613,10 @@ function ImportConfigModal({
                     />
                   </SelectTrigger>
                   <SelectContent>
-                    {levels.map((l) => (
-                      <SelectItem key={l.id} value={l.id}>
-                        {l.name}
+                    <SelectItem value="__none__">Chọn level</SelectItem>
+                    {levels.map((level) => (
+                      <SelectItem key={level.id} value={level.id}>
+                        {level.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -577,233 +624,199 @@ function ImportConfigModal({
               </Field>
             </div>
 
-            {levelId && (
-              <>
-                {/* Counts */}
-                <div className="rounded-xl border border-red-100 bg-red-50/40 p-4">
-                  <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-red-600">
-                    Số lesson plan kỳ vọng
-                  </p>
-                  <div className="grid gap-3 md:grid-cols-3">
-                    <Field label="Mỗi Unit thường">
-                      <input
-                        type="number"
-                        min={1}
-                        value={regularCount}
-                        onChange={(e) => setRegularCount(e.target.value)}
-                        className={inputCls}
-                      />
-                    </Field>
-                    <Field label="Unit Starter">
-                      <input
-                        type="number"
-                        min={1}
-                        value={starterCount}
-                        onChange={(e) => setStarterCount(e.target.value)}
-                        className={inputCls}
-                      />
-                    </Field>
-                    <Field label="Mỗi Revision">
-                      <input
-                        type="number"
-                        min={1}
-                        value={revisionCount}
-                        onChange={(e) => setRevisionCount(e.target.value)}
-                        className={inputCls}
-                      />
-                    </Field>
+            {error && <ErrorBox message={error} />}
+
+            {!programId || !levelId ? (
+              <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">
+                Chọn chương trình và level để tạo hoặc xem lại cấu hình.
+              </div>
+            ) : loadingConfig ? (
+              <div className="flex items-center justify-center rounded-xl border border-gray-200 bg-gray-50 px-4 py-8 text-sm text-gray-500">
+                <Loader2 size={18} className="mr-2 animate-spin" />
+                Đang tải cấu hình...
+              </div>
+            ) : (
+              <div className="space-y-5">
+                {!hasExistingConfig && (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                    Chưa có cấu hình import cho Chương trình + Level này. Điền
+                    thông tin bên dưới rồi nhấn Tạo cấu hình.
                   </div>
-                  <label className="mt-3 flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                )}
+
+                <div className="grid gap-3 md:grid-cols-3">
+                  <Field label="Unit thường">
                     <input
-                      type="checkbox"
-                      checked={isActive}
-                      onChange={(e) => setIsActive(e.target.checked)}
-                      className="rounded"
+                      type="number"
+                      min={1}
+                      value={regularCount}
+                      onChange={(event) => setRegularCount(event.target.value)}
+                      className={inputCls}
                     />
-                    Kích hoạt cấu hình này
-                  </label>
+                  </Field>
+                  <Field label="Revision">
+                    <input
+                      type="number"
+                      min={1}
+                      value={revisionCount}
+                      onChange={(event) => setRevisionCount(event.target.value)}
+                      className={inputCls}
+                    />
+                  </Field>
+                  <Field label="Trạng thái">
+                    <label className="flex h-10 items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={isActive}
+                        onChange={(event) => setIsActive(event.target.checked)}
+                        className="rounded"
+                      />
+                      Đang hoạt động
+                    </label>
+                  </Field>
                 </div>
 
-                {/* Rules */}
-                {loading || modulesLoading ? (
-                  <div className="flex items-center justify-center py-8 text-gray-400">
-                    <Loader2 size={20} className="animate-spin mr-2" /> Đang
-                    tải...
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold text-gray-700">
+                <div className="overflow-hidden rounded-xl border border-gray-200">
+                  <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-4 py-3">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">
                         Rules mapping
-                        <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-600">
-                          {rules.length}
-                        </span>
                       </p>
-                      <button
-                        type="button"
-                        onClick={addRule}
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-100 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-200 cursor-pointer"
-                      >
-                        <Plus size={13} /> Thêm rule
-                      </button>
+                      <p className="text-xs text-gray-500">
+                        Chọn module và khoảng Unit/Revision tương ứng.
+                      </p>
                     </div>
+                    <button
+                      type="button"
+                      onClick={addRule}
+                      className="rounded-xl border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 cursor-pointer"
+                    >
+                      Thêm rule
+                    </button>
+                  </div>
 
-                    {rules.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 py-8 text-gray-400">
-                        <GripVertical size={24} className="mb-2 opacity-30" />
-                        <p className="text-sm">Chưa có rule nào</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {rules.map((rule) => (
-                          <div
-                            key={rule.key}
-                            className="rounded-xl border border-gray-200 bg-gray-50/50 p-4 space-y-3"
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-red-100 text-xs font-bold text-red-600 shrink-0">
+                  {rules.length === 0 ? (
+                    <div className="px-4 py-8 text-center text-sm text-gray-500">
+                      Chưa có rule. Hãy thêm rule để lưu cấu hình.
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-gray-100">
+                      {rules.map((rule) => (
+                        <div key={rule.key} className="space-y-3 px-4 py-4">
+                          <div className="grid gap-3 md:grid-cols-[64px_1.3fr_1fr_1fr_1fr_44px]">
+                            <Field label="Thứ tự">
+                              <div className="flex h-10 items-center rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm font-semibold text-gray-700">
                                 {rule.orderIndex}
-                              </span>
-                              <div className="flex-1 min-w-0">
-                                <Select
-                                  value={rule.moduleId}
-                                  onValueChange={(v) =>
-                                    updateRule(rule.key, {
-                                      moduleId: v,
-                                      moduleName: modules.find(
-                                        (m) => m.id === v,
-                                      )?.name,
-                                    })
-                                  }
-                                >
-                                  <SelectTrigger
-                                    className={cn(inputCls, "bg-white")}
-                                  >
-                                    <SelectValue placeholder="Chọn Module" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {modules.map((m) => (
-                                      <SelectItem key={m.id} value={m.id}>
-                                        {m.name} ({m.code})
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
                               </div>
+                            </Field>
+                            <Field label="Module">
+                              <Select
+                                value={rule.moduleId}
+                                onValueChange={(value) =>
+                                  updateRule(rule.key, {
+                                    moduleId: value,
+                                    moduleName: modules.find(
+                                      (module) => module.id === value,
+                                    )?.name,
+                                  })
+                                }
+                              >
+                                <SelectTrigger className={inputCls}>
+                                  <SelectValue placeholder="Chọn module" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {modules.map((module) => (
+                                    <SelectItem key={module.id} value={module.id}>
+                                      {module.name} ({module.code})
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </Field>
+                            <Field label="Unit từ">
+                              <input
+                                type="number"
+                                min={0}
+                                value={rule.unitFrom}
+                                onChange={(event) =>
+                                  updateRule(rule.key, {
+                                    unitFrom: event.target.value,
+                                  })
+                                }
+                                className={inputCls}
+                                placeholder="—"
+                              />
+                            </Field>
+                            <Field label="Unit đến">
+                              <input
+                                type="number"
+                                min={0}
+                                value={rule.unitTo}
+                                onChange={(event) =>
+                                  updateRule(rule.key, {
+                                    unitTo: event.target.value,
+                                  })
+                                }
+                                className={inputCls}
+                                placeholder="—"
+                              />
+                            </Field>
+                            <Field label="Revision">
+                              <input
+                                type="number"
+                                min={1}
+                                value={rule.revisionNumber}
+                                onChange={(event) =>
+                                  updateRule(rule.key, {
+                                    revisionNumber: event.target.value,
+                                  })
+                                }
+                                className={inputCls}
+                                placeholder="—"
+                              />
+                            </Field>
+                            <div className="flex items-end">
                               <button
                                 type="button"
                                 onClick={() => removeRule(rule.key)}
-                                className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-500 cursor-pointer shrink-0"
+                                className="mb-0.5 flex h-10 w-10 items-center justify-center rounded-xl text-gray-400 hover:bg-red-50 hover:text-red-600 cursor-pointer"
+                                title="Xóa rule"
                               >
-                                <Trash2 size={14} />
+                                <Trash2 size={16} />
                               </button>
                             </div>
-
-                            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                              <Field label="Unit từ">
-                                <input
-                                  type="number"
-                                  min={0}
-                                  value={rule.unitFrom}
-                                  onChange={(e) =>
-                                    updateRule(rule.key, {
-                                      unitFrom: e.target.value,
-                                    })
-                                  }
-                                  placeholder="—"
-                                  className={cn(inputCls, "bg-white")}
-                                />
-                              </Field>
-                              <Field label="Unit đến">
-                                <input
-                                  type="number"
-                                  min={0}
-                                  value={rule.unitTo}
-                                  onChange={(e) =>
-                                    updateRule(rule.key, {
-                                      unitTo: e.target.value,
-                                    })
-                                  }
-                                  placeholder="—"
-                                  className={cn(inputCls, "bg-white")}
-                                />
-                              </Field>
-                              <Field label="Revision số">
-                                <input
-                                  type="number"
-                                  min={1}
-                                  value={rule.revisionNumber}
-                                  onChange={(e) =>
-                                    updateRule(rule.key, {
-                                      revisionNumber: e.target.value,
-                                    })
-                                  }
-                                  placeholder="—"
-                                  className={cn(inputCls, "bg-white")}
-                                />
-                              </Field>
-                              <Field label="Kỳ vọng">
-                                <div
-                                  className={cn(
-                                    inputCls,
-                                    "bg-gray-100 text-gray-500 cursor-default",
-                                  )}
-                                >
-                                  {rule.expectedLessonPlanCount != null
-                                    ? rule.expectedLessonPlanCount
-                                    : "—"}
-                                </div>
-                              </Field>
-                            </div>
-
-                            <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={rule.includeStarterUnit}
-                                onChange={(e) =>
-                                  updateRule(rule.key, {
-                                    includeStarterUnit: e.target.checked,
-                                  })
-                                }
-                                className="rounded"
-                              />
-                              Gộp Unit Starter vào module này
-                            </label>
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
           </div>
         </div>
 
-        {/* Fixed Footer */}
-        <div className="border-t border-gray-200 bg-linear-to-r from-red-500/5 to-red-700/5 px-6 py-4">
-          <div className="flex items-center justify-between gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer"
-            >
-              Đóng
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={saving || !levelId}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-5 py-2.5 text-sm font-semibold text-white hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
-            >
-              {saving ? (
-                <Loader2 size={16} className="animate-spin" />
-              ) : (
-                <CheckCircle size={16} />
-              )}
-              Lưu cấu hình
-            </button>
-          </div>
+        <div className="flex justify-between gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer"
+          >
+            Đóng
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleSave()}
+            disabled={saving || loadingConfig || !programId || !levelId}
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-5 py-2.5 text-sm font-semibold text-white hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+          >
+            {saving ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <CheckCircle size={16} />
+            )}
+            {hasExistingConfig ? "Lưu cấu hình" : "Tạo cấu hình"}
+          </button>
         </div>
       </div>
     </div>
@@ -1510,8 +1523,6 @@ function ImportArchiveModal({
   const [levels, setLevels] = useState<LevelDto[]>([]);
   const [levelsLoading, setLevelsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [configFound, setConfigFound] = useState<boolean | null>(null);
-  const [configChecking, setConfigChecking] = useState(false);
 
   useEffect(() => {
     if (!programId) return;
@@ -1520,14 +1531,6 @@ function ImportArchiveModal({
       .catch(() => setLevels([]))
       .finally(() => setLevelsLoading(false));
   }, [programId]);
-
-  useEffect(() => {
-    if (!programId || !levelId) return;
-    getImportConfiguration(programId, levelId)
-      .then((res) => setConfigFound(res.isSuccess && res.data != null))
-      .catch(() => setConfigFound(false))
-      .finally(() => setConfigChecking(false));
-  }, [programId, levelId]);
 
   const inputCls =
     "w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200";
@@ -1659,23 +1662,6 @@ function ImportArchiveModal({
               ... (file bài học .docx)
             </div>
 
-            {levelId && !configChecking && configFound === false && (
-              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
-                <strong>Chưa có cấu hình import</strong> cho Chương trình +
-                Level này. Vui lòng lưu cấu hình trước khi import zip.
-              </div>
-            )}
-            {levelId && configChecking && (
-              <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-500 flex items-center gap-2">
-                <Loader2 size={13} className="animate-spin" /> Đang kiểm tra cấu
-                hình import...
-              </div>
-            )}
-            {levelId && !configChecking && configFound === true && (
-              <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-xs text-green-700">
-                Cấu hình import đã sẵn sàng.
-              </div>
-            )}
             <Field label="Chi nhánh (tùy chọn - auto assign sau import)">
               <Select
                 value={branchId || "__none__"}
@@ -1708,9 +1694,7 @@ function ImportArchiveModal({
                     setProgramId(v);
                     setLevelId("");
                     setLevels([]);
-                    setConfigFound(null);
                     setLevelsLoading(true);
-                    setConfigChecking(false);
                   }}
                 >
                   <SelectTrigger className={inputCls}>
@@ -1730,8 +1714,6 @@ function ImportArchiveModal({
                   value={levelId}
                   onValueChange={(v) => {
                     setLevelId(v);
-                    setConfigFound(null);
-                    setConfigChecking(true);
                   }}
                   disabled={!programId || levelsLoading}
                 >
@@ -1830,7 +1812,7 @@ function ImportArchiveModal({
             <button
               type="submit"
               form="importArchiveForm"
-              disabled={loading || configFound === false}
+              disabled={loading}
               className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-5 py-2.5 text-sm font-semibold text-white hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
             >
               {loading ? (
@@ -2079,7 +2061,7 @@ function ImportLessonPlanWordsModal({
                 đúng syllabus/version.
               </p>
             </Field>
-            <Field label="Module (tùy chọn - để trống để tự map theo cấu hình)">
+            <Field label="Module (tùy chọn)">
               <Select
                 value={moduleId || "__none__"}
                 onValueChange={(value) =>
@@ -2092,7 +2074,7 @@ function ImportLessonPlanWordsModal({
                     placeholder={
                       modulesLoading
                         ? "Đang tải..."
-                        : "-- Tự map theo cấu hình import --"
+                        : "-- Không chọn module --"
                     }
                   />
                 </SelectTrigger>
@@ -2104,12 +2086,6 @@ function ImportLessonPlanWordsModal({
                   ))}
                 </SelectContent>
               </Select>
-              {levelId && !moduleId && (
-                <p className="mt-1 text-xs text-amber-600">
-                  Nếu không chọn module, cần có cấu hình import đã lưu cho
-                  Chương trình + Level này.
-                </p>
-              )}
             </Field>
             <Field label="Files .docx *">
               <label className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed border-red-200 bg-red-50/50 px-4 py-4 text-sm text-gray-600 hover:bg-red-50 transition-colors">
@@ -2772,7 +2748,7 @@ function ArchiveImportResultModal({
 type ModalState = { mode: "edit"; item: SyllabusListItem } | null;
 
 type ImportMode = "word" | "archive" | "lesson-plan-words" | null;
-type ConfigTarget = { programId: string; levelId: string } | null;
+type ImportConfigReviewTarget = { programId: string; levelId: string } | null;
 type BranchAssignTarget = SyllabusListItem | null;
 type HardDeleteSyllabusTarget = SyllabusListItem | null;
 
@@ -2815,10 +2791,10 @@ export default function SyllabusesPage() {
   const [detail, setDetail] = useState<SyllabusDetail | null>(null);
   const [importMode, setImportMode] = useState<ImportMode>(null);
   const [importLoading, setImportLoading] = useState(false);
-  const [configTarget, setConfigTarget] = useState<ConfigTarget>(null);
+  const [importConfigReviewTarget, setImportConfigReviewTarget] =
+    useState<ImportConfigReviewTarget>(null);
   const [branchAssignTarget, setBranchAssignTarget] =
     useState<BranchAssignTarget>(null);
-  const [versionTarget, setVersionTarget] = useState<SyllabusListItem | null>(null);
   const [hardDeleteTarget, setHardDeleteTarget] =
     useState<HardDeleteSyllabusTarget>(null);
   const [hardDeleteConfirmCode, setHardDeleteConfirmCode] = useState("");
@@ -3343,7 +3319,6 @@ export default function SyllabusesPage() {
 
   const inputCls =
     "rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200";
-  const lessonPlanWorkspaceHref = `/${locale}/portal/admin/documents/templates${filterProgramId ? `?programId=${encodeURIComponent(filterProgramId)}` : ""}`;
 
   return (
     <div className="min-h-screen space-y-6 bg-gray-50 p-4 md:p-2">
@@ -3428,42 +3403,13 @@ export default function SyllabusesPage() {
                   </div>
                 </div>
               </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 cursor-pointer">
-              <Settings2 size={16} /> Tiện ích
-              <ChevronDown size={14} />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              className="w-72 rounded-xl border border-gray-200 bg-white p-1 shadow-xl"
-            >
-              <DropdownMenuLabel className="px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-red-600">
-                Tác vụ phụ
-              </DropdownMenuLabel>
               <DropdownMenuItem
-                onClick={() => {
-                  if (typeof window !== "undefined") {
-                    window.location.href = lessonPlanWorkspaceHref;
-                  }
-                }}
-                className="cursor-pointer gap-3 rounded-lg px-3 py-2.5"
-              >
-                <BookOpenCheck size={16} className="text-emerald-600" />
-                <div>
-                  <div className="font-medium text-gray-900">
-                    Mẫu giáo án chuẩn
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    Mở template chuẩn theo bộ lọc syllabus hiện tại.
-                  </div>
-                </div>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator className="my-1 bg-gray-100" />
-              <DropdownMenuItem
-                onClick={() => setConfigTarget({ programId: "", levelId: "" })}
+                onClick={() =>
+                  setImportConfigReviewTarget({
+                    programId: filterProgramId,
+                    levelId: filterLevelId,
+                  })
+                }
                 className="cursor-pointer gap-3 rounded-lg px-3 py-2.5"
               >
                 <Settings2 size={16} className="text-indigo-600" />
@@ -3472,13 +3418,12 @@ export default function SyllabusesPage() {
                     Cấu hình import
                   </div>
                   <div className="text-xs text-gray-500">
-                    Thiết lập rule import cho chương trình và level.
+                    Tạo hoặc xem lại rule theo chương trình và level.
                   </div>
                 </div>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-
         </div>
       </div>
 
@@ -3741,14 +3686,6 @@ export default function SyllabusesPage() {
                         </a>
                         <button
                           type="button"
-                          title="Phiên bản"
-                          onClick={() => setVersionTarget(item)}
-                          className="inline-flex items-center justify-center rounded-lg p-1.5 text-gray-400 hover:text-indigo-600 cursor-pointer transition-colors"
-                        >
-                          <GitBranch size={14} />
-                        </button>
-                        <button
-                          type="button"
                           title="Gán chi nhánh"
                           onClick={() => setBranchAssignTarget(item)}
                           className="inline-flex items-center justify-center rounded-lg p-1.5 text-gray-400 hover:text-amber-600 cursor-pointer transition-colors"
@@ -3763,21 +3700,6 @@ export default function SyllabusesPage() {
                         >
                           <Pencil size={14} />
                         </button>
-                        {item.programId && item.levelId && (
-                          <button
-                            type="button"
-                            title="Cấu hình"
-                            onClick={() =>
-                              setConfigTarget({
-                                programId: item.programId,
-                                levelId: item.levelId,
-                              })
-                            }
-                            className="inline-flex items-center justify-center rounded-lg p-1.5 text-gray-400 hover:text-indigo-600 cursor-pointer transition-colors"
-                          >
-                            <Settings2 size={14} />
-                          </button>
-                        )}
                         <button
                           type="button"
                           title="Xóa vĩnh viễn"
@@ -3876,6 +3798,14 @@ export default function SyllabusesPage() {
           onSubmit={handleImportLessonPlanWords}
         />
       )}
+      {importConfigReviewTarget !== null && (
+        <ImportConfigReviewModal
+          programOptions={programOptions}
+          initialProgramId={importConfigReviewTarget.programId || undefined}
+          initialLevelId={importConfigReviewTarget.levelId || undefined}
+          onClose={() => setImportConfigReviewTarget(null)}
+        />
+      )}
       {branchAssignTarget && (
         <AssignBranchModal
           syllabus={branchAssignTarget}
@@ -3885,21 +3815,6 @@ export default function SyllabusesPage() {
           onSubmit={(payload) =>
             void handleAssignBranch(branchAssignTarget, payload)
           }
-        />
-      )}
-      <SyllabusVersionsModal
-        open={!!versionTarget}
-        syllabusId={versionTarget?.id ?? ""}
-        syllabusTitle={versionTarget ? `[${versionTarget.code}] ${versionTarget.title}` : ""}
-        onClose={() => setVersionTarget(null)}
-      />
-      {configTarget !== null && (
-        <ImportConfigModal
-          programOptions={programOptions}
-          initialProgramId={configTarget.programId || undefined}
-          initialLevelId={configTarget.levelId || undefined}
-          onClose={() => setConfigTarget(null)}
-          onSaved={() => setConfigTarget(null)}
         />
       )}
       {archiveImportResult && (

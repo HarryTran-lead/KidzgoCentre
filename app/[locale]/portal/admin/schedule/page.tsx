@@ -11,8 +11,10 @@ import {
   updateClassColor,
 } from "@/app/api/admin/sessions";
 import { fetchAdminUsersByIds, fetchAdminClasses } from "@/app/api/admin/classes";
+import { getSlotTypes } from "@/lib/api/slotTypeService";
 import type { CreateSessionRequest, ParticipationType, SectionType, Session } from "@/types/admin/sessions";
-import { SECTION_TYPE_OPTIONS } from "@/types/admin/sessions";
+import { PARTICIPATION_TYPE_OPTIONS, SECTION_TYPE_OPTIONS } from "@/types/admin/sessions";
+import type { SlotType as SessionSlotType } from "@/types/slot-type";
 import {
   CalendarRange,
   MapPin,
@@ -244,6 +246,7 @@ interface ScheduleFormData {
   sendNotification: boolean;
   participationType: ParticipationType;
   sectionType: SectionType;
+  slotTypeId: string;
 }
 
 const initialFormData: ScheduleFormData = {
@@ -259,8 +262,9 @@ const initialFormData: ScheduleFormData = {
   color: DEFAULT_SESSION_COLOR,
   note: "",
   sendNotification: true,
-  participationType: "OFFLINE",
+  participationType: "Main",
   sectionType: "Normal",
+  slotTypeId: "",
 };
 
 type SelectOption = { id: string; label: string };
@@ -274,6 +278,7 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
   const [classOptions, setClassOptions] = useState<SelectOption[]>([]);
   const [roomOptions, setRoomOptions] = useState<SelectOption[]>([]);
   const [teacherOptions, setTeacherOptions] = useState<SelectOption[]>([]);
+  const [slotTypeOptions, setSlotTypeOptions] = useState<SessionSlotType[]>([]);
   const modalRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -430,6 +435,27 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
     };
   }, [isOpen]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let cancelled = false;
+
+    getSlotTypes({ isActive: true })
+      .then((items) => {
+        if (!cancelled) setSlotTypeOptions(items);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error("Failed to load slot types for schedule modal:", err);
+          setSlotTypeOptions([]);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen]);
+
   // Reset form mỗi lần mở modal, prefill ngày / giờ
   useEffect(() => {
     if (!isOpen) return;
@@ -491,9 +517,10 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
           durationMinutes,
           plannedRoomId: formData.roomId,
           plannedTeacherId: formData.teacherId,
-          plannedAssistantId: formData.assistantId || undefined,
+          plannedAssistantId: formData.assistantId || null,
           participationType: formData.participationType,
           sectionType: formData.sectionType,
+          slotTypeId: formData.slotTypeId || null,
         } as CreateSessionRequest,
         {
           title: findLabel(classOptions, formData.classId) || "Buổi học",
@@ -511,11 +538,25 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
   };
 
   const handleChange = (field: keyof ScheduleFormData, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => {
+      const next = { ...prev, [field]: value };
+      if (field === "teacherId" && value === prev.assistantId) {
+        next.assistantId = "";
+      }
+      if (field === "assistantId" && value === prev.teacherId) {
+        next.assistantId = "";
+      }
+      return next;
+    });
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: undefined }));
     }
   };
+
+  const availableAssistantOptions = useMemo(
+    () => teacherOptions.filter((teacher) => teacher.id !== formData.teacherId),
+    [formData.teacherId, teacherOptions]
+  );
 
   const adjustTextareaHeight = () => {
     if (textareaRef.current) {
@@ -653,6 +694,55 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
                   </SelectContent>
                 </Select>
                 {errors.roomId && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.roomId}</p>}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                  <Users size={16} className="text-red-600" />
+                  Trợ giảng
+                </label>
+                <Select
+                  value={formData.assistantId || "__none__"}
+                  onValueChange={(value) => handleChange("assistantId", value === "__none__" ? "" : value)}
+                >
+                  <SelectTrigger className="w-full rounded-xl border border-gray-200 bg-white text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all">
+                    <SelectValue placeholder="Không chọn trợ giảng" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">
+                      <span className="text-gray-500">Không chọn trợ giảng</span>
+                    </SelectItem>
+                    {availableAssistantOptions.map((assistant) => (
+                      <SelectItem key={assistant.id} value={assistant.id}>
+                        {assistant.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                  <Tag size={16} className="text-red-600" />
+                  Participation type
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {PARTICIPATION_TYPE_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => handleChange("participationType", opt.value)}
+                      className={`px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all ${formData.participationType === opt.value
+                        ? "bg-red-50 text-red-800 border-red-300"
+                        : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -825,6 +915,32 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                <Tag size={16} className="text-red-600" />
+                Loại slot
+              </label>
+              <Select
+                value={formData.slotTypeId || "__none__"}
+                onValueChange={(value) => handleChange("slotTypeId", value === "__none__" ? "" : value)}
+              >
+                <SelectTrigger className="w-full rounded-xl border border-gray-200 bg-white text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all">
+                  <SelectValue placeholder="Không phân loại" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">
+                    <span className="text-gray-500">Không phân loại</span>
+                  </SelectItem>
+                  {slotTypeOptions.map((slotType) => (
+                    <SelectItem key={slotType.id} value={slotType.id}>
+                      <span className="font-mono font-bold text-red-700 mr-2">{slotType.code}</span>
+                      {slotType.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Row 7: Ghi chú */}

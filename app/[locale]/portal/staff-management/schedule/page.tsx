@@ -499,7 +499,7 @@ const initialFormData: ScheduleFormData = {
   color: DEFAULT_SESSION_COLOR,
   note: "",
   sendNotification: true,
-  participationType: "OFFLINE",
+  participationType: "Main",
   sectionType: "Normal",
 };
 
@@ -693,9 +693,10 @@ function CreateScheduleModal({
           durationMinutes: computeDurationMinutes(formData.time),
           plannedRoomId: formData.roomId,
           plannedTeacherId: formData.teacherId,
-          plannedAssistantId: formData.assistantId || undefined,
+          plannedAssistantId: formData.assistantId || null,
           participationType: formData.participationType,
           sectionType: formData.sectionType,
+          slotTypeId: null,
         },
         {
           title: findLabel(classOptions, formData.classId) || "Buổi học",

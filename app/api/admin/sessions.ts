@@ -148,7 +148,11 @@ export async function createAdminSession(
     throw new Error(msg);
   }
 
-  const data = json?.data ?? json;
+  const responseData = json?.data ?? json;
+  const data =
+    responseData && typeof responseData === "object" && !Array.isArray(responseData) && "session" in responseData
+      ? responseData.session
+      : responseData;
   const session: Session = {
     id: String(data?.id ?? data?.sessionId ?? ""),
     classId: data?.classId ? String(data.classId) : (payload.classId ?? null),
@@ -159,12 +163,23 @@ export async function createAdminSession(
       typeof data?.durationMinutes === "number" && data.durationMinutes > 0
         ? data.durationMinutes
         : payload.durationMinutes,
+    plannedRoomId: data?.plannedRoomId ? String(data.plannedRoomId) : (payload.plannedRoomId ?? null),
     plannedRoomName: data?.plannedRoomName ?? null,
     roomName: data?.roomName ?? null,
+    plannedTeacherId: data?.plannedTeacherId ? String(data.plannedTeacherId) : (payload.plannedTeacherId ?? null),
     plannedTeacherName: data?.plannedTeacherName ?? null,
     teacherName: data?.teacherName ?? null,
+    plannedAssistantId:
+      data?.plannedAssistantId != null
+        ? String(data.plannedAssistantId)
+        : (payload.plannedAssistantId ?? null),
+    plannedAssistantName: data?.plannedAssistantName ?? null,
+    assistantName: data?.assistantName ?? null,
     participationType: data?.participationType ?? null,
     sectionType: data?.sectionType ?? payload.sectionType ?? null,
+    slotTypeId: data?.slotTypeId != null ? String(data.slotTypeId) : (payload.slotTypeId ?? null),
+    slotTypeCode: data?.slotTypeCode ?? data?.slotType?.code ?? null,
+    slotTypeName: data?.slotTypeName ?? data?.slotType?.name ?? null,
     color: data?.color ?? data?.Color ?? null,
   };
 
@@ -208,6 +223,9 @@ function mapApiSession(item: any): Session {
     sectionType: item?.sectionType ?? null,
     status: item?.status ?? null,
     color: item?.color ?? item?.Color ?? null,
+    slotTypeId: item?.slotTypeId != null ? String(item.slotTypeId) : (item?.slotType?.id != null ? String(item.slotType.id) : null),
+    slotTypeCode: item?.slotTypeCode ?? item?.slotType?.code ?? null,
+    slotTypeName: item?.slotTypeName ?? item?.slotType?.name ?? null,
   };
 
   if (!session.id) {
@@ -399,7 +417,7 @@ export async function updateAdminSession(
   payload: {
     plannedRoomId?: string;
     plannedTeacherId?: string;
-    plannedAssistantId?: string;
+    plannedAssistantId?: string | null;
     plannedDatetime?: string;
     durationMinutes?: number;
     participationType?: string;

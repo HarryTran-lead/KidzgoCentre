@@ -1,4 +1,4 @@
-export type ParticipationType = "OFFLINE" | "ONLINE";
+export type ParticipationType = "Free" | "Main";
 export type ChangeTeacherRole = "MainTeacher" | "Assistant";
 export type SectionType = "Normal" | "Review" | "Makeup" | "Remedial" | "Assessment";
 
@@ -23,14 +23,19 @@ export const SECTION_TYPE_OPTIONS: { value: SectionType; label: string }[] = [
   { value: "Assessment", label: "Kiểm tra" },
 ];
 
+export const PARTICIPATION_TYPE_OPTIONS: { value: ParticipationType; label: string }[] = [
+  { value: "Main", label: "Main" },
+  { value: "Free", label: "Free" },
+];
+
 export interface CreateSessionRequest {
   classId: string;
   plannedDatetime: string; // ISO datetime
   durationMinutes: number;
   plannedRoomId: string;
   plannedTeacherId: string;
-  plannedAssistantId?: string;
-  participationType: ParticipationType | string;
+  plannedAssistantId?: string | null;
+  participationType: ParticipationType;
   sectionType?: SectionType | string;
   slotTypeId?: string | null;
 }

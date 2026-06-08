@@ -11,3 +11,14 @@ export async function GET(req: Request) {
     context: { method: "GET", endpoint: "sessions" },
   });
 }
+
+export async function POST(req: Request) {
+  const body = await req.json().catch(() => ({}));
+  const url = buildApiUrl(BACKEND_SESSION_ENDPOINTS.CREATE);
+
+  return forwardToBackend(req, url, {
+    method: "POST",
+    body,
+    context: { method: "POST", endpoint: "sessions" },
+  });
+}
