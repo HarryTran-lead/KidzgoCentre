@@ -1,3 +1,5 @@
+import type { SessionSectionType } from "@/lib/sessionSectionType";
+
 export type StudentTimetableSession = {
   id: string;
   classId: string;
@@ -9,6 +11,7 @@ export type StudentTimetableSession = {
   registrationId?: string | null;
   track?: string | null;
   isMakeup?: boolean | null;
+  sectionType?: SessionSectionType | string | null;
   attendanceStatus?: string | null;
   absenceType?: string | null;
   participationType?: string | null;

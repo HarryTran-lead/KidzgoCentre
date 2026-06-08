@@ -16,8 +16,12 @@ import {
 } from "@/lib/api/parentScheduleService";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { parseApiDateKeepWallClock } from "@/lib/datetime";
+import {
+  normalizeSessionSectionType,
+  type SessionSectionType,
+} from "@/lib/sessionSectionType";
 
-type TabType = "all" | "classes" | "makeup" | "events";
+type TabType = "all" | SessionSectionType;
 type TimeSlot = "morning" | "afternoon" | "evening";
 
 interface ChildInfo {
@@ -32,7 +36,7 @@ interface ClassEvent {
   title: string;
   room?: string;
   location?: string;
-  type: "class" | "makeup" | "event";
+  type: SessionSectionType;
   teacher?: string;
   description?: string;
   color?: string | null;
@@ -54,25 +58,47 @@ const TIME_SLOTS = [
   { key: "evening" as TimeSlot, label: "Tối" },
 ];
 
-const TYPE_META = {
-  class: {
-    text: "Lớp học",
-    badge: "bg-red-600 text-white",
-    chip: "bg-red-50 text-red-700 border border-red-200",
+const TYPE_META: Record<
+  SessionSectionType,
+  { text: string; badge: string; chip: string }
+> = {
+  Normal: {
+    text: "Buổi thường",
+    badge: "bg-green-600 text-white",
+    chip: "bg-green-50 text-green-700 border border-green-200",
   },
-  makeup: {
+  Review: {
+    text: "Buổi ôn tập",
+    badge: "bg-violet-600 text-white",
+    chip: "bg-violet-50 text-violet-700 border border-violet-200",
+  },
+  Makeup: {
     text: "Buổi bù",
     badge: "bg-gray-700 text-white",
     chip: "bg-gray-100 text-gray-700 border border-gray-200",
   },
-  event: {
-    text: "Sự kiện",
-    badge: "bg-gray-600 text-white",
-    chip: "bg-gray-100 text-gray-700 border border-gray-200",
+  Remedial: {
+    text: "Buổi phụ đạo",
+    badge: "bg-blue-600 text-white",
+    chip: "bg-blue-50 text-blue-700 border border-blue-200",
+  },
+  Assessment: {
+    text: "Buổi đánh giá",
+    badge: "bg-rose-600 text-white",
+    chip: "bg-rose-50 text-rose-700 border border-rose-200",
   },
 };
 
-function TypeBadge({ type }: { type: "class" | "makeup" | "event" }) {
+const SECTION_TABS: { key: TabType; label: string }[] = [
+  { key: "all", label: "Tất cả" },
+  { key: "Normal", label: "Buổi thường" },
+  { key: "Review", label: "Buổi ôn tập" },
+  { key: "Makeup", label: "Buổi bù" },
+  { key: "Remedial", label: "Buổi phụ đạo" },
+  { key: "Assessment", label: "Buổi đánh giá" },
+];
+
+function TypeBadge({ type }: { type: SessionSectionType }) {
   const { text, badge } = TYPE_META[type];
   return (
     <span className={`rounded-full px-3 py-1 text-xs font-semibold ${badge}`}>
@@ -100,6 +126,14 @@ const getWeekStart = (date: Date) => {
   start.setHours(0, 0, 0, 0);
   return start;
 };
+
+function getParentSessionSectionType(session: ParentTimetableSession): SessionSectionType {
+  return normalizeSessionSectionType(session.sectionType, {
+    isMakeup: session.isMakeup,
+    participationType: session.participationType,
+    track: session.track,
+  });
+}
 
 export default function SchedulePage() {
   const { user } = useCurrentUser();
@@ -248,12 +282,7 @@ export default function SchedulePage() {
 
   const filterEvents = (events: ClassEvent[]) => {
     if (activeTab === "all") return events;
-    if (activeTab === "classes")
-      return events.filter((e) => e.type === "class");
-    if (activeTab === "makeup")
-      return events.filter((e) => e.type === "makeup");
-    if (activeTab === "events") return events.filter((e) => e.type === "event");
-    return events;
+    return events.filter((e) => e.type === activeTab);
   };
 
   const goToPreviousWeek = () => {
@@ -322,7 +351,7 @@ export default function SchedulePage() {
     return map;
   }, [filteredSessions]);
 
-  const getEventColor = (type: string, event?: ClassEvent) => {
+  const getEventColor = (type: SessionSectionType, event?: ClassEvent) => {
     // Use backend color if available (from session.color)
     if (event?.color) {
       // Backend color might be a hex or tailwind class
@@ -338,18 +367,22 @@ export default function SchedulePage() {
     }
     // Fallback by type
     switch (type) {
-      case "class":
-        return "bg-gradient-to-r from-red-600 to-red-700";
-      case "makeup":
+      case "Normal":
+        return "bg-gradient-to-r from-green-600 to-green-700";
+      case "Review":
+        return "bg-gradient-to-r from-violet-600 to-purple-600";
+      case "Makeup":
         return "bg-gradient-to-r from-gray-600 to-gray-700";
-      case "event":
-        return "bg-gradient-to-r from-gray-600 to-gray-700";
+      case "Remedial":
+        return "bg-gradient-to-r from-blue-600 to-sky-600";
+      case "Assessment":
+        return "bg-gradient-to-r from-rose-600 to-red-600";
       default:
         return "bg-gradient-to-r from-red-600 to-red-700";
     }
   };
 
-  const getLightColor = (type: string, event?: ClassEvent) => {
+  const getLightColor = (type: SessionSectionType, event?: ClassEvent) => {
     // If backend color is hex/rgb, return empty — handled via inline style
     if (
       event?.color &&
@@ -362,12 +395,16 @@ export default function SchedulePage() {
       return PROGRAM_COLOR_PALETTE[programColorMap.get(key)!].light;
     }
     switch (type) {
-      case "class":
+      case "Normal":
         return "bg-gradient-to-br from-red-50 to-red-100";
-      case "makeup":
+      case "Review":
+        return "bg-gradient-to-br from-violet-50 to-purple-100";
+      case "Makeup":
         return "bg-gradient-to-br from-gray-100 to-gray-200";
-      case "event":
-        return "bg-gradient-to-br from-gray-100 to-gray-200";
+      case "Remedial":
+        return "bg-gradient-to-br from-blue-50 to-sky-100";
+      case "Assessment":
+        return "bg-gradient-to-br from-rose-50 to-red-100";
       default:
         return "bg-gradient-to-br from-red-50 to-red-100";
     }
@@ -404,11 +441,6 @@ export default function SchedulePage() {
       return DAYS[idx];
     };
 
-    const isMakeup = (value?: string | null) => {
-      const v = String(value ?? "").toLowerCase();
-      return v.includes("makeup") || v.includes("make-up") || v.includes("bù");
-    };
-
     filteredSessions.forEach((s) => {
       const planned = s.plannedDatetime ?? s.actualDatetime;
       if (!planned) return;
@@ -427,7 +459,7 @@ export default function SchedulePage() {
         time: timeLabel,
         title: s.classTitle ?? s.classCode ?? "Buổi học",
         room: s.plannedRoomName ?? s.actualRoomName ?? undefined,
-        type: isMakeup(s.participationType) || s.isMakeup ? "makeup" : "class",
+        type: getParentSessionSectionType(s),
         teacher: s.plannedTeacherName ?? s.actualTeacherName ?? undefined,
         description: s.lessonPlanLink
           ? `Giáo án: ${s.lessonPlanLink}`
@@ -531,26 +563,20 @@ export default function SchedulePage() {
 
       {/* Tabs */}
       <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-2 inline-flex gap-2">
-        {["all", "classes", "makeup", "events"].map((tab) => {
-          const isActive = activeTab === tab;
-          const tabText = {
-            all: "Tất cả",
-            classes: "Lớp học",
-            makeup: "Buổi bù",
-            events: "Sự kiện",
-          }[tab];
+        {SECTION_TABS.map((tab) => {
+          const isActive = activeTab === tab.key;
 
           return (
             <button
-              key={tab}
-              onClick={() => setActiveTab(tab as TabType)}
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
               className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
                 isActive
                   ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
                   : "bg-white border border-red-200 text-gray-600 hover:bg-red-50"
               }`}
             >
-              {tabText}
+              {tab.label}
             </button>
           );
         })}
@@ -744,8 +770,13 @@ export default function SchedulePage() {
                                         <span>{event.teacher}</span>
                                       </div>
                                     )}
-                                    {event.attendanceStatus && (
-                                      <div className="mt-1 flex flex-wrap gap-1">
+                                    <div className="mt-1 flex flex-wrap gap-1">
+                                      <span
+                                        className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${TYPE_META[event.type].chip}`}
+                                      >
+                                        {TYPE_META[event.type].text}
+                                      </span>
+                                      {event.attendanceStatus && (
                                         <span
                                           className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
                                             event.attendanceStatus === "Present"
@@ -773,10 +804,10 @@ export default function SchedulePage() {
                                                 : event.attendanceStatus ===
                                                     "NotMarked"
                                                   ? "Chưa điểm danh"
-                                                  : event.attendanceStatus}
+                                          : event.attendanceStatus}
                                         </span>
-                                      </div>
-                                    )}
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
                               </div>
@@ -974,14 +1005,15 @@ export default function SchedulePage() {
             <div className="h-3 w-3 rounded-full bg-gray-700"></div>
             <span className="text-sm text-gray-600">Offline</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="h-4 w-6 rounded bg-gradient-to-r from-red-600 to-red-700"></div>
-            <span className="text-sm text-gray-600">Lớp học</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="h-4 w-6 rounded bg-gradient-to-r from-gray-600 to-gray-700"></div>
-            <span className="text-sm text-gray-600">Buổi bù</span>
-          </div>
+          {SECTION_TABS.filter((tab) => tab.key !== "all").map((tab) => {
+            const sectionType = tab.key as SessionSectionType;
+            return (
+              <div key={sectionType} className="flex items-center gap-2">
+                <div className={`h-4 w-6 rounded ${getEventColor(sectionType)}`}></div>
+                <span className="text-sm text-gray-600">{TYPE_META[sectionType].text}</span>
+              </div>
+            );
+          })}
           {children.length > 1 &&
             children.map((child) => {
               const c = childColorMap.get(child.studentProfileId);

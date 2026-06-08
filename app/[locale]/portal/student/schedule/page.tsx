@@ -1,16 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
   Clock3,
   MapPin,
   User2,
-  Users,
-  BookOpen,
   GraduationCap,
-  Sparkles,
   CheckCircle2,
   XCircle,
   AlertCircle,
@@ -25,9 +21,13 @@ import {
   toISOStartOfDayVN,
   toISOEndOfDayVN,
 } from "@/lib/datetime";
+import {
+  normalizeSessionSectionType,
+  type SessionSectionType,
+} from "@/lib/sessionSectionType";
 import type { StudentTimetableSession } from "@/types/student/timetable";
 
-type TabType = "all" | "regular" | "makeup";
+type TabType = "all" | SessionSectionType;
 type TimeSlot = "morning" | "afternoon" | "evening";
 
 interface SessionEvent {
@@ -35,7 +35,7 @@ interface SessionEvent {
   time: string;
   title: string;
   room?: string;
-  type: "regular" | "makeup";
+  type: SessionSectionType;
   teacher?: string;
   track?: string;
   color?: string | null;
@@ -54,20 +54,47 @@ const TIME_SLOTS = [
   { key: "evening" as TimeSlot, label: "Tối", hours: "18:00 - 22:00" },
 ];
 
-const TYPE_META = {
-  regular: {
+const TYPE_META: Record<
+  SessionSectionType,
+  { text: string; badge: string; glow: string }
+> = {
+  Normal: {
     text: "Buổi thường",
     badge: "bg-emerald-500/20 border border-emerald-400/30 text-emerald-300",
     glow: "shadow-emerald-500/20",
   },
-  makeup: {
+  Makeup: {
     text: "Buổi bù",
     badge: "bg-amber-500/20 border border-amber-400/30 text-amber-300",
     glow: "shadow-amber-500/20",
   },
+  Review: {
+    text: "Buổi ôn tập",
+    badge: "bg-violet-500/20 border border-violet-400/30 text-violet-300",
+    glow: "shadow-violet-500/20",
+  },
+  Remedial: {
+    text: "Buổi phụ đạo",
+    badge: "bg-blue-500/20 border border-blue-400/30 text-blue-300",
+    glow: "shadow-blue-500/20",
+  },
+  Assessment: {
+    text: "Buổi đánh giá",
+    badge: "bg-red-500/20 border border-red-400/30 text-red-300",
+    glow: "shadow-red-500/20",
+  },
 };
 
-function TypeBadge({ type }: { type: "regular" | "makeup" }) {
+const SECTION_TABS: { key: TabType; label: string }[] = [
+  { key: "all", label: "Tất cả" },
+  { key: "Normal", label: "Buổi thường" },
+  { key: "Review", label: "Buổi ôn tập" },
+  { key: "Makeup", label: "Buổi bù" },
+  { key: "Remedial", label: "Buổi phụ đạo" },
+  { key: "Assessment", label: "Buổi đánh giá" },
+];
+
+function TypeBadge({ type }: { type: SessionSectionType }) {
   const { text, badge } = TYPE_META[type];
   return (
     <span
@@ -142,8 +169,15 @@ const formatDate = (d?: Date) =>
 const formatTime = (d: Date) =>
   d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
 
+function getSessionSectionType(session: StudentTimetableSession): SessionSectionType {
+  return normalizeSessionSectionType(session.sectionType, {
+    isMakeup: session.isMakeup,
+    participationType: session.participationType,
+    track: session.track,
+  });
+}
+
 export default function StudentSchedulePage() {
-  const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>("all");
   const [selectedClass, setSelectedClass] = useState<SessionEvent | null>(null);
   const [currentWeekStart, setCurrentWeekStart] = useState(() =>
@@ -227,23 +261,10 @@ export default function StudentSchedulePage() {
 
   const filteredSessions = useMemo(() => {
     return sessions.filter((session) => {
-      const makeup = Boolean(session.isMakeup);
-      if (activeTab === "regular") return !makeup;
-      if (activeTab === "makeup") return makeup;
-      return true;
+      if (activeTab === "all") return true;
+      return getSessionSectionType(session) === activeTab;
     });
   }, [activeTab, sessions]);
-
-  const summary = useMemo(() => {
-    const makeupCount = sessions.filter((session) =>
-      Boolean(session.isMakeup)
-    ).length;
-    return {
-      total: sessions.length,
-      regular: sessions.length - makeupCount,
-      makeup: makeupCount,
-    };
-  }, [sessions]);
 
   const programColorMap = useMemo(() => {
     const map = new Map<string, number>();
@@ -269,9 +290,18 @@ export default function StudentSchedulePage() {
     if (key && programColorMap.has(key)) {
       return PROGRAM_COLOR_PALETTE[programColorMap.get(key)!].light;
     }
-    return event?.type === "makeup"
-      ? "bg-gradient-to-br from-amber-500/15 to-amber-600/5"
-      : "bg-gradient-to-br from-purple-500/15 to-purple-600/5";
+    switch (event?.type) {
+      case "Makeup":
+        return "bg-gradient-to-br from-amber-500/15 to-amber-600/5";
+      case "Review":
+        return "bg-gradient-to-br from-violet-500/15 to-violet-600/5";
+      case "Remedial":
+        return "bg-gradient-to-br from-blue-500/15 to-blue-600/5";
+      case "Assessment":
+        return "bg-gradient-to-br from-red-500/15 to-red-600/5";
+      default:
+        return "bg-gradient-to-br from-purple-500/15 to-purple-600/5";
+    }
   };
 
   const getEventColor = (event?: SessionEvent) => {
@@ -285,9 +315,18 @@ export default function StudentSchedulePage() {
     if (key && programColorMap.has(key)) {
       return PROGRAM_COLOR_PALETTE[programColorMap.get(key)!].bg;
     }
-    return event?.type === "makeup"
-      ? "bg-gradient-to-r from-amber-500 to-orange-500"
-      : "bg-gradient-to-r from-purple-500 to-pink-500";
+    switch (event?.type) {
+      case "Makeup":
+        return "bg-gradient-to-r from-amber-500 to-orange-500";
+      case "Review":
+        return "bg-gradient-to-r from-violet-500 to-purple-500";
+      case "Remedial":
+        return "bg-gradient-to-r from-blue-500 to-sky-500";
+      case "Assessment":
+        return "bg-gradient-to-r from-red-500 to-rose-500";
+      default:
+        return "bg-gradient-to-r from-green-500 to-green-500";
+    }
   };
 
   const goToPreviousWeek = () => {
@@ -348,7 +387,7 @@ export default function StudentSchedulePage() {
         time: timeLabel,
         title: s.classTitle ?? s.classCode ?? "Buổi học",
         room: s.plannedRoomName ?? s.actualRoomName ?? undefined,
-        type: s.isMakeup ? "makeup" : "regular",
+        type: getSessionSectionType(s),
         teacher: s.plannedTeacherName ?? s.actualTeacherName ?? undefined,
         track: s.track ?? undefined,
         color: s.color ?? null,
@@ -366,9 +405,7 @@ export default function StudentSchedulePage() {
 
   const filterEvents = (events: SessionEvent[]) => {
     if (activeTab === "all") return events;
-    if (activeTab === "regular") return events.filter((e) => e.type === "regular");
-    if (activeTab === "makeup") return events.filter((e) => e.type === "makeup");
-    return events;
+    return events.filter((e) => e.type === activeTab);
   };
 
   const getAttendanceIcon = (status?: string | null) => {
@@ -416,11 +453,7 @@ export default function StudentSchedulePage() {
         {/* Tabs */}
         <div className="flex justify-center">
           <div className="rounded-2xl border border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-slate-900/80 backdrop-blur-xl p-2 inline-flex gap-2">
-            {[
-              { key: "all", label: "Tất cả" },
-              { key: "regular", label: "Buổi thường" },
-              { key: "makeup", label: "Buổi bù" },
-            ].map((tab) => (
+            {SECTION_TABS.map((tab) => (
               <button
                 key={tab.key}
                 type="button"
@@ -543,6 +576,7 @@ export default function StudentSchedulePage() {
                         <div className="space-y-2">
                           {filteredEvents.map((event) => {
                             const lightColor = getLightColor(event);
+                            const typeMeta = TYPE_META[event.type];
                             const isHexColor =
                               event.color &&
                               (event.color.startsWith("#") ||
@@ -595,15 +629,9 @@ export default function StudentSchedulePage() {
                                   )}
                                   <div className="flex flex-wrap gap-1.5 mt-2">
                                     <span
-                                      className={`text-[9px] px-2 py-0.5 rounded-full font-medium ${
-                                        event.type === "makeup"
-                                          ? "bg-amber-500/20 text-amber-300 border border-amber-400/30"
-                                          : "bg-emerald-500/20 text-emerald-300 border border-emerald-400/30"
-                                      }`}
+                                      className={`text-[9px] px-2 py-0.5 rounded-full font-medium ${typeMeta.badge}`}
                                     >
-                                      {event.type === "makeup"
-                                        ? "Buổi bù"
-                                        : "Buổi thường"}
+                                      {typeMeta.text}
                                     </span>
                                     {event.attendanceStatus &&
                                       event.attendanceStatus !== "NotMarked" && (
@@ -811,14 +839,15 @@ export default function StudentSchedulePage() {
             Chú thích
           </div>
           <div className="flex flex-wrap gap-6">
-            <div className="flex items-center gap-2.5">
-              <div className="h-4 w-6 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 shadow-sm"></div>
-              <span className="text-sm text-purple-200">Buổi thường</span>
-            </div>
-            <div className="flex items-center gap-2.5">
-              <div className="h-4 w-6 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 shadow-sm"></div>
-              <span className="text-sm text-purple-200">Buổi bù</span>
-            </div>
+            {SECTION_TABS.filter((tab) => tab.key !== "all").map((tab) => {
+              const sectionType = tab.key as SessionSectionType;
+              return (
+                <div key={sectionType} className="flex items-center gap-2.5">
+                  <div className={`h-4 w-6 rounded-full shadow-sm ${getEventColor({ type: sectionType, id: "", time: "", title: "" })}`}></div>
+                  <span className="text-sm text-purple-200">{TYPE_META[sectionType].text}</span>
+                </div>
+              );
+            })}
             <div className="flex items-center gap-2.5">
               <CheckCircle2 size={16} className="text-emerald-400" />
               <span className="text-sm text-purple-200">Có mặt</span>
