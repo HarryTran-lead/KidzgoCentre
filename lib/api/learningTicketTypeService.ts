@@ -130,6 +130,11 @@ function stringArray(value: unknown) {
   return Array.isArray(value) ? (value.filter(Boolean) as string[]) : [];
 }
 
+function normalizeCompatibilityMode(value: unknown): LearningTicketType["compatibilityMode"] {
+  if (value === "RuleBased" || value === 1 || value === "1") return "RuleBased";
+  return "AllowAll";
+}
+
 export function normalizeLearningTicketType(value: unknown): LearningTicketType {
   const record = (value ?? {}) as Record<string, unknown>;
 
@@ -138,10 +143,7 @@ export function normalizeLearningTicketType(value: unknown): LearningTicketType 
     code: stringOrUndefined(record.code) ?? "",
     name: stringOrUndefined(record.name) ?? "",
     description: typeof record.description === "string" ? record.description : null,
-    compatibilityMode:
-      record.compatibilityMode === "AllowAll" || record.compatibilityMode === "RuleBased" || record.compatibilityMode === "None"
-        ? record.compatibilityMode
-        : "None",
+    compatibilityMode: normalizeCompatibilityMode(record.compatibilityMode),
     allowedDayGroups: stringArray(record.allowedDayGroups) as LearningTicketType["allowedDayGroups"],
     allowedTimeBands: stringArray(record.allowedTimeBands) as LearningTicketType["allowedTimeBands"],
     allowedTeacherTypes: stringArray(record.allowedTeacherTypes) as LearningTicketType["allowedTeacherTypes"],
