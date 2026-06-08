@@ -5,7 +5,7 @@ import type { FormEvent } from 'react';
 import { CheckCircle2, Pencil, Plus, Search, Trash2, WalletCards, XCircle } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
-type TicketCompatibilityMode = 'None' | 'AllowAll' | 'RuleBased';
+type TicketCompatibilityMode = 'AllowAll' | 'RuleBased';
 type SlotDayGroup = 'None' | 'Weekday' | 'Weekend';
 type SlotTimeBand = 'None' | 'Morning' | 'Afternoon' | 'Evening';
 type SlotTeacherType = 'None' | 'Standard' | 'Native';
@@ -13,12 +13,14 @@ type SlotUsageType = 'None' | 'Standard' | 'Makeup' | 'Remedial' | 'Review' | 'C
 type ActiveFilter = 'all' | 'active' | 'inactive';
 type RuleField = 'allowedDayGroups' | 'allowedTimeBands' | 'allowedTeacherTypes' | 'allowedUsageTypes';
 
+type TicketCompatibilityModeInput = TicketCompatibilityMode | 0 | 1 | '0' | '1';
+
 type LearningTicketType = {
   id: string;
   code: string;
   name: string;
   description?: string | null;
-  compatibilityMode?: TicketCompatibilityMode | null;
+  compatibilityMode?: TicketCompatibilityModeInput | null;
   allowedDayGroups?: SlotDayGroup[] | null;
   allowedTimeBands?: SlotTimeBand[] | null;
   allowedTeacherTypes?: SlotTeacherType[] | null;
@@ -94,7 +96,6 @@ const usageTypeOptions: Array<Option<SlotUsageType>> = [
 ];
 
 const modeLabels: Record<TicketCompatibilityMode, string> = {
-  None: 'Mặc định',
   AllowAll: 'Cho phép tất cả',
   RuleBased: 'Theo quy tắc',
 };
@@ -164,7 +165,8 @@ function normalizeEnumArray<T extends string>(value: unknown, map: Record<string
 }
 
 function normalizeMode(mode: unknown): TicketCompatibilityMode {
-  return mode === 'AllowAll' || mode === 'RuleBased' || mode === 'None' ? mode : 'None';
+  if (mode === 'RuleBased' || mode === 1 || mode === '1') return 'RuleBased';
+  return 'AllowAll';
 }
 
 function normalizeTicketType(item: LearningTicketType): LearningTicketType {
@@ -623,7 +625,7 @@ export default function LearningTicketTypesPage() {
             <thead className="bg-red-50/40 text-left text-sm font-extrabold text-slate-600">
               <tr>
                 <th className="px-6 py-4">Loại vé</th>
-                <th className="px-6 py-4">Compatibility Mode</th>
+                <th className="px-6 py-4">Độ tương thích</th>
                 <th className="px-6 py-4">Rule mặc định</th>
                 <th className="px-6 py-4">Trạng thái</th>
                 <th className="px-6 py-4 text-right">Thao tác</th>

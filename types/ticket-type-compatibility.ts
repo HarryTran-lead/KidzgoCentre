@@ -110,7 +110,7 @@ export interface TicketTypeCompatibilityOverrideItem {
 }
 
 export interface BulkUpsertTicketTypeCompatibilityOverridesRequest {
-  overrides: TicketTypeCompatibilityOverrideItem[];
+  items: TicketTypeCompatibilityOverrideItem[];
 }
 
 export type BulkUpsertTicketTypeCompatibilityOverrideRequest = BulkUpsertTicketTypeCompatibilityOverridesRequest;

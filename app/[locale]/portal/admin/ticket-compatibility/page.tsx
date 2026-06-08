@@ -11,7 +11,8 @@ import {
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
-type TicketCompatibilityMode = "None" | "AllowAll" | "RuleBased";
+type TicketCompatibilityMode = "AllowAll" | "RuleBased";
+type TicketCompatibilityModeInput = TicketCompatibilityMode | 0 | 1 | "0" | "1";
 type SlotDayGroup = "None" | "Weekday" | "Weekend";
 type SlotTimeBand = "None" | "Morning" | "Afternoon" | "Evening";
 type SlotTeacherType = "None" | "Standard" | "Native";
@@ -30,7 +31,7 @@ type MatrixTicketType = {
   code: string;
   name: string;
   description?: string | null;
-  compatibilityMode?: TicketCompatibilityMode | null;
+  compatibilityMode?: TicketCompatibilityModeInput | null;
   allowedDayGroups?: SlotDayGroup[] | null;
   allowedTimeBands?: SlotTimeBand[] | null;
   allowedTeacherTypes?: SlotTeacherType[] | null;
@@ -84,7 +85,6 @@ type Option<T extends string> = {
 };
 
 const modeLabels: Record<TicketCompatibilityMode, string> = {
-  None: "Mặc định",
   AllowAll: "Cho phép tất cả",
   RuleBased: "Theo quy tắc",
 };
@@ -201,9 +201,8 @@ function asArray<T>(value: unknown): T[] {
 }
 
 function normalizeMode(mode: unknown): TicketCompatibilityMode {
-  return mode === "AllowAll" || mode === "RuleBased" || mode === "None"
-    ? mode
-    : "None";
+  if (mode === "RuleBased" || mode === 1 || mode === "1") return "RuleBased";
+  return "AllowAll";
 }
 
 function normalizeMatrix(payload: unknown): CompatibilityMatrix {
@@ -215,24 +214,51 @@ function normalizeMatrix(payload: unknown): CompatibilityMatrix {
   };
 }
 
-function applySavedOverrides(
-  currentMatrix: CompatibilityMatrix,
-  learningTicketTypeId: string,
-  overrides: Record<string, OverrideValue>,
-): CompatibilityMatrix {
-  const overrideEntries = Object.entries(overrides).filter(
-    (entry): entry is [string, boolean] => typeof entry[1] === "boolean",
-  );
-  if (!overrideEntries.length) return currentMatrix;
+type CompatibilityOverrideRecord = {
+  learningTicketTypeId?: string | null;
+  slotTypeId?: string | null;
+  isCompatible?: boolean | null;
+};
 
-  const overrideMap = new Map(overrideEntries);
+function extractItems<T>(payload: unknown): T[] {
+  if (Array.isArray(payload)) return payload as T[];
+  if (
+    payload &&
+    typeof payload === "object" &&
+    Array.isArray((payload as { items?: unknown[] }).items)
+  ) {
+    return (payload as { items: T[] }).items;
+  }
+  return [];
+}
+
+function mergePersistedOverrides(
+  currentMatrix: CompatibilityMatrix,
+  overrides: CompatibilityOverrideRecord[],
+): CompatibilityMatrix {
+  const overrideMap = new Map<string, boolean>();
+  overrides.forEach((override) => {
+    if (
+      !override.learningTicketTypeId ||
+      !override.slotTypeId ||
+      typeof override.isCompatible !== "boolean"
+    ) {
+      return;
+    }
+    overrideMap.set(
+      `${override.learningTicketTypeId}:${override.slotTypeId}`,
+      override.isCompatible,
+    );
+  });
+  if (!overrideMap.size) return currentMatrix;
+
   const touchedKeys = new Set<string>();
   const cells = currentMatrix.cells.map((cell) => {
-    if (cell.learningTicketTypeId !== learningTicketTypeId) return cell;
-    if (!overrideMap.has(cell.slotTypeId)) return cell;
+    const key = `${cell.learningTicketTypeId}:${cell.slotTypeId}`;
+    if (!overrideMap.has(key)) return cell;
 
-    const isCompatible = overrideMap.get(cell.slotTypeId) ?? false;
-    touchedKeys.add(cell.slotTypeId);
+    const isCompatible = overrideMap.get(key) ?? false;
+    touchedKeys.add(key);
     return {
       ...cell,
       isCompatible,
@@ -246,8 +272,10 @@ function applySavedOverrides(
     };
   });
 
-  overrideMap.forEach((isCompatible, slotTypeId) => {
-    if (touchedKeys.has(slotTypeId)) return;
+  overrideMap.forEach((isCompatible, key) => {
+    if (touchedKeys.has(key)) return;
+    const [learningTicketTypeId, slotTypeId] = key.split(":");
+    if (!learningTicketTypeId || !slotTypeId) return;
     cells.push({
       learningTicketTypeId,
       slotTypeId,
@@ -533,10 +561,20 @@ export default function TicketCompatibilityPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const payload = await apiRequest<unknown>(
-        "/api/ticket-type-compatibilities/matrix?onlyActive=false",
+      const [matrixPayload, overridesPayload] = await Promise.all([
+        apiRequest<unknown>(
+          "/api/ticket-type-compatibilities/matrix?onlyActive=false",
+        ),
+        apiRequest<unknown>("/api/ticket-type-compatibilities"),
+      ]);
+      const persistedOverrides =
+        extractItems<CompatibilityOverrideRecord>(overridesPayload);
+      setMatrix(
+        mergePersistedOverrides(
+          normalizeMatrix(matrixPayload),
+          persistedOverrides,
+        ),
       );
-      setMatrix(normalizeMatrix(payload));
     } catch (err) {
       setError(
         err instanceof Error
@@ -657,14 +695,13 @@ export default function TicketCompatibilityPage() {
     setIsSaving(true);
     setError(null);
     setMessage(null);
-    const savedOverrides = { ...draftOverrides };
     try {
       await apiRequest(
         `/api/ticket-type-compatibilities/learning-ticket-types/${selectedTicket.id}/overrides`,
         {
           method: "PUT",
           body: JSON.stringify({
-            overrides: Object.entries(draftOverrides).map(
+            items: Object.entries(draftOverrides).map(
               ([slotTypeId, isCompatible]) => ({
                 slotTypeId,
                 isCompatible,
@@ -680,9 +717,6 @@ export default function TicketCompatibilityPage() {
       });
       setDraftOverrides({});
       await loadMatrix();
-      setMatrix((current) =>
-        applySavedOverrides(current, selectedTicket.id, savedOverrides),
-      );
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Không lưu được override.";

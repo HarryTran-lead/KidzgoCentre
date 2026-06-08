@@ -1,6 +1,6 @@
 import type { SlotDayGroup, SlotTeacherType, SlotTimeBand, SlotUsageType } from './slot-type';
 
-export type TicketCompatibilityMode = 'None' | 'AllowAll' | 'RuleBased';
+export type TicketCompatibilityMode = 'AllowAll' | 'RuleBased';
 
 export interface LearningTicketType {
   id: string;

@@ -30,18 +30,37 @@ async function proxyResponse(response: Response) {
   });
 }
 
+function normalizeRequestBody(body: string) {
+  if (!body) return body;
+
+  try {
+    const payload = JSON.parse(body) as unknown;
+    if (!payload || typeof payload !== "object") return body;
+
+    const record = payload as Record<string, unknown>;
+    if (Array.isArray(record.items)) return body;
+    if (!Array.isArray(record.overrides)) return body;
+
+    const { overrides, ...rest } = record;
+    return JSON.stringify({ ...rest, items: overrides });
+  } catch {
+    return body;
+  }
+}
+
 export async function PUT(
   request: NextRequest,
   context: { params: Promise<{ learningTicketTypeId: string }> },
 ) {
   const { learningTicketTypeId } = await context.params;
   const body = await request.text();
+  const normalizedBody = normalizeRequestBody(body);
   const response = await fetch(
     buildApiUrl(BACKEND_TICKET_TYPE_COMPATIBILITY_ENDPOINTS.BULK_OVERRIDES(learningTicketTypeId)),
     {
       method: "PUT",
       headers: buildHeaders(request),
-      body,
+      body: normalizedBody,
       cache: "no-store",
     },
   );
