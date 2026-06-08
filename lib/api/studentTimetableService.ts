@@ -24,6 +24,7 @@ function mapStudentSession(raw: Record<string, unknown>): StudentTimetableSessio
     registrationId: g("registrationId", "RegistrationId"),
     track: g("track", "Track"),
     isMakeup: gb("isMakeup", "IsMakeup"),
+    sectionType: g("sectionType", "SectionType"),
     attendanceStatus: g("attendanceStatus", "AttendanceStatus"),
     absenceType: g("absenceType", "AbsenceType"),
     participationType: g("participationType", "ParticipationType"),
