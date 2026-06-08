@@ -3463,7 +3463,7 @@ function  CreateClassModal({
                       "focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
                       errors.name ? "border-red-500" : "border-gray-200",
                     )}
-                    placeholder="VD: Lập trình Python cơ bản"
+                    placeholder="VD: Lớp Starter"
                   />
                   {errors.name && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">

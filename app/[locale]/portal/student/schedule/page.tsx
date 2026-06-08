@@ -325,7 +325,7 @@ export default function StudentSchedulePage() {
       case "Assessment":
         return "bg-gradient-to-r from-red-500 to-rose-500";
       default:
-        return "bg-gradient-to-r from-purple-500 to-pink-500";
+        return "bg-gradient-to-r from-green-500 to-green-500";
     }
   };
 
