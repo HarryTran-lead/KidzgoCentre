@@ -1065,6 +1065,8 @@ export async function fetchAndMapAdminClassDetail(classId: string): Promise<Clas
     description: apiData?.description ?? "",
     startDate: apiData?.startDate ?? "",
     endDate: apiData?.endDate ?? "",
+    expectedEndDate: apiData?.expectedEndDate ?? apiData?.endDate ?? "",
+    actualEndDate: apiData?.actualEndDate ?? null,
     completedLessons: 0,
     slotTypeId: apiData?.slotTypeId ?? null,
     slotTypeCode: apiData?.slotTypeCode ?? null,

@@ -112,16 +112,16 @@ const HISTORY_FIELD_LABELS: Record<string, string> = {
   Reason: "Lý do",
   effectiveDate: "Ngày hiệu lực",
   EffectiveDate: "Ngày hiệu lực",
-  warningMessage: "Cảnh báo",
-  WarningMessage: "Cảnh báo",
   operationType: "Loại chuyển đổi",
   OperationType: "Loại chuyển đổi",
-  entryType: "Kiểu vào lớp",
-  EntryType: "Kiểu vào lớp",
+  track: "Chương trình",
+  Track: "Chương trình",
   note: "Ghi chú",
   Note: "Ghi chú",
   description: "Mô tả",
   Description: "Mô tả",
+  source: "Nguồn tạo",
+  Source: "Nguồn tạo",
   status: "Trạng thái",
   Status: "Trạng thái",
   oldStatus: "Trạng thái cũ",
@@ -147,6 +147,16 @@ const HISTORY_FIELD_LABELS: Record<string, string> = {
   ProgramName: "Chương trình",
   tuitionPlanName: "Gói học",
   TuitionPlanName: "Gói học",
+  firstStudyDate: "Ngày học đầu tiên",
+  FirstStudyDate: "Ngày học đầu tiên",
+  firstStudySessionAt: "Thời gian buổi học đầu tiên",
+  FirstStudySessionAt: "Thời gian buổi học đầu tiên",
+  assignedClassCode: "Mã lớp được xếp",
+  AssignedClassCode: "Mã lớp được xếp",
+  assignedClassTitle: "Tên lớp được xếp",
+  AssignedClassTitle: "Tên lớp được xếp",
+  assignedClassName: "Tên lớp được xếp",
+  AssignedClassName: "Tên lớp được xếp",
 };
 
 const HISTORY_HIDDEN_KEYS = new Set([
@@ -158,6 +168,10 @@ const HISTORY_HIDDEN_KEYS = new Set([
   "entityType",
   "type",
   "reference",
+  "entryType",
+  "EntryType",
+  "warningMessage",
+  "WarningMessage",
 ]);
 
 const HISTORY_VALUE_FORMATTERS: Record<string, (value: string | null) => string> = {
@@ -175,6 +189,10 @@ const HISTORY_VALUE_FORMATTERS: Record<string, (value: string | null) => string>
   updatedAt: toDateTimeOrRaw,
   EffectiveDate: toDateTimeOrRaw,
   effectiveDate: toDateTimeOrRaw,
+  firstStudyDate: toDateTimeOrRaw,
+  FirstStudyDate: toDateTimeOrRaw,
+  firstStudySessionAt: toDateTimeOrRaw,
+  FirstStudySessionAt: toDateTimeOrRaw,
 };
 
 function historyFieldLabel(key: string) {
@@ -189,17 +207,23 @@ function historyFieldLabel(key: string) {
 
 function formatHistoryRawValue(key: string, value?: string | null) {
   if (value === null || value === undefined || value === "") return "Không có";
-  if (value === "ManagementStaff") return "Nhân viên quản lý";
-  if (value === "Registration") return "Đăng ký";
-  if (value === "Immediate") return "Vào học ngay";
-  if (
-    value ===
-    "Class da bat dau. Hoc vien se tham gia theo tien do hien tai cua lop moi."
-  ) {
-    return "Lớp đã bắt đầu. Học viên sẽ tham gia theo tiến độ hiện tại của lớp mới.";
-  }
+  const raw = String(value).trim();
+  const normalized = raw.toLowerCase();
+  const valueLabels: Record<string, string> = {
+    managementstaff: "Nhân viên quản lý",
+    registration: "Đăng ký",
+    wait: "Chờ xếp lớp",
+    retake: "Học lại",
+    makeup: "Học bù",
+    primary: "Chương trình chính",
+    secondary: "Chương trình song song",
+    manual: "Tạo thủ công",
+    system: "Hệ thống",
+    auto: "Tự động",
+  };
+  if (valueLabels[normalized]) return valueLabels[normalized];
   const formatter = HISTORY_VALUE_FORMATTERS[key];
-  return formatter ? formatter(value) : value;
+  return formatter ? formatter(raw) : raw;
 }
 
 function shouldShowHistoryField(key: string, value?: string | null) {
@@ -1295,6 +1319,9 @@ export default function RegistrationDetailModal({
                     historyItem.reason ||
                     historyItem.description ||
                     "";
+                  const formattedContentText = contentText
+                    ? formatHistoryRawValue("reason", contentText)
+                    : "";
                   const hiddenSummaryKeys = new Set([
                     "Reason",
                     "reason",
@@ -1356,9 +1383,9 @@ export default function RegistrationDetailModal({
                               </div>
                             ) : null}
                           </div>
-                          {contentText ? (
+                          {formattedContentText ? (
                             <div className="mt-3 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-600">
-                              {contentText}
+                              {formattedContentText}
                             </div>
                           ) : null}
                           {oldBranchText || newBranchText || oldClassText || newClassText ? (

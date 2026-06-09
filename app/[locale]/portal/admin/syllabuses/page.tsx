@@ -3854,8 +3854,17 @@ export default function SyllabusesPage() {
         />
       )}
       {hardDeleteTarget && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center bg-gray-900/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-xl overflow-hidden rounded-3xl bg-white shadow-2xl">
+        <div 
+          className="fixed inset-0 z-100 flex items-center justify-center bg-gray-900/60 p-4 backdrop-blur-sm"
+          onClick={() => {
+            setHardDeleteTarget(null);
+            setHardDeleteConfirmCode("");
+          }}
+        >
+          <div 
+            className="w-full max-w-xl overflow-hidden rounded-3xl bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="bg-red-600 px-6 py-5 text-white">
               <div className="flex items-start gap-3">
                 <div className="mt-0.5 rounded-2xl bg-white/15 p-2">
@@ -3911,7 +3920,7 @@ export default function SyllabusesPage() {
                     setHardDeleteTarget(null);
                     setHardDeleteConfirmCode("");
                   }}
-                  className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                  className="rounded-xl border cursor-pointer border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                 >
                   Hủy
                 </button>
@@ -3923,7 +3932,7 @@ export default function SyllabusesPage() {
                       String(hardDeleteTarget.code ?? "").trim()
                   }
                   onClick={() => void handleHardDeleteSyllabus()}
-                  className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+                  className="inline-flex items-center cursor-pointer gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-300"
                 >
                   {hardDeleting && <Loader2 size={16} className="animate-spin" />}
                   Xóa vĩnh viễn
