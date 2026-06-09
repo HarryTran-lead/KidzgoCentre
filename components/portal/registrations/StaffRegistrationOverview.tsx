@@ -57,6 +57,7 @@ import {
 import {
   filterClassesByTuitionPlanEligibility,
   filterSuggestedClassBucketByTuitionPlanEligibility,
+  isClassEligibleForTuitionPlan,
 } from "@/lib/tuitionPlanClassEligibility";
 import {
   filterClassesByLearningTicketType,
@@ -746,6 +747,8 @@ export default function StaffRegistrationOverview({
   const [branchTransferWeeklyPattern, setBranchTransferWeeklyPattern] = useState<WeeklyPatternEntry[]>([]);
   const [branchTransferBranches, setBranchTransferBranches] = useState<Branch[]>([]);
   const [branchTransferClasses, setBranchTransferClasses] = useState<Record<string, unknown>[]>([]);
+  const [actionTuitionPlanForClassEligibility, setActionTuitionPlanForClassEligibility] =
+    useState<TuitionPlan | null>(null);
   const [isLoadingBranchTransferBranches, setIsLoadingBranchTransferBranches] = useState(false);
   const [isLoadingBranchTransferClasses, setIsLoadingBranchTransferClasses] = useState(false);
   const [isBranchTransferring, setIsBranchTransferring] = useState(false);
@@ -884,6 +887,7 @@ export default function StaffRegistrationOverview({
     () =>
       transferClasses
         .map((cls) => {
+          const startModule = toRecord(cls?.startModule);
           const id = String(cls?.id || "");
           const remainingSlots = getClassRemainingSlots(cls);
           const status = String(cls?.status || "").trim();
@@ -912,10 +916,15 @@ export default function StaffRegistrationOverview({
             programName: String(cls?.programName || cls?.program?.name || ""),
             levelId: String(cls?.levelId || cls?.level?.id || ""),
             levelName: String(cls?.levelName || cls?.courseLevel || cls?.level?.name || ""),
+            startModuleId: String(cls?.startModuleId || startModule.id || ""),
+            startModuleName: String(cls?.startModuleName || startModule.name || ""),
           };
         })
         .filter((item) => {
           if (!item.id) return false;
+          if (!isClassEligibleForTuitionPlan(item, actionTuitionPlanForClassEligibility)) {
+            return false;
+          }
 
           const targetProgramId =
             transferTrack === "secondary"
@@ -971,6 +980,7 @@ export default function StaffRegistrationOverview({
       selectedActionRegistration?.secondaryProgramName,
       selectedActionRegistration?.secondaryLevelId,
       selectedActionRegistration?.secondaryLevelName,
+      actionTuitionPlanForClassEligibility,
     ],
   );
 
@@ -992,6 +1002,7 @@ export default function StaffRegistrationOverview({
         .map((cls) => {
           const program = toRecord(cls.program);
           const level = toRecord(cls.level);
+          const startModule = toRecord(cls.startModule);
           const id = String(cls.id ?? "");
           const remainingSlots = getClassRemainingSlots(cls);
           const status = String(cls.status ?? "").trim();
@@ -1020,10 +1031,15 @@ export default function StaffRegistrationOverview({
             programName: String(cls.programName ?? program.name ?? ""),
             levelId: String(cls.levelId ?? level.id ?? ""),
             levelName: String(cls.levelName ?? cls.courseLevel ?? level.name ?? ""),
+            startModuleId: String(cls.startModuleId ?? startModule.id ?? ""),
+            startModuleName: String(cls.startModuleName ?? startModule.name ?? ""),
           };
         })
         .filter((item) => {
           if (!item.id) return false;
+          if (!isClassEligibleForTuitionPlan(item, actionTuitionPlanForClassEligibility)) {
+            return false;
+          }
 
           const targetProgramId = String(selectedActionRegistration?.programId || "");
           const targetProgramName = String(selectedActionRegistration?.programName || "");
@@ -1058,6 +1074,7 @@ export default function StaffRegistrationOverview({
       selectedActionRegistration?.programName,
       selectedActionRegistration?.levelId,
       selectedActionRegistration?.levelName,
+      actionTuitionPlanForClassEligibility,
     ],
   );
 
@@ -1424,6 +1441,7 @@ export default function StaffRegistrationOverview({
 
   const openAssignModal = (row: Registration) => {
     setSelectedActionRegistration(row);
+    setActionTuitionPlanForClassEligibility(null);
     setAssignOpen(true);
     setAssignViewMode("none");
     setSuggestedClasses(null);
@@ -1963,15 +1981,21 @@ export default function StaffRegistrationOverview({
       setTransferEffectiveDate("");
       setTransferSessionPattern("");
       setTransferWeeklyPattern([]);
+      setTransferClasses([]);
+      setActionTuitionPlanForClassEligibility(null);
       setIsLoadingTransferClasses(true);
 
-      const response = await getAllClasses({
-        pageNumber: 1,
-        pageSize: 1000,
-        branchId: targetBranchId,
-      });
+      const [response, tuitionPlanForTransfer] = await Promise.all([
+        getAllClasses({
+          pageNumber: 1,
+          pageSize: 1000,
+          branchId: targetBranchId,
+        }),
+        resolveTuitionPlanForAssignment(row),
+      ]);
       const items = pickClassItems(response).filter((item) => item?.id);
 
+      setActionTuitionPlanForClassEligibility(tuitionPlanForTransfer);
       setTransferClasses(items);
     } catch (error: any) {
       setTransferOpen(false);
@@ -2048,13 +2072,18 @@ export default function StaffRegistrationOverview({
       setBranchTransferSessionPattern("");
       setBranchTransferWeeklyPattern([]);
       setBranchTransferClasses([]);
+      setActionTuitionPlanForClassEligibility(null);
       setIsLoadingBranchTransferBranches(true);
 
-      const response = await getAllBranchesPublic({
-        page: 1,
-        limit: 500,
-        isActive: true,
-      });
+      const [response, tuitionPlanForTransfer] = await Promise.all([
+        getAllBranchesPublic({
+          page: 1,
+          limit: 500,
+          isActive: true,
+        }),
+        resolveTuitionPlanForAssignment(row),
+      ]);
+      setActionTuitionPlanForClassEligibility(tuitionPlanForTransfer);
       setBranchTransferBranches(pickBranchItems(response));
     } catch (error) {
       setBranchTransferOpen(false);

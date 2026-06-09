@@ -769,8 +769,8 @@ export default function ClassDetailPage() {
                     <Calendar size={12} className="text-orange-400" />
                     <span>Kết thúc:</span>
                     <span className="font-medium text-gray-700">
-                      {classData.endDate
-                        ? new Date(classData.endDate).toLocaleDateString(
+                      {classData.expectedEndDate || classData.endDate
+                        ? new Date(classData.expectedEndDate || classData.endDate).toLocaleDateString(
                             "vi-VN",
                           )
                         : "-"}
