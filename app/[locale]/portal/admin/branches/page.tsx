@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
+import { useRouter, useParams } from "next/navigation";
 import {
   MapPin,
   Users,
@@ -45,7 +46,6 @@ import type {
 } from "@/types/branch";
 import { toast } from "@/hooks/use-toast";
 import BranchFormModal from "@/components/portal/branches/BranchFormModal";
-import BranchDetailModal from "@/components/admin/branches/BranchDetailModal";
 import BranchStatsModal from "@/components/admin/branches/BranchStatsModal";
 import ConfirmModal from "@/components/ConfirmModal";
 
@@ -218,6 +218,9 @@ function SortableHeader({
 }
 
 export default function BranchesPage() {
+  const router = useRouter();
+  const params = useParams<{ locale: string }>();
+  const locale = params?.locale ?? "vi";
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<
     "all" | "active" | "inactive"
@@ -230,7 +233,6 @@ export default function BranchesPage() {
   const [totalPages, setTotalPages] = useState(1);
 
   // Modal states
-  const [showDetailModal, setShowDetailModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -404,39 +406,8 @@ export default function BranchesPage() {
   }, [currentPage, searchQuery, filterStatus]);
 
   // Handler: View Details
-  const handleViewDetail = async (branchId: string) => {
-    try {
-      console.log("Fetching branch details for ID:", branchId);
-      const response = await getBranchById(branchId);
-      console.log("Branch detail response:", response);
-
-      if ((response.success || response.isSuccess) && response.data) {
-        // API returns: { isSuccess: true, data: { id, code, name, ... } }
-        const branchData = response.data.branch || response.data;
-        console.log("Branch data to display:", branchData);
-        setSelectedBranch(branchData);
-        setShowDetailModal(true);
-      } else {
-        const errorMsg = response.message || "Không thể tải chi tiết chi nhánh";
-        console.error("Failed to load branch details:", response);
-        toast({
-          title: "Lỗi",
-          description: errorMsg,
-          variant: "destructive",
-        });
-      }
-    } catch (error: any) {
-      console.error("Error fetching branch details:", error);
-      const errorMsg =
-        error?.response?.data?.message ||
-        error?.message ||
-        "Có lỗi xảy ra khi tải chi tiết";
-      toast({
-        title: "Lỗi",
-        description: errorMsg,
-        variant: "destructive",
-      });
-    }
+  const handleViewDetail = (branchId: string) => {
+    router.push(`/${locale}/portal/admin/branches/${branchId}`);
   };
 
   // Handler: Add Branch
@@ -552,8 +523,6 @@ export default function BranchesPage() {
 
   // Handler: Open Confirm Modal for Deactivate
   const handleOpenConfirmDeactivate = (branch: Branch) => {
-    // Close detail modal if it's open
-    setShowDetailModal(false);
     setSelectedBranch(branch);
     setShowConfirmModal(true);
   };
@@ -1180,18 +1149,6 @@ export default function BranchesPage() {
           )}
         </div>
       )}
-
-      {/* Modal: View Detail */}
-      <BranchDetailModal
-        isOpen={showDetailModal && !!selectedBranch}
-        branch={selectedBranch}
-        userStats={userStats}
-        classStats={classStats}
-        onClose={() => {
-          setShowDetailModal(false);
-          setSelectedBranch(null);
-        }}
-      />
 
       {/* Modal: Add/Edit Branch - Using unified component */}
       <BranchFormModal
