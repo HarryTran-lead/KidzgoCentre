@@ -2781,6 +2781,55 @@ function  CreateClassModal({
     return () => { cancelled = true; };
   }, [formData.levelId]);
 
+  // Auto-set totalSessions when startModuleId changes
+  useEffect(() => {
+    if (!formData.startModuleId) {
+      return;
+    }
+    
+    const selectedModule = moduleOptions.find((m) => m.id === formData.startModuleId);
+    if (selectedModule && selectedModule.requiredSessions > 0) {
+      setFormData((prev) => ({
+        ...prev,
+        totalSessions: selectedModule.requiredSessions,
+      }));
+    }
+  }, [formData.startModuleId, moduleOptions]);
+
+  // Auto-calculate endDate when startDate, totalSessions, or schedule changes
+  useEffect(() => {
+    if (!formData.startDate || !formData.totalSessions || selectedDays.length === 0) {
+      return;
+    }
+
+    // Build schedule string from selectedDays
+    const daysString = formatDaysString(selectedDays);
+    const firstDay = selectedDays[0];
+    const daySchedule = daySchedules[firstDay];
+    
+    if (!daySchedule || !daysString) {
+      return;
+    }
+
+    const scheduleString = `${daysString} (${daySchedule.startTime} - ${daySchedule.endTime})`;
+    
+    // Calculate end date using existing function
+    const calculatedEndDate = calculateEndDate(
+      formData.startDate,
+      scheduleString,
+      formData.totalSessions
+    );
+
+    // Only update if calculated date is different and it's a valid date
+    if (calculatedEndDate && calculatedEndDate !== formData.endDate) {
+      setFormData((prev) => ({
+        ...prev,
+        endDate: calculatedEndDate,
+      }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.startDate, formData.totalSessions, selectedDays, daySchedules]);
+
   // Lọc lại phòng học khi sĩ số thay đổi
   useEffect(() => {
     if (allRooms.length > 0) {
@@ -3933,74 +3982,7 @@ function  CreateClassModal({
               )}
             </div>
 
-            {/* Row 4: Ngày bắt đầu & Kết thúc */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  <Calendar size={16} className="text-red-600" />
-                  Ngày bắt đầu <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type="date"
-                    data-field="startDate"
-                    value={formData.startDate}
-                    onChange={(e) => handleChange("startDate", e.target.value)}
-                    className={clsx(
-                      "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
-                      "focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
-                      errors.startDate ? "border-red-500" : "border-gray-200",
-                    )}
-                  />
-                  {errors.startDate && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <AlertCircle size={18} className="text-red-500" />
-                    </div>
-                  )}
-                </div>
-                {errors.startDate && (
-                  <p className="text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle size={14} /> {errors.startDate}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  <Calendar size={16} className="text-red-600" />
-                  Ngày kết thúc
-                </label>
-                <div className="relative">
-                  <input
-                    type="date"
-                    data-field="endDate"
-                    value={formData.endDate}
-                    onChange={(e) => handleChange("endDate", e.target.value)}
-                    min={formData.startDate || undefined}
-                    className={clsx(
-                      "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
-                      "focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
-                      errors.endDate ? "border-red-500" : "border-gray-200",
-                    )}
-                  />
-                  {errors.endDate && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <AlertCircle size={18} className="text-red-500" />
-                    </div>
-                  )}
-                </div>
-                {errors.endDate && (
-                  <p className="text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle size={14} /> {errors.endDate}
-                  </p>
-                )}
-                <p className="text-xs text-gray-500">
-                  {mode === "edit"
-                    ? "Chỉnh sửa ngày kết thúc để thay đổi số buổi học"
-                    : "Chọn ngày kết thúc để xác định số buổi học"}
-                </p>
-              </div>
-            </div>
+            
 
             {/* Row 5: Lịch học - UI MỚI */}
             <div
@@ -4337,6 +4319,77 @@ function  CreateClassModal({
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Row 4: Ngày bắt đầu & Kết thúc */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <Calendar size={16} className="text-red-600" />
+                  Ngày bắt đầu <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="date"
+                    data-field="startDate"
+                    value={formData.startDate}
+                    onChange={(e) => handleChange("startDate", e.target.value)}
+                    className={clsx(
+                      "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
+                      "focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
+                      errors.startDate ? "border-red-500" : "border-gray-200",
+                    )}
+                  />
+                  {errors.startDate && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <AlertCircle size={18} className="text-red-500" />
+                    </div>
+                  )}
+                </div>
+                {errors.startDate && (
+                  <p className="text-sm text-red-600 flex items-center gap-1">
+                    <AlertCircle size={14} /> {errors.startDate}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <Calendar size={16} className="text-red-600" />
+                  Ngày kết thúc
+                </label>
+                <div className="relative">
+                  <input
+                    type="date"
+                    data-field="endDate"
+                    value={formData.endDate}
+                    onChange={(e) => handleChange("endDate", e.target.value)}
+                    min={formData.startDate || undefined}
+                    className={clsx(
+                      "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
+                      "focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
+                      errors.endDate ? "border-red-500" : "border-gray-200",
+                    )}
+                  />
+                  {errors.endDate && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <AlertCircle size={18} className="text-red-500" />
+                    </div>
+                  )}
+                </div>
+                {errors.endDate && (
+                  <p className="text-sm text-red-600 flex items-center gap-1">
+                    <AlertCircle size={14} /> {errors.endDate}
+                  </p>
+                )}
+                <p className="text-xs text-gray-500">
+                  {formData.startDate && formData.totalSessions && selectedDays.length > 0
+                    ? `Tự động tính: ${formData.totalSessions} buổi × ${selectedDays.length} ngày/tuần`
+                    : mode === "edit"
+                      ? "Chỉnh sửa ngày kết thúc để thay đổi số buổi học"
+                      : "Tự động tính dựa trên ngày bắt đầu, số buổi và lịch học"}
+                </p>
+              </div>
             </div>
 
             {/* Row 7: Slot Type (Phase 1.5) */}
@@ -5082,7 +5135,7 @@ export default function Page() {
 
   return (
     <>
-      <div className="space-y-6 bg-gray-50 p-4 md:p-2 rounded-3xl">
+      <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-2 space-y-6 flex flex-col">
         {/* Header */}
         <div
           className={`flex flex-wrap items-center gap-4 justify-between transition-all duration-700 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"}`}
