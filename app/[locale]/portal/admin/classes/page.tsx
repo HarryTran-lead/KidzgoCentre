@@ -90,6 +90,9 @@ import type { WeekdayCode } from "@/lib/schedulePattern";
 import { getSlotTypes } from "@/lib/api/slotTypeService";
 import type { SlotType } from "@/types/slot-type";
 import { getLevels, getModules } from "@/lib/api/academicProgressionService";
+import { getDomainErrorMessage } from "@/lib/api/domainErrorMessage";
+
+type ToastFn = ReturnType<typeof useToast>["toast"];
 
 /* ----------------------------- UI HELPERS ------------------------------ */
 function StatusBadge({ value }: { value: ClassRow["status"] }) {
@@ -1074,8 +1077,8 @@ interface AddStudentModalProps {
   enrolledStudentIds: string[];
   classCapacity: number;
   currentEnrolled: number;
-  toast: any;
-  onEnrollmentSuccess?: (enrolledIds: string[]) => void;
+  toast: ToastFn;
+  onEnrollmentSuccess?: (enrolledIds: string[]) => Promise<void> | void;
 }
 
 interface StudentOption {
@@ -1083,6 +1086,55 @@ interface StudentOption {
   name: string;
   code: string;
   profileId: string;
+}
+
+async function readEnrollmentResponse(response: Response) {
+  const text = await response.text();
+  if (!text) return null;
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
+
+function getEnrollmentErrorCode(data: unknown): string | undefined {
+  if (!data || typeof data !== "object") return undefined;
+  const record = data as Record<string, unknown>;
+  const errors = Array.isArray(record.errors) ? record.errors : [];
+  const firstError = errors[0] as Record<string, unknown> | undefined;
+  const candidates = [
+    record.code,
+    record.title,
+    firstError?.code,
+    record.errorCode,
+  ];
+  return candidates.find((value): value is string => typeof value === "string");
+}
+
+function buildEnrollmentFailureMessage(
+  studentName: string,
+  data: unknown,
+  status?: number,
+) {
+  const errorLike = {
+    status,
+    response: {
+      status,
+      data,
+    },
+    raw: data,
+  };
+  const message = getDomainErrorMessage(
+    errorLike,
+    "Không thể thêm học viên vào lớp.",
+  );
+  const code = getEnrollmentErrorCode(data);
+
+  return code && !message.includes(code)
+    ? `${studentName}: ${message} (${code})`
+    : `${studentName}: ${message}`;
 }
 
 function AddStudentModal({
@@ -1236,7 +1288,8 @@ function AddStudentModal({
       // Gọi API cho mỗi học viên
       const enrollDate = todayDateOnly(); // Ngày hiện tại
       let successCount = 0;
-      let failedStudents: string[] = [];
+      const successfulStudentIds: string[] = [];
+      const failedStudents: string[] = [];
 
       for (const student of selectedStudentProfiles) {
         if (!student.profileId) continue;
@@ -1255,12 +1308,21 @@ function AddStudentModal({
           }),
         });
 
-        const data = await response.json();
+        const data = await readEnrollmentResponse(response);
 
-        if (data.success || data.isSuccess) {
+        const result = data as { success?: boolean; isSuccess?: boolean } | null;
+        const explicitlyFailed =
+          result?.success === false || result?.isSuccess === false;
+        const explicitlySucceeded =
+          result?.success === true || result?.isSuccess === true;
+
+        if (response.ok && (explicitlySucceeded || !explicitlyFailed)) {
           successCount++;
+          successfulStudentIds.push(student.id);
         } else {
-          failedStudents.push(student.name);
+          failedStudents.push(
+            buildEnrollmentFailureMessage(student.name, data, response.status),
+          );
         }
       }
 
@@ -1271,23 +1333,25 @@ function AddStudentModal({
         });
 
         // Cập nhật danh sách enrolled để lọc bỏ những student đã thêm
-        const newEnrolledIds = selectedStudentProfiles
-          .filter((s) => s.profileId)
-          .map((s) => s.id);
+        const newEnrolledIds = successfulStudentIds;
 
         // Gọi callback để cập nhật danh sách enrolled ở parent
-        if (onEnrollmentSuccess) {
-          onEnrollmentSuccess(newEnrolledIds);
+        await onEnrollmentSuccess?.(newEnrolledIds);
+
+        if (failedStudents.length === 0) {
+          onClose();
+          return;
         }
 
-        // Clear selected students để admin có thể tiếp tục thêm
-        setSelectedStudents([]);
+        setSelectedStudents((prev) =>
+          prev.filter((studentId) => !newEnrolledIds.includes(studentId)),
+        );
       }
 
       if (failedStudents.length > 0) {
         toast.destructive({
           title: "Thêm học viên thất bại",
-          description: `Không thể thêm: ${failedStudents.join(", ")}`,
+          description: failedStudents.join("\n"),
         });
       }
     } catch (error) {
@@ -5890,9 +5954,11 @@ export default function Page() {
           classCapacity={selectedClassCapacity}
           currentEnrolled={selectedClassCurrent}
           toast={toast}
-          onEnrollmentSuccess={(newEnrolledIds) => {
+          onEnrollmentSuccess={async (newEnrolledIds) => {
             // Cập nhật danh sách enrolled để lọc bỏ những student đã thêm
             setEnrolledStudentIds((prev) => [...prev, ...newEnrolledIds]);
+            const updatedClasses = await reloadClassesByCurrentBranch();
+            setClasses(updatedClasses);
           }}
         />
       )}
