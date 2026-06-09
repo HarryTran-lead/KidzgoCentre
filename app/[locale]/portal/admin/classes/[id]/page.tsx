@@ -1006,12 +1006,6 @@ export default function ClassDetailPage() {
                 <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700 whitespace-nowrap">
                   Học viên
                 </th>
-                <th className="py-3 px-6 text-center text-sm font-semibold text-gray-700 whitespace-nowrap">
-                  Chuyên cần
-                </th>
-                <th className="py-3 px-6 text-center text-sm font-semibold text-gray-700 whitespace-nowrap">
-                  Thành tích
-                </th>
                 <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700 whitespace-nowrap">
                   Hoạt động
                 </th>
@@ -1037,25 +1031,6 @@ export default function ClassDetailPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="py-4 px-6 text-center">
-                      <div className="inline-flex items-center gap-1 px-2 py-1 bg-green-50 rounded-lg">
-                        <CheckCircle size={14} className="text-green-600" />
-                        <span className="text-sm font-semibold text-green-700">
-                          {student.attendance}%
-                        </span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-6 text-center">
-                      <div className="inline-flex items-center gap-1 px-2 py-1 bg-amber-50 rounded-lg">
-                        <Star
-                          size={14}
-                          className="text-amber-600 fill-amber-600"
-                        />
-                        <span className="text-sm font-semibold text-amber-700">
-                          {student.stars}
-                        </span>
-                      </div>
-                    </td>
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-2">
                         <div
@@ -1075,7 +1050,7 @@ export default function ClassDetailPage() {
                 ))
               ) : allStudents.length > 0 ? (
                 <tr>
-                  <td colSpan={4} className="py-12 text-center">
+                  <td colSpan={2} className="py-12 text-center">
                     <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center">
                       <Search size={24} className="text-gray-400" />
                     </div>
