@@ -5857,7 +5857,7 @@ function TemplateTable({
       </div>
 
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-9999 flex items-center justify-center bg-gray-900/60 p-4 backdrop-blur-sm">
           <div className="w-full max-w-xl overflow-hidden rounded-3xl bg-white shadow-2xl">
             <div className="bg-red-600 px-6 py-5 text-white">
               <div className="flex items-start justify-between gap-4">
