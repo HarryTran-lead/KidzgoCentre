@@ -300,6 +300,8 @@ export interface ClassDetail {
   description: string;
   startDate: string;
   endDate: string;
+  actualEndDate?: string;
+  expectedEndDate: string;
   completedLessons: number;
   slotTypeId?: string | null;
   slotTypeCode?: string | null;
