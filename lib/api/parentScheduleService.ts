@@ -1,5 +1,6 @@
 import { PARENT_ENDPOINTS } from "@/constants/apiURL";
 import { get } from "@/lib/axios";
+import type { SessionSectionType } from "@/lib/sessionSectionType";
 
 export type ParentTimetableSession = {
   id: string;
@@ -12,6 +13,7 @@ export type ParentTimetableSession = {
   registrationId?: string | null;
   track?: string | null;
   isMakeup?: boolean | null;
+  sectionType?: SessionSectionType | string | null;
   plannedDatetime?: string | null;
   actualDatetime?: string | null;
   durationMinutes?: number | null;
@@ -47,6 +49,7 @@ function mapSession(raw: Record<string, unknown>): ParentTimetableSession {
     registrationId: g("registrationId", "RegistrationId"),
     track: g("track", "Track"),
     isMakeup: gb("isMakeup", "IsMakeup"),
+    sectionType: g("sectionType", "SectionType"),
     plannedDatetime: g("plannedDatetime", "PlannedDatetime"),
     actualDatetime: g("actualDatetime", "ActualDatetime"),
     durationMinutes: gn("durationMinutes", "DurationMinutes"),
