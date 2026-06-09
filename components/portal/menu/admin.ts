@@ -44,8 +44,8 @@ export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     [t.groups.learning.classes.list, BookOpen, "/classes"],
   ];
   const curriculum: RawItem[] = [
-    [t.groups.curriculum.coursesSystem.list, GraduationCap, "/courses"],
     [t.groups.curriculum.curriculumOverview.list, ListTree, "/curriculum-overview"],
+    [t.groups.curriculum.coursesSystem.list, GraduationCap, "/courses"],
     [t.groups.curriculum.academicProgression.list, Layers, "/academic-progression"],
     [t.groups.curriculum.syllabuses.list, BookOpen, "/syllabuses"],
     [t.groups.curriculum.lessonPlans.list, BookOpenCheck, "/documents/templates"],

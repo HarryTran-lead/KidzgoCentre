@@ -272,7 +272,7 @@ export default function LessonPlanTemplateDocument({
             </div>
             <div className="flex-1 px-4 py-3">
               <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-emerald-700 mb-1.5">Objectives / Mục tiêu</div>
-              <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{objectives}</div>
+              <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{formatDetailsText(objectives)}</div>
             </div>
           </div>
         )}
@@ -284,9 +284,9 @@ export default function LessonPlanTemplateDocument({
             </div>
             <div className="flex-1 px-4 py-3">
               <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-blue-700 mb-1.5">Language Content / Nội dung ngôn ngữ</div>
-              {languageContent && <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6 mb-1">{languageContent}</div>}
-              {vocabulary && <div className="text-sm text-gray-700 mb-0.5"><span className="font-semibold text-blue-600">Vocabulary: </span>{vocabulary}</div>}
-              {grammar && <div className="text-sm text-gray-700"><span className="font-semibold text-blue-600">Grammar: </span>{grammar}</div>}
+              {languageContent && <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6 mb-1">{formatDetailsText(languageContent)}</div>}
+              {vocabulary && <div className="text-sm text-gray-700 mb-0.5 whitespace-pre-wrap"><span className="font-semibold text-blue-600">Vocabulary: </span>{formatDetailsText(vocabulary)}</div>}
+              {grammar && <div className="text-sm text-gray-700 whitespace-pre-wrap"><span className="font-semibold text-blue-600">Grammar: </span>{formatDetailsText(grammar)}</div>}
             </div>
           </div>
         )}
@@ -298,7 +298,7 @@ export default function LessonPlanTemplateDocument({
             </div>
             <div className="flex-1 px-4 py-3">
               <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-orange-700 mb-1.5">Teaching Methodology / Phương pháp</div>
-              <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{teachingMethodology}</div>
+              <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{formatDetailsText(teachingMethodology)}</div>
             </div>
           </div>
         )}
@@ -310,7 +310,7 @@ export default function LessonPlanTemplateDocument({
             </div>
             <div className="flex-1 px-4 py-3">
               <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-amber-700 mb-1.5">Materials for Teacher / Học liệu giáo viên</div>
-              <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{teacherMaterials}</div>
+              <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{formatDetailsText(teacherMaterials)}</div>
             </div>
           </div>
         )}
@@ -322,7 +322,7 @@ export default function LessonPlanTemplateDocument({
             </div>
             <div className="flex-1 px-4 py-3">
               <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-yellow-700 mb-1.5">Materials for Students / Học liệu học viên</div>
-              <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{studentMaterials}</div>
+              <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{formatDetailsText(studentMaterials)}</div>
             </div>
           </div>
         )}
@@ -372,7 +372,7 @@ export default function LessonPlanTemplateDocument({
                   </div>
                 </div>
               ) : (
-                <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{procedure}</div>
+                <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{formatDetailsText(procedure || "")}</div>
               )}
             </div>
           </div>
@@ -385,7 +385,7 @@ export default function LessonPlanTemplateDocument({
             </div>
             <div className="flex-1 px-4 py-3">
               <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-red-700 mb-1.5">Evaluation / Đánh giá</div>
-              <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{evaluation}</div>
+              <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{formatDetailsText(evaluation)}</div>
             </div>
           </div>
         )}
@@ -397,7 +397,7 @@ export default function LessonPlanTemplateDocument({
             </div>
             <div className="flex-1 px-4 py-3">
               <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-pink-700 mb-1.5">Homework / Bài tập về nhà</div>
-              <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{homework}</div>
+              <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{formatDetailsText(homework)}</div>
             </div>
           </div>
         )}
@@ -405,7 +405,7 @@ export default function LessonPlanTemplateDocument({
         {teacherNote && (
           <div className="px-5 py-3 bg-yellow-50/50">
             <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-yellow-700 mb-1">Teacher Note / Ghi chú giáo án</div>
-            <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{teacherNote}</div>
+            <div className="whitespace-pre-wrap text-sm text-gray-700 leading-6">{formatDetailsText(teacherNote)}</div>
           </div>
         )}
 

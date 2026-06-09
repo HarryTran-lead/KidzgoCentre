@@ -19,7 +19,6 @@ import {
   FileText,
   Filter,
   Loader2,
-  Pencil,
   RefreshCw,
   Search,
   Settings2,
@@ -166,6 +165,81 @@ function mapDocumentToSyllabusDetail(doc: SyllabusDocument): SyllabusDetail {
     unitCount: doc.summary?.totalUnits ?? null,
     sessionTemplateCount: doc.summary?.totalSessions ?? null,
     createdAt: null,
+  };
+}
+
+function mergeSyllabusDetail(
+  fromDocument: SyllabusDetail | null,
+  fromDetail: SyllabusDetail | null,
+): SyllabusDetail | null {
+  if (!fromDocument) return fromDetail;
+  if (!fromDetail) return fromDocument;
+
+  return {
+    ...fromDetail,
+    ...fromDocument,
+    // Document.version is an optimistic-lock revision, not the syllabus business version.
+    version: fromDetail.version || fromDocument.version,
+    // Keep display metadata from detail endpoint when available.
+    programName: fromDetail.programName ?? fromDocument.programName,
+    levelName: fromDetail.levelName ?? fromDocument.levelName,
+    edition: fromDetail.edition ?? fromDocument.edition,
+    overview: fromDetail.overview ?? fromDocument.overview,
+    overallObjectives:
+      fromDetail.overallObjectives ?? fromDocument.overallObjectives,
+    specificObjectives:
+      fromDetail.specificObjectives ?? fromDocument.specificObjectives,
+    ethicsAndAttitudes:
+      fromDetail.ethicsAndAttitudes ?? fromDocument.ethicsAndAttitudes,
+    bookOverview: fromDetail.bookOverview ?? fromDocument.bookOverview,
+    totalPeriods: fromDetail.totalPeriods ?? fromDocument.totalPeriods,
+    minutesPerPeriod:
+      fromDetail.minutesPerPeriod ?? fromDocument.minutesPerPeriod,
+    totalLessons: fromDetail.totalLessons ?? fromDocument.totalLessons,
+    unitCount: fromDetail.unitCount ?? fromDocument.unitCount,
+    sessionTemplateCount:
+      fromDetail.sessionTemplateCount ?? fromDocument.sessionTemplateCount,
+    // Always prefer canonical full document payload for rendering.
+    rawContentJson: fromDocument.rawContentJson ?? fromDetail.rawContentJson,
+    // Preserve richer arrays from detail endpoint when document mapping is empty.
+    units:
+      Array.isArray(fromDetail.units) && fromDetail.units.length > 0
+        ? fromDetail.units
+        : fromDocument.units,
+    lessons:
+      Array.isArray(fromDetail.lessons) && fromDetail.lessons.length > 0
+        ? fromDetail.lessons
+        : fromDocument.lessons,
+    resources:
+      Array.isArray(fromDetail.resources) && fromDetail.resources.length > 0
+        ? fromDetail.resources
+        : fromDocument.resources,
+    sessionTemplates:
+      Array.isArray(fromDetail.sessionTemplates) &&
+      fromDetail.sessionTemplates.length > 0
+        ? fromDetail.sessionTemplates
+        : fromDocument.sessionTemplates,
+  };
+}
+
+async function fetchFullSyllabusDetail(id: string): Promise<{
+  detail: SyllabusDetail | null;
+  message?: string;
+}> {
+  const [docRes, detailRes] = await Promise.all([
+    getSyllabusDocument(id),
+    getSyllabusById(id),
+  ]);
+
+  const fromDocument =
+    docRes.isSuccess && docRes.data
+      ? mapDocumentToSyllabusDetail(docRes.data)
+      : null;
+  const fromDetail = detailRes.isSuccess ? detailRes.data : null;
+
+  return {
+    detail: mergeSyllabusDetail(fromDocument, fromDetail),
+    message: docRes.message ?? detailRes.message,
   };
 }
 
@@ -918,7 +992,7 @@ function SyllabusFormModal({
             </div>
             <div>
               <h2 className="text-lg font-bold text-white">
-                Sửa Syllabus
+                Sửa thông tin
               </h2>
               <p className="text-sm text-white/80">
                 Cập nhật thông tin syllabus
@@ -2923,56 +2997,13 @@ export default function SyllabusesPage() {
   const handleOpenDetail = async (id: string) => {
     setDetailLoading(true);
     try {
-      const [docRes, detailRes] = await Promise.all([
-        getSyllabusDocument(id),
-        getSyllabusById(id),
-      ]);
-
-      const fromDocument =
-        docRes.isSuccess && docRes.data
-          ? mapDocumentToSyllabusDetail(docRes.data)
-          : null;
-      const fromDetail = detailRes.isSuccess ? detailRes.data : null;
-
-      if (fromDocument && fromDetail) {
-        setDetail({
-          ...fromDetail,
-          ...fromDocument,
-          // Keep display metadata from detail endpoint when available.
-          programName: fromDetail.programName ?? fromDocument.programName,
-          levelName: fromDetail.levelName ?? fromDocument.levelName,
-          // Always prefer canonical full document payload for rendering.
-          rawContentJson:
-            fromDocument.rawContentJson ?? fromDetail.rawContentJson,
-          // Preserve richer arrays from detail endpoint when document mapping is empty.
-          units:
-            Array.isArray(fromDetail.units) && fromDetail.units.length > 0
-              ? fromDetail.units
-              : fromDocument.units,
-          lessons:
-            Array.isArray(fromDetail.lessons) && fromDetail.lessons.length > 0
-              ? fromDetail.lessons
-              : fromDocument.lessons,
-          resources:
-            Array.isArray(fromDetail.resources) &&
-            fromDetail.resources.length > 0
-              ? fromDetail.resources
-              : fromDocument.resources,
-          sessionTemplates:
-            Array.isArray(fromDetail.sessionTemplates) &&
-            fromDetail.sessionTemplates.length > 0
-              ? fromDetail.sessionTemplates
-              : fromDocument.sessionTemplates,
-        });
-      } else if (fromDocument) {
-        setDetail(fromDocument);
-      } else if (fromDetail) {
-        setDetail(fromDetail);
+      const result = await fetchFullSyllabusDetail(id);
+      if (result.detail) {
+        setDetail(result.detail);
       } else {
         toast({
           title: "Không thể tải chi tiết",
-          description:
-            docRes.message ?? detailRes.message ?? "Vui lòng thử lại.",
+          description: result.message ?? "Vui lòng thử lại.",
           variant: "destructive",
         });
       }
@@ -3672,7 +3703,8 @@ export default function SyllabusesPage() {
                         </button>
                         <a
                           href={`/${locale}/portal/admin/syllabuses/${item.id}/editor`}
-                          title="Editor"
+                          title="Soạn nội dung"
+                          aria-label="Soạn nội dung"
                           className="inline-flex items-center justify-center rounded-lg p-1.5 text-gray-400 hover:text-blue-600 cursor-pointer transition-colors"
                         >
                           <BookOpen size={14} />
@@ -3691,14 +3723,6 @@ export default function SyllabusesPage() {
                           className="inline-flex items-center justify-center rounded-lg p-1.5 text-gray-400 hover:text-amber-600 cursor-pointer transition-colors"
                         >
                           <Building2 size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          title="Sửa"
-                          onClick={() => setModal({ mode: "edit", item })}
-                          className="inline-flex items-center justify-center rounded-lg p-1.5 text-gray-400 hover:text-red-600 cursor-pointer transition-colors"
-                        >
-                          <Pencil size={14} />
                         </button>
                         <button
                           type="button"
@@ -3758,7 +3782,7 @@ export default function SyllabusesPage() {
       {/* Modals */}
       {modal?.mode === "edit" && (
         <SyllabusFormModal
-          initial={detail ?? modal.item}
+          initial={detail?.id === modal.item.id ? detail : modal.item}
           onClose={() => setModal(null)}
           onSubmit={(data) => handleUpdate(modal.item.id, data)}
         />

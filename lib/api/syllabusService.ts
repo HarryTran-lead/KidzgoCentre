@@ -511,6 +511,20 @@ function strAny(...values: unknown[]): string {
   return "";
 }
 
+function jsonStringAny(...values: unknown[]): string {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value;
+    if (value && typeof value === "object") {
+      try {
+        return JSON.stringify(value);
+      } catch {
+        // Ignore circular or non-serializable payloads and try the next shape.
+      }
+    }
+  }
+  return "";
+}
+
 function num(v: unknown): number | null {
   const n = Number(v);
   return isNaN(n) ? null : n;
@@ -552,7 +566,8 @@ function normalizeSyllabusDetail(item: unknown): SyllabusDetail {
     edition: strAny(source.edition, source.Edition) || null,
     effectiveFrom: strAny(source.effectiveFrom, source.EffectiveFrom) || null,
     effectiveTo: strAny(source.effectiveTo, source.EffectiveTo) || null,
-    pacingSchemeJson: strAny(source.pacingSchemeJson, source.PacingSchemeJson) || null,
+    pacingSchemeJson:
+      jsonStringAny(source.pacingSchemeJson, source.PacingSchemeJson, source.pacingScheme, source.PacingScheme) || null,
     overview: strAny(source.overview, source.Overview) || null,
     overallObjectives: strAny(source.overallObjectives, source.OverallObjectives) || null,
     specificObjectives: strAny(source.specificObjectives, source.SpecificObjectives) || null,
@@ -563,7 +578,19 @@ function normalizeSyllabusDetail(item: unknown): SyllabusDetail {
     totalLessons: num(source.totalLessons ?? source.TotalLessons),
     sourceFileName: strAny(source.sourceFileName, source.SourceFileName) || null,
     attachmentUrl: strAny(source.attachmentUrl, source.AttachmentUrl) || null,
-    rawContentJson: strAny(source.rawContentJson, source.RawContentJson) || null,
+    rawContentJson:
+      jsonStringAny(
+        source.rawContentJson,
+        source.RawContentJson,
+        source.contentJson,
+        source.ContentJson,
+        source.documentJson,
+        source.DocumentJson,
+        source.sectionsJson,
+        source.SectionsJson,
+        source.rawContent,
+        source.RawContent,
+      ) || null,
     units: Array.isArray(source.units) ? source.units : Array.isArray(source.Units) ? source.Units : [],
     lessons: Array.isArray(source.lessons) ? source.lessons : Array.isArray(source.Lessons) ? source.Lessons : [],
     resources: Array.isArray(source.resources) ? source.resources : Array.isArray(source.Resources) ? source.Resources : [],
@@ -604,8 +631,33 @@ function normalizeDocumentWarning(item: unknown): SyllabusDocumentWarning {
 function normalizeDocumentCell(item: unknown): SyllabusDocumentTableCell {
   const source = (item ?? {}) as Record<string, unknown>;
   return {
-    columnKey: strAny(source.columnKey, source.ColumnKey, source.columnId, source.ColumnId, source.key, source.Key),
-    value: strAny(source.value, source.Value, source.content, source.Content, source.text, source.Text) || null,
+    columnKey: strAny(
+      source.columnKey,
+      source.ColumnKey,
+      source.columnId,
+      source.ColumnId,
+      source.key,
+      source.Key,
+      source.field,
+      source.Field,
+      source.name,
+      source.Name,
+      source.label,
+      source.Label,
+    ),
+    value:
+      strAny(
+        source.value,
+        source.Value,
+        source.displayValue,
+        source.DisplayValue,
+        source.valueText,
+        source.ValueText,
+        source.content,
+        source.Content,
+        source.text,
+        source.Text,
+      ) || null,
     rowSpan: num(source.rowSpan ?? source.RowSpan),
     colSpan: num(source.colSpan ?? source.ColSpan),
     align: strAny(source.align, source.Align) || null,
@@ -618,26 +670,44 @@ function normalizeDocumentRow(
   columns: SyllabusDocumentTableColumn[] = [],
 ): SyllabusDocumentTableRow {
   const source = (item ?? {}) as Record<string, unknown>;
-  const groupObj = ((source.group ?? source.Group) ?? null) as Record<string, unknown> | null;
+  const groupObj = ((source.group ?? source.Group ?? source.rowGroup ?? source.RowGroup) ?? null) as Record<string, unknown> | null;
   const valuesSource = source.values ?? source.Values;
   const cellsSource = source.cells ?? source.Cells ?? source.items ?? source.Items ?? valuesSource;
 
-  let normalizedCells = Array.isArray(cellsSource)
-    ? (cellsSource as unknown[])
-        .map((cell: unknown, index) => {
-          if (cell && typeof cell === "object") return normalizeDocumentCell(cell);
-          const column = columns[index];
-          return {
-            columnKey: column?.key ?? `col-${index + 1}`,
-            value: strAny(cell) || null,
-            rowSpan: null,
-            colSpan: null,
-            align: null,
-            bold: null,
-          } satisfies SyllabusDocumentTableCell;
-        })
-        .filter((cell) => cell.columnKey || cell.value)
-    : [];
+  let normalizedCells: SyllabusDocumentTableCell[] = [];
+
+  if (Array.isArray(cellsSource)) {
+    normalizedCells = (cellsSource as unknown[])
+      .map((cell: unknown, index) => {
+        if (cell && typeof cell === "object") return normalizeDocumentCell(cell);
+        const column = columns[index];
+        return {
+          columnKey: column?.key ?? `col-${index + 1}`,
+          value: strAny(cell) || null,
+          rowSpan: null,
+          colSpan: null,
+          align: null,
+          bold: null,
+        } satisfies SyllabusDocumentTableCell;
+      })
+      .filter((cell) => cell.columnKey || cell.value);
+  } else if (cellsSource && typeof cellsSource === "object") {
+    normalizedCells = Object.entries(cellsSource as Record<string, unknown>)
+      .map(([key, value]) => {
+        if (value && typeof value === "object") {
+          return normalizeDocumentCell({ columnKey: key, ...(value as Record<string, unknown>) });
+        }
+        return {
+          columnKey: key,
+          value: strAny(value) || null,
+          rowSpan: null,
+          colSpan: null,
+          align: null,
+          bold: null,
+        } satisfies SyllabusDocumentTableCell;
+      })
+      .filter((cell) => cell.columnKey || cell.value);
+  }
 
   if (normalizedCells.length === 0 && columns.length > 0) {
     normalizedCells = columns.map((column) => {
@@ -658,7 +728,7 @@ function normalizeDocumentRow(
   }
 
   return {
-    rowId: strAny(source.rowId, source.RowId),
+    rowId: strAny(source.rowId, source.RowId, source.id, source.Id, source.key, source.Key),
     orderIndex: num(source.orderIndex ?? source.OrderIndex),
     group: groupObj
       ? {
@@ -673,20 +743,58 @@ function normalizeDocumentRow(
 
 function normalizeDocumentSection(item: unknown): SyllabusDocumentSection {
   const source = (item ?? {}) as Record<string, unknown>;
-  const tableObj = ((source.table ?? source.Table) ?? null) as Record<string, unknown> | null;
-  const normalizedType = strAny(source.type, source.Type).toLowerCase();
+  const parseRecord = (value: unknown): Record<string, unknown> | null => {
+    if (value && typeof value === "object" && !Array.isArray(value)) return value as Record<string, unknown>;
+    if (typeof value === "string" && value.trim()) {
+      try {
+        const parsed = JSON.parse(value);
+        return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+          ? (parsed as Record<string, unknown>)
+          : null;
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  };
+
+  const explicitTableObj = parseRecord(source.table ?? source.Table);
+  const jsonTableObj = parseRecord(
+    source.tableJson ?? source.TableJson ?? source.contentJson ?? source.ContentJson,
+  );
+  const tableCandidate = explicitTableObj ?? jsonTableObj;
+  const tableObj =
+    tableCandidate && (tableCandidate.table || tableCandidate.Table)
+      ? parseRecord(tableCandidate.table ?? tableCandidate.Table)
+      : tableCandidate ??
+        (Array.isArray(source.columns ?? source.Columns ?? source.headers ?? source.Headers) &&
+        Array.isArray(source.rows ?? source.Rows ?? source.dataRows ?? source.DataRows)
+          ? source
+          : null);
+  const normalizedType = strAny(source.type, source.Type, source.sectionType, source.SectionType).toLowerCase();
 
   const rawColumns = tableObj
-    ? (tableObj.columns ?? tableObj.Columns ?? tableObj.headers ?? tableObj.Headers ?? tableObj.columnDefinitions ?? tableObj.ColumnDefinitions)
+    ? (tableObj.columns ??
+      tableObj.Columns ??
+      tableObj.headers ??
+      tableObj.Headers ??
+      tableObj.columnDefinitions ??
+      tableObj.ColumnDefinitions ??
+      tableObj.fields ??
+      tableObj.Fields)
     : null;
   const columns: SyllabusDocumentTableColumn[] = Array.isArray(rawColumns)
     ? (rawColumns as unknown[])
         .map((column, index) => {
+          if (typeof column === "string") {
+            const key = column.trim() || `col-${index + 1}`;
+            return { key, label: key, width: null, sticky: null };
+          }
           const col = (column ?? {}) as Record<string, unknown>;
-          const key = strAny(col.key, col.Key, col.columnKey, col.ColumnKey) || `col-${index + 1}`;
+          const key = strAny(col.key, col.Key, col.columnKey, col.ColumnKey, col.field, col.Field, col.name, col.Name) || `col-${index + 1}`;
           return {
             key,
-            label: strAny(col.label, col.Label, col.title, col.Title, col.name, col.Name) || key,
+            label: strAny(col.label, col.Label, col.title, col.Title, col.name, col.Name, col.header, col.Header) || key,
             width: num(col.width ?? col.Width),
             sticky: bool(col.sticky ?? col.Sticky),
           };
@@ -695,7 +803,18 @@ function normalizeDocumentSection(item: unknown): SyllabusDocumentSection {
     : [];
 
   const rawRows = tableObj
-    ? (tableObj.rows ?? tableObj.Rows ?? tableObj.dataRows ?? tableObj.DataRows ?? tableObj.body ?? tableObj.Body ?? tableObj.items ?? tableObj.Items)
+    ? (tableObj.rows ??
+      tableObj.Rows ??
+      tableObj.dataRows ??
+      tableObj.DataRows ??
+      tableObj.tableRows ??
+      tableObj.TableRows ??
+      tableObj.records ??
+      tableObj.Records ??
+      tableObj.body ??
+      tableObj.Body ??
+      tableObj.items ??
+      tableObj.Items)
     : null;
   const rows: SyllabusDocumentTableRow[] = Array.isArray(rawRows)
     ? (rawRows as unknown[]).map((row) => normalizeDocumentRow(row, columns))
@@ -710,9 +829,9 @@ function normalizeDocumentSection(item: unknown): SyllabusDocumentSection {
         : "narrative";
 
   return {
-    sectionId: strAny(source.sectionId, source.SectionId),
+    sectionId: strAny(source.sectionId, source.SectionId, source.id, source.Id, source.key, source.Key),
     type,
-    title: strAny(source.title, source.Title) || null,
+    title: strAny(source.title, source.Title, source.name, source.Name) || null,
     orderIndex: num(source.orderIndex ?? source.OrderIndex),
     editable: bool(source.editable ?? source.Editable),
     content: strAny(source.content, source.Content) || null,
@@ -727,9 +846,9 @@ function normalizeDocumentSection(item: unknown): SyllabusDocumentSection {
 
 function normalizeSyllabusDocument(item: unknown): SyllabusDocument | null {
   const source = (item ?? {}) as Record<string, unknown>;
-  const id = strAny(source.id, source.Id);
-  const code = strAny(source.code, source.Code);
-  const title = strAny(source.title, source.Title);
+  const id = strAny(source.id, source.Id, source.syllabusId, source.SyllabusId);
+  const code = strAny(source.code, source.Code, source.syllabusCode, source.SyllabusCode, id);
+  const title = strAny(source.title, source.Title, source.syllabusTitle, source.SyllabusTitle, source.name, source.Name, code);
   if (!code || !title) return null;
 
   const sectionsSource = source.sections ?? source.Sections;

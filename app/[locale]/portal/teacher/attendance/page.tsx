@@ -219,6 +219,14 @@ function normalizeGuidValue(value: unknown): string | null {
   return raw.length >= 8 ? raw : null;
 }
 
+function resolveSyllabusId(...values: unknown[]): string {
+  for (const value of values) {
+    const normalized = normalizeGuidValue(value);
+    if (normalized) return normalized;
+  }
+  return "";
+}
+
 function normalizeTeachingType(value: unknown): TeachingType | null {
   const normalized = String(value ?? "").trim().toLowerCase();
   if (
@@ -348,6 +356,64 @@ function getTeachingSyllabusLoadError(
     .find(Boolean);
 
   return backendMessage || "Không tải được chi tiết syllabus đầy đủ cho buổi này.";
+}
+
+function mergeSyllabusDetailSources(
+  fromDocument: SyllabusDetail | null,
+  fromDetail: SyllabusDetail | null,
+): SyllabusDetail | null {
+  if (fromDocument && fromDetail) {
+    return {
+      ...fromDetail,
+      ...fromDocument,
+      programName: fromDetail.programName ?? fromDocument.programName,
+      levelName: fromDetail.levelName ?? fromDocument.levelName,
+      rawContentJson: fromDocument.rawContentJson ?? fromDetail.rawContentJson,
+      units: Array.isArray(fromDetail.units) && fromDetail.units.length > 0 ? fromDetail.units : fromDocument.units,
+      lessons: Array.isArray(fromDetail.lessons) && fromDetail.lessons.length > 0 ? fromDetail.lessons : fromDocument.lessons,
+      resources: Array.isArray(fromDetail.resources) && fromDetail.resources.length > 0 ? fromDetail.resources : fromDocument.resources,
+      sessionTemplates:
+        Array.isArray(fromDetail.sessionTemplates) && fromDetail.sessionTemplates.length > 0
+          ? fromDetail.sessionTemplates
+          : fromDocument.sessionTemplates,
+    };
+  }
+
+  return fromDocument ?? fromDetail;
+}
+
+async function loadAdminStyleSyllabusDetail(
+  syllabusId: string,
+): Promise<{ detail: SyllabusDetail | null; error: string | null }> {
+  const [documentResponse, detailResponse] = await Promise.all([
+    getSyllabusDocument(syllabusId),
+    getSyllabusById(syllabusId),
+  ]);
+
+  const permissionError = getTeachingSyllabusPermissionError(
+    documentResponse,
+    detailResponse,
+  );
+
+  if (permissionError) {
+    return { detail: null, error: permissionError };
+  }
+
+  const fromDocument =
+    documentResponse.isSuccess && documentResponse.data
+      ? mapSyllabusDocumentToDetail(documentResponse.data)
+      : null;
+  const fromDetail = detailResponse.isSuccess ? detailResponse.data : null;
+  const detail = mergeSyllabusDetailSources(fromDocument, fromDetail);
+  const documentWarning =
+    detail && !fromDocument && !documentResponse.isSuccess
+      ? getTeachingSyllabusLoadError(documentResponse)
+      : null;
+
+  return {
+    detail,
+    error: documentWarning ?? (detail ? null : getTeachingSyllabusLoadError(documentResponse, detailResponse)),
+  };
 }
 
 function extractFirstLessonNumber(value: unknown): number | null {
@@ -1619,7 +1685,7 @@ export default function TeacherAttendancePage() {
   const [teachingReportSyllabusMetadata, setTeachingReportSyllabusMetadata] = useState<string | null>(null);
   const [teachingSyllabusDetail, setTeachingSyllabusDetail] = useState<SyllabusDetail | null>(null);
   const [, setTeachingSyllabusDetailLoading] = useState(false);
-  const [, setTeachingSyllabusDetailError] = useState<string | null>(null);
+  const [teachingSyllabusDetailError, setTeachingSyllabusDetailError] = useState<string | null>(null);
   const [teachingActualContent, setTeachingActualContent] = useState("");
   const [teachingActualHomework, setTeachingActualHomework] = useState("");
   const [teachingTeacherNotes, setTeachingTeacherNotes] = useState("");
@@ -1651,11 +1717,11 @@ export default function TeacherAttendancePage() {
     return mapSessionToLessonDetail(selectedSession);
   }, [selectedSession]);
 
-  const teachingSyllabusId = String(
-    teachingReportTemplate?.syllabusId ??
-    teachingReportSession?.syllabusId ??
-    ""
-  ).trim();
+  const teachingSyllabusId = resolveSyllabusId(
+    teachingReportSession?.syllabusId,
+    teachingReportDocument?.syllabusId,
+    teachingReportTemplate?.syllabusId,
+  );
   const shouldRenderAdminStyleSyllabus = teachingModalView === "syllabus";
   const teachingCurriculumLessonFilter = String(
     getExpectedLessonNumber(
@@ -1774,57 +1840,24 @@ export default function TeacherAttendancePage() {
     setTeachingSyllabusDetailLoading(true);
     setTeachingSyllabusDetailError(null);
 
-    void Promise.all([
-      getSyllabusDocument(teachingSyllabusId),
-      getSyllabusById(teachingSyllabusId),
-    ])
-      .then(([documentResponse, detailResponse]) => {
+    void loadAdminStyleSyllabusDetail(teachingSyllabusId)
+      .then(({ detail, error }) => {
         if (cancelled) return;
 
-        const permissionError = getTeachingSyllabusPermissionError(
-          documentResponse,
-          detailResponse,
-        );
-
-        if (permissionError) {
-          setTeachingSyllabusDetail(null);
-          setTeachingSyllabusDetailError(permissionError);
+        if (detail) {
+          setTeachingSyllabusDetail(detail);
+          setTeachingSyllabusDetailError(error);
           return;
         }
 
-        const fromDocument =
-          documentResponse.isSuccess && documentResponse.data
-            ? mapSyllabusDocumentToDetail(documentResponse.data)
-            : null;
-        const fromDetail = detailResponse.isSuccess ? detailResponse.data : null;
-
-        const mergedDetail = fromDocument && fromDetail
-          ? {
-              ...fromDetail,
-              ...fromDocument,
-              programName: fromDetail.programName ?? fromDocument.programName,
-              levelName: fromDetail.levelName ?? fromDocument.levelName,
-              rawContentJson: fromDocument.rawContentJson ?? fromDetail.rawContentJson,
-              units: Array.isArray(fromDetail.units) && fromDetail.units.length > 0 ? fromDetail.units : fromDocument.units,
-              lessons: Array.isArray(fromDetail.lessons) && fromDetail.lessons.length > 0 ? fromDetail.lessons : fromDocument.lessons,
-              resources: Array.isArray(fromDetail.resources) && fromDetail.resources.length > 0 ? fromDetail.resources : fromDocument.resources,
-              sessionTemplates:
-                Array.isArray(fromDetail.sessionTemplates) && fromDetail.sessionTemplates.length > 0
-                  ? fromDetail.sessionTemplates
-                  : fromDocument.sessionTemplates,
-            }
-          : (fromDocument ?? fromDetail);
-
-        if (mergedDetail) {
-          setTeachingSyllabusDetail(mergedDetail);
-          setTeachingSyllabusDetailError(null);
+        if (error) {
+          setTeachingSyllabusDetail(null);
+          setTeachingSyllabusDetailError(error);
           return;
         }
 
         setTeachingSyllabusDetail(null);
-        setTeachingSyllabusDetailError(
-          getTeachingSyllabusLoadError(documentResponse, detailResponse),
-        );
+        setTeachingSyllabusDetailError("Không tải được chi tiết syllabus đầy đủ cho buổi này.");
       })
       .catch((error) => {
         if (cancelled) return;
@@ -2352,9 +2385,40 @@ export default function TeacherAttendancePage() {
                   </table>
                 </div>
               ) : (
-                <div className="max-h-64 overflow-auto rounded-lg border border-blue-100 bg-white p-3 text-xs leading-5 text-gray-600 whitespace-pre-wrap">
-                  {teachingReportSession?.templateSyllabusContent}
-                </div>
+                <LessonPlanTemplateDocument
+                  template={{
+                    id:
+                      teachingReportTemplate?.id ??
+                      teachingReportSession?.templateId ??
+                      teachingReportSession?.sessionId ??
+                      "syllabus-reference",
+                    title:
+                      teachingReportTemplate?.title ??
+                      teachingReportSession?.templateTitle ??
+                      selectedLesson?.plannedLessonTitle ??
+                      "Syllabus chuẩn",
+                    sessionIndex:
+                      teachingReportTemplate?.sessionIndex ??
+                      teachingReportSession?.sessionIndexInModule ??
+                      teachingReportSession?.sessionIndex ??
+                      selectedLesson?.sessionIndexInModule ??
+                      0,
+                    sessionOrder:
+                      teachingReportTemplate?.sessionOrder ??
+                      teachingReportSession?.sessionIndexInModule ??
+                      teachingReportSession?.sessionIndex ??
+                      selectedLesson?.sessionIndexInModule ??
+                      null,
+                    syllabusId: teachingReportSession?.syllabusId ?? teachingReportTemplate?.syllabusId ?? null,
+                    syllabusCode: teachingReportSession?.syllabusCode ?? teachingReportTemplate?.syllabusCode ?? null,
+                    syllabusVersion: teachingReportSession?.syllabusVersion ?? teachingReportTemplate?.syllabusVersion ?? null,
+                    syllabusTitle: teachingReportSession?.syllabusTitle ?? teachingReportTemplate?.syllabusTitle ?? null,
+                    moduleId: teachingReportSession?.moduleId ?? teachingReportTemplate?.moduleId ?? null,
+                    moduleCode: teachingReportSession?.moduleCode ?? teachingReportTemplate?.moduleCode ?? null,
+                    moduleName: teachingReportSession?.moduleName ?? teachingReportTemplate?.moduleName ?? null,
+                    syllabusContent: teachingReportSession?.templateSyllabusContent ?? null,
+                  }}
+                />
               )}
             </div>
           );
@@ -3714,15 +3778,22 @@ export default function TeacherAttendancePage() {
         }
       }
 
-      // Load syllabus detail if requested
-      if (shouldOpenFullSyllabus && baseTeachingReportSession?.syllabusId) {
+      // Load the same canonical document+detail payload as the admin syllabus modal.
+      const baseSyllabusId = resolveSyllabusId(baseTeachingReportSession?.syllabusId);
+      if (shouldOpenFullSyllabus && baseSyllabusId) {
         try {
-          const syllabusResp = await getSyllabusById(baseTeachingReportSession.syllabusId);
-          if (syllabusResp.isSuccess && syllabusResp.data) {
-            setTeachingSyllabusDetail(syllabusResp.data);
+          const { detail, error } = await loadAdminStyleSyllabusDetail(baseSyllabusId);
+          if (detail) {
+            setTeachingSyllabusDetail(detail);
+            setTeachingSyllabusDetailError(error);
+          } else if (error) {
+            setTeachingSyllabusDetailError(error);
           }
         } catch (err: any) {
           console.error("Error loading full syllabus detail:", err);
+          setTeachingSyllabusDetailError(
+            getTeachingSyllabusLoadError({ message: err?.message }),
+          );
         }
       }
     } catch (err: any) {
@@ -3757,12 +3828,18 @@ export default function TeacherAttendancePage() {
 
     const loadSyllabusDetail = async () => {
       try {
-        const resp = await getSyllabusById(teachingSyllabusId);
-        if (resp.isSuccess && resp.data) {
-          setTeachingSyllabusDetail(resp.data);
+        const { detail, error } = await loadAdminStyleSyllabusDetail(teachingSyllabusId);
+        if (detail) {
+          setTeachingSyllabusDetail(detail);
+          setTeachingSyllabusDetailError(error);
+        } else if (error) {
+          setTeachingSyllabusDetailError(error);
         }
       } catch (err: any) {
         console.error("Error loading syllabus detail:", err);
+        setTeachingSyllabusDetailError(
+          getTeachingSyllabusLoadError({ message: err?.message }),
+        );
       }
     };
 
@@ -4702,7 +4779,7 @@ export default function TeacherAttendancePage() {
           {teachingReportOpen && createPortal(
             <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
               <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleCloseTeachingReport} />
-              <div className="relative flex w-full max-w-[85vw] xl:max-w-[1000px] max-h-[92vh] flex-col rounded-2xl border border-gray-100 bg-white shadow-2xl overflow-hidden">
+              <div className="relative flex h-[72vh] min-h-[560px] max-h-[calc(100vh-2rem)] w-[78vw] min-w-[720px] max-w-[calc(100vw-2rem)] resize flex-col rounded-2xl border border-gray-100 bg-white shadow-2xl overflow-hidden">
                 {/* Header - Always show */}
                 <div className="flex items-center justify-between px-5 py-4 flex-shrink-0 border-b border-red-200 bg-gradient-to-r from-red-600 to-red-700 text-white">
                   <div className="flex items-center gap-2.5">
@@ -4758,6 +4835,13 @@ export default function TeacherAttendancePage() {
                       </div>
                       {renderTeachingModalViewSwitch()}
                     </div>
+
+                    {teachingSyllabusDetailError ? (
+                      <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                        <AlertCircle size={16} className="mt-0.5 shrink-0" />
+                        <span>{teachingSyllabusDetailError}</span>
+                      </div>
+                    ) : null}
 
                     <div className="border border-red-100 rounded-xl overflow-hidden">
                       <SyllabusDetailModalBody
@@ -5349,6 +5433,7 @@ export default function TeacherAttendancePage() {
                     )}
                   </div>
                 )}
+                <div aria-hidden="true" className="pointer-events-none absolute bottom-2 right-2 h-4 w-4 rounded-sm border-b-2 border-r-2 border-gray-300/80" />
               </div>
             </div>,
           document.body)}

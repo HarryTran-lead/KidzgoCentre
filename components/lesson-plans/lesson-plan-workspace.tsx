@@ -336,6 +336,21 @@ function isTrivialPlannedContent(value?: string | null) {
   return hasOnlySkeletonKeys && hasEmptyActivities;
 }
 
+function getPreparedLessonPlanContent(
+  session: Pick<ClassLessonPlanSyllabusSession, "plannedContent">,
+): string | null {
+  return !isTrivialPlannedContent(session.plannedContent) &&
+    hasDisplayablePayload(session.plannedContent)
+    ? session.plannedContent ?? null
+    : null;
+}
+
+function hasPreparedLessonPlanContent(
+  session: Pick<ClassLessonPlanSyllabusSession, "plannedContent">,
+): boolean {
+  return Boolean(getPreparedLessonPlanContent(session));
+}
+
 function asObject(value: unknown): Record<string, unknown> | null {
   if (value && typeof value === "object" && !Array.isArray(value)) {
     return value as Record<string, unknown>;
@@ -1357,6 +1372,7 @@ function getTemplateStats(templates: LessonPlanTemplate[]) {
 function getPlanStats(
   syllabus: ClassLessonPlanSyllabus | null,
   sessionSource?: ClassLessonPlanSyllabusSession[],
+  showPreparedPlan = true,
 ) {
   const sessions = sessionSource ?? syllabus?.sessions ?? [];
 
@@ -1368,13 +1384,17 @@ function getPlanStats(
       icon: CalendarDays,
       color: "from-red-600 to-red-700",
     },
-    {
-      title: "Đã có giáo án",
-      value: String(sessions.filter((item) => item.lessonPlanId).length),
-      subtitle: "Session đã được tạo bản ghi",
-      icon: FileText,
-      color: "from-emerald-500 to-teal-500",
-    },
+    ...(showPreparedPlan
+      ? [
+          {
+            title: "Đã có giáo án",
+            value: String(sessions.filter(hasPreparedLessonPlanContent).length),
+            subtitle: "Session đã có nội dung giáo án dự kiến",
+            icon: FileText,
+            color: "from-emerald-500 to-teal-500",
+          },
+        ]
+      : []),
     {
       title: "Có thể chỉnh sửa",
       value: String(sessions.filter((item) => item.canEdit).length),
@@ -1396,6 +1416,7 @@ function getSyllabusSummaryItems(
   syllabus: ClassLessonPlanSyllabus | null,
   sessionSource?: ClassLessonPlanSyllabusSession[],
   classDetail?: ClassApiDetail | null,
+  showPreparedPlan = true,
 ) {
   const sessions = sessionSource ?? syllabus?.sessions ?? [];
   const syllabusLabel =
@@ -1418,10 +1439,14 @@ function getSyllabusSummaryItems(
     { label: "Thông tin syllabus", value: syllabusLabel },
     { label: "Module hiện tại", value: currentModuleLabel },
     { label: "Tổng buổi", value: sessions.length },
-    {
-      label: "Đã có giáo án",
-      value: sessions.filter((item) => item.lessonPlanId).length,
-    },
+    ...(showPreparedPlan
+      ? [
+          {
+            label: "Đã có giáo án",
+            value: sessions.filter(hasPreparedLessonPlanContent).length,
+          },
+        ]
+      : []),
     {
       label: "Đã báo cáo",
       value: sessions.filter((item) => item.actualContent).length,
@@ -1624,6 +1649,7 @@ export function LessonPlanWorkspace({
     () => pickSharedProgramTemplate(templates, classSyllabus?.programId),
     [classSyllabus?.programId, templates],
   );
+  const showPreparedPlanUi = scope !== "teacher";
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -2383,9 +2409,7 @@ export function LessonPlanWorkspace({
       if (!template && !planTargetModuleId) return session;
       const templateSyllabusContent =
         template?.syllabusContent ?? session.templateSyllabusContent ?? null;
-      const plannedContent = session.lessonPlanId
-        ? session.plannedContent ?? templateSyllabusContent
-        : templateSyllabusContent ?? session.plannedContent ?? null;
+      const plannedContent = session.plannedContent ?? null;
 
       return {
         ...session,
@@ -2540,11 +2564,19 @@ export function LessonPlanWorkspace({
         return false;
       }
 
-      if (planStatusFilter === "hasPlan" && !item.lessonPlanId) {
+      if (
+        showPreparedPlanUi &&
+        planStatusFilter === "hasPlan" &&
+        !hasPreparedLessonPlanContent(item)
+      ) {
         return false;
       }
 
-      if (planStatusFilter === "missingPlan" && item.lessonPlanId) {
+      if (
+        showPreparedPlanUi &&
+        planStatusFilter === "missingPlan" &&
+        hasPreparedLessonPlanContent(item)
+      ) {
         return false;
       }
 
@@ -2582,7 +2614,13 @@ export function LessonPlanWorkspace({
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(keyword));
     });
-  }, [planBaseSessions, planStatusFilter, searchQuery, sharedProgramTemplate?.id]);
+  }, [
+    planBaseSessions,
+    planStatusFilter,
+    searchQuery,
+    sharedProgramTemplate?.id,
+    showPreparedPlanUi,
+  ]);
 
   useEffect(() => {
     if (!sessionDetailId) return;
@@ -2595,11 +2633,12 @@ export function LessonPlanWorkspace({
   const stats = useMemo(() => {
     return activeTab === "templates" && templatesAvailable
       ? getTemplateStats(templateStatsSource)
-      : getPlanStats(classSyllabus, planBaseSessions);
+      : getPlanStats(classSyllabus, planBaseSessions, showPreparedPlanUi);
   }, [
     activeTab,
     classSyllabus,
     planBaseSessions,
+    showPreparedPlanUi,
     templateStatsSource,
     templatesAvailable,
   ]);
@@ -3383,6 +3422,7 @@ export function LessonPlanWorkspace({
         templates={templates}
         classSyllabus={classSyllabus}
         planSessions={planBaseSessions}
+        showPreparedPlanFilter={showPreparedPlanUi}
       />
 
       {activeTab === "plans" && classSyllabus ? (
@@ -3430,6 +3470,7 @@ export function LessonPlanWorkspace({
                 classSyllabus,
                 planBaseSessions,
                 classDetail,
+                showPreparedPlanUi,
               );
               
               const getBadgeStyle = (label: string) => {
@@ -3492,7 +3533,9 @@ export function LessonPlanWorkspace({
 
               <div className="grid grid-cols-6 gap-2 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-14 xl:grid-cols-16">
                 {filteredSessions.map((session) => {
-                  const hasPlan = Boolean(session.lessonPlanId);
+                  const hasPreparedPlan =
+                    showPreparedPlanUi &&
+                    hasPreparedLessonPlanContent(session);
                   const hasReport = Boolean(session.actualContent);
                   const isActive = sessionDetailId === session.sessionId;
                   const displaySessionIndex = getModuleSessionDisplayIndex(session);
@@ -3506,7 +3549,7 @@ export function LessonPlanWorkspace({
                   } else if (hasReport) {
                     buttonClasses +=
                       "bg-gradient-to-br from-emerald-500 to-emerald-600 text-white border border-emerald-700 hover:from-emerald-600 hover:to-emerald-700 hover:scale-105 hover:shadow-lg";
-                  } else if (hasPlan) {
+                  } else if (hasPreparedPlan) {
                     buttonClasses +=
                       "bg-gradient-to-br from-blue-500 to-blue-600 text-white border border-blue-700 hover:from-blue-600 hover:to-blue-700 hover:scale-105 hover:shadow-lg";
                   } else {
@@ -3520,13 +3563,13 @@ export function LessonPlanWorkspace({
                       type="button"
                       onClick={() => setSessionDetailId(session.sessionId)}
                       className={buttonClasses}
-                      title={`Buổi ${displaySessionIndex}${hasPlan ? " - Có giáo án" : ""}${hasReport ? " - Đã báo cáo" : ""}`}
+                      title={`Buổi ${displaySessionIndex}${hasPreparedPlan ? " - Có giáo án" : ""}${hasReport ? " - Đã báo cáo" : ""}`}
                     >
                       <span>{displaySessionIndex}</span>
                       {hasReport && !isActive && (
                         <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-yellow-300 ring-1 ring-white shadow-sm" />
                       )}
-                      {hasPlan && !hasReport && !isActive && (
+                      {hasPreparedPlan && !hasReport && !isActive && (
                         <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-cyan-300 ring-1 ring-white shadow-sm" />
                       )}
                     </button>
@@ -3540,10 +3583,12 @@ export function LessonPlanWorkspace({
                   <div className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
                   <span className="text-gray-500">Đã báo cáo</span>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="h-2.5 w-2.5 rounded-full bg-blue-400" />
-                  <span className="text-gray-500">Có giáo án</span>
-                </div>
+                {showPreparedPlanUi ? (
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-2.5 w-2.5 rounded-full bg-blue-400" />
+                    <span className="text-gray-500">Có giáo án</span>
+                  </div>
+                ) : null}
                 <div className="flex items-center gap-1.5">
                   <div className="h-2.5 w-2.5 rounded-full bg-gray-300" />
                   <span className="text-gray-500">Chưa chuẩn bị</span>
@@ -3655,6 +3700,7 @@ function FilterBar({
   templates,
   classSyllabus,
   planSessions,
+  showPreparedPlanFilter = true,
 }: {
   templatesAvailable: boolean;
   searchQuery: string;
@@ -3679,6 +3725,7 @@ function FilterBar({
   templates: LessonPlanTemplate[];
   classSyllabus: ClassLessonPlanSyllabus | null;
   planSessions?: ClassLessonPlanSyllabusSession[];
+  showPreparedPlanFilter?: boolean;
 }) {
   return (
     <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4">
@@ -3760,8 +3807,9 @@ function FilterBar({
               [
                 "all",
                 "editable",
-                "hasPlan",
-                "missingPlan",
+                ...(showPreparedPlanFilter
+                  ? (["hasPlan", "missingPlan"] as const)
+                  : []),
                 "reported",
                 "notReported",
               ] as const
@@ -3781,10 +3829,16 @@ function FilterBar({
                   if (filterStatus === "editable" && !item.canEdit) {
                     return false;
                   }
-                  if (filterStatus === "hasPlan" && !item.lessonPlanId) {
+                  if (
+                    filterStatus === "hasPlan" &&
+                    !hasPreparedLessonPlanContent(item)
+                  ) {
                     return false;
                   }
-                  if (filterStatus === "missingPlan" && item.lessonPlanId) {
+                  if (
+                    filterStatus === "missingPlan" &&
+                    hasPreparedLessonPlanContent(item)
+                  ) {
                     return false;
                   }
                   if (filterStatus === "reported" && !item.actualContent) {
@@ -6102,13 +6156,11 @@ function SessionDetailCard({
     templateHasStructuredContent,
   );
   const hasReport = Boolean(session.actualContent);
-  const hasPlan = Boolean(session.lessonPlanId);
-  const showPlannedContentCard = hasPlan;
-  const normalizedPlannedContent =
-    !isTrivialPlannedContent(session.plannedContent) &&
-    hasDisplayablePayload(session.plannedContent)
-      ? session.plannedContent
-      : null;
+  const hasLessonPlanRecord = Boolean(session.lessonPlanId);
+  const showPreparedPlanUi = scope !== "teacher";
+  const normalizedPlannedContent = getPreparedLessonPlanContent(session);
+  const hasPreparedPlan = showPreparedPlanUi && Boolean(normalizedPlannedContent);
+  const showPlannedContentCard = hasPreparedPlan;
   const plannedContentFallback =
     session.templateSyllabusContent ||
     resolvedTemplate?.syllabusContent ||
@@ -6182,7 +6234,7 @@ function SessionDetailCard({
                 Đã báo cáo
               </span>
             )}
-            {hasPlan && (
+            {hasPreparedPlan && (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-blue-100 to-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 border border-blue-200/60 ring-1 ring-blue-400/20">
                 <FileText size={12} />
                 Có giáo án
@@ -6194,7 +6246,7 @@ function SessionDetailCard({
                 {templateBadgeLabel}
               </span>
             )}
-            {!hasReport && hasPlan && (
+            {!hasReport && hasPreparedPlan && (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-100 to-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 border border-amber-200/60 ring-1 ring-amber-400/20">
                 <Clock3 size={12} />
                 Chưa báo cáo
@@ -6225,7 +6277,7 @@ function SessionDetailCard({
             </button>
           )}
 
-          {hasPlan ? (
+          {hasLessonPlanRecord ? (
             <button
               type="button"
               onClick={() => onOpenPlanDetail(session.lessonPlanId!)}
@@ -7164,6 +7216,7 @@ function SessionDetailCard({
             <StructuredContent
               value={session.actualContent}
               placeholder="Chưa có nội dung thực tế."
+              mode="actual"
             />
           </ContentCard>
 
@@ -7264,15 +7317,39 @@ function SessionContentModal({
     },
   };
   const config = modalConfig[kind];
-  const syllabusTemplateForDisplay = resolvedTemplate
-    ? {
-        ...resolvedTemplate,
-        syllabusContent:
-          resolvedTemplate.syllabusContent ??
-          session.templateSyllabusContent ??
-          null,
-      }
-    : null;
+  const syllabusTemplateForDisplay =
+    resolvedTemplate
+      ? {
+          ...resolvedTemplate,
+          syllabusContent:
+            resolvedTemplate.syllabusContent ??
+            session.templateSyllabusContent ??
+            null,
+        }
+      : session.templateSyllabusContent?.trim()
+        ? ({
+            id: session.templateId ?? session.sessionId,
+            title:
+              session.templateTitle ??
+              `Buổi ${displaySessionIndex}`,
+            sessionIndex:
+              session.sessionIndexInModule ??
+              session.sessionIndex ??
+              displaySessionIndex,
+            sessionOrder:
+              session.sessionIndexInModule ??
+              session.sessionIndex ??
+              displaySessionIndex,
+            syllabusId: session.syllabusId ?? null,
+            syllabusCode: session.syllabusCode ?? null,
+            syllabusVersion: session.syllabusVersion ?? null,
+            syllabusTitle: session.syllabusTitle ?? null,
+            moduleId: session.moduleId ?? null,
+            moduleCode: session.moduleCode ?? null,
+            moduleName: session.moduleName ?? null,
+            syllabusContent: session.templateSyllabusContent,
+          } satisfies LessonPlanTemplate)
+        : null;
   const plannedTemplateForDisplay = plannedContentDisplay?.trim()
     ? {
         ...(resolvedTemplate ?? {}),
@@ -7346,6 +7423,7 @@ function SessionContentModal({
               }
               value={session.actualContent}
               accent={hasReport ? "text-emerald-700" : "text-gray-700"}
+              mode="actual"
             />
             {session.actualHomework ? (
               <ContentPanel
@@ -8782,6 +8860,7 @@ function PlanFormModal({
 }) {
   const isEdit = Boolean(initialValue);
   const isTeacher = scope === "teacher";
+  const formId = `lesson-plan-form-${session.sessionId}`;
 
   const resolvedTemplateId =
     initialValue?.templateId || session.templateId || sharedTemplate?.id || "";
@@ -9174,7 +9253,11 @@ function PlanFormModal({
       }
     >
       <div className="flex flex-col max-h-[80vh]">
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto space-y-5 p-6">
+        <form
+          id={formId}
+          onSubmit={handleSubmit}
+          className="flex-1 overflow-y-auto space-y-5 p-6"
+        >
           <div className="grid gap-4 md:grid-cols-2">
             <InfoCard
               icon={Users}
@@ -9922,6 +10005,7 @@ function PlanFormModal({
           <ModalActions
             onClose={onClose}
             submitting={submitting}
+            submitFormId={formId}
             submitLabel={
               isTeacher
                 ? "Lưu nội dung buổi dạy"
@@ -11086,12 +11170,14 @@ function ModalActions({
   onReset,
   submitting,
   submitLabel,
+  submitFormId,
   showReset = false,
 }: {
   onClose: () => void;
   onReset?: () => void;
   submitting: boolean;
   submitLabel: string;
+  submitFormId?: string;
   showReset?: boolean;
 }) {
   return (
@@ -11116,6 +11202,7 @@ function ModalActions({
         )}
         <button
           type="submit"
+          form={submitFormId}
           disabled={submitting}
           className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
         >
@@ -11375,11 +11462,13 @@ function ContentPanel({
   subtitle,
   value,
   accent,
+  mode = "default",
 }: {
   title: string;
   subtitle?: string;
   value?: string | null;
   accent: string;
+  mode?: "default" | "actual";
 }) {
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-5">
@@ -11388,7 +11477,11 @@ function ContentPanel({
         <div className="mt-1 text-xs text-gray-500">{subtitle}</div>
       ) : null}
       <div className="mt-3">
-        <StructuredContent value={value} placeholder="Chưa có nội dung." />
+        <StructuredContent
+          value={value}
+          placeholder="Chưa có nội dung."
+          mode={mode}
+        />
       </div>
     </div>
   );
@@ -11597,6 +11690,208 @@ function MetadataSheetView({
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+const TEACHING_LOG_ACTIVITY_FIELDS = [
+  "time",
+  "book",
+  "skills",
+  "classwork",
+  "requiredMaterials",
+  "homeworkRequiredMaterials",
+  "extra",
+] as const;
+
+function hasNonEmptySheetValue(value: unknown): boolean {
+  if (Array.isArray(value)) {
+    return value.some((item) => hasNonEmptySheetValue(item));
+  }
+
+  if (value && typeof value === "object") {
+    return Object.values(value as Record<string, unknown>).some((item) =>
+      hasNonEmptySheetValue(item),
+    );
+  }
+
+  return String(value ?? "").trim() !== "";
+}
+
+function getTeachingLogActivityRows(objectValue: Record<string, unknown>) {
+  const source = Array.isArray(objectValue.activities)
+    ? objectValue.activities
+    : [];
+
+  return source.reduce<Record<string, unknown>[]>((rows, item) => {
+    const activity = asObject(item);
+    if (!activity) return rows;
+
+    const hasActivityContent = TEACHING_LOG_ACTIVITY_FIELDS.some((field) =>
+      hasNonEmptySheetValue(activity[field]),
+    );
+    if (hasActivityContent) rows.push(activity);
+    return rows;
+  }, []);
+}
+
+function isTeachingActualLogObject(objectValue: Record<string, unknown>) {
+  const hasSessionIdentity = [
+    "sessionIndex",
+    "title",
+    "dateLabel",
+    "teacherName",
+    "homeworkLabel",
+    "homeworkMaterials",
+  ].some((key) => hasNonEmptySheetValue(objectValue[key]));
+
+  if (hasSessionIdentity) return false;
+
+  return (
+    getTeachingLogActivityRows(objectValue).length > 0 ||
+    hasNonEmptySheetValue(objectValue.homeworkNotes) ||
+    hasNonEmptySheetValue(objectValue.teacherNotes) ||
+    hasNonEmptySheetValue(objectValue.teacherNote)
+  );
+}
+
+function TeachingActualLogView({
+  objectValue,
+}: {
+  objectValue: Record<string, unknown>;
+}) {
+  const activities = getTeachingLogActivityRows(objectValue);
+  const homeworkNotes = linesFromUnknown(objectValue.homeworkNotes);
+  const teacherNotes =
+    pickStringValue(objectValue, ["teacherNotes", "teacherNote"]) ||
+    linesToTextarea(objectValue.notes);
+  const extraEntries = Object.entries(objectValue).filter(
+    ([key]) =>
+      ![
+        "activities",
+        "homeworkNotes",
+        "teacherNotes",
+        "teacherNote",
+        "notes",
+      ].includes(key),
+  );
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="border-b border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold uppercase tracking-wide text-slate-800">
+        Nội dung teacher đã nhập
+      </div>
+
+      {activities.length ? (
+        <div className="overflow-x-auto">
+          <table className="min-w-[1040px] table-fixed border-collapse text-sm">
+            <colgroup>
+              <col className="w-24" />
+              <col className="w-28" />
+              <col className="w-36" />
+              <col className="w-72" />
+              <col className="w-64" />
+              <col className="w-64" />
+              <col className="w-56" />
+            </colgroup>
+            <thead>
+              <tr className="text-slate-700">
+                <th className="border border-slate-200 bg-slate-50 px-3 py-2 text-left font-semibold">
+                  Time
+                </th>
+                <th className="border border-slate-200 bg-slate-50 px-3 py-2 text-left font-semibold">
+                  Book
+                </th>
+                <th className="border border-slate-200 bg-slate-50 px-3 py-2 text-left font-semibold">
+                  Skills
+                </th>
+                <th className="border border-slate-200 bg-amber-50 px-3 py-2 text-left font-semibold">
+                  Classwork
+                </th>
+                <th className="border border-slate-200 bg-amber-50 px-3 py-2 text-left font-semibold">
+                  Học liệu
+                </th>
+                <th className="border border-slate-200 bg-blue-50 px-3 py-2 text-left font-semibold">
+                  BTVN
+                </th>
+                <th className="border border-slate-200 bg-blue-50 px-3 py-2 text-left font-semibold">
+                  Ghi chú
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {activities.map((activity, index) => (
+                <tr key={`actual-activity-${index}`} className="align-top">
+                  <td className="border border-slate-200 px-3 py-2">
+                    <SheetCellValue value={activity.time} />
+                  </td>
+                  <td className="border border-slate-200 px-3 py-2">
+                    <SheetCellValue value={activity.book} />
+                  </td>
+                  <td className="border border-slate-200 px-3 py-2">
+                    <SheetCellValue value={activity.skills} />
+                  </td>
+                  <td className="border border-slate-200 bg-amber-50/40 px-3 py-2">
+                    <SheetCellValue value={activity.classwork} />
+                  </td>
+                  <td className="border border-slate-200 bg-amber-50/40 px-3 py-2">
+                    <SheetCellValue value={activity.requiredMaterials} />
+                  </td>
+                  <td className="border border-slate-200 bg-blue-50/40 px-3 py-2">
+                    <SheetCellValue value={activity.homeworkRequiredMaterials} />
+                  </td>
+                  <td className="border border-slate-200 bg-blue-50/40 px-3 py-2">
+                    <SheetCellValue value={activity.extra} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="px-4 py-5 text-sm text-slate-500">
+          Chưa có activity.
+        </div>
+      )}
+
+      {homeworkNotes.length || teacherNotes ? (
+        <div className="grid gap-3 border-t border-slate-200 bg-white p-4 md:grid-cols-2">
+          {homeworkNotes.length ? (
+            <div className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-2">
+              <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-amber-700">
+                Bài tập giao
+              </div>
+              <SpreadsheetList value={homeworkNotes} />
+            </div>
+          ) : null}
+          {teacherNotes ? (
+            <div className="rounded-xl border border-violet-100 bg-violet-50 px-3 py-2">
+              <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-violet-700">
+                Ghi chú giáo viên
+              </div>
+              <SpreadsheetList value={teacherNotes} />
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {extraEntries.length ? (
+        <div className="border-t border-slate-200 bg-white p-4">
+          <div className="grid gap-3 md:grid-cols-2">
+            {extraEntries.map(([key, extraValue]) => (
+              <div
+                key={key}
+                className="rounded-xl border border-slate-200 bg-slate-50 p-3"
+              >
+                <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  {key}
+                </div>
+                <SheetCellValue value={extraValue} />
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -11856,9 +12151,11 @@ function SessionSheetView({
 function StructuredContent({
   value,
   placeholder,
+  mode = "default",
 }: {
   value?: string | null;
   placeholder: string;
+  mode?: "default" | "actual";
 }) {
   if (!value?.trim()) {
     return <div className="text-sm text-gray-500">{placeholder}</div>;
@@ -11879,6 +12176,10 @@ function StructuredContent({
   }
 
   const objectValue = parsed as Record<string, unknown>;
+  if (mode === "actual" && isTeachingActualLogObject(objectValue)) {
+    return <TeachingActualLogView objectValue={objectValue} />;
+  }
+
   if (isMetadataSheetObject(objectValue)) {
     return <MetadataSheetView objectValue={objectValue} />;
   }

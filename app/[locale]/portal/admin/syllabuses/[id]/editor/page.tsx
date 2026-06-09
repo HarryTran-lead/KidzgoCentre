@@ -16,6 +16,7 @@ import {
   addSyllabusTableRow,
   archiveSyllabusDocument,
   deleteSyllabusTableRow,
+  getSyllabusById,
   getSyllabusDocument,
   publishSyllabusDocument,
   reorderSyllabusSections,
@@ -488,6 +489,7 @@ export default function SyllabusDocumentEditorPage() {
 
   const [metaCode, setMetaCode] = useState("");
   const [metaTitle, setMetaTitle] = useState("");
+  const [syllabusVersion, setSyllabusVersion] = useState("");
   const [metaMinutesPerPeriod, setMetaMinutesPerPeriod] = useState("");
 
   const [newSectionType, setNewSectionType] = useState<SyllabusDocumentSectionType>("narrative");
@@ -541,12 +543,20 @@ export default function SyllabusDocumentEditorPage() {
     if (!syllabusId) return;
     setLoading(true);
     try {
-      const res = await getSyllabusDocument(syllabusId);
+      const [res, detailRes] = await Promise.all([
+        getSyllabusDocument(syllabusId),
+        getSyllabusById(syllabusId),
+      ]);
       if (!res.isSuccess || !res.data) {
         toast({ title: "Không thể tải document", description: res.message ?? "Vui lòng thử lại.", variant: "destructive" });
         return;
       }
       syncFromDocument(res.data);
+      if (detailRes.isSuccess && detailRes.data) {
+        setMetaCode(detailRes.data.code || res.data.code || "");
+        setMetaTitle(detailRes.data.title || res.data.title || "");
+        setSyllabusVersion(detailRes.data.version || "");
+      }
     } finally {
       setLoading(false);
     }
@@ -572,8 +582,6 @@ export default function SyllabusDocumentEditorPage() {
     try {
       const res = await updateSyllabusDocumentMetadata(document.id, {
         expectedVersion,
-        code: metaCode.trim(),
-        title: metaTitle.trim(),
         edition: document.edition ?? null,
         minutesPerPeriod: metaMinutesPerPeriod ? Number(metaMinutesPerPeriod) : null,
       });
@@ -821,6 +829,7 @@ export default function SyllabusDocumentEditorPage() {
   }
 
   const sortedSections = [...document.sections].sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
+  const headerSyllabusLabel = `${metaCode || "Syllabus"}${syllabusVersion ? ` · Phiên bản ${syllabusVersion}` : ""}`;
 
   return (
     <div className="min-h-screen space-y-6 bg-gradient-to-br from-gray-50 to-red-50/20 p-4 md:p-2">
@@ -835,7 +844,9 @@ export default function SyllabusDocumentEditorPage() {
             <div className="h-4 w-px bg-gray-300" />
             <div className="flex items-center gap-2">
               <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-              <span className="text-sm font-medium text-gray-700">{metaCode || "Syllabus"}</span>
+              <span className="text-sm font-medium text-gray-700" title={metaTitle || undefined}>
+                {headerSyllabusLabel}
+              </span>
               <StatusBadge status={document.status ?? "Draft"} />
             </div>
           </div>
@@ -870,7 +881,7 @@ export default function SyllabusDocumentEditorPage() {
               <div className="rounded-lg bg-gradient-to-r from-red-500 to-rose-500 p-1.5 text-white shadow-sm">
                 <Settings size={14} />
               </div>
-              <h2 className="text-sm font-semibold text-gray-700">Thông tin cơ bản</h2>
+              <h2 className="text-sm font-semibold text-gray-700">Thiết lập nội dung</h2>
             </div>
             <button
               onClick={handleSaveMetadata}
@@ -882,39 +893,9 @@ export default function SyllabusDocumentEditorPage() {
             </button>
           </div>
           <div className="p-5">
-            <div className="grid gap-4 grid-cols-2">
+            <div className="max-w-sm">
               <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-gray-600 tracking-wide">Mã syllabus</label>
-                <input 
-                  className="w-full rounded-lg border border-rose-200 bg-white/80 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-rose-200 focus:border-rose-300 disabled:bg-gray-50 transition-all"
-                  value={metaCode} 
-                  onChange={(e) => setMetaCode(e.target.value)} 
-                  disabled={isReadOnly}
-                  placeholder="VD: SYL_001"
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-semibold text-gray-600 tracking-wide">Tiêu đề</label>
-                <input 
-                  className="w-full rounded-lg border border-rose-200 bg-white/80 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-rose-200 focus:border-rose-300 disabled:bg-gray-50 transition-all" 
-                  value={metaTitle} 
-                  onChange={(e) => setMetaTitle(e.target.value)} 
-                  disabled={isReadOnly}
-                  placeholder="Tiêu đề syllabus"
-                />
-              </div>
-              <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-gray-600 tracking-wide">Phiên bản</label>
-                <input 
-                  className="w-full cursor-not-allowed rounded-lg border border-rose-200 bg-gray-50 px-3 py-2 text-sm text-gray-600 focus:outline-none transition-all"
-                  value={document?.version == null ? "" : String(document.version)}
-                  readOnly
-                  placeholder="1"
-                  title="Phiên bản được hệ thống quản lý tự động"
-                />
-              </div>
-              <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-gray-600 tracking-wide">Thời lượng</label>
+                  <label className="mb-1.5 block text-sm font-semibold text-gray-600 tracking-wide">Phút / tiết</label>
                 <input 
                   className="w-full rounded-lg border border-rose-200 bg-white/80 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-rose-200 focus:border-rose-300 disabled:bg-gray-50 transition-all" 
                   value={metaMinutesPerPeriod} 

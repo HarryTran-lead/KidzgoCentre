@@ -21,7 +21,7 @@ export const menuAdmin = {
       curriculum: {
         title: "Chương trình",
         curriculumOverview: { list: "Khung chương trình" },
-        coursesSystem: { list: "Chương trình" },
+        coursesSystem: { list: "Chương trình học" },
         coursesBranch: { list: "Chương trình theo chi nhánh" },
         syllabuses: { list: "Giáo trình" },
         lessonPlans: { list: "Mẫu giáo án chuẩn" },

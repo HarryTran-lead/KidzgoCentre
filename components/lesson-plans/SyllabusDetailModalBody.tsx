@@ -36,6 +36,14 @@ function cn(...a: Array<string | false | null | undefined>) {
   return a.filter(Boolean).join(" ");
 }
 
+function normalizeColumnLookupKey(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
 function normalizeLessonFilterToken(value: string): string {
   return value.replace(/\s+/g, " ").trim().toLowerCase();
 }
@@ -321,6 +329,10 @@ export default function SyllabusDetailModalBody({
 
           const columns = columnsRaw
             .map((col, colIndex) => {
+              if (typeof col === "string") {
+                const key = col.trim() || `col-${colIndex + 1}`;
+                return { key, label: key };
+              }
               if (!col || typeof col !== "object") return null;
               const c = col as Record<string, unknown>;
               const key =
@@ -328,8 +340,12 @@ export default function SyllabusDetailModalBody({
                 toText(c.Key) ||
                 toText(c.columnKey) ||
                 toText(c.ColumnKey) ||
+                toText(c.field) ||
+                toText(c.Field) ||
+                toText(c.name) ||
+                toText(c.Name) ||
                 `col-${colIndex + 1}`;
-              const label = toText(c.label) || key;
+              const label = toText(c.label) || toText(c.Label) || toText(c.title) || toText(c.Title) || key;
               if (!key) return null;
               return { key, label };
             })
@@ -339,35 +355,76 @@ export default function SyllabusDetailModalBody({
             .map((row) => {
               if (!row || typeof row !== "object") return null;
               const r = row as Record<string, unknown>;
-              const cellsRaw = Array.isArray(r.cells)
-                ? r.cells
-                : Array.isArray(r.Cells)
-                  ? r.Cells
-                  : Array.isArray(r.values)
-                    ? r.values
-                    : Array.isArray(r.Values)
-                      ? r.Values
-                      : [];
+              const cellsSource = r.cells ?? r.Cells ?? r.values ?? r.Values ?? r.items ?? r.Items;
+              const cellsRaw = Array.isArray(cellsSource)
+                ? cellsSource
+                : cellsSource && typeof cellsSource === "object"
+                  ? Object.entries(cellsSource as Record<string, unknown>).map(([key, value]) =>
+                      value && typeof value === "object" ? { columnKey: key, ...(value as Record<string, unknown>) } : { columnKey: key, value },
+                    )
+                  : [];
               const cellMap = new Map<string, string>();
 
-              for (const cell of cellsRaw) {
+              cellsRaw.forEach((cell, index) => {
                 if (cell && typeof cell === "object") {
                   const cellObj = cell as Record<string, unknown>;
-                  const columnKey = toText(cellObj.columnKey) || toText(cellObj.ColumnKey) || toText(cellObj.key);
-                  if (!columnKey) continue;
-                  cellMap.set(columnKey, toText(cellObj.value) || toText(cellObj.Value) || toText(cellObj.content));
-                  continue;
+                  const columnKey =
+                    toText(cellObj.columnKey) ||
+                    toText(cellObj.ColumnKey) ||
+                    toText(cellObj.key) ||
+                    toText(cellObj.Key) ||
+                    toText(cellObj.field) ||
+                    toText(cellObj.Field) ||
+                    toText(cellObj.name) ||
+                    toText(cellObj.Name) ||
+                    toText(cellObj.label) ||
+                    toText(cellObj.Label) ||
+                    columns[index]?.key ||
+                    "";
+                  if (!columnKey) return;
+                  const value =
+                    toText(cellObj.value) ||
+                    toText(cellObj.Value) ||
+                    toText(cellObj.displayValue) ||
+                    toText(cellObj.DisplayValue) ||
+                    toText(cellObj.valueText) ||
+                    toText(cellObj.ValueText) ||
+                    toText(cellObj.content) ||
+                    toText(cellObj.Content) ||
+                    toText(cellObj.text) ||
+                    toText(cellObj.Text);
+                  cellMap.set(normalizeColumnLookupKey(columnKey), value);
+                  return;
                 }
-              }
+                const columnKey = columns[index]?.key || `col-${index + 1}`;
+                cellMap.set(normalizeColumnLookupKey(columnKey), toText(cell));
+              });
 
               if (cellMap.size === 0 && columns.length > 0) {
                 columns.forEach((column) => {
-                  const mapped = toText(r[column.key]) || toText(r[column.key.toLowerCase()]) || toText(column.label ? r[column.label] : undefined);
-                  if (mapped) cellMap.set(column.key, mapped);
+                  const mapped =
+                    toText(r[column.key]) ||
+                    toText(r[column.key.toLowerCase()]) ||
+                    toText(column.label ? r[column.label] : undefined) ||
+                    Object.entries(r)
+                      .map(([key, value]) =>
+                        normalizeColumnLookupKey(key) === normalizeColumnLookupKey(column.key) ||
+                        normalizeColumnLookupKey(key) === normalizeColumnLookupKey(column.label)
+                          ? toText(value)
+                          : "",
+                      )
+                      .find(Boolean) ||
+                    "";
+                  if (mapped) cellMap.set(normalizeColumnLookupKey(column.key), mapped);
                 });
               }
 
-              return columns.map((col) => cellMap.get(col.key) || "");
+              return columns.map(
+                (col) =>
+                  cellMap.get(normalizeColumnLookupKey(col.key)) ||
+                  cellMap.get(normalizeColumnLookupKey(col.label)) ||
+                  "",
+              );
             })
             .filter((row): row is string[] => row != null);
 
@@ -741,7 +798,7 @@ export default function SyllabusDetailModalBody({
       return "";
     };
 
-    const normKey = (key: string): string => key.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const normKey = normalizeColumnLookupKey;
 
     const pickByAliases = (obj: Record<string, unknown>, aliases: string[]): string => {
       const aliasSet = new Set(aliases.map(normKey));
@@ -755,38 +812,65 @@ export default function SyllabusDetailModalBody({
     };
 
     const rowFromObject = (obj: Record<string, unknown>): CurriculumTableRow | null => {
-      const cells = Array.isArray(obj.cells) ? obj.cells : [];
+      const cellsSource = obj.cells ?? obj.Cells ?? obj.values ?? obj.Values ?? obj.items ?? obj.Items;
+      const cells = Array.isArray(cellsSource)
+        ? cellsSource
+        : cellsSource && typeof cellsSource === "object"
+          ? Object.entries(cellsSource as Record<string, unknown>).map(([key, value]) =>
+              value && typeof value === "object" ? { columnKey: key, ...(value as Record<string, unknown>) } : { columnKey: key, value },
+            )
+          : [];
       if (cells.length > 0) {
         const cellValueByKey: Record<string, string> = {};
 
-        for (const cell of cells) {
-          if (!cell || typeof cell !== "object") continue;
+        cells.forEach((cell, index) => {
+          if (!cell || typeof cell !== "object") return;
           const cellObj = cell as Record<string, unknown>;
-          const columnKey = normalizeText(cellObj.columnKey || cellObj.key || "").toLowerCase();
-          const value = normalizeText(cellObj.value);
-          if (!columnKey) continue;
-          if (!value && cellValueByKey[columnKey]) continue;
-          cellValueByKey[columnKey] = value;
-        }
+          const columnKey = normalizeText(
+            cellObj.columnKey ??
+              cellObj.ColumnKey ??
+              cellObj.key ??
+              cellObj.Key ??
+              cellObj.field ??
+              cellObj.Field ??
+              cellObj.name ??
+              cellObj.Name ??
+              cellObj.label ??
+              cellObj.Label ??
+              "",
+          ) || `col-${index + 1}`;
+          const value =
+            normalizeText(cellObj.value) ||
+            normalizeText(cellObj.Value) ||
+            normalizeText(cellObj.displayValue) ||
+            normalizeText(cellObj.DisplayValue) ||
+            normalizeText(cellObj.valueText) ||
+            normalizeText(cellObj.ValueText) ||
+            normalizeText(cellObj.content) ||
+            normalizeText(cellObj.Content) ||
+            normalizeText(cellObj.text) ||
+            normalizeText(cellObj.Text);
+          if (!columnKey) return;
+          if (!value && cellValueByKey[normKey(columnKey)]) return;
+          cellValueByKey[normKey(columnKey)] = value;
+        });
+
+        const pickCell = (aliases: string[]): string => {
+          for (const alias of aliases) {
+            const value = cellValueByKey[normKey(alias)];
+            if (value) return value;
+          }
+          return "";
+        };
 
         const rowFromCells: CurriculumTableRow = {
-          periods: cellValueByKey.periods || cellValueByKey.period || "",
-          topics: cellValueByKey.topics || cellValueByKey.topic || "",
-          lessons: cellValueByKey.lessons || cellValueByKey.lesson || "",
-          contents: cellValueByKey.contents || cellValueByKey.content || "",
-          structures: cellValueByKey.structures || cellValueByKey.structure || "",
-          studentsBook:
-            cellValueByKey.studentsbook ||
-            cellValueByKey.studentsBook ||
-            cellValueByKey.studentbook ||
-            cellValueByKey.studentBook ||
-            "",
-          teachersBook:
-            cellValueByKey.teachersbook ||
-            cellValueByKey.teachersBook ||
-            cellValueByKey.teacherbook ||
-            cellValueByKey.teacherBook ||
-            "",
+          periods: pickCell(["periods", "period", "periodRange", "sessionRange", "tiet", "buoi"]),
+          topics: pickCell(["topics", "topic", "unit", "unitName", "sessionTopic", "chuDe", "khoi"]),
+          lessons: pickCell(["lessons", "lesson", "lessonNo", "lessonNumber", "sessionNo", "sessionIndex", "sessionOrder", "bai"]),
+          contents: pickCell(["contents", "content", "objective", "objectives", "goals", "skills", "activity", "noiDung"]),
+          structures: pickCell(["structures", "structure", "languageFocus", "grammar", "pattern", "cauTruc"]),
+          studentsBook: pickCell(["studentsBook", "studentBook", "studentsbook", "studentbook", "pupils", "pupilBook", "sb", "sachHocSinh"]),
+          teachersBook: pickCell(["teachersBook", "teacherBook", "teachersbook", "teacherbook", "tb", "teacherPage", "sachGiaoVien"]),
         };
 
         const nonEmptyFromCells = Object.values(rowFromCells).filter((v) => v.trim().length > 0).length;
@@ -794,13 +878,13 @@ export default function SyllabusDetailModalBody({
       }
 
       const row: CurriculumTableRow = {
-        periods: pickByAliases(obj, ["periods", "period", "periodRange", "sessionRange", "week", "time"]),
-        topics: pickByAliases(obj, ["topics", "topic", "unit", "unitName", "sessionTopic"]),
-        lessons: pickByAliases(obj, ["lessons", "lesson", "lessonNo", "lessonNumber", "sessionNo", "sessionIndex", "sessionOrder"]),
-        contents: pickByAliases(obj, ["contents", "content", "objective", "objectives", "goals", "skills", "activity"]),
-        structures: pickByAliases(obj, ["structures", "structure", "languageFocus", "grammar", "pattern"]),
-        studentsBook: pickByAliases(obj, ["studentsBook", "studentBook", "studentsbook", "pupils", "pupilBook", "wbPage", "wbPages"]),
-        teachersBook: pickByAliases(obj, ["teachersBook", "teacherBook", "teachersbook", "tbPage", "tbPages", "teacherPage"]),
+        periods: pickByAliases(obj, ["periods", "period", "periodRange", "sessionRange", "week", "time", "tiet", "buoi"]),
+        topics: pickByAliases(obj, ["topics", "topic", "unit", "unitName", "sessionTopic", "moduleName", "chuDe", "khoi"]),
+        lessons: pickByAliases(obj, ["lessons", "lesson", "lessonNo", "lessonNumber", "sessionNo", "sessionIndex", "sessionOrder", "bai"]),
+        contents: pickByAliases(obj, ["contents", "content", "sessionTitle", "lessonTitle", "objective", "objectives", "goals", "skills", "activity", "noiDung"]),
+        structures: pickByAliases(obj, ["structures", "structure", "languageFocus", "grammar", "pattern", "cauTruc"]),
+        studentsBook: pickByAliases(obj, ["studentsBook", "studentBook", "studentsbook", "pupils", "pupilBook", "sbPage", "sbPages", "wbPage", "wbPages", "sachHocSinh"]),
+        teachersBook: pickByAliases(obj, ["teachersBook", "teacherBook", "teachersbook", "tbPage", "tbPages", "teacherPage", "teacherPages", "sachGiaoVien"]),
       };
 
       const nonEmptyCount = Object.values(row).filter((v) => v.trim().length > 0).length;
@@ -842,22 +926,51 @@ export default function SyllabusDetailModalBody({
             const raw = {
               periods:
                 normalizeText(obj.sessionIndexInModule) ||
+                normalizeText(obj.SessionIndexInModule) ||
                 normalizeText(obj.sessionIndex) ||
-                normalizeText(obj.curriculumSessionIndex),
+                normalizeText(obj.SessionIndex) ||
+                normalizeText(obj.curriculumSessionIndex) ||
+                normalizeText(obj.CurriculumSessionIndex),
               topics:
                 normalizeText(obj.unitName) ||
+                normalizeText(obj.UnitName) ||
                 normalizeText(obj.sessionTopic) ||
+                normalizeText(obj.SessionTopic) ||
                 normalizeText(obj.topic) ||
-                normalizeText(obj.moduleName),
+                normalizeText(obj.Topic) ||
+                normalizeText(obj.moduleName) ||
+                normalizeText(obj.ModuleName),
               lessons:
                 normalizeText(obj.lessonNumber) ||
+                normalizeText(obj.LessonNumber) ||
                 normalizeText(obj.sessionOrder) ||
-                normalizeText(obj.orderIndexInUnit),
+                normalizeText(obj.SessionOrder) ||
+                normalizeText(obj.orderIndexInUnit) ||
+                normalizeText(obj.OrderIndexInUnit),
               contents:
-                normalizeText(obj.sessionTitle) || normalizeText(obj.title) || normalizeText(obj.content),
-              structures: normalizeText(obj.structure) || normalizeText(obj.languageFocus),
-              studentsBook: normalizeText(obj.studentBookPage) || normalizeText(obj.studentsBook),
-              teachersBook: normalizeText(obj.teacherBookPage) || normalizeText(obj.teachersBook),
+                normalizeText(obj.sessionTitle) ||
+                normalizeText(obj.SessionTitle) ||
+                normalizeText(obj.lessonTitle) ||
+                normalizeText(obj.LessonTitle) ||
+                normalizeText(obj.title) ||
+                normalizeText(obj.Title) ||
+                normalizeText(obj.content) ||
+                normalizeText(obj.Content),
+              structures:
+                normalizeText(obj.structure) ||
+                normalizeText(obj.Structure) ||
+                normalizeText(obj.languageFocus) ||
+                normalizeText(obj.LanguageFocus),
+              studentsBook:
+                normalizeText(obj.studentBookPage) ||
+                normalizeText(obj.StudentBookPage) ||
+                normalizeText(obj.studentsBook) ||
+                normalizeText(obj.StudentsBook),
+              teachersBook:
+                normalizeText(obj.teacherBookPage) ||
+                normalizeText(obj.TeacherBookPage) ||
+                normalizeText(obj.teachersBook) ||
+                normalizeText(obj.TeachersBook),
             };
 
             const nonEmptyCount = Object.values(raw).filter((v) => v.trim().length > 0).length;
@@ -1310,16 +1423,26 @@ export default function SyllabusDetailModalBody({
               </span>
             </div>
             <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
-              <table className="min-w-[1220px] w-full border-collapse text-sm">
+              <table className="min-w-[1360px] w-full table-fixed border-collapse text-sm">
+                <colgroup>
+                  <col className="w-36" />
+                  <col className="w-28" />
+                  <col className="w-64" />
+                  <col className="w-20" />
+                  <col className="w-80" />
+                  <col className="w-72" />
+                  <col className="w-32" />
+                  <col className="w-32" />
+                </colgroup>
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="sticky top-0 left-0 z-30 w-32 min-w-32 border-b border-r border-gray-200 bg-gray-50 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
+                    <th className="sticky top-0 left-0 z-30 w-36 min-w-36 border-b border-r border-gray-200 bg-gray-50 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
                       Khối
                     </th>
-                    <th className="sticky top-0 left-32 z-30 w-28 min-w-28 border-b border-r border-gray-200 bg-gray-50 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
+                    <th className="sticky top-0 left-36 z-30 w-28 min-w-28 border-b border-r border-gray-200 bg-gray-50 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
                       Tiết
                     </th>
-                    <th className="sticky top-0 left-[15rem] z-30 w-56 min-w-56 border-b border-r border-gray-200 bg-gray-50 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
+                    <th className="sticky top-0 left-[16rem] z-30 w-64 min-w-64 border-b border-r border-gray-200 bg-gray-50 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
                       Chủ đề
                     </th>
                     <th className="sticky top-0 z-10 w-20 min-w-20 border-b border-gray-200 bg-gray-50 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
@@ -1336,16 +1459,16 @@ export default function SyllabusDetailModalBody({
                         </span>
                       </span>
                     </th>
-                    <th className="sticky top-0 z-10 w-72 min-w-72 border-b border-gray-200 bg-gray-50 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
+                    <th className="sticky top-0 z-10 w-80 min-w-80 border-b border-gray-200 bg-gray-50 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
                       Nội dung
                     </th>
-                    <th className="sticky top-0 z-10 w-64 min-w-64 border-b border-gray-200 bg-gray-50 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
+                    <th className="sticky top-0 z-10 w-72 min-w-72 border-b border-gray-200 bg-gray-50 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
                       Cấu trúc
                     </th>
-                    <th className="sticky top-0 z-10 w-28 min-w-28 border-b border-gray-200 bg-gray-50 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
+                    <th className="sticky top-0 z-10 w-32 min-w-32 border-b border-gray-200 bg-gray-50 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
                       Sách học sinh
                     </th>
-                    <th className="sticky top-0 z-10 w-28 min-w-28 border-b border-gray-200 bg-gray-50 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
+                    <th className="sticky top-0 z-10 w-32 min-w-32 border-b border-gray-200 bg-gray-50 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
                       Sách giáo viên
                     </th>
                   </tr>
@@ -1355,19 +1478,23 @@ export default function SyllabusDetailModalBody({
                     const blockColors = [
                       {
                         row: "bg-sky-50/35",
-                        topicCell: "bg-sky-100/60 text-sky-900 border-sky-200",
+                        stickyCell: "bg-sky-50 text-sky-900",
+                        topicCell: "bg-sky-100 text-sky-900 border-sky-200",
                       },
                       {
                         row: "bg-emerald-50/35",
-                        topicCell: "bg-emerald-100/60 text-emerald-900 border-emerald-200",
+                        stickyCell: "bg-emerald-50 text-emerald-900",
+                        topicCell: "bg-emerald-100 text-emerald-900 border-emerald-200",
                       },
                       {
                         row: "bg-amber-50/35",
-                        topicCell: "bg-amber-100/60 text-amber-900 border-amber-200",
+                        stickyCell: "bg-amber-50 text-amber-900",
+                        topicCell: "bg-amber-100 text-amber-900 border-amber-200",
                       },
                       {
                         row: "bg-rose-50/35",
-                        topicCell: "bg-rose-100/60 text-rose-900 border-rose-200",
+                        stickyCell: "bg-rose-50 text-rose-900",
+                        topicCell: "bg-rose-100 text-rose-900 border-rose-200",
                       },
                     ] as const;
 
@@ -1389,19 +1516,19 @@ export default function SyllabusDetailModalBody({
                           <td
                             rowSpan={group.rows.length}
                             className={cn(
-                              "sticky left-0 z-20 align-top border-b border-r border-gray-200 px-3 py-2 text-xs font-bold uppercase tracking-wide whitespace-pre-wrap",
+                              "sticky left-0 z-20 w-36 min-w-36 align-top border-b border-r border-gray-200 px-3 py-2 text-xs font-bold uppercase tracking-wide whitespace-pre-wrap",
                               palette.topicCell,
                             )}
                           >
                             {detectedLabel}
                           </td>
                         )}
-                        <td className={cn("sticky left-32 z-20 align-top border-b border-r border-gray-200 px-3 py-2 text-gray-700 whitespace-pre-wrap", palette.row)}>{row.periods || "—"}</td>
+                        <td className={cn("sticky left-36 z-20 w-28 min-w-28 align-top border-b border-r border-gray-200 px-3 py-2 whitespace-pre-wrap", palette.stickyCell)}>{row.periods || "—"}</td>
                         {rowIndex === 0 && (
                           <td
                             rowSpan={group.rows.length}
                             className={cn(
-                              "sticky left-[15rem] z-20 align-top border-b border-r border-gray-200 px-3 py-2 font-semibold whitespace-pre-wrap",
+                              "sticky left-[16rem] z-20 w-64 min-w-64 align-top border-b border-r border-gray-200 px-3 py-2 font-semibold whitespace-pre-wrap",
                               palette.topicCell,
                             )}
                           >
