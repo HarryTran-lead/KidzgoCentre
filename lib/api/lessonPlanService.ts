@@ -523,6 +523,8 @@ function normalizeTemplate(item: any): LessonPlanTemplate {
     orderIndexInUnit: numberFromUnknown(item?.orderIndexInUnit) ?? null,
     lessonOrderIndexInUnit:
       numberFromUnknown(item?.lessonOrderIndexInUnit, item?.LessonOrderIndexInUnit) ?? null,
+    sessionOrder:
+      numberFromUnknown(item?.sessionOrder, item?.SessionOrder) ?? null,
     title: stringOr(item?.title, item?.name, `Session ${numberOr(numberFromUnknown(item?.sessionIndex), 0)}`),
     sessionIndex: numberOr(numberFromUnknown(item?.sessionIndex)),
     syllabusMetadata: normalizeNullableString(item?.syllabusMetadata, item?.SyllabusMetadata),
@@ -794,8 +796,23 @@ function normalizeSyllabusSession(item: any): ClassLessonPlanSyllabusSession {
     actualTeacherId: normalizeNullableString(item?.actualTeacherId, item?.ActualTeacherId),
     actualTeacherName: normalizeNullableString(item?.actualTeacherName, item?.ActualTeacherName),
     lessonPlanId: normalizeNullableString(item?.lessonPlanId, item?.LessonPlanId, item?.lessonPlan?.id),
-    templateId: normalizeNullableString(item?.templateId, item?.TemplateId, template?.id),
-    templateTitle: normalizeNullableString(item?.templateTitle, item?.TemplateTitle, template?.title, template?.name),
+    templateId: normalizeNullableString(
+      item?.templateId,
+      item?.TemplateId,
+      item?.lessonPlanTemplateId,
+      item?.LessonPlanTemplateId,
+      item?.plannedLessonPlanTemplateId,
+      item?.PlannedLessonPlanTemplateId,
+      template?.id,
+    ),
+    templateTitle: normalizeNullableString(
+      item?.templateTitle,
+      item?.TemplateTitle,
+      item?.plannedLessonTitle,
+      item?.PlannedLessonTitle,
+      template?.title,
+      template?.name,
+    ),
     templateSyllabusContent: normalizeNullableString(
       item?.templateSyllabusContent,
       item?.TemplateSyllabusContent,

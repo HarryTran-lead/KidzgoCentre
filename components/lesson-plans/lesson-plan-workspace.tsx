@@ -567,6 +567,8 @@ function pickSessionFallbackTemplate(
         if (exactCandidates.length) {
           return [...exactCandidates].sort(compareLessonsByBeOrder)[0];
         }
+
+        return undefined;
       }
 
       return [...moduleTemplates].sort(compareLessonsByBeOrder)[0];
@@ -1402,6 +1404,10 @@ function getSyllabusSummaryItems(
     classDetail?.syllabusCode?.trim() ||
     syllabus?.syllabusCode?.trim() ||
     "-";
+  const currentModuleLabel =
+    classDetail?.currentModuleName?.trim() ||
+    classDetail?.startModuleName?.trim() ||
+    "-";
 
   return [
     {
@@ -1410,6 +1416,7 @@ function getSyllabusSummaryItems(
     },
     { label: "Chương trình", value: syllabus?.programName || "-" },
     { label: "Thông tin syllabus", value: syllabusLabel },
+    { label: "Module hiện tại", value: currentModuleLabel },
     { label: "Tổng buổi", value: sessions.length },
     {
       label: "Đã có giáo án",
@@ -2374,30 +2381,71 @@ export function LessonPlanWorkspace({
       const template = templateBySessionOrder.get(sessionOrder);
       const moduleProgress = planTargetModuleProgress;
       if (!template && !planTargetModuleId) return session;
+      const templateSyllabusContent =
+        template?.syllabusContent ?? session.templateSyllabusContent ?? null;
+      const plannedContent = session.lessonPlanId
+        ? session.plannedContent ?? templateSyllabusContent
+        : templateSyllabusContent ?? session.plannedContent ?? null;
 
       return {
         ...session,
-        syllabusId: session.syllabusId ?? template?.syllabusId ?? planTargetSyllabusId ?? classDetail?.syllabusId ?? null,
-        syllabusCode: session.syllabusCode ?? template?.syllabusCode ?? classDetail?.syllabusCode ?? null,
-        syllabusVersion: session.syllabusVersion ?? template?.syllabusVersion ?? classDetail?.syllabusVersion ?? null,
-        syllabusTitle: session.syllabusTitle ?? template?.syllabusTitle ?? classDetail?.syllabusTitle ?? null,
-        moduleId: session.moduleId ?? template?.moduleId ?? planTargetModuleId ?? null,
-        moduleCode: session.moduleCode ?? template?.moduleCode ?? null,
+        syllabusId: template?.syllabusId ?? session.syllabusId ?? planTargetSyllabusId ?? classDetail?.syllabusId ?? null,
+        syllabusCode: template?.syllabusCode ?? session.syllabusCode ?? classDetail?.syllabusCode ?? null,
+        syllabusVersion: template?.syllabusVersion ?? session.syllabusVersion ?? classDetail?.syllabusVersion ?? null,
+        syllabusTitle: template?.syllabusTitle ?? session.syllabusTitle ?? classDetail?.syllabusTitle ?? null,
+        moduleId: template?.moduleId ?? session.moduleId ?? planTargetModuleId ?? null,
+        moduleCode: template?.moduleCode ?? session.moduleCode ?? null,
         moduleName:
-          session.moduleName ??
           template?.moduleName ??
+          session.moduleName ??
           moduleProgress?.moduleName ??
           classDetail?.currentModuleName ??
           classDetail?.startModuleName ??
           null,
         sessionIndexInModule: sessionOrder,
-        templateId: session.templateId ?? template?.id ?? null,
-        templateTitle: session.templateTitle ?? template?.title ?? null,
-        templateSyllabusContent:
-          session.templateSyllabusContent ?? template?.syllabusContent ?? null,
-        plannedContent: session.plannedContent ?? template?.syllabusContent ?? null,
+        templateId: template?.id ?? session.templateId ?? null,
+        templateTitle: template?.title ?? session.templateTitle ?? null,
+        templateSyllabusContent,
+        plannedContent,
       };
     };
+
+    const buildTemplateOnlySession = (
+      template: LessonPlanTemplate,
+      sessionOrder: number,
+    ): ClassLessonPlanSyllabusSession => ({
+      sessionId: `template-only:${template.id}`,
+      sessionIndex: sessionOrder,
+      sessionIndexInModule: sessionOrder,
+      syllabusId: template.syllabusId ?? planTargetSyllabusId ?? classDetail?.syllabusId ?? null,
+      syllabusCode: template.syllabusCode ?? classDetail?.syllabusCode ?? null,
+      syllabusVersion: template.syllabusVersion ?? classDetail?.syllabusVersion ?? null,
+      syllabusTitle: template.syllabusTitle ?? classDetail?.syllabusTitle ?? null,
+      sessionDate: null,
+      plannedTeacherId: classDetail?.teacherIds?.[0] ?? null,
+      plannedTeacherName: classDetail?.teacherNames?.[0] ?? null,
+      actualTeacherId: null,
+      actualTeacherName: null,
+      lessonPlanId: null,
+      templateId: template.id,
+      templateTitle: template.title,
+      templateSyllabusContent: template.syllabusContent ?? null,
+      plannedContent: template.syllabusContent ?? null,
+      actualContent: null,
+      actualHomework: null,
+      teacherNotes: null,
+      completionPercent: null,
+      carryForwardContent: null,
+      moduleId: template.moduleId ?? planTargetModuleId ?? null,
+      moduleCode: template.moduleCode ?? null,
+      moduleName:
+        template.moduleName ??
+        planTargetModuleProgress?.moduleName ??
+        classDetail?.currentModuleName ??
+        classDetail?.startModuleName ??
+        null,
+      canEdit: false,
+    });
 
     if (planTargetModuleId) {
       const moduleSessionLimit =
@@ -2442,8 +2490,26 @@ export function LessonPlanWorkspace({
           enrichSessionWithModuleTemplate(session, index + 1),
         );
 
-      if (moduleSessions.length) {
-        return sortByModuleOrder(moduleSessions);
+      const existingSessionOrders = new Set(
+        moduleSessions.map(getModuleSessionDisplayIndex),
+      );
+      const templateOnlySessions = planModuleTemplates
+        .map((template) => {
+          const sessionOrder = getTemplateModuleSessionOrder(template);
+          if (sessionOrder == null || existingSessionOrders.has(sessionOrder)) {
+            return null;
+          }
+          return buildTemplateOnlySession(template, sessionOrder);
+        })
+        .filter(
+          (session): session is ClassLessonPlanSyllabusSession =>
+            session !== null,
+        );
+
+      const mergedModuleSessions = [...moduleSessions, ...templateOnlySessions];
+
+      if (mergedModuleSessions.length) {
+        return sortByModuleOrder(mergedModuleSessions);
       }
     }
 
@@ -2985,11 +3051,11 @@ export function LessonPlanWorkspace({
   const focusedSession = useMemo(
     () =>
       requestedSessionId
-        ? (classSyllabus?.sessions.find(
+        ? (planBaseSessions.find(
             (session) => session.sessionId === requestedSessionId,
           ) ?? null)
         : null,
-    [classSyllabus, requestedSessionId],
+    [planBaseSessions, requestedSessionId],
   );
 
   const focusedSessionDetailState =
@@ -3371,6 +3437,7 @@ export function LessonPlanWorkspace({
                 if (labelLower.includes("lớp")) return { bg: "bg-gradient-to-r from-blue-50 to-blue-100", border: "border-blue-300", text: "text-blue-700", icon: "Users" };
                 if (labelLower.includes("chương trình")) return { bg: "bg-gradient-to-r from-purple-50 to-purple-100", border: "border-purple-300", text: "text-purple-700", icon: "Layers" };
                 if (labelLower.includes("thông tin") || labelLower.includes("syllabus")) return { bg: "bg-gradient-to-r from-green-50 to-green-100", border: "border-green-300", text: "text-green-700", icon: "BookOpenCheck" };
+                if (labelLower.includes("module")) return { bg: "bg-gradient-to-r from-indigo-50 to-indigo-100", border: "border-indigo-300", text: "text-indigo-700", icon: "ListChecks" };
                 if (labelLower.includes("tổng") || labelLower.includes("buổi")) return { bg: "bg-gradient-to-r from-orange-50 to-orange-100", border: "border-orange-300", text: "text-orange-700", icon: "Zap" };
                 if (labelLower.includes("giáo án")) return { bg: "bg-gradient-to-r from-cyan-50 to-cyan-100", border: "border-cyan-300", text: "text-cyan-700", icon: "CheckCircle" };
                 if (labelLower.includes("báo cáo")) return { bg: "bg-gradient-to-r from-emerald-50 to-emerald-100", border: "border-emerald-300", text: "text-emerald-700", icon: "CheckCircle" };
@@ -3396,6 +3463,7 @@ export function LessonPlanWorkspace({
                         {style.icon === "Users" && <Users size={14} />}
                         {style.icon === "Layers" && <Layers size={14} />}
                         {style.icon === "BookOpenCheck" && <BookOpenCheck size={14} />}
+                        {style.icon === "ListChecks" && <ListChecks size={14} />}
                         {style.icon === "Zap" && <Zap size={14} />}
                         {style.icon === "CheckCircle" && <CheckCircle size={14} />}
                         {style.icon === "Tag" && <Tag size={14} />}
@@ -6034,8 +6102,8 @@ function SessionDetailCard({
     templateHasStructuredContent,
   );
   const hasReport = Boolean(session.actualContent);
-  const isEditable = session.canEdit;
   const hasPlan = Boolean(session.lessonPlanId);
+  const showPlannedContentCard = hasPlan;
   const normalizedPlannedContent =
     !isTrivialPlannedContent(session.plannedContent) &&
     hasDisplayablePayload(session.plannedContent)
@@ -6108,12 +6176,6 @@ function SessionDetailCard({
 
           {/* Status Badges - Horizontal scrollable */}
           <div className="flex gap-2 overflow-x-auto pb-1">
-            {isEditable && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-emerald-100 to-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 border border-emerald-200/60 ring-1 ring-emerald-400/20">
-                <Pencil size={12} />
-                Có thể sửa
-              </span>
-            )}
             {hasReport && (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-emerald-100 to-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 border border-emerald-200/60 ring-1 ring-emerald-400/20">
                 <CheckCircle2 size={12} />
@@ -6242,7 +6304,12 @@ function SessionDetailCard({
       </div>
 
       <div className="p-7">
-        <div className="grid gap-4 md:grid-cols-3">
+        <div
+          className={cn(
+            "grid gap-4",
+            showPlannedContentCard ? "md:grid-cols-3" : "md:grid-cols-2",
+          )}
+        >
           <button
             type="button"
             onClick={() => setContentModal("syllabus")}
@@ -6259,21 +6326,23 @@ function SessionDetailCard({
             </div>
           </button>
 
-          <button
-            type="button"
-            onClick={() => setContentModal("planned")}
-            className="group rounded-2xl border border-red-200 bg-gradient-to-br from-red-50 to-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-red-300 hover:shadow-md"
-          >
-            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-red-100 text-red-700 transition group-hover:scale-105">
-              <FileText size={20} />
-            </div>
-            <div className="text-base font-bold text-gray-900">
-              Giáo án dự kiến
-            </div>
-            <div className="mt-1 text-sm text-gray-500">
-              Xem nội dung giáo án sẽ dùng cho buổi này.
-            </div>
-          </button>
+          {showPlannedContentCard ? (
+            <button
+              type="button"
+              onClick={() => setContentModal("planned")}
+              className="group rounded-2xl border border-red-200 bg-gradient-to-br from-red-50 to-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-red-300 hover:shadow-md"
+            >
+              <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-red-100 text-red-700 transition group-hover:scale-105">
+                <FileText size={20} />
+              </div>
+              <div className="text-base font-bold text-gray-900">
+                Giáo án dự kiến
+              </div>
+              <div className="mt-1 text-sm text-gray-500">
+                Xem nội dung giáo án sẽ dùng cho buổi này.
+              </div>
+            </button>
+          ) : null}
 
           <button
             type="button"
@@ -7136,7 +7205,7 @@ function SessionDetailCard({
           )}
         </div>
       </div>
-      {contentModal ? (
+      {contentModal && (contentModal !== "planned" || showPlannedContentCard) ? (
         <SessionContentModal
           kind={contentModal}
           session={session}
@@ -8614,6 +8683,65 @@ function toPlannerActivityDraft(
   };
 }
 
+function starterDisplayValue(value: unknown): string {
+  if (value == null) return "";
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number" || typeof value === "boolean")
+    return String(value);
+  return flattenUnknownToLines(value).join("; ");
+}
+
+function formatStarterActivityForTextarea(
+  activity: StarterActivity,
+  index: number,
+): string {
+  const rows = [
+    ["Thời lượng", activity.time],
+    ["Sách / phần học", activity.book],
+    ["Kỹ năng", activity.skills],
+    ["Hoạt động trên lớp", activity.classwork],
+    ["Tài liệu cần chuẩn bị", activity.requiredMaterials],
+    ["Bài tập / tài liệu về nhà", activity.homeworkRequiredMaterials],
+    ["Ghi chú thêm", activity.extra],
+  ]
+    .map(([label, value]) => {
+      const text = starterDisplayValue(value);
+      return text ? `- ${label}: ${text}` : "";
+    })
+    .filter(Boolean);
+
+  if (!rows.length) return "";
+  return [`Hoạt động ${index + 1}`, ...rows].join("\n");
+}
+
+function formatStarterSheetForTextarea(sheet: StarterSheet | null): string {
+  if (!sheet) return "";
+
+  const summaryLines = [
+    pickStringValue(sheet, ["title"]) &&
+      `Tiêu đề: ${pickStringValue(sheet, ["title"])}`,
+    pickStringValue(sheet, ["teacherName"]) &&
+      `Giáo viên: ${pickStringValue(sheet, ["teacherName"])}`,
+  ].filter(Boolean);
+  const activityBlocks = sheet.activities
+    .map(formatStarterActivityForTextarea)
+    .filter(Boolean);
+  const homeworkMaterials = linesFromUnknown(sheet.homeworkMaterials);
+  const homeworkNotes = linesFromUnknown(sheet.homeworkNotes);
+  const homeworkBlock = [
+    homeworkMaterials.length
+      ? ["Bài tập / tài liệu về nhà", ...homeworkMaterials.map((line) => `- ${line}`)].join("\n")
+      : "",
+    homeworkNotes.length
+      ? ["Ghi chú bài tập", ...homeworkNotes.map((line) => `- ${line}`)].join("\n")
+      : "",
+  ].filter(Boolean);
+
+  return [...summaryLines, ...activityBlocks, ...homeworkBlock]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
 function createEmptyPlannerActivity(): PlannerActivityDraft {
   return {
     time: "",
@@ -8680,14 +8808,30 @@ function PlanFormModal({
   const [showPlannedJsonEditor, setShowPlannedJsonEditor] = useState(
     () => !isTeacher && Boolean(parseStarterActivities(initialPlannedContent)),
   );
+  const rawInitialActualContent =
+    initialValue?.actualContent || session.actualContent || "";
+  const initialActualSheet = !isTeacher
+    ? parseStarterActivities(rawInitialActualContent)
+    : null;
   const [actualContent, setActualContent] = useState(
-    initialValue?.actualContent || session.actualContent || "",
+    !isTeacher
+      ? formatStarterSheetForTextarea(initialActualSheet) ||
+          rawInitialActualContent
+      : rawInitialActualContent,
   );
   const [actualHomework, setActualHomework] = useState(
-    initialValue?.actualHomework || session.actualHomework || "",
+    initialValue?.actualHomework ||
+      session.actualHomework ||
+      (!isTeacher && initialActualSheet
+        ? linesToTextarea(initialActualSheet.homeworkMaterials)
+        : ""),
   );
   const [teacherNotes, setTeacherNotes] = useState(
-    initialValue?.teacherNotes || session.teacherNotes || "",
+    initialValue?.teacherNotes ||
+      session.teacherNotes ||
+      (!isTeacher && initialActualSheet
+        ? linesToTextarea(initialActualSheet.homeworkNotes)
+        : ""),
   );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -9693,7 +9837,7 @@ function PlanFormModal({
             ) : null}
 
             <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Nội dung dạy cho buổi này">
+              <Field label="Nội dung buổi dạy hôm đó">
                 <textarea
                   value={actualContent}
                   onChange={(event) => setActualContent(event.target.value)}

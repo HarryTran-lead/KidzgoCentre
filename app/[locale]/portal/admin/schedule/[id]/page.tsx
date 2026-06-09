@@ -61,6 +61,17 @@ type TeachingLogData = {
   submittedBy?: string | null;
   submittedAt?: string | null;
   updatedAt?: string | null;
+  activities?: TeachingLogActivity[];
+};
+
+type TeachingLogActivity = {
+  time: string | null;
+  book: string | null;
+  skills: string | null;
+  classwork: string | null;
+  requiredMaterials: string | null;
+  homeworkRequiredMaterials: string | null;
+  extra: string | null;
 };
 
 function pickFirstNonEmptyString(...values: unknown[]): string | null {
@@ -71,6 +82,45 @@ function pickFirstNonEmptyString(...values: unknown[]): string | null {
     }
   }
   return null;
+}
+
+function normalizeTeachingLogActivities(value: unknown): TeachingLogActivity[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((activity) => {
+      if (!activity || typeof activity !== "object" || Array.isArray(activity)) {
+        return null;
+      }
+
+      const item = activity as Record<string, unknown>;
+      return {
+        time: pickFirstNonEmptyString(item.time, item.Time, item.duration),
+        book: pickFirstNonEmptyString(item.book, item.Book, item.page),
+        skills: pickFirstNonEmptyString(item.skills, item.Skills, item.skill),
+        classwork: pickFirstNonEmptyString(
+          item.classwork,
+          item.Classwork,
+          item.completedActivities,
+          item.actualContent,
+        ),
+        requiredMaterials: pickFirstNonEmptyString(
+          item.requiredMaterials,
+          item.RequiredMaterials,
+          item.materials,
+        ),
+        homeworkRequiredMaterials: pickFirstNonEmptyString(
+          item.homeworkRequiredMaterials,
+          item.HomeworkRequiredMaterials,
+          item.homeworkMaterials,
+        ),
+        extra: pickFirstNonEmptyString(item.extra, item.Extra, item.note, item.notes),
+      };
+    })
+    .filter((activity): activity is TeachingLogActivity => {
+      if (!activity) return false;
+      return Object.values(activity).some((value) => String(value ?? "").trim());
+    });
 }
 
 function parseJsonObject(input: unknown): Record<string, any> | null {
@@ -97,17 +147,21 @@ function normalizeTeachingLog(raw: any): TeachingLogData | null {
   const contentObject = parseJsonObject(
     raw?.actualContent ?? raw?.ActualContent ?? raw?.realContent ?? raw?.deliveredContent,
   );
+  const activities = normalizeTeachingLogActivities(contentObject?.activities);
 
-  const activityText = Array.isArray(contentObject?.activities)
-    ? contentObject.activities
-        .map((activity: any) => {
-          if (!activity || typeof activity !== "object") return "";
-          const merged = [activity.classwork, activity.requiredMaterials, activity.homeworkRequiredMaterials]
+  const activityText = activities.length
+    ? activities
+        .map((activity) =>
+          [
+            activity.classwork,
+            activity.requiredMaterials,
+            activity.homeworkRequiredMaterials,
+            activity.extra,
+          ]
             .filter((value) => typeof value === "string" && value.trim())
             .map((value) => String(value).trim())
-            .join("\n");
-          return merged;
-        })
+            .join("\n"),
+        )
         .filter(Boolean)
         .join("\n\n")
     : "";
@@ -161,6 +215,7 @@ function normalizeTeachingLog(raw: any): TeachingLogData | null {
     submittedBy: pickFirstNonEmptyString(raw?.submittedBy, raw?.SubmittedBy),
     submittedAt: pickFirstNonEmptyString(raw?.submittedAt, raw?.SubmittedAt),
     updatedAt: pickFirstNonEmptyString(raw?.updatedAt, raw?.UpdatedAt),
+    activities,
   };
 }
 
@@ -191,6 +246,168 @@ const TEACHING_TYPE_LABELS: Record<string, string> = {
   normal: "Dạy mới", review: "Ôn tập", test: "Kiểm tra",
   makeup: "Học bù", event: "Sự kiện", other: "Khác",
 };
+
+function formatTeachingLogDate(value?: string | null) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("vi-VN");
+}
+
+function TeachingLogDetails({
+  teachingLog,
+  lesson,
+  progressInfo,
+}: {
+  teachingLog: TeachingLogData;
+  lesson: LessonDetail;
+  progressInfo: { label: string; color: string } | null;
+}) {
+  const activities =
+    teachingLog.activities?.length
+      ? teachingLog.activities
+      : normalizeTeachingLogActivities(parseJsonObject(teachingLog.actualContent)?.activities);
+  const submittedAt = formatTeachingLogDate(teachingLog.submittedAt || teachingLog.updatedAt);
+  const actualContentFallback = activities.length ? null : teachingLog.actualContent;
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white px-4 py-3">
+        <div className="flex flex-wrap items-center gap-2">
+          {progressInfo && (
+            <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${progressInfo.color}`}>
+              {progressInfo.label}
+            </span>
+          )}
+          {teachingLog.actualTeachingType && (
+            <span className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
+              {TEACHING_TYPE_LABELS[teachingLog.actualTeachingType.toLowerCase()] ?? teachingLog.actualTeachingType}
+            </span>
+          )}
+          {teachingLog.teachingLogStatus && (
+            <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600">
+              {teachingLog.teachingLogStatus}
+            </span>
+          )}
+        </div>
+
+        {teachingLog.actualLessonTitle && teachingLog.actualLessonTitle !== lesson.plannedLessonTitle && (
+          <div className="mt-3 rounded-xl border border-red-100 bg-red-50 px-3 py-2">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-red-600">
+              Actual Lesson / Bài thực tế dạy
+            </div>
+            <div className="mt-0.5 text-sm font-semibold text-slate-900">
+              {teachingLog.actualLessonTitle}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-4 p-4">
+        <div>
+          <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-600">
+            <ClipboardList size={14} className="text-red-600" />
+            Completed Activities / Nội dung đã dạy
+          </div>
+
+          {activities.length ? (
+            <div className="overflow-hidden rounded-xl border border-slate-200">
+              <div className="hidden grid-cols-[4rem_5rem_6rem_1fr] border-b border-slate-200 bg-slate-50 text-xs font-semibold text-slate-600 md:grid">
+                <div className="border-r border-slate-200 px-3 py-2">Time</div>
+                <div className="border-r border-slate-200 px-3 py-2">Book</div>
+                <div className="border-r border-slate-200 px-3 py-2">Skills</div>
+                <div className="px-3 py-2">Nội dung</div>
+              </div>
+
+              <div className="divide-y divide-slate-100">
+                {activities.map((activity, index) => (
+                  <div
+                    key={`teaching-log-activity-${index}`}
+                    className="grid gap-3 bg-white px-3 py-3 text-sm md:grid-cols-[4rem_5rem_6rem_1fr] md:gap-0 md:px-0 md:py-0"
+                  >
+                    <div className="font-semibold text-red-600 md:border-r md:border-slate-100 md:px-3 md:py-3">
+                      {activity.time || "-"}
+                    </div>
+                    <div className="text-slate-700 md:border-r md:border-slate-100 md:px-3 md:py-3">
+                      <span className="md:hidden text-xs font-semibold text-slate-500">Book: </span>
+                      {activity.book || "-"}
+                    </div>
+                    <div className="text-slate-700 md:border-r md:border-slate-100 md:px-3 md:py-3">
+                      <span className="md:hidden text-xs font-semibold text-slate-500">Skills: </span>
+                      {activity.skills || "-"}
+                    </div>
+                    <div className="space-y-2 text-slate-700 md:px-3 md:py-3">
+                      {activity.classwork && (
+                        <p className="whitespace-pre-wrap leading-6">{activity.classwork}</p>
+                      )}
+                      {activity.requiredMaterials && (
+                        <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-700">
+                          <span className="font-semibold">Học liệu: </span>
+                          {activity.requiredMaterials}
+                        </div>
+                      )}
+                      {activity.homeworkRequiredMaterials && (
+                        <div className="rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                          <span className="font-semibold">BTVN: </span>
+                          {activity.homeworkRequiredMaterials}
+                        </div>
+                      )}
+                      {activity.extra && (
+                        <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                          <span className="font-semibold">Ghi chú: </span>
+                          {activity.extra}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : actualContentFallback ? (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700 whitespace-pre-wrap">
+              {actualContentFallback}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+              Chưa có nội dung đã dạy.
+            </div>
+          )}
+        </div>
+
+        {(teachingLog.actualHomework || teachingLog.teacherNote) && (
+          <div className="grid gap-3 md:grid-cols-2">
+            {teachingLog.actualHomework && (
+              <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3">
+                <div className="text-xs font-bold uppercase tracking-wide text-amber-700">
+                  Homework Assigned / Bài tập giao
+                </div>
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">
+                  {teachingLog.actualHomework}
+                </p>
+              </div>
+            )}
+            {teachingLog.teacherNote && (
+              <div className="rounded-xl border border-violet-100 bg-violet-50 px-4 py-3">
+                <div className="text-xs font-bold uppercase tracking-wide text-violet-700">
+                  Teacher Note / Ghi chú giáo viên
+                </div>
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">
+                  {teachingLog.teacherNote}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {submittedAt && (
+          <div className="border-t border-slate-100 pt-3 text-xs text-slate-400">
+            Nộp lúc: {submittedAt}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 // ── Lesson Plan Drawer ────────────────────────────────────────────────────────
 function LessonPlanDrawer({
@@ -361,54 +578,11 @@ function LessonPlanDrawer({
                 Chưa có teaching log cho buổi này.
               </div>
             ) : (
-              <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-4 space-y-3 text-sm">
-                <div className="flex flex-wrap items-center gap-2">
-                  {progressInfo && (
-                    <span className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${progressInfo.color}`}>
-                      {progressInfo.label}
-                    </span>
-                  )}
-                  {teachingLog.actualTeachingType && (
-                    <span className="rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-700">
-                      {TEACHING_TYPE_LABELS[teachingLog.actualTeachingType.toLowerCase()] ?? teachingLog.actualTeachingType}
-                    </span>
-                  )}
-                  {teachingLog.teachingLogStatus && (
-                    <span className="rounded-full border border-gray-200 bg-white px-2.5 py-0.5 text-xs text-gray-600">
-                      {teachingLog.teachingLogStatus}
-                    </span>
-                  )}
-                </div>
-                {teachingLog.actualLessonTitle && teachingLog.actualLessonTitle !== lesson.plannedLessonTitle && (
-                  <div>
-                    <span className="text-xs font-semibold text-gray-500 uppercase">Actual Lesson / Bài thực tế dạy</span>
-                    <p className="font-medium text-gray-900 mt-0.5">{teachingLog.actualLessonTitle}</p>
-                  </div>
-                )}
-                {teachingLog.actualContent && (
-                  <div>
-                    <span className="text-xs font-semibold text-gray-500 uppercase">Completed Activities / Nội dung đã dạy</span>
-                    <p className="text-gray-700 mt-0.5 whitespace-pre-wrap">{teachingLog.actualContent}</p>
-                  </div>
-                )}
-                {teachingLog.actualHomework && (
-                  <div>
-                    <span className="text-xs font-semibold text-gray-500 uppercase">Homework Assigned / Bài tập giao</span>
-                    <p className="text-gray-700 mt-0.5 whitespace-pre-wrap">{teachingLog.actualHomework}</p>
-                  </div>
-                )}
-                {teachingLog.teacherNote && (
-                  <div>
-                    <span className="text-xs font-semibold text-gray-500 uppercase">Teacher Note / Ghi chú giáo viên</span>
-                    <p className="text-gray-700 mt-0.5 whitespace-pre-wrap">{teachingLog.teacherNote}</p>
-                  </div>
-                )}
-                {teachingLog.submittedAt && (
-                  <p className="text-xs text-gray-400">
-                    Nộp lúc: {new Date(teachingLog.submittedAt).toLocaleString("vi-VN")}
-                  </p>
-                )}
-              </div>
+              <TeachingLogDetails
+                teachingLog={teachingLog}
+                lesson={lesson}
+                progressInfo={progressInfo}
+              />
             )}
             </div>
           </section>
