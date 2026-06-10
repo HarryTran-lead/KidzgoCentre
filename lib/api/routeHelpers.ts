@@ -38,18 +38,18 @@ export function getAuthHeader(req: Request): string | null {
 /**
  * Parse JSON response safely
  */
-export async function parseJsonResponse(response: Response): Promise<{ data: any; error: string | null }> {
+export async function parseJsonResponse(response: Response): Promise<{ data: any; error: string | null; empty: boolean }> {
   const text = await response.text();
   
   if (!text) {
-    return { data: null, error: "Empty response from backend" };
+    return { data: null, error: null, empty: true };
   }
 
   try {
     const data = JSON.parse(text);
-    return { data, error: null };
+    return { data, error: null, empty: false };
   } catch (parseError) {
-    return { data: null, error: `Invalid JSON: ${text.substring(0, 200)}` };
+    return { data: null, error: `Invalid JSON: ${text.substring(0, 200)}`, empty: false };
   }
 }
 
@@ -60,7 +60,7 @@ export async function handleBackendResponse(
   response: Response,
   context: { method: string; endpoint: string; id?: string; [key: string]: string | undefined }
 ): Promise<NextResponse> {
-  const { data, error } = await parseJsonResponse(response);
+  const { data, error, empty } = await parseJsonResponse(response);
 
   if (!response.ok) {
     const errorMessage = data?.message || data?.detail || `Backend error: ${response.status} ${response.statusText}`;
@@ -86,6 +86,21 @@ export async function handleBackendResponse(
   if (error) {
     console.error(`[${context.method}] ${context.endpoint}${context.id ? `/${context.id}` : ""} - Parse error:`, error);
     return serverErrorResponse("Invalid JSON response from backend");
+  }
+
+  if (empty) {
+    if (response.status === 204 || response.status === 205) {
+      return new NextResponse(null, { status: response.status });
+    }
+
+    return NextResponse.json(
+      {
+        success: true,
+        isSuccess: true,
+        data: null,
+      },
+      { status: response.status }
+    );
   }
 
   return NextResponse.json(data, {

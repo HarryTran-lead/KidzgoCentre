@@ -119,7 +119,7 @@ function ModernCurriculumTable({
   savingCellKey: string | null;
   isReadOnly: boolean;
   onCellChange: (rowId: string, columnKey: string, value: string) => void;
-  onSaveCell: (rowId: string, columnKey: string) => void;
+  onSaveCell: (rowId: string, columnKey: string, value: string) => void;
   onAddRow: () => void;
   onDeleteRow: (rowId: string) => void;
 }) {
@@ -135,7 +135,7 @@ function ModernCurriculumTable({
 
   const handleCellSave = (rowId: string, columnKey: string) => {
     onCellChange(rowId, columnKey, tempValue);
-    onSaveCell(rowId, columnKey);
+    onSaveCell(rowId, columnKey, tempValue);
     setEditingCell(null);
   };
 
@@ -320,7 +320,7 @@ function DraggableSection({
   onToggle: () => void;
   onMove: (direction: -1 | 1) => void;
   onSaveSection: () => void;
-  onSaveCell: (rowId: string, columnKey: string) => void;
+  onSaveCell: (rowId: string, columnKey: string, value: string) => void;
   onAddRow: () => void;
   onDeleteRow: (rowId: string) => void;
   onTitleChange: (title: string) => void;
@@ -569,11 +569,35 @@ export default function SyllabusDocumentEditorPage() {
 
   const expectedVersion = useMemo(() => document?.version ?? 0, [document]);
 
-  const applyMutationResult = (next: SyllabusDocument | null, successMessage: string) => {
-    if (!next) return;
-    syncFromDocument(next);
+  const refreshDocument = async (preserveCellDraft?: Record<string, string>) => {
+    if (!syllabusId) return null;
+    const res = await getSyllabusDocument(syllabusId);
+    if (!res.isSuccess || !res.data) {
+      toast({ title: "Khong the tai lai document", description: res.message ?? "Vui long thu lai.", variant: "destructive" });
+      return null;
+    }
+    syncFromDocument(res.data);
+    if (preserveCellDraft) {
+      setCellDraft((prev) => ({ ...prev, ...preserveCellDraft }));
+    }
+    return res.data;
+  };
+
+  const applyMutationResult = async (
+    next: SyllabusDocument | null,
+    successMessage: string,
+    preserveCellDraft?: Record<string, string>,
+  ) => {
+    const syncedDocument = next ?? (await refreshDocument(preserveCellDraft));
+    if (!syncedDocument) return;
+    if (next) syncFromDocument(next);
     setLastAutoSave(new Date());
     toast({ title: successMessage, variant: "success" });
+  };
+
+  const isVersionConflict = (res: { status?: number; message?: string; detail?: string; title?: string }) => {
+    const text = `${res.message ?? ""} ${res.detail ?? ""} ${res.title ?? ""}`;
+    return res.status === 409 && /version conflict|expected version|current version/i.test(text);
   };
 
   const handleSaveMetadata = async () => {
@@ -589,7 +613,7 @@ export default function SyllabusDocumentEditorPage() {
         toast({ title: "Lưu metadata thất bại", description: res.message, variant: "destructive" });
         return;
       }
-      applyMutationResult(res.data, "Đã lưu metadata");
+      await applyMutationResult(res.data, "Đã lưu metadata");
     } finally {
       setSaving(false);
     }
@@ -616,7 +640,7 @@ export default function SyllabusDocumentEditorPage() {
       setNewSectionTitle("");
       setNewSectionContent("");
       setShowAddSection(false);
-      applyMutationResult(res.data, "Đã thêm section");
+      await applyMutationResult(res.data, "Đã thêm section");
     } finally {
       setSaving(false);
     }
@@ -636,7 +660,7 @@ export default function SyllabusDocumentEditorPage() {
         toast({ title: "Lưu section thất bại", description: res.message, variant: "destructive" });
         return;
       }
-      applyMutationResult(res.data, "Đã lưu section");
+      await applyMutationResult(res.data, "Đã lưu section");
     } finally {
       setSavingSectionId(null);
     }
@@ -660,7 +684,7 @@ export default function SyllabusDocumentEditorPage() {
         toast({ title: "Sắp xếp section thất bại", description: res.message, variant: "destructive" });
         return;
       }
-      applyMutationResult(res.data, "Đã cập nhật thứ tự section");
+      await applyMutationResult(res.data, "Đã cập nhật thứ tự section");
     } finally {
       setSaving(false);
     }
@@ -699,7 +723,7 @@ export default function SyllabusDocumentEditorPage() {
         toast({ title: "Sắp xếp section thất bại", description: res.message, variant: "destructive" });
         return;
       }
-      applyMutationResult(res.data, "Đã cập nhật thứ tự section");
+      await applyMutationResult(res.data, "Đã cập nhật thứ tự section");
     } finally {
       setSaving(false);
       setDraggedIndex(null);
@@ -707,20 +731,30 @@ export default function SyllabusDocumentEditorPage() {
     }
   };
 
-  const handleSaveCell = async (sectionId: string, rowId: string, columnKey: string) => {
+  const handleSaveCell = async (sectionId: string, rowId: string, columnKey: string, value: string) => {
     if (!document) return;
     const key = `${sectionId}:${rowId}:${columnKey}`;
+    setCellDraft((prev) => ({ ...prev, [key]: value }));
     setSavingCellKey(key);
     try {
-      const res = await updateSyllabusTableCell(document.id, sectionId, rowId, columnKey, {
-        expectedVersion,
-        value: cellDraft[key] ?? "",
-      });
+      const saveCell = (version: number) =>
+        updateSyllabusTableCell(document.id, sectionId, rowId, columnKey, {
+          expectedVersion: version,
+          value,
+        });
+
+      let res = await saveCell(expectedVersion);
+      if (!res.isSuccess && isVersionConflict(res)) {
+        const freshDocument = await refreshDocument({ [key]: value });
+        if (freshDocument) {
+          res = await saveCell(freshDocument.version);
+        }
+      }
       if (!res.isSuccess) {
         toast({ title: "Lưu ô thất bại", description: res.message, variant: "destructive" });
         return;
       }
-      applyMutationResult(res.data, "Đã lưu ô");
+      await applyMutationResult(res.data, "Đã lưu ô", { [key]: value });
     } finally {
       setSavingCellKey(null);
     }
@@ -746,7 +780,7 @@ export default function SyllabusDocumentEditorPage() {
         toast({ title: "Thêm dòng thất bại", description: res.message, variant: "destructive" });
         return;
       }
-      applyMutationResult(res.data, "Đã thêm dòng");
+      await applyMutationResult(res.data, "Đã thêm dòng");
     } finally {
       setSaving(false);
     }
@@ -756,12 +790,18 @@ export default function SyllabusDocumentEditorPage() {
     if (!document) return;
     setSaving(true);
     try {
-      const res = await deleteSyllabusTableRow(document.id, sectionId, rowId, expectedVersion);
+      let res = await deleteSyllabusTableRow(document.id, sectionId, rowId, expectedVersion);
+      if (!res.isSuccess && isVersionConflict(res)) {
+        const freshDocument = await refreshDocument();
+        if (freshDocument) {
+          res = await deleteSyllabusTableRow(document.id, sectionId, rowId, freshDocument.version);
+        }
+      }
       if (!res.isSuccess) {
         toast({ title: "Xóa dòng thất bại", description: res.message, variant: "destructive" });
         return;
       }
-      applyMutationResult(res.data, "Đã xóa dòng");
+      await applyMutationResult(res.data, "Đã xóa dòng");
     } finally {
       setSaving(false);
     }
@@ -776,7 +816,7 @@ export default function SyllabusDocumentEditorPage() {
         toast({ title: "Publish thất bại", description: res.message, variant: "destructive" });
         return;
       }
-      applyMutationResult(res.data, "Đã publish syllabus");
+      await applyMutationResult(res.data, "Đã publish syllabus");
     } finally {
       setSaving(false);
     }
@@ -791,7 +831,7 @@ export default function SyllabusDocumentEditorPage() {
         toast({ title: "Archive thất bại", description: res.message, variant: "destructive" });
         return;
       }
-      applyMutationResult(res.data, "Đã archive syllabus");
+      await applyMutationResult(res.data, "Đã archive syllabus");
     } finally {
       setSaving(false);
     }
@@ -1013,7 +1053,7 @@ export default function SyllabusDocumentEditorPage() {
                 onToggle={() => toggleSection(section.sectionId)}
                 onMove={(direction) => handleMoveSection(section.sectionId, direction)}
                 onSaveSection={() => handleSaveSection(section.sectionId)}
-                onSaveCell={(rowId, columnKey) => handleSaveCell(section.sectionId, rowId, columnKey)}
+                onSaveCell={(rowId, columnKey, value) => handleSaveCell(section.sectionId, rowId, columnKey, value)}
                 onAddRow={() => handleAddRow(section.sectionId)}
                 onDeleteRow={(rowId) => handleDeleteRow(section.sectionId, rowId)}
                 onTitleChange={(title) =>
