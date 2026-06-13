@@ -12,16 +12,20 @@ const nextConfig: NextConfig = {
   },
 
   async rewrites() {
+    const backendUrl = process.env.BACKEND_API_BASE_URL || "http://103.146.22.206:5000/api";
+    // Extract base URL without the trailing /api
+    const backendBaseUrl = backendUrl.replace(/\/api\/?$/, "");
+
     return [
       {
         // Proxy backend static files (images, uploads) through HTTPS to avoid mixed-content block.
         // Must be listed BEFORE the general /api/:path* rule so it takes priority.
         source: "/api/files/serve/:path*",
-        destination: "http://103.146.22.206:5000/:path*",
+        destination: `${backendBaseUrl}/:path*`,
       },
       {
         source: "/api/:path*",
-        destination: "http://103.146.22.206:5000/api/:path*",
+        destination: `${backendUrl}/:path*`,
       },
     ];
   },
