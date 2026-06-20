@@ -177,9 +177,6 @@ export async function createAdminSession(
     assistantName: data?.assistantName ?? null,
     participationType: data?.participationType ?? null,
     sectionType: data?.sectionType ?? payload.sectionType ?? null,
-    slotTypeId: data?.slotTypeId != null ? String(data.slotTypeId) : (payload.slotTypeId ?? null),
-    slotTypeCode: data?.slotTypeCode ?? data?.slotType?.code ?? null,
-    slotTypeName: data?.slotTypeName ?? data?.slotType?.name ?? null,
     color: data?.color ?? data?.Color ?? null,
   };
 
@@ -223,9 +220,6 @@ function mapApiSession(item: any): Session {
     sectionType: item?.sectionType ?? null,
     status: item?.status ?? null,
     color: item?.color ?? item?.Color ?? null,
-    slotTypeId: item?.slotTypeId != null ? String(item.slotTypeId) : (item?.slotType?.id != null ? String(item.slotType.id) : null),
-    slotTypeCode: item?.slotTypeCode ?? item?.slotType?.code ?? null,
-    slotTypeName: item?.slotTypeName ?? item?.slotType?.name ?? null,
   };
 
   if (!session.id) {
@@ -422,7 +416,6 @@ export async function updateAdminSession(
     durationMinutes?: number;
     participationType?: string;
     sectionType?: string;
-    slotTypeId?: string | null;
   }
 ): Promise<{ isSuccess: boolean; data?: any; message?: string }> {
   const token = getAccessToken();
@@ -473,10 +466,6 @@ export async function updateAdminSession(
       payload.sectionType
       ?? currentSession?.sectionType
       ?? "Normal",
-    slotTypeId:
-      payload.slotTypeId !== undefined
-        ? payload.slotTypeId
-        : (currentSession?.slotTypeId ?? null),
   };
 
   if (!mergedPayload.plannedDatetime) {

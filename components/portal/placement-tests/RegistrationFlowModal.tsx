@@ -36,18 +36,6 @@ import RegistrationFlowHeader from "@/components/portal/placement-tests/registra
 import RegistrationFlowStepTabs from "@/components/portal/placement-tests/registration-flow/RegistrationFlowStepTabs";
 import RegistrationSelectorCard from "@/components/portal/placement-tests/registration-flow/RegistrationSelectorCard";
 import RegistrationCompletionPdfModal from "@/components/portal/registrations/modals/RegistrationCompletionPdfModal";
-import {
-  filterClassesByLearningTicketType,
-  filterSuggestedClassBucketByLearningTicketType,
-  getClassSlotTypeLabel,
-  getLearningTicketTypeLabel,
-  isKnownNonStandardLearningTicketType,
-  supportsParallelLevels,
-} from "@/lib/tuitionPlanTicketType";
-import {
-  filterClassesByTuitionPlanEligibility,
-  filterSuggestedClassBucketByTuitionPlanEligibility,
-} from "@/lib/tuitionPlanClassEligibility";
 
 interface RegistrationFlowModalProps {
   isOpen: boolean;
@@ -69,24 +57,6 @@ type ProgramOption = {
   isMakeup?: boolean | null;
   isSupplementary?: boolean | null;
 };
-
-function stripSecondarySuggestions(bucket: SuggestedClassBucket): SuggestedClassBucket {
-  const suggestedClasses = bucket.suggestedClasses || [];
-  const alternativeClasses = bucket.alternativeClasses || [];
-
-  return {
-    ...bucket,
-    length: suggestedClasses.length + alternativeClasses.length,
-    secondaryProgramId: null,
-    secondaryProgramName: null,
-    secondaryProgramSkillFocus: null,
-    secondaryLevelId: null,
-    secondaryLevelName: null,
-    secondaryLevelSkillFocus: null,
-    secondarySuggestedClasses: [],
-    secondaryAlternativeClasses: [],
-  };
-}
 
 const WEEK_DAYS = [
   { value: "2", shortLabel: "T2", label: "Thứ 2" },
@@ -301,8 +271,6 @@ export default function RegistrationFlowModal({
       secondaryLevelName?: string;
       tuitionPlanId: string;
       tuitionPlanName: string;
-      learningTicketTypeCode?: string | null;
-      learningTicketTypeName?: string | null;
       className?: string;
       secondaryClassName?: string;
       totalSessions: number;
@@ -463,7 +431,6 @@ export default function RegistrationFlowModal({
             : String(cls?.scheduleText || cls?.description || "").trim() ||
               formatScheduleFromWeeklySlots(cls?.weeklyScheduleSlots);
         const className = getClassDisplayName(cls);
-        const slotTypeLabel = getClassSlotTypeLabel(cls);
         const moduleName = String(cls?.currentModuleName || cls?.startModuleName || "").trim();
         const moduleLabel = moduleName ? `Module: ${moduleName}` : "";
         const safeRemaining =
@@ -480,7 +447,6 @@ export default function RegistrationFlowModal({
             className,
             String(cls?.levelName || cls?.courseLevel || cls?.level?.name || "Chưa rõ trình độ"),
             moduleLabel,
-            slotTypeLabel ? `Loại: ${slotTypeLabel}` : "",
             `Còn chỗ: ${safeRemaining ?? "-"}`,
             `Lịch: ${scheduleLabel}`,
           ]
@@ -609,91 +575,21 @@ export default function RegistrationFlowModal({
     });
   }, [tuitionPlans, activeProgramMap]);
 
-  const requiresStandardTuitionPlan = isSecondaryEnabled || Boolean(secondaryLevelId);
-
   const filteredTuitionPlans = useMemo(() => {
     return tuitionPlans.filter((p) => {
       if (!p.isActive) return false;
       if (!programId || !levelId) return false;
       if (p.programId !== programId || p.levelId !== levelId) return false;
-      if (requiresStandardTuitionPlan && isKnownNonStandardLearningTicketType(p)) {
-        return false;
-      }
       return true;
     });
-  }, [tuitionPlans, programId, levelId, requiresStandardTuitionPlan]);
+  }, [tuitionPlans, programId, levelId]);
 
   const selectedRegistration = useMemo(
     () => registrationOptions.find((item) => item.id === registrationId),
     [registrationId, registrationOptions],
   );
-  const selectedRegistrationTuitionPlan = useMemo(
-    () =>
-      selectedRegistration?.tuitionPlanId
-        ? tuitionPlans.find((plan) => plan.id === selectedRegistration.tuitionPlanId) ||
-          null
-        : null,
-    [selectedRegistration?.tuitionPlanId, tuitionPlans],
-  );
-  const selectedRegistrationLearningTicketType = useMemo(
-    () => ({
-      learningTicketTypeCode:
-        selectedRegistration?.learningTicketTypeCode ||
-        selectedRegistrationTuitionPlan?.learningTicketTypeCode ||
-        selectedTuitionPlan?.learningTicketTypeCode ||
-        "",
-      learningTicketTypeName:
-        selectedRegistration?.learningTicketTypeName ||
-        selectedRegistrationTuitionPlan?.learningTicketTypeName ||
-        selectedTuitionPlan?.learningTicketTypeName ||
-        "",
-    }),
-    [
-      selectedRegistration?.learningTicketTypeCode,
-      selectedRegistration?.learningTicketTypeName,
-      selectedRegistrationTuitionPlan?.learningTicketTypeCode,
-      selectedRegistrationTuitionPlan?.learningTicketTypeName,
-      selectedTuitionPlan?.learningTicketTypeCode,
-      selectedTuitionPlan?.learningTicketTypeName,
-    ],
-  );
-  const selectedRegistrationTuitionPlanForClassEligibility =
-    selectedRegistrationTuitionPlan || selectedTuitionPlan;
-  const selectedLearningTicketBlocksSecondary =
-    isKnownNonStandardLearningTicketType(selectedRegistrationLearningTicketType);
   const selectedRegistrationPreferredSchedule =
     selectedRegistration?.preferredSchedule || "";
-
-  useEffect(() => {
-    setSuggestedClasses((prev) => {
-      if (!prev) return prev;
-      const ticketFiltered = filterSuggestedClassBucketByLearningTicketType(
-        prev,
-        selectedRegistrationLearningTicketType,
-      );
-      return filterSuggestedClassBucketByTuitionPlanEligibility(
-        ticketFiltered,
-        selectedRegistrationTuitionPlanForClassEligibility,
-      );
-    });
-    setManualClasses((prev) => {
-      if (!prev.length) return prev;
-      const ticketFiltered = filterClassesByLearningTicketType(
-        prev,
-        selectedRegistrationLearningTicketType,
-      );
-      return filterClassesByTuitionPlanEligibility(
-        ticketFiltered,
-        selectedRegistrationTuitionPlanForClassEligibility,
-      );
-    });
-    setSelectedClassId("");
-    setManualPrimaryClassId("");
-    setManualSecondaryClassId("");
-  }, [
-    selectedRegistrationLearningTicketType,
-    selectedRegistrationTuitionPlanForClassEligibility,
-  ]);
 
   const selectedRegistrationProgramId = selectedRegistration?.programId || "";
   const selectedRegistrationProgramName = selectedRegistration?.programName || "";
@@ -715,8 +611,7 @@ export default function RegistrationFlowModal({
   const isPrimaryMainProgram = selectedPrimaryProgram
     ? !selectedPrimaryProgram.isMakeup && !selectedPrimaryProgram.isSupplementary
     : true;
-  const canUseSecondaryProgram =
-    isPrimaryMainProgram && !selectedLearningTicketBlocksSecondary;
+  const canUseSecondaryProgram = isPrimaryMainProgram;
   const hasSecondaryTrack = Boolean(
     canUseSecondaryProgram &&
       (secondaryProgramId ||
@@ -724,10 +619,7 @@ export default function RegistrationFlowModal({
         suggestedClasses?.secondaryProgramId ||
         suggestedClasses?.secondaryLevelId),
   );
-  const secondaryBlockedReason =
-    isPrimaryMainProgram && selectedLearningTicketBlocksSecondary
-      ? `Gói vé ${getLearningTicketTypeLabel(selectedRegistrationLearningTicketType)} chỉ áp dụng cho một trình độ, phần song song đã được ẩn.`
-      : "";
+  const secondaryBlockedReason = "";
   const canCreate =
     Boolean(effectiveStudentProfileId) &&
     Boolean(branchId) &&
@@ -765,35 +657,6 @@ export default function RegistrationFlowModal({
     secondaryProgramId,
     secondaryLevelId,
     secondaryProgramSkillFocus,
-  ]);
-
-  useEffect(() => {
-    if (!selectedLearningTicketBlocksSecondary) return;
-    if (
-      !isSecondaryEnabled &&
-      !secondaryProgramId &&
-      !secondaryLevelId &&
-      !secondaryProgramSkillFocus &&
-      selectedTrack !== "secondary"
-    ) {
-      return;
-    }
-
-    setIsSecondaryEnabled(false);
-    setSecondaryProgramId("");
-    setSecondaryLevelId("");
-    setSecondaryProgramSkillFocus("");
-    setSelectedTrack("primary");
-    setManualSecondaryClassId("");
-    setManualSecondarySessionPattern("");
-    setSuggestedClasses((prev) => (prev ? stripSecondarySuggestions(prev) : prev));
-  }, [
-    selectedLearningTicketBlocksSecondary,
-    isSecondaryEnabled,
-    secondaryProgramId,
-    secondaryLevelId,
-    secondaryProgramSkillFocus,
-    selectedTrack,
   ]);
 
   useEffect(() => {
@@ -973,8 +836,6 @@ export default function RegistrationFlowModal({
               secondaryLevelName: String(r.secondaryLevelName || ""),
               tuitionPlanId: String(r.tuitionPlanId || ""),
               tuitionPlanName: String(r.tuitionPlanName || ""),
-              learningTicketTypeCode: String(r.learningTicketTypeCode || ""),
-              learningTicketTypeName: String(r.learningTicketTypeName || ""),
               className: String(r.className || ""),
               secondaryClassName: String(r.secondaryClassName || ""),
               totalSessions: Number(r.totalSessions ?? 0),
@@ -1188,16 +1049,6 @@ export default function RegistrationFlowModal({
       return;
     }
 
-    if (isSecondaryEnabled && !canUseSecondaryProgram) {
-      toast({
-        title: "Không hợp lệ",
-        description:
-          "Gói học hiện tại không phải STANDARD nên không thể dùng cho hai trình độ song song.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     try {
       setIsCreating(true);
       const shouldCreateSecondaryTrack = isSecondaryEnabled && canUseSecondaryProgram;
@@ -1242,10 +1093,6 @@ export default function RegistrationFlowModal({
             tuitionPlanId,
             tuitionPlanName:
               tuitionPlans.find((p) => p.id === tuitionPlanId)?.name || "",
-            learningTicketTypeCode:
-              tuitionPlans.find((p) => p.id === tuitionPlanId)?.learningTicketTypeCode || "",
-            learningTicketTypeName:
-              tuitionPlans.find((p) => p.id === tuitionPlanId)?.learningTicketTypeName || "",
             totalSessions:
               tuitionPlans.find((p) => p.id === tuitionPlanId)?.totalSessions || 0,
             usedSessions: 0,
@@ -1259,7 +1106,7 @@ export default function RegistrationFlowModal({
       setAssignViewMode("suggested");
       setActiveStep("create");
       lastAutoSuggestRegistrationIdRef.current = createdId;
-      await handleSuggestClasses(createdId, shouldCreateSecondaryTrack);
+      await handleSuggestClasses(createdId);
       toast({
         title: "Thành công",
         description: "Đã tạo đăng ký học viên.",
@@ -1284,10 +1131,7 @@ export default function RegistrationFlowModal({
     }
   };
 
-  const handleSuggestClasses = async (
-    targetRegistrationId?: string,
-    allowSecondaryOverride?: boolean,
-  ) => {
+  const handleSuggestClasses = async (targetRegistrationId?: string) => {
     const registrationIdToSuggest = targetRegistrationId || registrationId;
     if (!registrationIdToSuggest) return;
 
@@ -1295,39 +1139,7 @@ export default function RegistrationFlowModal({
       setIsSuggesting(true);
       setAssignViewMode("suggested");
       const suggestions = await suggestClassesForRegistration(registrationIdToSuggest);
-      const registrationForSuggestion = registrationOptions.find(
-        (item) => item.id === registrationIdToSuggest,
-      );
-      const registrationPlan =
-        registrationForSuggestion?.tuitionPlanId
-          ? tuitionPlans.find((plan) => plan.id === registrationForSuggestion.tuitionPlanId) ||
-            selectedTuitionPlan
-          : selectedTuitionPlan;
-      const learningTicketTypeForSuggestion = {
-        learningTicketTypeCode:
-          registrationForSuggestion?.learningTicketTypeCode ||
-          registrationPlan?.learningTicketTypeCode ||
-          "",
-        learningTicketTypeName:
-          registrationForSuggestion?.learningTicketTypeName ||
-          registrationPlan?.learningTicketTypeName ||
-          "",
-      };
-      const canUseSecondaryForSuggestion =
-        allowSecondaryOverride ??
-        supportsParallelLevels(learningTicketTypeForSuggestion);
-      const ticketFilteredSuggestions = filterSuggestedClassBucketByLearningTicketType(
-        suggestions,
-        learningTicketTypeForSuggestion,
-      );
-      const planFilteredSuggestions =
-        filterSuggestedClassBucketByTuitionPlanEligibility(
-          ticketFilteredSuggestions,
-          registrationPlan,
-        );
-      const visibleSuggestions = canUseSecondaryForSuggestion
-        ? planFilteredSuggestions
-        : stripSecondarySuggestions(planFilteredSuggestions);
+      const visibleSuggestions = suggestions;
 
       setSuggestedClasses(visibleSuggestions);
       const primaryCount = visibleSuggestions?.suggestedClasses?.length ?? 0;
@@ -1545,14 +1357,7 @@ export default function RegistrationFlowModal({
           const status = String(item?.status || "").toLowerCase();
           return status !== "cancelled" && status !== "completed";
         });
-      const ticketFilteredItems = filterClassesByLearningTicketType(
-        allItems,
-        selectedRegistrationLearningTicketType,
-      );
-      const items = filterClassesByTuitionPlanEligibility(
-        ticketFilteredItems,
-        selectedRegistrationTuitionPlanForClassEligibility,
-      );
+      const items = allItems;
 
       const countClassesByProgramAndLevel = (
         targetProgramId?: string,
@@ -1659,7 +1464,7 @@ export default function RegistrationFlowModal({
         setManualSecondarySessionPattern("");
         toast({
           title: "Thông báo",
-          description: `Không có lớp ${getLearningTicketTypeLabel(selectedRegistrationLearningTicketType)} phù hợp trong chi nhánh hiện tại.`,
+          description: "Không có lớp phù hợp trong chi nhánh hiện tại.",
           variant: "default",
         });
       }
@@ -1921,7 +1726,6 @@ export default function RegistrationFlowModal({
                     registrationId={registrationId}
                     programs={programs}
                     filteredTuitionPlans={filteredTuitionPlans}
-                    requiresStandardTuitionPlan={requiresStandardTuitionPlan}
                     secondaryBlockedReason={secondaryBlockedReason}
                     levels={levels}
                     weekDays={WEEK_DAYS}

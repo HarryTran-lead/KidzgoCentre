@@ -3,7 +3,6 @@ import { Clock3, Loader2, School, Calendar, FileText, Sparkles } from "lucide-re
 import type { TuitionPlan } from "@/types/admin/tuition_plan";
 import type { LevelDto } from "@/types/academic-progression";
 import { SelectContent, Select, SelectTrigger, SelectValue, SelectItem } from "@/components/lightswind/select";
-import { getLearningTicketTypeLabel } from "@/lib/tuitionPlanTicketType";
 
 type ProgramOption = {
   id: string;
@@ -64,7 +63,6 @@ interface CreateRegistrationStepProps {
   registrationId: string;
   programs: ProgramOption[];
   filteredTuitionPlans: TuitionPlan[];
-  requiresStandardTuitionPlan?: boolean;
   secondaryBlockedReason?: string;
   levels: LevelDto[];
   weekDays: WeekDayOption[];
@@ -111,7 +109,6 @@ export default function CreateRegistrationStep({
   isCreating,
   programs,
   filteredTuitionPlans,
-  requiresStandardTuitionPlan = false,
   secondaryBlockedReason,
   levels,
   weekDays,
@@ -211,9 +208,6 @@ export default function CreateRegistrationStep({
                               <span className="text-gray-400 text-xs ml-1">
                                 ({p.totalSessions} buổi{p.levelName ? ` • ${p.levelName}` : ""})
                               </span>
-                              <span className="ml-2 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-600">
-                                {getLearningTicketTypeLabel(p)}
-                              </span>
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -225,9 +219,7 @@ export default function CreateRegistrationStep({
                       )}
                       {programId && levelId && filteredTuitionPlans.length === 0 && (
                         <p className="mt-1.5 text-xs text-amber-700">
-                          {requiresStandardTuitionPlan
-                            ? "Trình độ này chưa có gói STANDARD đang hoạt động để đăng ký song song."
-                            : "Trình độ này chưa có gói học đang hoạt động."}
+                          Trình độ này chưa có gói học đang hoạt động.
                         </p>
                       )}
                     </div>

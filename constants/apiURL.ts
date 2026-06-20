@@ -222,7 +222,6 @@ export const MAKEUP_CREDIT_ENDPOINTS = {
   GET_ALL: "/api/makeup-credits/all",
   SETTINGS: "/api/makeup-credits/settings",
   GET_BY_ID: (id: string) => `/api/makeup-credits/${id}`,
-  SUGGESTIONS: (id: string) => `/api/makeup-credits/${id}/suggestions`,
   AVAILABLE_SESSIONS: (id: string) =>
     `/api/makeup-credits/${id}/parent/get-available-sessions`,
   USE: (id: string) => `/api/makeup-credits/${id}/use`,
@@ -305,7 +304,6 @@ export const BACKEND_MAKEUP_CREDIT_ENDPOINTS = {
   GET_ALL: "/makeup-credits/all",
   SETTINGS: "/makeup-credits/settings",
   GET_BY_ID: (id: string) => `/makeup-credits/${id}`,
-  SUGGESTIONS: (id: string) => `/api/makeup-credits/${id}/suggestions`,
   AVAILABLE_SESSIONS: (id: string) =>
     `/makeup-credits/${id}/parent/get-available-sessions`,
   USE: (id: string) => `/makeup-credits/${id}/use`,
@@ -497,50 +495,6 @@ export const BACKEND_LEARNING_TICKET_ENDPOINTS = {
   COMPATIBLE_TICKETS: (studentProfileId: string) => `/students/${studentProfileId}/compatible-tickets`,
 } as const;
 
-// Phase 1.5 — Learning Ticket Type Endpoints
-export const LEARNING_TICKET_TYPE_ENDPOINTS = {
-  BASE: '/api/learning-ticket-types',
-  BY_ID: (id: string) => `/api/learning-ticket-types/${id}`,
-} as const;
-
-// Phase 1.5 — Backend Learning Ticket Type Endpoints (Next.js API Routes → Backend)
-export const BACKEND_LEARNING_TICKET_TYPE_ENDPOINTS = {
-  BASE: '/learning-ticket-types',
-  BY_ID: (id: string) => `/learning-ticket-types/${id}`,
-  TOGGLE_STATUS: (id: string) => `/learning-ticket-types/${id}/toggle-status`,
-} as const;
-
-// Phase 1.5 — Slot Type Endpoints
-export const SLOT_TYPE_ENDPOINTS = {
-  BASE: '/api/slot-types',
-  BY_ID: (id: string) => `/api/slot-types/${id}`,
-} as const;
-
-// Phase 1.5 — Backend Slot Type Endpoints
-export const BACKEND_SLOT_TYPE_ENDPOINTS = {
-  BASE: '/slot-types',
-  BY_ID: (id: string) => `/slot-types/${id}`,
-  TOGGLE_STATUS: (id: string) => `/slot-types/${id}/toggle-status`,
-} as const;
-
-// Phase 1.5 — Ticket Type Compatibility Endpoints
-export const TICKET_TYPE_COMPATIBILITY_ENDPOINTS = {
-  BASE: '/api/ticket-type-compatibilities',
-  BY_ID: (id: string) => `/api/ticket-type-compatibilities/${id}`,
-  MATRIX: '/api/ticket-type-compatibilities/matrix',
-  BULK_OVERRIDES: (learningTicketTypeId: string) =>
-    `/api/ticket-type-compatibilities/learning-ticket-types/${learningTicketTypeId}/overrides`,
-} as const;
-
-// Phase 1.5 — Backend Ticket Type Compatibility Endpoints
-export const BACKEND_TICKET_TYPE_COMPATIBILITY_ENDPOINTS = {
-  BASE: '/ticket-type-compatibilities',
-  BY_ID: (id: string) => `/ticket-type-compatibilities/${id}`,
-  MATRIX: '/ticket-type-compatibilities/matrix',
-  BULK_OVERRIDES: (learningTicketTypeId: string) =>
-    `/ticket-type-compatibilities/learning-ticket-types/${learningTicketTypeId}/overrides`,
-} as const;
-
 // Phase 2 — Academic Progression Endpoints (Client → Next.js API Routes)
 export const LEVEL_ENDPOINTS = {
   BASE: '/api/levels',
@@ -698,9 +652,6 @@ export const ADMIN_ENDPOINTS = {
   TUITION_PLANS_ACTIVE: '/api/tuition-plans/active',
   TUITION_PLANS_BY_ID: (id: string) => `/api/tuition-plans/${id}`,
   TUITION_PLANS_TOGGLE_STATUS: (id: string) => `/api/tuition-plans/${id}/toggle-status`,
-  TUITION_PLANS_DEACTIVATE: (id: string) => `/api/tuition-plans/${id}/deactivate`,
-  TUITION_PLANS_SYLLABUSES: (id: string) => `/api/tuition-plans/${id}/syllabuses`,
-  TUITION_PLANS_SYLLABUS_BY_ID: (id: string, syllabusId: string) => `/api/tuition-plans/${id}/syllabuses/${syllabusId}`,
   CLASSES_CAPACITY: (id: string) => `/api/classes/${id}/capacity`,
   CLASSROOMS: '/api/classrooms',
   CLASSROOMS_TOGGLE_STATUS: (id: string) => `/api/classrooms/${id}/toggle-status`,
@@ -958,9 +909,6 @@ export const BACKEND_ADMIN_ENDPOINTS = {
   TUITION_PLANS_ACTIVE: '/tuition-plans/active',
   TUITION_PLANS_BY_ID: (id: string) => `/tuition-plans/${id}`,
   TUITION_PLANS_TOGGLE_STATUS: (id: string) => `/tuition-plans/${id}/toggle-status`,
-  TUITION_PLANS_DEACTIVATE: (id: string) => `/tuition-plans/${id}/deactivate`,
-  TUITION_PLANS_SYLLABUSES: (id: string) => `/tuition-plans/${id}/syllabuses`,
-  TUITION_PLANS_SYLLABUS_BY_ID: (id: string, syllabusId: string) => `/tuition-plans/${id}/syllabuses/${syllabusId}`,
   CLASSES_CAPACITY: (id: string) => `/classes/${id}/capacity`,
   LESSON_PLAN_TEMPLATES: '/lesson-plan-templates',
   LESSON_PLAN_TEMPLATES_BY_ID: (id: string) => `/lesson-plan-templates/${id}`,

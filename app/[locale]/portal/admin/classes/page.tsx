@@ -87,8 +87,6 @@ import {
   buildUpdateClassPayload,
 } from "@/lib/api/classPayload";
 import type { WeekdayCode } from "@/lib/schedulePattern";
-import { getSlotTypes } from "@/lib/api/slotTypeService";
-import type { SlotType } from "@/types/slot-type";
 import { getLevels, getModules } from "@/lib/api/academicProgressionService";
 import { getDomainErrorMessage } from "@/lib/api/domainErrorMessage";
 
@@ -1620,7 +1618,6 @@ interface ClassFormData {
   sessionsToGenerate: number;
   skipHolidays: boolean;
   description: string;
-  slotTypeId: string;
 }
 
 const initialFormData: ClassFormData = {
@@ -1645,7 +1642,6 @@ const initialFormData: ClassFormData = {
   sessionsToGenerate: 24,
   skipHolidays: true,
   description: "",
-  slotTypeId: "",
 };
 
 type ClassFormField = keyof ClassFormData;
@@ -2379,7 +2375,6 @@ function  CreateClassModal({
     new Set(),
   );
   const [loadingOptions, setLoadingOptions] = useState(false);
-  const [slotTypeOptions, setSlotTypeOptions] = useState<SlotType[]>([]);
   const [levelOptions, setLevelOptions] = useState<{ id: string; name: string; code: string }[]>([]);
   const [loadingLevels, setLoadingLevels] = useState(false);
   const [moduleOptions, setModuleOptions] = useState<{ id: string; name: string; orderIndex: number; requiredSessions: number; lessonPlanCount: number }[]>([]);
@@ -2787,12 +2782,6 @@ function  CreateClassModal({
       cancelled = true;
     };
   }, [isOpen, formData.branchId]);
-
-  // Load slot types once on open
-  useEffect(() => {
-    if (!isOpen) return;
-    getSlotTypes({ isActive: true }).then(setSlotTypeOptions).catch(() => setSlotTypeOptions([]));
-  }, [isOpen]);
 
   // Load levels khi programId thay đổi
   useEffect(() => {
@@ -4456,34 +4445,6 @@ function  CreateClassModal({
               </div>
             </div>
 
-            {/* Row 7: Slot Type (Phase 1.5) */}
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                <Tag size={16} className="text-blue-600" />
-                Loại buổi học (Slot Type)
-                <span className="text-xs text-gray-400 font-normal">— tuỳ chọn</span>
-              </label>
-              <Select
-                value={formData.slotTypeId || "__none__"}
-                onValueChange={(v) => handleChange("slotTypeId", v === "__none__" ? "" : v)}
-              >
-                <SelectTrigger className="w-full rounded-xl border border-gray-200 bg-white text-sm text-gray-900 transition-all">
-                  <SelectValue placeholder="Không phân loại (default)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">
-                    <span className="text-gray-500">Không phân loại (default)</span>
-                  </SelectItem>
-                  {slotTypeOptions.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      <span className="font-mono font-bold text-blue-700 mr-2">{s.code}</span>
-                      {s.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
             {/* Row 8: Mô tả */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
@@ -4898,7 +4859,6 @@ export default function Page() {
         sessionsToGenerate: data.sessionsToGenerate,
         skipHolidays: data.skipHolidays,
         weeklyScheduleSlots,
-        slotTypeId: data.slotTypeId,
       });
 
       console.log("Creating class with payload:", payload);
@@ -5002,7 +4962,6 @@ export default function Page() {
         sessionsToGenerate: 24,
         skipHolidays: true,
         description: detail?.description ?? "",
-        slotTypeId: detail?.slotTypeId ?? "",
       };
 
       setEditingInitialData(formData);
@@ -5060,7 +5019,6 @@ export default function Page() {
         endDate: data.endDate,
         capacity: data.capacity,
         weeklyScheduleSlots,
-        slotTypeId: data.slotTypeId,
       });
 
       console.log("Updating class with payload:", payload);

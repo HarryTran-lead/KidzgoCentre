@@ -703,16 +703,19 @@ export default function LeaveRequestCreateModal({
         response?.record ?? {
           id: `leave-${Date.now()}`,
           ...payload,
-          status: "PENDING",
+          status: "Pending",
         };
 
       onCreated(record as LeaveRequestRecord);
 
-      const statusText = String((record as LeaveRequestRecord | undefined)?.status ?? "").toUpperCase();
+      const statusText = String((record as LeaveRequestRecord | undefined)?.status ?? "")
+        .replace(/\s+/g, "_")
+        .replace(/-+/g, "_")
+        .toUpperCase();
       toast({
         title: "Tạo đơn nghỉ thành công",
         description:
-          statusText === "APPROVED" || statusText === "AUTO_APPROVED"
+          statusText === "APPROVED" || (statusText.startsWith("AUTO") && statusText.includes("APPROV"))
             ? "Đơn đã được duyệt. Nếu có lượt học bù, vui lòng chọn lịch bù để hoàn tất luồng."
             : "Yêu cầu đã được gửi thành công.",
         variant: "success",

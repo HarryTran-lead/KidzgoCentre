@@ -46,26 +46,11 @@ import {
 } from "@/lib/api/registrationService";
 import { getAllBranchesPublic } from "@/lib/api/branchService";
 import { getAllClasses } from "@/lib/api/classService";
-import {
-  getTuitionPlanById,
-  getTuitionPlans,
-} from "@/lib/api/tuitionPlanService";
+import { getTuitionPlans } from "@/lib/api/tuitionPlanService";
 import {
   extractDomainErrorCode,
   getDomainErrorMessage,
 } from "@/lib/api/domainErrorMessage";
-import {
-  filterClassesByTuitionPlanEligibility,
-  filterSuggestedClassBucketByTuitionPlanEligibility,
-  isClassEligibleForTuitionPlan,
-} from "@/lib/tuitionPlanClassEligibility";
-import {
-  filterClassesByLearningTicketType,
-  filterSuggestedClassBucketByLearningTicketType,
-  getClassSlotTypeLabel,
-  getLearningTicketTypeLabel,
-  supportsParallelLevels,
-} from "@/lib/tuitionPlanTicketType";
 import type { Branch } from "@/types/branch";
 import type { TuitionPlan } from "@/types/admin/tuition_plan";
 import type {
@@ -661,24 +646,6 @@ function getStudentInitials(name: string | null | undefined): string {
   return parts.map((p) => p.charAt(0).toUpperCase()).join("").slice(0, 2);
 }
 
-function stripSecondarySuggestions(bucket: SuggestedClassBucket): SuggestedClassBucket {
-  const suggestedClasses = bucket.suggestedClasses || [];
-  const alternativeClasses = bucket.alternativeClasses || [];
-
-  return {
-    ...bucket,
-    length: suggestedClasses.length + alternativeClasses.length,
-    secondaryProgramId: null,
-    secondaryProgramName: null,
-    secondaryProgramSkillFocus: null,
-    secondaryLevelId: null,
-    secondaryLevelName: null,
-    secondaryLevelSkillFocus: null,
-    secondarySuggestedClasses: [],
-    secondaryAlternativeClasses: [],
-  };
-}
-
 export default function StaffRegistrationOverview({
   branchId,
   onTotalChange,
@@ -747,8 +714,6 @@ export default function StaffRegistrationOverview({
   const [branchTransferWeeklyPattern, setBranchTransferWeeklyPattern] = useState<WeeklyPatternEntry[]>([]);
   const [branchTransferBranches, setBranchTransferBranches] = useState<Branch[]>([]);
   const [branchTransferClasses, setBranchTransferClasses] = useState<Record<string, unknown>[]>([]);
-  const [actionTuitionPlanForClassEligibility, setActionTuitionPlanForClassEligibility] =
-    useState<TuitionPlan | null>(null);
   const [isLoadingBranchTransferBranches, setIsLoadingBranchTransferBranches] = useState(false);
   const [isLoadingBranchTransferClasses, setIsLoadingBranchTransferClasses] = useState(false);
   const [isBranchTransferring, setIsBranchTransferring] = useState(false);
@@ -767,35 +732,15 @@ export default function StaffRegistrationOverview({
     });
   }, [upgradeTuitionPlans, selectedActionRegistration?.programId, selectedActionRegistration?.levelId]);
 
-  const selectedActionRegistrationLearningTicketType = useMemo(
-    () => ({
-      learningTicketTypeCode: selectedActionRegistration?.learningTicketTypeCode || "",
-      learningTicketTypeName: selectedActionRegistration?.learningTicketTypeName || "",
-    }),
-    [
-      selectedActionRegistration?.learningTicketTypeCode,
-      selectedActionRegistration?.learningTicketTypeName,
-    ],
-  );
-
-  const selectedActionRegistrationSupportsParallel = useMemo(
-    () => supportsParallelLevels(selectedActionRegistrationLearningTicketType),
-    [
-      selectedActionRegistrationLearningTicketType,
-    ],
-  );
-
   const hasSecondaryTrack = useMemo(
     () =>
       Boolean(
-        selectedActionRegistrationSupportsParallel &&
-          (selectedActionRegistration?.secondaryProgramId ||
-            selectedActionRegistration?.secondaryLevelId ||
-            suggestedClasses?.secondaryProgramId ||
-            suggestedClasses?.secondaryLevelId),
+        selectedActionRegistration?.secondaryProgramId ||
+          selectedActionRegistration?.secondaryLevelId ||
+          suggestedClasses?.secondaryProgramId ||
+          suggestedClasses?.secondaryLevelId,
       ),
     [
-      selectedActionRegistrationSupportsParallel,
       selectedActionRegistration?.secondaryProgramId,
       selectedActionRegistration?.secondaryLevelId,
       suggestedClasses?.secondaryProgramId,
@@ -819,30 +764,6 @@ export default function StaffRegistrationOverview({
     setSelectedClassId("");
   }, [hasSecondaryTrack, selectedTrack]);
 
-  useEffect(() => {
-    setSuggestedClasses((prev) =>
-      prev
-        ? filterSuggestedClassBucketByLearningTicketType(
-            prev,
-            selectedActionRegistrationLearningTicketType,
-          )
-        : prev,
-    );
-    setManualClasses((prev) =>
-      prev.length
-        ? filterClassesByLearningTicketType(
-            prev,
-            selectedActionRegistrationLearningTicketType,
-          )
-        : prev,
-    );
-    setSelectedClassId("");
-    setManualPrimaryClassId("");
-    setManualSecondaryClassId("");
-  }, [
-    selectedActionRegistrationLearningTicketType,
-  ]);
-
   const manualClassOptions = useMemo(
     () =>
       manualClasses.map((cls) => {
@@ -857,7 +778,6 @@ export default function StaffRegistrationOverview({
         const levelName = String(cls?.levelName || cls?.courseLevel || cls?.level?.name || "");
         const moduleName = String(cls?.currentModuleName || cls?.startModuleName || "").trim();
         const moduleLabel = moduleName ? `Module: ${moduleName}` : "";
-        const slotTypeLabel = getClassSlotTypeLabel(cls);
         const safeRemaining =
           typeof remainingSlots === "number" ? Math.max(0, remainingSlots) : null;
         return {
@@ -872,7 +792,6 @@ export default function StaffRegistrationOverview({
             className,
             levelName || "Chưa rõ trình độ",
             moduleLabel,
-            slotTypeLabel ? `Loại: ${slotTypeLabel}` : "",
             `Còn chỗ: ${safeRemaining ?? "-"}`,
             `Lịch: ${scheduleLabel}`,
           ]
@@ -922,9 +841,6 @@ export default function StaffRegistrationOverview({
         })
         .filter((item) => {
           if (!item.id) return false;
-          if (!isClassEligibleForTuitionPlan(item, actionTuitionPlanForClassEligibility)) {
-            return false;
-          }
 
           const targetProgramId =
             transferTrack === "secondary"
@@ -980,7 +896,6 @@ export default function StaffRegistrationOverview({
       selectedActionRegistration?.secondaryProgramName,
       selectedActionRegistration?.secondaryLevelId,
       selectedActionRegistration?.secondaryLevelName,
-      actionTuitionPlanForClassEligibility,
     ],
   );
 
@@ -1037,9 +952,6 @@ export default function StaffRegistrationOverview({
         })
         .filter((item) => {
           if (!item.id) return false;
-          if (!isClassEligibleForTuitionPlan(item, actionTuitionPlanForClassEligibility)) {
-            return false;
-          }
 
           const targetProgramId = String(selectedActionRegistration?.programId || "");
           const targetProgramName = String(selectedActionRegistration?.programName || "");
@@ -1074,7 +986,6 @@ export default function StaffRegistrationOverview({
       selectedActionRegistration?.programName,
       selectedActionRegistration?.levelId,
       selectedActionRegistration?.levelName,
-      actionTuitionPlanForClassEligibility,
     ],
   );
 
@@ -1441,7 +1352,6 @@ export default function StaffRegistrationOverview({
 
   const openAssignModal = (row: Registration) => {
     setSelectedActionRegistration(row);
-    setActionTuitionPlanForClassEligibility(null);
     setAssignOpen(true);
     setAssignViewMode("none");
     setSuggestedClasses(null);
@@ -1458,12 +1368,6 @@ export default function StaffRegistrationOverview({
   const ensureSelectedActionRegistrationForAssignment = async () => {
     const current = selectedActionRegistration;
     if (!current?.id) return current;
-    if (
-      current.tuitionPlanId &&
-      (current.learningTicketTypeCode || current.learningTicketTypeName)
-    ) {
-      return current;
-    }
 
     try {
       const detail = await getRegistrationById(current.id);
@@ -1477,62 +1381,14 @@ export default function StaffRegistrationOverview({
     }
   };
 
-  const resolveTuitionPlanForAssignment = async (registration?: Registration | null) => {
-    const tuitionPlanId = String(registration?.tuitionPlanId || "").trim();
-    if (!tuitionPlanId) return null;
-
-    const targetBranchId = String(registration?.branchId || branchId || "").trim();
-    const programId = String(registration?.programId || "").trim();
-    const levelId = String(registration?.levelId || "").trim();
-
-    try {
-      const plan = await getTuitionPlanById(tuitionPlanId);
-      if (plan) return plan;
-    } catch (error) {
-      console.warn("Unable to resolve tuition plan detail for class assignment", error);
-    }
-
-    try {
-      const plans = await getTuitionPlans({
-        pageNumber: 1,
-        pageSize: 500,
-        branchId: targetBranchId || undefined,
-        programId: programId || undefined,
-        levelId: levelId || undefined,
-      });
-      return plans.find((plan) => plan.id === tuitionPlanId) || null;
-    } catch (error) {
-      console.warn("Unable to resolve tuition plan for class assignment", error);
-      return null;
-    }
-  };
-
   const handleSuggestClasses = async () => {
     const actionRegistration = await ensureSelectedActionRegistrationForAssignment();
     if (!actionRegistration?.id) return;
-    const learningTicketTypeForAssignment = {
-      learningTicketTypeCode: actionRegistration.learningTicketTypeCode || "",
-      learningTicketTypeName: actionRegistration.learningTicketTypeName || "",
-    };
 
     try {
       setIsSuggesting(true);
       setAssignViewMode("suggested");
-      const [suggestions, tuitionPlanForAssignment] = await Promise.all([
-        suggestClassesForRegistration(actionRegistration.id),
-        resolveTuitionPlanForAssignment(actionRegistration),
-      ]);
-      const ticketFilteredSuggestions = filterSuggestedClassBucketByLearningTicketType(
-        suggestions,
-        learningTicketTypeForAssignment,
-      );
-      const planFilteredSuggestions = filterSuggestedClassBucketByTuitionPlanEligibility(
-        ticketFilteredSuggestions,
-        tuitionPlanForAssignment,
-      );
-      const visibleSuggestions = supportsParallelLevels(learningTicketTypeForAssignment)
-        ? planFilteredSuggestions
-        : stripSecondarySuggestions(planFilteredSuggestions);
+      const visibleSuggestions = await suggestClassesForRegistration(actionRegistration.id);
       setSuggestedClasses(visibleSuggestions);
 
       const primaryCount = visibleSuggestions?.suggestedClasses?.length ?? 0;
@@ -1568,12 +1424,8 @@ export default function StaffRegistrationOverview({
 
   const handleLoadManualClasses = async () => {
     const actionRegistration = await ensureSelectedActionRegistrationForAssignment();
-    const learningTicketTypeForAssignment = {
-      learningTicketTypeCode: actionRegistration?.learningTicketTypeCode || "",
-      learningTicketTypeName: actionRegistration?.learningTicketTypeName || "",
-    };
-    const canUseSecondaryForAssignment = supportsParallelLevels(
-      learningTicketTypeForAssignment,
+    const canUseSecondaryForAssignment = Boolean(
+      actionRegistration?.secondaryProgramId || actionRegistration?.secondaryLevelId,
     );
     const targetBranchId = String(actionRegistration?.branchId || branchId || "");
     if (!targetBranchId) {
@@ -1589,14 +1441,11 @@ export default function StaffRegistrationOverview({
       setIsLoadingManualClasses(true);
       setAssignViewMode("manual");
 
-      const [response, tuitionPlanForAssignment] = await Promise.all([
-        getAllClasses({
-          pageNumber: 1,
-          pageSize: 1000,
-          branchId: targetBranchId,
-        }),
-        resolveTuitionPlanForAssignment(actionRegistration),
-      ]);
+      const response = await getAllClasses({
+        pageNumber: 1,
+        pageSize: 1000,
+        branchId: targetBranchId,
+      });
 
       const allItems = pickClassItems(response)
         .filter((item) => item?.id)
@@ -1604,14 +1453,7 @@ export default function StaffRegistrationOverview({
           const statusValue = String(item?.status || "").toLowerCase();
           return statusValue !== "cancelled" && statusValue !== "completed";
         });
-      const ticketFilteredItems = filterClassesByLearningTicketType(
-        allItems,
-        learningTicketTypeForAssignment,
-      );
-      const items = filterClassesByTuitionPlanEligibility(
-        ticketFilteredItems,
-        tuitionPlanForAssignment,
-      );
+      const items = allItems;
 
       const countClassesByProgramAndLevel = (
         targetProgramId?: string | null,
@@ -1698,7 +1540,7 @@ export default function StaffRegistrationOverview({
         setManualSecondaryClassId("");
         toast({
           title: "Thông báo",
-          description: `Không có lớp ${getLearningTicketTypeLabel(learningTicketTypeForAssignment)} phù hợp trong chi nhánh hiện tại.`,
+          description: "Không có lớp phù hợp trong chi nhánh hiện tại.",
           variant: "default",
         });
       }
@@ -1982,20 +1824,15 @@ export default function StaffRegistrationOverview({
       setTransferSessionPattern("");
       setTransferWeeklyPattern([]);
       setTransferClasses([]);
-      setActionTuitionPlanForClassEligibility(null);
       setIsLoadingTransferClasses(true);
 
-      const [response, tuitionPlanForTransfer] = await Promise.all([
-        getAllClasses({
-          pageNumber: 1,
-          pageSize: 1000,
-          branchId: targetBranchId,
-        }),
-        resolveTuitionPlanForAssignment(row),
-      ]);
+      const response = await getAllClasses({
+        pageNumber: 1,
+        pageSize: 1000,
+        branchId: targetBranchId,
+      });
       const items = pickClassItems(response).filter((item) => item?.id);
 
-      setActionTuitionPlanForClassEligibility(tuitionPlanForTransfer);
       setTransferClasses(items);
     } catch (error: any) {
       setTransferOpen(false);
@@ -2072,18 +1909,13 @@ export default function StaffRegistrationOverview({
       setBranchTransferSessionPattern("");
       setBranchTransferWeeklyPattern([]);
       setBranchTransferClasses([]);
-      setActionTuitionPlanForClassEligibility(null);
       setIsLoadingBranchTransferBranches(true);
 
-      const [response, tuitionPlanForTransfer] = await Promise.all([
-        getAllBranchesPublic({
-          page: 1,
-          limit: 500,
-          isActive: true,
-        }),
-        resolveTuitionPlanForAssignment(row),
-      ]);
-      setActionTuitionPlanForClassEligibility(tuitionPlanForTransfer);
+      const response = await getAllBranchesPublic({
+        page: 1,
+        limit: 500,
+        isActive: true,
+      });
       setBranchTransferBranches(pickBranchItems(response));
     } catch (error) {
       setBranchTransferOpen(false);

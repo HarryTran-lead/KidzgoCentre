@@ -2,11 +2,10 @@ import type { ApiResponse } from "@/types/apiResponse";
 import type { ListData } from "@/types/apiResponse";
 
 export type LeaveRequestStatus =
-  | "PENDING"
-  | "APPROVED"
-  | "REJECTED"
-  | "AUTO_APPROVED"
-  | "CANCELLED";
+  | "Pending"
+  | "Approved"
+  | "Rejected"
+  | "Cancelled";
 
 export interface LeaveRequestPayload {
   studentProfileId: string;

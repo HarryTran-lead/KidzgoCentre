@@ -1,5 +1,8 @@
 import type { ApiResponse, ListData } from "./apiResponse";
 
+export type MakeupCreditStatus = "Available" | "Used" | "Transferred" | "Expired";
+export type MakeupAllocationStatus = "Allocated" | "Used" | "Cancelled" | "Expired";
+
 export type MakeupCredit = {
   id: string;
   studentProfileId?: string;
@@ -10,7 +13,7 @@ export type MakeupCredit = {
   className?: string;
   sourceSessionId?: string;
   usedSessionId?: string;
-  status?: string;
+  status?: MakeupCreditStatus | string;
   remainingCredits?: number;
   createdReason?: string;
   createdAt?: string;
@@ -60,6 +63,7 @@ export type MakeupAllocation = {
   classId?: string;
   allocatedAt?: string;
   usedAt?: string | null;
+  status?: MakeupAllocationStatus | string;
   createdAt?: string;
   [key: string]: unknown;
 };

@@ -7,7 +7,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/lightswind/select";
-import { getClassSlotTypeLabel } from "@/lib/tuitionPlanTicketType";
 import type {
   EntryType,
   RegistrationTrackType,
@@ -1723,7 +1722,6 @@ export default function SuggestAssignStep({
                                     typeof cls.currentEnrollment === "number"
                                   ? cls.capacity - cls.currentEnrollment
                                   : null;
-                            const slotTypeLabel = getClassSlotTypeLabel(cls);
                             return (
                               <button
                                 key={`suggested-primary-${cls.id}`}
@@ -1740,11 +1738,6 @@ export default function SuggestAssignStep({
                                 <div className="text-sm font-semibold text-gray-900">
                                   {cls.code}
                                 </div>
-                                {slotTypeLabel && (
-                                  <div className="mt-1 text-xs font-semibold text-blue-700">
-                                    Loại lớp: {slotTypeLabel}
-                                  </div>
-                                )}
                                 <div className="mt-1 text-xs text-gray-600">
                                   Còn chỗ: {typeof remainingSlots === "number" ? Math.max(0, remainingSlots) : "-"}
                                 </div>
@@ -1797,7 +1790,6 @@ export default function SuggestAssignStep({
                                     typeof cls.currentEnrollment === "number"
                                   ? cls.capacity - cls.currentEnrollment
                                   : null;
-                            const slotTypeLabel = getClassSlotTypeLabel(cls);
                             return (
                               <button
                                 key={`suggested-secondary-${cls.id}`}
@@ -1814,11 +1806,6 @@ export default function SuggestAssignStep({
                                 <div className="text-sm font-semibold text-gray-900">
                                   {cls.code}
                                 </div>
-                                {slotTypeLabel && (
-                                  <div className="mt-1 text-xs font-semibold text-blue-700">
-                                    Loại lớp: {slotTypeLabel}
-                                  </div>
-                                )}
                                 <div className="mt-1 text-xs text-gray-600">
                                   Còn chỗ: {typeof remainingSlots === "number" ? Math.max(0, remainingSlots) : "-"}
                                 </div>
@@ -1868,7 +1855,6 @@ export default function SuggestAssignStep({
                               typeof cls.currentEnrollmentCount === "number"
                             ? cls.capacity - cls.currentEnrollmentCount
                             : null;
-                    const slotTypeLabel = getClassSlotTypeLabel(cls);
                     return (
                       <button
                         key={cls.id}
@@ -1883,11 +1869,6 @@ export default function SuggestAssignStep({
                         <div className="text-sm font-semibold text-gray-900">
                           {cls.code}
                         </div>
-                        {slotTypeLabel && (
-                          <div className="mt-1 text-xs font-semibold text-blue-700">
-                            Loại lớp: {slotTypeLabel}
-                          </div>
-                        )}
                         <div className="mt-1 text-xs text-gray-600">
                           Còn chỗ:{" "}
                           {typeof remainingSlots === "number"

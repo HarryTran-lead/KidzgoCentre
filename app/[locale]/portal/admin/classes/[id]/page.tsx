@@ -719,16 +719,6 @@ export default function ClassDetailPage() {
                         {classData.totalSessions} buổi
                       </span>
                     </span>
-                    {classData.slotTypeCode && (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 rounded-lg text-gray-700">
-                        <Layers size={14} className="text-blue-500" />
-                        <span className="font-medium">Loại slot:</span>
-                        <span className="font-semibold font-mono text-blue-700">{classData.slotTypeCode}</span>
-                        {classData.slotTypeName && (
-                          <span className="text-gray-500">— {classData.slotTypeName}</span>
-                        )}
-                      </span>
-                    )}
                   </div>
                 </div>
               </div>

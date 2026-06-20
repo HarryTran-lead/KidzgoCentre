@@ -696,7 +696,6 @@ function CreateScheduleModal({
           plannedAssistantId: formData.assistantId || null,
           participationType: formData.participationType,
           sectionType: formData.sectionType,
-          slotTypeId: null,
         },
         {
           title: findLabel(classOptions, formData.classId) || "Buổi học",

@@ -8,8 +8,7 @@ export type RegistrationStatus =
   | "Cancelled";
 
 export type CanonicalEntryType = "immediate" | "wait" | "retake";
-export type LegacyEntryType = "Immediate" | "Wait" | "Makeup" | "Retake";
-export type EntryType = CanonicalEntryType | LegacyEntryType;
+export type EntryType = CanonicalEntryType;
 export type RegistrationTrackType = "primary" | "secondary";
 
 export interface WeeklyPatternEntry {
@@ -115,9 +114,6 @@ export interface Registration {
   secondaryLevelSkillFocus?: string | null;
   tuitionPlanId: string;
   tuitionPlanName: string;
-  learningTicketTypeId?: string | null;
-  learningTicketTypeCode?: string | null;
-  learningTicketTypeName?: string | null;
   registrationDate: string;
   expectedStartDate: string;
   actualStartDate: string;
@@ -159,9 +155,6 @@ export interface SuggestedClass {
   classSchedulePattern?: string | null;
   effectiveSchedulePattern?: string | null;
   scheduleText?: string | null;
-  slotTypeId?: string | null;
-  slotTypeCode?: string | null;
-  slotTypeName?: string | null;
   weeklyScheduleSlots?: Array<{
     dayOfWeek?: string;
     dayCode?: string;
@@ -262,14 +255,27 @@ export interface RegistrationActionResponse {
   registrationId?: string;
   originalRegistrationId?: string;
   newRegistrationId?: string;
+  rolledOverMakeupCredits?: RolledOverMakeupCredit[];
   data?: {
     id?: string;
     registrationId?: string;
     originalRegistrationId?: string;
     newRegistrationId?: string;
     registration?: Registration;
+    rolledOverMakeupCredits?: RolledOverMakeupCredit[];
+    RolledOverMakeupCredits?: RolledOverMakeupCredit[];
     [key: string]: any;
   } | any;
+}
+
+export interface RolledOverMakeupCredit {
+  id?: string;
+  makeupCreditId?: string;
+  sourceRegistrationId?: string | null;
+  targetRegistrationId?: string | null;
+  sourceSessionId?: string | null;
+  status?: "Transferred" | string;
+  [key: string]: unknown;
 }
 
 export interface EnrollmentPaymentSetting {

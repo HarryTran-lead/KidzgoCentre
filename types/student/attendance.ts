@@ -2,7 +2,7 @@
 
 export type AttendanceStatus = "PRESENT" | "ABSENT" | "EXCUSED" | "MAKEUP" | "LATE" | "EARLY_LEAVE";
 export type SessionStatus = "SCHEDULED" | "COMPLETED" | "CANCELLED" | "MAKEUP_SESSION";
-export type LeaveRequestStatus = "PENDING" | "APPROVED" | "REJECTED";
+export type LeaveRequestStatus = "Pending" | "Approved" | "Rejected" | "Cancelled";
 export type CheckInMethod = "QR_CODE" | "TEACHER" | "AUTO_GPS";
 export type AttitudeRating = "GOOD" | "FAIR" | "NEEDS_IMPROVEMENT";
 export type MakeupSessionStatus = "SCHEDULED" | "COMPLETED";

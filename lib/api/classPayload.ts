@@ -23,7 +23,6 @@ export interface BuildClassPayloadInput {
   sessionsToGenerate?: number | null;
   skipHolidays?: boolean;
   weeklyScheduleSlots: ScheduleSlot[];
-  slotTypeId?: string | null;
 }
 
 function trimRequired(value: string): string {
@@ -59,7 +58,6 @@ function buildBasePayload(input: BuildClassPayloadInput) {
     endDate: toNullableString(input.endDate),
     capacity: input.capacity,
     weeklyScheduleSlots: input.weeklyScheduleSlots,
-    slotTypeId: toNullableString(input.slotTypeId),
   };
 }
 

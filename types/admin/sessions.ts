@@ -37,7 +37,6 @@ export interface CreateSessionRequest {
   plannedAssistantId?: string | null;
   participationType: ParticipationType;
   sectionType?: SectionType | string;
-  slotTypeId?: string | null;
 }
 
 export interface Session {
@@ -73,9 +72,6 @@ export interface Session {
   sectionType?: SectionType | string | null;
   status?: string | null;
   color?: string | null;
-  slotTypeId?: string | null;
-  slotTypeCode?: string | null;
-  slotTypeName?: string | null;
   teachingLogId?: string | null;
   teachingLogStatus?: string | null;
   teachingProgressStatus?: string | null;
@@ -125,7 +121,6 @@ export interface UpdateSessionsByClassRequest {
   plannedTeacherId?: string;
   plannedAssistantId?: string;
   sectionType?: SectionType | string;
-  slotTypeId?: string | null;
 }
 
 export interface UpdateSessionsByClassResult {

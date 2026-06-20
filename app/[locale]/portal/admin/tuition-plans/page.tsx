@@ -52,8 +52,6 @@ type TuitionPlanRow = {
   name: string;
   programName: string;
   levelName: string;
-  syllabusLabel: string;
-  moduleLabel: string;
   sessionCount: string;
   tuitionAmount: string;
   status: "Đang hoạt động" | "Tạm dừng";
@@ -111,23 +109,11 @@ function SortableHeader({
 const PAGE_SIZE = 10;
 
 function toRow(plan: TuitionPlan): TuitionPlanRow {
-  const moduleLabel = plan.modules.length
-    ? plan.modules
-        .map((module) => module.moduleCode || module.moduleName || module.moduleId)
-        .filter(Boolean)
-        .join(", ")
-    : "Gói thường";
-  const syllabusLabel = plan.syllabusTitle || plan.syllabusCode
-    ? [plan.syllabusCode, plan.syllabusVersion, plan.syllabusTitle].filter(Boolean).join(" - ")
-    : "";
-
   return {
     id: plan.id,
     name: plan.name,
     programName: plan.programName,
     levelName: plan.levelName,
-    syllabusLabel,
-    moduleLabel,
     sessionCount: `${plan.totalSessions} buổi`,
     tuitionAmount: `${plan.tuitionAmount.toLocaleString("vi-VN")} ${plan.currency || "VND"}`,
     status: plan.isActive ? "Đang hoạt động" : "Tạm dừng",
@@ -208,7 +194,7 @@ export default function TuitionPlansPage() {
     let filtered = !kw
       ? plans
       : plans.filter((r) =>
-          [r.name, r.programName, r.levelName, r.syllabusLabel, r.moduleLabel, r.tuitionAmount]
+          [r.name, r.programName, r.levelName, r.tuitionAmount]
             .some((x) => x.toLowerCase().includes(kw)),
         );
 
@@ -259,13 +245,10 @@ export default function TuitionPlansPage() {
       await createTuitionPlan({
         programId: data.programId,
         levelId: data.levelId,
-        syllabusId: data.planType === "syllabus" ? data.syllabusId : null,
-        moduleIds: data.planType === "syllabus" ? data.moduleIds : [],
         name: data.name,
         totalSessions: Number(data.sessionCount),
         tuitionAmount: Number(data.tuitionAmount.replace(/[^\d]/g, "")),
         currency: data.currency,
-        learningTicketTypeId: data.learningTicketTypeId || null,
       });
 
       await loadData();
@@ -288,19 +271,15 @@ export default function TuitionPlansPage() {
       const plan = await getTuitionPlanDetail(row.id);
       setEditingPlanId(row.id);
       setEditingInitialData({
-        branchId: plan.branchId,
-        planType: plan.syllabusId && plan.moduleIds.length > 0 ? "syllabus" : "regular",
+        branchId: plan.branchId ?? "",
         programId: plan.programId,
         levelId: plan.levelId,
-        syllabusId: plan.syllabusId ?? "",
-        moduleIds: plan.moduleIds,
         name: plan.name,
         sessionCount: String(plan.totalSessions),
         tuitionAmount: String(plan.tuitionAmount),
         unitPriceSession: String(plan.unitPriceSession),
         currency: plan.currency || "VND",
         status: plan.status === 'inactive' ? 'inactive' : 'active',
-        learningTicketTypeId: plan.learningTicketTypeId ?? "",
       });
       setOriginalStatus(plan.status === 'inactive' ? 'inactive' : 'active');
       setIsEditModalOpen(true);
@@ -320,13 +299,10 @@ export default function TuitionPlansPage() {
       await updateTuitionPlan(editingPlanId, {
         programId: data.programId,
         levelId: data.levelId,
-        syllabusId: data.planType === "syllabus" ? data.syllabusId : null,
-        moduleIds: data.planType === "syllabus" ? data.moduleIds : [],
         name: data.name,
         totalSessions: Number(data.sessionCount),
         tuitionAmount: Number(data.tuitionAmount.replace(/[^\d]/g, "")),
         currency: data.currency,
-        learningTicketTypeId: data.learningTicketTypeId || null,
       });
 
       if (originalStatus && data.status !== originalStatus) {
@@ -537,7 +513,7 @@ export default function TuitionPlansPage() {
                 <tr>
                   <SortableHeader field="name" currentField={sortField} direction={sortDirection} onSort={handleSort}>Tên gói học</SortableHeader>
                   <SortableHeader field="programName" currentField={sortField} direction={sortDirection} onSort={handleSort}>Chương trình học</SortableHeader>
-                  <th className="py-3 px-6 text-left text-sm font-semibold tracking-wide text-gray-700 whitespace-nowrap">Level / Syllabus / Module</th>
+                  <th className="py-3 px-6 text-left text-sm font-semibold tracking-wide text-gray-700 whitespace-nowrap">Level</th>
                   <SortableHeader field="sessionCount" currentField={sortField} direction={sortDirection} onSort={handleSort}>Số buổi</SortableHeader>
                   <SortableHeader field="tuitionAmount" currentField={sortField} direction={sortDirection} onSort={handleSort}>Học phí</SortableHeader>
                   <SortableHeader field="status" currentField={sortField} direction={sortDirection} onSort={handleSort} align="center">Trạng thái</SortableHeader>
@@ -563,13 +539,9 @@ export default function TuitionPlansPage() {
                           {r.programName || "Chưa có"}
                         </div>
                       </td>
-                        <td className="py-3 px-6">
-                          <div className="text-xs text-gray-500">
-                            <div className="font-medium text-gray-700">{r.levelName || "—"}</div>
-                            {r.syllabusLabel && <div className="max-w-64 truncate text-xs text-red-600">{r.syllabusLabel}</div>}
-                            <div className="max-w-64 truncate text-xs text-blue-600">{r.moduleLabel}</div>
-                          </div>
-                        </td>
+                      <td className="py-3 px-6">
+                        <div className="text-sm font-medium text-gray-700">{r.levelName || "—"}</div>
+                      </td>
                         <td className="py-3 px-6 whitespace-nowrap">
                           <div className="inline-flex items-center gap-2 text-gray-700 font-medium text-sm">
                             <Clock size={14} className="text-red-600" />

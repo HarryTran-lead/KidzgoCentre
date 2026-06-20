@@ -86,22 +86,6 @@ export async function getMakeupCreditById(
     : `/api/makeup-credits/${creditId}`;
   return get<MakeupCreditResponse>(endpoint);
 }
-export async function getMakeupCreditSuggestions(
-  makeupCreditId: string,
-  params?: { makeupDate?: string; timeOfDay?: string }
-) {
-  const qs = new URLSearchParams();
-  if (params?.makeupDate) qs.set("makeupDate", params.makeupDate);
-  if (params?.timeOfDay) qs.set("timeOfDay", params.timeOfDay);
-
-  const url =
-    qs.toString().length > 0
-      ? `/api/makeup-credits/${makeupCreditId}/suggestions?${qs.toString()}`
-      : `/api/makeup-credits/${makeupCreditId}/suggestions`;
-
-  return get(url);
-}
-
 export async function getMakeupCreditAvailableSessions(
   makeupCreditId: string,
   params?: { fromDate?: string; toDate?: string; timeOfDay?: string }

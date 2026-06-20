@@ -116,16 +116,20 @@ function normalizeTrackValue(track?: string | null): RegistrationTrackType {
 
 function normalizeEntryTypeValue(entryType?: string | null): CanonicalEntryType {
   const normalized = String(entryType || "").trim().toLowerCase();
+  if (!normalized) return "immediate";
+
   switch (normalized) {
     case "wait":
     case "waiting":
       return "wait";
     case "retake":
-    case "makeup":
       return "retake";
     case "immediate":
-    default:
       return "immediate";
+    case "makeup":
+      throw new Error("EntryType Makeup là dữ liệu legacy và không còn được dùng để xếp lớp.");
+    default:
+      throw new Error("Hình thức vào lớp không hợp lệ. Chỉ hỗ trợ immediate, wait hoặc retake.");
   }
 }
 
@@ -692,23 +696,6 @@ function mapToRegistration(item: any): Registration {
         : null,
     tuitionPlanId: String(item?.tuitionPlanId ?? ""),
     tuitionPlanName: String(item?.tuitionPlanName ?? ""),
-    learningTicketTypeId: item?.learningTicketTypeId
-      ? String(item.learningTicketTypeId)
-      : item?.tuitionPlan?.learningTicketTypeId
-        ? String(item.tuitionPlan.learningTicketTypeId)
-        : null,
-    learningTicketTypeCode:
-      typeof item?.learningTicketTypeCode === "string"
-        ? item.learningTicketTypeCode
-        : typeof item?.tuitionPlan?.learningTicketTypeCode === "string"
-          ? item.tuitionPlan.learningTicketTypeCode
-          : null,
-    learningTicketTypeName:
-      typeof item?.learningTicketTypeName === "string"
-        ? item.learningTicketTypeName
-        : typeof item?.tuitionPlan?.learningTicketTypeName === "string"
-          ? item.tuitionPlan.learningTicketTypeName
-          : null,
     registrationDate: String(item?.registrationDate ?? ""),
     expectedStartDate: String(item?.expectedStartDate ?? ""),
     actualStartDate: String(item?.actualStartDate ?? ""),
@@ -721,8 +708,9 @@ function mapToRegistration(item: any): Registration {
     secondaryClassName:
       typeof item?.secondaryClassName === "string" ? item.secondaryClassName : null,
     secondaryEntryType:
-      typeof item?.secondaryEntryType === "string" && item.secondaryEntryType.trim()
-        ? item.secondaryEntryType
+      typeof item?.secondaryEntryType === "string" &&
+      ["immediate", "wait", "retake"].includes(item.secondaryEntryType.trim().toLowerCase())
+        ? (item.secondaryEntryType.trim().toLowerCase() as CanonicalEntryType)
         : null,
     totalSessions: Number(item?.totalSessions ?? 0),
     usedSessions: Number(item?.usedSessions ?? 0),
@@ -776,24 +764,6 @@ function mapSuggestedClass(item: any): SuggestedClass {
     classSchedulePattern: item?.classSchedulePattern ?? null,
     effectiveSchedulePattern: item?.effectiveSchedulePattern ?? null,
     scheduleText: item?.scheduleText ?? item?.description ?? null,
-    slotTypeId:
-      item?.slotTypeId != null
-        ? String(item.slotTypeId)
-        : item?.slotType?.id != null
-          ? String(item.slotType.id)
-          : null,
-    slotTypeCode:
-      typeof item?.slotTypeCode === "string"
-        ? item.slotTypeCode
-        : typeof item?.slotType?.code === "string"
-          ? item.slotType.code
-          : null,
-    slotTypeName:
-      typeof item?.slotTypeName === "string"
-        ? item.slotTypeName
-        : typeof item?.slotType?.name === "string"
-          ? item.slotType.name
-          : null,
     weeklyScheduleSlots: Array.isArray(item?.weeklyScheduleSlots)
       ? item.weeklyScheduleSlots.map((slot: any) => ({
           dayOfWeek:

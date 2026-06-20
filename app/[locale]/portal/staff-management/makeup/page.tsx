@@ -123,11 +123,10 @@ type HolidayFormState = _HolidayFormState;
 /* ===================== Constants ===================== */
 
 const statusMap = {
-  PENDING: "Chờ duyệt",
-  APPROVED: "Đã duyệt",
-  REJECTED: "Từ chối",
-  AUTO_APPROVED: "Đã duyệt",
-  CANCELLED: "Đã hủy",
+  Pending: "Chờ duyệt",
+  Approved: "Đã duyệt",
+  Rejected: "Từ chối",
+  Cancelled: "Đã hủy",
 } as const;
 
 type NormalizedStatusKey = keyof typeof statusMap;
@@ -161,11 +160,7 @@ const isAutoApprovedLeaveRequest = (item: LeaveRequestRecord) => {
   const status = String((item as any).status ?? "")
     .trim()
     .toUpperCase();
-  if (
-    status === "AUTO_APPROVED" ||
-    status === "AUTOAPPROVED" ||
-    status === "AUTO_APPROVE"
-  ) {
+  if (status.startsWith("AUTO") && status.includes("APPROV")) {
     return true;
   }
 
@@ -330,20 +325,20 @@ async function getSessionById(
 }
 
 function normalizeStatus(input: unknown): NormalizedStatusKey {
-  if (!input) return "PENDING";
+  if (!input) return "Pending";
 
   const raw = String(input).trim();
   const s = raw.replace(/\s+/g, "_").replace(/-+/g, "_").toUpperCase();
 
-  if (s === "APPROVED") return "APPROVED";
-  if (s === "REJECTED") return "REJECTED";
-  if (s === "CANCELLED" || s === "CANCELED") return "CANCELLED";
-  if (s === "PENDING") return "PENDING";
+  if (s === "APPROVED") return "Approved";
+  if (s === "REJECTED") return "Rejected";
+  if (s === "CANCELLED" || s === "CANCELED") return "Cancelled";
+  if (s === "PENDING") return "Pending";
 
-  if (s === "AUTOAPPROVED" || s === "AUTO_APPROVED" || s === "AUTO_APPROVE")
-    return "AUTO_APPROVED";
+  if (s.startsWith("AUTO") && s.includes("APPROV"))
+    return "Approved";
 
-  return "PENDING";
+  return "Pending";
 }
 
 const mapLeaveRequests = (
@@ -411,7 +406,7 @@ const mapLeaveRequests = (
         : "-",
       status: statusLabel,
       credit:
-        statusKey !== "REJECTED" && statusKey !== "CANCELLED" && isSingleDay
+        statusKey !== "Rejected" && statusKey !== "Cancelled" && isSingleDay
           ? 1
           : 0,
       note: (item as any).reason ?? "-",
@@ -1078,7 +1073,7 @@ export default function Page() {
   const pendingVisibleIds = useMemo(
     () =>
       filteredLeave
-        .filter((item) => item.status === statusMap.PENDING)
+        .filter((item) => item.status === statusMap.Pending)
         .map((item) => item.id),
     [filteredLeave],
   );
@@ -1124,7 +1119,7 @@ export default function Page() {
     setSelectedLeaveIds((prev) =>
       prev.filter((id) =>
         requestItems.some(
-          (item) => item.id === id && item.status === statusMap.PENDING,
+          (item) => item.id === id && item.status === statusMap.Pending,
         ),
       ),
     );

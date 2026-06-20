@@ -36,7 +36,6 @@ describe("classPayload", () => {
         durationMinutes: 90,
       },
     ],
-    slotTypeId: "",
   };
 
   it("builds create payload with syllabusId and null optional GUIDs", () => {
@@ -71,7 +70,6 @@ describe("classPayload", () => {
           durationMinutes: 90,
         },
       ],
-      slotTypeId: null,
     });
   });
 
@@ -105,7 +103,6 @@ describe("classPayload", () => {
           durationMinutes: 90,
         },
       ],
-      slotTypeId: null,
     });
   });
 

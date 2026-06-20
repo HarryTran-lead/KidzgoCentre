@@ -27,8 +27,7 @@ export async function GET(req: Request, { params }: RouteParams) {
     const { searchParams } = new URL(req.url);
     const queryString = searchParams.toString();
 
-    const primaryUrl = buildApiUrl(BACKEND_MAKEUP_CREDIT_ENDPOINTS.AVAILABLE_SESSIONS(id));
-    const fallbackUrl = buildApiUrl(BACKEND_MAKEUP_CREDIT_ENDPOINTS.SUGGESTIONS(id));
+    const url = buildApiUrl(BACKEND_MAKEUP_CREDIT_ENDPOINTS.AVAILABLE_SESSIONS(id));
 
     const requestUpstream = async (baseUrl: string) => {
       const fullUrl = queryString ? `${baseUrl}?${queryString}` : baseUrl;
@@ -43,11 +42,7 @@ export async function GET(req: Request, { params }: RouteParams) {
       return { upstream, fullUrl };
     };
 
-    let { upstream } = await requestUpstream(primaryUrl);
-
-    if (upstream.status === 404 || upstream.status === 405) {
-      ({ upstream } = await requestUpstream(fallbackUrl));
-    }
+    const { upstream } = await requestUpstream(url);
 
     const data: MakeupSuggestionsResponse = await upstream.json();
     return NextResponse.json(data, { status: upstream.status });

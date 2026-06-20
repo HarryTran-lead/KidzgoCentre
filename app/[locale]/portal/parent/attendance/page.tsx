@@ -85,20 +85,18 @@ const initialFormState: FormState = {
 type FormErrors = Partial<Record<keyof FormState, string>>;
 
 const statusLabels: Record<LeaveRequestStatus, string> = {
-  PENDING: "Chờ duyệt",
-  APPROVED: "Đã duyệt",
-  REJECTED: "Từ chối",
-  AUTO_APPROVED: "Đã duyệt",
-  CANCELLED: "Đã hủy",
+  Pending: "Chờ duyệt",
+  Approved: "Đã duyệt",
+  Rejected: "Từ chối",
+  Cancelled: "Đã hủy",
 };
 
 // Cập nhật style status badges theo theme đỏ
 const statusStyles: Record<LeaveRequestStatus, string> = {
-  PENDING: "border border-amber-200 bg-amber-50 text-amber-700",
-  APPROVED: "border border-emerald-200 bg-emerald-50 text-emerald-700",
-  REJECTED: "border border-rose-200 bg-rose-50 text-rose-700",
-  AUTO_APPROVED: "border border-emerald-200 bg-emerald-50 text-emerald-700",
-  CANCELLED: "border border-slate-200 bg-slate-100 text-slate-700",
+  Pending: "border border-amber-200 bg-amber-50 text-amber-700",
+  Approved: "border border-emerald-200 bg-emerald-50 text-emerald-700",
+  Rejected: "border border-rose-200 bg-rose-50 text-rose-700",
+  Cancelled: "border border-slate-200 bg-slate-100 text-slate-700",
 };
 
 const attendanceLabels: Record<AttendanceRawStatus, string> = {
@@ -127,17 +125,16 @@ function cn(...a: Array<string | false | null | undefined>) {
 }
 
 const normalizeStatus = (value?: string | null): LeaveRequestStatus => {
-  if (!value) return "PENDING";
+  if (!value) return "Pending";
 
   const normalized = value.replace(/\s+/g, "_").replace(/-+/g, "_").toUpperCase();
 
-  if (normalized === "APPROVED") return "APPROVED";
-  if (normalized === "REJECTED") return "REJECTED";
-  if (normalized === "CANCELLED" || normalized === "CANCELED") return "CANCELLED";
-  if (normalized === "AUTO_APPROVED" || normalized === "AUTOAPPROVED") return "AUTO_APPROVED";
-  if (normalized === "PENDING") return "PENDING";
+  if (normalized === "APPROVED" || (normalized.startsWith("AUTO") && normalized.includes("APPROV"))) return "Approved";
+  if (normalized === "REJECTED") return "Rejected";
+  if (normalized === "CANCELLED" || normalized === "CANCELED") return "Cancelled";
+  if (normalized === "PENDING") return "Pending";
 
-  return "PENDING";
+  return "Pending";
 };
 
 function parseDateOnly(value?: string | null) {
@@ -155,7 +152,7 @@ function canCancelLeaveRequest(record: LeaveRequestRecord) {
   if (!record?.id) return false;
 
   const status = normalizeStatus(record.status);
-  if (status === "REJECTED" || status === "CANCELLED") return false;
+  if (status === "Rejected" || status === "Cancelled") return false;
 
   const effectiveDate = parseDateOnly(
     (record as any).sessionDate ?? (record as any).endDate ?? null
@@ -172,8 +169,8 @@ function getCancelActionHint(record: LeaveRequestRecord) {
   if (!record?.id) return "Không tìm thấy mã đơn để thực hiện thao tác.";
 
   const status = normalizeStatus(record.status);
-  if (status === "CANCELLED") return "Đơn đã được hủy.";
-  if (status === "REJECTED") return "Đơn đã bị từ chối.";
+  if (status === "Cancelled") return "Đơn đã được hủy.";
+  if (status === "Rejected") return "Đơn đã bị từ chối.";
 
   const effectiveDate = parseDateOnly(
     (record as any).sessionDate ?? (record as any).endDate ?? null
@@ -740,7 +737,7 @@ export default function ParentAttendancePage() {
           item.id === target.id
             ? {
                 ...item,
-                status: "CANCELLED",
+                status: "Cancelled",
               }
             : item
         )
@@ -837,7 +834,7 @@ export default function ParentAttendancePage() {
       toast.success({
         title: "Tạo đơn nghỉ thành công",
         description:
-          responseStatus === "APPROVED" || responseStatus === "AUTO_APPROVED"
+          responseStatus === "Approved"
             ? "Đơn đã được duyệt tự động. Nếu có lượt học bù, vui lòng chọn buổi học bù để hoàn tất xếp lịch."
             : "Đã tạo đơn xin nghỉ thành công.",
       });
@@ -873,7 +870,7 @@ export default function ParentAttendancePage() {
   const stats = useMemo(() => {
     return {
       totalRequests: requests.length,
-      pendingRequests: requests.filter(r => normalizeStatus(r.status as string | undefined) === "PENDING").length,
+      pendingRequests: requests.filter(r => normalizeStatus(r.status as string | undefined) === "Pending").length,
       makeupCredits: makeupCreditSummary.available,
       attendanceRate: attendanceHistory.length > 0
         ? Math.round((attendanceHistory.filter(i => (i.attendanceStatus ?? "NotMarked") === "Present").length / attendanceHistory.length * 100))
@@ -888,7 +885,7 @@ export default function ParentAttendancePage() {
 
   // Tab configurations
   const tabs: Array<{ id: TabType; label: string; icon: React.ElementType; count: number }> = [
-    { id: "leaveRequests", label: "Đơn nghỉ", icon: FileWarning, count: requests.filter(r => normalizeStatus(r.status as string | undefined) === "PENDING").length },
+    { id: "leaveRequests", label: "Đơn nghỉ", icon: FileWarning, count: requests.filter(r => normalizeStatus(r.status as string | undefined) === "Pending").length },
     { id: "makeup", label: "Học bù", icon: CalendarDays, count: makeupAllocations.length },
   ];
 
@@ -1014,7 +1011,7 @@ export default function ParentAttendancePage() {
       {activeTab === "leaveRequests" && (
         <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <div className="flex flex-wrap gap-2 pb-4 border-b border-red-200">
-            {(["all", "PENDING", "APPROVED", "REJECTED", "CANCELLED"] as const).map((status) => {
+            {(["all", "Pending", "Approved", "Rejected", "Cancelled"] as const).map((status) => {
               const count = status === "all" 
                 ? requests.length 
                 : requests.filter(r => normalizeStatus(r.status as string | undefined) === status).length;
@@ -1171,7 +1168,7 @@ export default function ParentAttendancePage() {
                             </button>
                           ) : (
                             <span className="text-xs text-gray-400" title={cancelHint}>
-                              {status === "CANCELLED" ? "Đã hủy" : "Không thể hủy"}
+                              {status === "Cancelled" ? "Đã hủy" : "Không thể hủy"}
                             </span>
                           )}
                         </td>
@@ -1348,7 +1345,7 @@ export default function ParentAttendancePage() {
             ]);
           }
           setSuccessMessage(
-            responseStatus === "APPROVED" || responseStatus === "AUTO_APPROVED"
+            responseStatus === "Approved"
               ? "Đã tạo đơn xin nghỉ. Đơn đã được duyệt; nếu có lượt học bù, vui lòng chọn buổi học bù để hoàn tất xếp lịch."
               : "Đã tạo đơn xin nghỉ."
           );

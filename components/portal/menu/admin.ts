@@ -10,7 +10,6 @@ import {
   ClipboardCheck,
   CreditCard,
   FileText,
-  GitMerge,
   GraduationCap,
   HelpCircle,
   Image,
@@ -21,7 +20,6 @@ import {
   Send,
   Settings,
   Sparkles,
-  Tag,
   UserCheck,
 } from "lucide-react";
 import { makeGroup, makeMenu, type RawItem } from "./utils";
@@ -58,11 +56,6 @@ export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     [t.groups.ops.pauseEnrollments, CalendarClock, "/pause-enrollments"],
     [t.groups.ops.media, Image, "/media"],
     [t.groups.ops.reportRequests, Send, "/report-requests"],
-  ];
-  const ticketing: RawItem[] = [
-    [t.groups.ticketing.ticketTypes, Tag, "/ticket-types"],
-    [t.groups.ticketing.slotTypes, Layers, "/slot-types"],
-    [t.groups.ticketing.ticketSlotCompat, GitMerge, "/ticket-compatibility"],
   ];
   const system: RawItem[] = [
     [t.groups.system.accounts, Settings, "/accounts"],
@@ -107,7 +100,6 @@ export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     makeGroup(root, t.groups.learning.title, GraduationCap, learning),
     makeGroup(root, t.groups.ops.title, Building2, opsItems),
     feedbackGroup,
-    makeGroup(root, t.groups.ticketing.title, Tag, ticketing),
     makeGroup(root, t.groups.system.title, Settings, system),
   ];
 }

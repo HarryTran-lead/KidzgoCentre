@@ -59,7 +59,6 @@ export interface CreateClassRequest {
   schedule?: SimpleSchedule | null;
   weeklyScheduleSlots?: ScheduleSlot[] | null;
   status?: string;
-  slotTypeId?: string | null;
 }
 
 export interface UpdateClassRequest {
@@ -80,7 +79,6 @@ export interface UpdateClassRequest {
   endDate?: string | null;
   capacity: number;
   weeklyScheduleSlots?: ScheduleSlot[] | null;
-  slotTypeId?: string | null;
 }
 
 export type PreviewSessionsRequest = CreateClassRequest;
@@ -170,9 +168,6 @@ export interface Class {
   scheduleText?: string | null;
   schedulePattern?: string | null;
   status?: string | null;
-  slotTypeId?: string | null;
-  slotTypeCode?: string | null;
-  slotTypeName?: string | null;
   totalSessions?: number | null;
   completedSessions?: number | null;
   totalCurriculumSessions?: number | null;
@@ -203,8 +198,6 @@ export interface CreateClassResponse {
   roomId?: string | null;
   mainTeacherId?: string | null;
   assistantTeacherId?: string | null;
-  slotTypeId?: string | null;
-  slotTypeCode?: string | null;
   startDate?: string | null;
   expectedEndDate?: string | null;
   actualEndDate?: string | null;
@@ -250,8 +243,6 @@ export interface ClassApiDetail {
   teacherNames?: string[];
   roomId?: string | null;
   roomName?: string | null;
-  slotTypeId?: string | null;
-  slotTypeCode?: string | null;
   totalSessions?: number | null;
   completedSessions?: number | null;
   totalCurriculumSessions?: number | null;
@@ -303,7 +294,4 @@ export interface ClassDetail {
   actualEndDate?: string;
   expectedEndDate: string;
   completedLessons: number;
-  slotTypeId?: string | null;
-  slotTypeCode?: string | null;
-  slotTypeName?: string | null;
 }
