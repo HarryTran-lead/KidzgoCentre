@@ -1,0 +1,25 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="capTop" x1="16" y1="13" x2="49" y2="43" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ff4545"/>
+      <stop offset=".48" stop-color="#e60012"/>
+      <stop offset="1" stop-color="#97000e"/>
+    </linearGradient>
+    <linearGradient id="capSide" x1="22" y1="28" x2="44" y2="51" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#d90011"/>
+      <stop offset="1" stop-color="#7f0010"/>
+    </linearGradient>
+    <filter id="programShadow" x="5" y="9" width="54" height="51" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="6" stdDeviation="4" flood-color="#7f1d1d" flood-opacity=".26"/>
+    </filter>
+  </defs>
+  <ellipse cx="32" cy="53" rx="20" ry="5" fill="#b91c1c" opacity=".15"/>
+  <g filter="url(#programShadow)">
+    <path d="M9.7 24.1 32 12.8l22.3 11.3L32 35.4 9.7 24.1Z" fill="url(#capTop)"/>
+    <path d="M20.5 31.4v10.1c0 4.8 23 4.8 23 0V31.4L32 37.2l-11.5-5.8Z" fill="url(#capSide)"/>
+    <path d="M51.1 26.1v14.1" stroke="#ffc400" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="51.1" cy="42.8" r="3.8" fill="#ffca28"/>
+    <path d="M17.6 23.6 32 16.6l14.4 7" stroke="#ffb4a8" stroke-width="2.2" stroke-linecap="round" opacity=".72"/>
+    <path d="M24.1 39.4c3.8 1.7 12 1.7 15.8 0" stroke="#ffb4a8" stroke-width="2" stroke-linecap="round" opacity=".45"/>
+  </g>
+</svg>

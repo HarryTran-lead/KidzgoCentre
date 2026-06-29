@@ -1,454 +1,349 @@
 "use client";
 
-import React, { useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useMemo, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import {
-  motion,
-  type Variants,
-  type Transition,
-  cubicBezier,
-} from "framer-motion";
-import { Mail, Phone, MapPin, Facebook, Sparkles } from "lucide-react";
+  ArrowUpRight,
+  ExternalLink,
+  Facebook,
+  MessageCircle,
+  Phone,
+  Sparkles,
+} from "lucide-react";
 import { LOGO } from "@/lib/theme/theme";
-import { pickLocaleFromPath, DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
-import { getMessages } from "@/lib/dict";
-import FbFrame from "./fbframe";
+import {
+  DEFAULT_LOCALE,
+  localizePath,
+  pickLocaleFromPath,
+  type Locale,
+} from "@/lib/i18n";
+import { EndPoint } from "@/lib/routes";
 
-/* ===== Facebook Page Plugin (iframe only) ===== */
-const fbSrc = (pageUrl: string, w: number, h: number) =>
-  `https://www.facebook.com/plugins/page.php?href=${encodeURIComponent(
-    pageUrl
-  )}&tabs=timeline&width=${w}&height=${h}&adapt_container_width=true&hide_cover=false&show_facepile=false`;
+const DISPLAY_ADDRESS =
+  "Số 23 đường T2, Vinhomes Grand Park, phường Long Bình, TP. HCM";
+const MAP_SEARCH_ADDRESS =
+  "T2-23 Manhattan Grand Park, Vinhomes Grand Park, phường Long Bình, TP Thủ Đức, TP. HCM";
+const PHONE_TEXT = "0867 405 801";
+const PHONE_HREF = "tel:0867405801";
+const FANPAGE_URL = "https://www.facebook.com/kidzgovn";
+const ZALO_URL = "https://zalo.me/0867405801";
+const MAP_URL = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+  MAP_SEARCH_ADDRESS
+)}`;
+const MAP_LAT = 10.8395793;
+const MAP_LNG = 106.8421165;
+const MAP_EMBED_URL = `https://www.google.com/maps?q=${MAP_LAT},${MAP_LNG}&z=17&output=embed`;
 
-/* ===== Motion ===== */
-const easeOut = cubicBezier(0.22, 1, 0.36, 1);
-const tFast: Transition = { duration: 0.5, ease: easeOut };
-const tMed: Transition = { duration: 0.6, ease: easeOut };
-const container: Variants = {
-  hidden: { opacity: 0, y: 8 },
-  show: { opacity: 1, y: 0, transition: tMed },
-};
-const stagger: Variants = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.08, delayChildren: 0.12 } },
-};
-const item: Variants = {
-  hidden: { opacity: 0, y: 12 },
-  show: { opacity: 1, y: 0, transition: tFast },
-};
+const footerHeadingIcons = {
+  about: "/image/footer-icons/about-3d.svg",
+  programs: "/image/footer-icons/programs-3d.svg",
+  address: "/image/footer-icons/location-3d.svg",
+  contact: "/image/footer-icons/contact-3d.svg",
+} as const;
 
-/* ===== Icon palettes ===== */
-const BADGE_STYLES = {
-  rose: {
-    grad: "group-hover:bg-linear-to-br group-hover:from-pink-500 group-hover:to-rose-600 group-hover/contact:bg-linear-to-br group-hover/contact:from-pink-500 group-hover/contact:to-rose-600",
-    ring: "group-hover:ring-rose-300 group-hover/contact:ring-rose-300",
+const footerCopy = {
+  vi: {
+    intro:
+      "Rex đồng hành cùng trẻ xây nền tảng tiếng Anh vững chắc qua lộ trình rõ ràng, lớp học gần gũi và hoạt động thực hành tự nhiên.",
+    aboutTitle: "Về chúng tôi",
+    programsTitle: "Chương trình học",
+    addressTitle: "Địa chỉ",
+    contactTitle: "Liên hệ",
+    mapLabel: "Mở Google Maps",
+    mapHint: "Vinhomes Grand Park, Long Bình",
+    phoneLabel: "Số điện thoại",
+    fanpageLabel: "Fanpage",
+    zaloLabel: "Zalo",
+    consult: "Tư vấn miễn phí",
+    trial: "Đăng ký học thử",
+    rights: "Bảo lưu mọi quyền.",
   },
-  amber: {
-    grad: "group-hover:bg-linear-to-br group-hover:from-amber-400 group-hover:to-orange-500 group-hover/contact:bg-linear-to-br group-hover/contact:from-amber-400 group-hover/contact:to-orange-500",
-    ring: "group-hover:ring-amber-300 group-hover/contact:ring-amber-300",
-  },
-  sky: {
-    grad: "group-hover:bg-linear-to-br group-hover:from-sky-400 group-hover:to-blue-600 group-hover/contact:bg-linear-to-br group-hover/contact:from-sky-400 group-hover/contact:to-blue-600",
-    ring: "group-hover:ring-sky-300 group-hover/contact:ring-sky-300",
-  },
-  violet: {
-    grad: "group-hover:bg-linear-to-br group-hover:from-violet-500 group-hover:to-fuchsia-600 group-hover/contact:bg-linear-to-br group-hover/contact:from-violet-500 group-hover/contact:to-fuchsia-600",
-    ring: "group-hover:ring-violet-300 group-hover/contact:ring-violet-300",
-  },
-  emerald: {
-    grad: "group-hover:bg-linear-to-br group-hover:from-emerald-400 group-hover:to-teal-600 group-hover/contact:bg-linear-to-br group-hover/contact:from-emerald-400 group-hover/contact:to-teal-600",
-    ring: "group-hover:ring-emerald-300 group-hover/contact:ring-emerald-300",
-  },
-  red: {
-    grad: "group-hover:bg-linear-to-br group-hover:from-red-500 group-hover:to-rose-600 group-hover/contact:bg-linear-to-br group-hover/contact:from-red-500 group-hover/contact:to-rose-600",
-    ring: "group-hover:ring-red-300 group-hover/contact:ring-red-300",
-  },
-  blue: {
-    grad: "group-hover:bg-linear-to-br group-hover:from-blue-500 group-hover:to-indigo-600 group-hover/contact:bg-linear-to-br group-hover/contact:from-blue-500 group-hover/contact:to-indigo-600",
-    ring: "group-hover:ring-blue-300 group-hover/contact:ring-blue-300",
+  en: {
+    intro:
+      "Rex helps children build confident English foundations through clear pathways, caring classes, and practical activities.",
+    aboutTitle: "About us",
+    programsTitle: "Learning programs",
+    addressTitle: "Address",
+    contactTitle: "Contact",
+    mapLabel: "Open Google Maps",
+    mapHint: "Vinhomes Grand Park, Long Binh",
+    phoneLabel: "Phone",
+    fanpageLabel: "Fanpage",
+    zaloLabel: "Zalo",
+    consult: "Free consultation",
+    trial: "Book a trial class",
+    rights: "All rights reserved.",
   },
 } as const;
 
-const TEXT_COLOR = {
-  rose: "hover:text-rose-700 group-hover/contact:text-rose-700",
-  amber: "hover:text-orange-600 group-hover/contact:text-orange-600",
-  sky: "hover:text-blue-600 group-hover/contact:text-blue-600",
-  violet: "hover:text-fuchsia-600 group-hover/contact:text-fuchsia-600",
-  emerald: "hover:text-teal-600 group-hover/contact:text-teal-600",
-  red: "hover:text-rose-600 group-hover/contact:text-rose-600",
-  blue: "hover:text-indigo-600 group-hover/contact:text-indigo-600",
-} as const;
-
-type Palette = keyof typeof BADGE_STYLES;
-
-export default function Footer() {
+function useFooterLocale() {
   const pathname = usePathname();
-  const locale = useMemo(
+
+  return useMemo(
     () => (pickLocaleFromPath(pathname) ?? DEFAULT_LOCALE) as Locale,
     [pathname]
   );
-  const msg = getMessages(locale);
-  const rights =
-    locale === "vi" ? "Bảo lưu mọi quyền." : "All rights reserved.";
+}
 
-  // Fallbacks nếu dict chưa đủ khóa
-  const ft: any = msg.footer ?? {};
-  const facebookUrl: string =
-    ft.facebookUrl ?? "https://www.facebook.com/kidzgoEnglish";
-  const address1: string =
-    ft.address1 ??
-    "Địa chỉ 1: Tổ 3, Ấp Ông Lang, Cửa Dương, Phú Quốc, Kiên Giang";
-  const address2: string =
-    ft.address2 ??
-    "Địa chỉ 2: Hẻm 68 Đoàn Thị Điểm, Khu Phố 11, Dương Đông, Phú Quốc, Kiên Giang";
-  const address3: string =
-    ft.address3 ?? "Địa chỉ 3: S302.2118, Vinhomes Grand Park, Quận 9, TPHCM";
-  const hotlineText: string =
-    ft.hotlineText ??
-    "Hotline: 0357.800.889 (Sài Gòn) / 0356.616.019 (Phú Quốc)";
-  const emailAddress: string = ft.emailAddress ?? "Kidzgo.edu@gmail.com";
-  const emailText: string = ft.emailText ?? `Email: ${emailAddress}`;
-  const facebookText: string =
-    ft.facebookText ?? "https://www.facebook.com/kidzgoEnglish";
+export default function Footer() {
+  const locale = useFooterLocale();
+  const copy = footerCopy[locale];
+  const homePath = localizePath(EndPoint.HOME, locale);
+  const contactPath = localizePath(EndPoint.CONTACT, locale);
+  const contactHref = `${contactPath}#contact-form-section`;
 
-  const ADDRESS_PALETTES: Palette[] = ["violet", "emerald", "amber"];
-  const PHONE_PALETTE: Palette = "blue";
-  const MAIL_PALETTE: Palette = "rose";
+  const aboutLinks = [
+    { label: "Thông tin trung tâm", href: `${homePath}#about` },
+    { label: "Các khóa học", href: `${homePath}#courses` },
+    { label: "Tại sao chọn Rex", href: `${homePath}#why-rex` },
+    { label: "Tư vấn học thử miễn phí", href: contactHref },
+    { label: "Đội ngũ giáo viên", href: `${homePath}#teachers` },
+    { label: "Feedback", href: `${homePath}#feedback` },
+  ];
+
+  const programLinks = [
+    "Khơi dậy sự yêu thích tiếng Anh cho bé",
+    "Cambridge Starters, Movers, Flyers",
+    "KET, PET, Tiền IELTS",
+    "Phonics",
+    "Kèm LMS, chương trình tích hợp",
+    "Giao tiếp / Thuyết trình",
+    "Kỹ năng phát triển bản thân / Ngoại khóa",
+  ].map((label) => ({ label, href: `${homePath}#courses` }));
 
   return (
-    <footer className="footer-page relative overflow-hidden z-40" style={{ backgroundColor: '#f5f1e4' }}>
-      <div className="relative mx-auto max-w-7xl px-4 sm:px-4 md:px-4 lg:px-4 xl:px-0 pt-8 pb-4">
-        <motion.div
-          variants={container}
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, amount: 0.25 }}
-          className="grid gap-8 sm:gap-10 lg:gap-20 grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1.15fr_0.5fr_1.35fr] items-start"
-        >
-          {/* Cột 1 — Logo + Facebook embed */}
-          <motion.div variants={item} className="space-y-2 self-stretch">
-            <Link href="/" className="flex items-center gap-2.5">
+    <footer
+      className="footer-page relative isolate z-40 overflow-hidden text-[#2c2e2a]"
+      style={{ backgroundColor: "#fbf8ef" }}
+    >
+      <div className="mx-auto max-w-7xl px-4 pb-4 sm:px-6 lg:px-8 lg:pb-4">
+        <div className="mb-6 border-b border-red-900/10 px-1 pb-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <Link
+              href={homePath}
+              className="group inline-flex w-fit items-center"
+            >
               <Image
                 src={LOGO}
-                alt="KidzGo logo"
-                width={900}
-                height={900}
-                priority
-                className="h-12 lg:h-16 xl:h-20 mb-0.5 w-auto"
+                alt="Rex logo"
+                width={280}
+                height={110}
+                className="h-20 w-auto transition duration-300 group-hover:scale-[1.03]"
               />
             </Link>
-            <p className="text-sm leading-6" style={{ color: '#2c2e2a' }}>
-              {locale === "vi"
-                ? "Đồng hành cùng con trên hành trình chinh phục tiếng Anh."
-                : "We accompany your kids on their English learning journey."}
-            </p>
+            <div className="max-w-3xl text-left sm:text-right">
+              <p className="max-w-2xl text-sm font-medium leading-6 text-[#2c2e2a]/80 sm:ml-auto">
+                {copy.intro}
+              </p>
+            </div>
+          </div>
+        </div>
 
-            <div className="pt-2 flex flex-col">
-              <FbFrame
-                url={facebookUrl}
-                height={260}
-                showFacepile={false}
-                hideCover={false}
-              />
-              <div className="mt-2 text-xs" style={{ color: '#2c2e2a' }}>
-                <Link
-                  href={facebookUrl}
+        <div className="grid grid-cols-1 items-start gap-6 sm:grid-cols-2 lg:grid-cols-[1fr_1.22fr_1.18fr_1.1fr] lg:gap-9">
+          <FooterColumn
+            title={copy.aboutTitle}
+            iconSrc={footerHeadingIcons.about}
+          >
+            {aboutLinks.map((link) => (
+              <FooterLink key={link.label} href={link.href}>
+                {link.label}
+              </FooterLink>
+            ))}
+          </FooterColumn>
+
+          <FooterColumn
+            title={copy.programsTitle}
+            iconSrc={footerHeadingIcons.programs}
+          >
+            {programLinks.map((link) => (
+              <FooterLink key={link.label} href={link.href}>
+                {link.label}
+              </FooterLink>
+            ))}
+          </FooterColumn>
+
+          <section className="space-y-4">
+            <ColumnHeading
+              title={copy.addressTitle}
+              iconSrc={footerHeadingIcons.address}
+            />
+            <a
+              href={MAP_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="group inline-flex items-start gap-2 text-sm font-medium leading-6 text-[#30332f]/85 transition hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-300/40"
+            >
+              <span>{DISPLAY_ADDRESS}</span>
+              <ArrowUpRight className="mt-1 h-4 w-4 shrink-0 text-red-600 opacity-0 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:opacity-100" />
+            </a>
+            <div className="relative overflow-hidden rounded-xl border border-red-900/10 bg-white shadow-xl shadow-slate-900/10">
+              <div className="relative h-48 overflow-hidden sm:h-52 lg:h-48">
+                <iframe
+                  title="Bản đồ Rex English Center"
+                  src={MAP_EMBED_URL}
+                  width="100%"
+                  height="100%"
+                  style={{ border: 0 }}
+                  loading="lazy"
+                  allowFullScreen
+                  referrerPolicy="no-referrer-when-downgrade"
+                  className="block h-full w-full"
+                />
+                <a
+                  href={MAP_URL}
                   target="_blank"
-                  className="inline-flex items-center gap-1"
-                  style={{ color: '#2c2e2a' }}
-                  onMouseEnter={(e) => e.currentTarget.style.color = '#2ba0ff'}
-                  onMouseLeave={(e) => e.currentTarget.style.color = '#2c2e2a'}
+                  rel="noreferrer"
+                  className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-lg bg-white/95 px-3 py-2 text-xs font-bold text-[#1a73e8] shadow-md shadow-slate-900/12 backdrop-blur transition hover:-translate-y-0.5 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
+                  aria-label={`${copy.mapLabel}: ${MAP_SEARCH_ADDRESS}`}
                 >
-                  <Facebook className="w-3.5 h-3.5" />
-                  /kidzgoEnglish
-                </Link>
+                  {copy.mapLabel}
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
               </div>
             </div>
-          </motion.div>
+          </section>
 
-          {/* Cột 2 — Về chúng tôi + Chương trình */}
-          <motion.div
-            variants={stagger}
-            className="space-y-3 mt-0 sm:mt-8 self-stretch flex flex-col justify-around"
-          >
-            <div className="space-y-3">
-              <motion.h4
-                variants={item}
-                className="font-semibold text-slate-900"
-              >
-                {msg.footer.company}
-              </motion.h4>
-              <motion.ul variants={stagger} className="space-y-2 list-none">
-                {[
-                  msg.footer.about,
-                  msg.footer.teachers,
-                  msg.footer.stories,
-                  msg.footer.careers,
-                ].map((text, i) => (
-                  <motion.li key={i} variants={item}>
-                    <FooterLink href="#">{text}</FooterLink>
-                  </motion.li>
-                ))}
-              </motion.ul>
+          <section className="space-y-4">
+            <ColumnHeading
+              title={copy.contactTitle}
+              iconSrc={footerHeadingIcons.contact}
+            />
+            <div className="space-y-3.5">
+              <ContactRow
+                icon={<Phone />}
+                label={copy.phoneLabel}
+                value={PHONE_TEXT}
+                href={PHONE_HREF}
+                tone="phone"
+              />
+              <ContactRow
+                icon={<Facebook />}
+                label={copy.fanpageLabel}
+                value="Rex English Center"
+                href={FANPAGE_URL}
+                tone="facebook"
+              />
+              <ContactRow
+                icon={<MessageCircle />}
+                label={copy.zaloLabel}
+                value={PHONE_TEXT}
+                href={ZALO_URL}
+                tone="zalo"
+              />
             </div>
+          </section>
+        </div>
 
-            <div className="space-y-3">
-              <motion.h4
-                variants={item}
-                className="font-semibold text-slate-900"
-              >
-                {msg.footer.programs}
-              </motion.h4>
-              <motion.ul variants={stagger} className="space-y-2 list-none">
-                {[
-                  msg.footer.general,
-                  msg.footer.kids,
-                  msg.footer.ielts,
-                  msg.footer.business,
-                ].map((text, i) => (
-                  <motion.li key={i} variants={item}>
-                    <FooterLink href="#">{text}</FooterLink>
-                  </motion.li>
-                ))}
-              </motion.ul>
-            </div>
-          </motion.div>
-
-          {/* Cột 3 — Địa chỉ + Liên hệ */}
-          <motion.div
-            variants={stagger}
-            className="space-y-3 mt-0 sm:mt-8 self-stretch flex flex-col justify-around"
-          >
-            <div className="space-y-3">
-              <motion.h4
-                variants={item}
-                className="font-semibold text-slate-900"
-              >
-                {msg.footer.address}
-              </motion.h4>
-              <motion.ul
-                variants={stagger}
-                className="space-y-3 list-none text-sm leading-6"
-              >
-                {[address1, address2, address3].map((txt, i) => (
-                  <motion.li key={i} variants={item}>
-                    <ContactLink
-                      href="#"
-                      palette={ADDRESS_PALETTES[i] as Palette}
-                    >
-                      <MapPin className="w-5 h-5 shrink-0 mr-1" />
-                      <span>{txt}</span>
-                    </ContactLink>
-                  </motion.li>
-                ))}
-              </motion.ul>
-            </div>
-
-            <div className="space-y-3">
-              <motion.h4
-                variants={item}
-                className="font-semibold text-slate-900"
-              >
-                {msg.footer.contact}
-              </motion.h4>
-              <motion.ul
-                variants={stagger}
-                className="space-y-3 text-sm list-none leading-6"
-              >
-                <motion.li variants={item}>
-                  <ContactLink href="tel:+84357800889" palette={PHONE_PALETTE}>
-                    <IconBadge palette={PHONE_PALETTE}>
-                      <Phone className="w-4 h-4" />
-                    </IconBadge>
-                    <span>{hotlineText}</span>
-                  </ContactLink>
-                </motion.li>
-                <motion.li variants={item}>
-                  <ContactLink
-                    href={`mailto:${emailAddress}`}
-                    palette={MAIL_PALETTE}
-                  >
-                    <IconBadge palette={MAIL_PALETTE}>
-                      <Mail className="w-4 h-4" />
-                    </IconBadge>
-                    <span>{emailText}</span>
-                  </ContactLink>
-                </motion.li>
-                <motion.li variants={item}>
-                  <ContactLink href={facebookUrl} palette="sky">
-                    <IconBadge palette="sky">
-                      <Facebook className="w-4 h-4" />
-                    </IconBadge>
-                    <span>{facebookText}</span>
-                  </ContactLink>
-                </motion.li>
-              </motion.ul>
-            </div>
-          </motion.div>
-        </motion.div>
-
-        {/* Bottom line */}
-        <motion.div
-          variants={container}
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, amount: 0.3 }}
-          className="mt-10 border-t pt-6"
-          style={{ borderColor: '#bf5622' }}
-        >
-          <motion.div
-            variants={item}
-            className="flex items-center justify-center gap-2 text-center text-sm"
-            style={{ color: '#2c2e2a' }}
-          >
-            <motion.span
-              animate={{ opacity: [0.4, 1, 0.4], scale: [1, 1.1, 1] }}
-              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-              style={{ color: '#f5e211' }}
-            >
-              <Sparkles className="w-4 h-4" />
-            </motion.span>
-            © {new Date().getFullYear()} {msg.brand.name}. {rights}
-            <motion.span
-              animate={{ opacity: [0.4, 1, 0.4], scale: [1, 1.1, 1] }}
-              transition={{
-                duration: 2,
-                delay: 1,
-                repeat: Infinity,
-                ease: "easeInOut",
-              }}
-              style={{ color: '#f5e211' }}
-            >
-              <Sparkles className="w-4 h-4" />
-            </motion.span>
-          </motion.div>
-        </motion.div>
+        <div className="mt-10 sm:mt-14 flex items-center justify-center gap-2 border-t border-red-900/10 pt-4 text-center text-sm font-semibold text-[#2c2e2a]/80">
+          <span>© Rex. {copy.rights}</span>
+          <Sparkles className="h-4 w-4 text-amber-400" />
+        </div>
       </div>
     </footer>
   );
 }
 
-/* ===== Bits ===== */
+function FooterColumn({
+  title,
+  iconSrc,
+  children,
+}: {
+  title: string;
+  iconSrc: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="space-y-4">
+      <ColumnHeading title={title} iconSrc={iconSrc} />
+      <nav className="grid gap-2.5" aria-label={title}>
+        {children}
+      </nav>
+    </section>
+  );
+}
+
+function ColumnHeading({ title, iconSrc }: { title: string; iconSrc: string }) {
+  return (
+    <h2 className="group flex items-center gap-3 text-sm font-black uppercase tracking-normal text-[#111827]">
+      <Image
+        src={iconSrc}
+        alt=""
+        width={44}
+        height={44}
+        aria-hidden="true"
+        className="h-10 w-10 shrink-0 object-contain transition duration-300 group-hover:-translate-y-0.5 group-hover:scale-105"
+      />
+      {title}
+    </h2>
+  );
+}
+
 function FooterLink({
   href,
   children,
-  noUnderline = false,
 }: {
   href: string;
-  children: React.ReactNode;
-  noUnderline?: boolean;
+  children: ReactNode;
 }) {
   return (
     <Link
       href={href}
-      className="group relative inline-flex items-center text-sm transition-colors pb-0.5"
-      style={{ color: '#2c2e2a' }}
-      onMouseEnter={(e) => e.currentTarget.style.color = '#bf5622'}
-      onMouseLeave={(e) => e.currentTarget.style.color = '#2c2e2a'}
+      className="group inline-flex min-h-8 items-center justify-between gap-3 rounded-md px-1 py-0.5 text-sm font-medium leading-5 text-[#30332f]/85 transition hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-300/40"
     >
-      {children}
-      {!noUnderline && (
-        <span
-          aria-hidden
-          className="
-            pointer-events-none absolute inset-x-0 bottom-0
-            h-px rounded-full
-            opacity-0 scale-x-0 origin-left
-            transition-transform duration-300
-            group-hover:opacity-100 group-hover:scale-x-100
-            will-change-transform
-          "
-          style={{ background: 'linear-gradient(to right, #f5e211, #ff705c, #ebc1ff)' }}
-        />
-      )}
+      <span className="relative pb-1 after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:origin-left after:scale-x-0 after:rounded-full after:bg-gradient-to-r after:from-red-600 after:via-red-400 after:to-amber-400 after:transition-transform after:duration-300 group-hover:after:scale-x-100">
+        {children}
+      </span>
+      <ArrowUpRight className="h-3.5 w-3.5 shrink-0 opacity-0 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:opacity-100" />
     </Link>
   );
 }
 
-export function IconBadge({
-  children,
-  palette,
-}: {
-  children: React.ReactNode;
-  palette?: Palette;
-}) {
-  const paletteColors: Record<string, { default: string; hover: string; ring: string }> = {
-    rose: { default: '#2c2e2a', hover: '#ff705c', ring: '#ff705c' },
-    amber: { default: '#2c2e2a', hover: '#f5e211', ring: '#f5e211' },
-    sky: { default: '#2c2e2a', hover: '#2ba0ff', ring: '#2ba0ff' },
-    violet: { default: '#2c2e2a', hover: '#ebc1ff', ring: '#ebc1ff' },
-    emerald: { default: '#2c2e2a', hover: '#8ed462', ring: '#8ed462' },
-    red: { default: '#2c2e2a', hover: '#ff705c', ring: '#ff705c' },
-    blue: { default: '#2c2e2a', hover: '#2ba0ff', ring: '#2ba0ff' },
-  };
-  const colors = paletteColors[palette ?? "rose"];
-  
-  return (
-    <span
-      aria-hidden
-      className={[
-        "shrink-0 mr-2 inline-grid place-items-center w-8 h-8 rounded-full",
-        "bg-white",
-        "transition-all duration-200 transform-gpu",
-        "group-hover:text-white group-hover:scale-110",
-        "group-hover/contact:text-white group-hover/contact:scale-110",
-        "group-hover:shadow-sm",
-        "group-hover/contact:shadow-sm",
-      ].join(" ")}
-      style={{ 
-        color: colors.default,
-        borderColor: colors.ring,
-        borderWidth: '1px',
-        borderStyle: 'solid'
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.backgroundColor = colors.hover;
-        e.currentTarget.style.color = '#fff';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.backgroundColor = '#fff';
-        e.currentTarget.style.color = colors.default;
-      }}
-    >
-      <span className="transition-transform duration-200">{children}</span>
-    </span>
-  );
-}
-
-function ContactLink({
+function ContactRow({
+  icon,
+  label,
+  value,
   href,
-  children,
-  palette = "rose",
+  tone,
 }: {
+  icon: ReactNode;
+  label: string;
+  value: string;
   href: string;
-  children: React.ReactNode;
-  palette?: Palette;
+  tone: "phone" | "facebook" | "zalo";
 }) {
+  const external = href.startsWith("http");
+  const toneClass = {
+    phone: "bg-emerald-500",
+    facebook: "bg-[#1877F2]",
+    zalo: "bg-[#0068FF]",
+  }[tone];
+
   return (
-    <Link
+    <a
       href={href}
-      target={href.startsWith("http") ? "_blank" : undefined}
-      className={[
-        "group/contact inline-flex items-center gap-1 text-sm transition-colors",
-      ].join(" ")}
-      style={{ color: '#2c2e2a' }}
-      onMouseEnter={(e) => {
-        const paletteColors: Record<string, string> = {
-          rose: '#ff705c',
-          amber: '#f5e211',
-          sky: '#2ba0ff',
-          violet: '#ebc1ff',
-          emerald: '#8ed462',
-          red: '#ff705c',
-          blue: '#2ba0ff'
-        };
-        e.currentTarget.style.color = paletteColors[palette] || '#bf5622';
-      }}
-      onMouseLeave={(e) => e.currentTarget.style.color = '#2c2e2a'}
+      target={external ? "_blank" : undefined}
+      rel={external ? "noreferrer" : undefined}
+      className="group flex items-center gap-3 rounded-2xl border border-slate-200 bg-white/90 px-4 py-3 shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition duration-300 hover:-translate-y-0.5 hover:border-red-200 hover:shadow-[0_14px_32px_rgba(15,23,42,0.12)] focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
     >
-      {children}
-    </Link>
+      <span
+        className={`grid size-10 shrink-0 place-items-center rounded-full text-white shadow-sm transition duration-300 group-hover:scale-105 ${toneClass} [&>svg]:h-5 [&>svg]:w-5`}
+      >
+        {icon}
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col text-left">
+        <span className="block truncate text-sm font-black text-slate-900 transition duration-300 group-hover:text-red-700">
+          {label}
+        </span>
+        <span className="block truncate text-xs font-medium text-slate-500">
+          {value}
+        </span>
+      </span>
+      <ExternalLink
+        size={16}
+        className="ml-1 shrink-0 text-slate-400 transition duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-red-600"
+      />
+    </a>
   );
 }

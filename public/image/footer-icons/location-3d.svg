@@ -1,0 +1,23 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="pinMain" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(25 17) rotate(47) scale(36 39)">
+      <stop stop-color="#ff5757"/>
+      <stop offset=".48" stop-color="#e60012"/>
+      <stop offset="1" stop-color="#8f0012"/>
+    </radialGradient>
+    <linearGradient id="pinGloss" x1="22" y1="13" x2="31" y2="29" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffffff" stop-opacity=".75"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="pinShadow" x="11" y="6" width="42" height="57" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="7" stdDeviation="4" flood-color="#7f1d1d" flood-opacity=".3"/>
+    </filter>
+  </defs>
+  <ellipse cx="32" cy="54" rx="16" ry="5" fill="#b91c1c" opacity=".17"/>
+  <g filter="url(#pinShadow)">
+    <path d="M32 10.5c-10.1 0-18.3 8-18.3 18 0 13.4 16.3 24.8 17 25.3.8.6 1.8.6 2.6 0 .7-.5 17-11.9 17-25.3 0-10-8.2-18-18.3-18Z" fill="url(#pinMain)"/>
+    <circle cx="32" cy="28.1" r="7.1" fill="#fff7f5"/>
+    <circle cx="32" cy="28.1" r="3.4" fill="#e60012"/>
+    <path d="M22 19.8c2.2-3.4 5.8-5.5 9.9-5.5" stroke="url(#pinGloss)" stroke-width="3.2" stroke-linecap="round"/>
+  </g>
+</svg>

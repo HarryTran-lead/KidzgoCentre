@@ -1,342 +1,311 @@
-// components/sections/Courses.tsx (CLIENT)
 "use client";
 
+import { useMemo, useState } from "react";
 import { COURSES } from "@/lib/data/data";
-import { SURFACE_BORDER } from "@/lib/theme/theme";
-import { ArrowRight, Star, TrendingUp } from "lucide-react";
-import clockIcon from "@/public/image/clock.png";
-import manIcon from "@/public/image/man.png";
-import { motion, useScroll, useTransform } from "framer-motion";
-import { useRef } from "react";
-import "@/styles/animations.css";
+import {
+  ArrowRight,
+  Baby,
+  BookOpen,
+  GraduationCap,
+  Grid2X2,
+  Headphones,
+  Laptop,
+  LayoutList,
+  Mic2,
+  Target,
+} from "lucide-react";
+
+type ViewMode = "grid" | "list";
+
+type CourseItem = {
+  id?: string | number;
+  slug?: string;
+  title?: string;
+  desc?: string;
+  description?: string;
+  content?: string;
+  audience?: string;
+  target?: string;
+  level?: string;
+  href?: string;
+  cta?: string;
+  highlight?: boolean;
+};
+
+const COURSE_ICONS = [Baby, GraduationCap, BookOpen, Headphones, Laptop, Mic2];
+
+const COURSE_CTA_CLASS =
+  "inline-flex items-center justify-center gap-2 rounded-[18px] border border-slate-200 bg-white/90 px-4 py-2.5 text-sm font-bold text-red-700 shadow-sm shadow-red-100/60 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:bg-slate-800 hover:text-white hover:shadow-lg hover:shadow-red-600/20 active:translate-y-0 active:scale-[0.99]";
 
 export default function Courses() {
-  // Scroll-based animations
-  const sectionRef = useRef<HTMLElement | null>(null);
-  const { scrollYProgress } = useScroll({
-    target: sectionRef,
-    offset: ["start end", "end start"],
-  });
-  
-  // Parallax effects
-  const stickerUpY = useTransform(scrollYProgress, [0, 1], [0, -60]);
-  const stickerDownY = useTransform(scrollYProgress, [0, 1], [0, 60]);
-  const opacityProgress = useTransform(scrollYProgress, [0, 0.2, 0.8, 1], [0, 1, 1, 0]);
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
+
+  const courses = useMemo(() => {
+    return (COURSES as CourseItem[]).slice(0, 6).map((course, index) => {
+      const Icon = COURSE_ICONS[index % COURSE_ICONS.length];
+
+      return {
+        id: course.id ?? course.slug ?? course.title ?? index,
+        title: course.title ?? "Khóa học Rex",
+        desc:
+          course.desc ??
+          course.description ??
+          course.content ??
+          "Chương trình học được thiết kế phù hợp với năng lực và mục tiêu của từng học viên.",
+        audience:
+          course.audience ??
+          course.target ??
+          course.level ??
+          "Học viên theo lộ trình Rex",
+        href: course.href ?? "#contact",
+        cta: course.cta ?? "Nhận tư vấn",
+        Icon,
+      };
+    });
+  }, []);
 
   return (
     <section
       id="courses"
-      className="courses-page py-24 pt-0 md:py-32 scroll-mt-24 bg-white relative z-30 overflow-hidden"
+      className="courses-page relative z-40 -mt-px overflow-visible pb-32 pt-12 scroll-mt-24 sm:pb-36 sm:pt-14 lg:pb-40 lg:pt-16"
       style={{
-        backgroundImage: "url('/image/timeline-end-green-front.svg')",
-        backgroundRepeat: "no-repeat",
-        backgroundPosition: "bottom center",
-        backgroundSize: "100% auto",
+        backgroundColor: "#f0f9ff",
+        backgroundImage: `
+      url('/image/timeline-end-green-front.svg'),
+     
+      radial-gradient(circle at 90% 80%, rgba(168, 230, 207, 0.15) 0%, transparent 20%)
+    `,
+        backgroundRepeat: "no-repeat, no-repeat, no-repeat",
+        backgroundPosition: "bottom center, top left, bottom right",
+        backgroundSize: "100% auto, auto, auto",
       }}
-      ref={sectionRef}
     >
-      {/* Animated gradient background - Using CSS animations for better performance */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div 
-          className="absolute top-20 left-10 w-80 h-80 bg-gradient-to-br from-red-300 to-red-400 rounded-full mix-blend-multiply blur-3xl opacity-20 animate-pulse-scale"
-        />
-        <div 
-          className="absolute bottom-32 right-10 w-96 h-96 bg-gradient-to-tr from-red-400 to-rose-300 rounded-full mix-blend-multiply blur-3xl opacity-20 animate-pulse-scale-sm"
-        />
-        <div 
-          className="absolute top-1/2 left-1/3 w-64 h-64 bg-gradient-to-r from-red-400 to-red-300 rounded-full mix-blend-multiply blur-3xl opacity-15 animate-pulse-scale-md"
-        />
-      </div>
-
-      {/* Floating particles - Reduced from 15 to 6 for better performance */}
-      <div className="absolute inset-0 overflow-hidden">
-        {[...Array(6)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute w-1 h-1 bg-gradient-to-r from-red-400/30 to-red-500/30 rounded-full animate-float-particle"
-            style={{
-              left: `${(i * 16) % 100}%`,
-              top: `${(i * 18) % 100}%`,
-              animationDelay: `${i * 0.3}s`,
-              animationDuration: `${3 + i * 0.5}s`,
-            }}
-          />
-        ))}
-      </div>
-
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-10">
-        {/* Header Section */}
-        <motion.div 
-          className="text-center mb-16 md:mb-24"
-          initial={{ opacity: 0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.3 }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
+      <div className="pointer-events-none absolute left-0 top-0 z-0 w-full -translate-y-[99%] leading-none">
+        <svg
+          viewBox="0 0 1440 120"
+          xmlns="http://www.w3.org/2000/svg"
+          className="block h-[90px] w-full sm:h-[110px] lg:h-[120px]"
+          preserveAspectRatio="none"
         >
-          <motion.h2 
-            className="text-4xl md:text-5xl  font-bold tracking-tight"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.7, delay: 0.2 }}
-          >
-            Khóa Học{" "}
-            <span className="relative inline-block">
-              <span className="bg-linear-to-r from-red-600 via-red-500 to-rose-600 bg-clip-text text-transparent">
-                Nổi Bật
+          <path
+            d="M0,70 C180,25 360,110 540,70 C720,30 900,105 1080,70 C1260,35 1350,50 1440,35 L1440,120 L0,120 Z"
+            fill="#f0f9ff"
+          />
+        </svg>
+      </div>
+      <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="mb-9 grid gap-5 lg:grid-cols-[1fr_auto_1fr] lg:items-start">
+          <div className="hidden lg:block" />
+
+          <div className="mx-auto max-w-3xl text-center">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-red-100 bg-white/85 px-4 py-2 text-xs font-bold uppercase text-[#111827] shadow-sm shadow-red-200/50 backdrop-blur">
+              <Target className="size-4 text-red-600" />
+              Chương trình học tại Rex
+            </div>
+
+            <h2 className="text-3xl font-black tracking-tight text-[#111827] sm:text-4xl lg:text-[2.65rem]">
+              Khóa học{" "}
+              <span className="bg-linear-to-r from-red-600 to-red-700 bg-clip-text text-transparent">
+                nổi bật
               </span>
+            </h2>
 
-            </span>
-          </motion.h2>
-          
-          <motion.p 
-            className="mt-6 text-lg md:text-xl text-slate-600 max-w-2xl mx-auto"
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-          >
-            Khám phá các khóa học được thiết kế đặc biệt để đưa bạn từ con số 0 đến thành thạo
-          </motion.p>
-        </motion.div>
+            <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
+              Các chương trình được thiết kế theo từng độ tuổi và mục tiêu học,
+              giúp phụ huynh dễ dàng chọn lộ trình phù hợp cho con.
+            </p>
+          </div>
 
-        {/* Courses Grid */}
-        <div className="space-y-20 md:space-y-24 lg:space-y-28 mb-80">
-          {COURSES.map((c, index) => {
-            const isEven = index % 2 === 0;
-            const stickerId = (index % 20) + 1;
-            
-            return (
-              <motion.div
-                key={c.title}
-                className={`grid md:grid-cols-2 gap-8 lg:gap-12 items-center ${!isEven ? "md:flex-row-reverse" : ""}`}
-                initial={{ opacity: 0, y: 60 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.2 }}
-                transition={{ 
-                  duration: 0.8, 
-                  delay: index * 0.15,
-                  ease: "easeOut"
-                }}
+          {/* Switch Grid/List giống mẫu segmented button */}
+          <div className="flex justify-center lg:justify-end lg:pt-1">
+            <div className="relative inline-flex h-12 items-center rounded-[22px] border border-red-100 bg-white/90 p-1.5 shadow-lg shadow-red-100/70 backdrop-blur-md">
+              <span
+                className={[
+                  "absolute left-1.5 top-1.5 h-9 w-[86px] rounded-[16px] bg-red-600 shadow-lg ",
+                  "transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]",
+                  viewMode === "grid" ? "translate-x-0" : "translate-x-[90px]",
+                ].join(" ")}
+              />
+
+              <button
+                type="button"
+                onClick={() => setViewMode("grid")}
+                aria-pressed={viewMode === "grid"}
+                className={[
+                  "relative z-10 inline-flex h-9 w-[86px] items-center justify-center gap-1.5 rounded-[16px] text-xs font-black",
+                  "transition-colors duration-300",
+                  viewMode === "grid"
+                    ? "text-white"
+                    : "text-slate-700 hover:text-red-700",
+                ].join(" ")}
               >
-                {/* Sticker Image - Larger size */}
-                <motion.div 
-                  className={`relative ${!isEven ? "md:order-2" : ""}`}
-                  initial={{ opacity: 0, scale: 0.8, rotate: isEven ? -5 : 5 }}
-                  whileInView={{ opacity: 1, scale: 1, rotate: 0 }}
-                  viewport={{ once: true, amount: 0.3 }}
-                  transition={{ duration: 0.6, delay: index * 0.15 + 0.1 }}
-                  whileHover={{ 
-                    scale: 1.05,
-                    rotate: isEven ? 2 : -2,
-                    transition: { duration: 0.3 }
-                  }}
-                >
-                  <motion.img
-                    src={`/sticker/${stickerId}.png`}
-                    alt={c.title}
-                    className="w-full h-auto max-h-[600px] object-contain drop-shadow-2xl"
-                    style={{ 
-                      y: isEven ? stickerUpY : stickerDownY,
-                      filter: "drop-shadow(0 25px 25px rgba(0, 0, 0, 0.15))"
-                    }}
-                  />
-                  
-                  {/* Glow effect behind sticker */}
-                  <div className={`absolute inset-0 -z-10 bg-linear-to-r ${
-                    isEven ? "from-red-400/30 via-red-500/30 to-rose-400/30" : "from-red-400/30 via-red-500/30 to-red-400/30"
-                  } blur-3xl rounded-full scale-110`} />
-                </motion.div>
+                <Grid2X2 size={15} strokeWidth={2.4} />
+                Grid
+              </button>
 
-                {/* Content Card */}
-                <motion.div 
-                  className={`${!isEven ? "md:order-1" : ""}`}
-                  initial={{ opacity: 0, x: isEven ? -40 : 40 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.7, delay: index * 0.15 + 0.2 }}
-                >
-                  <motion.div
-                    className={`relative rounded-3xl bg-white/90 backdrop-blur-sm border p-8 lg:p-10 h-full flex flex-col justify-center group cursor-pointer ${
-                      c.highlight
-                        ? "border-red-200 shadow-2xl shadow-red-500/10"
-                        : "border-slate-200 shadow-xl shadow-slate-500/5"
-                    } hover:shadow-2xl hover:shadow-red-500/20 transition-all duration-500 overflow-hidden`}
-                    whileHover={{ 
-                      y: -8,
-                      scale: 1.02,
-                      borderColor: "rgb(220, 38, 38)"
-                    }}
-                    transition={{ duration: 0.4 }}
+              <button
+                type="button"
+                onClick={() => setViewMode("list")}
+                aria-pressed={viewMode === "list"}
+                className={[
+                  "relative z-10 inline-flex h-9 w-[86px] items-center justify-center gap-1.5 rounded-[16px] text-xs font-black",
+                  "transition-colors duration-300",
+                  viewMode === "list"
+                    ? "text-white"
+                    : "text-slate-700 hover:text-red-700",
+                ].join(" ")}
+              >
+                <LayoutList size={15} strokeWidth={2.4} />
+                List
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div key={viewMode} className="course-view-panel">
+          {viewMode === "grid" ? (
+            <div className="grid gap-4 sm:gap-5 md:grid-cols-2 xl:grid-cols-3">
+              {courses.map(
+                ({ id, title, desc, audience, href, cta, Icon }) => (
+                  <article
+                    key={id}
+                    className={[
+                      "course-card group relative flex h-full min-h-[255px] flex-col overflow-hidden border bg-white/92 p-5 shadow-md  backdrop-blur-sm",
+                      "transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-1 hover:border-red-200 hover:shadow-xl hover:shadow-red-600/12",
+                      "border-red-100/80",
+                    ].join(" ")}
                   >
-                    {/* Background gradient layers */}
-                    <div className="absolute inset-0 bg-linear-to-br from-white via-white to-white/80 z-0" />
-                    <div className={`absolute inset-0 bg-linear-to-br ${
-                      c.highlight 
-                        ? "from-red-500/5 via-red-500/5 to-rose-500/5" 
-                        : "from-red-500/5 via-red-500/5 to-rose-500/5"
-                    } opacity-0 group-hover:opacity-100 transition-opacity duration-700 z-0`} />
-                    
-                    {/* Animated border gradient */}
-                    <motion.div 
-                      className="absolute inset-0 rounded-3xl p-[1.5px] z-0"
-                      initial={{ background: "linear-gradient(90deg, transparent, transparent)" }}
-                      whileHover={{ 
-                        background: c.highlight 
-                          ? "linear-gradient(90deg, #dc2626, #b91c1c, #7f1d1d)" 
-                          : "linear-gradient(90deg, #dc2626, #b91c1c, #991b1b)"
-                      }}
-                      transition={{ duration: 0.5 }}
-                    >
-                      <div className="absolute inset-0 rounded-3xl bg-white" />
-                    </motion.div>
+                    <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-white via-white to-red-50/45" />
 
-                    {/* Floating elements */}
-                    <motion.div 
-                      className={`absolute -top-6 -right-6 w-24 h-24 rounded-full ${
-                        c.highlight ? "bg-red-500/10" : "bg-red-500/10"
-                      } z-0`}
-                      animate={{
-                        y: [0, -10, 0],
-                        scale: [1, 1.1, 1],
-                      }}
-                      transition={{
-                        duration: 4,
-                        repeat: Infinity,
-                        delay: index * 0.5,
-                      }}
-                    />
-                    
-                    <div className="relative z-10">
-                      {/* Badge */}
-                      <motion.div 
-                        className="inline-flex items-center gap-2 mb-6"
-                        initial={{ opacity: 0, x: -20 }}
-                        whileInView={{ opacity: 1, x: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.5, delay: index * 0.15 + 0.3 }}
-                      >
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                          c.highlight
-                            ? "bg-linear-to-r from-red-100 to-rose-100 text-red-700"
-                            : "bg-linear-to-r from-red-100 to-rose-100 text-red-700"
-                        }`}>
-                          {c.level}
-                        </span>
-                        {c.highlight && (
-                          <span className="px-3 py-1 rounded-full bg-linear-to-r from-red-100 to-rose-100 text-red-700 text-sm   font-semibold">
-                            <TrendingUp size={12} className="inline mr-1" /> Bán chạy
-                          </span>
-                        )}
-                      </motion.div>
+                    <div className="pointer-events-none absolute -right-6 -top-6 size-12 rounded-full bg-rose-100/75 transition-transform duration-500 group-hover:scale-120" />
 
-                      {/* Title */}
-                      <motion.h3 
-                        className="text-xl lg:text-3xl xl:text-3xl font-bold mb-4"
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.5, delay: index * 0.15 + 0.4 }}
-                      >
-                        <span className="bg-linear-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                          {c.title}
-                        </span>
-                      </motion.h3>
+                    <div className="pointer-events-none absolute -bottom-8 -left-8 size-14 rounded-full bg-rose-100/65 transition-transform duration-500 group-hover:scale-120" />
+                    <div className="relative z-10 flex h-full flex-col">
+                      <div className="mb-4 flex size-12 items-center justify-center rounded-2xl bg-red-50 text-red-600 ring-1 ring-red-100 transition-all duration-500 group-hover:bg-red-600 group-hover:text-white">
+                        <Icon size={22} strokeWidth={2.4} />
+                      </div>
 
-                      {/* Info grid */}
-                      <motion.div 
-                        className="grid grid-cols-2 gap-4 mb-8"
-                        initial={{ opacity: 0 }}
-                        whileInView={{ opacity: 1 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.5, delay: index * 0.15 + 0.5 }}
-                      >
-                        <div className="flex items-center gap-3 text-slate-600">
-                          <div className={`p-2.5 rounded-lg flex items-center justify-center ${
-                            c.highlight ? "bg-red-100 text-red-600" : "bg-red-100 text-red-600"
-                          }`}>
-                            <img src={clockIcon.src} alt="clock" className="w-[20px] h-[20px]" />
-                          </div>
-                          <div className="flex-1">
-                            <div className="text-xs text-slate-500">Thời lượng</div>
-                            <div className="font-semibold text-xs">{c.time}</div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3 text-slate-600">
-                          <div className={`p-2.5 rounded-lg flex items-center justify-center ${
-                            c.highlight ? "bg-red-100 text-red-600" : "bg-red-100 text-red-600"
-                          }`}>
-                            <img src={manIcon.src} alt="man" className="w-[20px] h-[21px]" />
-                          </div>
-                          <div className="flex-1">
-                            <div className="text-xs text-slate-500">Học viên</div>
-                            <div className="font-semibold text-xs">500+</div>
-                          </div>
-                        </div>
-                      </motion.div>
+                      <h3 className="text-lg font-black leading-snug text-[#111827] transition-colors duration-300 group-hover:text-red-700">
+                        {title}
+                      </h3>
 
-                      {/* CTA Button */}
-                      <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.5, delay: index * 0.15 + 0.6 }}
-                      >
-                        <motion.a
-                          href="#contact"
-                          className={`inline-flex items-center gap-3 px-8 py-4 rounded-xl text-white font-semibold transition-all duration-300 shadow-lg group/btn ${
-                            c.highlight
-                              ? "bg-linear-to-r from-red-600 via-red-600 to-red-700 hover:shadow-2xl hover:shadow-red-600/30"
-                              : "bg-linear-to-r from-red-600 via-red-600 to-red-700 hover:shadow-2xl hover:shadow-red-600/30"
-                          }`}
-                          whileHover={{ 
-                            scale: 1.05,
-                            boxShadow: "0 20px 40px rgba(0,0,0,0.15)"
-                          }}
-                          whileTap={{ scale: 0.95 }}
-                          animate={{
-                            backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
-                          }}
-                          transition={{
-                            backgroundPosition: {
-                              duration: 5,
-                              repeat: Infinity,
-                              ease: "easeInOut"
-                            }
-                          }}
-                          style={{
-                            backgroundSize: "200% 200%",
-                          }}
-                        >
-                          <span className="text-sm">Đăng ký ngay</span>
-                          <ArrowRight size={18} className="group-hover/btn:translate-x-2 transition-transform duration-300" />
-                        </motion.a>
-                      </motion.div>
+                      <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">
+                        {desc}
+                      </p>
+
+                      <div className="mt-4 rounded-[20px] border border-slate-200 bg-white/75 p-3">
+                        <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                          Đối tượng phù hợp
+                        </p>
+                        <p className="mt-1 text-sm font-bold text-slate-800">
+                          {audience}
+                        </p>
+                      </div>
+
+                      <div className="mt-auto pt-4">
+                        <a href={href} className={`${COURSE_CTA_CLASS} w-full`}>
+                          {cta}
+                          <ArrowRight
+                            size={16}
+                            className="transition-transform duration-300 group-hover:translate-x-1"
+                          />
+                        </a>
+                      </div>
                     </div>
+                  </article>
+                ),
+              )}
+            </div>
+          ) : (
+            <div className="grid gap-3 lg:grid-cols-2">
+              {courses.map(
+                ({ id, title, desc, audience, href, cta, Icon }) => (
+                  <article
+                    key={id}
+                    className={[
+                      "course-list-card group relative overflow-hidden border bg-white/92 p-4 shadow-md backdrop-blur-sm",
+                      "transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-1 hover:border-red-200 hover:shadow-xl hover:shadow-red-600/12",
+                      "border-red-100/80",
+                    ].join(" ")}
+                  >
+                    <div className="pointer-events-none absolute inset-0 bg-linear-to-r from-white via-white to-red-50/55" />
 
-                    {/* Corner accent */}
-                    <motion.div 
-                      className={`absolute -bottom-6 -left-6 w-32 h-32 rounded-full ${
-                        c.highlight ? "bg-linear-to-br from-red-400/20 to-red-500/20" : "bg-linear-to-br from-red-400/20 to-red-500/20"
-                      } z-0`}
-                      animate={{
-                        rotate: [0, 90, 180, 270, 360],
-                      }}
-                      transition={{
-                        duration: 20,
-                        repeat: Infinity,
-                        ease: "linear"
-                      }}
-                    />
-                  </motion.div>
-                </motion.div>
-              </motion.div>
-            );
-          })}
+                    <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center">
+                      <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-red-50 text-red-600 ring-1 ring-red-100 transition-all duration-500 group-hover:bg-red-600 group-hover:text-white">
+                        <Icon size={21} strokeWidth={2.4} />
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="text-base font-black leading-snug text-[#111827] transition-colors duration-300 group-hover:text-red-700 sm:text-lg">
+                            {title}
+                          </h3>
+                        </div>
+
+                        <p className="mt-1 line-clamp-1 text-sm leading-6 text-slate-600">
+                          {desc}
+                        </p>
+
+                        <p className="mt-2 text-xs font-bold uppercase tracking-[0.1em] text-slate-400">
+                          Đối tượng:{" "}
+                          <span className="normal-case tracking-normal text-slate-800">
+                            {audience}
+                          </span>
+                        </p>
+                      </div>
+
+                      <a
+                        href={href}
+                        className={`${COURSE_CTA_CLASS} shrink-0 sm:min-w-[124px]`}
+                      >
+                        {cta}
+                        <ArrowRight
+                          size={16}
+                          className="transition-transform duration-300 group-hover:translate-x-1"
+                        />
+                      </a>
+                    </div>
+                  </article>
+                ),
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      
+      <style jsx>{`
+        .course-card {
+          border-radius: 32px;
+        }
+
+        .course-list-card {
+          border-radius: 26px;
+        }
+
+        @keyframes coursePanelIn {
+          from {
+            opacity: 0;
+            transform: translateY(8px) scale(0.99);
+            filter: blur(3px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            filter: blur(0);
+          }
+        }
+
+        .course-view-panel {
+          animation: coursePanelIn 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .course-view-panel {
+            animation: none;
+          }
+        }
+      `}</style>
     </section>
   );
 }

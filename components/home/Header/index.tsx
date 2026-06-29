@@ -6,13 +6,12 @@ import React, {
   useMemo,
   useRef,
   useState,
-  useCallback,
 } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { Menu, X, LogIn, ChevronRight, Sparkles } from "lucide-react";
-import { motion, useMotionValue, animate } from "framer-motion";
+import { motion } from "framer-motion";
 import { LOGO } from "@/lib/theme/theme";
 import LanguageToggle from "@/components/ui/button/LanguageToggle";
 import PageTransitionLoader from "@/components/ui/PageTransitionLoader";
@@ -100,8 +99,6 @@ export default function Navbar() {
     [pathname]
   );
   const msg = getMessages(locale);
-  const safeNav = msg.nav as Record<string, string>;
-
   const NAV_ITEMS: NavItem[] = useMemo(
     () => [
       {
@@ -170,7 +167,8 @@ export default function Navbar() {
 
   // Close loading when pathname changes
   useEffect(() => {
-    setIsLoading(false);
+    const timeout = window.setTimeout(() => setIsLoading(false), 0);
+    return () => window.clearTimeout(timeout);
   }, [pathname]);
 
   useEffect(() => {
@@ -217,7 +215,7 @@ export default function Navbar() {
           duration: 0.6,
           ease: [0.32, 0.72, 0, 1],
         }}
-        className={`header-page fixed z-40 will-change-transform transition-[transform] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+        className={`header-page fixed z-[1000] will-change-transform transition-[transform] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${
           scrolled
             ? "top-0 left-0 right-0 translate-x-0 translate-y-0 bg-white/95 backdrop-blur-xl backdrop-saturate-150 shadow-sm border-b border-white/40 rounded-none max-w-full"
             : "top-6 left-1/2 -translate-x-1/2 translate-y-0 w-[calc(100%-3rem)] max-w-7xl bg-white/90 backdrop-blur-lg backdrop-saturate-125 border border-white/50 rounded-2xl shadow-lg"
@@ -320,7 +318,7 @@ export default function Navbar() {
           pointerEvents: open ? "auto" : "none",
         }}
         transition={{ duration: 0.2 }}
-        className="lg:hidden fixed inset-0 z-50"
+        className="lg:hidden fixed inset-0 z-[1100]"
       >
         {/* Backdrop */}
         <motion.div 

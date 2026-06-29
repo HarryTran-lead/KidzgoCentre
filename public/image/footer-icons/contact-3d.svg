@@ -1,0 +1,19 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="phoneBody" x1="16" y1="13" x2="48" y2="51" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ff4b4b"/>
+      <stop offset=".5" stop-color="#e60012"/>
+      <stop offset="1" stop-color="#8d0012"/>
+    </linearGradient>
+    <filter id="phoneShadow" x="6" y="7" width="53" height="53" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="6" stdDeviation="4" flood-color="#7f1d1d" flood-opacity=".27"/>
+    </filter>
+  </defs>
+  <ellipse cx="32" cy="53" rx="18" ry="5" fill="#b91c1c" opacity=".16"/>
+  <g filter="url(#phoneShadow)">
+    <circle cx="32" cy="30" r="21" fill="url(#phoneBody)"/>
+    <path d="M24.5 19.2c-.9.3-1.6 1-1.9 1.9l-1 3.2c-.3.9-.1 1.9.5 2.7 3.2 4.5 6.9 8.1 11.4 11.3.8.6 1.8.8 2.7.5l3.2-1c.9-.3 1.6-1 1.9-1.9l.8-2.7c.4-1.2-.2-2.5-1.3-3.1l-4.1-2.1c-1-.5-2.2-.3-3 .6l-1.5 1.6c-2.1-1.5-3.9-3.3-5.4-5.4l1.6-1.5c.8-.8 1.1-2 .6-3l-2.1-4.1c-.6-1.1-1.9-1.6-3.1-1.2l-3.3 1.2Z" fill="#fff7f5"/>
+    <path d="M23 18.8c2.5-2.8 5.9-4.5 9.7-4.7" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" opacity=".55"/>
+    <path d="M43.1 21.1c2.2 2.2 3.5 5.2 3.6 8.4" stroke="#ffb4a8" stroke-width="2" stroke-linecap="round" opacity=".7"/>
+  </g>
+</svg>

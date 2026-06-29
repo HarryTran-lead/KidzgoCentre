@@ -1,26 +1,22 @@
-// components/sections/Blog.tsx (CLIENT) - Phiên bản dễ thương
 "use client";
 
 import { BLOGS } from "@/lib/data/data";
-import { SURFACE_BORDER } from "@/lib/theme/theme";
-import { ArrowRight, Calendar, User, Clock, BookOpen, Sparkles, TrendingUp, Eye, Heart, MessageCircle, Star, PartyPopper, Rainbow, Music, Gamepad2 } from "lucide-react";
+import { ArrowRight, Newspaper } from "lucide-react";
 import { motion, cubicBezier } from "framer-motion";
-import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function Blog() {
-  const [hoveredCard, setHoveredCard] = useState<number | null>(null);
-
   const fadeInUp = {
-    hidden: { opacity: 0, y: 50 },
-    visible: { 
-      opacity: 1, 
+    hidden: { opacity: 0, y: 36 },
+    visible: {
+      opacity: 1,
       y: 0,
       transition: {
-        duration: 0.8,
-        ease: cubicBezier(0.22, 1, 0.36, 1)
-      }
-    }
+        duration: 0.75,
+        ease: cubicBezier(0.22, 1, 0.36, 1),
+      },
+    },
   };
 
   const staggerContainer = {
@@ -28,78 +24,97 @@ export default function Blog() {
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.2,
-        delayChildren: 0.3
-      }
-    }
+        staggerChildren: 0.18,
+        delayChildren: 0.22,
+      },
+    },
   };
 
   const cardVariants = {
-    hidden: { opacity: 0, y: 60, scale: 0.8 },
-    visible: { 
-      opacity: 1, 
-      y: 0, 
+    hidden: { opacity: 0, y: 48, scale: 0.92 },
+    visible: {
+      opacity: 1,
+      y: 0,
       scale: 1,
       transition: {
         duration: 0.6,
-        ease: cubicBezier(0.22, 1, 0.36, 1)
-      }
+        ease: cubicBezier(0.22, 1, 0.36, 1),
+      },
     },
     hover: {
-      y: -10,
-      rotateZ: 2,
+      y: -8,
+      rotateZ: 1.4,
       transition: {
         type: "spring" as const,
-        stiffness: 200,
-        damping: 15
-      }
-    }
+        stiffness: 220,
+        damping: 16,
+      },
+    },
   };
 
   const getTagColor = (tag: string) => {
     const tagLower = tag.toLowerCase();
+
     if (tagLower === "tips" || tagLower === "kỹ năng") {
       return { bg: "bg-red-500", text: "text-white" };
     }
+
     if (tagLower === "news" || tagLower === "tin tức") {
       return { bg: "bg-red-600", text: "text-white" };
     }
+
     if (tagLower === "guide" || tagLower === "hướng dẫn") {
       return { bg: "bg-rose-500", text: "text-white" };
     }
+
     if (tagLower === "activity" || tagLower === "hoạt động") {
       return { bg: "bg-red-700", text: "text-white" };
     }
+
     return { bg: "bg-red-600", text: "text-white" };
   };
 
   const generateStats = (index: number) => {
-    // Tạo số consistent dựa vào index để tránh nhảy khi re-render
     const seed = index * 12345;
+
     return [
       { count: Math.abs((seed * 17) % 500) + 500, label: "xem" },
       { count: Math.abs((seed * 23) % 150) + 50, label: "thích" },
-      { count: Math.abs((seed * 31) % 40) + 10, label: "bình luận" }
+      { count: Math.abs((seed * 31) % 40) + 10, label: "bình luận" },
     ];
   };
 
   return (
-    <section 
-      id="blog" 
-      className="blog-page scroll-mt-24 relative z-30 overflow-hidden"
-      style={{ 
-        backgroundColor: '#f0f9ff',
+    <section
+      id="blog"
+      className="blog-page relative z-30 overflow-visible pt-12 scroll-mt-24 sm:pt-14 lg:pt-16"
+      style={{
+        backgroundColor: "#f0f9ff",
         backgroundImage: `
           radial-gradient(circle at 10% 20%, rgba(255, 200, 124, 0.15) 0%, transparent 20%),
           radial-gradient(circle at 90% 80%, rgba(168, 230, 207, 0.15) 0%, transparent 20%)
-        `
+        `,
       }}
     >
-      {/* Cute background elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {/* Cute shapes */}
+      <div className="pointer-events-none absolute left-0 top-0 z-0 w-full -translate-y-[99%] leading-none">
+        <svg
+          viewBox="0 0 1440 120"
+          xmlns="http://www.w3.org/2000/svg"
+          className="block h-[86px] w-full sm:h-[104px] lg:h-[116px]"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          <path
+            d="M0,70 C180,25 360,110 540,70 C720,30 900,105 1080,70 C1260,35 1350,50 1440,35 L1440,120 L0,120 Z"
+            fill="#f0f9ff"
+          />
+        </svg>
+      </div>
+
+      {/* Cute background elements - giữ effect cũ */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <motion.div
-          className="absolute top-10 left-10 w-32 h-32 rounded-full bg-gradient-to-r from-red-200/30 to-red-300/30"
+          className="absolute left-10 top-10 size-32 rounded-full bg-gradient-to-r from-red-200/30 to-red-300/30"
           animate={{
             scale: [1, 1.2, 1],
             rotate: [0, 180, 360],
@@ -107,12 +122,12 @@ export default function Blog() {
           transition={{
             duration: 8,
             repeat: Infinity,
-            ease: "linear"
+            ease: "linear",
           }}
         />
-        
+
         <motion.div
-          className="absolute bottom-20 right-20 w-40 h-40 rounded-full bg-gradient-to-r from-red-200/20 to-rose-200/20"
+          className="absolute bottom-20 right-20 size-40 rounded-full bg-gradient-to-r from-red-200/20 to-rose-200/20"
           animate={{
             scale: [1, 1.3, 1],
             x: [0, 30, 0],
@@ -120,45 +135,52 @@ export default function Blog() {
           transition={{
             duration: 7,
             repeat: Infinity,
-            ease: "easeInOut"
+            ease: "easeInOut",
           }}
         />
       </div>
 
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-10 mt-20">
-        {/* Header section với hình ảnh dễ thương */}
-        <motion.div 
-          className="mb-12 text-center"
+      <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        {/* Header đồng bộ section khác */}
+        <motion.div
+          className="mx-auto mb-10 max-w-3xl text-center sm:mb-12"
           variants={staggerContainer}
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, amount: 0.3 }}
         >
-          <motion.h2 
-            className="text-4xl md:text-5xl font-black text-center mb-6"
+          <motion.div
             variants={fadeInUp}
+            className="mb-4 inline-flex items-center gap-2 rounded-full border border-red-100 bg-white/85 px-4 py-2 text-xs font-bold uppercase text-[#111827] shadow-sm shadow-red-100/60 backdrop-blur"
           >
-            <span className="block text-gray-800">Bản tin</span>
-            <span className="bg-gradient-to-r from-red-600 via-red-500 to-rose-600 bg-clip-text text-transparent">
-              Của Bé Yêu
+            <Newspaper className="size-4 text-red-600" />
+            Bản tin Rex
+          </motion.div>
+
+          <motion.h2
+            variants={fadeInUp}
+            className="text-3xl font-black tracking-tight text-[#111827] sm:text-4xl lg:text-[2.65rem]"
+          >
+            Góc chia sẻ{" "}
+            <span className="bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent">
+              hữu ích
             </span>
           </motion.h2>
-          
-          <motion.p 
-            className="mt-6 text-lg md:text-xl text-gray-700 max-w-2xl mx-auto font-medium mb-8"
+
+          <motion.p
             variants={fadeInUp}
+            className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base"
           >
-            Khám phá những câu chuyện vui, hoạt động thú vị và bí kíp học tiếng Anh siêu dễ thương!
+            Cập nhật kiến thức, hoạt động và những mẹo học tiếng Anh dễ áp dụng
+            cho học viên Rex.
           </motion.p>
-          
-          
         </motion.div>
 
-        {/* Blog grid - Cute design */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-12">
+        {/* Blog grid - giữ effect cũ, card gọn hơn */}
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 lg:gap-8">
           {BLOGS.map((post, index) => {
             const tagColor = getTagColor(post.tag);
-            
+
             return (
               <motion.article
                 key={post.title}
@@ -166,114 +188,113 @@ export default function Blog() {
                 variants={cardVariants}
                 initial="hidden"
                 whileInView="visible"
-                viewport={{ once: true, amount: 0.3 }}
+                viewport={{ once: true, amount: 0.25 }}
                 whileHover="hover"
-                onMouseEnter={() => setHoveredCard(index)}
-                onMouseLeave={() => setHoveredCard(null)}
                 custom={index}
-                transition={{ delay: index * 0.1 }}
+                transition={{ delay: index * 0.08 }}
               >
-                {/* Card container với hình dạng dễ thương */}
-                <div className="relative rounded-3xl bg-gradient-to-b from-white to-white/90 overflow-hidden h-full border-4 border-white shadow-xl hover:shadow-2xl transition-all duration-500 group-hover:border-red-500 cursor-pointer">
-                  {/* Cute top decoration */}
-                  <div className="absolute top-0 left-0 right-0 h-3 bg-gradient-to-r from-red-600 via-red-500 to-rose-600 rounded-t-3xl" />
-                  
-                  {/* Image container với khung dễ thương */}
-                  <div className="relative h-48 overflow-hidden m-4 mt-6 rounded-2xl border-4 border-white shadow-lg">
+                <div className="relative h-full cursor-pointer overflow-hidden rounded-[30px] border-[3px] border-white bg-gradient-to-b from-white to-white/90 shadow-xl transition-all duration-500 hover:border-red-400 hover:shadow-2xl">
+                  {/* Top decoration */}
+                  <div className="absolute left-0 right-0 top-0 h-2.5 rounded-t-[30px] bg-gradient-to-r from-red-600 via-red-500 to-rose-600" />
+
+                  {/* Image */}
+                  <div className="relative m-4 mb-0 mt-5 h-40 overflow-hidden rounded-[22px] border-[3px] border-white shadow-lg sm:h-44">
                     <motion.img
                       src={post.img}
                       alt={post.title}
-                      className="w-full h-full object-cover"
+                      className="h-full w-full object-cover"
                       whileHover={{ scale: 1.1 }}
                       transition={{ duration: 0.6 }}
                     />
-                    
-                    {/* Cute overlay với emoji */}
+
                     <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-                    
-                    {/* Tag badge dễ thương */}
+
+                    {/* Tag badge */}
                     <motion.div
-                      className="absolute top-3 left-3"
+                      className="absolute left-3 top-3"
                       initial={{ scale: 0 }}
                       whileInView={{ scale: 1 }}
                       viewport={{ once: true }}
-                      transition={{ type: "spring", stiffness: 500, damping: 25, delay: index * 0.2 }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 500,
+                        damping: 25,
+                        delay: index * 0.15,
+                      }}
                     >
-                      <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ${tagColor.bg} ${tagColor.text} shadow-lg`}>
-                        <span className="font-bold text-sm">{post.tag}</span>
+                      <div
+                        className={`inline-flex items-center rounded-full px-3.5 py-1.5 text-xs font-bold shadow-lg ${tagColor.bg} ${tagColor.text}`}
+                      >
+                        {post.tag}
                       </div>
                     </motion.div>
-                    
+
                     {/* Date */}
-                    <div className="absolute bottom-3 left-3 flex items-center gap-2 bg-white/90 px-3 py-1.5 rounded-full">
-                      <span className="text-sm font-bold text-gray-800">1{index + 2}/12</span>
+                    <div className="absolute bottom-3 left-3 rounded-full bg-white/92 px-3 py-1.5 text-xs font-black text-slate-800 shadow-sm">
+                      {index + 12}/12
                     </div>
                   </div>
 
-                  {/* Content - Thiết kế dễ thương */}
-                  <div className="p-6">
-                    {/* Title với hiệu ứng gradient */}
-                    <motion.h3 
-                      className="text-lg font-black mb-3 leading-tight group-hover:text-red-600 transition-colors duration-300 min-h-[56px]"
-                      whileHover={{ scale: 1.02 }}
+                  {/* Content */}
+                  <div className="p-4 sm:p-5">
+                    <motion.h3
+                      className="blog-title text-lg font-black leading-snug text-[#111827] transition-colors duration-300 group-hover:text-red-700"
+                      whileHover={{ scale: 1.015 }}
                     >
-                      <span className="bg-gradient-to-r from-gray-900 to-gray-700 group-hover:from-red-600 group-hover:to-rose-600 bg-clip-text text-transparent transition-all duration-300">
-                        {post.title}
-                      </span>
+                      {post.title}
                     </motion.h3>
 
-                    {/* Excerpt với background cute */}
-                    <div className="mb-5">
-                      <p className="text-gray-700 leading-relaxed text-xs bg-gradient-to-r from-gray-50 to-white p-3 rounded-xl border border-gray-100">
-                        {post.excerpt}
-                      </p>
-                    </div>
+                    <p className="blog-excerpt mt-3 rounded-2xl border border-slate-100 bg-gradient-to-r from-slate-50 to-white p-3 text-sm leading-6 text-slate-600">
+                      {post.excerpt}
+                    </p>
 
-                    {/* Stats */}
-                    <div className="flex items-center justify-between mb-6 bg-gradient-to-r from-red-50 to-rose-50 p-3 rounded-xl border border-gray-100">
-                      {generateStats(index).map((stat, statIndex) => (
-                        <div
-                          key={stat.label}
-                          className="flex flex-col items-center gap-1"
-                        >
-                          <div className="flex items-center gap-1">
-                            <span className="font-bold text-gray-900 text-xs">{stat.count}</span>
-                          </div>
-                          <span className="text-gray-600 text-xs">{stat.label}</span>
+                    <div className="mt-4 grid grid-cols-3 gap-2 rounded-2xl border border-red-100 bg-gradient-to-r from-red-50 to-rose-50 p-3">
+                      {generateStats(index).map((stat) => (
+                        <div key={stat.label} className="text-center">
+                          <p className="text-sm font-black text-[#111827]">
+                            {stat.count}
+                          </p>
+                          <p className="mt-0.5 text-xs text-slate-500">
+                            {stat.label}
+                          </p>
                         </div>
                       ))}
                     </div>
 
-                    {/* Read more button dễ thương */}
-                    <Link href="/blogs">
+                    <Link href="/blogs" className="mt-4 block">
                       <motion.div
-                        className="group/btn relative inline-flex items-center justify-center gap-3 w-full py-2.5 rounded-xl text-white font-bold shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden text-sm cursor-pointer"
+                        className="group/btn relative inline-flex w-full items-center justify-center gap-2 overflow-hidden rounded-[18px] py-2.5 text-sm font-bold text-white shadow-lg transition-all duration-300 hover:shadow-xl"
                         style={{
-                          background: `linear-gradient(135deg, ${['#dc2626', '#b91c1c', '#991b1b', '#7f1d1d'][index % 4]}, ${
-                            ['#ef4444', '#f87171', '#fca5a5', '#fecaca'][index % 4]
-                          })`
+                          background: `linear-gradient(135deg, ${
+                            ["#dc2626", "#b91c1c", "#991b1b", "#7f1d1d"][
+                              index % 4
+                            ]
+                          }, ${
+                            ["#ef4444", "#f87171", "#fca5a5", "#fecaca"][
+                              index % 4
+                            ]
+                          })`,
                         }}
-                        whileHover={{ scale: 1.05, rotate: [0, -1, 1, 0] }}
+                        whileHover={{ scale: 1.035, rotate: [0, -1, 1, 0] }}
                         whileTap={{ scale: 0.95 }}
                       >
                         <span className="relative z-10 flex items-center gap-2">
                           Đọc ngay nào!
                         </span>
+
                         <motion.div
                           className="relative z-10"
-                          animate={{
-                            x: [0, 4, 0]
-                          }}
+                          animate={{ x: [0, 4, 0] }}
                           transition={{
                             duration: 1.5,
                             repeat: Infinity,
-                            ease: "easeInOut"
+                            ease: "easeInOut",
                           }}
                         >
-                          <ArrowRight size={20} />
+                          <ArrowRight size={18} />
                         </motion.div>
-                        
-                        {/* Sparkle effect */}
+
+                        {/* Sparkle effect giữ lại */}
                         <motion.div
                           className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent"
                           initial={{ x: "-100%" }}
@@ -284,42 +305,41 @@ export default function Blog() {
                     </Link>
                   </div>
 
-                  {/* Cute corner decorations */}
+                  {/* Corner decorations giữ lại */}
                   <motion.div
-                    className="absolute -top-3 -left-3 w-12 h-12 rounded-full bg-gradient-to-r from-red-400/20 to-red-500/20"
+                    className="absolute -left-3 -top-3 size-11 rounded-full bg-gradient-to-r from-red-400/20 to-red-500/20"
                     animate={{
                       rotate: 360,
-                      scale: [1, 1.1, 1]
+                      scale: [1, 1.1, 1],
                     }}
                     transition={{
                       duration: 6,
                       repeat: Infinity,
-                      ease: "linear"
+                      ease: "linear",
                     }}
                   />
-                  
+
                   <motion.div
-                    className="absolute -bottom-3 -right-3 w-10 h-10 rounded-full bg-gradient-to-r from-red-400/20 to-rose-400/20"
+                    className="absolute -bottom-3 -right-3 size-10 rounded-full bg-gradient-to-r from-red-400/20 to-rose-400/20"
                     animate={{
                       rotate: -360,
-                      scale: [1, 1.2, 1]
+                      scale: [1, 1.2, 1],
                     }}
                     transition={{
                       duration: 8,
                       repeat: Infinity,
-                      ease: "linear"
+                      ease: "linear",
                     }}
                   />
                 </div>
-
               </motion.article>
             );
           })}
         </div>
 
-        {/* CTA dễ thương */}
-        <motion.div 
-          className="text-center mt-16"
+        {/* CTA giữ effect cũ */}
+        <motion.div
+          className="mt-12 text-center sm:mt-14"
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
@@ -327,35 +347,50 @@ export default function Blog() {
         >
           <Link href="/blogs">
             <motion.div
-              className="group relative inline-flex items-center gap-4 px-6 py-2.5 bg-white border-2 border-red-600 text-red-600 font-bold rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden text-sm cursor-pointer"
-              whileHover={{ scale: 1.05, rotate: [0, -1, 1, 0] }}
+              className="group inline-flex cursor-pointer items-center justify-center gap-2.5 rounded-[14px] bg-[#111827] px-5 py-3 text-sm font-bold text-white shadow-xl shadow-slate-900/15 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-1 hover:bg-red-700 hover:shadow-red-700/25 sm:px-7"
+              whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.95 }}
             >
-              <span className="relative z-10 flex items-center gap-3">
-                Xem tất cả câu chuyện vui của bé
+              <span className="relative z-10 flex items-center gap-2">
+                Xem tất cả bản tin
               </span>
-              
-              {/* Shimmer effect */}
-              <motion.div
-                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
-                initial={{ x: "-100%" }}
-                whileHover={{ x: "100%" }}
-                transition={{ duration: 0.7 }}
+
+              <ArrowRight
+                size={16}
+                className="relative z-10 transition-transform duration-300 group-hover:translate-x-1"
               />
             </motion.div>
           </Link>
-
         </motion.div>
       </div>
 
-      {/* Hero deluxe end separator */}
-      <div className="relative w-full mt-20">
-        <img 
-          src="/image/hero-deluxe-end.svg" 
+      <div className="relative mt-8 w-full sm:mt-10 lg:mt-12">
+        <Image
+          src="/image/hero-deluxe-end.svg"
           alt="Hero deluxe end"
-          className="w-full h-auto"
+          width={1440}
+          height={180}
+          className="h-auto w-full"
         />
       </div>
+
+      <style jsx>{`
+        .blog-title {
+          min-height: 50px;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+
+        .blog-excerpt {
+          min-height: 72px;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+      `}</style>
     </section>
   );
 }

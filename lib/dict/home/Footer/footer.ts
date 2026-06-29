@@ -29,10 +29,10 @@ export const footer = {
 
     hotlineText: "Hotline: 0357.800.889 (Sài Gòn) / 0356.616.019 (Phú Quốc)",
     emailText: "Email: Kidzgo.edu@gmail.com",
-    facebookText: "https://www.facebook.com/kidzgoEnglish",
+    facebookText: "https://www.facebook.com/kidzgovn",
 
     emailAddress: "Kidzgo.edu@gmail.com",
-    facebookUrl: "https://www.facebook.com/kidzgoEnglish",
+    facebookUrl: "https://www.facebook.com/kidzgovn",
 
     phone: "+84 999 888 777",
     email: "hello@kidzgo.edu.vn",
@@ -71,10 +71,10 @@ export const footer = {
 
     hotlineText: "Hotline: 0357.800.889 (Saigon) / 0356.616.019 (Phu Quoc)",
     emailText: "Email: Kidzgo.edu@gmail.com",
-    facebookText: "https://www.facebook.com/kidzgoEnglish",
+    facebookText: "https://www.facebook.com/kidzgovn",
 
     emailAddress: "Kidzgo.edu@gmail.com",
-    facebookUrl: "https://www.facebook.com/kidzgoEnglish",
+    facebookUrl: "https://www.facebook.com/kidzgovn",
 
     phone: "+84 999 888 777",
     email: "hello@kidzgo.edu.vn",

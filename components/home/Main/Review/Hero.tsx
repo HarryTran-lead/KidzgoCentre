@@ -1,29 +1,39 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import {
   ArrowRight,
   Sparkles,
-  ChevronLeft,
-  ChevronRight,
   Book,
+  Info,
+  MessageCircleHeart,
+  ShieldCheck,
   Users,
   Trophy,
   Heart,
   Star,
 } from "lucide-react";
 import { useParams } from "next/navigation";
-import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
+import { DEFAULT_LOCALE, localizePath, type Locale } from "@/lib/i18n";
 import { getMessages } from "@/lib/dict";
+import { EndPoint } from "@/lib/routes";
 
 /** ICON & IMAGE giữ ở component (từ ngữ tách ở dict) */
 const ICONS = [Book, Sparkles, Users, Trophy, Heart];
-const IMAGES = [
-  "/image/Banner.png",
-  "/image/Banner6.JPG",
-  "/image/Banner3.JPG",
-  "/image/Banner4.JPG",
-  "/image/Banner5.JPG",
+const IMAGES = ["/image/Banner.png"];
+
+const QUICK_ACTIONS = [
+  { label: "Thông tin trung tâm", href: "#about", icon: Info },
+  { label: "Các khóa học", href: "#courses", icon: Book },
+  { label: "Tại sao chọn Rex", href: "#why-rex", icon: ShieldCheck },
+  { label: "Tư vấn học thử miễn phí", href: "#trial", icon: Sparkles },
+  { label: "Đội ngũ giáo viên", href: "#teachers", icon: Users },
+  {
+    label: "Feedback phụ huynh/học viên",
+    href: "#feedback",
+    icon: MessageCircleHeart,
+  },
 ];
 
 /** Bộ hiệu ứng cho 3 dòng tiêu đề */
@@ -65,17 +75,16 @@ function makeStars(n: number, rand: () => number) {
 type Props = { locale?: Locale | string };
 
 export default function Hero({ locale }: Props) {
-  const params = useParams();
-  const urlLocale = (params as any)?.locale as string | undefined;
+  const params = useParams<{ locale?: string }>();
+  const urlLocale = params?.locale;
   // Ưu tiên prop -> param -> DEFAULT_LOCALE
   const resolvedLocale = useMemo(
     () => (locale ?? urlLocale ?? DEFAULT_LOCALE) as Locale,
-    [locale, urlLocale]
+    [locale, urlLocale],
   );
   const msg = useMemo(() => getMessages(resolvedLocale), [resolvedLocale]);
 
-  const [idx, setIdx] = useState(0);
-  const [isAnimating, setIsAnimating] = useState(false);
+  const idx = 0;
   const [scrollOpacity, setScrollOpacity] = useState(1);
   const [scrollScale, setScrollScale] = useState(1);
 
@@ -83,7 +92,7 @@ export default function Hero({ locale }: Props) {
   const [ready, setReady] = useState(false);
   useEffect(() => {
     const id = requestAnimationFrame(() =>
-      requestAnimationFrame(() => setReady(true))
+      requestAnimationFrame(() => setReady(true)),
     );
     return () => cancelAnimationFrame(id);
   }, []);
@@ -94,23 +103,23 @@ export default function Hero({ locale }: Props) {
     const handleScroll = () => {
       if (!ticking) {
         requestAnimationFrame(() => {
-          const heroSection = document.getElementById('hero');
+          const heroSection = document.getElementById("hero");
           if (!heroSection) return;
           const scrollY = window.scrollY;
           const heroHeight = heroSection.offsetHeight;
           const progressEnd = heroHeight * 0.5;
           const scrollProgress = Math.min(1, scrollY / progressEnd);
-          setScrollOpacity(Math.max(0.8, 1 - (scrollProgress * 0.2)));
-          setScrollScale(Math.max(0.7, 1 - (scrollProgress * 0.3)));
+          setScrollOpacity(Math.max(0.8, 1 - scrollProgress * 0.2));
+          setScrollScale(Math.max(0.7, 1 - scrollProgress * 0.3));
           ticking = false;
         });
         ticking = true;
       }
     };
 
-    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener("scroll", handleScroll, { passive: true });
     handleScroll();
-    return () => window.removeEventListener('scroll', handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   /** Tạo mảng particles/stars bằng PRNG có seed cố định (SSR == CSR) */
@@ -118,47 +127,18 @@ export default function Hero({ locale }: Props) {
   const rngStars = useMemo(() => mulberry32(20241104 ^ 0x9e3779b9), []);
   const particles = useMemo(
     () => makeParticles(8, rngParticles),
-    [rngParticles]
+    [rngParticles],
   );
   const stars = useMemo(() => makeStars(6, rngStars), [rngStars]);
 
   // Build slides từ dict + icon + image
-  const slides = msg.hero.slides.map((s, i) => ({
+  const slides = msg.hero.slides.slice(0, 1).map((s, i) => ({
     ...s,
     icon: ICONS[i % ICONS.length],
     image: IMAGES[i % IMAGES.length],
   }));
 
-  const next = () => {
-    if (isAnimating) return;
-    setIsAnimating(true);
-    setIdx((s) => (s + 1) % slides.length);
-    setTimeout(() => setIsAnimating(false), 800);
-  };
-  const prev = () => {
-    if (isAnimating) return;
-    setIsAnimating(true);
-    setIdx((s) => (s - 1 + slides.length) % slides.length);
-    setTimeout(() => setIsAnimating(false), 800);
-  };
-  const go = (i: number) => {
-    if (isAnimating || i === idx) return;
-    setIsAnimating(true);
-    setIdx(i);
-    setTimeout(() => setIsAnimating(false), 800);
-  };
-
   const slide = slides[idx];
-  const Icon = slide.icon;
-
-  // Auto slide
-  useEffect(() => {
-    if (isAnimating) return;
-    const t = setTimeout(() => {
-      next();
-    }, 5000); // 5s
-    return () => clearTimeout(t);
-  }, [idx, isAnimating]);
 
   return (
     <section
@@ -177,11 +157,12 @@ export default function Hero({ locale }: Props) {
               i === idx ? "opacity-100" : "opacity-0"
             }`}
           >
-            <img
+            <Image
               src={s.image}
               alt=""
-              loading={i === idx ? "eager" : "lazy"}
-              decoding="async"
+              fill
+              priority={i === idx}
+              sizes="100vw"
               className={`w-full h-full object-cover object-center ${
                 i === idx ? "animate-kenburns a-paused" : ""
               }`}
@@ -228,150 +209,159 @@ export default function Hero({ locale }: Props) {
       </div>
 
       {/* Content */}
-      <div 
-        className="relative w-full h-full flex items-center justify-center z-20 px-4 sm:px-6 lg:px-8 transition-all duration-300"
-        style={{ 
+      <div
+        className="relative z-20 flex h-full w-full items-center px-5 pt-28 sm:px-8 lg:px-12 lg:pt-32 xl:px-16 2xl:px-20 transition-all duration-300"
+        style={{
           opacity: Math.max(0.8, scrollOpacity),
           transform: `scale(${scrollScale})`,
           perspective: "1200px",
         }}
       >
-        <div className="text-center max-w-5xl mx-auto">
-          {/* <div
-            key={`badge-${idx}`}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-orange-500/15 to-pink-500/15 border border-orange-300/40 mb-4 md:mb-6 anim-rotateIn a-paused shadow-md shadow-pink-500/10"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-orange-300 animate-spin-slow a-paused" />
-            <span className="text-xs font-bold text-orange-100 tracking-wide">
-              {slide.badge}
-            </span>
-          </div> */}
+        <div className="relative mx-auto flex w-full max-w-6xl flex-col justify-center gap-5 md:min-h-[calc(100vh-9rem)] md:pr-[360px] lg:pr-[380px]">
+          <div className="mx-auto max-w-3xl text-center">
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/12 px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-white/90 shadow-lg shadow-black/10 backdrop-blur-md">
+              <Sparkles className="size-4 text-amber-200" />
+              Rex English Center
+            </div>
 
-          {/* Titles */}
-          <div className="space-y-1 md:space-y-2 mb-4 md:mb-6">
-            {slide.title.map((line: string, i: number) => (
-              <h1
-                key={`t-${idx}-${i}`}
-                className={`font-black leading-tight tracking-tight ${
-                  i === 1
-                    ? "bg-linear-to-r from-pink-200 via-rose-200 to-orange-200 bg-clip-text text-transparent drop-shadow-xl"
-                    : "text-white"
-                } text-3xl sm:text-4xl md:text-5xl lg:text-6xl ${
-                  TITLE_ANIMS[idx % TITLE_ANIMS.length][i]
-                } a-paused`}
-                style={{
-                  animation:
-                    i === 0
-                      ? "slideInLeft 1s ease-out both"
-                      : i === 1
-                      ? "scaleRotate 1.2s ease-out 0.3s both"
-                      : "slideInRight 1s ease-out 0.6s both",
-                  animationPlayState: ready ? "running" : "paused",
-                  textShadow: "0 4px 30px rgba(0,0,0,0.7), 0 0 60px rgba(236, 72, 153, 0.3)",
-                  letterSpacing: "-0.02em",
-                }}
-              >
-                {line}
-              </h1>
-            ))}
-          </div>
+            {/* Titles */}
+            <div className="mb-5 space-y-2 md:mb-6">
+              {slide.title.map((line: string, i: number) => (
+                <h1
+                  key={`t-${idx}-${i}`}
+                  className={`font-black leading-tight tracking-tight ${
+                    i === 1
+                      ? "bg-linear-to-r from-pink-200 via-rose-200 to-orange-200 bg-clip-text text-transparent drop-shadow-xl"
+                      : "text-white"
+                  } text-3xl sm:text-4xl md:text-5xl lg:text-6xl ${
+                    TITLE_ANIMS[idx % TITLE_ANIMS.length][i]
+                  } a-paused`}
+                  style={{
+                    animation:
+                      i === 0
+                        ? "slideInLeft 1s ease-out both"
+                        : i === 1
+                          ? "scaleRotate 1.2s ease-out 0.3s both"
+                          : "slideInRight 1s ease-out 0.6s both",
+                    animationPlayState: ready ? "running" : "paused",
+                    textShadow:
+                      "0 4px 30px rgba(0,0,0,0.7), 0 0 60px rgba(236, 72, 153, 0.3)",
+                    letterSpacing: "0",
+                  }}
+                >
+                  {line}
+                </h1>
+              ))}
+            </div>
 
-          {/* Desc */}
-          <p
-            key={`d-${idx}`}
-            className="text-sm sm:text-base md:text-lg lg:text-xl text-white/90 max-w-2xl mx-auto leading-relaxed mb-5 md:mb-7 animate-fadeBlurIn a-paused font-medium"
-            style={{
-              animationDelay: "0.8s",
-              textShadow: "0 2px 12px rgba(0,0,0,0.4)",
-              letterSpacing: "0.01em",
-            }}
-          >
-            {slide.desc}
-          </p>
-
-          {/* Features */}
-          <div
-            key={`f-${idx}`}
-            className="flex flex-wrap justify-center gap-2 md:gap-3 mb-6 md:mb-8 px-4"
-          >
-            {slide.features.map((ft: string, i: number) => (
-              <span
-                key={i}
-            className="px-3 py-1.5 md:px-4 md:py-2 rounded-lg bg-gradient-to-r from-pink-500/15 to-orange-500/10 border border-pink-300/30 text-white text-xs font-semibold shadow-md hover:bg-pink-500/25 hover:border-pink-300/50 transition-all duration-300 animate-flipIn a-paused hover:scale-105 cursor-pointer will-change-transform"
-                style={{ animationDelay: `${1 + i * 0.15}s` }}
-              >
-                {ft}
-              </span>
-            ))}
-          </div>
-
-          {/* CTA */}
-          <div
-            key={`cta-wrap-${idx}`}
-            className="flex flex-col sm:flex-row flex-wrap justify-center gap-4 md:gap-5 px-4 mt-1"
-          >
-            <a
-              key={`cta-2-${idx}`}
-              href="#contact"
-              className="inline-flex items-center justify-center px-6 py-3 md:px-9 md:py-4 rounded-xl bg-white/15 backdrop-blur-xl border border-white/40 font-bold text-white text-sm md:text-base hover:bg-white/25 hover:border-white/60 hover:scale-[1.03] shadow-lg transition-all duration-300 animate-bounceIn a-paused group cursor-pointer"
-              style={{ animationDelay: "1.4s" }}
+            {/* Desc */}
+            <p
+              key={`d-${idx}`}
+              className="mx-auto mb-5 max-w-2xl text-sm font-medium leading-relaxed text-white/90 animate-fadeBlurIn a-paused sm:text-base md:mb-7 md:text-lg lg:text-xl"
+              style={{
+                animationDelay: "0.8s",
+                textShadow: "0 2px 12px rgba(0,0,0,0.4)",
+                letterSpacing: "0",
+              }}
             >
-              <span className="relative z-10 group-hover:text-white transition-colors duration-300">{msg.hero.cta.consult}</span>
-            </a>
+              {slide.desc}
+            </p>
 
-            <a
-              key={`cta-1-${idx}`}
-              href="#courses"
-              className="inline-flex items-center justify-center px-6 py-3 md:px-9 md:py-4 rounded-xl text-white font-bold text-sm md:text-base bg-linear-to-r from-pink-600 via-rose-500 to-orange-500 hover:from-pink-700 hover:via-rose-600 hover:to-orange-600 shadow-lg hover:shadow-pink-600/50 hover:scale-[1.03] transition-all duration-300 animate-bounceIn a-paused border border-pink-400/40 group relative overflow-hidden cursor-pointer will-change-transform"
-              style={{ animationDelay: "1.6s" }}
+            {/* Features */}
+            <div
+              key={`f-${idx}`}
+              className="mb-7 flex flex-wrap justify-center gap-2 md:mb-8 md:gap-3"
             >
-              <span className="relative z-10 inline-flex items-center gap-2 group-hover:gap-3 transition-all">
-                {msg.hero.cta.joinNow}
-                <ArrowRight className="w-4 h-4 md:w-5 md:h-5 group-hover:translate-x-1 transition-transform duration-300" />
-              </span>
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:translate-x-full transition-transform duration-500" style={{ transform: "translateX(-100%)" }} />
-            </a>
+              {slide.features.map((ft: string, i: number) => (
+                <span
+                  key={i}
+                  className="px-3 py-1.5 md:px-4 md:py-2 rounded-lg bg-gradient-to-r from-pink-500/15 to-orange-500/10 border border-pink-300/30 text-white text-xs font-semibold shadow-md hover:bg-pink-500/25 hover:border-pink-300/50 transition-all duration-300 animate-flipIn a-paused hover:scale-105 cursor-pointer will-change-transform"
+                  style={{ animationDelay: `${1 + i * 0.15}s` }}
+                >
+                  {ft}
+                </span>
+              ))}
+            </div>
+
+            {/* CTA */}
+            <div
+              key={`cta-wrap-${idx}`}
+              className="mt-1 flex flex-col flex-wrap justify-center gap-4 sm:flex-row md:gap-5"
+            >
+              <a
+                key={`cta-2-${idx}`}
+                href="#contact"
+                className="inline-flex items-center justify-center px-6 py-3 md:px-9 md:py-4 rounded-xl bg-white/15 backdrop-blur-xl border border-white/40 font-bold text-white text-sm md:text-base hover:bg-white/25 hover:border-white/60 hover:scale-[1.03] shadow-lg transition-all duration-300 animate-bounceIn a-paused group cursor-pointer"
+                style={{ animationDelay: "1.4s" }}
+              >
+                <span className="relative z-10 group-hover:text-white transition-colors duration-300">
+                  {msg.hero.cta.consult}
+                </span>
+              </a>
+
+              <a
+                key={`cta-1-${idx}`}
+                href="#courses"
+                className="inline-flex items-center justify-center px-6 py-3 md:px-9 md:py-4 rounded-xl text-white font-bold text-sm md:text-base bg-linear-to-r from-pink-600 via-rose-500 to-orange-500 hover:from-pink-700 hover:via-rose-600 hover:to-orange-600 shadow-lg hover:shadow-pink-600/50 hover:scale-[1.03] transition-all duration-300 animate-bounceIn a-paused border border-pink-400/40 group relative overflow-hidden cursor-pointer will-change-transform"
+                style={{ animationDelay: "1.6s" }}
+              >
+                <span className="relative z-10 inline-flex items-center gap-2 group-hover:gap-3 transition-all">
+                  {msg.hero.cta.joinNow}
+                  <ArrowRight className="w-4 h-4 md:w-5 md:h-5 group-hover:translate-x-1 transition-transform duration-300" />
+                </span>
+                <div
+                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:translate-x-full transition-transform duration-500"
+                  style={{ transform: "translateX(-100%)" }}
+                />
+              </a>
+            </div>
           </div>
+
+          <aside className="w-full max-h-[calc(100vh-11rem)] max-w-md overflow-y-auto rounded-3xl border border-red-100/80 bg-white/94 p-4 shadow-2xl shadow-red-950/25 backdrop-blur-md sm:p-5 md:absolute md:right-0 md:top-1/2 md:mt-0 md:w-[320px] md:-translate-y-1/2 lg:w-[330px] xl:w-[350px]">
+            {" "}
+            <div className="mb-4 text-left">
+              {" "}
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-red-600">
+                {" "}
+                Khám phá Rex{" "}
+              </p>{" "}
+              <h2 className="mt-1 text-xl font-black text-[#111827]">
+                {" "}
+                Chọn nhu cầu của bạn{" "}
+              </h2>{" "}
+            </div>{" "}
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+              {" "}
+              {QUICK_ACTIONS.map(({ label, href, icon: Icon }) => {
+                const actionHref =
+                  href === "#trial"
+                    ? localizePath(EndPoint.CONTACT, resolvedLocale)
+                    : href;
+
+                return (
+                  <a
+                    key={href}
+                    href={actionHref}
+                    className="quick-action-btn group flex min-h-12 items-center gap-3 rounded-2xl border border-red-100 bg-white px-4 py-3 text-sm font-bold text-[#111827] shadow-sm transform-gpu transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:border-red-600 hover:bg-red-600 hover:text-white hover:shadow-xl hover:shadow-red-600/25 active:translate-y-0 active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
+                  >
+                    <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-red-50 text-red-600 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:bg-white/90 group-hover:text-white ">
+                      <Icon size={18} strokeWidth={2.4} className="group-hover:text-red-600"/>
+                    </span>
+
+                    <span className="leading-snug">{label}</span>
+                  </a>
+                );
+              })}{" "}
+            </div>{" "}
+          </aside>
         </div>
-      </div>
-
-      {/* Prev / Next */}
-      <button
-        onClick={prev}
-        disabled={isAnimating}
-        aria-label="Previous slide"
-        className="hero-nav hero-prev sm:left-4 cursor-pointer"
-      >
-        <ChevronLeft className="w-5 h-5 md:w-6 md:h-6 text-white" />
-      </button>
-      <button
-        onClick={next}
-        disabled={isAnimating}
-        aria-label="Next slide"
-        className="hero-nav hero-next right-4 cursor-pointer"
-      >
-        <ChevronRight className="w-5 h-5 md:w-6 md:h-6 text-white" />
-      </button>
-
-      {/* Dots */}
-      <div className="hero-dots absolute bottom-4 md:bottom-4 left-1/2 -translate-x-1/2 flex gap-2 md:gap-3 z-20 px-4">
-        {slides.map((_, i) => (
-          <button
-            key={i}
-            onClick={() => go(i)}
-            disabled={isAnimating}
-            aria-label={`Go to slide ${i + 1}`}
-            className={`h-2 md:h-2.5 rounded-full transition-all duration-300 hover:scale-110 cursor-pointer will-change-transform ${
-              i === idx
-                ? "w-8 md:w-10 bg-linear-to-r from-pink-400 via-rose-400 to-orange-400 shadow-md shadow-pink-500/40"
-                : "w-2 md:w-2.5 bg-white/40 hover:bg-white/70"
-            }`}
-          />
-        ))}
       </div>
 
       {/* Global tiny animations */}
       <style jsx global>{`
+      .quick-action-btn {
+  will-change: transform, box-shadow, background-color;
+}
         @keyframes twinkle {
           0%,
           100% {
@@ -755,7 +745,7 @@ export default function Hero({ locale }: Props) {
             height: 40px;
             z-index: 30;
           }
-          .hero-prev {  
+          .hero-prev {
             left: 12px;
             right: auto;
           }
