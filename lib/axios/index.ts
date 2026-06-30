@@ -6,8 +6,8 @@
  */
 
 import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
-import { buildApiUrl } from '@/constants/apiURL';
-import { getAccessToken, getRefreshToken, setAccessToken, clearAccessToken, clearRefreshToken } from '@/lib/store/authToken';
+import { getAccessToken } from '@/lib/store/authToken';
+import { clearStoredAuthTokens, refreshStoredAuthTokens } from '@/lib/api/authenticatedFetch';
 import { mapApiErrorToMessage } from '@/lib/api/errorMapper';
 
 // Create axios instance with default config
@@ -77,31 +77,20 @@ axiosInstance.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        // Attempt to refresh token
-        const refreshToken = getRefreshToken();
-        if (!refreshToken) {
-          throw new Error('No refresh token available');
-        }
+        const refreshed = await refreshStoredAuthTokens();
+        if (refreshed?.accessToken) {
+          originalRequest.headers = {
+            ...(originalRequest.headers ?? {}),
+            Authorization: `Bearer ${refreshed.accessToken}`,
+          };
 
-        const response = await axios.post(
-          buildApiUrl('/api/auth/refresh-token'),
-          { refreshToken }
-        );
-
-        const newAccessToken = response.data?.data?.accessToken || response.data?.accessToken;
-        if (newAccessToken) {
-          setAccessToken(newAccessToken);
-          
-          // Retry original request with new token
-          if (originalRequest.headers) {
-            originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-          }
           return axiosInstance(originalRequest);
         }
+
+        throw new Error('Unable to refresh access token');
       } catch (refreshError) {
         // Refresh failed - clear tokens and redirect to login
-        clearAccessToken();
-        clearRefreshToken();
+        clearStoredAuthTokens();
         
         if (typeof window !== 'undefined') {
           window.location.href = '/auth/login';

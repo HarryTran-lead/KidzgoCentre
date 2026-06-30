@@ -110,11 +110,13 @@ export function normalizeRole(role: string): string {
     ACCOUNTANT: "Staff_Accountant",
     ACCOUNTING: "Staff_Accountant",
     STAFF_ACCOUNTANT: "Staff_Accountant",
+    ACCOUNTANTSTAFF: "Staff_Accountant",
     
     MANAGER: "Staff_Manager",
     MANAGEMENT: "Staff_Manager",
     STAFF_MANAGER: "Staff_Manager",
     STAFF_MANAGEMENT: "Staff_Manager",
+    MANAGEMENTSTAFF: "Staff_Manager",
     STAFF: "Staff_Manager",
     
     TEACHER: "Teacher",
