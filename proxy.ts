@@ -16,6 +16,8 @@ const isDevBypass = () =>
   process.env.NODE_ENV !== "production" &&
   process.env.NEXT_PUBLIC_DEV_AUTO_LOGIN === "1";
 
+const canUseRoleCookieFallback = () => process.env.NODE_ENV !== "production";
+
 function pickLocale(pathname: string): Locale | null {
   const seg1 = pathname.split("/")[1];
   return LOCALES_ARR.includes(seg1 as any) ? (seg1 as Locale) : null;
@@ -27,6 +29,26 @@ function setLocaleCookie(res: NextResponse, locale: Locale) {
     maxAge: ONE_YEAR,
     sameSite: "lax",
   });
+  return res;
+}
+
+function clearAuthCookies(res: NextResponse) {
+  for (const name of [
+    "role",
+    "session-role",
+    "x-role",
+    "user-name",
+    "user-avatar",
+    "kidzgo.accessToken",
+    "kidzgo.refreshToken",
+  ]) {
+    res.cookies.set(name, "", {
+      path: "/",
+      expires: new Date(0),
+      sameSite: "lax",
+    });
+  }
+
   return res;
 }
 
@@ -128,8 +150,10 @@ export function proxy(req: NextRequest) {
     }
   }
   
-  // Fallback to cookie-based auth (for dev/backward compatibility)
-  if (!role) {
+  // Fallback to cookie-based auth only outside production.
+  // In production, a stale role cookie can otherwise open the portal while
+  // API calls still fail because the backend requires a real bearer token.
+  if (!role && canUseRoleCookieFallback()) {
     const rawRole = req.cookies.get("role")?.value;
     const normalized = rawRole ? normalizeRole(rawRole) : undefined;
     role = normalized && (ACCESS_MAP as Record<string, string[]>)[normalized]
@@ -146,7 +170,7 @@ export function proxy(req: NextRequest) {
       )}`,
       req.url
     );
-    return setLocaleCookie(NextResponse.redirect(loginUrl), effectiveLocale);
+    return clearAuthCookies(setLocaleCookie(NextResponse.redirect(loginUrl), effectiveLocale));
   }
 
   // Bỏ locale, check theo ACCESS_MAP
