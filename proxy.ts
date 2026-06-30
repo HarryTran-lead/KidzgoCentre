@@ -16,7 +16,8 @@ const isDevBypass = () =>
   process.env.NODE_ENV !== "production" &&
   process.env.NEXT_PUBLIC_DEV_AUTO_LOGIN === "1";
 
-const canUseRoleCookieFallback = () => process.env.NODE_ENV !== "production";
+const canUseRoleCookieFallback = (hasUsableToken: boolean) =>
+  process.env.NODE_ENV !== "production" || hasUsableToken;
 
 function pickLocale(pathname: string): Locale | null {
   const seg1 = pathname.split("/")[1];
@@ -130,14 +131,16 @@ export function proxy(req: NextRequest) {
   
   // Try to get JWT token first
   const token = extractToken(req);
+  let hasUsableToken = Boolean(token);
   let role: Role | undefined;
   let userId: string | undefined;
   
   if (token) {
     // Verify JWT token
     const payload = decodeJWT(token);
-    
+
     if (payload && !isTokenExpired(payload)) {
+      hasUsableToken = true;
       const userInfo = extractUserInfo(payload);
       
       if (userInfo) {
@@ -147,13 +150,15 @@ export function proxy(req: NextRequest) {
           : undefined;
         userId = userInfo.userId;
       }
+    } else if (payload && isTokenExpired(payload)) {
+      hasUsableToken = false;
     }
   }
   
-  // Fallback to cookie-based auth only outside production.
-  // In production, a stale role cookie can otherwise open the portal while
-  // API calls still fail because the backend requires a real bearer token.
-  if (!role && canUseRoleCookieFallback()) {
+  // Fallback to cookie-based role only when a bearer token exists.
+  // This supports backend JWT claim variants while still blocking stale
+  // role-only sessions that would make every API call return 401.
+  if (!role && canUseRoleCookieFallback(hasUsableToken)) {
     const rawRole = req.cookies.get("role")?.value;
     const normalized = rawRole ? normalizeRole(rawRole) : undefined;
     role = normalized && (ACCESS_MAP as Record<string, string[]>)[normalized]
