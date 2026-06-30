@@ -1,6 +1,22 @@
 const ACCESS_TOKEN_KEY = "kidzgo.accessToken";
 const REFRESH_TOKEN_KEY = "kidzgo.refreshToken";
 
+function normalizeToken(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+
+  const trimmed = value.trim();
+  if (
+    !trimmed ||
+    trimmed === "undefined" ||
+    trimmed === "null" ||
+    trimmed === "[object Object]"
+  ) {
+    return null;
+  }
+
+  return trimmed.startsWith("Bearer ") ? trimmed.slice(7).trim() : trimmed;
+}
+
 /**
  * Set cookie (client-side)
  */
@@ -43,16 +59,24 @@ export function getAccessToken() {
     return null;
   }
   // Try cookie first (for middleware), then localStorage (fallback)
-  return getCookie(ACCESS_TOKEN_KEY) || window.localStorage.getItem(ACCESS_TOKEN_KEY);
+  return (
+    normalizeToken(getCookie(ACCESS_TOKEN_KEY)) ||
+    normalizeToken(window.localStorage.getItem(ACCESS_TOKEN_KEY))
+  );
 }
 
 export function setAccessToken(token: string) {
   if (typeof window === "undefined") {
     return;
   }
+  const normalizedToken = normalizeToken(token);
+  if (!normalizedToken) {
+    clearAccessToken();
+    return;
+  }
   // Store in both cookie (for middleware) and localStorage (for client)
-  setCookie(ACCESS_TOKEN_KEY, token, 7);
-  window.localStorage.setItem(ACCESS_TOKEN_KEY, token);
+  setCookie(ACCESS_TOKEN_KEY, normalizedToken, 7);
+  window.localStorage.setItem(ACCESS_TOKEN_KEY, normalizedToken);
 }
 
 export function getRefreshToken() {
@@ -60,16 +84,24 @@ export function getRefreshToken() {
     return null;
   }
   // Try cookie first, then localStorage
-  return getCookie(REFRESH_TOKEN_KEY) || window.localStorage.getItem(REFRESH_TOKEN_KEY);
+  return (
+    normalizeToken(getCookie(REFRESH_TOKEN_KEY)) ||
+    normalizeToken(window.localStorage.getItem(REFRESH_TOKEN_KEY))
+  );
 }
 
 export function setRefreshToken(token: string) {
   if (typeof window === "undefined") {
     return;
   }
+  const normalizedToken = normalizeToken(token);
+  if (!normalizedToken) {
+    clearRefreshToken();
+    return;
+  }
   // Store in both cookie and localStorage
-  setCookie(REFRESH_TOKEN_KEY, token, 30); // Refresh token lasts longer
-  window.localStorage.setItem(REFRESH_TOKEN_KEY, token);
+  setCookie(REFRESH_TOKEN_KEY, normalizedToken, 30); // Refresh token lasts longer
+  window.localStorage.setItem(REFRESH_TOKEN_KEY, normalizedToken);
 }
 
 export function clearAccessToken() {

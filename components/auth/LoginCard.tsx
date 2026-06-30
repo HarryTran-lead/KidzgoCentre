@@ -72,6 +72,41 @@ export default function LoginCard({ returnTo = "", locale, errorMessage }: Props
     });
   };
 
+  const pickToken = (source: unknown, keys: string[]): string | null => {
+    if (!source || typeof source !== "object") return null;
+    const record = source as Record<string, unknown>;
+
+    for (const key of keys) {
+      const value = record[key];
+      if (typeof value === "string" && value.trim()) {
+        return value.trim();
+      }
+    }
+
+    return null;
+  };
+
+  const extractLoginTokens = (payload: unknown) => {
+    const root = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : {};
+    const data = root.data && typeof root.data === "object" ? (root.data as Record<string, unknown>) : {};
+    const tokenContainer =
+      data.token && typeof data.token === "object"
+        ? (data.token as Record<string, unknown>)
+        : {};
+
+    const accessToken =
+      pickToken(data, ["accessToken", "token", "jwtToken", "access_token"]) ||
+      pickToken(tokenContainer, ["accessToken", "token", "jwtToken", "access_token"]) ||
+      pickToken(root, ["accessToken", "token", "jwtToken", "access_token"]);
+
+    const refreshToken =
+      pickToken(data, ["refreshToken", "refresh_token"]) ||
+      pickToken(tokenContainer, ["refreshToken", "refresh_token"]) ||
+      pickToken(root, ["refreshToken", "refresh_token"]);
+
+    return { accessToken, refreshToken };
+  };
+
   const handleSubmit = async () => {
     const email =
       (document.querySelector('input[name="email"]') as HTMLInputElement)?.value || "";
@@ -111,10 +146,13 @@ export default function LoginCard({ returnTo = "", locale, errorMessage }: Props
         return;
       }
 
-      // Handle both response formats: response.data or response directly
-      const loginData = response.data || response;
-      setAccessToken(loginData.accessToken);
-      setRefreshToken(loginData.refreshToken);
+      const { accessToken, refreshToken } = extractLoginTokens(response);
+      if (!accessToken || !refreshToken) {
+        throw new Error("Máy chủ chưa trả token đăng nhập hợp lệ.");
+      }
+
+      setAccessToken(accessToken);
+      setRefreshToken(refreshToken);
 
       const currentUser = await authService.getUserMe();
       const userData = currentUser.data || currentUser;

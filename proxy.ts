@@ -131,7 +131,7 @@ export function proxy(req: NextRequest) {
   
   // Try to get JWT token first
   const token = extractToken(req);
-  let hasUsableToken = Boolean(token);
+  let hasUsableToken = false;
   let role: Role | undefined;
   let userId: string | undefined;
   
