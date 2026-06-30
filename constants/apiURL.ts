@@ -672,6 +672,7 @@ export const BACKEND_ADMIN_ENDPOINTS = {
   REGISTRATIONS: '/registrations',
   PROGRAMS_BY_ID: (id: string) => `/programs/${id}`,
   PROGRAMS_MONTHLY_LEAVE_LIMIT: (id: string) => `/programs/${id}/monthly-leave-limit`,
+  PROGRAMS_ASSIGN_BRANCH: (id: string, branchId: string) => `/programs/${id}/branches/${branchId}`,
   PROGRAMS_TOGGLE_STATUS: (id: string) => `/programs/${id}/toggle-status`,
   TUITION_PLANS: '/tuition-plans',
   TUITION_PLANS_ACTIVE: '/tuition-plans/active',
