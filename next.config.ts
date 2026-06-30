@@ -4,6 +4,16 @@ import { fileURLToPath } from "url";
 import type { NextConfig } from "next";
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
+const rawBackendApiBaseUrl = (
+  process.env.BACKEND_API_BASE_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  "http://103.146.22.206:5000/api"
+).replace(/\/$/, "");
+const backendApiBaseUrl = /\/api$/i.test(rawBackendApiBaseUrl)
+  ? rawBackendApiBaseUrl
+  : `${rawBackendApiBaseUrl}/api`;
+const backendRootUrl = backendApiBaseUrl.replace(/\/api$/i, "");
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -17,11 +27,11 @@ const nextConfig: NextConfig = {
         // Proxy backend static files (images, uploads) through HTTPS to avoid mixed-content block.
         // Must be listed BEFORE the general /api/:path* rule so it takes priority.
         source: "/api/files/serve/:path*",
-        destination: "http://103.146.22.206:5000/:path*",
+        destination: `${backendRootUrl}/:path*`,
       },
       {
         source: "/api/:path*",
-        destination: "http://103.146.22.206:5000/api/:path*",
+        destination: `${backendApiBaseUrl}/:path*`,
       },
     ];
   },

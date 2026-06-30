@@ -81,6 +81,18 @@ export function clearStoredAuthTokens() {
   clearRefreshToken();
 }
 
+function redirectToLogin() {
+  if (typeof window === "undefined") return;
+
+  const firstSegment = window.location.pathname.split("/")[1];
+  const localePrefix = firstSegment === "vi" || firstSegment === "en" ? `/${firstSegment}` : "/vi";
+  const loginPath = `${localePrefix}/auth/login`;
+
+  if (window.location.pathname !== loginPath) {
+    window.location.href = loginPath;
+  }
+}
+
 export async function authFetch(input: RequestInfo | URL, init: RequestInit = {}) {
   const headers = new Headers(init.headers);
   const token = getAccessToken();
@@ -100,6 +112,8 @@ export async function authFetch(input: RequestInfo | URL, init: RequestInit = {}
 
   const refreshed = await refreshStoredAuthTokens();
   if (!refreshed) {
+    clearStoredAuthTokens();
+    redirectToLogin();
     return response;
   }
 
