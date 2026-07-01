@@ -108,6 +108,22 @@ export default function LoginCard({ returnTo = "", locale, errorMessage }: Props
     return { accessToken, refreshToken };
   };
 
+  const resolveParentLoginDestination = () => {
+    const target = (returnTo || "").trim();
+    if (target && target.startsWith("/") && !target.startsWith("//")) {
+      const pathname = target.split("?")[0];
+      const isActivationReturn =
+        pathname === "/activate-profile" ||
+        pathname === `/${resolvedLocale}/activate-profile`;
+
+      if (isActivationReturn) {
+        return localizePath(target, resolvedLocale);
+      }
+    }
+
+    return localizePath("/portal", resolvedLocale);
+  };
+
   const handleSubmit = async () => {
     const email =
       (document.querySelector('input[name="email"]') as HTMLInputElement)?.value || "";
@@ -175,7 +191,7 @@ export default function LoginCard({ returnTo = "", locale, errorMessage }: Props
           avatar: "",
         });
 
-        const destination = localizePath("/portal", resolvedLocale);
+        const destination = resolveParentLoginDestination();
         setTimeout(() => {
           window.location.assign(destination);
         }, 500);
