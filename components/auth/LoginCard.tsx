@@ -15,6 +15,7 @@ import { setAccessToken, setRefreshToken } from "@/lib/store/authToken";
 import { normalizeRole, ROLES } from "@/lib/role";
 import { toast } from "@/hooks/use-toast";
 import * as authService from "@/lib/api/authService";
+import { writeSelectedProfile } from "@/hooks/useSelectedStudentProfile";
 
 type Props = {
   returnTo?: string;
@@ -166,6 +167,21 @@ export default function LoginCard({ returnTo = "", locale, errorMessage }: Props
         variant: 'success',
       });
 
+      if (normalizedRole === "Parent") {
+        writeSelectedProfile(null);
+        await setServerSession({
+          role: "Student",
+          name: userData.fullName || "",
+          avatar: "",
+        });
+
+        const destination = localizePath("/portal", resolvedLocale);
+        setTimeout(() => {
+          window.location.assign(destination);
+        }, 500);
+        return;
+      }
+
       // Check if user has multiple profiles (Parent/Student accounts)
       if (["Parent", "Student"].includes(normalizedRole)) {
         // Get profiles to determine if we need AccountChooser
@@ -184,7 +200,7 @@ export default function LoginCard({ returnTo = "", locale, errorMessage }: Props
           });
 
           // Redirect to AccountChooser at /portal root
-          const destination = returnTo || localizePath("/portal", resolvedLocale);
+          const destination = localizePath("/portal", resolvedLocale);
           setTimeout(() => {
             window.location.assign(destination);
           }, 500);

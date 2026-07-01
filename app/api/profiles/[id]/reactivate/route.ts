@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { BACKEND_PROFILE_ENDPOINTS, buildApiUrl } from '@/constants/apiURL';
+import { BACKEND_PROFILE_ENDPOINTS, BACKEND_USER_ENDPOINTS, buildApiUrl } from '@/constants/apiURL';
 
 export async function PUT(
   request: NextRequest,
@@ -49,6 +49,29 @@ export async function PUT(
         },
         body: JSON.stringify(payload ?? {}),
       });
+    }
+
+    if (response.status === 404 || response.status === 405) {
+      const fallbackUrl = buildApiUrl(BACKEND_USER_ENDPOINTS.PROFILE_REACTIVATE(id));
+      response = await fetch(fallbackUrl, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: authHeader,
+        },
+        body: JSON.stringify(payload ?? {}),
+      });
+
+      if (response.status === 404 || response.status === 405) {
+        response = await fetch(fallbackUrl, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: authHeader,
+          },
+          body: JSON.stringify(payload ?? {}),
+        });
+      }
     }
 
     const contentType = response.headers.get('content-type') ?? '';
