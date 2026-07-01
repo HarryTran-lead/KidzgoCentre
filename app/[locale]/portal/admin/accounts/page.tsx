@@ -1997,6 +1997,14 @@ export default function AccountsPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4">
+                          <div
+                            className="max-w-[180px] truncate font-mono text-xs text-gray-500"
+                            title={profile.userId || "N/A"}
+                          >
+                            {profile.userId || "N/A"}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
                           <div className="flex flex-col gap-1">
                             {profile.isActive ? (
                               <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-linear-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-medium">
