@@ -1950,7 +1950,6 @@ export default function AccountsPage() {
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">{tProfiles.table.type}</th>
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">{tProfiles.table.displayName}</th>
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">{tProfiles.table.email}</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">{tProfiles.table.userId}</th>
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">{tProfiles.table.status}</th>
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">{tProfiles.table.createdDate}</th>
                         <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700">{tProfiles.table.actions}</th>
@@ -1994,14 +1993,6 @@ export default function AccountsPage() {
                           <div className="flex items-center gap-2 text-gray-600 text-sm">
                             <Mail size={14} />
                             {profile.userEmail || 'N/A'}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div
-                            className="max-w-[180px] truncate font-mono text-xs text-gray-500"
-                            title={profile.userId || "N/A"}
-                          >
-                            {profile.userId || "N/A"}
                           </div>
                         </td>
                         <td className="px-6 py-4">
