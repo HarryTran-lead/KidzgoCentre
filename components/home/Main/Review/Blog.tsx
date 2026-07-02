@@ -1,12 +1,86 @@
 "use client";
 
+import { useMemo } from "react";
+import { useParams } from "next/navigation";
 import { BLOGS } from "@/lib/data/data";
-import { ArrowRight, Newspaper } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { motion, cubicBezier } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
+import { DEFAULT_LOCALE, localizePath, type Locale } from "@/lib/i18n";
+import { EndPoint } from "@/lib/routes";
+import SectionTitle from "./SectionTitle";
+import SectionWaveTop from "./SectionWaveTop";
+
+const BLOG_SECTION_COPY = {
+  vi: {
+    title: {
+      leading: "Bản tin",
+      accent: "Rex",
+    },
+    description:
+      "Cập nhật kiến thức, hoạt động và những mẹo học tiếng Anh dễ áp dụng cho học viên Rex.",
+    statLabels: ["xem", "thích", "bình luận"],
+    primaryCta: "Đọc ngay nào!",
+    secondaryCta: "Xem tất cả bản tin",
+    posts: [
+      {
+        title: "5 mẹo sửa phát âm cho bé tại nhà",
+        excerpt:
+          "Hoạt động đơn giản giúp bé tự tin nói tiếng Anh mỗi ngày.",
+        tag: "Kỹ năng",
+      },
+      {
+        title: "Cambridge: Starters → Movers → Flyers",
+        excerpt: "Cấu trúc đề và cách luyện đều, chắc, vui tại Rex.",
+        tag: "Cambridge",
+      },
+      {
+        title: "Checklist xin học bổng trung học Mỹ",
+        excerpt: "Chuẩn bị hồ sơ, hoạt động ngoại khóa và chứng chỉ.",
+        tag: "Học bổng",
+      },
+    ],
+  },
+  en: {
+    title: {
+      leading: "News from",
+      accent: "Rex",
+    },
+    description:
+      "Stay updated with learning tips, center activities, and practical English ideas for Rex students.",
+    statLabels: ["views", "likes", "comments"],
+    primaryCta: "Read now!",
+    secondaryCta: "View all news",
+    posts: [
+      {
+        title: "5 ways to improve your child's pronunciation at home",
+        excerpt:
+          "Simple activities that help children speak English more confidently every day.",
+        tag: "Tips",
+      },
+      {
+        title: "Cambridge: Starters to Movers to Flyers",
+        excerpt:
+          "A clearer look at the test pathway and how Rex helps students build steadily.",
+        tag: "Cambridge",
+      },
+      {
+        title: "Checklist for U.S. middle-school scholarship applications",
+        excerpt:
+          "A quick guide to profiles, extracurriculars, and certificates to prepare early.",
+        tag: "Scholarship",
+      },
+    ],
+  },
+} as const;
 
 export default function Blog() {
+  const params = useParams<{ locale?: string }>();
+  const locale = (params?.locale ?? DEFAULT_LOCALE) as Locale;
+  const blogText = BLOG_SECTION_COPY[locale];
+  const blogHref = localizePath(EndPoint.BLOGS, locale);
+
   const fadeInUp = {
     hidden: { opacity: 0, y: 36 },
     visible: {
@@ -71,47 +145,51 @@ export default function Blog() {
       return { bg: "bg-red-700", text: "text-white" };
     }
 
+    if (tagLower === "cambridge") {
+      return { bg: "bg-red-600", text: "text-white" };
+    }
+
+    if (tagLower === "scholarship" || tagLower === "học bổng") {
+      return { bg: "bg-amber-500", text: "text-white" };
+    }
+
     return { bg: "bg-red-600", text: "text-white" };
   };
 
   const generateStats = (index: number) => {
     const seed = index * 12345;
+    const [viewsLabel, likesLabel, commentsLabel] = blogText.statLabels;
 
     return [
-      { count: Math.abs((seed * 17) % 500) + 500, label: "xem" },
-      { count: Math.abs((seed * 23) % 150) + 50, label: "thích" },
-      { count: Math.abs((seed * 31) % 40) + 10, label: "bình luận" },
+      { count: Math.abs((seed * 17) % 500) + 500, label: viewsLabel },
+      { count: Math.abs((seed * 23) % 150) + 50, label: likesLabel },
+      { count: Math.abs((seed * 31) % 40) + 10, label: commentsLabel },
     ];
   };
+
+  const posts = useMemo(
+    () =>
+      BLOGS.map((post, index) => ({
+        ...post,
+        ...blogText.posts[index],
+      })),
+    [blogText.posts],
+  );
 
   return (
     <section
       id="blog"
       className="blog-page relative z-30 overflow-visible pt-12 scroll-mt-24 sm:pt-14 lg:pt-16"
       style={{
-        backgroundColor: "#f0f9ff",
+        backgroundColor: "#d8eeff",
         backgroundImage: `
-          radial-gradient(circle at 10% 20%, rgba(255, 200, 124, 0.15) 0%, transparent 20%),
-          radial-gradient(circle at 90% 80%, rgba(168, 230, 207, 0.15) 0%, transparent 20%)
+          radial-gradient(circle at 10% 20%, rgba(255, 200, 124, 0.18) 0%, transparent 22%),
+          radial-gradient(circle at 90% 80%, rgba(168, 230, 207, 0.2) 0%, transparent 22%)
         `,
       }}
     >
-      <div className="pointer-events-none absolute left-0 top-0 z-0 w-full -translate-y-[99%] leading-none">
-        <svg
-          viewBox="0 0 1440 120"
-          xmlns="http://www.w3.org/2000/svg"
-          className="block h-[86px] w-full sm:h-[104px] lg:h-[116px]"
-          preserveAspectRatio="none"
-          aria-hidden="true"
-        >
-          <path
-            d="M0,70 C180,25 360,110 540,70 C720,30 900,105 1080,70 C1260,35 1350,50 1440,35 L1440,120 L0,120 Z"
-            fill="#f0f9ff"
-          />
-        </svg>
-      </div>
+      <SectionWaveTop fill="#d8eeff" />
 
-      {/* Cute background elements - giữ effect cũ */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <motion.div
           className="absolute left-10 top-10 size-32 rounded-full bg-gradient-to-r from-red-200/30 to-red-300/30"
@@ -141,7 +219,6 @@ export default function Blog() {
       </div>
 
       <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* Header đồng bộ section khác */}
         <motion.div
           className="mx-auto mb-10 max-w-3xl text-center sm:mb-12"
           variants={staggerContainer}
@@ -149,36 +226,23 @@ export default function Blog() {
           whileInView="visible"
           viewport={{ once: true, amount: 0.3 }}
         >
-          <motion.div
-            variants={fadeInUp}
-            className="mb-4 inline-flex items-center gap-2 rounded-full border border-red-100 bg-white/85 px-4 py-2 text-xs font-bold uppercase text-[#111827] shadow-sm shadow-red-100/60 backdrop-blur"
-          >
-            <Newspaper className="size-4 text-red-600" />
-            Bản tin Rex
+          <motion.div variants={fadeInUp}>
+            <SectionTitle
+              leading={blogText.title.leading}
+              accent={blogText.title.accent}
+            />
           </motion.div>
-
-          <motion.h2
-            variants={fadeInUp}
-            className="text-3xl font-black tracking-tight text-[#111827] sm:text-4xl lg:text-[2.65rem]"
-          >
-            Góc chia sẻ{" "}
-            <span className="bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent">
-              hữu ích
-            </span>
-          </motion.h2>
 
           <motion.p
             variants={fadeInUp}
             className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base"
           >
-            Cập nhật kiến thức, hoạt động và những mẹo học tiếng Anh dễ áp dụng
-            cho học viên Rex.
+            {blogText.description}
           </motion.p>
         </motion.div>
 
-        {/* Blog grid - giữ effect cũ, card gọn hơn */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 lg:gap-8">
-          {BLOGS.map((post, index) => {
+          {posts.map((post, index) => {
             const tagColor = getTagColor(post.tag);
 
             return (
@@ -194,10 +258,8 @@ export default function Blog() {
                 transition={{ delay: index * 0.08 }}
               >
                 <div className="relative h-full cursor-pointer overflow-hidden rounded-[30px] border-[3px] border-white bg-gradient-to-b from-white to-white/90 shadow-xl transition-all duration-500 hover:border-red-400 hover:shadow-2xl">
-                  {/* Top decoration */}
                   <div className="absolute left-0 right-0 top-0 h-2.5 rounded-t-[30px] bg-gradient-to-r from-red-600 via-red-500 to-rose-600" />
 
-                  {/* Image */}
                   <div className="relative m-4 mb-0 mt-5 h-40 overflow-hidden rounded-[22px] border-[3px] border-white shadow-lg sm:h-44">
                     <motion.img
                       src={post.img}
@@ -209,7 +271,6 @@ export default function Blog() {
 
                     <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
 
-                    {/* Tag badge */}
                     <motion.div
                       className="absolute left-3 top-3"
                       initial={{ scale: 0 }}
@@ -229,13 +290,11 @@ export default function Blog() {
                       </div>
                     </motion.div>
 
-                    {/* Date */}
                     <div className="absolute bottom-3 left-3 rounded-full bg-white/92 px-3 py-1.5 text-xs font-black text-slate-800 shadow-sm">
                       {index + 12}/12
                     </div>
                   </div>
 
-                  {/* Content */}
                   <div className="p-4 sm:p-5">
                     <motion.h3
                       className="blog-title text-lg font-black leading-snug text-[#111827] transition-colors duration-300 group-hover:text-red-700"
@@ -261,7 +320,7 @@ export default function Blog() {
                       ))}
                     </div>
 
-                    <Link href="/blogs" className="mt-4 block">
+                    <Link href={blogHref} className="mt-4 block">
                       <motion.div
                         className="group/btn relative inline-flex w-full items-center justify-center gap-2 overflow-hidden rounded-[18px] py-2.5 text-sm font-bold text-white shadow-lg transition-all duration-300 hover:shadow-xl"
                         style={{
@@ -279,7 +338,7 @@ export default function Blog() {
                         whileTap={{ scale: 0.95 }}
                       >
                         <span className="relative z-10 flex items-center gap-2">
-                          Đọc ngay nào!
+                          {blogText.primaryCta}
                         </span>
 
                         <motion.div
@@ -294,7 +353,6 @@ export default function Blog() {
                           <ArrowRight size={18} />
                         </motion.div>
 
-                        {/* Sparkle effect giữ lại */}
                         <motion.div
                           className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent"
                           initial={{ x: "-100%" }}
@@ -305,7 +363,6 @@ export default function Blog() {
                     </Link>
                   </div>
 
-                  {/* Corner decorations giữ lại */}
                   <motion.div
                     className="absolute -left-3 -top-3 size-11 rounded-full bg-gradient-to-r from-red-400/20 to-red-500/20"
                     animate={{
@@ -337,7 +394,6 @@ export default function Blog() {
           })}
         </div>
 
-        {/* CTA giữ effect cũ */}
         <motion.div
           className="mt-12 text-center sm:mt-14"
           initial={{ opacity: 0, y: 30 }}
@@ -345,14 +401,14 @@ export default function Blog() {
           viewport={{ once: true }}
           transition={{ duration: 0.6, delay: 0.3 }}
         >
-          <Link href="/blogs">
+          <Link href={blogHref}>
             <motion.div
               className="group inline-flex cursor-pointer items-center justify-center gap-2.5 rounded-[14px] bg-[#111827] px-5 py-3 text-sm font-bold text-white shadow-xl shadow-slate-900/15 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-1 hover:bg-red-700 hover:shadow-red-700/25 sm:px-7"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.95 }}
             >
               <span className="relative z-10 flex items-center gap-2">
-                Xem tất cả bản tin
+                {blogText.secondaryCta}
               </span>
 
               <ArrowRight

@@ -1,57 +1,32 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, UsersRound } from "lucide-react";
-
-// Dữ liệu giáo viên
-const TEACHERS = [
-  {
-    id: "1",
-    name: "Cô Lily",
-    role: "Cambridge Starters-Movers",
-    image:
-      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&q=80",
-    bio: "🇬🇧 UK • 10+ năm kinh nghiệm\n⭐ 15/15 Khiên Movers\n📍 Apollo Phạm Tuấn Tài",
-  },
-  {
-    id: "2",
-    name: "Cô Sunny",
-    role: "Giao tiếp phản xạ",
-    image:
-      "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=400&q=80",
-    bio: "🇺🇸 US • 8+ năm kinh nghiệm\n⭐ 15/15 Khiên Movers\n📍 Apollo Times City",
-  },
-  {
-    id: "3",
-    name: "Thầy Tom",
-    role: "Cambridge Flyers",
-    image:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80",
-    bio: "🇦🇺 Australia • 12+ năm kinh nghiệm\n⭐ 15/15 Khiên Movers\n📍 Apollo Vũ Tông Phan",
-  },
-  {
-    id: "4",
-    name: "Cô Emma",
-    role: "IELTS cho trẻ em",
-    image:
-      "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=400&q=80",
-    bio: "🇬🇧 UK • 9+ năm kinh nghiệm\n⭐ 15/15 Khiên Movers\n📍 Apollo Phạm Tuấn Tài",
-  },
-  {
-    id: "5",
-    name: "Thầy David",
-    role: "Tiếng Anh học thuật",
-    image:
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80",
-    bio: "🇬🇧 UK • 15+ năm kinh nghiệm\n⭐ 15/15 Khiên Movers\n📍 Apollo Times City",
-  },
-];
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { getMessages } from "@/lib/dict";
+import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
+import SectionTitle from "./SectionTitle";
+import SectionWaveTop from "./SectionWaveTop";
 
 const AUTO_MS = 5000;
 
+type TeacherItem = {
+  id: string;
+  name: string;
+  role: string;
+  image: string;
+  bio: string;
+};
+
 export default function Teacher() {
-  const teachers = useMemo(() => TEACHERS.filter(Boolean), []);
+  const params = useParams<{ locale?: string }>();
+  const locale = (params?.locale ?? DEFAULT_LOCALE) as Locale;
+  const teacherText = getMessages(locale).teacherSection;
+  const teachers = useMemo(
+    () => teacherText.items.filter(Boolean) as TeacherItem[],
+    [teacherText.items],
+  );
   const [isTitleVisible, setIsTitleVisible] = useState(false);
   const [idx, setIdx] = useState(0);
   const titleRef = useRef<HTMLDivElement>(null);
@@ -161,34 +136,13 @@ export default function Teacher() {
   return (
     <section
       id="teachers"
-      className="teacher-page relative z-30 overflow-visible bg-white pb-24 pt-12 scroll-mt-24 sm:pb-28 sm:pt-14 lg:pb-32 lg:pt-16"
+      className="teacher-page relative z-30 overflow-visible pb-24 pt-12 scroll-mt-24 sm:pb-28 sm:pt-14 lg:pb-32 lg:pt-16"
       style={{
-        backgroundImage: "url(/image/background1.jpg)",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundRepeat: "no-repeat",
-        backgroundAttachment: "fixed",
+        backgroundColor: "#f9e6d7",
       }}
     >
-      <div className="pointer-events-none absolute left-0 top-0 z-0 w-full -translate-y-[99%] leading-none">
-        <svg
-          viewBox="0 0 1440 120"
-          xmlns="http://www.w3.org/2000/svg"
-          className="block h-[86px] w-full sm:h-[104px] lg:h-[116px]"
-          preserveAspectRatio="none"
-          aria-hidden="true"
-        >
-          <path
-            d="M0,70 C180,25 360,110 540,70 C720,30 900,105 1080,70 C1260,35 1350,50 1440,35 L1440,120 L0,120 Z"
-            fill="#ffffff"
-          />
-        </svg>
-      </div>
+      <SectionWaveTop fill="#f9e6d7" />
 
-      {/* Overlay */}
-      <div className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-b from-white/85 via-white/60 to-white/20" />
-
-      {/* Title Section */}
       <div
         ref={titleRef}
         className={[
@@ -199,25 +153,16 @@ export default function Teacher() {
             : "translate-y-6 opacity-0",
         ].join(" ")}
       >
-        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-red-100 bg-white/85 px-4 py-2 text-xs font-bold uppercase text-[#111827] shadow-sm shadow-red-100/60 backdrop-blur">
-          <UsersRound className="size-4 text-red-600" />
-          Đội ngũ giáo viên
-        </div>
-
-        <h2 className="text-3xl font-black tracking-tight text-[#111827] sm:text-4xl lg:text-[2.65rem]">
-          Đồng hành cùng{" "}
-          <span className="bg-linear-to-r from-red-600 to-red-700 bg-clip-text text-transparent">
-            học viên Rex
-          </span>
-        </h2>
+        <SectionTitle
+          leading={teacherText.title.leading}
+          accent={teacherText.title.accent}
+        />
 
         <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
-          Đội ngũ giáo viên tận tâm, giàu kinh nghiệm và luôn theo sát quá trình
-          học của từng học viên.
+          {teacherText.description}
         </p>
       </div>
 
-      {/* Team Carousel */}
       <div className="relative z-10 mx-auto mt-4 max-w-6xl px-6 sm:mt-6">
         <motion.div
           className="relative flex items-center justify-center"
@@ -226,11 +171,10 @@ export default function Teacher() {
           viewport={{ once: true }}
           transition={{ duration: 0.8, delay: 0.25 }}
         >
-          {/* Arrows */}
           <motion.button
             onClick={prev}
             className="absolute left-0 z-30 cursor-pointer rounded-full bg-red-600/90 p-2 shadow-md transition hover:shadow-lg sm:-left-20 sm:p-3"
-            aria-label="Previous"
+            aria-label={teacherText.controls.previous}
             whileHover={{ scale: 1.1, x: -5 }}
             whileTap={{ scale: 0.95 }}
           >
@@ -308,7 +252,7 @@ export default function Teacher() {
           <motion.button
             onClick={next}
             className="absolute right-0 z-30 cursor-pointer rounded-full bg-red-600/90 p-2 shadow-md transition hover:shadow-lg sm:-right-20 sm:p-3"
-            aria-label="Next"
+            aria-label={teacherText.controls.next}
             whileHover={{ scale: 1.1, x: 5 }}
             whileTap={{ scale: 0.95 }}
           >
@@ -316,7 +260,6 @@ export default function Teacher() {
           </motion.button>
         </motion.div>
 
-        {/* Dots */}
         <motion.div
           className="mt-8 flex items-center justify-center gap-2"
           initial={{ opacity: 0, y: 20 }}
@@ -331,9 +274,9 @@ export default function Teacher() {
               className={`h-2.5 cursor-pointer rounded-full transition-all duration-300 ${
                 i === idx
                   ? "w-6 bg-red-600 shadow-lg"
-                  : "w-2 bg-gray-300 hover:bg-red-300/60"
+                  : "w-2 bg-white hover:bg-white/85"
               }`}
-              aria-label={`Go to teacher ${i + 1}`}
+              aria-label={`${teacherText.controls.goToTeacher} ${i + 1}`}
               whileHover={{ scale: 1.2 }}
               whileTap={{ scale: 0.9 }}
               animate={{

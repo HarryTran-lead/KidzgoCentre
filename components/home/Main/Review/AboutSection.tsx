@@ -1,248 +1,306 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
-import {
-  BookOpen,
-  ChevronLeft,
-  ChevronRight,
-  ExternalLink,
-  HeartHandshake,
-  MessageCircle,
-  Quote,
-  ShieldCheck,
-  Sparkles,
-} from "lucide-react";
+import { useParams } from "next/navigation";
+import { ExternalLink, Quote } from "lucide-react";
+import FbFrame from "@/components/home/Footer/fbframe";
+import { getMessages } from "@/lib/dict";
+import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
+import SectionTitle from "./SectionTitle";
 
-const storyHighlights = [
-  { label: "Nền tảng vững chắc", icon: ShieldCheck },
-  { label: "Giao tiếp tự tin", icon: MessageCircle },
-  { label: "Giáo viên đồng hành", icon: HeartHandshake },
-];
+const PHONE_HREF = "tel:0867405801";
+const FANPAGE_URL = "https://www.facebook.com/kidzgovn";
+const MAP_SEARCH_URL = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+  "T2-23 Manhattan Grand Park, Vinhomes Grand Park, phường Long Bình, TP Thủ Đức, TP. HCM",
+)}`;
 
-const storyImages = [
+const contactCards = [
   {
-    src: "/image/Club1.JPG",
-    alt: "Học viên Rex tham gia hoạt động tiếng Anh thực tế",
+    key: "address",
+    href: MAP_SEARCH_URL,
+    iconImage: "/icons/about/location-spot.svg",
+    external: true,
+    full: true,
+    imageClassName: "h-[42px] w-[42px]",
+    valueClassName: "text-[14px]",
   },
   {
-    src: "/image/Club4.JPG",
-    alt: "Không gian học tập thân thiện tại Rex",
+    key: "phone",
+    href: PHONE_HREF,
+    iconImage: "/icons/about/phone-call.svg",
+    external: false,
+    full: false,
+    imageClassName: "h-[38px] w-[38px]",
+    valueClassName: "text-[13.5px]",
   },
   {
-    src: "/image/Club5.JPG",
-    alt: "Học viên Rex thực hành tiếng Anh theo nhóm",
+    key: "email",
+    href: "mailto:Tearexenglish@gmail.com",
+    iconImage: "/icons/about/mail-letter.svg",
+    external: false,
+    full: false,
+    imageClassName: "h-[38px] w-[38px]",
+    valueClassName: "text-[13.5px]",
+  },
+] as const;
+
+const highlights = [
+  {
+    key: "foundation",
+    iconImage: "/icons/level.png",
+    tone: "from-rose-500 to-red-600",
+    glow: "bg-rose-100",
   },
   {
-    src: "/image/Club7.JPG",
-    alt: "Hoạt động ngoại khóa giúp học viên tự tin hơn",
+    key: "communication",
+    iconImage: "/icons/quest.png",
+    tone: "from-orange-500 to-amber-500",
+    glow: "bg-amber-100",
   },
-];
+  {
+    key: "support",
+    iconImage: "/icons/teacher.png",
+    tone: "from-fuchsia-500 to-rose-500",
+    glow: "bg-pink-100",
+  },
+] as const;
 
 export default function AboutSection() {
-  const [activeImage, setActiveImage] = useState(0);
-  const currentImage = storyImages[activeImage];
-
-  const goToPreviousImage = () => {
-    setActiveImage((index) =>
-      index === 0 ? storyImages.length - 1 : index - 1,
-    );
-  };
-
-  const goToNextImage = () => {
-    setActiveImage((index) => (index + 1) % storyImages.length);
-  };
-
-  useEffect(() => {
-    const slideTimer = window.setInterval(() => {
-      setActiveImage((index) => (index + 1) % storyImages.length);
-    }, 5000);
-
-    return () => window.clearInterval(slideTimer);
-  }, []);
+  const params = useParams<{ locale?: string }>();
+  const locale = (params?.locale ?? DEFAULT_LOCALE) as Locale;
+  const aboutText = getMessages(locale).about;
+  const contactContent = {
+    address: {
+      label: aboutText.contact.addressLabel,
+      value: aboutText.contact.addressValue,
+    },
+    phone: {
+      label: aboutText.contact.phoneLabel,
+      value: aboutText.contact.phoneValue,
+    },
+    email: {
+      label: aboutText.contact.emailLabel,
+      value: aboutText.contact.emailValue,
+    },
+  } as const;
 
   return (
-  <section
-  id="about"
-className="roadmap-page relative z-30 overflow-hidden scroll-mt-24 bg-linear-to-b from-slate-50 via-white to-slate-50 pt-14 pb-32 sm:pt-16 sm:pb-36 lg:pt-18 lg:pb-40" style={{
-    borderTopLeftRadius: "3rem",
-    borderTopRightRadius: "3rem",
-    boxShadow: "0 -10px 40px rgba(0, 0, 0, 0.1)",
-  }}
->
-      <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-10">
-        <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-12">
-          <div className="max-w-3xl">
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-red-100 bg-white/85 px-4 py-2 text-xs font-bold uppercase text-[#111827] shadow-sm shadow-red-200/50 backdrop-blur">
-              <BookOpen className="size-4 text-red-600" />
-              Thông tin trung tâm
-            </div>
+    <section
+      id="about"
+      className="roadmap-page relative z-30 overflow-hidden scroll-mt-24 bg-linear-to-b from-slate-50 via-white to-slate-50 pt-16 pb-28 sm:pt-20 sm:pb-32 lg:pt-24 lg:pb-36"
+      style={{
+        borderTopLeftRadius: "3rem",
+        borderTopRightRadius: "3rem",
+        boxShadow: "0 -10px 40px rgba(0, 0, 0, 0.08)",
+      }}
+    >
+      <div className="pointer-events-none absolute -left-24 top-24 size-60 rounded-full bg-red-100/30 blur-3xl" />
+      <div className="pointer-events-none absolute -right-24 bottom-12 size-64 rounded-full bg-rose-100/30 blur-3xl" />
 
-            <h2 className="text-3xl font-black leading-tight text-[#111827] sm:text-4xl lg:text-[2.65rem]">
-              Câu chuyện của <span className="text-red-600">Rex</span>
-            </h2>
+      <div className="relative z-10 mx-auto max-w-[1320px] px-4 sm:px-6 lg:px-8 xl:px-10">
+        <div className="grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.96fr)] xl:gap-10">
+          <div className="min-w-0">
+            <SectionTitle
+              leading={aboutText.title.leading}
+              accent={aboutText.title.accent}
+              align="left"
+            />
 
-            <div className="mt-6 rounded-3xl border border-red-100 border-l-[6px] border-l-red-600 bg-white p-4 shadow-md shadow-red-200/30 sm:px-6 sm:py-4">
-              <Quote className="mb-3 size-6 text-red-600/80" />
-              <p className="text-base font-medium leading-7 text-[#111827] sm:text-lg sm:leading-8">
-                “Làm thế nào để mỗi học viên không chỉ học tiếng Anh, mà còn tự
-                tin sử dụng tiếng Anh trong đời sống?”
+            <div className="mt-5 rounded-[1.7rem] border border-red-100 border-l-[6px] border-l-red-600 bg-white p-4 shadow-[0_14px_34px_rgba(239,68,68,0.08)] sm:p-5 lg:p-6">
+              <Quote className="mb-2.5 size-6 text-red-600/80" />
+
+              <p className="text-base font-semibold leading-7 text-[#111827] sm:text-[17px]">
+                &ldquo;{aboutText.quote.text}&rdquo;
               </p>
+
               <p className="mt-3 text-sm font-bold text-red-700">
-                - Ý tưởng khởi nguồn của Rex
+                {aboutText.quote.source}
               </p>
             </div>
 
-            <div className="mt-7 max-w-2xl space-y-5 text-base leading-8 text-slate-800 sm:text-lg">
-              <p>
-                Rex được xây dựng với mong muốn tạo ra một môi trường học tiếng
-                Anh gần gũi, nơi trẻ em và học sinh có thể bắt đầu từ{" "}
-                <span className="font-semibold text-red-700">
-                  nền tảng vững chắc
-                </span>
-                , luyện{" "}
-                <span className="font-semibold text-red-700">
-                  phản xạ giao tiếp tự nhiên
-                </span>{" "}
-                và dần hình thành{" "}
-                <span className="font-semibold text-red-700">sự tự tin</span>{" "}
-                khi sử dụng ngôn ngữ.
-              </p>
-              <p>
-                Thay vì chỉ tập trung vào điểm số, Rex chú trọng{" "}
-                <span className="font-semibold text-red-700">
-                  hành trình tiến bộ
-                </span>{" "}
-                của từng học viên. Giáo viên{" "}
-                <span className="font-semibold text-red-700">
-                  đồng hành sát sao
-                </span>
-                , phụ huynh dễ dàng theo dõi kết quả, còn học viên được khuyến
-                khích thực hành tiếng Anh qua hoạt động, trò chơi và{" "}
-                <span className="font-semibold text-red-700">
-                  tình huống thực tế
-                </span>
-                .
-              </p>
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              {highlights.map(({ key, iconImage, tone, glow }) => (
+                <div
+                  key={key}
+                  className="group relative overflow-hidden rounded-[1.45rem] border border-red-100/90 bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.045)] transition duration-300 motion-safe:lg:hover:-translate-y-1 lg:hover:border-red-200 lg:hover:shadow-[0_18px_36px_rgba(239,68,68,0.12)]"
+                >
+                  <div
+                    className={`absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r ${tone}`}
+                  />
+
+                  <div
+                    className={`pointer-events-none absolute -right-8 -top-8 size-24 rounded-full ${glow} opacity-0 blur-2xl transition duration-300 group-hover:opacity-100`}
+                  />
+
+                  <div className="relative z-10">
+                    <div className="flex items-start gap-3">
+                      <RealIconBadge
+                        src={iconImage}
+                        alt=""
+                        wrapperClassName="mt-0.5"
+                        imageClassName="h-[28px] w-[28px]"
+                      />
+
+                      <p className="min-w-0 text-[15px] font-extrabold leading-5 text-red-700 sm:text-base">
+                        {aboutText.highlights[key].title}
+                      </p>
+                    </div>
+
+                    <p className="mt-3 overflow-hidden pl-1 pr-1 text-[13px] font-semibold leading-5 text-slate-500 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
+                      {aboutText.highlights[key].desc}
+                    </p>
+                  </div>
+                </div>
+              ))}
             </div>
 
-            <div className="mt-7">
-              <a
-                href="https://www.facebook.com/kidzgovn"
-                target="_blank"
-                rel="noreferrer"
-                className="group inline-flex items-center gap-3 rounded-2xl border border-slate-200 bg-white/90 px-4 py-3 shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition duration-300 hover:-translate-y-0.5 hover:border-red-200 hover:shadow-[0_14px_32px_rgba(15,23,42,0.12)] focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
-              >
-                <span className="grid size-10 place-items-center rounded-full bg-[#1877F2] text-white shadow-sm transition duration-300 group-hover:scale-105">
-                  <svg
-                    aria-hidden="true"
-                    viewBox="0 0 24 24"
-                    className="size-5 fill-current"
-                  >
-                    <path d="M14 8.5V7.25C14 6.56 14.56 6 15.25 6H17V3H14.75C12.13 3 10.5 4.63 10.5 7.25V8.5H8V11.75H10.5V21H14V11.75H16.6L17 8.5H14Z" />
-                  </svg>
-                </span>
-
-                <span className="flex flex-col text-left">
-                  <span className="text-sm font-black text-slate-900 transition duration-300 group-hover:text-red-700">
-                    Fanpage chính thức Rex
-                  </span>
-                  <span className="text-xs font-medium text-slate-500">
-                    Xem hoạt động lớp học & tư vấn nhanh
-                  </span>
-                </span>
-
-                <ExternalLink
-                  size={16}
-                  className="ml-1 text-slate-400 transition duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-red-600"
-                />
-              </a>
+            <div className="mt-6 space-y-4 text-base leading-7 text-slate-800 sm:text-[16px] sm:leading-8">
+              {aboutText.body.map((paragraph, paragraphIndex) => (
+                <p key={paragraphIndex}>
+                  {paragraph.map((segment, segmentIndex) => (
+                    <span
+                      key={`${paragraphIndex}-${segmentIndex}`}
+                      className={
+                        "highlight" in segment && segment.highlight
+                          ? "font-semibold text-red-700"
+                          : undefined
+                      }
+                    >
+                      {segment.text}
+                    </span>
+                  ))}
+                </p>
+              ))}
             </div>
           </div>
 
-          <aside className="relative mx-auto w-full max-w-xl lg:max-w-none">
-            <div className="relative rounded-[2rem] border border-red-100 bg-white/90 p-3  backdrop-blur">
-              <div
-                className="relative overflow-hidden rounded-[1.5rem] bg-red-100"
-                style={{ aspectRatio: "16 / 11" }}
-              >
-                <Image
-                  key={currentImage.src}
-                  src={currentImage.src}
-                  alt={currentImage.alt}
-                  fill
-                  sizes="(min-width: 1024px) 580px, 100vw"
-                  className="object-cover"
-                  loading="lazy"
-                />
-                <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-slate-950/55 via-slate-950/10 to-transparent p-5">
-                  <div className="inline-flex items-center gap-2 rounded-full bg-white/95 px-3 py-2 text-xs font-bold text-slate-800 shadow-[0_8px_20px_rgba(15,23,42,0.18)] ring-1 ring-white/70 backdrop-blur">
-                    <Sparkles
-                      className="size-4 text-amber-400"
-                      strokeWidth={2}
-                    />
-                    Rex đồng hành cùng học viên
-                  </div>
-                </div>
+          <aside className="min-w-0 lg:pt-1">
+            <div className="mb-4">
+              <p className="text-[11px] font-extrabold uppercase tracking-[0.22em] text-red-600">
+                {aboutText.contact.eyebrow}
+              </p>
 
-                <div className="absolute right-4 top-4 flex items-center gap-1 rounded-full border border-white/70 bg-white/85 p-1 shadow-xl shadow-red-950/10 backdrop-blur-md">
-                  <button
-                    type="button"
-                    aria-label="Ảnh trước"
-                    onClick={goToPreviousImage}
-                    className="grid size-9 place-items-center rounded-full text-red-700 transition duration-300 hover:bg-red-600 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
-                  >
-                    <ChevronLeft size={19} strokeWidth={2.6} />
-                  </button>
-                  <div className="h-5 w-px bg-red-100" />
-                  <button
-                    type="button"
-                    aria-label="Ảnh tiếp theo"
-                    onClick={goToNextImage}
-                    className="grid size-9 place-items-center rounded-full text-red-700 transition duration-300 hover:bg-red-600 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
-                  >
-                    <ChevronRight size={19} strokeWidth={2.6} />
-                  </button>
-                </div>
-              </div>
-
-              <div className="mt-4 flex items-center justify-center gap-2">
-                {storyImages.map((image, index) => (
-                  <button
-                    key={image.src}
-                    type="button"
-                    aria-label={`Xem ảnh ${index + 1}`}
-                    aria-current={index === activeImage}
-                    onClick={() => setActiveImage(index)}
-                    className={`h-2 rounded-full transition-all duration-300 ${
-                      index === activeImage
-                        ? "w-8 bg-red-600"
-                        : "w-2.5 bg-red-200 hover:bg-red-300"
-                    }`}
-                  />
-                ))}
-              </div>
+              <h3 className="mt-1 text-2xl font-extrabold leading-tight text-[#111827] sm:text-[1.65rem]">
+                {aboutText.contact.title}
+              </h3>
             </div>
 
-            <div className="mt-5 flex flex-wrap justify-center gap-3 lg:justify-start">
-              {storyHighlights.map(({ label, icon: Icon }) => (
-                <div
-                  key={label}
-                  className="group inline-flex items-center gap-2 rounded-full border border-red-100 bg-white px-4 py-2 text-sm font-bold text-[#111827] shadow-md shadow-red-100/70 transition duration-300 hover:-translate-y-0.5 hover:border-red-300 hover:shadow-lg hover:shadow-red-200/70"
-                >
-                  <Icon
-                    className="size-4 text-red-600 transition duration-300 group-hover:scale-110 group-hover:text-red-700"
-                    strokeWidth={2.4}
-                  />
-                  {label}
+            <div className="grid gap-3 sm:grid-cols-2">
+              {contactCards.map(
+                ({
+                  key,
+                  href,
+                  iconImage,
+                  external,
+                  full,
+                  imageClassName,
+                  valueClassName,
+                }) => (
+                  <a
+                    key={key}
+                    href={href}
+                    target={external ? "_blank" : undefined}
+                    rel={external ? "noreferrer" : undefined}
+                    className={`group block rounded-[1.25rem] border border-slate-200 bg-white px-3.5 py-2.5 shadow-[0_8px_20px_rgba(15,23,42,0.045)] transition-[transform,box-shadow,border-color] duration-200 ease-out motion-safe:lg:hover:-translate-y-0.5 lg:hover:border-red-200 lg:hover:shadow-[0_12px_26px_rgba(15,23,42,0.075)] ${
+                      full ? "sm:col-span-2" : ""
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <RealIconBadge
+                        src={iconImage}
+                        alt=""
+                        wrapperClassName="mt-0.5"
+                        imageClassName={imageClassName}
+                      />
+
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[12.5px] font-bold leading-5 text-slate-500">
+                          {contactContent[key].label}
+                        </p>
+
+                        <p
+                          className={`mt-0.5 break-words font-semibold leading-5 text-[#111827] ${valueClassName}`}
+                        >
+                          {contactContent[key].value}
+                        </p>
+                      </div>
+
+                      <ExternalLink className="mt-1 size-3.5 shrink-0 text-slate-300 transition-colors duration-200 group-hover:text-red-500" />
+                    </div>
+                  </a>
+                ),
+              )}
+            </div>
+
+            <div className="mt-4 rounded-[1.7rem] border border-slate-200 bg-white p-4 shadow-[0_14px_30px_rgba(15,23,42,0.06)]">
+              <div className="mb-3 flex items-center gap-3">
+                <RealIconBadge
+                  src="/icons/about/facebook-brand.svg"
+                  alt=""
+                  wrapperClassName="mt-0.5"
+                  imageClassName="h-[40px] w-[40px]"
+                />
+
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold text-slate-500">
+                    {aboutText.contact.fanpageLabel}
+                  </p>
+
+                  <a
+                    href={FANPAGE_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-[17px] font-semibold text-[#111827] transition-colors duration-200 hover:text-red-700"
+                  >
+                    {aboutText.contact.fanpageName}
+                    <ExternalLink className="size-4 text-slate-400" />
+                  </a>
                 </div>
-              ))}
+              </div>
+
+              <div className="flex justify-center">
+                <div className="w-full max-w-[500px] overflow-hidden rounded-[1.35rem] shadow-[0_14px_32px_rgba(15,23,42,0.08)]">
+                  <FbFrame
+                    url={FANPAGE_URL}
+                    height={315}
+                    tabs="timeline"
+                    minWidth={340}
+                    maxWidth={500}
+                    showFacepile={false}
+                    hideCover={false}
+                  />
+                </div>
+              </div>
             </div>
           </aside>
         </div>
       </div>
-
- 
     </section>
+  );
+}
+
+function RealIconBadge({
+  src,
+  alt,
+  wrapperClassName,
+  imageClassName,
+}: {
+  src: string;
+  alt: string;
+  wrapperClassName?: string;
+  imageClassName: string;
+}) {
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center justify-center leading-none ${wrapperClassName ?? ""}`}
+    >
+      <Image
+        src={src}
+        alt={alt}
+        width={32}
+        height={32}
+        className={`object-contain drop-shadow-[0_4px_8px_rgba(15,23,42,0.12)] ${imageClassName}`}
+      />
+    </span>
   );
 }

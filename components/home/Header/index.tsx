@@ -10,7 +10,7 @@ import React, {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
-import { Menu, X, LogIn, ChevronRight, Sparkles } from "lucide-react";
+import { Menu, X, LogIn, ChevronRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { LOGO } from "@/lib/theme/theme";
 import LanguageToggle from "@/components/ui/button/LanguageToggle";
@@ -53,8 +53,8 @@ function getHeaderOffsetPx() {
   if (typeof window === "undefined") return 64;
   const v = parseFloat(
     getComputedStyle(document.documentElement).getPropertyValue(
-      "--app-header-h"
-    )
+      "--app-header-h",
+    ),
   );
   return Number.isFinite(v) ? v : 64;
 }
@@ -90,13 +90,13 @@ export default function Navbar() {
         borderColor: "rgba(0,0,0,0.04)",
       },
     }),
-    []
+    [],
   );
 
   const pathname = usePathname();
   const locale = useMemo(
     () => (pickLocaleFromPath(pathname) ?? DEFAULT_LOCALE) as Locale,
-    [pathname]
+    [pathname],
   );
   const msg = getMessages(locale);
   const NAV_ITEMS: NavItem[] = useMemo(
@@ -106,12 +106,6 @@ export default function Navbar() {
         label: msg.nav.home,
         kind: "route",
         href: localizePath(EndPoint.HOME, locale),
-      },
-      {
-        id: "faqs",
-        label: msg.nav.faqs,
-        kind: "route",
-        href: localizePath(EndPoint.FAQS, locale),
       },
       {
         id: "bantin",
@@ -126,7 +120,7 @@ export default function Navbar() {
         href: localizePath(EndPoint.CONTACT, locale),
       },
     ],
-    [msg, locale]
+    [msg, locale],
   );
 
   useEffect(() => {
@@ -148,14 +142,15 @@ export default function Navbar() {
 
   const sectionIds = useMemo(
     () => NAV_ITEMS.filter((n) => n.kind === "section").map((n) => n.id),
-    [NAV_ITEMS]
+    [NAV_ITEMS],
   );
   const activeSectionId = useScrollSpy(isHomePage ? sectionIds : [], 120);
 
   const activeKey = useMemo(() => {
     if (pathname.includes("/contact")) return "contact";
     if (pathname.includes("/faqs")) return "faqs";
-    if (pathname.includes("/blogs") || pathname.includes("/bantin")) return "bantin";
+    if (pathname.includes("/blogs") || pathname.includes("/bantin"))
+      return "bantin";
     if (pathname.includes("/pricing")) return "pricing";
     return activeSectionId;
   }, [pathname, activeSectionId]);
@@ -164,6 +159,37 @@ export default function Navbar() {
     const idx = NAV_ITEMS.findIndex((n) => n.id === activeKey);
     return idx === -1 ? 0 : idx;
   }, [NAV_ITEMS, activeKey]);
+
+  const getMobileItemClasses = (isActive: boolean) =>
+    [
+      "group/mobile-item relative flex items-center justify-between overflow-hidden rounded-2xl border px-5 py-4",
+      "transition-all duration-300",
+      isActive
+        ? "border-red-100 bg-gradient-to-r from-red-50 to-white text-red-700 shadow-sm shadow-red-100/60"
+        : "border-transparent text-gray-800 hover:border-red-50 hover:bg-gray-50/80",
+    ].join(" ");
+
+  const getMobileItemDotClasses = (isActive: boolean) =>
+    [
+      "h-1.5 w-1.5 rounded-full transition-all duration-300",
+      isActive
+        ? "scale-125 bg-red-500 shadow-[0_0_0_4px_rgba(239,68,68,0.08)]"
+        : "bg-gray-300 group-hover/mobile-item:bg-red-400",
+    ].join(" ");
+
+  const getMobileItemLabelClasses = (isActive: boolean) =>
+    [
+      "font-medium transition-colors duration-300",
+      isActive ? "text-red-700" : "group-hover/mobile-item:text-red-700",
+    ].join(" ");
+
+  const getMobileItemArrowClasses = (isActive: boolean) =>
+    [
+      "h-4 w-4 transition-all duration-300",
+      isActive
+        ? "translate-x-0.5 text-red-600"
+        : "text-gray-400 group-hover/mobile-item:translate-x-0.5 group-hover/mobile-item:text-red-500",
+    ].join(" ");
 
   // Close loading when pathname changes
   useEffect(() => {
@@ -184,8 +210,8 @@ export default function Navbar() {
       const safeTop =
         parseFloat(
           getComputedStyle(document.documentElement).getPropertyValue(
-            "--safe-top"
-          )
+            "--safe-top",
+          ),
         ) || 0;
       const h = Math.ceil(rect.height + safeTop);
       document.documentElement.style.setProperty("--app-header-h", `${h}px`);
@@ -204,7 +230,7 @@ export default function Navbar() {
   return (
     <>
       <PageTransitionLoader isLoading={isLoading} />
-      
+
       {/* Main Navbar */}
       <motion.nav
         ref={navRef}
@@ -229,32 +255,31 @@ export default function Navbar() {
               whileTap={{ scale: 0.97 }}
               className="relative"
             >
-            <a
-              href={homePath + "#hero"}
-              onClick={(e) => {
-                if (isHomePage) {
-                  e.preventDefault();
-                  smoothTo("hero");
-                }
-              }}
-              className="flex items-center group"
-            >
-              <Image
-                src={LOGO}
-                alt="Rex logo"
-                width={200}
-                height={70}
-                priority
-                className="h-20 w-auto transition-all duration-300 group-hover:drop-shadow-lg"
-              />
-
-            </a>
+              <a
+                href={homePath + "#hero"}
+                onClick={(e) => {
+                  if (isHomePage) {
+                    e.preventDefault();
+                    smoothTo("hero");
+                  }
+                }}
+                className="flex items-center group"
+              >
+                <Image
+                  src={LOGO}
+                  alt="Rex logo"
+                  width={200}
+                  height={70}
+                  priority
+                  className="h-20 w-auto transition-all duration-300 group-hover:drop-shadow-lg"
+                />
+              </a>
             </motion.div>
 
             {/* Desktop Navigation */}
             <div className="hidden lg:flex absolute left-1/2 transform -translate-x-1/2">
-              <SparkleNavbarWithNavigation 
-                items={NAV_ITEMS} 
+              <SparkleNavbarWithNavigation
+                items={NAV_ITEMS}
                 isHomePage={isHomePage}
                 activeIndex={activeIndex}
                 onSmoothScroll={smoothTo}
@@ -321,14 +346,14 @@ export default function Navbar() {
         className="lg:hidden fixed inset-0 z-[1100]"
       >
         {/* Backdrop */}
-        <motion.div 
+        <motion.div
           initial={false}
           animate={{ opacity: open ? 0.5 : 0 }}
           transition={{ duration: 0.2 }}
           className="absolute inset-0 bg-gradient-to-br from-gray-900/30 to-red-900/20 backdrop-blur-sm"
           onClick={() => setOpen(false)}
         />
-        
+
         {/* Menu Panel */}
         <motion.div
           initial={false}
@@ -341,42 +366,40 @@ export default function Navbar() {
             damping: 30,
             mass: 0.8,
           }}
-          className="absolute right-0 top-0 h-full w-full max-w-md bg-white/95 backdrop-blur-xl shadow-2xl border-l border-white/20"
+          className="absolute right-0 top-0 h-full w-[min(82vw,22rem)] border-l border-white/20 bg-white/95 shadow-2xl backdrop-blur-xl"
         >
-          <div className="flex items-center justify-between p-6 border-b border-gray-100/50">
-            <div className="flex items-center gap-3">
-            <Image
-              src={LOGO}
-              alt="Rex logo"
-                width={140}
-                height={42}
-                className="h-10 w-auto"
+          <div className="border-b border-gray-100/50 p-5">
+            <div className="flex items-center justify-between gap-3">
+              <Image
+                src={LOGO}
+                alt="Rex logo"
+                width={176}
+                height={62}
+                className="h-14 w-auto shrink-0"
               />
-              <Sparkles className="w-5 h-5 text-red-500 animate-pulse" />
-            </div>
-            <motion.button
-              onClick={() => setOpen(false)}
-              className="p-3 hover:bg-gray-100/50 rounded-xl transition-colors relative group"
-              whileHover={{ scale: 1.1, rotate: 90 }}
-              whileTap={{ scale: 0.9 }}
-            >
-              <span className="absolute inset-0 bg-gradient-to-r from-red-500/10 to-red-600/10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <span className="relative">
-                <X className="w-5 h-5 text-gray-700" />
-              </span>
-            </motion.button>
-          </div>          
-          <div className="p-6 h-[calc(100%-80px)] overflow-y-auto">
-            <div className="mb-6">
-              <div className="inline-block">
-              <LanguageToggle />
+              <div className="flex items-center gap-2">
+                <div className="shrink-0">
+                  <LanguageToggle />
+                </div>
+                <motion.button
+                  onClick={() => setOpen(false)}
+                  className="relative rounded-xl p-3 transition-colors hover:bg-gray-100/50 group"
+                  whileHover={{ scale: 1.1, rotate: 90 }}
+                  whileTap={{ scale: 0.9 }}
+                >
+                  <span className="absolute inset-0 rounded-xl bg-gradient-to-r from-red-500/10 to-red-600/10 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                  <span className="relative">
+                    <X className="h-5 w-5 text-gray-700" />
+                  </span>
+                </motion.button>
               </div>
             </div>
-            
+          </div>
+          <div className="h-[calc(100%-96px)] overflow-y-auto p-5">
             <div className="space-y-2 mb-8">
               {NAV_ITEMS.map((item, i) => {
                 const isActive = i === activeIndex;
-                
+
                 if (item.kind === "section") {
                   const sectionHref = homePath + "#" + item.id;
                   return (
@@ -390,46 +413,30 @@ export default function Navbar() {
                         }
                         setOpen(false);
                       }}
-                      className={`
-                        flex items-center justify-between px-5 py-4 rounded-xl
-                        text-gray-800 transition-all duration-300
-                        group/mobile-item relative overflow-hidden
-                        ${isActive 
-                          ? "bg-gradient-to-r from-red-50 to-red-100 text-transparent bg-gradient-to-r from-red-600 to-red-700 bg-clip-text" 
-                          : "hover:bg-gray-50/80"
-                        }
-                      `}
+                      className={getMobileItemClasses(isActive)}
                       whileHover={{ x: 4 }}
                       whileTap={{ scale: 0.98 }}
                     >
                       {/* Background effect */}
-                      <span className={`
+                      <span
+                        className={`
                         absolute inset-0 bg-gradient-to-r from-red-500/5 to-red-600/5
                         opacity-0 group-hover/mobile-item:opacity-100
                         transition-opacity duration-300
-                      `} />
-                      
+                      `}
+                      />
+
                       <span className="relative flex items-center gap-3">
-                        <span className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
-                          isActive 
-                            ? "bg-gradient-to-r from-red-400 to-red-500 scale-125" 
-                            : "bg-gray-300 group-hover/mobile-item:bg-red-400"
-                        }`} />
-                        <span className={`font-medium ${
-                          isActive 
-                            ? "" 
-                            : "group-hover/mobile-item:text-transparent group-hover/mobile-item:bg-clip-text group-hover/mobile-item:bg-gradient-to-r group-hover/mobile-item:from-red-600 group-hover/mobile-item:to-red-700"
-                        }`}>
+                        <span className={getMobileItemDotClasses(isActive)} />
+                        <span className={getMobileItemLabelClasses(isActive)}>
                           {item.label}
                         </span>
                       </span>
-                      
+
                       <span className="relative">
-                        <ChevronRight className={`w-4 h-4 transition-all duration-300 ${
-                          isActive 
-                            ? "text-red-600 transform translate-x-0.5" 
-                            : "text-gray-400 group-hover/mobile-item:text-red-500 group-hover/mobile-item:translate-x-0.5"
-                        }`} />
+                        <ChevronRight
+                          className={getMobileItemArrowClasses(isActive)}
+                        />
                       </span>
                     </motion.a>
                   );
@@ -442,61 +449,45 @@ export default function Navbar() {
                     whileTap={{ scale: 0.98 }}
                     className="relative"
                   >
-                  <Link
-                    href={item.href}
-                    onClick={() => setOpen(false)}
-                      className={`
-                        flex items-center justify-between px-5 py-4 rounded-xl
-                        text-gray-800 transition-all duration-300
-                        group/mobile-item relative overflow-hidden
-                        ${isActive 
-                          ? "bg-gradient-to-r from-red-50 to-red-100 text-transparent bg-gradient-to-r from-red-600 to-red-700 bg-clip-text" 
-                          : "hover:bg-gray-50/80"
-                        }
-                      `}
+                    <Link
+                      href={item.href}
+                      onClick={() => setOpen(false)}
+                      className={getMobileItemClasses(isActive)}
                     >
                       {/* Background effect */}
-                      <span className={`
+                      <span
+                        className={`
                         absolute inset-0 bg-gradient-to-r from-red-500/5 to-red-600/5
                         opacity-0 group-hover/mobile-item:opacity-100
                         transition-opacity duration-300
-                      `} />
-                      
+                      `}
+                      />
+
                       <span className="relative flex items-center gap-3">
-                        <span className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
-                          isActive 
-                            ? "bg-gradient-to-r from-red-400 to-red-500 scale-125" 
-                            : "bg-gray-300 group-hover/mobile-item:bg-red-400"
-                        }`} />
-                        <span className={`font-medium ${
-                          isActive 
-                            ? "" 
-                            : "group-hover/mobile-item:text-transparent group-hover/mobile-item:bg-clip-text group-hover/mobile-item:bg-gradient-to-r group-hover/mobile-item:from-red-600 group-hover/mobile-item:to-red-700"
-                        }`}>
+                        <span className={getMobileItemDotClasses(isActive)} />
+                        <span className={getMobileItemLabelClasses(isActive)}>
                           {item.label}
                         </span>
                       </span>
-                      
+
                       <span className="relative">
-                        <ChevronRight className={`w-4 h-4 transition-all duration-300 ${
-                          isActive 
-                            ? "text-red-600 transform translate-x-0.5" 
-                            : "text-gray-400 group-hover/mobile-item:text-red-500 group-hover/mobile-item:translate-x-0.5"
-                        }`} />
+                        <ChevronRight
+                          className={getMobileItemArrowClasses(isActive)}
+                        />
                       </span>
-                  </Link>
-                </motion.div>
+                    </Link>
+                  </motion.div>
                 );
               })}
-            </div>            
+            </div>
             <div className="mt-8 pt-8 border-t border-gray-100/50">
               <motion.div
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 className="relative"
               >
-              <Link
-                href={localizePath(EndPoint.LOGIN, locale)}
+                <Link
+                  href={localizePath(EndPoint.LOGIN, locale)}
                   className="group relative flex items-center justify-center gap-3 w-full py-4 
                     bg-gradient-to-r from-red-600 to-red-700 
                     hover:from-red-700 hover:to-red-800 
@@ -506,15 +497,10 @@ export default function Navbar() {
                 >
                   {/* Button glow */}
                   <span className="absolute inset-0 bg-gradient-to-r from-red-400 to-red-500 rounded-xl blur-lg opacity-0 group-hover:opacity-70 transition-opacity duration-300" />
-                  
+
                   <span className="relative flex items-center gap-3">
                     <LogIn className="w-5 h-5 transition-transform group-hover:translate-x-1" />
                     <span className="tracking-wide">{msg.auth.login}</span>
-                  </span>
-                  
-                  {/* Arrow animation */}
-                  <span className="relative ml-2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300">
-                    →
                   </span>
                 </Link>
               </motion.div>

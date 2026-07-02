@@ -4,6 +4,12 @@ import { auth } from "./home/Header/auth";
 import { brand } from "./home/brand";
 import { footer } from "./home/Footer/footer";
 import { heroBanner } from "./home/Review/heroBanner";
+import { aboutSection } from "./home/Review/aboutSection";
+import { centerStorySection } from "./home/Review/centerStorySection";
+import { coursesSection } from "./home/Review/coursesSection";
+import { feedbackSection } from "./home/Review/feedbackSection";
+import { teacherSection } from "./home/Review/teacherSection";
+import { whyUsSection } from "./home/Review/whyUsSection";
 import { loginCard } from "./auth/loginCard";
 import { menuAdmin } from "./menu/menuAdmin";
 import { menuStaffAccounting } from "./menu/menuStaffAccounting";
@@ -24,6 +30,12 @@ export const dict = {
     brand: brand.vi,
     footer: footer.vi,
     hero: heroBanner.vi,
+    about: aboutSection.vi,
+    centerStory: centerStorySection.vi,
+    coursesSection: coursesSection.vi,
+    feedbackSection: feedbackSection.vi,
+    teacherSection: teacherSection.vi,
+    whyUsSection: whyUsSection.vi,
     loginCard: loginCard.vi,
     menuAdmin: menuAdmin.vi,
     menuStaffAccounting: menuStaffAccounting.vi,
@@ -40,6 +52,12 @@ export const dict = {
     brand: brand.en,
     footer: footer.en,
     hero: heroBanner.en,
+    about: aboutSection.en,
+    centerStory: centerStorySection.en,
+    coursesSection: coursesSection.en,
+    feedbackSection: feedbackSection.en,
+    teacherSection: teacherSection.en,
+    whyUsSection: whyUsSection.en,
     loginCard: loginCard.en,
     menuAdmin: menuAdmin.en,
     menuStaffAccounting: menuStaffAccounting.en,

@@ -3,9 +3,9 @@ export const heroBanner = {
   vi: {
     slides: [
       {
-        badge: "Ưu đãi khai giảng – đăng ký ngay",
+        badge: "Ưu đãi khai giảng - đăng ký ngay",
         title: ["Lộ trình", "Tiếng Anh Rex", "cho bé"],
-        desc: "Không gian dịu mắt – màu sắc vui nhộn. Lớp nhỏ, theo sát từng bé",
+        desc: "Không gian dịu mắt - màu sắc vui nhộn. Lớp nhỏ, theo sát từng bé",
         features: ["Phát âm chuẩn", "Giao tiếp tự tin", "Kỹ năng làm bài"],
       },
       {
@@ -35,14 +35,51 @@ export const heroBanner = {
     ],
     cta: {
       joinNow: "Tham gia ngay",
-      consult: "Nhận tư vấn",
+      consult: "Đăng ký tư vấn",
+    },
+    quickMenu: {
+      ariaLabel: "Lối tắt nhanh",
+      title: "Menu xem nhanh",
+      line1: "Bấm các icon bên dưới",
+      line2: "để chuyển đến phần mong muốn",
+    },
+    quickActions: {
+      about: "Thông tin trung tâm",
+      courses: "Các khóa học",
+      whyRex: "Tại sao chọn Rex",
+      trial: "Tư vấn học thử miễn phí",
+      teachers: "Đội ngũ giáo viên",
+      feedback: "Feedback phụ huynh/học viên",
+    },
+    form: {
+      badge: "Đăng ký tư vấn",
+      nameLabel: "Họ và tên *",
+      namePlaceholder: "Nguyễn Văn A",
+      emailLabel: "Địa chỉ email *",
+      emailPlaceholder: "nguyenvana@example.com",
+      phoneLabel: "Số điện thoại *",
+      phonePlaceholder: "0999888777",
+      branchLabel: "Chi nhánh mong muốn",
+      branchPlaceholder: "Tìm chi nhánh...",
+      branchEmpty: "Không có chi nhánh nào",
+      branchLoading: "Đang tải chi nhánh...",
+      submitLoading: "Đang gửi...",
+      successTitle: "Đã gửi đăng ký thành công!",
+      successDescription:
+        "Rex sẽ liên hệ tư vấn cho bạn trong thời gian sớm nhất.",
+      successToastTitle: "Thành công!",
+      successToastDescription:
+        "Cảm ơn bạn đã đăng ký tư vấn. Rex sẽ liên hệ sớm nhất có thể.",
+      errorToastTitle: "Gửi đăng ký thất bại",
+      errorToastDescription:
+        "Không thể gửi thông tin. Vui lòng thử lại sau.",
     },
   },
   en: {
     slides: [
       {
-        badge: "Opening promotion – enroll now",
-        title: ["Roadmap", "Pastel English", "for Kids"],
+        badge: "Opening promotion - enroll now",
+        title: ["Roadmap", "Rex English", "for Kids"],
         desc: "Soft colors, playful vibe. Small classes with individual attention.",
         features: ["Clear pronunciation", "Confident speaking", "Test skills"],
       },
@@ -53,8 +90,8 @@ export const heroBanner = {
         features: ["Learning games", "Fun songs", "Group activities"],
       },
       {
-        badge: "Caring & experienced teachers",
-        title: ["Our", "Teachers", "Quality"],
+        badge: "Caring and experienced teachers",
+        title: ["Our", "Teaching", "Team"],
         desc: "Well-trained teachers who love kids and understand their psychology.",
         features: ["International teachers", "Small classes", "Personal tracking"],
       },
@@ -73,7 +110,44 @@ export const heroBanner = {
     ],
     cta: {
       joinNow: "Join now",
-      consult: "Get consultation",
+      consult: "Request consultation",
+    },
+    quickMenu: {
+      ariaLabel: "Quick shortcuts",
+      title: "Quick menu",
+      line1: "Tap the icons below",
+      line2: "to jump to the section you want",
+    },
+    quickActions: {
+      about: "About the center",
+      courses: "Courses",
+      whyRex: "Why choose Rex",
+      trial: "Free trial consultation",
+      teachers: "Teaching team",
+      feedback: "Parent and student feedback",
+    },
+    form: {
+      badge: "Request consultation",
+      nameLabel: "Full name *",
+      namePlaceholder: "Nguyen Van A",
+      emailLabel: "Email address *",
+      emailPlaceholder: "nguyenvana@example.com",
+      phoneLabel: "Phone number *",
+      phonePlaceholder: "0999888777",
+      branchLabel: "Preferred branch",
+      branchPlaceholder: "Search branch...",
+      branchEmpty: "No branches found",
+      branchLoading: "Loading branches...",
+      submitLoading: "Sending...",
+      successTitle: "Consultation request sent successfully!",
+      successDescription:
+        "Rex will contact you for consultation as soon as possible.",
+      successToastTitle: "Success!",
+      successToastDescription:
+        "Thank you for your consultation request. Rex will contact you soon.",
+      errorToastTitle: "Failed to send request",
+      errorToastDescription:
+        "We could not send your information. Please try again later.",
     },
   },
-};
+} as const;

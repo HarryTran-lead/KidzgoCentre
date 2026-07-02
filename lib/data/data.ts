@@ -39,10 +39,10 @@ export const COURSES = [
     time: "2 × 60' / tuần",
     badge: "Làm quen tiếng Anh",
     desc: "Dành cho trẻ tiền tiểu học, giúp bé làm quen với tiếng Anh qua hoạt động vui nhộn, hình ảnh, trò chơi và giao tiếp tự nhiên.",
-    audience: "Trẻ tiền tiểu học",
     img: "/image/Club1.JPG",
     href: "#contact",
     cta: "Nhận tư vấn",
+    theme: "rose",
   },
   {
     title: "Cambridge Starters, Movers, Flyers",
@@ -50,11 +50,11 @@ export const COURSES = [
     time: "2 × 90' / tuần",
     badge: "Cambridge",
     desc: "Chương trình xây nền tiếng Anh chuẩn Cambridge, phát triển đủ 4 kỹ năng Nghe – Nói – Đọc – Viết.",
-    audience: "Học sinh tiểu học",
     img: "/image/Club4.JPG",
     href: "#contact",
     cta: "Nhận tư vấn",
     highlight: true,
+    theme: "amber",
   },
   {
     title: "KET, PET, Tiền IELTS",
@@ -62,10 +62,10 @@ export const COURSES = [
     time: "2–3 buổi / tuần",
     badge: "Luyện thi quốc tế",
     desc: "Giúp học sinh nâng cấp năng lực tiếng Anh học thuật, làm quen dạng bài thi quốc tế và chuẩn bị nền tảng cho IELTS.",
-    audience: "Học sinh trung học",
     img: "/image/Club5.JPG",
     href: "#contact",
     cta: "Nhận tư vấn",
+    theme: "sky",
   },
   {
     title: "Phonics",
@@ -73,10 +73,10 @@ export const COURSES = [
     time: "2 × 60' / tuần",
     badge: "Phát âm chuẩn",
     desc: "Giúp học sinh phát âm chuẩn, nhận diện âm, ghép âm, đọc từ và cải thiện khả năng nghe – nói từ nền tảng.",
-    audience: "Học sinh cần cải thiện phát âm",
     img: "/image/Club6.JPG",
     href: "#contact",
     cta: "Nhận tư vấn",
+    theme: "emerald",
   },
   {
     title: "Kèm LMS, chương trình tích hợp",
@@ -84,10 +84,10 @@ export const COURSES = [
     time: "Linh hoạt theo lộ trình",
     badge: "Hỗ trợ trên lớp",
     desc: "Hỗ trợ học sinh theo sát chương trình trên lớp, củng cố kiến thức, luyện bài tập, cải thiện điểm số và khả năng tự học.",
-    audience: "Học sinh cần bám sát chương trình",
     img: "/image/Club7.JPG",
     href: "#contact",
     cta: "Nhận tư vấn",
+    theme: "violet",
   },
   {
     title: "Giao tiếp / Thuyết trình",
@@ -95,10 +95,10 @@ export const COURSES = [
     time: "2 × 90' / tuần",
     badge: "Tự tin giao tiếp",
     desc: "Giúp học sinh tự tin nói tiếng Anh, luyện phản xạ, trình bày ý tưởng và phát triển khả năng thuyết trình.",
-    audience: "Học sinh muốn tăng tự tin giao tiếp",
     img: "/image/BackGroundStudent.png",
     href: "#contact",
     cta: "Nhận tư vấn",
+    theme: "orange",
   },
   {
     title: "Kỹ năng phát triển bản thân / Ngoại khóa",
@@ -106,13 +106,12 @@ export const COURSES = [
     time: "Theo hoạt động ngoại khóa",
     badge: "Phát triển toàn diện",
     desc: "Kết hợp tiếng Anh với hoạt động ngoại khóa, kỹ năng mềm, làm việc nhóm, tư duy sáng tạo và sự tự tin trong giao tiếp.",
-    audience: "Học sinh muốn phát triển toàn diện",
     img: "/image/Club8.JPG",
     href: "#contact",
     cta: "Nhận tư vấn",
+    theme: "cyan",
   },
 ];
-
 export const PROGRAM_BOXES = [
   {
     title: "1. Cambridge (Starters–Movers–Flyers)",

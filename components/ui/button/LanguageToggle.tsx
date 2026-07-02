@@ -67,7 +67,7 @@ export default function LanguageToggle() {
           h-9 px-3 rounded-lg border text-sm font-semibold
           border-slate-200 bg-white
           hover:shadow-sm ${hoverBorder}
-          transition-all duration-200 ease-out mr-2
+          transition-all duration-200 ease-out
           ${loading ? "cursor-wait opacity-70" : ""}
         `}
         aria-label="Switch language"

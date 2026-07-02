@@ -21,17 +21,10 @@ import {
 } from "@/lib/i18n";
 import { EndPoint } from "@/lib/routes";
 
-const DISPLAY_ADDRESS =
-  "Số 23 đường T2, Vinhomes Grand Park, phường Long Bình, TP. HCM";
-const MAP_SEARCH_ADDRESS =
-  "T2-23 Manhattan Grand Park, Vinhomes Grand Park, phường Long Bình, TP Thủ Đức, TP. HCM";
 const PHONE_TEXT = "0867 405 801";
 const PHONE_HREF = "tel:0867405801";
 const FANPAGE_URL = "https://www.facebook.com/kidzgovn";
 const ZALO_URL = "https://zalo.me/0867405801";
-const MAP_URL = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-  MAP_SEARCH_ADDRESS
-)}`;
 const MAP_LAT = 10.8395793;
 const MAP_LNG = 106.8421165;
 const MAP_EMBED_URL = `https://www.google.com/maps?q=${MAP_LAT},${MAP_LNG}&z=17&output=embed`;
@@ -52,13 +45,33 @@ const footerCopy = {
     addressTitle: "Địa chỉ",
     contactTitle: "Liên hệ",
     mapLabel: "Mở Google Maps",
-    mapHint: "Vinhomes Grand Park, Long Bình",
+    mapTitle: "Bản đồ Rex English Center",
+    displayAddress:
+      "Số 23 đường T2, Vinhomes Grand Park, phường Long Bình, TP. HCM",
+    mapSearchAddress:
+      "T2-23 Manhattan Grand Park, Vinhomes Grand Park, phường Long Bình, TP Thủ Đức, TP. HCM",
     phoneLabel: "Số điện thoại",
     fanpageLabel: "Fanpage",
     zaloLabel: "Zalo",
-    consult: "Tư vấn miễn phí",
-    trial: "Đăng ký học thử",
     rights: "Bảo lưu mọi quyền.",
+    aboutLinks: [
+      "Thông tin trung tâm",
+      "Các khóa học",
+      "Tại sao chọn Rex",
+      "Tư vấn học thử miễn phí",
+      "Đội ngũ giáo viên",
+      "Feedback phụ huynh",
+    ],
+    programLinks: [
+      "Khơi dậy sự yêu thích tiếng Anh cho bé",
+      "Cambridge Starters, Movers, Flyers",
+      "KET, PET, Tiền IELTS",
+      "Phonics",
+      "Kèm LMS, chương trình tích hợp",
+      "Giao tiếp / Thuyết trình",
+      "Kỹ năng phát triển bản thân / Ngoại khóa",
+    ],
+    fanpageValue: "Rex English Center",
   },
   en: {
     intro:
@@ -68,13 +81,33 @@ const footerCopy = {
     addressTitle: "Address",
     contactTitle: "Contact",
     mapLabel: "Open Google Maps",
-    mapHint: "Vinhomes Grand Park, Long Binh",
+    mapTitle: "Map of Rex English Center",
+    displayAddress:
+      "23 T2 Street, Vinhomes Grand Park, Long Binh Ward, Ho Chi Minh City",
+    mapSearchAddress:
+      "T2-23 Manhattan Grand Park, Vinhomes Grand Park, Long Binh Ward, Thu Duc City, Ho Chi Minh City",
     phoneLabel: "Phone",
     fanpageLabel: "Fanpage",
     zaloLabel: "Zalo",
-    consult: "Free consultation",
-    trial: "Book a trial class",
     rights: "All rights reserved.",
+    aboutLinks: [
+      "Center overview",
+      "Courses",
+      "Why choose Rex",
+      "Free trial consultation",
+      "Teaching team",
+      "Parent feedback",
+    ],
+    programLinks: [
+      "Inspiring a love of English from the start",
+      "Cambridge Starters, Movers, Flyers",
+      "KET, PET, Pre-IELTS",
+      "Phonics",
+      "LMS support and integrated programs",
+      "Communication / Presentation",
+      "Personal development skills / Extracurriculars",
+    ],
+    fanpageValue: "Rex English Center",
   },
 } as const;
 
@@ -83,7 +116,7 @@ function useFooterLocale() {
 
   return useMemo(
     () => (pickLocaleFromPath(pathname) ?? DEFAULT_LOCALE) as Locale,
-    [pathname]
+    [pathname],
   );
 }
 
@@ -93,25 +126,23 @@ export default function Footer() {
   const homePath = localizePath(EndPoint.HOME, locale);
   const contactPath = localizePath(EndPoint.CONTACT, locale);
   const contactHref = `${contactPath}#contact-form-section`;
+  const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+    copy.mapSearchAddress,
+  )}`;
 
   const aboutLinks = [
-    { label: "Thông tin trung tâm", href: `${homePath}#about` },
-    { label: "Các khóa học", href: `${homePath}#courses` },
-    { label: "Tại sao chọn Rex", href: `${homePath}#why-rex` },
-    { label: "Tư vấn học thử miễn phí", href: contactHref },
-    { label: "Đội ngũ giáo viên", href: `${homePath}#teachers` },
-    { label: "Feedback", href: `${homePath}#feedback` },
+    { label: copy.aboutLinks[0], href: `${homePath}#about` },
+    { label: copy.aboutLinks[1], href: `${homePath}#courses` },
+    { label: copy.aboutLinks[2], href: `${homePath}#why-rex` },
+    { label: copy.aboutLinks[3], href: contactHref },
+    { label: copy.aboutLinks[4], href: `${homePath}#teachers` },
+    { label: copy.aboutLinks[5], href: `${homePath}#feedback` },
   ];
 
-  const programLinks = [
-    "Khơi dậy sự yêu thích tiếng Anh cho bé",
-    "Cambridge Starters, Movers, Flyers",
-    "KET, PET, Tiền IELTS",
-    "Phonics",
-    "Kèm LMS, chương trình tích hợp",
-    "Giao tiếp / Thuyết trình",
-    "Kỹ năng phát triển bản thân / Ngoại khóa",
-  ].map((label) => ({ label, href: `${homePath}#courses` }));
+  const programLinks = copy.programLinks.map((label) => ({
+    label,
+    href: `${homePath}#courses`,
+  }));
 
   return (
     <footer
@@ -170,18 +201,18 @@ export default function Footer() {
               iconSrc={footerHeadingIcons.address}
             />
             <a
-              href={MAP_URL}
+              href={mapUrl}
               target="_blank"
               rel="noreferrer"
               className="group inline-flex items-start gap-2 text-sm font-medium leading-6 text-[#30332f]/85 transition hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-300/40"
             >
-              <span>{DISPLAY_ADDRESS}</span>
+              <span>{copy.displayAddress}</span>
               <ArrowUpRight className="mt-1 h-4 w-4 shrink-0 text-red-600 opacity-0 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:opacity-100" />
             </a>
             <div className="relative overflow-hidden rounded-xl border border-red-900/10 bg-white shadow-xl shadow-slate-900/10">
               <div className="relative h-48 overflow-hidden sm:h-52 lg:h-48">
                 <iframe
-                  title="Bản đồ Rex English Center"
+                  title={copy.mapTitle}
                   src={MAP_EMBED_URL}
                   width="100%"
                   height="100%"
@@ -192,11 +223,11 @@ export default function Footer() {
                   className="block h-full w-full"
                 />
                 <a
-                  href={MAP_URL}
+                  href={mapUrl}
                   target="_blank"
                   rel="noreferrer"
                   className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-lg bg-white/95 px-3 py-2 text-xs font-bold text-[#1a73e8] shadow-md shadow-slate-900/12 backdrop-blur transition hover:-translate-y-0.5 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
-                  aria-label={`${copy.mapLabel}: ${MAP_SEARCH_ADDRESS}`}
+                  aria-label={`${copy.mapLabel}: ${copy.mapSearchAddress}`}
                 >
                   {copy.mapLabel}
                   <ExternalLink className="h-3.5 w-3.5" />
@@ -221,7 +252,7 @@ export default function Footer() {
               <ContactRow
                 icon={<Facebook />}
                 label={copy.fanpageLabel}
-                value="Rex English Center"
+                value={copy.fanpageValue}
                 href={FANPAGE_URL}
                 tone="facebook"
               />
@@ -236,7 +267,7 @@ export default function Footer() {
           </section>
         </div>
 
-        <div className="mt-10 sm:mt-14 flex items-center justify-center gap-2 border-t border-red-900/10 pt-4 text-center text-sm font-semibold text-[#2c2e2a]/80">
+        <div className="mt-10 flex items-center justify-center gap-2 border-t border-red-900/10 pt-4 text-center text-sm font-semibold text-[#2c2e2a]/80 sm:mt-14">
           <span>© Rex. {copy.rights}</span>
           <Sparkles className="h-4 w-4 text-amber-400" />
         </div>
