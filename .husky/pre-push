@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+
+echo "Running unit tests before push..."
+./node_modules/.bin/vitest.CMD run lib

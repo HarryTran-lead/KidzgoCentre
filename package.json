@@ -9,6 +9,7 @@
     "lint": "next lint",
     "test": "vitest",
     "test:run": "vitest run",
+    "test:unit": "vitest run lib",
     "test:domain-errors": "vitest run lib/api/domainErrorMessage.test.ts",
     "test:e2e": "playwright test",
     "test:e2e:sweep": "playwright test tests/e2e/specs/07-full-web-sweep.spec.ts",
