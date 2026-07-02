@@ -428,7 +428,8 @@ export const ADMIN_ENDPOINTS = {
   PROGRAMS: '/api/programs',
   PROGRAMS_ACTIVE: '/api/programs/active',
   PROGRAMS_MONTHLY_LEAVE_LIMIT: (id: string) => `/api/programs/${id}/monthly-leave-limit`,
-  PROGRAMS_ASSIGN_BRANCH: (id: string, branchId: string) => `/api/programs/${id}/branches/${branchId}`,
+  PROGRAMS_ASSIGN_BRANCH: (id: string, branchId: string) =>
+    `/api/programs/assign-branch?programId=${encodeURIComponent(id)}&branchId=${encodeURIComponent(branchId)}`,
   PROGRAMS_TOGGLE_STATUS: (id: string) => `/api/programs/${id}/toggle-status`,
   REGISTRATIONS: '/api/registrations',
   TUITION_PLANS: '/api/tuition-plans',
@@ -672,6 +673,7 @@ export const BACKEND_ADMIN_ENDPOINTS = {
   REGISTRATIONS: '/registrations',
   PROGRAMS_BY_ID: (id: string) => `/programs/${id}`,
   PROGRAMS_MONTHLY_LEAVE_LIMIT: (id: string) => `/programs/${id}/monthly-leave-limit`,
+  PROGRAMS_ASSIGN_BRANCH: (id: string, branchId: string) => `/programs/${id}/branches/${branchId}`,
   PROGRAMS_TOGGLE_STATUS: (id: string) => `/programs/${id}/toggle-status`,
   TUITION_PLANS: '/tuition-plans',
   TUITION_PLANS_ACTIVE: '/tuition-plans/active',

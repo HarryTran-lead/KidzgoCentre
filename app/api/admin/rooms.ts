@@ -6,6 +6,7 @@
 import { getAccessToken } from "@/lib/store/authToken";
 import { ADMIN_ENDPOINTS } from "@/constants/apiURL";
 import { mapApiErrorToMessage } from "@/lib/api/errorMapper";
+import { authFetch } from "@/lib/api/authenticatedFetch";
 import type { Room, Status, CreateRoomRequest, CreateRoomResponse } from "@/types/admin/rooms";
 
 function mapApiRoom(item: any, index: number): Room {
@@ -54,7 +55,7 @@ export async function fetchAdminRooms(options?: { branchId?: string }): Promise<
     params.append("branchId", options.branchId);
   }
 
-  const res = await fetch(`${ADMIN_ENDPOINTS.CLASSROOMS}?${params.toString()}`, {
+  const res = await authFetch(`${ADMIN_ENDPOINTS.CLASSROOMS}?${params.toString()}`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -90,7 +91,7 @@ export async function createAdminRoom(
     throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại để tạo phòng học.");
   }
 
-  const res = await fetch(ADMIN_ENDPOINTS.CLASSROOMS, {
+  const res = await authFetch(ADMIN_ENDPOINTS.CLASSROOMS, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -149,7 +150,7 @@ export async function updateAdminRoom(
     throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại để cập nhật phòng học.");
   }
 
-  const res = await fetch(`${ADMIN_ENDPOINTS.CLASSROOMS}/${roomId}`, {
+  const res = await authFetch(`${ADMIN_ENDPOINTS.CLASSROOMS}/${roomId}`, {
     method: "PUT",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -205,7 +206,7 @@ export async function fetchAdminRoomDetail(roomId: string): Promise<any> {
     throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại để xem chi tiết phòng học.");
   }
 
-  const res = await fetch(`${ADMIN_ENDPOINTS.CLASSROOMS}/${roomId}`, {
+  const res = await authFetch(`${ADMIN_ENDPOINTS.CLASSROOMS}/${roomId}`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -262,7 +263,7 @@ export async function toggleRoomStatus(roomId: string): Promise<{ isSuccess: boo
     throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại để thay đổi trạng thái phòng học.");
   }
 
-  const res = await fetch(`${ADMIN_ENDPOINTS.CLASSROOMS_TOGGLE_STATUS(roomId)}`, {
+  const res = await authFetch(`${ADMIN_ENDPOINTS.CLASSROOMS_TOGGLE_STATUS(roomId)}`, {
     method: "PATCH",
     headers: {
       Authorization: `Bearer ${token}`,

@@ -19,8 +19,10 @@ import {
   ChevronLeft,
   ChevronRight,
   RefreshCw,
+  type LucideIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import type { PlacementTest } from "@/types/placement-test";
 import { formatDateTime } from "@/lib/utils";
 
@@ -65,6 +67,61 @@ interface PlacementTestTableProps {
   onRefresh?: () => void;
 }
 
+function ActionMenuPortal({
+  anchorRect,
+  onClose,
+  children,
+}: {
+  anchorRect: DOMRect | null;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const [position, setPosition] = useState({ top: 0, left: 0 });
+
+  useLayoutEffect(() => {
+    if (!anchorRect) return;
+
+    const placeMenu = () => {
+      const menuWidth = menuRef.current?.offsetWidth ?? 208;
+      const menuHeight = menuRef.current?.offsetHeight ?? 220;
+      const gap = 6;
+      const padding = 8;
+
+      let top = anchorRect.bottom + gap;
+      let left = anchorRect.right - menuWidth;
+
+      if (top + menuHeight > window.innerHeight - padding) {
+        top = anchorRect.top - menuHeight - gap;
+      }
+
+      top = Math.max(padding, Math.min(top, window.innerHeight - padding - menuHeight));
+      left = Math.max(padding, Math.min(left, window.innerWidth - padding - menuWidth));
+
+      setPosition({ top, left });
+    };
+
+    const frame = requestAnimationFrame(placeMenu);
+    return () => cancelAnimationFrame(frame);
+  }, [anchorRect, children]);
+
+  if (!anchorRect || typeof document === "undefined") return null;
+
+  return createPortal(
+    <>
+      <div className="fixed inset-0 z-[999]" onClick={onClose} />
+      <div
+        ref={menuRef}
+        className="fixed z-[1000] w-52 rounded-xl border border-red-200 bg-white shadow-2xl py-1"
+        style={{ top: position.top, left: position.left }}
+      >
+        {children}
+      </div>
+    </>,
+    document.body,
+  );
+}
+
 export default function PlacementTestTable({
   tests,
   isLoading,
@@ -90,11 +147,58 @@ export default function PlacementTestTable({
 }: PlacementTestTableProps) {
   const testsArray = Array.isArray(tests) ? tests : [];
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [menuAnchorRect, setMenuAnchorRect] = useState<DOMRect | null>(null);
+  const activeMenuButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  const closeActionMenu = () => {
+    setOpenMenuId(null);
+    setMenuAnchorRect(null);
+    activeMenuButtonRef.current = null;
+  };
+
+  const toggleActionMenu = (testId: string, button: HTMLButtonElement) => {
+    if (openMenuId === testId) {
+      closeActionMenu();
+      return;
+    }
+
+    activeMenuButtonRef.current = button;
+    setMenuAnchorRect(button.getBoundingClientRect());
+    setOpenMenuId(testId);
+  };
+
+  useEffect(() => {
+    if (!openMenuId) return;
+
+    const updateAnchor = () => {
+      const button = activeMenuButtonRef.current;
+      if (!button || !document.body.contains(button)) {
+        closeActionMenu();
+        return;
+      }
+
+      setMenuAnchorRect(button.getBoundingClientRect());
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeActionMenu();
+    };
+
+    window.addEventListener("resize", updateAnchor);
+    window.addEventListener("scroll", updateAnchor, true);
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("resize", updateAnchor);
+      window.removeEventListener("scroll", updateAnchor, true);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [openMenuId]);
 
   const getStatusBadge = (statusText: string) => {
     const statusMap: Record<
       string,
-      { bg: string; text: string; border: string; icon: any }
+      { bg: string; text: string; border: string; icon: LucideIcon }
     > = {
       "Đã lên lịch": {
         bg: "from-blue-50 to-blue-100",
@@ -400,11 +504,7 @@ export default function PlacementTestTable({
                         {/* More actions dropdown */}
                         <div className="relative">
                           <button
-                            onClick={() =>
-                              setOpenMenuId(
-                                openMenuId === test.id ? null : test.id,
-                              )
-                            }
+                            onClick={(event) => toggleActionMenu(test.id, event.currentTarget)}
                             className="p-1.5 rounded-lg hover:bg-gray-50 transition-colors text-gray-400 hover:text-gray-600 cursor-pointer"
                             title="Thêm"
                           >
@@ -412,14 +512,10 @@ export default function PlacementTestTable({
                           </button>
 
                           {openMenuId === test.id && (
-                            <>
-                              {/* Backdrop */}
-                              <div
-                                className="fixed inset-0 z-40"
-                                onClick={() => setOpenMenuId(null)}
-                              />
-                              {/* Menu */}
-                              <div className="absolute right-0 top-full mt-1 z-50 w-52 rounded-xl border border-red-200 bg-white shadow-lg py-1">
+                            <ActionMenuPortal
+                              anchorRect={menuAnchorRect}
+                              onClose={closeActionMenu}
+                            >
                                 {(() => {
                                   const shouldShowCreateAccount =
                                     !test.isAccountProfileCreated;
@@ -431,7 +527,7 @@ export default function PlacementTestTable({
                                             <button
                                               onClick={() => {
                                                 onNoShow(test);
-                                                setOpenMenuId(null);
+                                                closeActionMenu();
                                               }}
                                               className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors cursor-pointer"
                                             >
@@ -443,7 +539,7 @@ export default function PlacementTestTable({
                                             <button
                                               onClick={() => {
                                                 onCancel(test);
-                                                setOpenMenuId(null);
+                                                closeActionMenu();
                                               }}
                                               className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors cursor-pointer"
                                             >
@@ -457,7 +553,7 @@ export default function PlacementTestTable({
                                         <button
                                           onClick={() => {
                                             onAddNote(test);
-                                            setOpenMenuId(null);
+                                            closeActionMenu();
                                           }}
                                           className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors cursor-pointer"
                                         >
@@ -471,7 +567,7 @@ export default function PlacementTestTable({
                                           <button
                                             onClick={() => {
                                               onCreateAccount(test);
-                                              setOpenMenuId(null);
+                                              closeActionMenu();
                                             }}
                                             className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors cursor-pointer"
                                           >
@@ -484,7 +580,7 @@ export default function PlacementTestTable({
                                           <button
                                             onClick={() => {
                                               onStartRegistration(test);
-                                              setOpenMenuId(null);
+                                              closeActionMenu();
                                             }}
                                             className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors cursor-pointer"
                                           >
@@ -497,7 +593,7 @@ export default function PlacementTestTable({
                                           <button
                                             onClick={() => {
                                               onRetake(test);
-                                              setOpenMenuId(null);
+                                              closeActionMenu();
                                             }}
                                             className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors cursor-pointer"
                                           >
@@ -508,8 +604,7 @@ export default function PlacementTestTable({
                                     </>
                                   );
                                 })()}
-                              </div>
-                            </>
+                            </ActionMenuPortal>
                           )}
                         </div>
                       </>

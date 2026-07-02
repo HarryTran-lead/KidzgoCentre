@@ -16,6 +16,9 @@ const isDevBypass = () =>
   process.env.NODE_ENV !== "production" &&
   process.env.NEXT_PUBLIC_DEV_AUTO_LOGIN === "1";
 
+const canUseRoleCookieFallback = (hasUsableToken: boolean) =>
+  process.env.NODE_ENV !== "production" || hasUsableToken;
+
 function pickLocale(pathname: string): Locale | null {
   const seg1 = pathname.split("/")[1];
   return LOCALES_ARR.includes(seg1 as any) ? (seg1 as Locale) : null;
@@ -27,6 +30,26 @@ function setLocaleCookie(res: NextResponse, locale: Locale) {
     maxAge: ONE_YEAR,
     sameSite: "lax",
   });
+  return res;
+}
+
+function clearAuthCookies(res: NextResponse) {
+  for (const name of [
+    "role",
+    "session-role",
+    "x-role",
+    "user-name",
+    "user-avatar",
+    "kidzgo.accessToken",
+    "kidzgo.refreshToken",
+  ]) {
+    res.cookies.set(name, "", {
+      path: "/",
+      expires: new Date(0),
+      sameSite: "lax",
+    });
+  }
+
   return res;
 }
 
@@ -108,14 +131,16 @@ export function proxy(req: NextRequest) {
   
   // Try to get JWT token first
   const token = extractToken(req);
+  let hasUsableToken = false;
   let role: Role | undefined;
   let userId: string | undefined;
   
   if (token) {
     // Verify JWT token
     const payload = decodeJWT(token);
-    
+
     if (payload && !isTokenExpired(payload)) {
+      hasUsableToken = true;
       const userInfo = extractUserInfo(payload);
       
       if (userInfo) {
@@ -125,11 +150,15 @@ export function proxy(req: NextRequest) {
           : undefined;
         userId = userInfo.userId;
       }
+    } else if (payload && isTokenExpired(payload)) {
+      hasUsableToken = false;
     }
   }
   
-  // Fallback to cookie-based auth (for dev/backward compatibility)
-  if (!role) {
+  // Fallback to cookie-based role only when a bearer token exists.
+  // This supports backend JWT claim variants while still blocking stale
+  // role-only sessions that would make every API call return 401.
+  if (!role && canUseRoleCookieFallback(hasUsableToken)) {
     const rawRole = req.cookies.get("role")?.value;
     const normalized = rawRole ? normalizeRole(rawRole) : undefined;
     role = normalized && (ACCESS_MAP as Record<string, string[]>)[normalized]
@@ -146,7 +175,7 @@ export function proxy(req: NextRequest) {
       )}`,
       req.url
     );
-    return setLocaleCookie(NextResponse.redirect(loginUrl), effectiveLocale);
+    return clearAuthCookies(setLocaleCookie(NextResponse.redirect(loginUrl), effectiveLocale));
   }
 
   // Bỏ locale, check theo ACCESS_MAP

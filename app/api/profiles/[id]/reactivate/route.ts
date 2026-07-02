@@ -4,7 +4,25 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { BACKEND_PROFILE_ENDPOINTS, buildApiUrl } from '@/constants/apiURL';
+import { BACKEND_PROFILE_ENDPOINTS, BACKEND_USER_ENDPOINTS, buildApiUrl } from '@/constants/apiURL';
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+}
+
+function extractErrorMessage(data: unknown) {
+  const root = asRecord(data);
+  const errors = Array.isArray(root.errors) ? root.errors : [];
+  const firstError = asRecord(errors[0]);
+
+  return (
+    (typeof root.message === 'string' && root.message) ||
+    (typeof root.detail === 'string' && root.detail) ||
+    (typeof root.title === 'string' && root.title) ||
+    (typeof firstError.description === 'string' && firstError.description) ||
+    'Khong the xac minh ho so'
+  );
+}
 
 export async function PUT(
   request: NextRequest,
@@ -51,6 +69,45 @@ export async function PUT(
       });
     }
 
+    if (response.status === 404 || response.status === 405) {
+      const fallbackUrl = buildApiUrl(BACKEND_USER_ENDPOINTS.PROFILE_REACTIVATE(id));
+      response = await fetch(fallbackUrl, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: authHeader,
+        },
+        body: JSON.stringify(payload ?? {}),
+      });
+
+      if (response.status === 404 || response.status === 405) {
+        response = await fetch(fallbackUrl, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: authHeader,
+          },
+          body: JSON.stringify(payload ?? {}),
+        });
+      }
+    }
+
+    if (response.status === 404 || response.status === 405) {
+      const updatePayload =
+        payload && typeof payload === 'object'
+          ? { ...(payload as Record<string, unknown>), isActive: true }
+          : { isActive: true };
+
+      response = await fetch(buildApiUrl(BACKEND_PROFILE_ENDPOINTS.UPDATE(id)), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: authHeader,
+        },
+        body: JSON.stringify(updatePayload),
+      });
+    }
+
     const contentType = response.headers.get('content-type') ?? '';
     const data = contentType.includes('application/json')
       ? await response.json()
@@ -58,7 +115,7 @@ export async function PUT(
 
     if (!response.ok) {
       return NextResponse.json(
-        { success: false, message: data.message || 'Không thể xác minh hồ sơ' },
+        { success: false, message: extractErrorMessage(data) },
         { status: response.status }
       );
     }

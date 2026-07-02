@@ -5,12 +5,67 @@ import { ChevronDown } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/lightswind/avatar";
 import { Badge } from "@/components/lightswind/badge";
 import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
-import { getProfiles, selectStudent } from "@/lib/api/authService";
-import { setAccessToken } from "@/lib/store/authToken";
+import { getProfiles, getUserMe, selectStudent } from "@/lib/api/authService";
+import { getAccessToken, setAccessToken } from "@/lib/store/authToken";
 
 import type { UserProfile } from "@/types/auth";
 
 type Child = UserProfile;
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+}
+
+function extractProfileList(payload: unknown): Child[] {
+  const root = asRecord(payload);
+  const data = asRecord(root?.data);
+  const candidates = [
+    root?.data,
+    data?.profiles,
+    data?.items,
+    data?.data,
+    root?.profiles,
+    root?.items,
+  ];
+
+  const list = candidates.find(Array.isArray);
+  return Array.isArray(list) ? (list as Child[]) : [];
+}
+
+function extractUserId(payload: unknown): string {
+  const root = asRecord(payload);
+  const data = asRecord(root?.data);
+  const nestedData = asRecord(data?.data);
+  const id = nestedData?.id ?? data?.id ?? root?.id;
+
+  return typeof id === "string" ? id.trim() : "";
+}
+
+async function fetchStudentProfilesFallback(): Promise<Child[]> {
+  const me = await getUserMe();
+  const userId = extractUserId(me);
+  const token = getAccessToken();
+
+  if (!userId || !token) return [];
+
+  const params = new URLSearchParams({
+    userId,
+    profileType: "Student",
+    pageNumber: "1",
+    pageSize: "100",
+  });
+
+  const response = await fetch(`/api/profiles?${params.toString()}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) return [];
+
+  const payload = await response.json().catch(() => null);
+  return extractProfileList(payload).filter((profile) => profile.profileType === "Student");
+}
 
 export default function ChildSelector() {
   const [open, setOpen] = useState(false);
@@ -25,7 +80,6 @@ export default function ChildSelector() {
   const selectedChild = useMemo(
     () =>
       profiles.find((profile) => profile.id === selectedProfile?.id) ??
-      profiles[0] ??
       selectedProfile,
     [profiles, selectedProfile]
   );
@@ -54,10 +108,10 @@ export default function ChildSelector() {
           return;
         }
 
-        setSelectedProfile(child);
+        setErrorMessage(response.message ?? "Khong the chon hoc vien nay.");
       } catch (error) {
         console.error("Select student profile error:", error);
-        setSelectedProfile(child);
+        setErrorMessage("Khong the chon hoc vien nay.");
       }
     },
     [setSelectedProfile]
@@ -71,7 +125,7 @@ export default function ChildSelector() {
       setErrorMessage(null);
 
       try {
-        const response = await getProfiles({ profileType: "Student" });
+        const response = await getProfiles();
         if (cancelled) return;
         const isSuccess = response.isSuccess ?? response.success ?? false;
 
@@ -80,13 +134,11 @@ export default function ChildSelector() {
           return;
         }
 
-        const data = Array.isArray(response.data)
-          ? response.data
-          : response.data?.profiles ??
-            response.data?.data ??
-            [];
+        let students = extractProfileList(response).filter((profile) => profile.profileType === "Student");
 
-        const students = data.filter((profile) => profile.profileType === "Student");
+        if (students.length === 0) {
+          students = await fetchStudentProfilesFallback();
+        }
 
         setProfiles(students);
 
@@ -98,9 +150,6 @@ export default function ChildSelector() {
           const targetProfile = hasSelected ? storedSelected : students[0];
 
           if (targetProfile) {
-            if (!hasSelected) {
-              setSelectedProfile(targetProfile);
-            }
             if (!cancelled) {
               await syncSelectedProfile(targetProfile);
             }
@@ -118,7 +167,6 @@ export default function ChildSelector() {
 
     fetchProfiles();
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setSelectedProfile, syncSelectedProfile]);
 
   const handleSelectChild = async (child: Child) => {
@@ -137,11 +185,11 @@ export default function ChildSelector() {
         };
         setSelectedProfile(selectedWithStudentId);
       } else {
-        setSelectedProfile(child);
+        setErrorMessage(response.message ?? "Khong the chon hoc vien nay.");
       }
     } catch (error) {
       console.error("Select student profile error:", error);
-      setSelectedProfile(child);
+      setErrorMessage("Khong the chon hoc vien nay.");
     } finally {
       setOpen(false);
     }

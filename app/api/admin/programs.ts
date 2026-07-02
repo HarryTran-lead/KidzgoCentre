@@ -6,6 +6,7 @@
 import { getAccessToken } from "@/lib/store/authToken";
 import { ADMIN_ENDPOINTS } from "@/constants/apiURL";
 import { mapApiErrorToMessage } from "@/lib/api/errorMapper";
+import { authFetch } from "@/lib/api/authenticatedFetch";
 import type {
   CourseRow,
   CreateProgramRequest,
@@ -214,7 +215,7 @@ export async function fetchAdminPrograms(options?: { branchId?: string }): Promi
     params.append("branchId", options.branchId);
   }
 
-  const res = await fetch(`${ADMIN_ENDPOINTS.PROGRAMS}?${params.toString()}`, {
+  const res = await authFetch(`${ADMIN_ENDPOINTS.PROGRAMS}?${params.toString()}`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -253,7 +254,7 @@ export async function createAdminProgram(
   console.log("Creating program with payload:", payload);
   console.log("API URL:", ADMIN_ENDPOINTS.PROGRAMS);
 
-  const res = await fetch(ADMIN_ENDPOINTS.PROGRAMS, {
+  const res = await authFetch(ADMIN_ENDPOINTS.PROGRAMS, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -329,7 +330,7 @@ export async function fetchAdminProgramDetail(programId: string): Promise<Progra
     throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại để xem chi tiết chương trình học.");
   }
 
-  const res = await fetch(`${ADMIN_ENDPOINTS.PROGRAMS}/${programId}`, {
+  const res = await authFetch(`${ADMIN_ENDPOINTS.PROGRAMS}/${programId}`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -384,7 +385,7 @@ export async function updateAdminProgram(
     throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại để cập nhật chương trình học.");
   }
 
-  const res = await fetch(`${ADMIN_ENDPOINTS.PROGRAMS}/${programId}`, {
+  const res = await authFetch(`${ADMIN_ENDPOINTS.PROGRAMS}/${programId}`, {
     method: "PUT",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -451,7 +452,7 @@ export async function toggleProgramStatus(programId: string): Promise<{ isSucces
     throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại để thay đổi trạng thái chương trình học.");
   }
 
-  const res = await fetch(`${ADMIN_ENDPOINTS.PROGRAMS}/${programId}/toggle-status`, {
+  const res = await authFetch(`${ADMIN_ENDPOINTS.PROGRAMS}/${programId}/toggle-status`, {
     method: "PATCH",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -488,7 +489,7 @@ export async function updateAdminProgramMonthlyLeaveLimit(
     throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại để cấu hình giới hạn nghỉ.");
   }
 
-  const res = await fetch(ADMIN_ENDPOINTS.PROGRAMS_MONTHLY_LEAVE_LIMIT(programId), {
+  const res = await authFetch(ADMIN_ENDPOINTS.PROGRAMS_MONTHLY_LEAVE_LIMIT(programId), {
     method: "PATCH",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -536,7 +537,7 @@ export async function assignBranchToProgram(
     throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại để gán chi nhánh.");
   }
 
-  const res = await fetch(ADMIN_ENDPOINTS.PROGRAMS_ASSIGN_BRANCH(programId, branchId), {
+  const res = await authFetch(ADMIN_ENDPOINTS.PROGRAMS_ASSIGN_BRANCH(programId, branchId), {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,

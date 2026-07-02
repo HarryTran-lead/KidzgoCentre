@@ -15,6 +15,7 @@ import { setAccessToken, setRefreshToken } from "@/lib/store/authToken";
 import { normalizeRole, ROLES } from "@/lib/role";
 import { toast } from "@/hooks/use-toast";
 import * as authService from "@/lib/api/authService";
+import { writeSelectedProfile } from "@/hooks/useSelectedStudentProfile";
 
 type Props = {
   returnTo?: string;
@@ -72,6 +73,57 @@ export default function LoginCard({ returnTo = "", locale, errorMessage }: Props
     });
   };
 
+  const pickToken = (source: unknown, keys: string[]): string | null => {
+    if (!source || typeof source !== "object") return null;
+    const record = source as Record<string, unknown>;
+
+    for (const key of keys) {
+      const value = record[key];
+      if (typeof value === "string" && value.trim()) {
+        return value.trim();
+      }
+    }
+
+    return null;
+  };
+
+  const extractLoginTokens = (payload: unknown) => {
+    const root = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : {};
+    const data = root.data && typeof root.data === "object" ? (root.data as Record<string, unknown>) : {};
+    const tokenContainer =
+      data.token && typeof data.token === "object"
+        ? (data.token as Record<string, unknown>)
+        : {};
+
+    const accessToken =
+      pickToken(data, ["accessToken", "token", "jwtToken", "access_token"]) ||
+      pickToken(tokenContainer, ["accessToken", "token", "jwtToken", "access_token"]) ||
+      pickToken(root, ["accessToken", "token", "jwtToken", "access_token"]);
+
+    const refreshToken =
+      pickToken(data, ["refreshToken", "refresh_token"]) ||
+      pickToken(tokenContainer, ["refreshToken", "refresh_token"]) ||
+      pickToken(root, ["refreshToken", "refresh_token"]);
+
+    return { accessToken, refreshToken };
+  };
+
+  const resolveParentLoginDestination = () => {
+    const target = (returnTo || "").trim();
+    if (target && target.startsWith("/") && !target.startsWith("//")) {
+      const pathname = target.split("?")[0];
+      const isActivationReturn =
+        pathname === "/activate-profile" ||
+        pathname === `/${resolvedLocale}/activate-profile`;
+
+      if (isActivationReturn) {
+        return localizePath(target, resolvedLocale);
+      }
+    }
+
+    return localizePath("/portal", resolvedLocale);
+  };
+
   const handleSubmit = async () => {
     const email =
       (document.querySelector('input[name="email"]') as HTMLInputElement)?.value || "";
@@ -111,10 +163,13 @@ export default function LoginCard({ returnTo = "", locale, errorMessage }: Props
         return;
       }
 
-      // Handle both response formats: response.data or response directly
-      const loginData = response.data || response;
-      setAccessToken(loginData.accessToken);
-      setRefreshToken(loginData.refreshToken);
+      const { accessToken, refreshToken } = extractLoginTokens(response);
+      if (!accessToken || !refreshToken) {
+        throw new Error("Máy chủ chưa trả token đăng nhập hợp lệ.");
+      }
+
+      setAccessToken(accessToken);
+      setRefreshToken(refreshToken);
 
       const currentUser = await authService.getUserMe();
       const userData = currentUser.data || currentUser;
@@ -127,6 +182,21 @@ export default function LoginCard({ returnTo = "", locale, errorMessage }: Props
         duration: 2000,
         variant: 'success',
       });
+
+      if (normalizedRole === "Parent") {
+        writeSelectedProfile(null);
+        await setServerSession({
+          role: "Student",
+          name: userData.fullName || "",
+          avatar: "",
+        });
+
+        const destination = resolveParentLoginDestination();
+        setTimeout(() => {
+          window.location.assign(destination);
+        }, 500);
+        return;
+      }
 
       // Check if user has multiple profiles (Parent/Student accounts)
       if (["Parent", "Student"].includes(normalizedRole)) {
@@ -146,7 +216,7 @@ export default function LoginCard({ returnTo = "", locale, errorMessage }: Props
           });
 
           // Redirect to AccountChooser at /portal root
-          const destination = returnTo || localizePath("/portal", resolvedLocale);
+          const destination = localizePath("/portal", resolvedLocale);
           setTimeout(() => {
             window.location.assign(destination);
           }, 500);

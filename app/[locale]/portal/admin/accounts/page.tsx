@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { getAllUsers, updateUserStatus, createUser, updateUser, deleteUser, getUserById } from "@/lib/api/userService";
+import { getAllUsers, updateUserStatus, createUser, updateUser, deleteUser, getUserById, assignBranchToUser } from "@/lib/api/userService";
 import type { User, UserRole, CreateUserRequest, UpdateUserRequest } from "@/types/admin/user";
 import AccountDetailModal from "@/components/admin/accounts/AccountDetailModal";
 import AccountFormModal from "@/components/admin/accounts/AccountFormModal";
@@ -737,8 +737,21 @@ export default function AccountsPage() {
   const handleUpdateUser = async (data: UpdateUserRequest) => {
     if (!selectedAccount) return;
     try {
+      const nextBranchId = typeof data.branchId === "string" ? data.branchId.trim() : "";
+      const currentBranchId = String(selectedAccount.branchId || selectedAccount.branch?.id || "").trim();
+      const shouldAssignBranch = Boolean(nextBranchId && nextBranchId !== currentBranchId);
       const response = await updateUser(selectedAccount.id, data);
       if (response.success || response.isSuccess) {
+        if (shouldAssignBranch) {
+          const branchResponse = await assignBranchToUser(selectedAccount.id, {
+            branchId: nextBranchId,
+          });
+
+          if (!(branchResponse.success || branchResponse.isSuccess)) {
+            throw new Error(branchResponse.message || "Không thể cập nhật chi nhánh");
+          }
+        }
+
         toast({
           title: t.messages.success,
           description: t.messages.updateAccountSuccess,
@@ -1937,7 +1950,6 @@ export default function AccountsPage() {
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">{tProfiles.table.type}</th>
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">{tProfiles.table.displayName}</th>
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">{tProfiles.table.email}</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">{tProfiles.table.userId}</th>
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">{tProfiles.table.status}</th>
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">{tProfiles.table.createdDate}</th>
                         <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700">{tProfiles.table.actions}</th>

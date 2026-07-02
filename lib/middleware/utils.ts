@@ -31,11 +31,19 @@ export function decodeJWT(token: string): Record<string, any> | null {
   try {
     const parts = token.split(".");
     if (parts.length !== 3) return null;
-    
-    const payload = JSON.parse(
-      Buffer.from(parts[1], "base64").toString("utf-8")
+
+    const payloadSegment = parts[1]
+      .replace(/-/g, "+")
+      .replace(/_/g, "/");
+    const paddedPayload = payloadSegment.padEnd(
+      Math.ceil(payloadSegment.length / 4) * 4,
+      "="
     );
-    
+
+    const payload = JSON.parse(
+      Buffer.from(paddedPayload, "base64").toString("utf-8")
+    );
+
     return payload;
   } catch {
     return null;
@@ -58,15 +66,34 @@ export function extractUserInfo(payload: Record<string, any>): {
   role: string;
   email?: string;
 } | null {
-  const userId = payload.sub || payload.userId || payload.id || payload.user_id;
-  const role = payload.role || payload.userRole || payload.user_role;
-  
+  const userId =
+    payload.sub ||
+    payload.userId ||
+    payload.UserId ||
+    payload.id ||
+    payload.user_id ||
+    payload.nameid ||
+    payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"] ||
+    payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/nameidentifier"];
+
+  const role =
+    payload.role ||
+    payload.Role ||
+    payload.userRole ||
+    payload.UserRole ||
+    payload.user_role ||
+    payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] ||
+    payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/role"];
+
   if (!userId || !role) return null;
-  
+
   return {
-    userId,
-    role,
-    email: payload.email,
+    userId: String(userId),
+    role: String(role),
+    email:
+      payload.email ||
+      payload.Email ||
+      payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"],
   };
 }
 
@@ -83,11 +110,13 @@ export function normalizeRole(role: string): string {
     ACCOUNTANT: "Staff_Accountant",
     ACCOUNTING: "Staff_Accountant",
     STAFF_ACCOUNTANT: "Staff_Accountant",
+    ACCOUNTANTSTAFF: "Staff_Accountant",
     
     MANAGER: "Staff_Manager",
     MANAGEMENT: "Staff_Manager",
     STAFF_MANAGER: "Staff_Manager",
     STAFF_MANAGEMENT: "Staff_Manager",
+    MANAGEMENTSTAFF: "Staff_Manager",
     STAFF: "Staff_Manager",
     
     TEACHER: "Teacher",

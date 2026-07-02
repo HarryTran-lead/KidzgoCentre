@@ -5,6 +5,7 @@
 
 import { getAccessToken } from "@/lib/store/authToken";
 import { ADMIN_ENDPOINTS } from "@/constants/apiURL";
+import { authFetch } from "@/lib/api/authenticatedFetch";
 import type {
   ChangeTeacherRole,
   CreateSessionRequest,
@@ -52,7 +53,7 @@ export async function generateSessionsFromPattern(
     throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại để tạo lịch học.");
   }
 
-  const res = await fetch(ADMIN_ENDPOINTS.SESSIONS_GENERATE_FROM_PATTERN, {
+  const res = await authFetch(ADMIN_ENDPOINTS.SESSIONS_GENERATE_FROM_PATTERN, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -93,7 +94,7 @@ export async function createAdminSession(
     throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại để tạo lịch học.");
   }
 
-  const res = await fetch(ADMIN_ENDPOINTS.SESSIONS, {
+  const res = await authFetch(ADMIN_ENDPOINTS.SESSIONS, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -199,7 +200,7 @@ export async function updateSessionColor(
     throw new Error("Bạn chưa đăng nhập.");
   }
 
-  const res = await fetch(`${ADMIN_ENDPOINTS.SESSIONS}/${sessionId}/color`, {
+  const res = await authFetch(`${ADMIN_ENDPOINTS.SESSIONS}/${sessionId}/color`, {
     method: "PATCH",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -234,7 +235,7 @@ export async function updateClassColor(
     throw new Error("Bạn chưa đăng nhập.");
   }
 
-  const res = await fetch(`${ADMIN_ENDPOINTS.CLASSES_COLOR(classId)}`, {
+  const res = await authFetch(`${ADMIN_ENDPOINTS.CLASSES_COLOR(classId)}`, {
     method: "PATCH",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -291,7 +292,7 @@ export async function fetchAdminSessions(
       ? `${ADMIN_ENDPOINTS.SESSIONS}?${search.toString()}`
       : ADMIN_ENDPOINTS.SESSIONS;
 
-  const res = await fetch(url, {
+  const res = await authFetch(url, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -331,7 +332,7 @@ export async function fetchAdminSessions(
 }
 
 async function fetchRawSessionForUpdate(sessionId: string, token: string): Promise<any> {
-  const res = await fetch(`${ADMIN_ENDPOINTS.SESSIONS}/${sessionId}`, {
+  const res = await authFetch(`${ADMIN_ENDPOINTS.SESSIONS}/${sessionId}`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -407,7 +408,7 @@ export async function updateAdminSession(
     throw new Error("Không thể cập nhật session vì thiếu durationMinutes hợp lệ.");
   }
 
-  const res = await fetch(`${ADMIN_ENDPOINTS.SESSIONS}/${sessionId}`, {
+  const res = await authFetch(`${ADMIN_ENDPOINTS.SESSIONS}/${sessionId}`, {
     method: "PUT",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -440,7 +441,7 @@ export async function updateAdminSessionsByClass(
     throw new Error("Bạn chưa đăng nhập.");
   }
 
-  const res = await fetch(ADMIN_ENDPOINTS.SESSIONS_BY_CLASS, {
+  const res = await authFetch(ADMIN_ENDPOINTS.SESSIONS_BY_CLASS, {
     method: "PUT",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -473,7 +474,7 @@ export async function changeSessionRoom(
     throw new Error("Bạn chưa đăng nhập.");
   }
 
-  const res = await fetch(ADMIN_ENDPOINTS.SESSIONS_CHANGE_ROOM, {
+  const res = await authFetch(ADMIN_ENDPOINTS.SESSIONS_CHANGE_ROOM, {
     method: "PATCH",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -510,7 +511,7 @@ export async function changeSessionTeacher(
     role: payload.role,
   };
 
-  const res = await fetch(ADMIN_ENDPOINTS.SESSIONS_CHANGE_TEACHER, {
+  const res = await authFetch(ADMIN_ENDPOINTS.SESSIONS_CHANGE_TEACHER, {
     method: "PATCH",
     headers: {
       Authorization: `Bearer ${token}`,
